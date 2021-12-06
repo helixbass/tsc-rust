@@ -1,3 +1,11 @@
-pub struct System {}
+use std::env;
 
-pub static SYS: System = System {};
+pub struct System {
+    pub args: Vec<String>,
+}
+
+lazy_static! {
+    pub static ref SYS: System = System {
+        args: env::args().collect(),
+    };
+}
