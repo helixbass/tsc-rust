@@ -3,16 +3,16 @@ use crate::{
     CreateProgramOptions, ParsedCommandLine, System,
 };
 
-pub fn execute_command_line(system: &System, command_line_args: &[String]) {
+pub fn execute_command_line(system: &dyn System, command_line_args: &[String]) {
     let command_line = parse_command_line(command_line_args);
     execute_command_line_worker(system, command_line)
 }
 
-fn execute_command_line_worker(sys: &System, command_line: ParsedCommandLine) {
+fn execute_command_line_worker(sys: &dyn System, command_line: ParsedCommandLine) {
     perform_compilation(sys, command_line)
 }
 
-fn perform_compilation(sys: &System, config: ParsedCommandLine) {
+fn perform_compilation(sys: &dyn System, config: ParsedCommandLine) {
     let program_options = CreateProgramOptions {
         root_names: &config.file_names,
     };

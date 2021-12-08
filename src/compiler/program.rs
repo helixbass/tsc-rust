@@ -1,10 +1,37 @@
-use crate::{CreateProgramOptions, Diagnostic, Program, SourceFile};
+use crate::{
+    for_each, get_sys, normalize_path, to_path as to_path_helper, CompilerHost,
+    CreateProgramOptions, Diagnostic, Path, Program, SourceFile, StructureIsReused, System,
+};
 
-struct ProgramConcrete {}
+fn create_compiler_host() -> impl CompilerHost {
+    create_compiler_host_worker()
+}
+
+struct CompilerHostConcrete {
+    system: &'static dyn System,
+}
+
+impl CompilerHost for CompilerHostConcrete {
+    fn get_canonical_file_name(&self, file_name: &str) -> String {
+        file_name.to_string()
+    }
+
+    fn get_current_directory(&self) -> String {
+        self.system.get_current_directory()
+    }
+}
+
+fn create_compiler_host_worker() -> impl CompilerHost {
+    CompilerHostConcrete { system: get_sys() }
+}
+
+struct ProgramConcrete {
+    files: Vec<SourceFile>,
+}
 
 impl ProgramConcrete {
-    pub fn new() -> Self {
-        ProgramConcrete {}
+    pub fn new(files: Vec<SourceFile>) -> Self {
+        ProgramConcrete { files }
     }
 
     fn get_diagnostics_helper(
@@ -27,11 +54,91 @@ impl Program for ProgramConcrete {
         self.get_diagnostics_helper(ProgramConcrete::get_semantic_diagnostics_for_file)
     }
 
-    fn get_source_files(&self) -> Vec<SourceFile> {
-        vec![]
+    fn get_source_files(&self) -> &[SourceFile] {
+        &self.files
     }
 }
 
+struct CreateProgramHelperContext<'a> {
+    processing_other_files: &'a mut Vec<SourceFile>,
+    host: &'a dyn CompilerHost,
+    current_directory: &'a str,
+}
+
 pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Program {
-    ProgramConcrete::new()
+    let CreateProgramOptions { root_names } = root_names_or_options;
+
+    let mut processing_other_files: Option<Vec<SourceFile>> = None;
+    let mut files: Vec<SourceFile> = vec![];
+
+    let host = create_compiler_host();
+
+    let current_directory = host.get_current_directory();
+
+    let structure_is_reused = StructureIsReused::Not;
+    if !matches!(structure_is_reused, StructureIsReused::Completely) {
+        processing_other_files = Some(vec![]);
+        let mut processing_other_files_present = processing_other_files.unwrap();
+        let mut helper_context = CreateProgramHelperContext {
+            processing_other_files: &mut processing_other_files_present,
+            host: &host,
+            current_directory: &current_directory,
+        };
+        for_each(root_names, &mut |name, _index| {
+            process_root_file(&mut helper_context, name);
+            Option::<()>::None
+        });
+
+        files = processing_other_files_present;
+        processing_other_files = None;
+    }
+
+    ProgramConcrete::new(files)
+}
+
+fn process_root_file(helper_context: &mut CreateProgramHelperContext, file_name: &str) {
+    process_source_file(helper_context, &normalize_path(file_name));
+}
+
+fn get_source_file_from_reference_worker(
+    file_name: &str,
+    get_source_file: &mut dyn FnMut(&str) -> Option<SourceFile>,
+) -> Option<SourceFile> {
+    get_source_file(file_name)
+}
+
+fn process_source_file(helper_context: &mut CreateProgramHelperContext, file_name: &str) {
+    get_source_file_from_reference_worker(file_name, &mut |file_name| {
+        find_source_file(helper_context, file_name)
+    });
+}
+
+fn find_source_file(
+    helper_context: &mut CreateProgramHelperContext,
+    file_name: &str,
+) -> Option<SourceFile> {
+    find_source_file_worker(helper_context, file_name)
+}
+
+fn find_source_file_worker(
+    helper_context: &mut CreateProgramHelperContext,
+    file_name: &str,
+) -> Option<SourceFile> {
+    let path = to_path(helper_context, file_name);
+    None
+}
+
+fn to_path(helper_context: &mut CreateProgramHelperContext, file_name: &str) -> Path {
+    to_path_helper(
+        file_name,
+        Some(helper_context.current_directory),
+        &mut |file_name| get_canonical_file_name(helper_context, file_name),
+    )
+}
+
+fn get_canonical_file_name(
+    helper_context: &mut CreateProgramHelperContext,
+    file_name: &str,
+) -> String {
+    helper_context.host.get_canonical_file_name(file_name)
 }
