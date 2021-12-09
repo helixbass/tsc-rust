@@ -1,5 +1,3 @@
-use crate::BaseNodeFactory;
-
 pub struct Path(String);
 
 impl Path {
@@ -13,6 +11,10 @@ pub enum SyntaxKind {
     EndOfFileToken,
     SemicolonToken,
     AsteriskToken,
+}
+
+pub struct BaseNode {
+    pub kind: SyntaxKind,
 }
 
 pub trait Node {}

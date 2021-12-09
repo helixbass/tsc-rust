@@ -1,4 +1,4 @@
-use crate::{BaseNodeFactory, EmptyStatement, NodeFactory};
+use crate::{BaseNode, BaseNodeFactory, EmptyStatement, NodeFactory, SyntaxKind};
 
 impl NodeFactory {
     pub fn create_empty_statement<TBaseNodeFactory: BaseNodeFactory>(
@@ -7,10 +7,12 @@ impl NodeFactory {
     ) -> EmptyStatement {
     }
 
-    fn create_base_node<TBaseNodeFactory: BaseNodeFactory, TNode: Node>(
+    fn create_base_node<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
-    ) -> TNode {
+        kind: SyntaxKind,
+    ) -> BaseNode {
+        base_factory.create_base_node(kind)
     }
 }
 

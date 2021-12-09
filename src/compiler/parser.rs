@@ -1,6 +1,6 @@
 use crate::{
-    create_node_factory, create_scanner, BaseNodeFactory, Node, NodeArray, NodeFactory, Scanner,
-    SourceFile, Statement, SyntaxKind,
+    create_node_factory, create_scanner, object_allocator, BaseNode, BaseNodeFactory, Node,
+    NodeArray, NodeFactory, Scanner, SourceFile, Statement, SyntaxKind,
 };
 
 pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
@@ -9,7 +9,7 @@ pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
 
 struct ParserType {
     scanner: Scanner,
-    NodeConstructor: Option<fn() -> Box<dyn Node>>,
+    NodeConstructor: Option<fn(SyntaxKind) -> BaseNode>,
     factory: NodeFactory,
     current_token: Option<SyntaxKind>,
 }
@@ -24,11 +24,11 @@ impl ParserType {
         }
     }
 
-    fn NodeConstructor(&self) -> fn() -> Box<dyn Node> {
+    fn NodeConstructor(&self) -> fn(SyntaxKind) -> BaseNode {
         self.NodeConstructor.unwrap()
     }
 
-    fn set_NodeConstructor(&mut self, NodeConstructor: fn() -> Box<dyn Node>) {
+    fn set_NodeConstructor(&mut self, NodeConstructor: fn(SyntaxKind) -> BaseNode) {
         self.NodeConstructor = Some(NodeConstructor);
     }
 
@@ -46,7 +46,7 @@ impl ParserType {
     }
 
     fn initialize_state(&mut self, _file_name: &str, _source_text: &str) {
-        self.NodeConstructor = Some(object_allocator.get_node_constructor());
+        self.set_NodeConstructor(object_allocator.get_node_constructor());
     }
 
     fn initialize_node_factory(&mut self) {}
@@ -115,8 +115,8 @@ impl ParserType {
 }
 
 impl BaseNodeFactory for ParserType {
-    fn create_base_node(&self, kind: SyntaxKind) -> Box<dyn Node> {
-        self.NodeConstructor()(kind);
+    fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
+        self.NodeConstructor()(kind)
     }
 }
 

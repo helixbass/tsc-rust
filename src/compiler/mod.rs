@@ -7,4 +7,5 @@ pub mod program;
 pub mod scanner;
 pub mod sys;
 pub mod types;
+pub mod utilities;
 pub mod watch;

@@ -1,5 +1,5 @@
-use crate::{Node, SyntaxKind};
+use crate::{BaseNode, SyntaxKind};
 
 pub trait BaseNodeFactory {
-    fn create_base_node(&self, kind: SyntaxKind) -> Box<dyn Node>;
+    fn create_base_node(&self, kind: SyntaxKind) -> BaseNode;
 }

@@ -14,9 +14,10 @@ pub use compiler::program::create_program;
 pub use compiler::scanner::{create_scanner, Scanner};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
-    CharacterCodes, CompilerHost, CreateProgramOptions, Diagnostic, EmptyStatement, ExitStatus,
-    ModuleResolutionHost, Node, NodeArray, NodeFactory, ParsedCommandLine, Path, Program,
-    SourceFile, Statement, StructureIsReused, SyntaxKind,
+    BaseNode, CharacterCodes, CompilerHost, CreateProgramOptions, Diagnostic, EmptyStatement,
+    ExitStatus, ModuleResolutionHost, Node, NodeArray, NodeFactory, ParsedCommandLine, Path,
+    Program, SourceFile, Statement, StructureIsReused, SyntaxKind,
 };
+pub use compiler::utilities::object_allocator;
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;
