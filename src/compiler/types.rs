@@ -1,3 +1,5 @@
+use crate::BaseNodeFactory;
+
 pub struct Path(String);
 
 impl Path {
@@ -5,6 +7,23 @@ impl Path {
         Self(string)
     }
 }
+
+#[derive(Copy, Clone)]
+pub enum SyntaxKind {
+    EndOfFileToken,
+    SemicolonToken,
+    AsteriskToken,
+}
+
+pub trait Node {}
+
+pub struct NodeArray<TItem: Node> {
+    _nodes: Vec<TItem>,
+}
+
+pub trait Statement: Node {}
+
+pub struct EmptyStatement {}
 
 pub struct SourceFile {}
 
@@ -34,12 +53,20 @@ pub struct CreateProgramOptions<'config> {
 #[non_exhaustive]
 pub struct CharacterCodes;
 impl CharacterCodes {
+    pub const asterisk: char = '*';
     pub const slash: char = '/';
 }
 
-pub trait CompilerHost {
+pub trait ModuleResolutionHost {
+    fn read_file(&self, file_name: &str) -> Option<String>;
+}
+
+pub trait CompilerHost: ModuleResolutionHost {
+    fn get_source_file(&self, file_name: &str) -> Option<SourceFile>;
     fn get_current_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
 }
 
 pub struct Diagnostic {}
+
+pub struct NodeFactory {}

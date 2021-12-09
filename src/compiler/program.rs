@@ -1,6 +1,7 @@
 use crate::{
-    for_each, get_sys, normalize_path, to_path as to_path_helper, CompilerHost,
-    CreateProgramOptions, Diagnostic, Path, Program, SourceFile, StructureIsReused, System,
+    create_source_file, for_each, get_sys, normalize_path, to_path as to_path_helper, CompilerHost,
+    CreateProgramOptions, Diagnostic, ModuleResolutionHost, Path, Program, SourceFile,
+    StructureIsReused, System,
 };
 
 fn create_compiler_host() -> impl CompilerHost {
@@ -11,7 +12,21 @@ struct CompilerHostConcrete {
     system: &'static dyn System,
 }
 
+impl ModuleResolutionHost for CompilerHostConcrete {
+    fn read_file(&self, file_name: &str) -> Option<String> {
+        self.system.read_file(file_name)
+    }
+}
+
 impl CompilerHost for CompilerHostConcrete {
+    fn get_source_file(&self, file_name: &str) -> Option<SourceFile> {
+        let text = self.read_file(file_name);
+        match text {
+            Some(text) => Some(create_source_file(file_name, &text)),
+            None => None,
+        }
+    }
+
     fn get_canonical_file_name(&self, file_name: &str) -> String {
         file_name.to_string()
     }
@@ -125,7 +140,10 @@ fn find_source_file_worker(
     file_name: &str,
 ) -> Option<SourceFile> {
     let path = to_path(helper_context, file_name);
-    None
+
+    let file = helper_context.host.get_source_file(file_name);
+
+    file
 }
 
 fn to_path(helper_context: &mut CreateProgramHelperContext, file_name: &str) -> Path {
