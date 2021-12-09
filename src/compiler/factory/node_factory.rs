@@ -5,6 +5,9 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
     ) -> EmptyStatement {
+        EmptyStatement {
+            _node: self.create_base_node(base_factory, SyntaxKind::EmptyStatement),
+        }
     }
 
     fn create_base_node<TBaseNodeFactory: BaseNodeFactory>(

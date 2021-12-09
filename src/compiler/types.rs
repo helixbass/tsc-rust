@@ -11,13 +11,22 @@ pub enum SyntaxKind {
     EndOfFileToken,
     SemicolonToken,
     AsteriskToken,
+    EmptyStatement,
 }
 
 pub struct BaseNode {
     pub kind: SyntaxKind,
 }
 
-pub trait Node {}
+impl Node for BaseNode {
+    fn kind(&self) -> SyntaxKind {
+        self.kind
+    }
+}
+
+pub trait Node {
+    fn kind(&self) -> SyntaxKind;
+}
 
 pub struct NodeArray<TItem: Node> {
     _nodes: Vec<TItem>,
@@ -25,7 +34,17 @@ pub struct NodeArray<TItem: Node> {
 
 pub trait Statement: Node {}
 
-pub struct EmptyStatement {}
+pub struct EmptyStatement {
+    _node: BaseNode,
+}
+
+impl Node for EmptyStatement {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind
+    }
+}
+
+impl Statement for EmptyStatement {}
 
 pub struct SourceFile {}
 
