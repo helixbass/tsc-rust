@@ -77,7 +77,8 @@ impl ParserType {
     fn parse_source_file_worker(&mut self) -> SourceFile {
         self.next_token();
 
-        let statements = self.parse_list(ParserType::parse_statement);
+        let statements =
+            self.parse_list(ParsingContext::SourceElements, ParserType::parse_statement);
     }
 
     fn parse_error_at_current_token(&self, message: &DiagnosticMessage) {
@@ -122,6 +123,10 @@ impl ParserType {
         self.next_token_without_check()
     }
 
+    fn is_identifier(&self) -> bool {
+        false
+    }
+
     fn parse_expected(&self, kind: SyntaxKind, should_advance: Option<bool>) -> bool {
         let should_advance = should_advance.unwrap_or(true);
         if matches!(self.token(), kind) {
@@ -135,10 +140,7 @@ impl ParserType {
         false
     }
 
-    fn create_node_array<TParsedNode: Node>(
-        &self,
-        elements: Vec<TParsedNode>,
-    ) -> NodeArray<TParsedNode> {
+    fn create_node_array(&self, elements: Vec<Box<dyn Node>>) -> NodeArray {
         self.factory.create_node_array(elements)
     }
 
@@ -150,6 +152,13 @@ impl ParserType {
         Box::new(node)
     }
 
+    fn is_list_element(&self, kind: ParsingContext) -> bool {
+        match kind {
+            ParsingContext::SourceElements => self.is_start_of_statement(),
+            _ => panic!("Unimplemented"),
+        }
+    }
+
     fn is_list_terminator(&self) -> bool {
         if matches!(self.token(), SyntaxKind::EndOfFileToken) {
             return true;
@@ -157,15 +166,46 @@ impl ParserType {
         false
     }
 
-    fn parse_list<TParsedNode: Node>(
+    fn parse_list(
         &self,
-        parse_element: fn(&ParserType) -> TParsedNode,
-    ) -> NodeArray<TParsedNode> {
+        kind: ParsingContext,
+        parse_element: fn(&ParserType) -> Box<dyn Node>,
+    ) -> NodeArray {
         let mut list = vec![];
 
-        while !self.is_list_terminator() {}
+        while !self.is_list_terminator() {
+            if self.is_list_element(kind) {
+                list.push(self.parse_list_element(kind, parse_element));
+
+                continue;
+            }
+        }
 
         self.create_node_array(list)
+    }
+
+    fn parse_list_element(
+        &self,
+        parsing_context: ParsingContext,
+        parse_element: fn(&ParserType) -> Box<dyn Node>,
+    ) -> Box<dyn Node> {
+        parse_element(&self)
+    }
+
+    fn is_start_of_left_hand_side_expression(&self) -> bool {
+        match self.token() {
+            _ => self.is_identifier(),
+        }
+    }
+
+    fn is_start_of_expression(&self) -> bool {
+        if self.is_start_of_left_hand_side_expression() {
+            return true;
+        }
+
+        match self.token() {
+            _ => self.is_identifier(),
+        }
     }
 
     // fn parse_expression(&self) -> Box<dyn Expression> {}
@@ -179,6 +219,13 @@ impl ParserType {
     fn parse_empty_statement(&self) -> Box<dyn Statement> {
         self.parse_expected(SyntaxKind::SemicolonToken, None);
         self.finish_node(self.factory.create_empty_statement(self))
+    }
+
+    fn is_start_of_statement(&self) -> bool {
+        match self.token() {
+            SyntaxKind::SemicolonToken => true,
+            _ => self.is_start_of_expression(),
+        }
     }
 
     fn parse_statement(&self) -> Box<dyn Statement> {
@@ -200,4 +247,9 @@ impl BaseNodeFactory for ParserType {
 
 lazy_static! {
     static ref Parser: ParserType = ParserType::new();
+}
+
+#[derive(Copy, Clone)]
+enum ParsingContext {
+    SourceElements,
 }

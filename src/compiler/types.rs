@@ -28,8 +28,8 @@ pub trait Node {
     fn kind(&self) -> SyntaxKind;
 }
 
-pub struct NodeArray<TItem: Node> {
-    _nodes: Vec<TItem>,
+pub struct NodeArray {
+    _nodes: Vec<Box<dyn Node>>,
 }
 
 pub trait Statement: Node {}
