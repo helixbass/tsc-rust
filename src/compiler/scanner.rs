@@ -10,6 +10,14 @@ pub struct Scanner {
 }
 
 impl Scanner {
+    pub fn get_text_pos(&self) -> usize {
+        self.pos()
+    }
+
+    pub fn get_token_pos(&self) -> usize {
+        self.token_pos()
+    }
+
     pub fn scan(&mut self) -> SyntaxKind {
         self.set_start_pos(self.pos());
 

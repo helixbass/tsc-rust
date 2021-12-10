@@ -51,21 +51,24 @@ impl ProgramConcrete {
 
     fn get_diagnostics_helper(
         &self,
-        get_diagnostics: fn(&ProgramConcrete, &SourceFile) -> Vec<Diagnostic>,
-    ) -> Vec<Diagnostic> {
+        get_diagnostics: fn(&ProgramConcrete, &SourceFile) -> Vec<Box<dyn Diagnostic>>,
+    ) -> Vec<Box<dyn Diagnostic>> {
         self.get_source_files()
             .iter()
             .flat_map(|source_file| get_diagnostics(self, source_file))
             .collect()
     }
 
-    fn get_semantic_diagnostics_for_file(&self, source_file: &SourceFile) -> Vec<Diagnostic> {
+    fn get_semantic_diagnostics_for_file(
+        &self,
+        source_file: &SourceFile,
+    ) -> Vec<Box<dyn Diagnostic>> {
         vec![]
     }
 }
 
 impl Program for ProgramConcrete {
-    fn get_semantic_diagnostics(&self) -> Vec<Diagnostic> {
+    fn get_semantic_diagnostics(&self) -> Vec<Box<dyn Diagnostic>> {
         self.get_diagnostics_helper(ProgramConcrete::get_semantic_diagnostics_for_file)
     }
 

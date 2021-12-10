@@ -50,7 +50,7 @@ pub struct SourceFile {}
 
 pub trait Program {
     fn get_source_files(&self) -> &[SourceFile];
-    fn get_semantic_diagnostics(&self) -> Vec<Diagnostic>;
+    fn get_semantic_diagnostics(&self) -> Vec<Box<dyn Diagnostic>>;
 }
 
 pub enum StructureIsReused {
@@ -88,6 +88,32 @@ pub trait CompilerHost: ModuleResolutionHost {
     fn get_canonical_file_name(&self, file_name: &str) -> String;
 }
 
-pub struct Diagnostic {}
+pub struct DiagnosticMessage {
+    key: String,
+    category: DiagnosticCategory,
+    code: u32,
+    message: String,
+}
+
+pub trait Diagnostic: DiagnosticRelatedInformation {}
+
+pub trait DiagnosticRelatedInformation {}
+
+pub struct DiagnosticWithDetachedLocation {
+    pub file_name: String,
+    pub start: usize,
+    pub length: usize,
+}
+
+impl DiagnosticRelatedInformation for DiagnosticWithDetachedLocation {}
+
+impl Diagnostic for DiagnosticWithDetachedLocation {}
+
+pub enum DiagnosticCategory {
+    Warning,
+    Error,
+    Suggestion,
+    Message,
+}
 
 pub struct NodeFactory {}
