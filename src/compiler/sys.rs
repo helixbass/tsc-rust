@@ -36,7 +36,7 @@ impl System for SystemConcrete {
 
 lazy_static! {
     static ref SYS: SystemConcrete = SystemConcrete {
-        args: env::args().collect(),
+        args: env::args().skip(1).collect(),
     };
 }
 

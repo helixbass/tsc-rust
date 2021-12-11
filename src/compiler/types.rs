@@ -10,6 +10,7 @@ impl Path {
 
 #[derive(Copy, Clone)]
 pub enum SyntaxKind {
+    Unknown,
     EndOfFileToken,
     SemicolonToken,
     AsteriskToken,
@@ -119,6 +120,7 @@ pub enum ExitStatus {
     DiagnosticsPresent_OutputsGenerated,
 }
 
+#[derive(Debug)]
 pub struct ParsedCommandLine {
     pub file_names: Vec<String>,
 }

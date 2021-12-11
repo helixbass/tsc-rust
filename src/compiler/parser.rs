@@ -95,6 +95,8 @@ impl ParserType {
         self.set_file_name(&normalize_path(_file_name));
 
         self.set_parse_diagnostics(vec![]);
+
+        self.scanner.set_text(Some(_source_text), None, None);
     }
 
     fn parse_source_file_worker(&mut self) -> SourceFile {

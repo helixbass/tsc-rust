@@ -41,6 +41,29 @@ impl Scanner {
         }
     }
 
+    pub fn set_text(
+        &mut self,
+        new_text: Option<&str>,
+        start: Option<usize>,
+        length: Option<usize>,
+    ) {
+        let text = new_text.unwrap_or("");
+        self.set_text_(text);
+        self.set_end(match length {
+            None => text.len(),
+            Some(length) => start.unwrap() + length,
+        });
+        self.set_text_pos(start.unwrap_or(0));
+    }
+
+    pub fn set_text_pos(&mut self, text_pos: usize) {
+        // Debug_.assert(text_pos >= 0);
+        self.set_pos(text_pos);
+        self.set_start_pos(text_pos);
+        self.set_token_pos(text_pos);
+        self.set_token(SyntaxKind::Unknown);
+    }
+
     fn new() -> Self {
         Scanner {
             text: None,
@@ -56,6 +79,10 @@ impl Scanner {
         self.text.as_ref().unwrap()
     }
 
+    fn set_text_(&mut self, text: &str) {
+        self.text = Some(text.to_string());
+    }
+
     fn pos(&self) -> usize {
         self.pos.unwrap()
     }
@@ -66,6 +93,10 @@ impl Scanner {
 
     fn end(&self) -> usize {
         self.end.unwrap()
+    }
+
+    fn set_end(&mut self, end: usize) {
+        self.end = Some(end);
     }
 
     fn start_pos(&self) -> usize {
