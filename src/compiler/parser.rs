@@ -1,8 +1,8 @@
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner, last_or_undefined,
-    object_allocator, BaseNode, BaseNodeFactory, DiagnosticMessage, DiagnosticWithDetachedLocation,
-    Diagnostics, Node, NodeArray, NodeFactory, NodeInterface, Scanner, SourceFile, Statement,
-    SyntaxKind,
+    object_allocator, BaseNode, BaseNodeFactory, Debug_, DiagnosticMessage,
+    DiagnosticWithDetachedLocation, Diagnostics, Node, NodeArray, NodeFactory, NodeInterface,
+    Scanner, SourceFile, Statement, SyntaxKind,
 };
 
 pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
@@ -80,6 +80,7 @@ impl ParserType {
 
         let statements =
             self.parse_list(ParsingContext::SourceElements, ParserType::parse_statement);
+        Debug_.assert(matches!(self.token(), SyntaxKind::EndOfFileToken));
     }
 
     fn parse_error_at_current_token(&self, message: &DiagnosticMessage) {

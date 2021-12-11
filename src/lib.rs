@@ -6,6 +6,7 @@ mod execute_command_line;
 
 pub use compiler::command_line_parser::parse_command_line;
 pub use compiler::core::{for_each, last_or_undefined};
+pub use compiler::debug::Debug_;
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::factory::base_node_factory::BaseNodeFactory;
 pub use compiler::factory::node_factory::create_node_factory;
