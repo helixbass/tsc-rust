@@ -140,16 +140,16 @@ impl ParserType {
         false
     }
 
-    fn create_node_array(&self, elements: Vec<Box<dyn Node>>) -> NodeArray {
+    fn create_node_array(&self, elements: Vec<Node>) -> NodeArray {
         self.factory.create_node_array(elements)
     }
 
-    fn finish_node<TParsedNode: Node>(&self, node: TParsedNode) -> Box<TParsedNode> {
+    fn finish_node<TParsedNode: Into<Node>>(&self, node: TParsedNode) -> TParsedNode {
         if self.parse_error_before_next_finished_node {
             self.parse_error_before_next_finished_node = false;
         }
 
-        Box::new(node)
+        node
     }
 
     fn is_list_element(&self, kind: ParsingContext) -> bool {
@@ -166,16 +166,16 @@ impl ParserType {
         false
     }
 
-    fn parse_list(
+    fn parse_list<TItem: Into<Node>>(
         &self,
         kind: ParsingContext,
-        parse_element: fn(&ParserType) -> Box<dyn Node>,
+        parse_element: fn(&ParserType) -> TItem,
     ) -> NodeArray {
         let mut list = vec![];
 
         while !self.is_list_terminator() {
             if self.is_list_element(kind) {
-                list.push(self.parse_list_element(kind, parse_element));
+                list.push(self.parse_list_element(kind, parse_element).into());
 
                 continue;
             }
@@ -184,11 +184,11 @@ impl ParserType {
         self.create_node_array(list)
     }
 
-    fn parse_list_element(
+    fn parse_list_element<TItem: Into<Node>>(
         &self,
         parsing_context: ParsingContext,
-        parse_element: fn(&ParserType) -> Box<dyn Node>,
-    ) -> Box<dyn Node> {
+        parse_element: fn(&ParserType) -> TItem,
+    ) -> TItem {
         parse_element(&self)
     }
 
@@ -216,9 +216,9 @@ impl ParserType {
     //     Box::new(self.finish_node(node))
     // }
 
-    fn parse_empty_statement(&self) -> Box<dyn Statement> {
+    fn parse_empty_statement(&self) -> Statement {
         self.parse_expected(SyntaxKind::SemicolonToken, None);
-        self.finish_node(self.factory.create_empty_statement(self))
+        self.finish_node(self.factory.create_empty_statement(self).into())
     }
 
     fn is_start_of_statement(&self) -> bool {
@@ -228,7 +228,7 @@ impl ParserType {
         }
     }
 
-    fn parse_statement(&self) -> Box<dyn Statement> {
+    fn parse_statement(&self) -> Statement {
         match self.token() {
             SyntaxKind::SemicolonToken => self.parse_empty_statement(),
             _ => {

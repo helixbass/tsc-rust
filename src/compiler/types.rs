@@ -18,33 +18,55 @@ pub struct BaseNode {
     pub kind: SyntaxKind,
 }
 
-impl Node for BaseNode {
+pub enum Node {
+    Statement(Statement),
+}
+
+impl Node {
     fn kind(&self) -> SyntaxKind {
-        self.kind
+        match self {
+            Node::Statement(statement) => statement.kind(),
+        }
     }
 }
 
-pub trait Node {
-    fn kind(&self) -> SyntaxKind;
-}
-
 pub struct NodeArray {
-    _nodes: Vec<Box<dyn Node>>,
+    _nodes: Vec<Node>,
 }
 
-pub trait Statement: Node {}
+pub enum Statement {
+    EmptyStatement(EmptyStatement),
+}
+
+impl Statement {
+    fn kind(&self) -> SyntaxKind {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.kind(),
+        }
+    }
+}
+
+impl From<Statement> for Node {
+    fn from(statement: Statement) -> Self {
+        Node::Statement(statement)
+    }
+}
 
 pub struct EmptyStatement {
     _node: BaseNode,
 }
 
-impl Node for EmptyStatement {
+impl EmptyStatement {
     fn kind(&self) -> SyntaxKind {
         self._node.kind
     }
 }
 
-impl Statement for EmptyStatement {}
+impl From<EmptyStatement> for Statement {
+    fn from(empty_statement: EmptyStatement) -> Self {
+        Statement::EmptyStatement(empty_statement)
+    }
+}
 
 pub struct SourceFile {}
 
