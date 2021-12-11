@@ -134,6 +134,7 @@ pub struct CharacterCodes;
 #[allow(non_upper_case_globals)]
 impl CharacterCodes {
     pub const asterisk: char = '*';
+    pub const semicolon: char = ';';
     pub const slash: char = '/';
 }
 

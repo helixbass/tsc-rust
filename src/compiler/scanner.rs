@@ -33,6 +33,10 @@ impl Scanner {
                     self.set_pos(self.pos() + 1);
                     return self.set_token(SyntaxKind::AsteriskToken);
                 }
+                CharacterCodes::semicolon => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::SemicolonToken);
+                }
                 _ch => {
                     panic!("Unimplemented");
                     // let identifier_kind = self.scan_identifier(ch);
