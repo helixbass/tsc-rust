@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     create_source_file, for_each, get_sys, normalize_path, to_path as to_path_helper, CompilerHost,
     CreateProgramOptions, Diagnostic, ModuleResolutionHost, Path, Program, SourceFile,
@@ -21,10 +23,7 @@ impl ModuleResolutionHost for CompilerHostConcrete {
 impl CompilerHost for CompilerHostConcrete {
     fn get_source_file(&self, file_name: &str) -> Option<SourceFile> {
         let text = self.read_file(file_name);
-        match text {
-            Some(text) => Some(create_source_file(file_name, &text)),
-            None => None,
-        }
+        text.map(|text| create_source_file(file_name, &text))
     }
 
     fn get_canonical_file_name(&self, file_name: &str) -> String {
@@ -41,11 +40,11 @@ fn create_compiler_host_worker() -> impl CompilerHost {
 }
 
 struct ProgramConcrete {
-    files: Vec<SourceFile>,
+    files: Vec<Rc<SourceFile>>,
 }
 
 impl ProgramConcrete {
-    pub fn new(files: Vec<SourceFile>) -> Self {
+    pub fn new(files: Vec<Rc<SourceFile>>) -> Self {
         ProgramConcrete { files }
     }
 
@@ -61,7 +60,7 @@ impl ProgramConcrete {
 
     fn get_semantic_diagnostics_for_file(
         &self,
-        source_file: &SourceFile,
+        _source_file: &SourceFile,
     ) -> Vec<Box<dyn Diagnostic>> {
         vec![]
     }
@@ -72,13 +71,13 @@ impl Program for ProgramConcrete {
         self.get_diagnostics_helper(ProgramConcrete::get_semantic_diagnostics_for_file)
     }
 
-    fn get_source_files(&self) -> &[SourceFile] {
+    fn get_source_files(&self) -> &[Rc<SourceFile>] {
         &self.files
     }
 }
 
 struct CreateProgramHelperContext<'a> {
-    processing_other_files: &'a mut Vec<SourceFile>,
+    processing_other_files: &'a mut Vec<Rc<SourceFile>>,
     host: &'a dyn CompilerHost,
     current_directory: &'a str,
 }
@@ -86,8 +85,8 @@ struct CreateProgramHelperContext<'a> {
 pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Program {
     let CreateProgramOptions { root_names } = root_names_or_options;
 
-    let mut processing_other_files: Option<Vec<SourceFile>> = None;
-    let mut files: Vec<SourceFile> = vec![];
+    let mut processing_other_files: Option<Vec<Rc<SourceFile>>> = None;
+    let mut files: Vec<Rc<SourceFile>> = vec![];
 
     let host = create_compiler_host();
 
@@ -120,8 +119,8 @@ fn process_root_file(helper_context: &mut CreateProgramHelperContext, file_name:
 
 fn get_source_file_from_reference_worker(
     file_name: &str,
-    get_source_file: &mut dyn FnMut(&str) -> Option<SourceFile>,
-) -> Option<SourceFile> {
+    get_source_file: &mut dyn FnMut(&str) -> Option<Rc<SourceFile>>,
+) -> Option<Rc<SourceFile>> {
     get_source_file(file_name)
 }
 
@@ -134,19 +133,23 @@ fn process_source_file(helper_context: &mut CreateProgramHelperContext, file_nam
 fn find_source_file(
     helper_context: &mut CreateProgramHelperContext,
     file_name: &str,
-) -> Option<SourceFile> {
+) -> Option<Rc<SourceFile>> {
     find_source_file_worker(helper_context, file_name)
 }
 
 fn find_source_file_worker(
     helper_context: &mut CreateProgramHelperContext,
     file_name: &str,
-) -> Option<SourceFile> {
-    let path = to_path(helper_context, file_name);
+) -> Option<Rc<SourceFile>> {
+    let _path = to_path(helper_context, file_name);
 
     let file = helper_context.host.get_source_file(file_name);
 
-    file
+    file.map(|file| {
+        let file = Rc::new(file);
+        helper_context.processing_other_files.push(file.clone());
+        file
+    })
 }
 
 fn to_path(helper_context: &mut CreateProgramHelperContext, file_name: &str) -> Path {

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 pub struct Path(String);
 
 impl Path {
@@ -12,6 +14,7 @@ pub enum SyntaxKind {
     SemicolonToken,
     AsteriskToken,
     EmptyStatement,
+    SourceFile,
 }
 
 pub struct BaseNode {
@@ -38,6 +41,29 @@ pub struct NodeArray {
     _nodes: Vec<Node>,
 }
 
+impl NodeArray {
+    pub fn new(nodes: Vec<Node>) -> Self {
+        NodeArray { _nodes: nodes }
+    }
+}
+
+pub enum NodeArrayOrVec {
+    NodeArray(NodeArray),
+    Vec(Vec<Node>),
+}
+
+impl From<NodeArray> for NodeArrayOrVec {
+    fn from(node_array: NodeArray) -> Self {
+        NodeArrayOrVec::NodeArray(node_array)
+    }
+}
+
+impl From<Vec<Node>> for NodeArrayOrVec {
+    fn from(vec: Vec<Node>) -> Self {
+        NodeArrayOrVec::Vec(vec)
+    }
+}
+
 pub enum Statement {
     EmptyStatement(EmptyStatement),
 }
@@ -57,7 +83,7 @@ impl From<Statement> for Node {
 }
 
 pub struct EmptyStatement {
-    _node: BaseNode,
+    pub _node: BaseNode,
 }
 
 impl NodeInterface for EmptyStatement {
@@ -72,10 +98,13 @@ impl From<EmptyStatement> for Statement {
     }
 }
 
-pub struct SourceFile {}
+pub struct SourceFile {
+    pub _node: BaseNode,
+    pub statements: NodeArray,
+}
 
 pub trait Program {
-    fn get_source_files(&self) -> &[SourceFile];
+    fn get_source_files(&self) -> &[Rc<SourceFile>];
     fn get_semantic_diagnostics(&self) -> Vec<Box<dyn Diagnostic>>;
 }
 
@@ -86,6 +115,7 @@ pub enum StructureIsReused {
 
 pub enum ExitStatus {
     Success,
+    #[allow(non_camel_case_types)]
     DiagnosticsPresent_OutputsGenerated,
 }
 
@@ -99,6 +129,7 @@ pub struct CreateProgramOptions<'config> {
 
 #[non_exhaustive]
 pub struct CharacterCodes;
+#[allow(non_upper_case_globals)]
 impl CharacterCodes {
     pub const asterisk: char = '*';
     pub const slash: char = '/';
@@ -115,10 +146,10 @@ pub trait CompilerHost: ModuleResolutionHost {
 }
 
 pub struct DiagnosticMessage {
-    key: String,
-    category: DiagnosticCategory,
-    code: u32,
-    message: String,
+    pub key: &'static str,
+    pub category: DiagnosticCategory,
+    pub code: u32,
+    pub message: &'static str,
 }
 
 pub trait Diagnostic: DiagnosticRelatedInformation {}

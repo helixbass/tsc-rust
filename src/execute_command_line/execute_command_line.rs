@@ -12,10 +12,10 @@ fn execute_command_line_worker(sys: &dyn System, command_line: ParsedCommandLine
     perform_compilation(sys, command_line)
 }
 
-fn perform_compilation(sys: &dyn System, config: ParsedCommandLine) {
+fn perform_compilation(_sys: &dyn System, config: ParsedCommandLine) {
     let program_options = CreateProgramOptions {
         root_names: &config.file_names,
     };
     let program = create_program(program_options);
-    let exit_status = emit_files_and_report_errors_and_get_exit_status(program);
+    let _exit_status = emit_files_and_report_errors_and_get_exit_status(program);
 }

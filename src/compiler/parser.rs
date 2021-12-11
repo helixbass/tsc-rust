@@ -1,17 +1,23 @@
+#![allow(non_upper_case_globals)]
+
+use std::sync::{Mutex, MutexGuard};
+
 use crate::{
-    create_detached_diagnostic, create_node_factory, create_scanner, last_or_undefined,
-    object_allocator, BaseNode, BaseNodeFactory, Debug_, DiagnosticMessage,
-    DiagnosticWithDetachedLocation, Diagnostics, Node, NodeArray, NodeFactory, NodeInterface,
-    Scanner, SourceFile, Statement, SyntaxKind,
+    create_detached_diagnostic, create_node_factory, create_scanner, is_same_variant,
+    last_or_undefined, normalize_path, object_allocator, BaseNode, BaseNodeFactory, Debug_,
+    DiagnosticMessage, DiagnosticWithDetachedLocation, Diagnostics, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeInterface, Scanner, SourceFile, Statement, SyntaxKind,
 };
 
 pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
-    Parser.parse_source_file(file_name, source_text)
+    Parser().parse_source_file(file_name, source_text)
 }
 
+#[allow(non_snake_case)]
 struct ParserType {
     scanner: Scanner,
     NodeConstructor: Option<fn(SyntaxKind) -> BaseNode>,
+    SourceFileConstructor: Option<fn(SyntaxKind) -> BaseNode>,
     factory: NodeFactory,
     file_name: Option<String>,
     parse_diagnostics: Option<Vec<DiagnosticWithDetachedLocation>>,
@@ -24,6 +30,7 @@ impl ParserType {
         ParserType {
             scanner: create_scanner(),
             NodeConstructor: None,
+            SourceFileConstructor: None,
             factory: create_node_factory(),
             file_name: None,
             parse_diagnostics: None,
@@ -32,24 +39,36 @@ impl ParserType {
         }
     }
 
+    #[allow(non_snake_case)]
     fn NodeConstructor(&self) -> fn(SyntaxKind) -> BaseNode {
         self.NodeConstructor.unwrap()
     }
 
+    #[allow(non_snake_case)]
     fn set_NodeConstructor(&mut self, NodeConstructor: fn(SyntaxKind) -> BaseNode) {
         self.NodeConstructor = Some(NodeConstructor);
     }
 
+    #[allow(non_snake_case)]
+    fn SourceFileConstructor(&self) -> fn(SyntaxKind) -> BaseNode {
+        self.SourceFileConstructor.unwrap()
+    }
+
+    #[allow(non_snake_case)]
+    fn set_SourceFileConstructor(&mut self, SourceFileConstructor: fn(SyntaxKind) -> BaseNode) {
+        self.SourceFileConstructor = Some(SourceFileConstructor);
+    }
+
     fn file_name(&self) -> &str {
-        &self.file_name.unwrap()
+        self.file_name.as_ref().unwrap()
     }
 
     fn set_file_name(&mut self, file_name: &str) {
         self.file_name = Some(file_name.to_string());
     }
 
-    fn parse_diagnostics(&self) -> &Vec<DiagnosticWithDetachedLocation> {
-        &self.parse_diagnostics.unwrap()
+    fn parse_diagnostics(&mut self) -> &mut Vec<DiagnosticWithDetachedLocation> {
+        self.parse_diagnostics.as_mut().unwrap()
     }
 
     fn set_parse_diagnostics(&mut self, parse_diagnostics: Vec<DiagnosticWithDetachedLocation>) {
@@ -71,9 +90,12 @@ impl ParserType {
 
     fn initialize_state(&mut self, _file_name: &str, _source_text: &str) {
         self.set_NodeConstructor(object_allocator.get_node_constructor());
-    }
+        self.set_SourceFileConstructor(object_allocator.get_source_file_constructor());
 
-    fn initialize_node_factory(&mut self) {}
+        self.set_file_name(&normalize_path(_file_name));
+
+        self.set_parse_diagnostics(vec![]);
+    }
 
     fn parse_source_file_worker(&mut self) -> SourceFile {
         self.next_token();
@@ -81,9 +103,21 @@ impl ParserType {
         let statements =
             self.parse_list(ParsingContext::SourceElements, ParserType::parse_statement);
         Debug_.assert(matches!(self.token(), SyntaxKind::EndOfFileToken));
+
+        let source_file = self.create_source_file(self.file_name(), statements);
+
+        source_file
     }
 
-    fn parse_error_at_current_token(&self, message: &DiagnosticMessage) {
+    fn create_source_file<TNodes: Into<NodeArrayOrVec>>(
+        &self,
+        _file_name: &str,
+        statements: TNodes,
+    ) -> SourceFile {
+        self.factory.create_source_file(self, statements)
+    }
+
+    fn parse_error_at_current_token(&mut self, message: &DiagnosticMessage) {
         self.parse_error_at(
             self.scanner.get_token_pos(),
             self.scanner.get_text_pos(),
@@ -91,24 +125,27 @@ impl ParserType {
         );
     }
 
-    fn parse_error_at_position(&self, start: usize, length: usize, message: &DiagnosticMessage) {
+    fn parse_error_at_position(
+        &mut self,
+        start: usize,
+        length: usize,
+        message: &DiagnosticMessage,
+    ) {
         let last_error = last_or_undefined(self.parse_diagnostics());
         if match last_error {
             None => true,
             Some(last_error) => last_error.start != start,
         } {
+            let file_name = self.file_name().to_string();
             self.parse_diagnostics().push(create_detached_diagnostic(
-                self.file_name(),
-                start,
-                length,
-                message,
+                &file_name, start, length, message,
             ));
         }
 
         self.parse_error_before_next_finished_node = true;
     }
 
-    fn parse_error_at(&self, start: usize, end: usize, message: &DiagnosticMessage) {
+    fn parse_error_at(&mut self, start: usize, end: usize, message: &DiagnosticMessage) {
         self.parse_error_at_position(start, end - start, message);
     }
 
@@ -117,7 +154,8 @@ impl ParserType {
     }
 
     fn next_token_without_check(&mut self) -> SyntaxKind {
-        self.set_current_token(self.scanner.scan());
+        let current_token = self.scanner.scan();
+        self.set_current_token(current_token);
         self.current_token()
     }
 
@@ -129,9 +167,9 @@ impl ParserType {
         false
     }
 
-    fn parse_expected(&self, kind: SyntaxKind, should_advance: Option<bool>) -> bool {
+    fn parse_expected(&mut self, kind: SyntaxKind, should_advance: Option<bool>) -> bool {
         let should_advance = should_advance.unwrap_or(true);
-        if matches!(self.token(), kind) {
+        if is_same_variant(&self.token(), &kind) {
             if should_advance {
                 self.next_token();
             }
@@ -146,7 +184,7 @@ impl ParserType {
         self.factory.create_node_array(elements)
     }
 
-    fn finish_node<TParsedNode: NodeInterface>(&self, node: TParsedNode) -> TParsedNode {
+    fn finish_node<TParsedNode: NodeInterface>(&mut self, node: TParsedNode) -> TParsedNode {
         if self.parse_error_before_next_finished_node {
             self.parse_error_before_next_finished_node = false;
         }
@@ -169,9 +207,9 @@ impl ParserType {
     }
 
     fn parse_list<TItem: Into<Node>>(
-        &self,
+        &mut self,
         kind: ParsingContext,
-        parse_element: fn(&ParserType) -> TItem,
+        parse_element: fn(&mut ParserType) -> TItem,
     ) -> NodeArray {
         let mut list = vec![];
 
@@ -187,11 +225,11 @@ impl ParserType {
     }
 
     fn parse_list_element<TItem: Into<Node>>(
-        &self,
-        parsing_context: ParsingContext,
-        parse_element: fn(&ParserType) -> TItem,
+        &mut self,
+        _parsing_context: ParsingContext,
+        parse_element: fn(&mut ParserType) -> TItem,
     ) -> TItem {
-        parse_element(&self)
+        parse_element(self)
     }
 
     fn is_start_of_left_hand_side_expression(&self) -> bool {
@@ -218,7 +256,7 @@ impl ParserType {
     //     Box::new(self.finish_node(node))
     // }
 
-    fn parse_empty_statement(&self) -> Statement {
+    fn parse_empty_statement(&mut self) -> Statement {
         self.parse_expected(SyntaxKind::SemicolonToken, None);
         self.finish_node(self.factory.create_empty_statement(self).into())
     }
@@ -230,7 +268,7 @@ impl ParserType {
         }
     }
 
-    fn parse_statement(&self) -> Statement {
+    fn parse_statement(&mut self) -> Statement {
         match self.token() {
             SyntaxKind::SemicolonToken => self.parse_empty_statement(),
             _ => {
@@ -242,13 +280,22 @@ impl ParserType {
 }
 
 impl BaseNodeFactory for ParserType {
+    fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
+        self.SourceFileConstructor()(kind)
+    }
+
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
         self.NodeConstructor()(kind)
     }
 }
 
 lazy_static! {
-    static ref Parser: ParserType = ParserType::new();
+    static ref ParserMut: Mutex<ParserType> = Mutex::new(ParserType::new());
+}
+
+#[allow(non_snake_case)]
+fn Parser() -> MutexGuard<'static, ParserType> {
+    ParserMut.lock().unwrap()
 }
 
 #[derive(Copy, Clone)]

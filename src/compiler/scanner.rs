@@ -33,7 +33,7 @@ impl Scanner {
                     self.set_pos(self.pos() + 1);
                     return self.set_token(SyntaxKind::AsteriskToken);
                 }
-                ch => {
+                _ch => {
                     panic!("Unimplemented");
                     // let identifier_kind = self.scan_identifier(ch);
                 }
@@ -53,7 +53,7 @@ impl Scanner {
     }
 
     fn text(&self) -> &str {
-        &self.text.unwrap()
+        self.text.as_ref().unwrap()
     }
 
     fn pos(&self) -> usize {
@@ -90,7 +90,7 @@ impl Scanner {
 
     fn set_token(&mut self, token: SyntaxKind) -> SyntaxKind {
         self.token = Some(token);
-        return token;
+        token
     }
 
     // fn scan_identifier(&self, start_character: char) -> {

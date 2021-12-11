@@ -1,5 +1,6 @@
 use crate::{last_or_undefined, CharacterCodes, Path};
 
+#[allow(non_upper_case_globals)]
 static directory_separator: &str = "/";
 
 fn is_any_directory_separator(char_code: char) -> bool {
@@ -7,7 +8,7 @@ fn is_any_directory_separator(char_code: char) -> bool {
 }
 
 fn has_trailing_directory_separator(path: &str) -> bool {
-    path.len() > 0 && is_any_directory_separator(path.chars().last().unwrap())
+    !path.is_empty() && is_any_directory_separator(path.chars().last().unwrap())
 }
 
 fn get_encoded_root_length(path: &str) -> usize {
@@ -76,15 +77,15 @@ fn reduce_path_components(components: Vec<String>) -> Vec<String> {
 fn combine_paths(path: &str, paths: &str) -> String {
     let paths = [paths];
     let mut path = path.to_string();
-    if path.len() > 0 {
+    if !path.is_empty() {
         path = normalize_slashes(&path);
     }
     for relative_path in paths {
-        if relative_path.len() == 0 {
+        if relative_path.is_empty() {
             continue;
         }
         let relative_path = normalize_slashes(relative_path);
-        if path.len() == 0 || get_root_length(&relative_path) != 0 {
+        if path.is_empty() || get_root_length(&relative_path) != 0 {
             path = relative_path;
         } else {
             path = ensure_trailing_directory_separator(&path);
