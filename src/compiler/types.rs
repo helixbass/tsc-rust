@@ -8,7 +8,7 @@ impl Path {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
@@ -18,6 +18,7 @@ pub enum SyntaxKind {
     SourceFile,
 }
 
+#[derive(Debug)]
 pub struct BaseNode {
     pub kind: SyntaxKind,
 }
@@ -26,6 +27,7 @@ pub trait NodeInterface {
     fn kind(&self) -> SyntaxKind;
 }
 
+#[derive(Debug)]
 pub enum Node {
     Statement(Statement),
 }
@@ -38,6 +40,7 @@ impl NodeInterface for Node {
     }
 }
 
+#[derive(Debug)]
 pub struct NodeArray {
     _nodes: Vec<Node>,
 }
@@ -65,6 +68,7 @@ impl From<Vec<Node>> for NodeArrayOrVec {
     }
 }
 
+#[derive(Debug)]
 pub enum Statement {
     EmptyStatement(EmptyStatement),
 }
@@ -83,6 +87,7 @@ impl From<Statement> for Node {
     }
 }
 
+#[derive(Debug)]
 pub struct EmptyStatement {
     pub _node: BaseNode,
 }
@@ -99,6 +104,7 @@ impl From<EmptyStatement> for Statement {
     }
 }
 
+#[derive(Debug)]
 pub struct SourceFile {
     pub _node: BaseNode,
     pub statements: NodeArray,

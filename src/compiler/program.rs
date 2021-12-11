@@ -107,6 +107,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Progr
         });
 
         files = processing_other_files_present;
+        println!("{:?}", files);
         processing_other_files = None;
     }
 
