@@ -18,11 +18,15 @@ pub struct BaseNode {
     pub kind: SyntaxKind,
 }
 
+pub trait NodeInterface {
+    fn kind(&self) -> SyntaxKind;
+}
+
 pub enum Node {
     Statement(Statement),
 }
 
-impl Node {
+impl NodeInterface for Node {
     fn kind(&self) -> SyntaxKind {
         match self {
             Node::Statement(statement) => statement.kind(),
@@ -38,7 +42,7 @@ pub enum Statement {
     EmptyStatement(EmptyStatement),
 }
 
-impl Statement {
+impl NodeInterface for Statement {
     fn kind(&self) -> SyntaxKind {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.kind(),
@@ -56,7 +60,7 @@ pub struct EmptyStatement {
     _node: BaseNode,
 }
 
-impl EmptyStatement {
+impl NodeInterface for EmptyStatement {
     fn kind(&self) -> SyntaxKind {
         self._node.kind
     }
