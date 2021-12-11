@@ -1,7 +1,8 @@
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner, last_or_undefined,
     object_allocator, BaseNode, BaseNodeFactory, DiagnosticMessage, DiagnosticWithDetachedLocation,
-    Diagnostics, Node, NodeArray, NodeFactory, Scanner, SourceFile, Statement, SyntaxKind,
+    Diagnostics, Node, NodeArray, NodeFactory, NodeInterface, Scanner, SourceFile, Statement,
+    SyntaxKind,
 };
 
 pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
@@ -144,7 +145,7 @@ impl ParserType {
         self.factory.create_node_array(elements)
     }
 
-    fn finish_node<TParsedNode: Into<Node>>(&self, node: TParsedNode) -> TParsedNode {
+    fn finish_node<TParsedNode: NodeInterface>(&self, node: TParsedNode) -> TParsedNode {
         if self.parse_error_before_next_finished_node {
             self.parse_error_before_next_finished_node = false;
         }

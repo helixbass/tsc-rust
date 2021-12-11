@@ -17,8 +17,8 @@ pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
     BaseNode, CharacterCodes, CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory,
     DiagnosticMessage, DiagnosticWithDetachedLocation, EmptyStatement, ExitStatus,
-    ModuleResolutionHost, Node, NodeArray, NodeFactory, ParsedCommandLine, Path, Program,
-    SourceFile, Statement, StructureIsReused, SyntaxKind,
+    ModuleResolutionHost, Node, NodeArray, NodeFactory, NodeInterface, ParsedCommandLine, Path,
+    Program, SourceFile, Statement, StructureIsReused, SyntaxKind,
 };
 pub use compiler::utilities::{create_detached_diagnostic, object_allocator};
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;

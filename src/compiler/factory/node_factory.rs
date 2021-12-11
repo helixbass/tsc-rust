@@ -1,6 +1,10 @@
-use crate::{BaseNode, BaseNodeFactory, EmptyStatement, NodeFactory, SyntaxKind};
+use crate::{BaseNode, BaseNodeFactory, EmptyStatement, Node, NodeArray, NodeFactory, SyntaxKind};
 
 impl NodeFactory {
+    pub fn create_node_array(&self, elements: Vec<Node>) -> NodeArray {
+        NodeArray { _nodes: elements }
+    }
+
     pub fn create_empty_statement<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
