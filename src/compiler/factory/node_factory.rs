@@ -1,7 +1,7 @@
 use crate::{
-    BaseLiteralLikeNode, BaseNode, BaseNodeFactory, EmptyStatement, Expression,
-    ExpressionStatement, Identifier, NodeArray, NodeArrayOrVec, NodeFactory, NumericLiteral,
-    SourceFile, SyntaxKind,
+    BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, EmptyStatement, Expression,
+    ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NumericLiteral,
+    SourceFile, SyntaxKind, Token,
 };
 
 impl NodeFactory {
@@ -67,6 +67,41 @@ impl NodeFactory {
         kind: SyntaxKind,
     ) -> BaseNode {
         base_factory.create_base_token_node(kind)
+    }
+
+    pub fn create_token<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        token: SyntaxKind,
+    ) -> Token {
+        let node = self.create_base_token(base_factory, token);
+        Token { _node: node }
+    }
+
+    fn create_base_expression<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+    ) -> BaseNode {
+        let node = self.create_base_node(base_factory, kind);
+        node
+    }
+
+    pub fn create_binary_expression<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Expression,
+        operator: Node,
+        right: Expression,
+    ) -> BinaryExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::BinaryExpression);
+        let node = BinaryExpression {
+            _node: node,
+            left: Box::new(left),
+            operator_token: Box::new(operator),
+            right: Box::new(right),
+        };
+        node
     }
 
     pub fn create_empty_statement<TBaseNodeFactory: BaseNodeFactory>(
