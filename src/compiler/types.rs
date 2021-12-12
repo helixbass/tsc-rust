@@ -306,6 +306,7 @@ pub struct CreateProgramOptions<'config> {
 pub struct CharacterCodes;
 #[allow(non_upper_case_globals)]
 impl CharacterCodes {
+    pub const space: char = ' ';
     pub const _0: char = '0';
     pub const _1: char = '1';
     pub const _2: char = '2';

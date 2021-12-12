@@ -44,7 +44,7 @@ struct ParserType {
 impl ParserType {
     fn new() -> Self {
         ParserType {
-            scanner: create_scanner(),
+            scanner: create_scanner(true),
             NodeConstructor: None,
             IdentifierConstructor: None,
             TokenConstructor: None,
