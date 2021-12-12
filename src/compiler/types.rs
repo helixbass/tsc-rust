@@ -239,6 +239,7 @@ pub trait Program {
     fn get_semantic_diagnostics(&self) -> Vec<Box<dyn Diagnostic>>;
 }
 
+#[derive(Eq, PartialEq)]
 pub enum StructureIsReused {
     Not,
     Completely,

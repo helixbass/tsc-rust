@@ -66,7 +66,7 @@ impl Scanner {
                     return self.set_token(SyntaxKind::SemicolonToken);
                 }
                 _ch => {
-                    panic!("Unimplemented");
+                    unimplemented!();
                     // let identifier_kind = self.scan_identifier(ch);
                 }
             }
@@ -81,10 +81,7 @@ impl Scanner {
     ) {
         let text = new_text.unwrap_or("");
         self.set_text_(text);
-        self.set_end(match length {
-            None => text.len(),
-            Some(length) => start.unwrap() + length,
-        });
+        self.set_end(length.map_or(text.len(), |length| start.unwrap() + length));
         self.set_text_pos(start.unwrap_or(0));
     }
 

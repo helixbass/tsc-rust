@@ -42,7 +42,7 @@ struct ParserType {
 }
 
 impl ParserType {
-    fn new() -> ParserType {
+    fn new() -> Self {
         ParserType {
             scanner: create_scanner(),
             NodeConstructor: None,
@@ -174,10 +174,7 @@ impl ParserType {
         message: &DiagnosticMessage,
     ) {
         let last_error = last_or_undefined(self.parse_diagnostics());
-        if match last_error {
-            None => true,
-            Some(last_error) => last_error.start != start,
-        } {
+        if last_error.map_or(true, |last_error| last_error.start != start) {
             let file_name = self.file_name().to_string();
             self.parse_diagnostics().push(create_detached_diagnostic(
                 &file_name, start, length, message,
@@ -268,7 +265,7 @@ impl ParserType {
     fn is_list_element(&self, kind: ParsingContext) -> bool {
         match kind {
             ParsingContext::SourceElements => self.is_start_of_statement(),
-            _ => panic!("Unimplemented"),
+            _ => unimplemented!(),
         }
     }
 
