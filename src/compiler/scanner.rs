@@ -38,7 +38,7 @@ impl Scanner {
                     return self.set_token(SyntaxKind::SemicolonToken);
                 }
                 _ch => {
-                    panic!("Unimplemented");
+                    unimplemented!();
                     // let identifier_kind = self.scan_identifier(ch);
                 }
             }

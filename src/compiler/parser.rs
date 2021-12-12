@@ -194,7 +194,7 @@ impl ParserType {
     fn is_list_element(&self, kind: ParsingContext) -> bool {
         match kind {
             ParsingContext::SourceElements => self.is_start_of_statement(),
-            _ => panic!("Unimplemented"),
+            _ => unimplemented!(),
         }
     }
 
@@ -272,7 +272,7 @@ impl ParserType {
             SyntaxKind::SemicolonToken => self.parse_empty_statement(),
             _ => {
                 // self.parse_expression_or_labeled_statement()
-                panic!("Unimplemented")
+                unimplemented!()
             }
         }
     }
