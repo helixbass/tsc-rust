@@ -18,11 +18,14 @@ pub use compiler::scanner::{create_scanner, Scanner};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
     BaseNode, CharacterCodes, CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory,
-    DiagnosticMessage, DiagnosticWithDetachedLocation, EmptyStatement, ExitStatus,
-    ModuleResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    DiagnosticMessage, DiagnosticWithDetachedLocation, EmptyStatement, ExitStatus, Expression,
+    Identifier, ModuleResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
     ParsedCommandLine, Path, Program, SourceFile, Statement, StructureIsReused, SyntaxKind,
 };
-pub use compiler::utilities::{create_detached_diagnostic, object_allocator};
+pub use compiler::utilities::{
+    create_detached_diagnostic, get_binary_operator_precedence, object_allocator,
+    OperatorPrecedence,
+};
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::is_same_variant;

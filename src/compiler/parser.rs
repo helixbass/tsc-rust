@@ -3,20 +3,35 @@
 use std::sync::{Mutex, MutexGuard};
 
 use crate::{
-    create_detached_diagnostic, create_node_factory, create_scanner, is_same_variant,
-    last_or_undefined, normalize_path, object_allocator, BaseNode, BaseNodeFactory, Debug_,
-    DiagnosticMessage, DiagnosticWithDetachedLocation, Diagnostics, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, Scanner, SourceFile, Statement, SyntaxKind,
+    create_detached_diagnostic, create_node_factory, create_scanner,
+    get_binary_operator_precedence, is_same_variant, last_or_undefined, normalize_path,
+    object_allocator, BaseNode, BaseNodeFactory, Debug_, DiagnosticMessage,
+    DiagnosticWithDetachedLocation, Diagnostics, Expression, Identifier, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeInterface, OperatorPrecedence, Scanner, SourceFile, Statement,
+    SyntaxKind,
 };
 
 pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
     Parser().parse_source_file(file_name, source_text)
 }
 
+enum MissingNode {
+    Identifier(Identifier),
+}
+
+impl NodeInterface for MissingNode {
+    fn kind(&self) -> SyntaxKind {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.kind(),
+        }
+    }
+}
+
 #[allow(non_snake_case)]
 struct ParserType {
     scanner: Scanner,
     NodeConstructor: Option<fn(SyntaxKind) -> BaseNode>,
+    IdentifierConstructor: Option<fn(SyntaxKind) -> BaseNode>,
     SourceFileConstructor: Option<fn(SyntaxKind) -> BaseNode>,
     factory: NodeFactory,
     file_name: Option<String>,
@@ -30,6 +45,7 @@ impl ParserType {
         ParserType {
             scanner: create_scanner(),
             NodeConstructor: None,
+            IdentifierConstructor: None,
             SourceFileConstructor: None,
             factory: create_node_factory(),
             file_name: None,
@@ -47,6 +63,16 @@ impl ParserType {
     #[allow(non_snake_case)]
     fn set_NodeConstructor(&mut self, NodeConstructor: fn(SyntaxKind) -> BaseNode) {
         self.NodeConstructor = Some(NodeConstructor);
+    }
+
+    #[allow(non_snake_case)]
+    fn IdentifierConstructor(&self) -> fn(SyntaxKind) -> BaseNode {
+        self.IdentifierConstructor.unwrap()
+    }
+
+    #[allow(non_snake_case)]
+    fn set_IdentifierConstructor(&mut self, IdentifierConstructor: fn(SyntaxKind) -> BaseNode) {
+        self.IdentifierConstructor = Some(IdentifierConstructor);
     }
 
     #[allow(non_snake_case)]
@@ -90,6 +116,7 @@ impl ParserType {
 
     fn initialize_state(&mut self, _file_name: &str, _source_text: &str) {
         self.set_NodeConstructor(object_allocator.get_node_constructor());
+        self.set_IdentifierConstructor(object_allocator.get_identifier_constructor());
         self.set_SourceFileConstructor(object_allocator.get_source_file_constructor());
 
         self.set_file_name(&normalize_path(_file_name));
@@ -194,6 +221,37 @@ impl ParserType {
         node
     }
 
+    fn create_missing_node(
+        &self,
+        kind: SyntaxKind,
+        diagnostic_message: DiagnosticMessage,
+    ) -> MissingNode {
+        self.parse_error_at_current_token(&diagnostic_message);
+
+        let result = MissingNode::Identifier(self.factory.create_identifier(self, ""));
+        self.finish_node(result)
+    }
+
+    fn create_identifier(
+        &self,
+        is_identifier: bool,
+        diagnostic_message: Option<DiagnosticMessage>,
+    ) -> Identifier {
+        let default_message = Diagnostics::Identifier_expected;
+
+        match self.create_missing_node(
+            SyntaxKind::Identifier,
+            diagnostic_message.unwrap_or(default_message),
+        ) {
+            MissingNode::Identifier(identifier) => identifier,
+            _ => panic!("Expected identifier"),
+        }
+    }
+
+    fn parse_identifier(&self, diagnostic_message: Option<DiagnosticMessage>) -> Identifier {
+        self.create_identifier(self.is_identifier(), diagnostic_message)
+    }
+
     fn is_list_element(&self, kind: ParsingContext) -> bool {
         match kind {
             ParsingContext::SourceElements => self.is_start_of_statement(),
@@ -250,13 +308,87 @@ impl ParserType {
         }
     }
 
-    // fn parse_expression(&self) -> Box<dyn Expression> {}
+    fn parse_expression(&self) -> Expression {
+        let expr = self.parse_assignment_expression_or_higher();
 
-    // fn parse_expression_or_labeled_statement(&self) -> Box<dyn Statement> {
-    //     let expression = self.parse_expression();
-    //     let node = self.factory.create_expression_statement(expression);
-    //     Box::new(self.finish_node(node))
-    // }
+        expr
+    }
+
+    fn parse_assignment_expression_or_higher(&self) -> Expression {
+        let expr = self.parse_binary_expression_or_higher(OperatorPrecedence::Lowest);
+
+        self.parse_conditional_expression_rest(expr)
+    }
+
+    fn parse_conditional_expression_rest(&self, left_operand: Expression) -> Expression {
+        left_operand
+    }
+
+    fn parse_binary_expression_or_higher(&self, precedence: OperatorPrecedence) -> Expression {
+        let left_operand = self.parse_unary_expression_or_higher();
+        self.parse_binary_expression_rest(precedence, left_operand)
+    }
+
+    fn parse_binary_expression_rest(
+        &self,
+        precedence: OperatorPrecedence,
+        left_operand: Expression,
+    ) -> Expression {
+        loop {
+            let new_precedence = get_binary_operator_precedence(self.token());
+
+            let consume_current_operator = new_precedence > precedence;
+
+            if !consume_current_operator {
+                break;
+            }
+        }
+
+        left_operand
+    }
+
+    fn parse_unary_expression_or_higher(&self) -> Expression {
+        if self.is_update_expression() {
+            let update_expression = self.parse_update_expression();
+            return update_expression;
+        }
+
+        panic!("Unimplemented");
+    }
+
+    fn is_update_expression(&self) -> bool {
+        match self.token() {
+            _ => true,
+        }
+    }
+
+    fn parse_update_expression(&self) -> Expression {
+        let expression = self.parse_left_hand_side_expression_or_higher();
+
+        expression
+    }
+
+    fn parse_left_hand_side_expression_or_higher(&self) -> Expression {
+        let expression = self.parse_member_expression_or_higher();
+
+        self.parse_call_expression_rest(expression)
+    }
+
+    fn parse_member_expression_or_higher(&self) -> Expression {
+        let expression = self.parse_primary_expression();
+        self.parse_member_expression_rest(expression)
+    }
+
+    fn parse_primary_expression(&self) -> Expression {
+        self.parse_identifier(Some(Diagnostics::Expression_expected))
+            .into()
+    }
+
+    fn parse_expression_or_labeled_statement(&self) -> Statement {
+        let expression = self.parse_expression();
+        let node = self.factory.create_expression_statement(expression);
+        self.finish_node(node.into())
+    }
 
     fn parse_empty_statement(&mut self) -> Statement {
         self.parse_expected(SyntaxKind::SemicolonToken, None);
@@ -273,10 +405,7 @@ impl ParserType {
     fn parse_statement(&mut self) -> Statement {
         match self.token() {
             SyntaxKind::SemicolonToken => self.parse_empty_statement(),
-            _ => {
-                // self.parse_expression_or_labeled_statement()
-                panic!("Unimplemented")
-            }
+            _ => self.parse_expression_or_labeled_statement(),
         }
     }
 }
@@ -284,6 +413,10 @@ impl ParserType {
 impl BaseNodeFactory for ParserType {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
         self.SourceFileConstructor()(kind)
+    }
+
+    fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
+        self.IdentifierConstructor()(kind)
     }
 
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {

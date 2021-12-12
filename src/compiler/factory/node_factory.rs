@@ -1,6 +1,6 @@
 use crate::{
-    BaseNode, BaseNodeFactory, EmptyStatement, NodeArray, NodeArrayOrVec, NodeFactory, SourceFile,
-    SyntaxKind,
+    BaseNode, BaseNodeFactory, EmptyStatement, Identifier, NodeArray, NodeArrayOrVec, NodeFactory,
+    SourceFile, SyntaxKind,
 };
 
 impl NodeFactory {
@@ -12,6 +12,28 @@ impl NodeFactory {
             NodeArrayOrVec::NodeArray(node_array) => node_array,
             NodeArrayOrVec::Vec(elements) => NodeArray::new(elements),
         }
+    }
+
+    fn create_base_identifier<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: &str,
+    ) -> Identifier {
+        let node = base_factory.create_base_identifier_node(SyntaxKind::Identifier);
+        let node = Identifier {
+            _node: node,
+            escaped_text: text.to_string(),
+        };
+        node
+    }
+
+    pub fn create_identifier<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: &str,
+    ) -> Identifier {
+        let node = self.create_base_identifier(base_factory, text);
+        node
     }
 
     pub fn create_empty_statement<TBaseNodeFactory: BaseNodeFactory>(

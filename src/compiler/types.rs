@@ -14,6 +14,7 @@ pub enum SyntaxKind {
     EndOfFileToken,
     SemicolonToken,
     AsteriskToken,
+    Identifier,
     EmptyStatement,
     SourceFile,
 }
@@ -29,6 +30,7 @@ pub trait NodeInterface {
 
 #[derive(Debug)]
 pub enum Node {
+    Expression(Expression),
     Statement(Statement),
 }
 
@@ -65,6 +67,43 @@ impl From<NodeArray> for NodeArrayOrVec {
 impl From<Vec<Node>> for NodeArrayOrVec {
     fn from(vec: Vec<Node>) -> Self {
         NodeArrayOrVec::Vec(vec)
+    }
+}
+
+#[derive(Debug)]
+pub struct Identifier {
+    pub _node: BaseNode,
+    pub escaped_text: String,
+}
+
+impl NodeInterface for Identifier {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind
+    }
+}
+
+impl From<Identifier> for Expression {
+    fn from(identifier: Identifier) -> Self {
+        Expression::Identifier(identifier)
+    }
+}
+
+#[derive(Debug)]
+pub enum Expression {
+    Identifier(Identifier),
+}
+
+impl NodeInterface for Expression {
+    fn kind(&self) -> SyntaxKind {
+        match self {
+            Expression::Identifier(identifier) => identifier.kind(),
+        }
+    }
+}
+
+impl From<Expression> for Node {
+    fn from(expression: Expression) -> Self {
+        Node::Expression(expression)
     }
 }
 
