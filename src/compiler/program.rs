@@ -93,7 +93,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Progr
     let current_directory = host.get_current_directory();
 
     let structure_is_reused = StructureIsReused::Not;
-    if !matches!(structure_is_reused, StructureIsReused::Completely) {
+    if structure_is_reused != StructureIsReused::Completely {
         processing_other_files = Some(vec![]);
         let mut processing_other_files_present = processing_other_files.unwrap();
         let mut helper_context = CreateProgramHelperContext {
