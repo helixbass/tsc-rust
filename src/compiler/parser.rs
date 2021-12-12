@@ -134,10 +134,7 @@ impl ParserType {
         message: &DiagnosticMessage,
     ) {
         let last_error = last_or_undefined(self.parse_diagnostics());
-        if match last_error {
-            None => true,
-            Some(last_error) => last_error.start != start,
-        } {
+        if last_error.map_or(true, |last_error| last_error.start != start) {
             let file_name = self.file_name().to_string();
             self.parse_diagnostics().push(create_detached_diagnostic(
                 &file_name, start, length, message,
