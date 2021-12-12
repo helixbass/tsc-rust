@@ -26,7 +26,7 @@ struct ParserType {
 }
 
 impl ParserType {
-    fn new() -> ParserType {
+    fn new() -> Self {
         ParserType {
             scanner: create_scanner(),
             NodeConstructor: None,
