@@ -273,7 +273,7 @@ impl ParserType {
     }
 
     fn is_list_terminator(&self) -> bool {
-        if matches!(self.token(), SyntaxKind::EndOfFileToken) {
+        if self.token() == SyntaxKind::EndOfFileToken {
             return true;
         }
         false
