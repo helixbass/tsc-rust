@@ -1,6 +1,6 @@
 use crate::{
-    BaseNode, BaseNodeFactory, EmptyStatement, Identifier, NodeArray, NodeArrayOrVec, NodeFactory,
-    SourceFile, SyntaxKind,
+    BaseNode, BaseNodeFactory, EmptyStatement, Expression, ExpressionStatement, Identifier,
+    NodeArray, NodeArrayOrVec, NodeFactory, SourceFile, SyntaxKind,
 };
 
 impl NodeFactory {
@@ -42,6 +42,17 @@ impl NodeFactory {
     ) -> EmptyStatement {
         EmptyStatement {
             _node: self.create_base_node(base_factory, SyntaxKind::EmptyStatement),
+        }
+    }
+
+    pub fn create_expression_statement<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Expression,
+    ) -> ExpressionStatement {
+        ExpressionStatement {
+            _node: self.create_base_node(base_factory, SyntaxKind::ExpressionStatement),
+            expression,
         }
     }
 

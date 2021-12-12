@@ -16,6 +16,7 @@ pub enum SyntaxKind {
     AsteriskToken,
     Identifier,
     EmptyStatement,
+    ExpressionStatement,
     SourceFile,
 }
 
@@ -38,6 +39,7 @@ impl NodeInterface for Node {
     fn kind(&self) -> SyntaxKind {
         match self {
             Node::Statement(statement) => statement.kind(),
+            Node::Expression(expression) => expression.kind(),
         }
     }
 }
@@ -110,12 +112,14 @@ impl From<Expression> for Node {
 #[derive(Debug)]
 pub enum Statement {
     EmptyStatement(EmptyStatement),
+    ExpressionStatement(ExpressionStatement),
 }
 
 impl NodeInterface for Statement {
     fn kind(&self) -> SyntaxKind {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.kind(),
+            Statement::ExpressionStatement(expression_statement) => expression_statement.kind(),
         }
     }
 }
@@ -140,6 +144,24 @@ impl NodeInterface for EmptyStatement {
 impl From<EmptyStatement> for Statement {
     fn from(empty_statement: EmptyStatement) -> Self {
         Statement::EmptyStatement(empty_statement)
+    }
+}
+
+#[derive(Debug)]
+pub struct ExpressionStatement {
+    pub _node: BaseNode,
+    pub expression: Expression,
+}
+
+impl NodeInterface for ExpressionStatement {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind
+    }
+}
+
+impl From<ExpressionStatement> for Statement {
+    fn from(expression_statement: ExpressionStatement) -> Self {
+        Statement::ExpressionStatement(expression_statement)
     }
 }
 

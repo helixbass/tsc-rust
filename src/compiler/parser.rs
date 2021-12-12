@@ -222,7 +222,7 @@ impl ParserType {
     }
 
     fn create_missing_node(
-        &self,
+        &mut self,
         kind: SyntaxKind,
         diagnostic_message: DiagnosticMessage,
     ) -> MissingNode {
@@ -233,7 +233,7 @@ impl ParserType {
     }
 
     fn create_identifier(
-        &self,
+        &mut self,
         is_identifier: bool,
         diagnostic_message: Option<DiagnosticMessage>,
     ) -> Identifier {
@@ -248,7 +248,7 @@ impl ParserType {
         }
     }
 
-    fn parse_identifier(&self, diagnostic_message: Option<DiagnosticMessage>) -> Identifier {
+    fn parse_identifier(&mut self, diagnostic_message: Option<DiagnosticMessage>) -> Identifier {
         self.create_identifier(self.is_identifier(), diagnostic_message)
     }
 
@@ -308,13 +308,13 @@ impl ParserType {
         }
     }
 
-    fn parse_expression(&self) -> Expression {
+    fn parse_expression(&mut self) -> Expression {
         let expr = self.parse_assignment_expression_or_higher();
 
         expr
     }
 
-    fn parse_assignment_expression_or_higher(&self) -> Expression {
+    fn parse_assignment_expression_or_higher(&mut self) -> Expression {
         let expr = self.parse_binary_expression_or_higher(OperatorPrecedence::Lowest);
 
         self.parse_conditional_expression_rest(expr)
@@ -324,7 +324,7 @@ impl ParserType {
         left_operand
     }
 
-    fn parse_binary_expression_or_higher(&self, precedence: OperatorPrecedence) -> Expression {
+    fn parse_binary_expression_or_higher(&mut self, precedence: OperatorPrecedence) -> Expression {
         let left_operand = self.parse_unary_expression_or_higher();
         self.parse_binary_expression_rest(precedence, left_operand)
     }
@@ -347,7 +347,7 @@ impl ParserType {
         left_operand
     }
 
-    fn parse_unary_expression_or_higher(&self) -> Expression {
+    fn parse_unary_expression_or_higher(&mut self) -> Expression {
         if self.is_update_expression() {
             let update_expression = self.parse_update_expression();
             return update_expression;
@@ -362,31 +362,41 @@ impl ParserType {
         }
     }
 
-    fn parse_update_expression(&self) -> Expression {
+    fn parse_update_expression(&mut self) -> Expression {
         let expression = self.parse_left_hand_side_expression_or_higher();
 
         expression
     }
 
-    fn parse_left_hand_side_expression_or_higher(&self) -> Expression {
+    fn parse_left_hand_side_expression_or_higher(&mut self) -> Expression {
         let expression = self.parse_member_expression_or_higher();
 
         self.parse_call_expression_rest(expression)
     }
 
-    fn parse_member_expression_or_higher(&self) -> Expression {
+    fn parse_member_expression_or_higher(&mut self) -> Expression {
         let expression = self.parse_primary_expression();
         self.parse_member_expression_rest(expression)
     }
 
-    fn parse_primary_expression(&self) -> Expression {
+    fn parse_member_expression_rest(&self, expression: Expression) -> Expression {
+        loop {
+            return expression;
+        }
+    }
+
+    fn parse_call_expression_rest(&self, expression: Expression) -> Expression {
+        expression
+    }
+
+    fn parse_primary_expression(&mut self) -> Expression {
         self.parse_identifier(Some(Diagnostics::Expression_expected))
             .into()
     }
 
-    fn parse_expression_or_labeled_statement(&self) -> Statement {
+    fn parse_expression_or_labeled_statement(&mut self) -> Statement {
         let expression = self.parse_expression();
-        let node = self.factory.create_expression_statement(expression);
+        let node = self.factory.create_expression_statement(self, expression);
         self.finish_node(node.into())
     }
 
