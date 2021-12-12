@@ -6,9 +6,9 @@ use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
     get_binary_operator_precedence, is_same_variant, last_or_undefined, normalize_path,
     object_allocator, BaseNode, BaseNodeFactory, Debug_, DiagnosticMessage,
-    DiagnosticWithDetachedLocation, Diagnostics, Expression, Identifier, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, OperatorPrecedence, Scanner, SourceFile, Statement,
-    SyntaxKind,
+    DiagnosticWithDetachedLocation, Diagnostics, Expression, Identifier, LiteralLikeNode, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, OperatorPrecedence, Scanner, SourceFile,
+    Statement, SyntaxKind,
 };
 
 pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
@@ -32,6 +32,7 @@ struct ParserType {
     scanner: Scanner,
     NodeConstructor: Option<fn(SyntaxKind) -> BaseNode>,
     IdentifierConstructor: Option<fn(SyntaxKind) -> BaseNode>,
+    TokenConstructor: Option<fn(SyntaxKind) -> BaseNode>,
     SourceFileConstructor: Option<fn(SyntaxKind) -> BaseNode>,
     factory: NodeFactory,
     file_name: Option<String>,
@@ -46,6 +47,7 @@ impl ParserType {
             scanner: create_scanner(),
             NodeConstructor: None,
             IdentifierConstructor: None,
+            TokenConstructor: None,
             SourceFileConstructor: None,
             factory: create_node_factory(),
             file_name: None,
@@ -73,6 +75,16 @@ impl ParserType {
     #[allow(non_snake_case)]
     fn set_IdentifierConstructor(&mut self, IdentifierConstructor: fn(SyntaxKind) -> BaseNode) {
         self.IdentifierConstructor = Some(IdentifierConstructor);
+    }
+
+    #[allow(non_snake_case)]
+    fn TokenConstructor(&self) -> fn(SyntaxKind) -> BaseNode {
+        self.TokenConstructor.unwrap()
+    }
+
+    #[allow(non_snake_case)]
+    fn set_TokenConstructor(&mut self, TokenConstructor: fn(SyntaxKind) -> BaseNode) {
+        self.TokenConstructor = Some(TokenConstructor);
     }
 
     #[allow(non_snake_case)]
@@ -117,6 +129,7 @@ impl ParserType {
     fn initialize_state(&mut self, _file_name: &str, _source_text: &str) {
         self.set_NodeConstructor(object_allocator.get_node_constructor());
         self.set_IdentifierConstructor(object_allocator.get_identifier_constructor());
+        self.set_TokenConstructor(object_allocator.get_token_constructor());
         self.set_SourceFileConstructor(object_allocator.get_source_file_constructor());
 
         self.set_file_name(&normalize_path(_file_name));
@@ -292,6 +305,23 @@ impl ParserType {
         parse_element(self)
     }
 
+    fn parse_literal_node(&mut self) -> LiteralLikeNode {
+        self.parse_literal_like_node(self.token())
+    }
+
+    fn parse_literal_like_node(&mut self, kind: SyntaxKind) -> LiteralLikeNode {
+        let node: LiteralLikeNode = if kind == SyntaxKind::NumericLiteral {
+            self.factory
+                .create_numeric_literal(self, self.scanner.get_token_value())
+                .into()
+        } else {
+            Debug_.fail(None)
+        };
+
+        self.next_token();
+        self.finish_node(node)
+    }
+
     fn is_start_of_left_hand_side_expression(&self) -> bool {
         match self.token() {
             _ => self.is_identifier(),
@@ -304,7 +334,13 @@ impl ParserType {
         }
 
         match self.token() {
-            _ => self.is_identifier(),
+            _ => {
+                if self.is_binary_operator() {
+                    return true;
+                }
+
+                self.is_identifier()
+            }
         }
     }
 
@@ -345,6 +381,10 @@ impl ParserType {
         }
 
         left_operand
+    }
+
+    fn is_binary_operator(&self) -> bool {
+        get_binary_operator_precedence(self.token()) > OperatorPrecedence::Comma
     }
 
     fn parse_unary_expression_or_higher(&mut self) -> Expression {
@@ -390,6 +430,11 @@ impl ParserType {
     }
 
     fn parse_primary_expression(&mut self) -> Expression {
+        match self.token() {
+            SyntaxKind::NumericLiteral => return self.parse_literal_node().into(),
+            _ => (),
+        }
+
         self.parse_identifier(Some(Diagnostics::Expression_expected))
             .into()
     }
@@ -427,6 +472,10 @@ impl BaseNodeFactory for ParserType {
 
     fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
         self.IdentifierConstructor()(kind)
+    }
+
+    fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
+        self.TokenConstructor()(kind)
     }
 
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {

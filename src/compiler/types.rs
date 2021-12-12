@@ -8,10 +8,11 @@ impl Path {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
+    NumericLiteral,
     SemicolonToken,
     AsteriskToken,
     Identifier,
@@ -38,8 +39,8 @@ pub enum Node {
 impl NodeInterface for Node {
     fn kind(&self) -> SyntaxKind {
         match self {
-            Node::Statement(statement) => statement.kind(),
             Node::Expression(expression) => expression.kind(),
+            Node::Statement(statement) => statement.kind(),
         }
     }
 }
@@ -93,12 +94,14 @@ impl From<Identifier> for Expression {
 #[derive(Debug)]
 pub enum Expression {
     Identifier(Identifier),
+    LiteralLikeNode(LiteralLikeNode),
 }
 
 impl NodeInterface for Expression {
     fn kind(&self) -> SyntaxKind {
         match self {
             Expression::Identifier(identifier) => identifier.kind(),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.kind(),
         }
     }
 }
@@ -106,6 +109,66 @@ impl NodeInterface for Expression {
 impl From<Expression> for Node {
     fn from(expression: Expression) -> Self {
         Node::Expression(expression)
+    }
+}
+
+#[derive(Debug)]
+pub struct BaseLiteralLikeNode {
+    pub _node: BaseNode,
+    pub text: String,
+}
+
+pub trait LiteralLikeNodeInterface {
+    fn text(&self) -> &str;
+}
+
+#[derive(Debug)]
+pub enum LiteralLikeNode {
+    NumericLiteral(NumericLiteral),
+}
+
+impl NodeInterface for LiteralLikeNode {
+    fn kind(&self) -> SyntaxKind {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.kind(),
+        }
+    }
+}
+
+impl From<LiteralLikeNode> for Expression {
+    fn from(literal_like_node: LiteralLikeNode) -> Self {
+        Expression::LiteralLikeNode(literal_like_node)
+    }
+}
+
+impl LiteralLikeNodeInterface for LiteralLikeNode {
+    fn text(&self) -> &str {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.text(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct NumericLiteral {
+    pub _literal_like_node: BaseLiteralLikeNode,
+}
+
+impl NodeInterface for NumericLiteral {
+    fn kind(&self) -> SyntaxKind {
+        self._literal_like_node._node.kind
+    }
+}
+
+impl From<NumericLiteral> for LiteralLikeNode {
+    fn from(numeric_literal: NumericLiteral) -> Self {
+        LiteralLikeNode::NumericLiteral(numeric_literal)
+    }
+}
+
+impl LiteralLikeNodeInterface for NumericLiteral {
+    fn text(&self) -> &str {
+        &self._literal_like_node.text
     }
 }
 

@@ -3,7 +3,7 @@
 pub struct DebugType {}
 
 impl DebugType {
-    fn fail(&self, message: Option<&str>) -> ! {
+    pub fn fail(&self, message: Option<&str>) -> ! {
         let message = match message {
             Some(message) => format!("Debug failure. {}", message),
             None => "Debug failure.".to_string(),

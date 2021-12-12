@@ -4,9 +4,10 @@ use std::cmp::Ordering;
 
 use crate::{BaseNode, DiagnosticMessage, DiagnosticWithDetachedLocation, SyntaxKind};
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum OperatorPrecedence {
     Comma,
+    Multiplicative,
     Primary,
     Invalid = -1,
 }
@@ -28,11 +29,20 @@ impl PartialOrd for OperatorPrecedence {
 }
 
 pub fn get_binary_operator_precedence(kind: SyntaxKind) -> OperatorPrecedence {
+    match kind {
+        SyntaxKind::AsteriskToken => return OperatorPrecedence::Multiplicative,
+        _ => (),
+    }
     OperatorPrecedence::Invalid
 }
 
 #[allow(non_snake_case)]
 fn Node(kind: SyntaxKind) -> BaseNode {
+    BaseNode { kind }
+}
+
+#[allow(non_snake_case)]
+fn Token(kind: SyntaxKind) -> BaseNode {
     BaseNode { kind }
 }
 
@@ -46,6 +56,10 @@ pub struct ObjectAllocator {}
 impl ObjectAllocator {
     pub fn get_node_constructor(&self) -> fn(SyntaxKind) -> BaseNode {
         Node
+    }
+
+    pub fn get_token_constructor(&self) -> fn(SyntaxKind) -> BaseNode {
+        Token
     }
 
     pub fn get_identifier_constructor(&self) -> fn(SyntaxKind) -> BaseNode {

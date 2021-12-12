@@ -7,6 +7,7 @@ pub struct Scanner {
     start_pos: Option<usize>,
     token_pos: Option<usize>,
     token: Option<SyntaxKind>,
+    token_value: Option<String>,
 }
 
 impl Scanner {
@@ -16,6 +17,10 @@ impl Scanner {
 
     pub fn get_token_pos(&self) -> usize {
         self.token_pos()
+    }
+
+    pub fn get_token_value(&self) -> &str {
+        self.token_value()
     }
 
     pub fn scan(&mut self) -> SyntaxKind {
@@ -76,6 +81,7 @@ impl Scanner {
             start_pos: None,
             token_pos: None,
             token: None,
+            token_value: None,
         }
     }
 
@@ -126,6 +132,14 @@ impl Scanner {
     fn set_token(&mut self, token: SyntaxKind) -> SyntaxKind {
         self.token = Some(token);
         token
+    }
+
+    fn token_value(&self) -> &str {
+        self.token_value.as_ref().unwrap()
+    }
+
+    fn set_token_value(&mut self, token_value: &str) {
+        self.token_value = Some(token_value.to_string());
     }
 
     // fn scan_identifier(&self, start_character: char) -> {
