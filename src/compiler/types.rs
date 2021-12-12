@@ -263,6 +263,16 @@ pub struct CreateProgramOptions<'config> {
 pub struct CharacterCodes;
 #[allow(non_upper_case_globals)]
 impl CharacterCodes {
+    pub const _0: char = '0';
+    pub const _1: char = '1';
+    pub const _2: char = '2';
+    pub const _3: char = '3';
+    pub const _4: char = '4';
+    pub const _5: char = '5';
+    pub const _6: char = '6';
+    pub const _7: char = '7';
+    pub const _8: char = '8';
+    pub const _9: char = '9';
     pub const asterisk: char = '*';
     pub const semicolon: char = ';';
     pub const slash: char = '/';
