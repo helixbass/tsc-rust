@@ -324,6 +324,7 @@ impl ParserType {
 
     fn is_start_of_left_hand_side_expression(&self) -> bool {
         match self.token() {
+            SyntaxKind::NumericLiteral => true,
             _ => self.is_identifier(),
         }
     }
