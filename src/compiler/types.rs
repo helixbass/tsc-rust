@@ -147,6 +147,22 @@ pub struct BinaryExpression {
     pub right: Box<Expression>,
 }
 
+impl BinaryExpression {
+    pub fn new(
+        base_node: BaseNode,
+        left: Expression,
+        operator_token: Node,
+        right: Expression,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            left: Box::new(left),
+            operator_token: Box::new(operator_token),
+            right: Box::new(right),
+        }
+    }
+}
+
 impl NodeInterface for BinaryExpression {
     fn kind(&self) -> SyntaxKind {
         self._node.kind
