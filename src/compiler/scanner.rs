@@ -1,5 +1,10 @@
 use crate::{CharacterCodes, SyntaxKind};
 
+struct ScanNumberReturn {
+    type_: SyntaxKind,
+    value: String,
+}
+
 pub struct Scanner {
     text: Option<String>,
     pos: Option<usize>,
@@ -7,6 +12,7 @@ pub struct Scanner {
     start_pos: Option<usize>,
     token_pos: Option<usize>,
     token: Option<SyntaxKind>,
+    token_value: Option<String>,
 }
 
 impl Scanner {
@@ -16,6 +22,10 @@ impl Scanner {
 
     pub fn get_token_pos(&self) -> usize {
         self.token_pos()
+    }
+
+    pub fn get_token_value(&self) -> &str {
+        self.token_value()
     }
 
     pub fn scan(&mut self) -> SyntaxKind {
@@ -32,6 +42,24 @@ impl Scanner {
                 CharacterCodes::asterisk => {
                     self.set_pos(self.pos() + 1);
                     return self.set_token(SyntaxKind::AsteriskToken);
+                }
+                CharacterCodes::_0
+                | CharacterCodes::_1
+                | CharacterCodes::_2
+                | CharacterCodes::_3
+                | CharacterCodes::_4
+                | CharacterCodes::_5
+                | CharacterCodes::_6
+                | CharacterCodes::_7
+                | CharacterCodes::_8
+                | CharacterCodes::_9 => {
+                    let ScanNumberReturn {
+                        type_: token,
+                        value: token_value,
+                    } = self.scan_number();
+                    self.set_token(token);
+                    self.set_token_value(&token_value);
+                    return token;
                 }
                 CharacterCodes::semicolon => {
                     self.set_pos(self.pos() + 1);
@@ -73,6 +101,7 @@ impl Scanner {
             start_pos: None,
             token_pos: None,
             token: None,
+            token_value: None,
         }
     }
 
@@ -123,6 +152,63 @@ impl Scanner {
     fn set_token(&mut self, token: SyntaxKind) -> SyntaxKind {
         self.token = Some(token);
         token
+    }
+
+    fn token_value(&self) -> &str {
+        self.token_value.as_ref().unwrap()
+    }
+
+    fn set_token_value(&mut self, token_value: &str) {
+        self.token_value = Some(token_value.to_string());
+    }
+
+    fn is_digit(&self, ch: char) -> bool {
+        ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
+    }
+
+    fn scan_number_fragment(&mut self) -> String {
+        let start = self.pos();
+        let result = "".to_string();
+        loop {
+            let ch = self.text().chars().nth(self.pos());
+            let ch = match ch {
+                Some(ch) => ch,
+                None => break,
+            };
+            if self.is_digit(ch) {
+                self.set_pos(self.pos() + 1);
+                continue;
+            }
+            break;
+        }
+        let mut ret = result;
+        ret.push_str(
+            &self
+                .text()
+                .chars()
+                .skip(start)
+                .take(self.pos() - start)
+                .collect::<String>(),
+        );
+        ret
+    }
+
+    fn scan_number(&mut self) -> ScanNumberReturn {
+        let start = self.pos();
+        let main_fragment = self.scan_number_fragment();
+        let end = self.pos();
+        let result: String = self.text().chars().skip(start).take(end - start).collect();
+
+        self.set_token_value(&result);
+        let type_ = self.check_big_int_suffix();
+        ScanNumberReturn {
+            type_,
+            value: self.token_value().to_string(),
+        }
+    }
+
+    fn check_big_int_suffix(&self) -> SyntaxKind {
+        SyntaxKind::NumericLiteral
     }
 
     // fn scan_identifier(&self, start_character: char) -> {

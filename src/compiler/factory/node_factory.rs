@@ -1,6 +1,7 @@
 use crate::{
-    BaseNode, BaseNodeFactory, EmptyStatement, NodeArray, NodeArrayOrVec, NodeFactory, SourceFile,
-    SyntaxKind,
+    BaseLiteralLikeNode, BaseNode, BaseNodeFactory, EmptyStatement, Expression,
+    ExpressionStatement, Identifier, NodeArray, NodeArrayOrVec, NodeFactory, NumericLiteral,
+    SourceFile, SyntaxKind,
 };
 
 impl NodeFactory {
@@ -14,12 +15,77 @@ impl NodeFactory {
         }
     }
 
+    fn create_base_literal<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        value: &str,
+    ) -> BaseLiteralLikeNode {
+        let node = self.create_base_token(base_factory, kind);
+        BaseLiteralLikeNode {
+            _node: node,
+            text: value.to_string(),
+        }
+    }
+
+    pub fn create_numeric_literal<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        value: &str,
+    ) -> NumericLiteral {
+        let node = self.create_base_literal(base_factory, SyntaxKind::NumericLiteral, value);
+        NumericLiteral {
+            _literal_like_node: node,
+        }
+    }
+
+    fn create_base_identifier<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: &str,
+    ) -> Identifier {
+        let node = base_factory.create_base_identifier_node(SyntaxKind::Identifier);
+        let node = Identifier {
+            _node: node,
+            escaped_text: text.to_string(),
+        };
+        node
+    }
+
+    pub fn create_identifier<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: &str,
+    ) -> Identifier {
+        let node = self.create_base_identifier(base_factory, text);
+        node
+    }
+
+    pub fn create_base_token<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+    ) -> BaseNode {
+        base_factory.create_base_token_node(kind)
+    }
+
     pub fn create_empty_statement<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
     ) -> EmptyStatement {
         EmptyStatement {
             _node: self.create_base_node(base_factory, SyntaxKind::EmptyStatement),
+        }
+    }
+
+    pub fn create_expression_statement<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Expression,
+    ) -> ExpressionStatement {
+        ExpressionStatement {
+            _node: self.create_base_node(base_factory, SyntaxKind::ExpressionStatement),
+            expression,
         }
     }
 

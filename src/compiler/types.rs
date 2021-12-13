@@ -8,13 +8,16 @@ impl Path {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
+    NumericLiteral,
     SemicolonToken,
     AsteriskToken,
+    Identifier,
     EmptyStatement,
+    ExpressionStatement,
     SourceFile,
 }
 
@@ -29,12 +32,14 @@ pub trait NodeInterface {
 
 #[derive(Debug)]
 pub enum Node {
+    Expression(Expression),
     Statement(Statement),
 }
 
 impl NodeInterface for Node {
     fn kind(&self) -> SyntaxKind {
         match self {
+            Node::Expression(expression) => expression.kind(),
             Node::Statement(statement) => statement.kind(),
         }
     }
@@ -69,14 +74,115 @@ impl From<Vec<Node>> for NodeArrayOrVec {
 }
 
 #[derive(Debug)]
+pub struct Identifier {
+    pub _node: BaseNode,
+    pub escaped_text: String,
+}
+
+impl NodeInterface for Identifier {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind
+    }
+}
+
+impl From<Identifier> for Expression {
+    fn from(identifier: Identifier) -> Self {
+        Expression::Identifier(identifier)
+    }
+}
+
+#[derive(Debug)]
+pub enum Expression {
+    Identifier(Identifier),
+    LiteralLikeNode(LiteralLikeNode),
+}
+
+impl NodeInterface for Expression {
+    fn kind(&self) -> SyntaxKind {
+        match self {
+            Expression::Identifier(identifier) => identifier.kind(),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.kind(),
+        }
+    }
+}
+
+impl From<Expression> for Node {
+    fn from(expression: Expression) -> Self {
+        Node::Expression(expression)
+    }
+}
+
+#[derive(Debug)]
+pub struct BaseLiteralLikeNode {
+    pub _node: BaseNode,
+    pub text: String,
+}
+
+pub trait LiteralLikeNodeInterface {
+    fn text(&self) -> &str;
+}
+
+#[derive(Debug)]
+pub enum LiteralLikeNode {
+    NumericLiteral(NumericLiteral),
+}
+
+impl NodeInterface for LiteralLikeNode {
+    fn kind(&self) -> SyntaxKind {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.kind(),
+        }
+    }
+}
+
+impl From<LiteralLikeNode> for Expression {
+    fn from(literal_like_node: LiteralLikeNode) -> Self {
+        Expression::LiteralLikeNode(literal_like_node)
+    }
+}
+
+impl LiteralLikeNodeInterface for LiteralLikeNode {
+    fn text(&self) -> &str {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.text(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct NumericLiteral {
+    pub _literal_like_node: BaseLiteralLikeNode,
+}
+
+impl NodeInterface for NumericLiteral {
+    fn kind(&self) -> SyntaxKind {
+        self._literal_like_node._node.kind
+    }
+}
+
+impl From<NumericLiteral> for LiteralLikeNode {
+    fn from(numeric_literal: NumericLiteral) -> Self {
+        LiteralLikeNode::NumericLiteral(numeric_literal)
+    }
+}
+
+impl LiteralLikeNodeInterface for NumericLiteral {
+    fn text(&self) -> &str {
+        &self._literal_like_node.text
+    }
+}
+
+#[derive(Debug)]
 pub enum Statement {
     EmptyStatement(EmptyStatement),
+    ExpressionStatement(ExpressionStatement),
 }
 
 impl NodeInterface for Statement {
     fn kind(&self) -> SyntaxKind {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.kind(),
+            Statement::ExpressionStatement(expression_statement) => expression_statement.kind(),
         }
     }
 }
@@ -101,6 +207,24 @@ impl NodeInterface for EmptyStatement {
 impl From<EmptyStatement> for Statement {
     fn from(empty_statement: EmptyStatement) -> Self {
         Statement::EmptyStatement(empty_statement)
+    }
+}
+
+#[derive(Debug)]
+pub struct ExpressionStatement {
+    pub _node: BaseNode,
+    pub expression: Expression,
+}
+
+impl NodeInterface for ExpressionStatement {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind
+    }
+}
+
+impl From<ExpressionStatement> for Statement {
+    fn from(expression_statement: ExpressionStatement) -> Self {
+        Statement::ExpressionStatement(expression_statement)
     }
 }
 
@@ -140,6 +264,16 @@ pub struct CreateProgramOptions<'config> {
 pub struct CharacterCodes;
 #[allow(non_upper_case_globals)]
 impl CharacterCodes {
+    pub const _0: char = '0';
+    pub const _1: char = '1';
+    pub const _2: char = '2';
+    pub const _3: char = '3';
+    pub const _4: char = '4';
+    pub const _5: char = '5';
+    pub const _6: char = '6';
+    pub const _7: char = '7';
+    pub const _8: char = '8';
+    pub const _9: char = '9';
     pub const asterisk: char = '*';
     pub const semicolon: char = ';';
     pub const slash: char = '/';

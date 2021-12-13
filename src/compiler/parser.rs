@@ -3,20 +3,36 @@
 use std::sync::{Mutex, MutexGuard};
 
 use crate::{
-    create_detached_diagnostic, create_node_factory, create_scanner, is_same_variant,
-    last_or_undefined, normalize_path, object_allocator, BaseNode, BaseNodeFactory, Debug_,
-    DiagnosticMessage, DiagnosticWithDetachedLocation, Diagnostics, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, Scanner, SourceFile, Statement, SyntaxKind,
+    create_detached_diagnostic, create_node_factory, create_scanner,
+    get_binary_operator_precedence, is_same_variant, last_or_undefined, normalize_path,
+    object_allocator, BaseNode, BaseNodeFactory, Debug_, DiagnosticMessage,
+    DiagnosticWithDetachedLocation, Diagnostics, Expression, Identifier, LiteralLikeNode, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, OperatorPrecedence, Scanner, SourceFile,
+    Statement, SyntaxKind,
 };
 
 pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
     Parser().parse_source_file(file_name, source_text)
 }
 
+enum MissingNode {
+    Identifier(Identifier),
+}
+
+impl NodeInterface for MissingNode {
+    fn kind(&self) -> SyntaxKind {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.kind(),
+        }
+    }
+}
+
 #[allow(non_snake_case)]
 struct ParserType {
     scanner: Scanner,
     NodeConstructor: Option<fn(SyntaxKind) -> BaseNode>,
+    IdentifierConstructor: Option<fn(SyntaxKind) -> BaseNode>,
+    TokenConstructor: Option<fn(SyntaxKind) -> BaseNode>,
     SourceFileConstructor: Option<fn(SyntaxKind) -> BaseNode>,
     factory: NodeFactory,
     file_name: Option<String>,
@@ -30,6 +46,8 @@ impl ParserType {
         ParserType {
             scanner: create_scanner(),
             NodeConstructor: None,
+            IdentifierConstructor: None,
+            TokenConstructor: None,
             SourceFileConstructor: None,
             factory: create_node_factory(),
             file_name: None,
@@ -47,6 +65,26 @@ impl ParserType {
     #[allow(non_snake_case)]
     fn set_NodeConstructor(&mut self, NodeConstructor: fn(SyntaxKind) -> BaseNode) {
         self.NodeConstructor = Some(NodeConstructor);
+    }
+
+    #[allow(non_snake_case)]
+    fn IdentifierConstructor(&self) -> fn(SyntaxKind) -> BaseNode {
+        self.IdentifierConstructor.unwrap()
+    }
+
+    #[allow(non_snake_case)]
+    fn set_IdentifierConstructor(&mut self, IdentifierConstructor: fn(SyntaxKind) -> BaseNode) {
+        self.IdentifierConstructor = Some(IdentifierConstructor);
+    }
+
+    #[allow(non_snake_case)]
+    fn TokenConstructor(&self) -> fn(SyntaxKind) -> BaseNode {
+        self.TokenConstructor.unwrap()
+    }
+
+    #[allow(non_snake_case)]
+    fn set_TokenConstructor(&mut self, TokenConstructor: fn(SyntaxKind) -> BaseNode) {
+        self.TokenConstructor = Some(TokenConstructor);
     }
 
     #[allow(non_snake_case)]
@@ -90,6 +128,8 @@ impl ParserType {
 
     fn initialize_state(&mut self, _file_name: &str, _source_text: &str) {
         self.set_NodeConstructor(object_allocator.get_node_constructor());
+        self.set_IdentifierConstructor(object_allocator.get_identifier_constructor());
+        self.set_TokenConstructor(object_allocator.get_token_constructor());
         self.set_SourceFileConstructor(object_allocator.get_source_file_constructor());
 
         self.set_file_name(&normalize_path(_file_name));
@@ -191,6 +231,37 @@ impl ParserType {
         node
     }
 
+    fn create_missing_node(
+        &mut self,
+        kind: SyntaxKind,
+        diagnostic_message: DiagnosticMessage,
+    ) -> MissingNode {
+        self.parse_error_at_current_token(&diagnostic_message);
+
+        let result = MissingNode::Identifier(self.factory.create_identifier(self, ""));
+        self.finish_node(result)
+    }
+
+    fn create_identifier(
+        &mut self,
+        is_identifier: bool,
+        diagnostic_message: Option<DiagnosticMessage>,
+    ) -> Identifier {
+        let default_message = Diagnostics::Identifier_expected;
+
+        match self.create_missing_node(
+            SyntaxKind::Identifier,
+            diagnostic_message.unwrap_or(default_message),
+        ) {
+            MissingNode::Identifier(identifier) => identifier,
+            _ => panic!("Expected identifier"),
+        }
+    }
+
+    fn parse_identifier(&mut self, diagnostic_message: Option<DiagnosticMessage>) -> Identifier {
+        self.create_identifier(self.is_identifier(), diagnostic_message)
+    }
+
     fn is_list_element(&self, kind: ParsingContext) -> bool {
         match kind {
             ParsingContext::SourceElements => self.is_start_of_statement(),
@@ -199,7 +270,7 @@ impl ParserType {
     }
 
     fn is_list_terminator(&self) -> bool {
-        if matches!(self.token(), SyntaxKind::EndOfFileToken) {
+        if self.token() == SyntaxKind::EndOfFileToken {
             return true;
         }
         false
@@ -231,8 +302,26 @@ impl ParserType {
         parse_element(self)
     }
 
+    fn parse_literal_node(&mut self) -> LiteralLikeNode {
+        self.parse_literal_like_node(self.token())
+    }
+
+    fn parse_literal_like_node(&mut self, kind: SyntaxKind) -> LiteralLikeNode {
+        let node: LiteralLikeNode = if kind == SyntaxKind::NumericLiteral {
+            self.factory
+                .create_numeric_literal(self, self.scanner.get_token_value())
+                .into()
+        } else {
+            Debug_.fail(None)
+        };
+
+        self.next_token();
+        self.finish_node(node)
+    }
+
     fn is_start_of_left_hand_side_expression(&self) -> bool {
         match self.token() {
+            SyntaxKind::NumericLiteral => true,
             _ => self.is_identifier(),
         }
     }
@@ -243,17 +332,116 @@ impl ParserType {
         }
 
         match self.token() {
-            _ => self.is_identifier(),
+            _ => {
+                if self.is_binary_operator() {
+                    return true;
+                }
+
+                self.is_identifier()
+            }
         }
     }
 
-    // fn parse_expression(&self) -> Box<dyn Expression> {}
+    fn parse_expression(&mut self) -> Expression {
+        let expr = self.parse_assignment_expression_or_higher();
 
-    // fn parse_expression_or_labeled_statement(&self) -> Box<dyn Statement> {
-    //     let expression = self.parse_expression();
-    //     let node = self.factory.create_expression_statement(expression);
-    //     Box::new(self.finish_node(node))
-    // }
+        expr
+    }
+
+    fn parse_assignment_expression_or_higher(&mut self) -> Expression {
+        let expr = self.parse_binary_expression_or_higher(OperatorPrecedence::Lowest);
+
+        self.parse_conditional_expression_rest(expr)
+    }
+
+    fn parse_conditional_expression_rest(&self, left_operand: Expression) -> Expression {
+        left_operand
+    }
+
+    fn parse_binary_expression_or_higher(&mut self, precedence: OperatorPrecedence) -> Expression {
+        let left_operand = self.parse_unary_expression_or_higher();
+        self.parse_binary_expression_rest(precedence, left_operand)
+    }
+
+    fn parse_binary_expression_rest(
+        &self,
+        precedence: OperatorPrecedence,
+        left_operand: Expression,
+    ) -> Expression {
+        loop {
+            let new_precedence = get_binary_operator_precedence(self.token());
+
+            let consume_current_operator = new_precedence > precedence;
+
+            if !consume_current_operator {
+                break;
+            }
+        }
+
+        left_operand
+    }
+
+    fn is_binary_operator(&self) -> bool {
+        get_binary_operator_precedence(self.token()) > OperatorPrecedence::Comma
+    }
+
+    fn parse_unary_expression_or_higher(&mut self) -> Expression {
+        if self.is_update_expression() {
+            let update_expression = self.parse_update_expression();
+            return update_expression;
+        }
+
+        panic!("Unimplemented");
+    }
+
+    fn is_update_expression(&self) -> bool {
+        match self.token() {
+            _ => true,
+        }
+    }
+
+    fn parse_update_expression(&mut self) -> Expression {
+        let expression = self.parse_left_hand_side_expression_or_higher();
+
+        expression
+    }
+
+    fn parse_left_hand_side_expression_or_higher(&mut self) -> Expression {
+        let expression = self.parse_member_expression_or_higher();
+
+        self.parse_call_expression_rest(expression)
+    }
+
+    fn parse_member_expression_or_higher(&mut self) -> Expression {
+        let expression = self.parse_primary_expression();
+        self.parse_member_expression_rest(expression)
+    }
+
+    fn parse_member_expression_rest(&self, expression: Expression) -> Expression {
+        loop {
+            return expression;
+        }
+    }
+
+    fn parse_call_expression_rest(&self, expression: Expression) -> Expression {
+        expression
+    }
+
+    fn parse_primary_expression(&mut self) -> Expression {
+        match self.token() {
+            SyntaxKind::NumericLiteral => return self.parse_literal_node().into(),
+            _ => (),
+        }
+
+        self.parse_identifier(Some(Diagnostics::Expression_expected))
+            .into()
+    }
+
+    fn parse_expression_or_labeled_statement(&mut self) -> Statement {
+        let expression = self.parse_expression();
+        let node = self.factory.create_expression_statement(self, expression);
+        self.finish_node(node.into())
+    }
 
     fn parse_empty_statement(&mut self) -> Statement {
         self.parse_expected(SyntaxKind::SemicolonToken, None);
@@ -270,10 +458,7 @@ impl ParserType {
     fn parse_statement(&mut self) -> Statement {
         match self.token() {
             SyntaxKind::SemicolonToken => self.parse_empty_statement(),
-            _ => {
-                // self.parse_expression_or_labeled_statement()
-                unimplemented!()
-            }
+            _ => self.parse_expression_or_labeled_statement(),
         }
     }
 }
@@ -281,6 +466,14 @@ impl ParserType {
 impl BaseNodeFactory for ParserType {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
         self.SourceFileConstructor()(kind)
+    }
+
+    fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
+        self.IdentifierConstructor()(kind)
+    }
+
+    fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
+        self.TokenConstructor()(kind)
     }
 
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
