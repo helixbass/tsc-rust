@@ -1,9 +1,13 @@
-pub fn for_each<TItem, TReturn>(
-    array: &[TItem],
-    callback: &mut dyn FnMut(&TItem, usize) -> Option<TReturn>,
+pub fn for_each<
+    TCollection: IntoIterator,
+    TReturn,
+    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
+>(
+    array: TCollection,
+    mut callback: TCallback,
 ) -> Option<TReturn> {
     array
-        .iter()
+        .into_iter()
         .enumerate()
         .find_map(|(index, item)| callback(item, index))
 }

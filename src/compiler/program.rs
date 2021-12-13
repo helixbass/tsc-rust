@@ -161,7 +161,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Progr
             host: &host,
             current_directory: &current_directory,
         };
-        for_each(root_names, &mut |name, _index| {
+        for_each(root_names, |name, _index| {
             process_root_file(&mut helper_context, name);
             Option::<()>::None
         });

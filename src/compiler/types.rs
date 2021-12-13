@@ -74,6 +74,29 @@ impl NodeArray {
     pub fn new(nodes: Vec<Node>) -> Self {
         NodeArray { _nodes: nodes }
     }
+
+    pub fn iter(&self) -> NodeArrayIter {
+        NodeArrayIter(Box::new(self._nodes.iter()))
+    }
+}
+
+pub struct NodeArrayIter<'node_array>(Box<dyn Iterator<Item = &'node_array Node> + 'node_array>);
+
+impl<'node_array> Iterator for NodeArrayIter<'node_array> {
+    type Item = &'node_array Node;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+impl<'node_array> IntoIterator for &'node_array NodeArray {
+    type Item = &'node_array Node;
+    type IntoIter = NodeArrayIter<'node_array>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
 }
 
 pub enum NodeArrayOrVec {
