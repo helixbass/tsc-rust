@@ -95,12 +95,7 @@ impl NodeFactory {
         right: Expression,
     ) -> BinaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::BinaryExpression);
-        let node = BinaryExpression {
-            _node: node,
-            left: Box::new(left),
-            operator_token: Box::new(operator),
-            right: Box::new(right),
-        };
+        let node = BinaryExpression::new(node, left, operator, right);
         node
     }
 
