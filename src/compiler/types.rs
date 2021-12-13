@@ -16,6 +16,7 @@ pub enum SyntaxKind {
     SemicolonToken,
     AsteriskToken,
     Identifier,
+    BinaryExpression,
     EmptyStatement,
     ExpressionStatement,
     SourceFile,
@@ -32,6 +33,7 @@ pub trait NodeInterface {
 
 #[derive(Debug)]
 pub enum Node {
+    Token(Token),
     Expression(Expression),
     Statement(Statement),
 }
@@ -39,9 +41,27 @@ pub enum Node {
 impl NodeInterface for Node {
     fn kind(&self) -> SyntaxKind {
         match self {
+            Node::Token(token) => token.kind(),
             Node::Expression(expression) => expression.kind(),
             Node::Statement(statement) => statement.kind(),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct Token {
+    pub _node: BaseNode,
+}
+
+impl NodeInterface for Token {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind
+    }
+}
+
+impl From<Token> for Node {
+    fn from(token: Token) -> Self {
+        Node::Token(token)
     }
 }
 
@@ -94,6 +114,7 @@ impl From<Identifier> for Expression {
 #[derive(Debug)]
 pub enum Expression {
     Identifier(Identifier),
+    BinaryExpression(BinaryExpression),
     LiteralLikeNode(LiteralLikeNode),
 }
 
@@ -101,6 +122,7 @@ impl NodeInterface for Expression {
     fn kind(&self) -> SyntaxKind {
         match self {
             Expression::Identifier(identifier) => identifier.kind(),
+            Expression::BinaryExpression(binary_expression) => binary_expression.kind(),
             Expression::LiteralLikeNode(literal_like_node) => literal_like_node.kind(),
         }
     }
@@ -109,6 +131,42 @@ impl NodeInterface for Expression {
 impl From<Expression> for Node {
     fn from(expression: Expression) -> Self {
         Node::Expression(expression)
+    }
+}
+
+#[derive(Debug)]
+pub struct BinaryExpression {
+    pub _node: BaseNode,
+    pub left: Box<Expression>,
+    pub operator_token: Box<Node>,
+    pub right: Box<Expression>,
+}
+
+impl BinaryExpression {
+    pub fn new(
+        base_node: BaseNode,
+        left: Expression,
+        operator_token: Node,
+        right: Expression,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            left: Box::new(left),
+            operator_token: Box::new(operator_token),
+            right: Box::new(right),
+        }
+    }
+}
+
+impl NodeInterface for BinaryExpression {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind
+    }
+}
+
+impl From<BinaryExpression> for Expression {
+    fn from(binary_expression: BinaryExpression) -> Self {
+        Expression::BinaryExpression(binary_expression)
     }
 }
 
@@ -264,6 +322,7 @@ pub struct CreateProgramOptions<'config> {
 pub struct CharacterCodes;
 #[allow(non_upper_case_globals)]
 impl CharacterCodes {
+    pub const space: char = ' ';
     pub const _0: char = '0';
     pub const _1: char = '1';
     pub const _2: char = '2';

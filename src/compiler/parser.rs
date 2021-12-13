@@ -5,7 +5,7 @@ use std::sync::{Mutex, MutexGuard};
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
     get_binary_operator_precedence, is_same_variant, last_or_undefined, normalize_path,
-    object_allocator, BaseNode, BaseNodeFactory, Debug_, DiagnosticMessage,
+    object_allocator, BaseNode, BaseNodeFactory, BinaryExpression, Debug_, DiagnosticMessage,
     DiagnosticWithDetachedLocation, Diagnostics, Expression, Identifier, LiteralLikeNode, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, OperatorPrecedence, Scanner, SourceFile,
     Statement, SyntaxKind,
@@ -44,7 +44,7 @@ struct ParserType {
 impl ParserType {
     fn new() -> Self {
         ParserType {
-            scanner: create_scanner(),
+            scanner: create_scanner(true),
             NodeConstructor: None,
             IdentifierConstructor: None,
             TokenConstructor: None,
@@ -219,6 +219,13 @@ impl ParserType {
         false
     }
 
+    fn parse_token_node(&mut self) -> Node {
+        let kind = self.token();
+        self.next_token();
+        self.finish_node(self.factory.create_token(self, kind))
+            .into()
+    }
+
     fn create_node_array(&self, elements: Vec<Node>) -> NodeArray {
         self.factory.create_node_array(elements)
     }
@@ -364,9 +371,9 @@ impl ParserType {
     }
 
     fn parse_binary_expression_rest(
-        &self,
+        &mut self,
         precedence: OperatorPrecedence,
-        left_operand: Expression,
+        mut left_operand: Expression,
     ) -> Expression {
         loop {
             let new_precedence = get_binary_operator_precedence(self.token());
@@ -376,6 +383,12 @@ impl ParserType {
             if !consume_current_operator {
                 break;
             }
+
+            let operator_token = self.parse_token_node();
+            let right = self.parse_binary_expression_or_higher(new_precedence);
+            left_operand = self
+                .make_binary_expression(left_operand, operator_token, right)
+                .into();
         }
 
         left_operand
@@ -383,6 +396,18 @@ impl ParserType {
 
     fn is_binary_operator(&self) -> bool {
         get_binary_operator_precedence(self.token()) > OperatorPrecedence::Comma
+    }
+
+    fn make_binary_expression(
+        &mut self,
+        left: Expression,
+        operator_token: Node,
+        right: Expression,
+    ) -> BinaryExpression {
+        self.finish_node(
+            self.factory
+                .create_binary_expression(self, left, operator_token, right),
+        )
     }
 
     fn parse_unary_expression_or_higher(&mut self) -> Expression {

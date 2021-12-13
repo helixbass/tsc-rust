@@ -6,6 +6,7 @@ struct ScanNumberReturn {
 }
 
 pub struct Scanner {
+    skip_trivia: bool,
     text: Option<String>,
     pos: Option<usize>,
     end: Option<usize>,
@@ -39,6 +40,12 @@ impl Scanner {
             let ch = code_point_at(self.text(), self.pos());
 
             match ch {
+                CharacterCodes::space => {
+                    if self.skip_trivia {
+                        self.set_pos(self.pos() + 1);
+                        continue;
+                    }
+                }
                 CharacterCodes::asterisk => {
                     self.set_pos(self.pos() + 1);
                     return self.set_token(SyntaxKind::AsteriskToken);
@@ -93,8 +100,9 @@ impl Scanner {
         self.set_token(SyntaxKind::Unknown);
     }
 
-    fn new() -> Self {
+    fn new(skip_trivia: bool) -> Self {
         Scanner {
+            skip_trivia,
             text: None,
             pos: None,
             end: None,
@@ -215,8 +223,8 @@ impl Scanner {
     // }
 }
 
-pub fn create_scanner() -> Scanner {
-    Scanner::new()
+pub fn create_scanner(skip_trivia: bool) -> Scanner {
+    Scanner::new(skip_trivia)
 }
 
 fn code_point_at(s: &str, i: usize) -> char {

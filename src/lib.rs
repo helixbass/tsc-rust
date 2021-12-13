@@ -17,11 +17,12 @@ pub use compiler::program::create_program;
 pub use compiler::scanner::{create_scanner, Scanner};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
-    BaseLiteralLikeNode, BaseNode, CharacterCodes, CompilerHost, CreateProgramOptions, Diagnostic,
-    DiagnosticCategory, DiagnosticMessage, DiagnosticWithDetachedLocation, EmptyStatement,
-    ExitStatus, Expression, ExpressionStatement, Identifier, LiteralLikeNode, ModuleResolutionHost,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, NumericLiteral, ParsedCommandLine,
-    Path, Program, SourceFile, Statement, StructureIsReused, SyntaxKind,
+    BaseLiteralLikeNode, BaseNode, BinaryExpression, CharacterCodes, CompilerHost,
+    CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticMessage,
+    DiagnosticWithDetachedLocation, EmptyStatement, ExitStatus, Expression, ExpressionStatement,
+    Identifier, LiteralLikeNode, ModuleResolutionHost, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, NumericLiteral, ParsedCommandLine, Path, Program, SourceFile,
+    Statement, StructureIsReused, SyntaxKind, Token,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, get_binary_operator_precedence, object_allocator,
