@@ -1,8 +1,12 @@
 #![allow(non_upper_case_globals)]
 
 use std::cmp::Ordering;
+use std::collections::HashMap;
 
-use crate::{BaseNode, DiagnosticMessage, DiagnosticWithDetachedLocation, SyntaxKind};
+use crate::{
+    BaseNode, DiagnosticCollection, DiagnosticMessage, DiagnosticWithDetachedLocation,
+    DiagnosticWithLocation, SortedArray, SyntaxKind,
+};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum OperatorPrecedence {
@@ -34,6 +38,25 @@ pub fn get_binary_operator_precedence(kind: SyntaxKind) -> OperatorPrecedence {
         _ => (),
     }
     OperatorPrecedence::Invalid
+}
+
+pub fn create_diagnostic_collection() -> DiagnosticCollection {
+    DiagnosticCollection::new()
+}
+
+impl DiagnosticCollection {
+    pub fn new() -> Self {
+        DiagnosticCollection {
+            file_diagnostics: HashMap::<String, SortedArray<DiagnosticWithLocation>>::new(),
+        }
+    }
+
+    pub fn get_diagnostics(&self, file_name: &str) -> Vec<DiagnosticWithLocation> {
+        self.file_diagnostics
+            .get(file_name)
+            .map(|sorted_array| sorted_array._vec.clone())
+            .unwrap_or(vec![])
+    }
 }
 
 #[allow(non_snake_case)]

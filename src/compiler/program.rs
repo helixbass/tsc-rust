@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use crate::{
-    concatenate, create_source_file, for_each, get_sys, normalize_path, to_path as to_path_helper,
-    CompilerHost, CreateProgramOptions, Diagnostic, ModuleResolutionHost, Path, Program,
-    SourceFile, StructureIsReused, System,
+    concatenate, create_source_file, create_type_checker, for_each, get_sys, normalize_path,
+    to_path as to_path_helper, CompilerHost, CreateProgramOptions, Diagnostic,
+    ModuleResolutionHost, Path, Program, SourceFile, StructureIsReused, System, TypeChecker,
 };
 
 fn create_compiler_host() -> impl CompilerHost {
@@ -41,16 +41,25 @@ fn create_compiler_host_worker() -> impl CompilerHost {
 
 struct ProgramConcrete {
     files: Vec<Rc<SourceFile>>,
+    diagnostics_producing_type_checker: Option<TypeChecker>,
 }
 
 impl ProgramConcrete {
     pub fn new(files: Vec<Rc<SourceFile>>) -> Self {
-        ProgramConcrete { files }
+        ProgramConcrete {
+            files,
+            diagnostics_producing_type_checker: None,
+        }
+    }
+
+    fn get_diagnostics_producing_type_checker(&mut self) -> &TypeChecker {
+        self.diagnostics_producing_type_checker
+            .get_or_insert_with(|| create_type_checker(true))
     }
 
     fn get_diagnostics_helper(
-        &self,
-        get_diagnostics: fn(&ProgramConcrete, &SourceFile) -> Vec<Box<dyn Diagnostic>>,
+        &mut self,
+        get_diagnostics: fn(&mut ProgramConcrete, &SourceFile) -> Vec<Box<dyn Diagnostic>>,
     ) -> Vec<Box<dyn Diagnostic>> {
         self.get_source_files()
             .iter()
@@ -70,7 +79,7 @@ impl ProgramConcrete {
     }
 
     fn get_semantic_diagnostics_for_file(
-        &self,
+        &mut self,
         source_file: &SourceFile,
     ) -> Vec<Box<dyn Diagnostic>> {
         concatenate(
@@ -80,7 +89,7 @@ impl ProgramConcrete {
     }
 
     fn get_bind_and_check_diagnostics_for_file(
-        &self,
+        &mut self,
         source_file: &SourceFile,
     ) -> Vec<Box<dyn Diagnostic>> {
         self.get_and_cache_diagnostics(
@@ -90,29 +99,40 @@ impl ProgramConcrete {
     }
 
     fn get_bind_and_check_diagnostics_for_file_no_cache(
-        &self,
+        &mut self,
         source_file: &SourceFile,
     ) -> Vec<Box<dyn Diagnostic>> {
-        self.run_with_cancellation_token(|| vec![])
+        // self.run_with_cancellation_token(|| {
+        let type_checker = self.get_diagnostics_producing_type_checker();
+
+        let include_bind_and_check_diagnostics = true;
+        let check_diagnostics = if include_bind_and_check_diagnostics {
+            type_checker.get_diagnostics(source_file)
+        } else {
+            vec![]
+        };
+
+        check_diagnostics
+        // })
     }
 
     fn get_and_cache_diagnostics(
-        &self,
+        &mut self,
         source_file: &SourceFile,
-        get_diagnostics: fn(&ProgramConcrete, &SourceFile) -> Vec<Box<dyn Diagnostic>>,
+        get_diagnostics: fn(&mut ProgramConcrete, &SourceFile) -> Vec<Box<dyn Diagnostic>>,
     ) -> Vec<Box<dyn Diagnostic>> {
-        let result = get_diagnostics(&self, source_file);
+        let result = get_diagnostics(self, source_file);
         result
     }
 }
 
 impl Program for ProgramConcrete {
-    fn get_semantic_diagnostics(&self) -> Vec<Box<dyn Diagnostic>> {
+    fn get_semantic_diagnostics(&mut self) -> Vec<Box<dyn Diagnostic>> {
         self.get_diagnostics_helper(ProgramConcrete::get_semantic_diagnostics_for_file)
     }
 
-    fn get_source_files(&self) -> &[Rc<SourceFile>] {
-        &self.files
+    fn get_source_files(&self) -> Vec<Rc<SourceFile>> {
+        self.files.clone()
     }
 }
 

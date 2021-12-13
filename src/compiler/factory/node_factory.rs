@@ -128,6 +128,7 @@ impl NodeFactory {
         let node = SourceFile {
             _node: node,
             statements: self.create_node_array(statements),
+            file_name: "".to_string(),
         };
         node
     }

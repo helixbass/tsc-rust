@@ -1,4 +1,7 @@
+use std::collections::HashMap;
 use std::rc::Rc;
+
+use crate::SortedArray;
 
 pub struct Path(String);
 
@@ -295,11 +298,13 @@ impl From<ExpressionStatement> for Statement {
 pub struct SourceFile {
     pub _node: BaseNode,
     pub statements: NodeArray,
+
+    pub file_name: String,
 }
 
 pub trait Program {
-    fn get_source_files(&self) -> &[Rc<SourceFile>];
-    fn get_semantic_diagnostics(&self) -> Vec<Box<dyn Diagnostic>>;
+    fn get_source_files(&self) -> Vec<Rc<SourceFile>>;
+    fn get_semantic_diagnostics(&mut self) -> Vec<Box<dyn Diagnostic>>;
 }
 
 #[derive(Eq, PartialEq)]
@@ -312,6 +317,10 @@ pub enum ExitStatus {
     Success,
     #[allow(non_camel_case_types)]
     DiagnosticsPresent_OutputsGenerated,
+}
+
+pub struct TypeChecker {
+    pub diagnostics: DiagnosticCollection,
 }
 
 #[derive(Debug)]
@@ -425,6 +434,17 @@ pub trait Diagnostic: DiagnosticRelatedInformation {}
 
 pub trait DiagnosticRelatedInformation {}
 
+#[derive(Clone)]
+pub struct DiagnosticWithLocation {
+    pub file: Rc<SourceFile>,
+    pub start: usize,
+    pub length: usize,
+}
+
+impl DiagnosticRelatedInformation for DiagnosticWithLocation {}
+
+impl Diagnostic for DiagnosticWithLocation {}
+
 pub struct DiagnosticWithDetachedLocation {
     pub file_name: String,
     pub start: usize,
@@ -443,3 +463,7 @@ pub enum DiagnosticCategory {
 }
 
 pub struct NodeFactory {}
+
+pub struct DiagnosticCollection {
+    pub file_diagnostics: HashMap<String, SortedArray<DiagnosticWithLocation>>,
+}

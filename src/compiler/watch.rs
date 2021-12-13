@@ -5,7 +5,7 @@ struct EmitFilesAndReportErrorsReturn {
 }
 
 fn emit_files_and_report_errors<TProgram: Program>(
-    program: TProgram,
+    mut program: TProgram,
 ) -> EmitFilesAndReportErrorsReturn {
     let diagnostics = program.get_semantic_diagnostics();
 
