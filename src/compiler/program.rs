@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use crate::{
-    create_source_file, for_each, get_sys, normalize_path, to_path as to_path_helper, CompilerHost,
-    CreateProgramOptions, Diagnostic, ModuleResolutionHost, Path, Program, SourceFile,
-    StructureIsReused, System,
+    concatenate, create_source_file, for_each, get_sys, normalize_path, to_path as to_path_helper,
+    CompilerHost, CreateProgramOptions, Diagnostic, ModuleResolutionHost, Path, Program,
+    SourceFile, StructureIsReused, System,
 };
 
 fn create_compiler_host() -> impl CompilerHost {
@@ -58,11 +58,51 @@ impl ProgramConcrete {
             .collect()
     }
 
+    fn get_program_diagnostics(&self, source_file: &SourceFile) -> Vec<Box<dyn Diagnostic>> {
+        vec![]
+    }
+
+    fn run_with_cancellation_token<TReturn, TClosure: FnOnce() -> TReturn>(
+        &self,
+        func: TClosure,
+    ) -> TReturn {
+        func()
+    }
+
     fn get_semantic_diagnostics_for_file(
         &self,
-        _source_file: &SourceFile,
+        source_file: &SourceFile,
     ) -> Vec<Box<dyn Diagnostic>> {
-        vec![]
+        concatenate(
+            filter_semantic_diagnostics(self.get_bind_and_check_diagnostics_for_file(source_file)),
+            self.get_program_diagnostics(source_file),
+        )
+    }
+
+    fn get_bind_and_check_diagnostics_for_file(
+        &self,
+        source_file: &SourceFile,
+    ) -> Vec<Box<dyn Diagnostic>> {
+        self.get_and_cache_diagnostics(
+            source_file,
+            ProgramConcrete::get_bind_and_check_diagnostics_for_file_no_cache,
+        )
+    }
+
+    fn get_bind_and_check_diagnostics_for_file_no_cache(
+        &self,
+        source_file: &SourceFile,
+    ) -> Vec<Box<dyn Diagnostic>> {
+        self.run_with_cancellation_token(|| vec![])
+    }
+
+    fn get_and_cache_diagnostics(
+        &self,
+        source_file: &SourceFile,
+        get_diagnostics: fn(&ProgramConcrete, &SourceFile) -> Vec<Box<dyn Diagnostic>>,
+    ) -> Vec<Box<dyn Diagnostic>> {
+        let result = get_diagnostics(&self, source_file);
+        result
     }
 }
 
@@ -112,6 +152,10 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Progr
     }
 
     ProgramConcrete::new(files)
+}
+
+fn filter_semantic_diagnostics(diagnostic: Vec<Box<dyn Diagnostic>>) -> Vec<Box<dyn Diagnostic>> {
+    diagnostic
 }
 
 fn process_root_file(helper_context: &mut CreateProgramHelperContext, file_name: &str) {
