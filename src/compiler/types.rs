@@ -24,18 +24,13 @@ pub enum SyntaxKind {
     SourceFile,
 }
 
-#[derive(Debug)]
-pub struct BaseNode {
-    pub kind: SyntaxKind,
-}
-
 pub trait NodeInterface {
     fn kind(&self) -> SyntaxKind;
 }
 
 #[derive(Debug)]
 pub enum Node {
-    Token(Token),
+    BaseNode(BaseNode),
     Expression(Expression),
     Statement(Statement),
 }
@@ -43,7 +38,7 @@ pub enum Node {
 impl NodeInterface for Node {
     fn kind(&self) -> SyntaxKind {
         match self {
-            Node::Token(token) => token.kind(),
+            Node::BaseNode(base_node) => base_node.kind(),
             Node::Expression(expression) => expression.kind(),
             Node::Statement(statement) => statement.kind(),
         }
@@ -51,19 +46,19 @@ impl NodeInterface for Node {
 }
 
 #[derive(Debug)]
-pub struct Token {
-    pub _node: BaseNode,
+pub struct BaseNode {
+    pub kind: SyntaxKind,
 }
 
-impl NodeInterface for Token {
+impl NodeInterface for BaseNode {
     fn kind(&self) -> SyntaxKind {
-        self._node.kind
+        self.kind
     }
 }
 
-impl From<Token> for Node {
-    fn from(token: Token) -> Self {
-        Node::Token(token)
+impl From<BaseNode> for Node {
+    fn from(base_node: BaseNode) -> Self {
+        Node::BaseNode(base_node)
     }
 }
 
@@ -115,6 +110,7 @@ impl From<Identifier> for Expression {
 
 #[derive(Debug)]
 pub enum Expression {
+    TokenExpression(BaseNode),
     Identifier(Identifier),
     BinaryExpression(BinaryExpression),
     LiteralLikeNode(LiteralLikeNode),
@@ -123,6 +119,7 @@ pub enum Expression {
 impl NodeInterface for Expression {
     fn kind(&self) -> SyntaxKind {
         match self {
+            Expression::TokenExpression(token_expression) => token_expression.kind(),
             Expression::Identifier(identifier) => identifier.kind(),
             Expression::BinaryExpression(binary_expression) => binary_expression.kind(),
             Expression::LiteralLikeNode(literal_like_node) => literal_like_node.kind(),
@@ -133,6 +130,12 @@ impl NodeInterface for Expression {
 impl From<Expression> for Node {
     fn from(expression: Expression) -> Self {
         Node::Expression(expression)
+    }
+}
+
+impl From<BaseNode> for Expression {
+    fn from(base_node: BaseNode) -> Self {
+        Expression::TokenExpression(base_node)
     }
 }
 

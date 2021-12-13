@@ -219,11 +219,10 @@ impl ParserType {
         false
     }
 
-    fn parse_token_node(&mut self) -> Node {
+    fn parse_token_node(&mut self) -> BaseNode {
         let kind = self.token();
         self.next_token();
         self.finish_node(self.factory.create_token(self, kind))
-            .into()
     }
 
     fn create_node_array(&self, elements: Vec<Node>) -> NodeArray {
@@ -387,7 +386,7 @@ impl ParserType {
             let operator_token = self.parse_token_node();
             let right = self.parse_binary_expression_or_higher(new_precedence);
             left_operand = self
-                .make_binary_expression(left_operand, operator_token, right)
+                .make_binary_expression(left_operand, operator_token.into(), right)
                 .into();
         }
 
@@ -455,6 +454,9 @@ impl ParserType {
     fn parse_primary_expression(&mut self) -> Expression {
         match self.token() {
             SyntaxKind::NumericLiteral => return self.parse_literal_node().into(),
+            SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => {
+                return self.parse_token_node().into()
+            }
             _ => (),
         }
 
