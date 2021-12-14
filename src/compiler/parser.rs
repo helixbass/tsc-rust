@@ -198,6 +198,11 @@ impl ParserType {
         self.current_token()
     }
 
+    fn next_token_and<TReturn>(&mut self, func: fn(&mut ParserType) -> TReturn) -> TReturn {
+        self.next_token();
+        func(self)
+    }
+
     fn next_token(&mut self) -> SyntaxKind {
         self.next_token_without_check()
     }
@@ -338,6 +343,7 @@ impl ParserType {
         }
 
         match self.token() {
+            SyntaxKind::PlusPlusToken => true,
             _ => {
                 if self.is_binary_operator() {
                     return true;
@@ -425,6 +431,18 @@ impl ParserType {
     }
 
     fn parse_update_expression(&mut self) -> Expression {
+        if self.token() == SyntaxKind::PlusPlusToken {
+            let operator = self.token();
+            let operand =
+                self.next_token_and(ParserType::parse_left_hand_side_expression_or_higher);
+            return self
+                .finish_node(
+                    self.factory
+                        .create_prefix_unary_expression(self, operator, operand),
+                )
+                .into();
+        }
+
         let expression = self.parse_left_hand_side_expression_or_higher();
 
         expression

@@ -18,9 +18,11 @@ pub enum SyntaxKind {
     NumericLiteral,
     SemicolonToken,
     AsteriskToken,
+    PlusPlusToken,
     Identifier,
     FalseKeyword,
     TrueKeyword,
+    PrefixUnaryExpression,
     BinaryExpression,
     EmptyStatement,
     ExpressionStatement,
@@ -138,6 +140,7 @@ impl From<Identifier> for Expression {
 pub enum Expression {
     TokenExpression(BaseNode),
     Identifier(Identifier),
+    PrefixUnaryExpression(PrefixUnaryExpression),
     BinaryExpression(BinaryExpression),
     LiteralLikeNode(LiteralLikeNode),
 }
@@ -147,6 +150,9 @@ impl NodeInterface for Expression {
         match self {
             Expression::TokenExpression(token_expression) => token_expression.kind(),
             Expression::Identifier(identifier) => identifier.kind(),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.kind()
+            }
             Expression::BinaryExpression(binary_expression) => binary_expression.kind(),
             Expression::LiteralLikeNode(literal_like_node) => literal_like_node.kind(),
         }
@@ -162,6 +168,35 @@ impl From<Expression> for Node {
 impl From<BaseNode> for Expression {
     fn from(base_node: BaseNode) -> Self {
         Expression::TokenExpression(base_node)
+    }
+}
+
+#[derive(Debug)]
+pub struct PrefixUnaryExpression {
+    pub _node: BaseNode,
+    pub operator: SyntaxKind,
+    pub operand: Box<Expression>,
+}
+
+impl PrefixUnaryExpression {
+    pub fn new(base_node: BaseNode, operator: SyntaxKind, operand: Expression) -> Self {
+        Self {
+            _node: base_node,
+            operator,
+            operand: Box::new(operand),
+        }
+    }
+}
+
+impl NodeInterface for PrefixUnaryExpression {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind
+    }
+}
+
+impl From<PrefixUnaryExpression> for Expression {
+    fn from(prefix_unary_expression: PrefixUnaryExpression) -> Self {
+        Expression::PrefixUnaryExpression(prefix_unary_expression)
     }
 }
 
@@ -432,6 +467,7 @@ impl CharacterCodes {
     pub const Z: char = 'Z';
 
     pub const asterisk: char = '*';
+    pub const plus: char = '+';
     pub const semicolon: char = ';';
     pub const slash: char = '/';
 }

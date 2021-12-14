@@ -1,7 +1,7 @@
 use crate::{
     BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, EmptyStatement, Expression,
     ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NumericLiteral,
-    SourceFile, SyntaxKind,
+    PrefixUnaryExpression, SourceFile, SyntaxKind,
 };
 
 impl NodeFactory {
@@ -84,6 +84,17 @@ impl NodeFactory {
         kind: SyntaxKind,
     ) -> BaseNode {
         let node = self.create_base_node(base_factory, kind);
+        node
+    }
+
+    pub fn create_prefix_unary_expression<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operator: SyntaxKind,
+        operand: Expression,
+    ) -> PrefixUnaryExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::PrefixUnaryExpression);
+        let node = PrefixUnaryExpression::new(node, operator, operand);
         node
     }
 

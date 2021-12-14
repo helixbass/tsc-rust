@@ -23,8 +23,9 @@ pub use compiler::types::{
     CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmptyStatement, ExitStatus, Expression,
     ExpressionStatement, Identifier, LiteralLikeNode, ModuleResolutionHost, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, NumericLiteral, ParsedCommandLine, Path, Program,
-    SourceFile, Statement, StructureIsReused, SyntaxKind, TypeChecker,
+    NodeArrayOrVec, NodeFactory, NodeInterface, NumericLiteral, ParsedCommandLine, Path,
+    PrefixUnaryExpression, Program, SourceFile, Statement, StructureIsReused, SyntaxKind,
+    TypeChecker,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, get_binary_operator_precedence,

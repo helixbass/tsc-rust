@@ -103,6 +103,16 @@ impl Scanner {
                     self.set_pos(self.pos() + 1);
                     return self.set_token(SyntaxKind::AsteriskToken);
                 }
+                CharacterCodes::plus => {
+                    if let Some(next_char) = self.text().chars().nth(self.pos() + 1) {
+                        if next_char == CharacterCodes::plus {
+                            self.set_pos(self.pos() + 2);
+                            return self.set_token(SyntaxKind::PlusPlusToken);
+                        }
+                        unimplemented!();
+                    }
+                    unimplemented!();
+                }
                 CharacterCodes::_0
                 | CharacterCodes::_1
                 | CharacterCodes::_2

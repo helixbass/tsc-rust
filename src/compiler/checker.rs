@@ -1,4 +1,7 @@
-use crate::{create_diagnostic_collection, for_each, Diagnostic, Node, SourceFile, TypeChecker};
+use crate::{
+    create_diagnostic_collection, for_each, Diagnostic, Expression, ExpressionStatement, Node,
+    SourceFile, Statement, TypeChecker,
+};
 
 pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
     TypeChecker {
@@ -7,7 +10,23 @@ pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
 }
 
 impl TypeChecker {
-    fn check_source_element(&self, node: &Node) {}
+    fn check_source_element(&self, node: &Node) {
+        self.check_source_element_worker(node)
+    }
+
+    fn check_source_element_worker(&self, node: &Node) {
+        match node {
+            Node::Statement(statement) => {
+                match statement {
+                    Statement::ExpressionStatement(expression_statement) => {
+                        return self.check_expression_statement(expression_statement);
+                    }
+                    _ => unimplemented!(),
+                };
+            }
+            _ => unimplemented!(),
+        };
+    }
 
     fn check_source_file(&self, source_file: &SourceFile) {
         self.check_source_file_worker(source_file)
@@ -38,5 +57,22 @@ impl TypeChecker {
                 boxed
             })
             .collect()
+    }
+
+    fn check_expression(&self, node: &Expression) {
+        self.check_expression_worker(node);
+    }
+
+    fn check_expression_worker(&self, node: &Expression) {
+        match node {
+            // Expression::BinaryExpression(binary_expression) => {
+            //     return self.check_binary_expression(binary_expression);
+            // }
+            _ => unimplemented!(),
+        }
+    }
+
+    fn check_expression_statement(&self, node: &ExpressionStatement) {
+        self.check_expression(&node.expression);
     }
 }
