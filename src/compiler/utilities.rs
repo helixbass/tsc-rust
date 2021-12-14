@@ -4,8 +4,8 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use crate::{
-    BaseNode, DiagnosticCollection, DiagnosticMessage, DiagnosticWithDetachedLocation,
-    DiagnosticWithLocation, SortedArray, SyntaxKind,
+    BaseNode, BaseType, DiagnosticCollection, DiagnosticMessage, DiagnosticWithDetachedLocation,
+    DiagnosticWithLocation, SortedArray, SyntaxKind, TypeFlags,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -60,6 +60,11 @@ impl DiagnosticCollection {
 }
 
 #[allow(non_snake_case)]
+fn Type(flags: TypeFlags) -> BaseType {
+    BaseType { flags }
+}
+
+#[allow(non_snake_case)]
 fn Node(kind: SyntaxKind) -> BaseNode {
     BaseNode { kind }
 }
@@ -91,6 +96,10 @@ impl ObjectAllocator {
 
     pub fn get_source_file_constructor(&self) -> fn(SyntaxKind) -> BaseNode {
         Node
+    }
+
+    pub fn get_type_constructor(&self) -> fn(TypeFlags) -> BaseType {
+        Type
     }
 }
 

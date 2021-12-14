@@ -1,3 +1,6 @@
+#![allow(non_upper_case_globals)]
+
+use bitflags::bitflags;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -377,9 +380,69 @@ pub enum ExitStatus {
     DiagnosticsPresent_OutputsGenerated,
 }
 
+#[allow(non_snake_case)]
 pub struct TypeChecker {
+    pub Type: fn(TypeFlags) -> BaseType,
+    pub number_type: Option<BaseIntrinsicType>,
+    pub true_type: Option<FreshableIntrinsicType>,
     pub diagnostics: DiagnosticCollection,
 }
+
+bitflags! {
+    pub struct TypeFlags: u32 {
+        const Number = 1 << 3;
+        const BooleanLiteral = 1 << 9;
+    }
+}
+
+pub trait Type {
+    fn flags(&self) -> TypeFlags;
+}
+
+#[derive(Clone)]
+pub struct BaseType {
+    pub flags: TypeFlags,
+}
+
+pub trait IntrinsicType: Type {}
+
+#[derive(Clone)]
+pub struct BaseIntrinsicType {
+    _type: BaseType,
+}
+
+impl BaseIntrinsicType {
+    pub fn new(type_: BaseType) -> Self {
+        Self { _type: type_ }
+    }
+}
+
+impl Type for BaseIntrinsicType {
+    fn flags(&self) -> TypeFlags {
+        self._type.flags
+    }
+}
+
+#[derive(Clone)]
+pub struct FreshableIntrinsicType {
+    _intrinsic_type: BaseIntrinsicType,
+}
+
+impl FreshableIntrinsicType {
+    pub fn new(intrinsic_type: BaseIntrinsicType) -> Self {
+        Self {
+            _intrinsic_type: intrinsic_type,
+        }
+    }
+}
+
+impl Type for FreshableIntrinsicType {
+    fn flags(&self) -> TypeFlags {
+        self._intrinsic_type._type.flags
+    }
+}
+
+impl IntrinsicType for FreshableIntrinsicType {}
 
 #[derive(Debug)]
 pub struct ParsedCommandLine {

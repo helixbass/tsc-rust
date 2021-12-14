@@ -19,13 +19,13 @@ pub use compiler::program::create_program;
 pub use compiler::scanner::{create_scanner, Scanner};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
-    BaseLiteralLikeNode, BaseNode, BinaryExpression, CharacterCodes, CompilerHost,
-    CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmptyStatement, ExitStatus, Expression,
-    ExpressionStatement, Identifier, LiteralLikeNode, ModuleResolutionHost, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, NumericLiteral, ParsedCommandLine, Path,
-    PrefixUnaryExpression, Program, SourceFile, Statement, StructureIsReused, SyntaxKind,
-    TypeChecker,
+    BaseIntrinsicType, BaseLiteralLikeNode, BaseNode, BaseType, BinaryExpression, CharacterCodes,
+    CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticCollection,
+    DiagnosticMessage, DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmptyStatement,
+    ExitStatus, Expression, ExpressionStatement, FreshableIntrinsicType, Identifier, IntrinsicType,
+    LiteralLikeNode, ModuleResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, NumericLiteral, ParsedCommandLine, Path, PrefixUnaryExpression, Program,
+    SourceFile, Statement, StructureIsReused, SyntaxKind, Type, TypeChecker, TypeFlags,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, get_binary_operator_precedence,
