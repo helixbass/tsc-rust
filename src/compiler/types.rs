@@ -384,19 +384,41 @@ pub enum ExitStatus {
 pub struct TypeChecker {
     pub Type: fn(TypeFlags) -> BaseType,
     pub number_type: Option<BaseIntrinsicType>,
+    pub bigint_type: Option<BaseIntrinsicType>,
     pub true_type: Option<FreshableIntrinsicType>,
+    pub number_or_big_int_type: Option<Box<dyn Type>>,
     pub diagnostics: DiagnosticCollection,
 }
 
 bitflags! {
     pub struct TypeFlags: u32 {
         const Number = 1 << 3;
+        const BigInt = 1 << 6;
         const BooleanLiteral = 1 << 9;
     }
 }
 
-pub trait Type {
+pub trait Type: TypeClone {
     fn flags(&self) -> TypeFlags;
+}
+
+trait TypeClone {
+    fn clone_box(&self) -> Box<dyn Type>;
+}
+
+impl<TTypeClone> TypeClone for TTypeClone
+where
+    TTypeClone: 'static + Type + Clone,
+{
+    fn clone_box(&self) -> Box<dyn Type> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn Type> {
+    fn clone(&self) -> Box<dyn Type> {
+        self.clone_box()
+    }
 }
 
 #[derive(Clone)]

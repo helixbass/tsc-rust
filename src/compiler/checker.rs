@@ -10,15 +10,23 @@ pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
         Type: object_allocator.get_type_constructor(),
 
         number_type: None,
+        bigint_type: None,
         true_type: None,
+        number_or_big_int_type: None,
 
         diagnostics: create_diagnostic_collection(),
     };
     type_checker.number_type =
         Some(type_checker.create_intrinsic_type(TypeFlags::Number, "number"));
+    type_checker.bigint_type =
+        Some(type_checker.create_intrinsic_type(TypeFlags::BigInt, "bigint"));
     type_checker.true_type = Some(FreshableIntrinsicType::new(
         type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "true"),
     ));
+    type_checker.number_or_big_int_type = Some(type_checker.get_union_type(vec![
+        Box::new(type_checker.number_type()),
+        Box::new(type_checker.bigint_type()),
+    ]));
     type_checker
 }
 
@@ -27,8 +35,16 @@ impl TypeChecker {
         self.number_type.as_ref().unwrap().clone()
     }
 
+    fn bigint_type(&self) -> BaseIntrinsicType {
+        self.bigint_type.as_ref().unwrap().clone()
+    }
+
     fn true_type(&self) -> FreshableIntrinsicType {
         self.true_type.as_ref().unwrap().clone()
+    }
+
+    fn number_or_big_int_type(&self) -> Box<dyn Type> {
+        self.number_or_big_int_type.unwrap().clone()
     }
 
     fn create_type(&self, flags: TypeFlags) -> BaseType {
@@ -41,6 +57,8 @@ impl TypeChecker {
         let type_ = BaseIntrinsicType::new(type_);
         type_
     }
+
+    fn get_union_type(&self, types: Vec<Box<dyn Type>>) -> Box<dyn Type> {}
 
     fn check_source_element(&self, node: &Node) {
         self.check_source_element_worker(node)
@@ -97,10 +115,10 @@ impl TypeChecker {
         type_: &Box<dyn Type>,
         diagnostic: &DiagnosticMessage,
     ) -> bool {
-        // if !self.is_type_assignable_to(type_, self.number_or_big_int_type()) {
-        //     self.error_and_maybe_suggest_await(operand, diagnostic);
-        //     return false;
-        // }
+        if !self.is_type_assignable_to(type_, self.number_or_big_int_type()) {
+            self.error_and_maybe_suggest_await(operand, diagnostic);
+            return false;
+        }
         true
     }
 
