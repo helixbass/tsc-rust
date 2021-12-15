@@ -19,18 +19,19 @@ pub use compiler::program::create_program;
 pub use compiler::scanner::{create_scanner, Scanner};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
-    BaseIntrinsicType, BaseLiteralLikeNode, BaseNode, BaseType, BinaryExpression, CharacterCodes,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseIntrinsicType, BaseLiteralLikeNode,
+    BaseNode, BaseType, BaseUnionOrIntersectionType, BinaryExpression, CharacterCodes,
     CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticCollection,
-    DiagnosticMessage, DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmptyStatement,
-    ExitStatus, Expression, ExpressionStatement, FreshableIntrinsicType, Identifier, IntrinsicType,
-    LiteralLikeNode, ModuleResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, NumericLiteral, ParsedCommandLine, Path, PrefixUnaryExpression, Program,
-    RelationComparisonResult, SourceFile, Statement, StructureIsReused, SyntaxKind, Type,
-    TypeChecker, TypeFlags,
+    DiagnosticMessage, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
+    DiagnosticWithLocation, EmptyStatement, ExitStatus, Expression, ExpressionStatement,
+    FreshableIntrinsicType, Identifier, IntrinsicType, LiteralLikeNode, ModuleResolutionHost, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, NumericLiteral, ParsedCommandLine, Path,
+    PrefixUnaryExpression, Program, RelationComparisonResult, SourceFile, Statement,
+    StructureIsReused, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionType,
 };
 pub use compiler::utilities::{
-    create_detached_diagnostic, create_diagnostic_collection, get_binary_operator_precedence,
-    object_allocator, OperatorPrecedence,
+    create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,
+    get_binary_operator_precedence, object_allocator, OperatorPrecedence,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;

@@ -59,15 +59,15 @@ impl ProgramConcrete {
 
     fn get_diagnostics_helper(
         &mut self,
-        get_diagnostics: fn(&mut ProgramConcrete, &SourceFile) -> Vec<Box<dyn Diagnostic>>,
-    ) -> Vec<Box<dyn Diagnostic>> {
+        get_diagnostics: fn(&mut ProgramConcrete, &SourceFile) -> Vec<Rc<Diagnostic>>,
+    ) -> Vec<Rc<Diagnostic>> {
         self.get_source_files()
             .iter()
             .flat_map(|source_file| get_diagnostics(self, source_file))
             .collect()
     }
 
-    fn get_program_diagnostics(&self, source_file: &SourceFile) -> Vec<Box<dyn Diagnostic>> {
+    fn get_program_diagnostics(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         vec![]
     }
 
@@ -81,7 +81,7 @@ impl ProgramConcrete {
     fn get_semantic_diagnostics_for_file(
         &mut self,
         source_file: &SourceFile,
-    ) -> Vec<Box<dyn Diagnostic>> {
+    ) -> Vec<Rc<Diagnostic>> {
         concatenate(
             filter_semantic_diagnostics(self.get_bind_and_check_diagnostics_for_file(source_file)),
             self.get_program_diagnostics(source_file),
@@ -91,7 +91,7 @@ impl ProgramConcrete {
     fn get_bind_and_check_diagnostics_for_file(
         &mut self,
         source_file: &SourceFile,
-    ) -> Vec<Box<dyn Diagnostic>> {
+    ) -> Vec<Rc<Diagnostic>> {
         self.get_and_cache_diagnostics(
             source_file,
             ProgramConcrete::get_bind_and_check_diagnostics_for_file_no_cache,
@@ -101,7 +101,7 @@ impl ProgramConcrete {
     fn get_bind_and_check_diagnostics_for_file_no_cache(
         &mut self,
         source_file: &SourceFile,
-    ) -> Vec<Box<dyn Diagnostic>> {
+    ) -> Vec<Rc<Diagnostic>> {
         // self.run_with_cancellation_token(|| {
         let type_checker = self.get_diagnostics_producing_type_checker();
 
@@ -119,15 +119,15 @@ impl ProgramConcrete {
     fn get_and_cache_diagnostics(
         &mut self,
         source_file: &SourceFile,
-        get_diagnostics: fn(&mut ProgramConcrete, &SourceFile) -> Vec<Box<dyn Diagnostic>>,
-    ) -> Vec<Box<dyn Diagnostic>> {
+        get_diagnostics: fn(&mut ProgramConcrete, &SourceFile) -> Vec<Rc<Diagnostic>>,
+    ) -> Vec<Rc<Diagnostic>> {
         let result = get_diagnostics(self, source_file);
         result
     }
 }
 
 impl Program for ProgramConcrete {
-    fn get_semantic_diagnostics(&mut self) -> Vec<Box<dyn Diagnostic>> {
+    fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>> {
         self.get_diagnostics_helper(ProgramConcrete::get_semantic_diagnostics_for_file)
     }
 
@@ -174,7 +174,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Progr
     ProgramConcrete::new(files)
 }
 
-fn filter_semantic_diagnostics(diagnostic: Vec<Box<dyn Diagnostic>>) -> Vec<Box<dyn Diagnostic>> {
+fn filter_semantic_diagnostics(diagnostic: Vec<Rc<Diagnostic>>) -> Vec<Rc<Diagnostic>> {
     diagnostic
 }
 

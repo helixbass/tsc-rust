@@ -1,14 +1,14 @@
 #![allow(non_upper_case_globals)]
 
-use std::sync::{Mutex, MutexGuard};
+use std::rc::Rc;
 
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
     get_binary_operator_precedence, is_same_variant, last_or_undefined, normalize_path,
     object_allocator, BaseNode, BaseNodeFactory, BinaryExpression, Debug_, DiagnosticMessage,
-    DiagnosticWithDetachedLocation, Diagnostics, Expression, Identifier, LiteralLikeNode, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, OperatorPrecedence, Scanner, SourceFile,
-    Statement, SyntaxKind,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
+    Identifier, LiteralLikeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    OperatorPrecedence, Scanner, SourceFile, Statement, SyntaxKind,
 };
 
 pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
@@ -23,6 +23,12 @@ impl NodeInterface for MissingNode {
     fn kind(&self) -> SyntaxKind {
         match self {
             MissingNode::Identifier(identifier) => identifier.kind(),
+        }
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.parent(),
         }
     }
 }
@@ -174,7 +180,7 @@ impl ParserType {
         message: &DiagnosticMessage,
     ) {
         let last_error = last_or_undefined(self.parse_diagnostics());
-        if last_error.map_or(true, |last_error| last_error.start != start) {
+        if last_error.map_or(true, |last_error| last_error.start() != start) {
             let file_name = self.file_name().to_string();
             self.parse_diagnostics().push(create_detached_diagnostic(
                 &file_name, start, length, message,
@@ -526,14 +532,17 @@ impl BaseNodeFactory for ParserType {
     }
 }
 
-lazy_static! {
-    static ref ParserMut: Mutex<ParserType> = Mutex::new(ParserType::new());
-}
+// lazy_static! {
+//     static ref ParserMut: Mutex<ParserType> = Mutex::new(ParserType::new());
+// }
 
 #[allow(non_snake_case)]
-fn Parser() -> MutexGuard<'static, ParserType> {
-    ParserMut.lock().unwrap()
+fn Parser() -> ParserType {
+    ParserType::new()
 }
+// fn Parser() -> MutexGuard<'static, ParserType> {
+//     ParserMut.lock().unwrap()
+// }
 
 #[derive(Copy, Clone)]
 enum ParsingContext {

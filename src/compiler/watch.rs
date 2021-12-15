@@ -1,7 +1,9 @@
+use std::rc::Rc;
+
 use crate::{Diagnostic, ExitStatus, Program};
 
 struct EmitFilesAndReportErrorsReturn {
-    diagnostics: Vec<Box<dyn Diagnostic>>,
+    diagnostics: Vec<Rc<Diagnostic>>,
 }
 
 fn emit_files_and_report_errors<TProgram: Program>(

@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
+use std::sync::RwLock;
 
 use crate::SortedArray;
 
@@ -41,6 +42,7 @@ bitflags! {
 
 pub trait NodeInterface {
     fn kind(&self) -> SyntaxKind;
+    fn parent(&self) -> Rc<Node>;
 }
 
 #[derive(Debug)]
@@ -48,6 +50,7 @@ pub enum Node {
     BaseNode(BaseNode),
     Expression(Expression),
     Statement(Statement),
+    SourceFile(Rc<SourceFile>),
 }
 
 impl NodeInterface for Node {
@@ -56,6 +59,16 @@ impl NodeInterface for Node {
             Node::BaseNode(base_node) => base_node.kind(),
             Node::Expression(expression) => expression.kind(),
             Node::Statement(statement) => statement.kind(),
+            Node::SourceFile(source_file) => source_file.kind(),
+        }
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        match self {
+            Node::BaseNode(base_node) => base_node.parent(),
+            Node::Expression(expression) => expression.parent(),
+            Node::Statement(statement) => statement.parent(),
+            Node::SourceFile(source_file) => source_file.parent(),
         }
     }
 }
@@ -63,11 +76,16 @@ impl NodeInterface for Node {
 #[derive(Debug)]
 pub struct BaseNode {
     pub kind: SyntaxKind,
+    pub parent: Option<Weak<Node>>,
 }
 
 impl NodeInterface for BaseNode {
     fn kind(&self) -> SyntaxKind {
         self.kind
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self.parent.unwrap().upgrade().unwrap()
     }
 }
 
@@ -138,6 +156,10 @@ impl NodeInterface for Identifier {
     fn kind(&self) -> SyntaxKind {
         self._node.kind
     }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
 }
 
 impl From<Identifier> for Expression {
@@ -165,6 +187,18 @@ impl NodeInterface for Expression {
             }
             Expression::BinaryExpression(binary_expression) => binary_expression.kind(),
             Expression::LiteralLikeNode(literal_like_node) => literal_like_node.kind(),
+        }
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.parent(),
+            Expression::Identifier(identifier) => identifier.parent(),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.parent()
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.parent(),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.parent(),
         }
     }
 }
@@ -200,7 +234,11 @@ impl PrefixUnaryExpression {
 
 impl NodeInterface for PrefixUnaryExpression {
     fn kind(&self) -> SyntaxKind {
-        self._node.kind
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
     }
 }
 
@@ -236,7 +274,11 @@ impl BinaryExpression {
 
 impl NodeInterface for BinaryExpression {
     fn kind(&self) -> SyntaxKind {
-        self._node.kind
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
     }
 }
 
@@ -252,6 +294,16 @@ pub struct BaseLiteralLikeNode {
     pub text: String,
 }
 
+impl NodeInterface for BaseLiteralLikeNode {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
+}
+
 pub trait LiteralLikeNodeInterface {
     fn text(&self) -> &str;
 }
@@ -265,6 +317,12 @@ impl NodeInterface for LiteralLikeNode {
     fn kind(&self) -> SyntaxKind {
         match self {
             LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.kind(),
+        }
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.parent(),
         }
     }
 }
@@ -291,6 +349,10 @@ pub struct NumericLiteral {
 impl NodeInterface for NumericLiteral {
     fn kind(&self) -> SyntaxKind {
         self._literal_like_node._node.kind
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._literal_like_node.parent()
     }
 }
 
@@ -319,6 +381,13 @@ impl NodeInterface for Statement {
             Statement::ExpressionStatement(expression_statement) => expression_statement.kind(),
         }
     }
+
+    fn parent(&self) -> Rc<Node> {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.parent(),
+            Statement::ExpressionStatement(expression_statement) => expression_statement.parent(),
+        }
+    }
 }
 
 impl From<Statement> for Node {
@@ -334,7 +403,11 @@ pub struct EmptyStatement {
 
 impl NodeInterface for EmptyStatement {
     fn kind(&self) -> SyntaxKind {
-        self._node.kind
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
     }
 }
 
@@ -352,7 +425,11 @@ pub struct ExpressionStatement {
 
 impl NodeInterface for ExpressionStatement {
     fn kind(&self) -> SyntaxKind {
-        self._node.kind
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
     }
 }
 
@@ -370,9 +447,25 @@ pub struct SourceFile {
     pub file_name: String,
 }
 
+impl NodeInterface for SourceFile {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent() // this would always fail?
+    }
+}
+
+impl From<Rc<SourceFile>> for Node {
+    fn from(source_file: Rc<SourceFile>) -> Self {
+        Node::SourceFile(source_file)
+    }
+}
+
 pub trait Program {
     fn get_source_files(&self) -> Vec<Rc<SourceFile>>;
-    fn get_semantic_diagnostics(&mut self) -> Vec<Box<dyn Diagnostic>>;
+    fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>>;
 }
 
 #[derive(Eq, PartialEq)]
@@ -393,8 +486,9 @@ pub struct TypeChecker {
     pub number_type: Option<Rc<Type>>,
     pub bigint_type: Option<Rc<Type>>,
     pub true_type: Option<Rc<Type>>,
+    pub regular_true_type: Option<Rc<Type>>,
     pub number_or_big_int_type: Option<Rc<Type>>,
-    pub diagnostics: DiagnosticCollection,
+    pub diagnostics: RwLock<DiagnosticCollection>,
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
 
@@ -406,20 +500,29 @@ bitflags! {
         const NumberLiteral = 1 << 8;
         const BooleanLiteral = 1 << 9;
         const BigIntLiteral = 1 << 11;
+        const Object = 1 << 19;
+        const Union = 1 << 20;
+        const Intersection = 1 << 21;
 
         const Literal = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::BigIntLiteral.bits | Self::BooleanLiteral.bits;
+        const StructuredType = Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
+        const StructuredOrInstantiable = Self::StructuredType.bits /*| Self::Instantiable.bits */;
     }
 }
 
 #[derive(Clone)]
 pub enum Type {
     IntrinsicType(IntrinsicType),
+    UnionOrIntersectionType(UnionOrIntersectionType),
 }
 
 impl TypeInterface for Type {
     fn flags(&self) -> TypeFlags {
         match self {
             Type::IntrinsicType(intrinsic_type) => intrinsic_type.flags(),
+            Type::UnionOrIntersectionType(union_or_intersection_type) => {
+                union_or_intersection_type.flags()
+            }
         }
     }
 }
@@ -501,6 +604,7 @@ impl From<BaseIntrinsicType> for Type {
 pub struct FreshableIntrinsicType {
     _intrinsic_type: BaseIntrinsicType,
     pub fresh_type: Option<Weak<Type>>,
+    pub regular_type: Option<Weak<Type>>,
 }
 
 impl FreshableIntrinsicType {
@@ -508,7 +612,16 @@ impl FreshableIntrinsicType {
         Self {
             _intrinsic_type: intrinsic_type,
             fresh_type: None,
+            regular_type: None,
         }
+    }
+
+    pub fn fresh_type(&self) -> Weak<Type> {
+        self.fresh_type.unwrap()
+    }
+
+    pub fn regular_type(&self) -> Weak<Type> {
+        self.regular_type.unwrap()
     }
 }
 
@@ -531,6 +644,84 @@ impl From<FreshableIntrinsicType> for Type {
         Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(
             freshable_intrinsic_type,
         ))
+    }
+}
+
+pub trait UnionOrIntersectionTypeInterface: TypeInterface {
+    fn types(&self) -> &[Rc<Type>];
+}
+
+#[derive(Clone)]
+pub enum UnionOrIntersectionType {
+    UnionType(UnionType),
+}
+
+impl TypeInterface for UnionOrIntersectionType {
+    fn flags(&self) -> TypeFlags {
+        match self {
+            UnionOrIntersectionType::UnionType(union_type) => union_type.flags(),
+        }
+    }
+}
+
+impl UnionOrIntersectionTypeInterface for UnionOrIntersectionType {
+    fn types(&self) -> &[Rc<Type>] {
+        match self {
+            UnionOrIntersectionType::UnionType(union_type) => union_type.types(),
+        }
+    }
+}
+
+impl From<UnionOrIntersectionType> for Type {
+    fn from(union_or_intersection_type: UnionOrIntersectionType) -> Self {
+        Type::UnionOrIntersectionType(union_or_intersection_type)
+    }
+}
+
+#[derive(Clone)]
+pub struct BaseUnionOrIntersectionType {
+    _type: BaseType,
+    types: Vec<Rc<Type>>,
+}
+
+impl TypeInterface for BaseUnionOrIntersectionType {
+    fn flags(&self) -> TypeFlags {
+        self._type.flags()
+    }
+}
+
+impl UnionOrIntersectionTypeInterface for BaseUnionOrIntersectionType {
+    fn types(&self) -> &[Rc<Type>] {
+        &self.types
+    }
+}
+
+#[derive(Clone)]
+pub struct UnionType {
+    pub _union_or_intersection_type: BaseUnionOrIntersectionType,
+}
+
+impl TypeInterface for UnionType {
+    fn flags(&self) -> TypeFlags {
+        self._union_or_intersection_type.flags()
+    }
+}
+
+impl UnionOrIntersectionTypeInterface for UnionType {
+    fn types(&self) -> &[Rc<Type>] {
+        &self._union_or_intersection_type.types
+    }
+}
+
+impl From<UnionType> for UnionOrIntersectionType {
+    fn from(union_type: UnionType) -> Self {
+        UnionOrIntersectionType::UnionType(union_type)
+    }
+}
+
+impl From<UnionType> for Type {
+    fn from(union_type: UnionType) -> Self {
+        Type::UnionOrIntersectionType(UnionOrIntersectionType::UnionType(union_type))
     }
 }
 
@@ -642,30 +833,155 @@ pub struct DiagnosticMessage {
     pub message: &'static str,
 }
 
-pub trait Diagnostic: DiagnosticRelatedInformation {}
+pub enum Diagnostic {
+    DiagnosticWithLocation(DiagnosticWithLocation),
+    DiagnosticWithDetachedLocation(DiagnosticWithDetachedLocation),
+}
 
-pub trait DiagnosticRelatedInformation {}
+pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {}
+
+#[derive(Clone)]
+pub struct BaseDiagnostic {
+    _diagnostic_related_information: BaseDiagnosticRelatedInformation,
+}
+
+impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
+    fn file(&self) -> Option<Rc<SourceFile>> {
+        self._diagnostic_related_information.file()
+    }
+
+    fn start(&self) -> usize {
+        self._diagnostic_related_information.start()
+    }
+
+    fn length(&self) -> usize {
+        self._diagnostic_related_information.length()
+    }
+}
+
+impl DiagnosticRelatedInformationInterface for Diagnostic {
+    fn file(&self) -> Option<Rc<SourceFile>> {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
+                diagnostic_with_location.file()
+            }
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
+                diagnostic_with_detached_location.file()
+            }
+        }
+    }
+
+    fn start(&self) -> usize {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
+                diagnostic_with_location.start()
+            }
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
+                diagnostic_with_detached_location.start()
+            }
+        }
+    }
+
+    fn length(&self) -> usize {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
+                diagnostic_with_location.length()
+            }
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
+                diagnostic_with_detached_location.length()
+            }
+        }
+    }
+}
+
+impl DiagnosticInterface for Diagnostic {}
+
+pub trait DiagnosticRelatedInformationInterface {
+    fn file(&self) -> Option<Rc<SourceFile>>;
+    fn start(&self) -> usize;
+    fn length(&self) -> usize;
+}
+
+#[derive(Clone)]
+pub struct BaseDiagnosticRelatedInformation {
+    pub file: Option<Rc<SourceFile>>,
+    pub start: usize,
+    pub length: usize,
+}
+
+impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation {
+    fn file(&self) -> Option<Rc<SourceFile>> {
+        self.file
+    }
+
+    fn start(&self) -> usize {
+        self.start
+    }
+
+    fn length(&self) -> usize {
+        self.length
+    }
+}
 
 #[derive(Clone)]
 pub struct DiagnosticWithLocation {
-    pub file: Rc<SourceFile>,
-    pub start: usize,
-    pub length: usize,
+    pub _diagnostic: BaseDiagnostic,
 }
 
-impl DiagnosticRelatedInformation for DiagnosticWithLocation {}
+impl DiagnosticWithLocation {
+    pub fn file_unwrapped(&self) -> Rc<SourceFile> {
+        self.file().unwrap()
+    }
+}
 
-impl Diagnostic for DiagnosticWithLocation {}
+impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
+    fn file(&self) -> Option<Rc<SourceFile>> {
+        self._diagnostic.file()
+    }
+
+    fn start(&self) -> usize {
+        self._diagnostic.start()
+    }
+
+    fn length(&self) -> usize {
+        self._diagnostic.length()
+    }
+}
+
+impl DiagnosticInterface for DiagnosticWithLocation {}
+
+impl From<DiagnosticWithLocation> for Diagnostic {
+    fn from(diagnostic_with_location: DiagnosticWithLocation) -> Self {
+        Diagnostic::DiagnosticWithLocation(diagnostic_with_location)
+    }
+}
 
 pub struct DiagnosticWithDetachedLocation {
+    pub _diagnostic: BaseDiagnostic,
     pub file_name: String,
-    pub start: usize,
-    pub length: usize,
 }
 
-impl DiagnosticRelatedInformation for DiagnosticWithDetachedLocation {}
+impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
+    fn file(&self) -> Option<Rc<SourceFile>> {
+        self._diagnostic.file()
+    }
 
-impl Diagnostic for DiagnosticWithDetachedLocation {}
+    fn start(&self) -> usize {
+        self._diagnostic.start()
+    }
+
+    fn length(&self) -> usize {
+        self._diagnostic.length()
+    }
+}
+
+impl DiagnosticInterface for DiagnosticWithDetachedLocation {}
+
+impl From<DiagnosticWithDetachedLocation> for Diagnostic {
+    fn from(diagnostic_with_detached_location: DiagnosticWithDetachedLocation) -> Self {
+        Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location)
+    }
+}
 
 pub enum DiagnosticCategory {
     Warning,
@@ -677,5 +993,5 @@ pub enum DiagnosticCategory {
 pub struct NodeFactory {}
 
 pub struct DiagnosticCollection {
-    pub file_diagnostics: HashMap<String, SortedArray<DiagnosticWithLocation>>,
+    pub file_diagnostics: HashMap<String, SortedArray<Rc<Diagnostic>>>,
 }
