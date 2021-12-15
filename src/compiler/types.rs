@@ -85,7 +85,7 @@ impl NodeInterface for BaseNode {
     }
 
     fn parent(&self) -> Rc<Node> {
-        self.parent.unwrap().upgrade().unwrap()
+        self.parent.clone().unwrap().upgrade().unwrap()
     }
 }
 
@@ -617,11 +617,11 @@ impl FreshableIntrinsicType {
     }
 
     pub fn fresh_type(&self) -> Weak<Type> {
-        self.fresh_type.unwrap()
+        self.fresh_type.as_ref().unwrap().clone()
     }
 
     pub fn regular_type(&self) -> Weak<Type> {
-        self.regular_type.unwrap()
+        self.regular_type.as_ref().unwrap().clone()
     }
 }
 
@@ -911,7 +911,7 @@ pub struct BaseDiagnosticRelatedInformation {
 
 impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation {
     fn file(&self) -> Option<Rc<SourceFile>> {
-        self.file
+        self.file.clone()
     }
 
     fn start(&self) -> usize {
@@ -991,6 +991,11 @@ pub enum DiagnosticCategory {
 }
 
 pub struct NodeFactory {}
+
+pub struct TextSpan {
+    pub start: usize,
+    pub length: usize,
+}
 
 pub struct DiagnosticCollection {
     pub file_diagnostics: HashMap<String, SortedArray<Rc<Diagnostic>>>,

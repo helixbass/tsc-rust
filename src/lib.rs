@@ -7,7 +7,7 @@ mod rust_helpers;
 
 pub use compiler::checker::create_type_checker;
 pub use compiler::command_line_parser::parse_command_line;
-pub use compiler::core::{concatenate, for_each, last_or_undefined};
+pub use compiler::core::{concatenate, for_each, insert_sorted, last_or_undefined};
 pub use compiler::core_public::SortedArray;
 pub use compiler::debug::Debug_;
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
@@ -27,12 +27,14 @@ pub use compiler::types::{
     FreshableIntrinsicType, Identifier, IntrinsicType, LiteralLikeNode, ModuleResolutionHost, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, NumericLiteral, ParsedCommandLine, Path,
     PrefixUnaryExpression, Program, RelationComparisonResult, SourceFile, Statement,
-    StructureIsReused, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionType,
+    StructureIsReused, SyntaxKind, TextSpan, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionType,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,
     get_binary_operator_precedence, object_allocator, OperatorPrecedence,
 };
+pub use compiler::utilities_public::create_text_span_from_bounds;
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::is_same_variant;

@@ -1,3 +1,5 @@
+use crate::SortedArray;
+
 pub fn for_each<
     TCollection: IntoIterator,
     TReturn,
@@ -25,6 +27,14 @@ pub fn concatenate<TItem>(mut array1: Vec<TItem>, mut array2: Vec<TItem>) -> Vec
     }
     array1.append(&mut array2);
     array1
+}
+
+pub fn insert_sorted<TItem>(array: &mut SortedArray<TItem>, insert: TItem) {
+    if array.is_empty() {
+        array.push(insert);
+        return;
+    }
+    unimplemented!()
 }
 
 pub fn last_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {

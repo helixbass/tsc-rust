@@ -5,21 +5,21 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, Node, NodeInterface, SortedArray,
-    SourceFile, SyntaxKind, TypeFlags,
+    create_text_span_from_bounds, insert_sorted, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    BaseNode, BaseType, Diagnostic, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    Node, NodeInterface, SortedArray, SourceFile, SyntaxKind, TextSpan, TypeFlags,
 };
 
 fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceFile> {
     if node.kind() == SyntaxKind::SourceFile {
         unimplemented!()
     }
-    let parent = node.parent();
+    let mut parent = node.parent();
     while parent.kind() != SyntaxKind::SourceFile {
         parent = parent.parent();
     }
-    match *parent {
+    match &*parent {
         Node::SourceFile(source_file) => source_file.clone(),
         _ => panic!("Expected SourceFile"),
     }
@@ -31,6 +31,22 @@ pub fn create_diagnostic_for_node<TNode: NodeInterface>(
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node);
     create_diagnostic_for_node_in_source_file(source_file, node, message)
+}
+
+fn create_diagnostic_for_node_in_source_file<TNode: NodeInterface>(
+    source_file: Rc<SourceFile>,
+    node: &TNode,
+    message: &DiagnosticMessage,
+) -> DiagnosticWithLocation {
+    let span = get_error_span_for_node(source_file.clone(), node);
+    create_file_diagnostic(source_file, span.start, span.length, message)
+}
+
+fn get_error_span_for_node<TNode: NodeInterface>(
+    source_file: Rc<SourceFile>,
+    node: &TNode,
+) -> TextSpan {
+    create_text_span_from_bounds(0, 0)
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -79,7 +95,7 @@ impl DiagnosticCollection {
     pub fn add(&mut self, diagnostic: Rc<Diagnostic>) {
         let diagnostics = self
             .file_diagnostics
-            .get(&diagnostic.file().unwrap().file_name)
+            .get_mut(&diagnostic.file().unwrap().file_name)
             .unwrap_or_else(|| {
                 let diagnostics: SortedArray<Rc<Diagnostic>> = SortedArray::new(vec![]);
                 self.file_diagnostics.insert(
@@ -87,9 +103,10 @@ impl DiagnosticCollection {
                     diagnostics,
                 );
                 self.file_diagnostics
-                    .get(&diagnostic.file().unwrap().file_name)
+                    .get_mut(&diagnostic.file().unwrap().file_name)
                     .unwrap()
             });
+        insert_sorted(diagnostics, diagnostic);
     }
 
     pub fn get_diagnostics(&self, file_name: &str) -> Vec<Rc<Diagnostic>> {
@@ -152,7 +169,7 @@ pub fn create_detached_diagnostic(
     file_name: &str,
     start: usize,
     length: usize,
-    _message: &DiagnosticMessage,
+    message: &DiagnosticMessage,
 ) -> DiagnosticWithDetachedLocation {
     DiagnosticWithDetachedLocation {
         _diagnostic: BaseDiagnostic {
@@ -163,5 +180,22 @@ pub fn create_detached_diagnostic(
             },
         },
         file_name: file_name.to_string(),
+    }
+}
+
+fn create_file_diagnostic(
+    file: Rc<SourceFile>,
+    start: usize,
+    length: usize,
+    message: &DiagnosticMessage,
+) -> DiagnosticWithLocation {
+    DiagnosticWithLocation {
+        _diagnostic: BaseDiagnostic {
+            _diagnostic_related_information: BaseDiagnosticRelatedInformation {
+                file: Some(file),
+                start,
+                length,
+            },
+        },
     }
 }

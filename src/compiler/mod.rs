@@ -12,4 +12,5 @@ pub mod scanner;
 pub mod sys;
 pub mod types;
 pub mod utilities;
+pub mod utilities_public;
 pub mod watch;

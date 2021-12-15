@@ -47,7 +47,7 @@ pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
         )
         .into(),
     );
-    match *true_type {
+    match &*true_type {
         Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
             IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
                 freshable_intrinsic_type.regular_type = Some(Rc::downgrade(&regular_true_type));
@@ -58,7 +58,7 @@ pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
         _ => panic!("Expected IntrinsicType"),
     }
     type_checker.true_type = Some(true_type);
-    match *regular_true_type {
+    match &*regular_true_type {
         Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
             IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
                 freshable_intrinsic_type.regular_type = Some(Rc::downgrade(&regular_true_type));
@@ -82,19 +82,19 @@ pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
 
 impl TypeChecker {
     fn number_type(&self) -> Rc<Type> {
-        self.number_type.unwrap().clone()
+        self.number_type.as_ref().unwrap().clone()
     }
 
     fn bigint_type(&self) -> Rc<Type> {
-        self.bigint_type.unwrap().clone()
+        self.bigint_type.as_ref().unwrap().clone()
     }
 
     fn true_type(&self) -> Rc<Type> {
-        self.true_type.unwrap().clone()
+        self.true_type.as_ref().unwrap().clone()
     }
 
     fn number_or_big_int_type(&self) -> Rc<Type> {
-        self.number_or_big_int_type.unwrap().clone()
+        self.number_or_big_int_type.as_ref().unwrap().clone()
     }
 
     fn diagnostics(&self) -> &RwLock<DiagnosticCollection> {
@@ -154,13 +154,13 @@ impl TypeChecker {
     }
 
     fn get_union_type(&self, types: Vec<Rc<Type>>) -> Rc<Type> {
-        let type_set: Vec<Rc<Type>> = vec![];
+        let mut type_set: Vec<Rc<Type>> = vec![];
         self.add_types_to_union(&mut type_set, /*TypeFlags::empty(), */ &types);
         self.get_union_type_from_sorted_list(type_set)
     }
 
     fn get_union_type_from_sorted_list(&self, types: Vec<Rc<Type>>) -> Rc<Type> {
-        let type_: Option<Rc<Type>> = None;
+        let mut type_: Option<Rc<Type>> = None;
         if type_.is_none() {
             let base_type = self.create_type(TypeFlags::Union);
             type_ = Some(Rc::new(
@@ -180,7 +180,7 @@ impl TypeChecker {
         if !type_.flags().intersects(TypeFlags::Literal) {
             return false;
         }
-        match *type_ {
+        match &*type_ {
             Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
                 IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
                     ptr::eq(&*type_, freshable_intrinsic_type.fresh_type().as_ptr())
@@ -197,12 +197,12 @@ impl TypeChecker {
 
     fn is_type_related_to(
         &self,
-        source: Rc<Type>,
+        mut source: Rc<Type>,
         target: Rc<Type>,
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> bool {
-        if self.is_fresh_literal_type(source) {
-            source = match *source {
+        if self.is_fresh_literal_type(source.clone()) {
+            source = match &*source {
                 Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
                     IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
                         freshable_intrinsic_type.regular_type().upgrade().unwrap()
@@ -297,7 +297,7 @@ impl TypeChecker {
         let operand_type = self.check_expression(&node.operand);
         match node.operator {
             SyntaxKind::PlusPlusToken => {
-                self.check_arithmetic_operand_type(&node.operand, operand_type, &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type);
+                self.check_arithmetic_operand_type(&node.operand, operand_type.clone(), &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type);
                 return self.get_unary_result_type(&operand_type);
             }
             _ => {
