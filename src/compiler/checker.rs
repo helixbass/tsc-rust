@@ -4,8 +4,8 @@ use std::rc::Rc;
 use crate::{
     create_diagnostic_collection, for_each, object_allocator, BaseIntrinsicType, BaseType,
     Diagnostic, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
-    FreshableIntrinsicType, Node, NodeInterface, PrefixUnaryExpression, RelationComparisonResult,
-    SourceFile, Statement, SyntaxKind, Type, TypeChecker, TypeFlags,
+    FreshableIntrinsicType, IntrinsicType, Node, NodeInterface, PrefixUnaryExpression,
+    RelationComparisonResult, SourceFile, Statement, SyntaxKind, Type, TypeChecker, TypeFlags,
 };
 
 pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
@@ -31,12 +31,22 @@ pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
             .create_intrinsic_type(TypeFlags::BigInt, "bigint")
             .into(),
     ));
-    type_checker.true_type = Some(Rc::new(
+    let true_type: Rc<Type> = Rc::new(
         FreshableIntrinsicType::new(
             type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "true"),
         )
         .into(),
-    ));
+    );
+    match *true_type {
+        Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
+            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                freshable_intrinsic_type.fresh_type = Some(Rc::downgrade(&true_type));
+            }
+            _ => panic!("Expected FreshableIntrinsicType"),
+        },
+        _ => panic!("Expected IntrinsicType"),
+    }
+    type_checker.true_type = Some(true_type);
     type_checker.number_or_big_int_type = Some(
         type_checker
             .get_union_type(vec![

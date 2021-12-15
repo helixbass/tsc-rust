@@ -2,7 +2,7 @@
 
 use bitflags::bitflags;
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 use crate::SortedArray;
 
@@ -402,7 +402,12 @@ bitflags! {
     pub struct TypeFlags: u32 {
         const Number = 1 << 3;
         const BigInt = 1 << 6;
+        const StringLiteral = 1 << 7;
+        const NumberLiteral = 1 << 8;
         const BooleanLiteral = 1 << 9;
+        const BigIntLiteral = 1 << 11;
+
+        const Literal = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::BigIntLiteral.bits | Self::BooleanLiteral.bits;
     }
 }
 
@@ -495,12 +500,14 @@ impl From<BaseIntrinsicType> for Type {
 #[derive(Clone)]
 pub struct FreshableIntrinsicType {
     _intrinsic_type: BaseIntrinsicType,
+    pub fresh_type: Option<Weak<Type>>,
 }
 
 impl FreshableIntrinsicType {
     pub fn new(intrinsic_type: BaseIntrinsicType) -> Self {
         Self {
             _intrinsic_type: intrinsic_type,
+            fresh_type: None,
         }
     }
 }
