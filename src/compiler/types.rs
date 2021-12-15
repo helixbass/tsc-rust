@@ -32,6 +32,13 @@ pub enum SyntaxKind {
     SourceFile,
 }
 
+bitflags! {
+    pub struct RelationComparisonResult: u32 {
+        const Succeeded = 1 << 0;
+        const Failed = 1 << 1;
+    }
+}
+
 pub trait NodeInterface {
     fn kind(&self) -> SyntaxKind;
 }
@@ -383,11 +390,12 @@ pub enum ExitStatus {
 #[allow(non_snake_case)]
 pub struct TypeChecker {
     pub Type: fn(TypeFlags) -> BaseType,
-    pub number_type: Option<BaseIntrinsicType>,
-    pub bigint_type: Option<BaseIntrinsicType>,
-    pub true_type: Option<FreshableIntrinsicType>,
-    pub number_or_big_int_type: Option<Box<dyn Type>>,
+    pub number_type: Option<Rc<Type>>,
+    pub bigint_type: Option<Rc<Type>>,
+    pub true_type: Option<Rc<Type>>,
+    pub number_or_big_int_type: Option<Rc<Type>>,
     pub diagnostics: DiagnosticCollection,
+    pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
 
 bitflags! {
@@ -398,27 +406,21 @@ bitflags! {
     }
 }
 
-pub trait Type: TypeClone {
+#[derive(Clone)]
+pub enum Type {
+    IntrinsicType(IntrinsicType),
+}
+
+impl TypeInterface for Type {
+    fn flags(&self) -> TypeFlags {
+        match self {
+            Type::IntrinsicType(intrinsic_type) => intrinsic_type.flags(),
+        }
+    }
+}
+
+pub trait TypeInterface {
     fn flags(&self) -> TypeFlags;
-}
-
-trait TypeClone {
-    fn clone_box(&self) -> Box<dyn Type>;
-}
-
-impl<TTypeClone> TypeClone for TTypeClone
-where
-    TTypeClone: 'static + Type + Clone,
-{
-    fn clone_box(&self) -> Box<dyn Type> {
-        Box::new(self.clone())
-    }
-}
-
-impl Clone for Box<dyn Type> {
-    fn clone(&self) -> Box<dyn Type> {
-        self.clone_box()
-    }
 }
 
 #[derive(Clone)]
@@ -426,7 +428,38 @@ pub struct BaseType {
     pub flags: TypeFlags,
 }
 
-pub trait IntrinsicType: Type {}
+impl TypeInterface for BaseType {
+    fn flags(&self) -> TypeFlags {
+        self.flags
+    }
+}
+
+pub trait IntrinsicTypeInterface: TypeInterface {}
+
+#[derive(Clone)]
+pub enum IntrinsicType {
+    BaseIntrinsicType(BaseIntrinsicType),
+    FreshableIntrinsicType(FreshableIntrinsicType),
+}
+
+impl TypeInterface for IntrinsicType {
+    fn flags(&self) -> TypeFlags {
+        match self {
+            IntrinsicType::BaseIntrinsicType(base_intrinsic_type) => base_intrinsic_type.flags(),
+            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                freshable_intrinsic_type.flags()
+            }
+        }
+    }
+}
+
+impl IntrinsicTypeInterface for IntrinsicType {}
+
+impl From<IntrinsicType> for Type {
+    fn from(intrinsic_type: IntrinsicType) -> Self {
+        Type::IntrinsicType(intrinsic_type)
+    }
+}
 
 #[derive(Clone)]
 pub struct BaseIntrinsicType {
@@ -439,9 +472,23 @@ impl BaseIntrinsicType {
     }
 }
 
-impl Type for BaseIntrinsicType {
+impl TypeInterface for BaseIntrinsicType {
     fn flags(&self) -> TypeFlags {
-        self._type.flags
+        self._type.flags()
+    }
+}
+
+impl IntrinsicTypeInterface for BaseIntrinsicType {}
+
+impl From<BaseIntrinsicType> for IntrinsicType {
+    fn from(base_intrinsic_type: BaseIntrinsicType) -> Self {
+        IntrinsicType::BaseIntrinsicType(base_intrinsic_type)
+    }
+}
+
+impl From<BaseIntrinsicType> for Type {
+    fn from(base_intrinsic_type: BaseIntrinsicType) -> Self {
+        Type::IntrinsicType(IntrinsicType::BaseIntrinsicType(base_intrinsic_type))
     }
 }
 
@@ -458,13 +505,27 @@ impl FreshableIntrinsicType {
     }
 }
 
-impl Type for FreshableIntrinsicType {
+impl TypeInterface for FreshableIntrinsicType {
     fn flags(&self) -> TypeFlags {
-        self._intrinsic_type._type.flags
+        self._intrinsic_type.flags()
     }
 }
 
-impl IntrinsicType for FreshableIntrinsicType {}
+impl IntrinsicTypeInterface for FreshableIntrinsicType {}
+
+impl From<FreshableIntrinsicType> for IntrinsicType {
+    fn from(freshable_intrinsic_type: FreshableIntrinsicType) -> Self {
+        IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type)
+    }
+}
+
+impl From<FreshableIntrinsicType> for Type {
+    fn from(freshable_intrinsic_type: FreshableIntrinsicType) -> Self {
+        Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(
+            freshable_intrinsic_type,
+        ))
+    }
+}
 
 #[derive(Debug)]
 pub struct ParsedCommandLine {

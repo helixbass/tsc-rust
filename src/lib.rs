@@ -25,7 +25,8 @@ pub use compiler::types::{
     ExitStatus, Expression, ExpressionStatement, FreshableIntrinsicType, Identifier, IntrinsicType,
     LiteralLikeNode, ModuleResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory,
     NodeInterface, NumericLiteral, ParsedCommandLine, Path, PrefixUnaryExpression, Program,
-    SourceFile, Statement, StructureIsReused, SyntaxKind, Type, TypeChecker, TypeFlags,
+    RelationComparisonResult, SourceFile, Statement, StructureIsReused, SyntaxKind, Type,
+    TypeChecker, TypeFlags,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, get_binary_operator_precedence,
