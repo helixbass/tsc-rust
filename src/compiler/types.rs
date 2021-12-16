@@ -933,6 +933,7 @@ pub struct DiagnosticMessage {
     pub message: &'static str,
 }
 
+#[derive(Debug)]
 pub enum Diagnostic {
     DiagnosticWithLocation(DiagnosticWithLocation),
     DiagnosticWithDetachedLocation(DiagnosticWithDetachedLocation),
@@ -940,7 +941,7 @@ pub enum Diagnostic {
 
 pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
 }
@@ -1010,7 +1011,7 @@ pub trait DiagnosticRelatedInformationInterface {
     fn length(&self) -> usize;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BaseDiagnosticRelatedInformation {
     pub file: Option<Rc<SourceFile>>,
     pub start: usize,
@@ -1031,7 +1032,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DiagnosticWithLocation {
     pub _diagnostic: BaseDiagnostic,
 }
@@ -1064,6 +1065,7 @@ impl From<DiagnosticWithLocation> for Diagnostic {
     }
 }
 
+#[derive(Debug)]
 pub struct DiagnosticWithDetachedLocation {
     pub _diagnostic: BaseDiagnostic,
     pub file_name: String,
