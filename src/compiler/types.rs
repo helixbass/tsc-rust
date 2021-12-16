@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 use std::sync::RwLock;
 
-use crate::SortedArray;
+use crate::{SortedArray, WeakSelf};
 
 pub struct Path(String);
 
@@ -603,25 +603,25 @@ impl From<BaseIntrinsicType> for Type {
 #[derive(Clone)]
 pub struct FreshableIntrinsicType {
     _intrinsic_type: BaseIntrinsicType,
-    pub fresh_type: Option<Weak<Type>>,
-    pub regular_type: Option<Weak<Type>>,
+    pub fresh_type: WeakSelf<Type>,
+    pub regular_type: WeakSelf<Type>,
 }
 
 impl FreshableIntrinsicType {
     pub fn new(intrinsic_type: BaseIntrinsicType) -> Self {
         Self {
             _intrinsic_type: intrinsic_type,
-            fresh_type: None,
-            regular_type: None,
+            fresh_type: WeakSelf::new(),
+            regular_type: WeakSelf::new(),
         }
     }
 
     pub fn fresh_type(&self) -> Weak<Type> {
-        self.fresh_type.as_ref().unwrap().clone()
+        self.fresh_type.get()
     }
 
     pub fn regular_type(&self) -> Weak<Type> {
-        self.regular_type.as_ref().unwrap().clone()
+        self.regular_type.get()
     }
 }
 

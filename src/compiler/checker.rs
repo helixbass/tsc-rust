@@ -50,8 +50,10 @@ pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
     match &*true_type {
         Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
             IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                freshable_intrinsic_type.regular_type = Some(Rc::downgrade(&regular_true_type));
-                freshable_intrinsic_type.fresh_type = Some(Rc::downgrade(&true_type));
+                freshable_intrinsic_type
+                    .regular_type
+                    .init(&regular_true_type);
+                freshable_intrinsic_type.fresh_type.init(&true_type);
             }
             _ => panic!("Expected FreshableIntrinsicType"),
         },
@@ -61,8 +63,12 @@ pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
     match &*regular_true_type {
         Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
             IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                freshable_intrinsic_type.regular_type = Some(Rc::downgrade(&regular_true_type));
-                freshable_intrinsic_type.fresh_type = Some(Rc::downgrade(&true_type));
+                freshable_intrinsic_type
+                    .regular_type
+                    .init(&regular_true_type);
+                freshable_intrinsic_type
+                    .fresh_type
+                    .init(type_checker.true_type.as_ref().unwrap());
             }
             _ => panic!("Expected FreshableIntrinsicType"),
         },
