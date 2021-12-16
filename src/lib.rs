@@ -14,7 +14,7 @@ pub use compiler::debug::Debug_;
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::factory::base_node_factory::BaseNodeFactory;
 pub use compiler::factory::node_factory::create_node_factory;
-pub use compiler::parser::create_source_file;
+pub use compiler::parser::{create_source_file, for_each_child};
 pub use compiler::path::{normalize_path, to_path};
 pub use compiler::program::create_program;
 pub use compiler::scanner::{create_scanner, Scanner};

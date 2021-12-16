@@ -305,10 +305,14 @@ impl TypeChecker {
     }
 
     fn check_prefix_unary_expression(&self, node: &PrefixUnaryExpression) -> Rc<Type> {
-        let operand_type = self.check_expression(&node.operand);
+        let operand_expression = match &*node.operand {
+            Node::Expression(expression) => expression,
+            _ => panic!("Expected Expression"),
+        };
+        let operand_type = self.check_expression(operand_expression);
         match node.operator {
             SyntaxKind::PlusPlusToken => {
-                self.check_arithmetic_operand_type(&node.operand, operand_type.clone(), &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type);
+                self.check_arithmetic_operand_type(operand_expression, operand_type.clone(), &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type);
                 return self.get_unary_result_type(&operand_type);
             }
             _ => {
@@ -318,7 +322,7 @@ impl TypeChecker {
     }
 
     fn get_unary_result_type(&self, operand_type: &Type) -> Rc<Type> {
-        self.number_type().clone()
+        self.number_type()
     }
 
     fn check_expression(&self, node: &Expression) -> Rc<Type> {
@@ -344,7 +348,11 @@ impl TypeChecker {
     }
 
     fn check_expression_statement(&self, node: &ExpressionStatement) {
-        self.check_expression(&node.expression);
+        let expression = match &*node.expression {
+            Node::Expression(expression) => expression,
+            _ => panic!("Expected Expression"),
+        };
+        self.check_expression(expression);
     }
 
     fn initialize_type_checker<TTypeCheckerHost: TypeCheckerHost>(&self, host: &TTypeCheckerHost) {

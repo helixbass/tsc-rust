@@ -11,6 +11,29 @@ use crate::{
     OperatorPrecedence, Scanner, SourceFile, Statement, SyntaxKind,
 };
 
+fn visit_node<TNodeCallback: FnMut(Rc<Node>)>(mut cb_node: TNodeCallback, node: Rc<Node>) {
+    cb_node(node)
+}
+
+pub fn for_each_child<TNodeCallback: FnMut(Rc<Node>), TNodesCallback: FnMut(&NodeArray)>(
+    node: Rc<Node>,
+    cb_node: TNodeCallback,
+    cb_nodes: TNodesCallback,
+) {
+    if node.kind() <= SyntaxKind::LastToken {
+        return;
+    }
+    match &*node {
+        Node::Expression(expression) => match expression {
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                return visit_node(cb_node, prefix_unary_expression.operand.clone());
+            }
+            _ => unimplemented!(),
+        },
+        _ => unimplemented!(),
+    }
+}
+
 pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
     Parser().parse_source_file(file_name, source_text)
 }
@@ -243,7 +266,8 @@ impl ParserType {
     }
 
     fn create_node_array(&self, elements: Vec<Node>) -> NodeArray {
-        self.factory.create_node_array(elements)
+        self.factory
+            .create_node_array(elements.into_iter().map(Rc::new).collect::<Vec<Rc<Node>>>())
     }
 
     fn finish_node<TParsedNode: NodeInterface>(&mut self, node: TParsedNode) -> TParsedNode {

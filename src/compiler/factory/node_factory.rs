@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, EmptyStatement, Expression,
     ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NumericLiteral,
@@ -126,7 +128,7 @@ impl NodeFactory {
     ) -> ExpressionStatement {
         ExpressionStatement {
             _node: self.create_base_node(base_factory, SyntaxKind::ExpressionStatement),
-            expression,
+            expression: Rc::new(expression.into()),
         }
     }
 

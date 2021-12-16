@@ -15,7 +15,7 @@ impl Path {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
@@ -26,11 +26,18 @@ pub enum SyntaxKind {
     Identifier,
     FalseKeyword,
     TrueKeyword,
+    OfKeyword,
     PrefixUnaryExpression,
     BinaryExpression,
     EmptyStatement,
     ExpressionStatement,
+    FunctionDeclaration,
     SourceFile,
+}
+
+impl SyntaxKind {
+    pub const LastKeyword: SyntaxKind = SyntaxKind::OfKeyword;
+    pub const LastToken: SyntaxKind = SyntaxKind::LastKeyword;
 }
 
 bitflags! {
@@ -126,11 +133,11 @@ impl From<BaseNode> for Node {
 
 #[derive(Debug)]
 pub struct NodeArray {
-    _nodes: Vec<Node>,
+    _nodes: Vec<Rc<Node>>,
 }
 
 impl NodeArray {
-    pub fn new(nodes: Vec<Node>) -> Self {
+    pub fn new(nodes: Vec<Rc<Node>>) -> Self {
         NodeArray { _nodes: nodes }
     }
 
@@ -139,10 +146,12 @@ impl NodeArray {
     }
 }
 
-pub struct NodeArrayIter<'node_array>(Box<dyn Iterator<Item = &'node_array Node> + 'node_array>);
+pub struct NodeArrayIter<'node_array>(
+    Box<dyn Iterator<Item = &'node_array Rc<Node>> + 'node_array>,
+);
 
 impl<'node_array> Iterator for NodeArrayIter<'node_array> {
-    type Item = &'node_array Node;
+    type Item = &'node_array Rc<Node>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
@@ -150,7 +159,7 @@ impl<'node_array> Iterator for NodeArrayIter<'node_array> {
 }
 
 impl<'node_array> IntoIterator for &'node_array NodeArray {
-    type Item = &'node_array Node;
+    type Item = &'node_array Rc<Node>;
     type IntoIter = NodeArrayIter<'node_array>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -160,7 +169,7 @@ impl<'node_array> IntoIterator for &'node_array NodeArray {
 
 pub enum NodeArrayOrVec {
     NodeArray(NodeArray),
-    Vec(Vec<Node>),
+    Vec(Vec<Rc<Node>>),
 }
 
 impl From<NodeArray> for NodeArrayOrVec {
@@ -169,8 +178,8 @@ impl From<NodeArray> for NodeArrayOrVec {
     }
 }
 
-impl From<Vec<Node>> for NodeArrayOrVec {
-    fn from(vec: Vec<Node>) -> Self {
+impl From<Vec<Rc<Node>>> for NodeArrayOrVec {
+    fn from(vec: Vec<Rc<Node>>) -> Self {
         NodeArrayOrVec::Vec(vec)
     }
 }
@@ -264,7 +273,7 @@ impl From<BaseNode> for Expression {
 pub struct PrefixUnaryExpression {
     pub _node: BaseNode,
     pub operator: SyntaxKind,
-    pub operand: Box<Expression>,
+    pub operand: Rc<Node>,
 }
 
 impl PrefixUnaryExpression {
@@ -272,7 +281,7 @@ impl PrefixUnaryExpression {
         Self {
             _node: base_node,
             operator,
-            operand: Box::new(operand),
+            operand: Rc::new(operand.into()),
         }
     }
 }
@@ -300,9 +309,9 @@ impl From<PrefixUnaryExpression> for Expression {
 #[derive(Debug)]
 pub struct BinaryExpression {
     pub _node: BaseNode,
-    pub left: Box<Expression>,
+    pub left: Rc<Node>,
     pub operator_token: Box<Node>,
-    pub right: Box<Expression>,
+    pub right: Rc<Node>,
 }
 
 impl BinaryExpression {
@@ -314,9 +323,9 @@ impl BinaryExpression {
     ) -> Self {
         Self {
             _node: base_node,
-            left: Box::new(left),
+            left: Rc::new(left.into()),
             operator_token: Box::new(operator_token),
-            right: Box::new(right),
+            right: Rc::new(right.into()),
         }
     }
 }
@@ -500,7 +509,7 @@ impl From<EmptyStatement> for Statement {
 #[derive(Debug)]
 pub struct ExpressionStatement {
     pub _node: BaseNode,
-    pub expression: Expression,
+    pub expression: Rc</*Expression*/ Node>,
 }
 
 impl NodeInterface for ExpressionStatement {
