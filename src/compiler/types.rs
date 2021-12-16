@@ -680,8 +680,8 @@ impl From<UnionOrIntersectionType> for Type {
 
 #[derive(Clone)]
 pub struct BaseUnionOrIntersectionType {
-    _type: BaseType,
-    types: Vec<Rc<Type>>,
+    pub _type: BaseType,
+    pub types: Vec<Rc<Type>>,
 }
 
 impl TypeInterface for BaseUnionOrIntersectionType {
@@ -843,6 +843,14 @@ pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {}
 #[derive(Clone)]
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
+}
+
+impl BaseDiagnostic {
+    pub fn new(diagnostic_related_information: BaseDiagnosticRelatedInformation) -> Self {
+        Self {
+            _diagnostic_related_information: diagnostic_related_information,
+        }
+    }
 }
 
 impl DiagnosticRelatedInformationInterface for BaseDiagnostic {

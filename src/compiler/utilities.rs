@@ -93,19 +93,35 @@ impl DiagnosticCollection {
     }
 
     pub fn add(&mut self, diagnostic: Rc<Diagnostic>) {
+        // let diagnostics = self
+        //     .file_diagnostics
+        //     .get_mut(&diagnostic.file().unwrap().file_name)
+        //     .unwrap_or_else(|| {
+        //         let diagnostics: SortedArray<Rc<Diagnostic>> = SortedArray::new(vec![]);
+        //         self.file_diagnostics.insert(
+        //             diagnostic.file().unwrap().file_name.to_string(),
+        //             diagnostics,
+        //         );
+        //         self.file_diagnostics
+        //             .get_mut(&diagnostic.file().unwrap().file_name)
+        //             .unwrap()
+        //     });
+        if let Some(diagnostics) = self
+            .file_diagnostics
+            .get_mut(&diagnostic.file().unwrap().file_name)
+        {
+            insert_sorted(diagnostics, diagnostic);
+            return;
+        }
+        let diagnostics: SortedArray<Rc<Diagnostic>> = SortedArray::new(vec![]);
+        self.file_diagnostics.insert(
+            diagnostic.file().unwrap().file_name.to_string(),
+            diagnostics,
+        );
         let diagnostics = self
             .file_diagnostics
             .get_mut(&diagnostic.file().unwrap().file_name)
-            .unwrap_or_else(|| {
-                let diagnostics: SortedArray<Rc<Diagnostic>> = SortedArray::new(vec![]);
-                self.file_diagnostics.insert(
-                    diagnostic.file().unwrap().file_name.to_string(),
-                    diagnostics,
-                );
-                self.file_diagnostics
-                    .get_mut(&diagnostic.file().unwrap().file_name)
-                    .unwrap()
-            });
+            .unwrap();
         insert_sorted(diagnostics, diagnostic);
     }
 
@@ -172,13 +188,11 @@ pub fn create_detached_diagnostic(
     message: &DiagnosticMessage,
 ) -> DiagnosticWithDetachedLocation {
     DiagnosticWithDetachedLocation {
-        _diagnostic: BaseDiagnostic {
-            _diagnostic_related_information: BaseDiagnosticRelatedInformation {
-                file: None,
-                start,
-                length,
-            },
-        },
+        _diagnostic: BaseDiagnostic::new(BaseDiagnosticRelatedInformation {
+            file: None,
+            start,
+            length,
+        }),
         file_name: file_name.to_string(),
     }
 }
@@ -190,12 +204,10 @@ fn create_file_diagnostic(
     message: &DiagnosticMessage,
 ) -> DiagnosticWithLocation {
     DiagnosticWithLocation {
-        _diagnostic: BaseDiagnostic {
-            _diagnostic_related_information: BaseDiagnosticRelatedInformation {
-                file: Some(file),
-                start,
-                length,
-            },
-        },
+        _diagnostic: BaseDiagnostic::new(BaseDiagnosticRelatedInformation {
+            file: Some(file),
+            start,
+            length,
+        }),
     }
 }
