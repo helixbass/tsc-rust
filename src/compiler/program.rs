@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     concatenate, create_source_file, create_type_checker, for_each, get_sys, normalize_path,
     to_path as to_path_helper, CompilerHost, CreateProgramOptions, Diagnostic,
-    ModuleResolutionHost, ModuleSpecifierResolutionHost, Path, Program, SourceFile,
+    ModuleResolutionHost, ModuleSpecifierResolutionHost, Node, Path, Program, SourceFile,
     StructureIsReused, System, TypeChecker, TypeCheckerHost,
 };
 
@@ -41,12 +41,12 @@ fn create_compiler_host_worker() -> impl CompilerHost {
 }
 
 struct ProgramConcrete {
-    files: Vec<Rc<SourceFile>>,
+    files: Vec<Rc</*SourceFile*/ Node>>,
     diagnostics_producing_type_checker: Option<TypeChecker>,
 }
 
 impl ProgramConcrete {
-    pub fn new(files: Vec<Rc<SourceFile>>) -> Self {
+    pub fn new(files: Vec<Rc<Node>>) -> Self {
         ProgramConcrete {
             files,
             diagnostics_producing_type_checker: None,
@@ -75,7 +75,15 @@ impl ProgramConcrete {
     ) -> Vec<Rc<Diagnostic>> {
         self.get_source_files()
             .iter()
-            .flat_map(|source_file| get_diagnostics(self, source_file))
+            .flat_map(|source_file| {
+                get_diagnostics(
+                    self,
+                    match &**source_file {
+                        Node::SourceFile(source_file) => &*source_file,
+                        _ => panic!("Expected SourceFile"),
+                    },
+                )
+            })
             .collect()
     }
 
@@ -147,13 +155,13 @@ impl Program for ProgramConcrete {
 }
 
 impl TypeCheckerHost for ProgramConcrete {
-    fn get_source_files(&self) -> Vec<Rc<SourceFile>> {
+    fn get_source_files(&self) -> Vec<Rc<Node>> {
         self.files.clone()
     }
 }
 
 struct CreateProgramHelperContext<'a> {
-    processing_other_files: &'a mut Vec<Rc<SourceFile>>,
+    processing_other_files: &'a mut Vec<Rc<Node>>,
     host: &'a dyn CompilerHost,
     current_directory: &'a str,
 }
@@ -161,8 +169,8 @@ struct CreateProgramHelperContext<'a> {
 pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Program {
     let CreateProgramOptions { root_names } = root_names_or_options;
 
-    let mut processing_other_files: Option<Vec<Rc<SourceFile>>> = None;
-    let mut files: Vec<Rc<SourceFile>> = vec![];
+    let mut processing_other_files: Option<Vec<Rc<Node>>> = None;
+    let mut files: Vec<Rc<Node>> = vec![];
 
     let host = create_compiler_host();
 
@@ -200,8 +208,8 @@ fn process_root_file(helper_context: &mut CreateProgramHelperContext, file_name:
 
 fn get_source_file_from_reference_worker(
     file_name: &str,
-    get_source_file: &mut dyn FnMut(&str) -> Option<Rc<SourceFile>>,
-) -> Option<Rc<SourceFile>> {
+    get_source_file: &mut dyn FnMut(&str) -> Option<Rc<Node>>,
+) -> Option<Rc<Node>> {
     get_source_file(file_name)
 }
 
@@ -214,20 +222,20 @@ fn process_source_file(helper_context: &mut CreateProgramHelperContext, file_nam
 fn find_source_file(
     helper_context: &mut CreateProgramHelperContext,
     file_name: &str,
-) -> Option<Rc<SourceFile>> {
+) -> Option<Rc<Node>> {
     find_source_file_worker(helper_context, file_name)
 }
 
 fn find_source_file_worker(
     helper_context: &mut CreateProgramHelperContext,
     file_name: &str,
-) -> Option<Rc<SourceFile>> {
+) -> Option<Rc<Node>> {
     let _path = to_path(helper_context, file_name);
 
     let file = helper_context.host.get_source_file(file_name);
 
     file.map(|file| {
-        let file = Rc::new(file);
+        let file: Rc<Node> = Rc::new(Rc::new(file).into());
         helper_context.processing_other_files.push(file.clone());
         file
     })

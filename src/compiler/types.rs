@@ -577,7 +577,7 @@ pub enum ExitStatus {
 }
 
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
-    fn get_source_files(&self) -> Vec<Rc<SourceFile>>;
+    fn get_source_files(&self) -> Vec<Rc<Node>>;
 }
 
 #[allow(non_snake_case)]

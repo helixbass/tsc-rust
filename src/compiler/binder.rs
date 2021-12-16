@@ -6,7 +6,7 @@ use std::sync::RwLock;
 
 use crate::{
     for_each, for_each_child, set_parent, Expression, ExpressionStatement, Node, NodeArray,
-    NodeInterface, SourceFile, Statement, SyntaxKind,
+    NodeInterface, Statement, SyntaxKind,
 };
 
 bitflags! {
@@ -25,13 +25,13 @@ bitflags! {
 //     static ref binder: BinderType = create_binder();
 // }
 
-pub fn bind_source_file(file: Rc<SourceFile>) {
+pub fn bind_source_file(file: Rc<Node>) {
     // binder.call(file);
     create_binder().call(file);
 }
 
 struct BinderType {
-    file: RwLock<Option<Rc<SourceFile>>>,
+    file: RwLock<Option<Rc</*SourceFile*/ Node>>>,
     parent: RwLock<Option<Rc<Node>>>,
 }
 
@@ -43,15 +43,15 @@ fn create_binder() -> BinderType {
 }
 
 impl BinderType {
-    fn call(&self, f: Rc<SourceFile>) {
+    fn call(&self, f: Rc<Node>) {
         self.bind_source_file(f);
     }
 
-    fn file(&self) -> Rc<SourceFile> {
+    fn file(&self) -> Rc<Node> {
         self.file.read().unwrap().as_ref().unwrap().clone()
     }
 
-    fn set_file(&self, file: Option<Rc<SourceFile>>) {
+    fn set_file(&self, file: Option<Rc<Node>>) {
         *self.file.write().unwrap() = file;
     }
 
@@ -63,11 +63,11 @@ impl BinderType {
         *self.parent.write().unwrap() = parent;
     }
 
-    fn bind_source_file(&self, f: Rc<SourceFile>) {
+    fn bind_source_file(&self, f: Rc<Node>) {
         self.set_file(Some(f.clone()));
 
         if true {
-            self.bind(Some(Rc::new(self.file().into())));
+            self.bind(Some(self.file()));
         }
 
         self.set_file(None);
