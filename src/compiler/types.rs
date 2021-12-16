@@ -43,6 +43,7 @@ bitflags! {
 pub trait NodeInterface {
     fn kind(&self) -> SyntaxKind;
     fn parent(&self) -> Rc<Node>;
+    fn set_parent(&self, parent: Rc<Node>);
 }
 
 #[derive(Debug)]
@@ -71,12 +72,30 @@ impl NodeInterface for Node {
             Node::SourceFile(source_file) => source_file.parent(),
         }
     }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        match self {
+            Node::BaseNode(base_node) => base_node.set_parent(parent),
+            Node::Expression(expression) => expression.set_parent(parent),
+            Node::Statement(statement) => statement.set_parent(parent),
+            Node::SourceFile(source_file) => source_file.set_parent(parent),
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct BaseNode {
     pub kind: SyntaxKind,
-    pub parent: Option<Weak<Node>>,
+    pub parent: RwLock<Option<Weak<Node>>>,
+}
+
+impl BaseNode {
+    pub fn new(kind: SyntaxKind) -> Self {
+        Self {
+            kind,
+            parent: RwLock::new(None),
+        }
+    }
 }
 
 impl NodeInterface for BaseNode {
@@ -85,7 +104,17 @@ impl NodeInterface for BaseNode {
     }
 
     fn parent(&self) -> Rc<Node> {
-        self.parent.clone().unwrap().upgrade().unwrap()
+        self.parent
+            .read()
+            .unwrap()
+            .clone()
+            .unwrap()
+            .upgrade()
+            .unwrap()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        *self.parent.write().unwrap() = Some(Rc::downgrade(&parent));
     }
 }
 
@@ -160,6 +189,10 @@ impl NodeInterface for Identifier {
     fn parent(&self) -> Rc<Node> {
         self._node.parent()
     }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
 }
 
 impl From<Identifier> for Expression {
@@ -201,6 +234,18 @@ impl NodeInterface for Expression {
             Expression::LiteralLikeNode(literal_like_node) => literal_like_node.parent(),
         }
     }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.set_parent(parent),
+            Expression::Identifier(identifier) => identifier.set_parent(parent),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.set_parent(parent)
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.set_parent(parent),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_parent(parent),
+        }
+    }
 }
 
 impl From<Expression> for Node {
@@ -239,6 +284,10 @@ impl NodeInterface for PrefixUnaryExpression {
 
     fn parent(&self) -> Rc<Node> {
         self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
     }
 }
 
@@ -280,6 +329,10 @@ impl NodeInterface for BinaryExpression {
     fn parent(&self) -> Rc<Node> {
         self._node.parent()
     }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
 }
 
 impl From<BinaryExpression> for Expression {
@@ -302,6 +355,10 @@ impl NodeInterface for BaseLiteralLikeNode {
     fn parent(&self) -> Rc<Node> {
         self._node.parent()
     }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
 }
 
 pub trait LiteralLikeNodeInterface {
@@ -323,6 +380,12 @@ impl NodeInterface for LiteralLikeNode {
     fn parent(&self) -> Rc<Node> {
         match self {
             LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.parent(),
+        }
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_parent(parent),
         }
     }
 }
@@ -353,6 +416,10 @@ impl NodeInterface for NumericLiteral {
 
     fn parent(&self) -> Rc<Node> {
         self._literal_like_node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._literal_like_node.set_parent(parent)
     }
 }
 
@@ -388,6 +455,15 @@ impl NodeInterface for Statement {
             Statement::ExpressionStatement(expression_statement) => expression_statement.parent(),
         }
     }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.set_parent(parent),
+            Statement::ExpressionStatement(expression_statement) => {
+                expression_statement.set_parent(parent)
+            }
+        }
+    }
 }
 
 impl From<Statement> for Node {
@@ -408,6 +484,10 @@ impl NodeInterface for EmptyStatement {
 
     fn parent(&self) -> Rc<Node> {
         self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
     }
 }
 
@@ -430,6 +510,10 @@ impl NodeInterface for ExpressionStatement {
 
     fn parent(&self) -> Rc<Node> {
         self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
     }
 }
 
@@ -455,6 +539,10 @@ impl NodeInterface for SourceFile {
     fn parent(&self) -> Rc<Node> {
         self._node.parent() // this would always fail?
     }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
 }
 
 impl From<Rc<SourceFile>> for Node {
@@ -463,8 +551,7 @@ impl From<Rc<SourceFile>> for Node {
     }
 }
 
-pub trait Program {
-    fn get_source_files(&self) -> Vec<Rc<SourceFile>>;
+pub trait Program: TypeCheckerHost {
     fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>>;
 }
 
@@ -478,6 +565,10 @@ pub enum ExitStatus {
     Success,
     #[allow(non_camel_case_types)]
     DiagnosticsPresent_OutputsGenerated,
+}
+
+pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
+    fn get_source_files(&self) -> Vec<Rc<SourceFile>>;
 }
 
 #[allow(non_snake_case)]
@@ -999,6 +1090,8 @@ pub enum DiagnosticCategory {
 }
 
 pub struct NodeFactory {}
+
+pub trait ModuleSpecifierResolutionHost {}
 
 pub struct TextSpan {
     pub start: usize,

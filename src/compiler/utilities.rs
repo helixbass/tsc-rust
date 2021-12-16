@@ -140,17 +140,17 @@ fn Type(flags: TypeFlags) -> BaseType {
 
 #[allow(non_snake_case)]
 fn Node(kind: SyntaxKind) -> BaseNode {
-    BaseNode { kind, parent: None }
+    BaseNode::new(kind)
 }
 
 #[allow(non_snake_case)]
 fn Token(kind: SyntaxKind) -> BaseNode {
-    BaseNode { kind, parent: None }
+    BaseNode::new(kind)
 }
 
 #[allow(non_snake_case)]
 fn Identifier(kind: SyntaxKind) -> BaseNode {
-    BaseNode { kind, parent: None }
+    BaseNode::new(kind)
 }
 
 pub struct ObjectAllocator {}
@@ -210,4 +210,11 @@ fn create_file_diagnostic(
             length,
         }),
     }
+}
+
+fn set_parent<TNode: NodeInterface>(child: &TNode, parent: Option<Rc<Node>>) -> &TNode {
+    if let Some(parent) = parent {
+        child.set_parent(parent.clone());
+    }
+    child
 }

@@ -4,14 +4,18 @@ use std::rc::Rc;
 use std::sync::RwLock;
 
 use crate::{
-    create_diagnostic_collection, create_diagnostic_for_node, for_each, object_allocator,
-    BaseIntrinsicType, BaseType, BaseUnionOrIntersectionType, Diagnostic, DiagnosticCollection,
-    DiagnosticMessage, Diagnostics, Expression, ExpressionStatement, FreshableIntrinsicType,
-    IntrinsicType, Node, NodeInterface, PrefixUnaryExpression, RelationComparisonResult,
-    SourceFile, Statement, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionType,
+    bind_source_file, create_diagnostic_collection, create_diagnostic_for_node, for_each,
+    object_allocator, BaseIntrinsicType, BaseType, BaseUnionOrIntersectionType, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
+    FreshableIntrinsicType, IntrinsicType, Node, NodeInterface, PrefixUnaryExpression,
+    RelationComparisonResult, SourceFile, Statement, SyntaxKind, Type, TypeChecker,
+    TypeCheckerHost, TypeFlags, TypeInterface, UnionType,
 };
 
-pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
+pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
+    host: &TTypeCheckerHost,
+    produce_diagnostics: bool,
+) -> TypeChecker {
     let mut type_checker = TypeChecker {
         Type: object_allocator.get_type_constructor(),
 
@@ -83,6 +87,7 @@ pub fn create_type_checker(produce_diagnostics: bool) -> TypeChecker {
             ])
             .into(),
     );
+    type_checker.initialize_type_checker(host);
     type_checker
 }
 
@@ -340,5 +345,11 @@ impl TypeChecker {
 
     fn check_expression_statement(&self, node: &ExpressionStatement) {
         self.check_expression(&node.expression);
+    }
+
+    fn initialize_type_checker<TTypeCheckerHost: TypeCheckerHost>(&self, host: &TTypeCheckerHost) {
+        for file in host.get_source_files() {
+            bind_source_file(file);
+        }
     }
 }

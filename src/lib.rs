@@ -5,6 +5,7 @@ mod compiler;
 mod execute_command_line;
 mod rust_helpers;
 
+pub use compiler::binder::bind_source_file;
 pub use compiler::checker::create_type_checker;
 pub use compiler::command_line_parser::parse_command_line;
 pub use compiler::core::{concatenate, for_each, insert_sorted, last_or_undefined};
@@ -24,11 +25,11 @@ pub use compiler::types::{
     CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticCollection,
     DiagnosticMessage, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
     DiagnosticWithLocation, EmptyStatement, ExitStatus, Expression, ExpressionStatement,
-    FreshableIntrinsicType, Identifier, IntrinsicType, LiteralLikeNode, ModuleResolutionHost, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, NumericLiteral, ParsedCommandLine, Path,
-    PrefixUnaryExpression, Program, RelationComparisonResult, SourceFile, Statement,
-    StructureIsReused, SyntaxKind, TextSpan, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionType,
+    FreshableIntrinsicType, Identifier, IntrinsicType, LiteralLikeNode, ModuleResolutionHost,
+    ModuleSpecifierResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    NumericLiteral, ParsedCommandLine, Path, PrefixUnaryExpression, Program,
+    RelationComparisonResult, SourceFile, Statement, StructureIsReused, SyntaxKind, TextSpan, Type,
+    TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, UnionType,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,

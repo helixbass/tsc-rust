@@ -31,6 +31,12 @@ impl NodeInterface for MissingNode {
             MissingNode::Identifier(identifier) => identifier.parent(),
         }
     }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.set_parent(parent),
+        }
+    }
 }
 
 #[allow(non_snake_case)]

@@ -3,7 +3,8 @@ use std::rc::Rc;
 use crate::{
     concatenate, create_source_file, create_type_checker, for_each, get_sys, normalize_path,
     to_path as to_path_helper, CompilerHost, CreateProgramOptions, Diagnostic,
-    ModuleResolutionHost, Path, Program, SourceFile, StructureIsReused, System, TypeChecker,
+    ModuleResolutionHost, ModuleSpecifierResolutionHost, Path, Program, SourceFile,
+    StructureIsReused, System, TypeChecker, TypeCheckerHost,
 };
 
 fn create_compiler_host() -> impl CompilerHost {
@@ -53,8 +54,19 @@ impl ProgramConcrete {
     }
 
     fn get_diagnostics_producing_type_checker(&mut self) -> &TypeChecker {
-        self.diagnostics_producing_type_checker
-            .get_or_insert_with(|| create_type_checker(true))
+        // self.diagnostics_producing_type_checker
+        //     .get_or_insert_with(|| create_type_checker(self, true))
+
+        // if let Some(type_checker) = self.diagnostics_producing_type_checker.as_ref() {
+        //     return type_checker;
+        // } else {
+        //     self.diagnostics_producing_type_checker = Some(create_type_checker(self, true));
+        //     self.diagnostics_producing_type_checker.as_ref().unwrap()
+        // }
+        if self.diagnostics_producing_type_checker.is_none() {
+            self.diagnostics_producing_type_checker = Some(create_type_checker(self, true));
+        }
+        self.diagnostics_producing_type_checker.as_ref().unwrap()
     }
 
     fn get_diagnostics_helper(
@@ -126,11 +138,15 @@ impl ProgramConcrete {
     }
 }
 
+impl ModuleSpecifierResolutionHost for ProgramConcrete {}
+
 impl Program for ProgramConcrete {
     fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>> {
         self.get_diagnostics_helper(ProgramConcrete::get_semantic_diagnostics_for_file)
     }
+}
 
+impl TypeCheckerHost for ProgramConcrete {
     fn get_source_files(&self) -> Vec<Rc<SourceFile>> {
         self.files.clone()
     }
