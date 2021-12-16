@@ -27,9 +27,11 @@ impl<T: ?Sized> WeakSelf<T> {
     /// Initialize the WeakSelf<T> with an Rc.
     ///
     /// Note: content must point be the only existing Rc, otherwise this method will panic
-    pub fn init(&self, content: &Rc<T>) {
-        if Rc::strong_count(content) != 1 || Rc::weak_count(content) != 0 {
-            panic!("Exclusive access to Rc<T> is required while initializing WeakSelf<T>");
+    pub fn init(&self, content: &Rc<T>, require_exclusive_access: bool) {
+        if require_exclusive_access {
+            if Rc::strong_count(content) != 1 || Rc::weak_count(content) != 0 {
+                panic!("Exclusive access to Rc<T> is required while initializing WeakSelf<T>");
+            }
         }
         let weak = Rc::downgrade(content);
         unsafe {
