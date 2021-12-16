@@ -212,7 +212,7 @@ fn create_file_diagnostic(
     }
 }
 
-fn set_parent<TNode: NodeInterface>(child: &TNode, parent: Option<Rc<Node>>) -> &TNode {
+pub fn set_parent<TNode: NodeInterface>(child: &TNode, parent: Option<Rc<Node>>) -> &TNode {
     if let Some(parent) = parent {
         child.set_parent(parent.clone());
     }

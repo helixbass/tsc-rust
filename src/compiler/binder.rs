@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use crate::{Node, SourceFile};
+use crate::{set_parent, Node, SourceFile};
 
 // lazy_static! {
 //     static ref binder: BinderType = create_binder();
@@ -26,19 +26,19 @@ fn create_binder() -> BinderType {
 }
 
 impl BinderType {
-    fn call(&self, f: Rc<SourceFile>) {
+    fn call(&mut self, f: Rc<SourceFile>) {
         self.bind_source_file(f);
     }
 
     fn file(&self) -> Rc<SourceFile> {
-        self.file.unwrap().clone()
+        self.file.as_ref().unwrap().clone()
     }
 
-    fn bind_source_file(&self, f: Rc<SourceFile>) {
+    fn bind_source_file(&mut self, f: Rc<SourceFile>) {
         self.file = Some(f);
 
         if true {
-            self.bind(self.file());
+            self.bind(Some(Rc::new(self.file().into())));
         }
 
         self.file = None;
@@ -52,6 +52,12 @@ impl BinderType {
             }
             Some(node) => node,
         };
-        set_parent(node);
+        set_parent(
+            &*node,
+            match &self.parent {
+                None => None,
+                Some(parent) => Some(parent.clone()),
+            },
+        );
     }
 }
