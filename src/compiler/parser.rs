@@ -70,7 +70,7 @@ impl ReadonlyTextRange for MissingNode {
         }
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         match self {
             MissingNode::Identifier(identifier) => identifier.set_pos(pos),
         }
@@ -82,7 +82,7 @@ impl ReadonlyTextRange for MissingNode {
         }
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         match self {
             MissingNode::Identifier(identifier) => identifier.set_end(end),
         }

@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::RwLock;
 
 use crate::{SortedArray, WeakSelf};
@@ -17,9 +18,9 @@ impl Path {
 
 pub trait ReadonlyTextRange {
     fn pos(&self) -> usize;
-    fn set_pos(&mut self, pos: usize);
+    fn set_pos(&self, pos: usize);
     fn end(&self) -> usize;
-    fn set_end(&mut self, end: usize);
+    fn set_end(&self, end: usize);
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -78,7 +79,7 @@ impl ReadonlyTextRange for Node {
         }
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         match self {
             Node::BaseNode(base_node) => base_node.set_pos(pos),
             Node::Expression(expression) => expression.set_pos(pos),
@@ -96,7 +97,7 @@ impl ReadonlyTextRange for Node {
         }
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         match self {
             Node::BaseNode(base_node) => base_node.set_end(end),
             Node::Expression(expression) => expression.set_end(end),
@@ -139,8 +140,8 @@ impl NodeInterface for Node {
 pub struct BaseNode {
     pub kind: SyntaxKind,
     pub parent: RwLock<Option<Weak<Node>>>,
-    pub pos: usize,
-    pub end: usize,
+    pub pos: AtomicUsize,
+    pub end: AtomicUsize,
 }
 
 impl BaseNode {
@@ -148,8 +149,8 @@ impl BaseNode {
         Self {
             kind,
             parent: RwLock::new(None),
-            pos,
-            end,
+            pos: pos.into(),
+            end: end.into(),
         }
     }
 }
@@ -176,19 +177,19 @@ impl NodeInterface for BaseNode {
 
 impl ReadonlyTextRange for BaseNode {
     fn pos(&self) -> usize {
-        self.pos
+        self.pos.load(Ordering::Relaxed)
     }
 
-    fn set_pos(&mut self, pos: usize) {
-        self.pos = pos;
+    fn set_pos(&self, pos: usize) {
+        self.pos.store(pos, Ordering::Relaxed);
     }
 
     fn end(&self) -> usize {
-        self.end
+        self.end.load(Ordering::Relaxed)
     }
 
-    fn set_end(&mut self, end: usize) {
-        self.end = end;
+    fn set_end(&self, end: usize) {
+        self.end.store(end, Ordering::Relaxed);
     }
 }
 
@@ -276,7 +277,7 @@ impl ReadonlyTextRange for Identifier {
         self._node.pos()
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         self._node.set_pos(pos);
     }
 
@@ -284,7 +285,7 @@ impl ReadonlyTextRange for Identifier {
         self._node.end()
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         self._node.set_end(end);
     }
 }
@@ -355,7 +356,7 @@ impl ReadonlyTextRange for Expression {
         }
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         match self {
             Expression::TokenExpression(token_expression) => token_expression.set_pos(pos),
             Expression::Identifier(identifier) => identifier.set_pos(pos),
@@ -379,7 +380,7 @@ impl ReadonlyTextRange for Expression {
         }
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         match self {
             Expression::TokenExpression(token_expression) => token_expression.set_end(end),
             Expression::Identifier(identifier) => identifier.set_end(end),
@@ -440,7 +441,7 @@ impl ReadonlyTextRange for PrefixUnaryExpression {
         self._node.pos()
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         self._node.set_pos(pos);
     }
 
@@ -448,7 +449,7 @@ impl ReadonlyTextRange for PrefixUnaryExpression {
         self._node.end()
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         self._node.set_end(end);
     }
 }
@@ -499,18 +500,18 @@ impl NodeInterface for BinaryExpression {
 
 impl ReadonlyTextRange for BinaryExpression {
     fn pos(&self) -> usize {
-        self._node.pos
+        self._node.pos()
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         self._node.set_pos(pos);
     }
 
     fn end(&self) -> usize {
-        self._node.end
+        self._node.end()
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         self._node.set_end(end);
     }
 }
@@ -543,18 +544,18 @@ impl NodeInterface for BaseLiteralLikeNode {
 
 impl ReadonlyTextRange for BaseLiteralLikeNode {
     fn pos(&self) -> usize {
-        self._node.pos
+        self._node.pos()
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         self._node.set_pos(pos);
     }
 
     fn end(&self) -> usize {
-        self._node.end
+        self._node.end()
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         self._node.set_end(end);
     }
 }
@@ -595,7 +596,7 @@ impl ReadonlyTextRange for LiteralLikeNode {
         }
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         match self {
             LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_pos(pos),
         }
@@ -607,7 +608,7 @@ impl ReadonlyTextRange for LiteralLikeNode {
         }
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         match self {
             LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_end(end),
         }
@@ -652,7 +653,7 @@ impl ReadonlyTextRange for NumericLiteral {
         self._literal_like_node.pos()
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         self._literal_like_node.set_pos(pos);
     }
 
@@ -660,7 +661,7 @@ impl ReadonlyTextRange for NumericLiteral {
         self._literal_like_node.end()
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         self._literal_like_node.set_end(end);
     }
 }
@@ -716,7 +717,7 @@ impl ReadonlyTextRange for Statement {
         }
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.set_pos(pos),
             Statement::ExpressionStatement(expression_statement) => {
@@ -732,7 +733,7 @@ impl ReadonlyTextRange for Statement {
         }
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.set_end(end),
             Statement::ExpressionStatement(expression_statement) => {
@@ -769,18 +770,18 @@ impl NodeInterface for EmptyStatement {
 
 impl ReadonlyTextRange for EmptyStatement {
     fn pos(&self) -> usize {
-        self._node.pos
+        self._node.pos()
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         self._node.set_pos(pos);
     }
 
     fn end(&self) -> usize {
-        self._node.end
+        self._node.end()
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         self._node.set_end(end);
     }
 }
@@ -813,18 +814,18 @@ impl NodeInterface for ExpressionStatement {
 
 impl ReadonlyTextRange for ExpressionStatement {
     fn pos(&self) -> usize {
-        self._node.pos
+        self._node.pos()
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         self._node.set_pos(pos);
     }
 
     fn end(&self) -> usize {
-        self._node.end
+        self._node.end()
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         self._node.set_end(end);
     }
 }
@@ -859,18 +860,18 @@ impl NodeInterface for SourceFile {
 
 impl ReadonlyTextRange for SourceFile {
     fn pos(&self) -> usize {
-        self._node.pos
+        self._node.pos()
     }
 
-    fn set_pos(&mut self, pos: usize) {
+    fn set_pos(&self, pos: usize) {
         self._node.set_pos(pos);
     }
 
     fn end(&self) -> usize {
-        self._node.end
+        self._node.end()
     }
 
-    fn set_end(&mut self, end: usize) {
+    fn set_end(&self, end: usize) {
         self._node.set_end(end);
     }
 }
