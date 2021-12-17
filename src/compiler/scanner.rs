@@ -56,6 +56,10 @@ pub struct Scanner {
 }
 
 impl Scanner {
+    pub fn get_start_pos(&self) -> usize {
+        self.start_pos()
+    }
+
     pub fn get_text_pos(&self) -> usize {
         self.pos()
     }

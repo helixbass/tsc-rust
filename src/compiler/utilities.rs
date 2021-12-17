@@ -8,7 +8,8 @@ use crate::{
     create_text_span_from_bounds, insert_sorted, BaseDiagnostic, BaseDiagnosticRelatedInformation,
     BaseNode, BaseType, Diagnostic, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    Node, NodeInterface, SortedArray, SourceFile, SyntaxKind, TextSpan, TypeFlags,
+    Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile, SyntaxKind, TextSpan,
+    TypeFlags,
 };
 
 fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceFile> {
@@ -46,7 +47,11 @@ fn get_error_span_for_node<TNode: NodeInterface>(
     source_file: Rc<SourceFile>,
     node: &TNode,
 ) -> TextSpan {
-    create_text_span_from_bounds(0, 0)
+    let error_node = node;
+
+    let pos = error_node.pos();
+
+    create_text_span_from_bounds(pos, error_node.end())
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -139,36 +144,36 @@ fn Type(flags: TypeFlags) -> BaseType {
 }
 
 #[allow(non_snake_case)]
-fn Node(kind: SyntaxKind) -> BaseNode {
-    BaseNode::new(kind)
+fn Node(kind: SyntaxKind, pos: usize, end: usize) -> BaseNode {
+    BaseNode::new(kind, pos, end)
 }
 
 #[allow(non_snake_case)]
-fn Token(kind: SyntaxKind) -> BaseNode {
-    BaseNode::new(kind)
+fn Token(kind: SyntaxKind, pos: usize, end: usize) -> BaseNode {
+    BaseNode::new(kind, pos, end)
 }
 
 #[allow(non_snake_case)]
-fn Identifier(kind: SyntaxKind) -> BaseNode {
-    BaseNode::new(kind)
+fn Identifier(kind: SyntaxKind, pos: usize, end: usize) -> BaseNode {
+    BaseNode::new(kind, pos, end)
 }
 
 pub struct ObjectAllocator {}
 
 impl ObjectAllocator {
-    pub fn get_node_constructor(&self) -> fn(SyntaxKind) -> BaseNode {
+    pub fn get_node_constructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
         Node
     }
 
-    pub fn get_token_constructor(&self) -> fn(SyntaxKind) -> BaseNode {
+    pub fn get_token_constructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
         Token
     }
 
-    pub fn get_identifier_constructor(&self) -> fn(SyntaxKind) -> BaseNode {
+    pub fn get_identifier_constructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
         Identifier
     }
 
-    pub fn get_source_file_constructor(&self) -> fn(SyntaxKind) -> BaseNode {
+    pub fn get_source_file_constructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
         Node
     }
 
@@ -210,6 +215,24 @@ fn create_file_diagnostic(
             length,
         }),
     }
+}
+
+fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &mut TRange, pos: usize) -> &mut TRange {
+    range.set_pos(pos);
+    range
+}
+
+fn set_text_range_end<TRange: ReadonlyTextRange>(range: &mut TRange, end: usize) -> &mut TRange {
+    range.set_end(end);
+    range
+}
+
+pub fn set_text_range_pos_end<TRange: ReadonlyTextRange>(
+    range: &mut TRange,
+    pos: usize,
+    end: usize,
+) {
+    set_text_range_end(set_text_range_pos(range, pos), end);
 }
 
 pub fn set_parent<TNode: NodeInterface>(child: &TNode, parent: Option<Rc<Node>>) -> &TNode {

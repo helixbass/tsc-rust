@@ -27,13 +27,14 @@ pub use compiler::types::{
     DiagnosticWithLocation, EmptyStatement, ExitStatus, Expression, ExpressionStatement,
     FreshableIntrinsicType, Identifier, IntrinsicType, LiteralLikeNode, ModuleResolutionHost,
     ModuleSpecifierResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    NumericLiteral, ParsedCommandLine, Path, PrefixUnaryExpression, Program,
+    NumericLiteral, ParsedCommandLine, Path, PrefixUnaryExpression, Program, ReadonlyTextRange,
     RelationComparisonResult, SourceFile, Statement, StructureIsReused, SyntaxKind, TextSpan, Type,
     TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, UnionType,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,
-    get_binary_operator_precedence, object_allocator, set_parent, OperatorPrecedence,
+    get_binary_operator_precedence, object_allocator, set_parent, set_text_range_pos_end,
+    OperatorPrecedence,
 };
 pub use compiler::utilities_public::create_text_span_from_bounds;
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;

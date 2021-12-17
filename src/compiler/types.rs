@@ -15,6 +15,13 @@ impl Path {
     }
 }
 
+pub trait ReadonlyTextRange {
+    fn pos(&self) -> usize;
+    fn set_pos(&mut self, pos: usize);
+    fn end(&self) -> usize;
+    fn set_end(&mut self, end: usize);
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum SyntaxKind {
     Unknown,
@@ -47,7 +54,7 @@ bitflags! {
     }
 }
 
-pub trait NodeInterface {
+pub trait NodeInterface: ReadonlyTextRange {
     fn kind(&self) -> SyntaxKind;
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
@@ -59,6 +66,44 @@ pub enum Node {
     Expression(Expression),
     Statement(Statement),
     SourceFile(Rc<SourceFile>),
+}
+
+impl ReadonlyTextRange for Node {
+    fn pos(&self) -> usize {
+        match self {
+            Node::BaseNode(base_node) => base_node.pos(),
+            Node::Expression(expression) => expression.pos(),
+            Node::Statement(statement) => statement.pos(),
+            Node::SourceFile(source_file) => source_file.pos(),
+        }
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        match self {
+            Node::BaseNode(base_node) => base_node.set_pos(pos),
+            Node::Expression(expression) => expression.set_pos(pos),
+            Node::Statement(statement) => statement.set_pos(pos),
+            Node::SourceFile(source_file) => source_file.set_pos(pos),
+        }
+    }
+
+    fn end(&self) -> usize {
+        match self {
+            Node::BaseNode(base_node) => base_node.end(),
+            Node::Expression(expression) => expression.end(),
+            Node::Statement(statement) => statement.end(),
+            Node::SourceFile(source_file) => source_file.end(),
+        }
+    }
+
+    fn set_end(&mut self, end: usize) {
+        match self {
+            Node::BaseNode(base_node) => base_node.set_end(end),
+            Node::Expression(expression) => expression.set_end(end),
+            Node::Statement(statement) => statement.set_end(end),
+            Node::SourceFile(source_file) => source_file.set_end(end),
+        }
+    }
 }
 
 impl NodeInterface for Node {
@@ -94,13 +139,17 @@ impl NodeInterface for Node {
 pub struct BaseNode {
     pub kind: SyntaxKind,
     pub parent: RwLock<Option<Weak<Node>>>,
+    pub pos: usize,
+    pub end: usize,
 }
 
 impl BaseNode {
-    pub fn new(kind: SyntaxKind) -> Self {
+    pub fn new(kind: SyntaxKind, pos: usize, end: usize) -> Self {
         Self {
             kind,
             parent: RwLock::new(None),
+            pos,
+            end,
         }
     }
 }
@@ -122,6 +171,24 @@ impl NodeInterface for BaseNode {
 
     fn set_parent(&self, parent: Rc<Node>) {
         *self.parent.write().unwrap() = Some(Rc::downgrade(&parent));
+    }
+}
+
+impl ReadonlyTextRange for BaseNode {
+    fn pos(&self) -> usize {
+        self.pos
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        self.pos = pos;
+    }
+
+    fn end(&self) -> usize {
+        self.end
+    }
+
+    fn set_end(&mut self, end: usize) {
+        self.end = end;
     }
 }
 
@@ -204,6 +271,24 @@ impl NodeInterface for Identifier {
     }
 }
 
+impl ReadonlyTextRange for Identifier {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&mut self, end: usize) {
+        self._node.set_end(end);
+    }
+}
+
 impl From<Identifier> for Expression {
     fn from(identifier: Identifier) -> Self {
         Expression::Identifier(identifier)
@@ -257,6 +342,56 @@ impl NodeInterface for Expression {
     }
 }
 
+impl ReadonlyTextRange for Expression {
+    fn pos(&self) -> usize {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.pos(),
+            Expression::Identifier(identifier) => identifier.pos(),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.pos()
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.pos(),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.pos(),
+        }
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.set_pos(pos),
+            Expression::Identifier(identifier) => identifier.set_pos(pos),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.set_pos(pos)
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.set_pos(pos),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_pos(pos),
+        }
+    }
+
+    fn end(&self) -> usize {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.end(),
+            Expression::Identifier(identifier) => identifier.end(),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.end()
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.end(),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.end(),
+        }
+    }
+
+    fn set_end(&mut self, end: usize) {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.set_end(end),
+            Expression::Identifier(identifier) => identifier.set_end(end),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.set_end(end)
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.set_end(end),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_end(end),
+        }
+    }
+}
+
 impl From<Expression> for Node {
     fn from(expression: Expression) -> Self {
         Node::Expression(expression)
@@ -297,6 +432,24 @@ impl NodeInterface for PrefixUnaryExpression {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for PrefixUnaryExpression {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&mut self, end: usize) {
+        self._node.set_end(end);
     }
 }
 
@@ -344,6 +497,24 @@ impl NodeInterface for BinaryExpression {
     }
 }
 
+impl ReadonlyTextRange for BinaryExpression {
+    fn pos(&self) -> usize {
+        self._node.pos
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end
+    }
+
+    fn set_end(&mut self, end: usize) {
+        self._node.set_end(end);
+    }
+}
+
 impl From<BinaryExpression> for Expression {
     fn from(binary_expression: BinaryExpression) -> Self {
         Expression::BinaryExpression(binary_expression)
@@ -367,6 +538,24 @@ impl NodeInterface for BaseLiteralLikeNode {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for BaseLiteralLikeNode {
+    fn pos(&self) -> usize {
+        self._node.pos
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end
+    }
+
+    fn set_end(&mut self, end: usize) {
+        self._node.set_end(end);
     }
 }
 
@@ -395,6 +584,32 @@ impl NodeInterface for LiteralLikeNode {
     fn set_parent(&self, parent: Rc<Node>) {
         match self {
             LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_parent(parent),
+        }
+    }
+}
+
+impl ReadonlyTextRange for LiteralLikeNode {
+    fn pos(&self) -> usize {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.pos(),
+        }
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_pos(pos),
+        }
+    }
+
+    fn end(&self) -> usize {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.end(),
+        }
+    }
+
+    fn set_end(&mut self, end: usize) {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_end(end),
         }
     }
 }
@@ -429,6 +644,24 @@ impl NodeInterface for NumericLiteral {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._literal_like_node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for NumericLiteral {
+    fn pos(&self) -> usize {
+        self._literal_like_node.pos()
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        self._literal_like_node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._literal_like_node.end()
+    }
+
+    fn set_end(&mut self, end: usize) {
+        self._literal_like_node.set_end(end);
     }
 }
 
@@ -475,6 +708,40 @@ impl NodeInterface for Statement {
     }
 }
 
+impl ReadonlyTextRange for Statement {
+    fn pos(&self) -> usize {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.pos(),
+            Statement::ExpressionStatement(expression_statement) => expression_statement.pos(),
+        }
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.set_pos(pos),
+            Statement::ExpressionStatement(expression_statement) => {
+                expression_statement.set_pos(pos)
+            }
+        }
+    }
+
+    fn end(&self) -> usize {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.end(),
+            Statement::ExpressionStatement(expression_statement) => expression_statement.end(),
+        }
+    }
+
+    fn set_end(&mut self, end: usize) {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.set_end(end),
+            Statement::ExpressionStatement(expression_statement) => {
+                expression_statement.set_end(end)
+            }
+        }
+    }
+}
+
 impl From<Statement> for Node {
     fn from(statement: Statement) -> Self {
         Node::Statement(statement)
@@ -497,6 +764,24 @@ impl NodeInterface for EmptyStatement {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for EmptyStatement {
+    fn pos(&self) -> usize {
+        self._node.pos
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end
+    }
+
+    fn set_end(&mut self, end: usize) {
+        self._node.set_end(end);
     }
 }
 
@@ -526,6 +811,24 @@ impl NodeInterface for ExpressionStatement {
     }
 }
 
+impl ReadonlyTextRange for ExpressionStatement {
+    fn pos(&self) -> usize {
+        self._node.pos
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end
+    }
+
+    fn set_end(&mut self, end: usize) {
+        self._node.set_end(end);
+    }
+}
+
 impl From<ExpressionStatement> for Statement {
     fn from(expression_statement: ExpressionStatement) -> Self {
         Statement::ExpressionStatement(expression_statement)
@@ -551,6 +854,24 @@ impl NodeInterface for SourceFile {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for SourceFile {
+    fn pos(&self) -> usize {
+        self._node.pos
+    }
+
+    fn set_pos(&mut self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end
+    }
+
+    fn set_end(&mut self, end: usize) {
+        self._node.set_end(end);
     }
 }
 
