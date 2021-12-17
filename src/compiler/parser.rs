@@ -188,10 +188,14 @@ impl ParserType {
 
     fn create_source_file<TNodes: Into<NodeArrayOrVec>>(
         &self,
-        _file_name: &str,
+        file_name: &str,
         statements: TNodes,
     ) -> SourceFile {
-        self.factory.create_source_file(self, statements)
+        let mut source_file = self.factory.create_source_file(self, statements);
+
+        source_file.file_name = file_name.to_string();
+
+        source_file
     }
 
     fn parse_error_at_current_token(&mut self, message: &DiagnosticMessage) {
