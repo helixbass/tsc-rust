@@ -6,7 +6,7 @@ use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::RwLock;
 
-use crate::{SortedArray, WeakSelf};
+use crate::{Number, SortedArray, WeakSelf};
 
 pub struct Path(String);
 
@@ -892,9 +892,9 @@ pub enum StructureIsReused {
     Completely,
 }
 
+#[allow(non_camel_case_types)]
 pub enum ExitStatus {
     Success,
-    #[allow(non_camel_case_types)]
     DiagnosticsPresent_OutputsGenerated,
 }
 
@@ -905,6 +905,8 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 #[allow(non_snake_case)]
 pub struct TypeChecker {
     pub Type: fn(TypeFlags) -> BaseType,
+
+    pub number_literal_types: HashMap<Number, Rc</*NumberLiteralType*/ Type>>,
     pub number_type: Option<Rc<Type>>,
     pub bigint_type: Option<Rc<Type>>,
     pub true_type: Option<Rc<Type>>,
@@ -935,6 +937,7 @@ bitflags! {
 #[derive(Clone)]
 pub enum Type {
     IntrinsicType(IntrinsicType),
+    LiteralType(LiteralType),
     UnionOrIntersectionType(UnionOrIntersectionType),
 }
 
@@ -942,6 +945,7 @@ impl TypeInterface for Type {
     fn flags(&self) -> TypeFlags {
         match self {
             Type::IntrinsicType(intrinsic_type) => intrinsic_type.flags(),
+            Type::LiteralType(literal_type) => literal_type.flags(),
             Type::UnionOrIntersectionType(union_or_intersection_type) => {
                 union_or_intersection_type.flags()
             }
@@ -1066,6 +1070,154 @@ impl From<FreshableIntrinsicType> for Type {
         Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(
             freshable_intrinsic_type,
         ))
+    }
+}
+
+pub trait LiteralTypeInterface: TypeInterface {
+    fn fresh_type(&self) -> Option<&Weak<Type>>;
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>);
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type>;
+}
+
+#[derive(Clone)]
+pub enum LiteralType {
+    NumberLiteralType(NumberLiteralType),
+}
+
+impl TypeInterface for LiteralType {
+    fn flags(&self) -> TypeFlags {
+        match self {
+            LiteralType::NumberLiteralType(number_literal_type) => number_literal_type.flags(),
+        }
+    }
+}
+
+impl LiteralTypeInterface for LiteralType {
+    fn fresh_type(&self) -> Option<&Weak<Type>> {
+        match self {
+            LiteralType::NumberLiteralType(number_literal_type) => number_literal_type.fresh_type(),
+        }
+    }
+
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+        match self {
+            LiteralType::NumberLiteralType(number_literal_type) => {
+                number_literal_type.set_fresh_type(fresh_type)
+            }
+        }
+    }
+
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type> {
+        match self {
+            LiteralType::NumberLiteralType(number_literal_type) => {
+                number_literal_type.get_or_initialize_fresh_type(type_checker)
+            }
+        }
+    }
+}
+
+impl From<LiteralType> for Type {
+    fn from(literal_type: LiteralType) -> Self {
+        Type::LiteralType(literal_type)
+    }
+}
+
+#[derive(Clone)]
+pub struct BaseLiteralType {
+    _type: BaseType,
+    fresh_type: WeakSelf<Type>,
+}
+
+impl BaseLiteralType {
+    pub fn new(type_: BaseType) -> Self {
+        Self {
+            _type: type_,
+            fresh_type: WeakSelf::new(),
+        }
+    }
+}
+
+impl TypeInterface for BaseLiteralType {
+    fn flags(&self) -> TypeFlags {
+        self._type.flags()
+    }
+}
+
+impl LiteralTypeInterface for BaseLiteralType {
+    fn fresh_type(&self) -> Option<&Weak<Type>> {
+        self.fresh_type.try_get()
+    }
+
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+        self.fresh_type.init(&fresh_type, true);
+    }
+
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type> {
+        panic!("Shouldn't call get_or_initialize_fresh_type() on base BaseLiteralType");
+    }
+}
+
+#[derive(Clone)]
+pub struct NumberLiteralType {
+    _literal_type: BaseLiteralType,
+    value: Number,
+}
+
+impl NumberLiteralType {
+    pub fn new(literal_type: BaseLiteralType, value: Number) -> Self {
+        Self {
+            _literal_type: literal_type,
+            value,
+        }
+    }
+
+    fn create_fresh_type_from_self(&self, type_checker: &TypeChecker) -> Rc<Type> {
+        let fresh_type = type_checker.create_literal_type(self.flags());
+        let fresh_type: Rc<Type> = Rc::new(Self::new(fresh_type, self.value).into());
+        match &*fresh_type {
+            Type::LiteralType(literal_type) => {
+                literal_type.set_fresh_type(&fresh_type);
+            }
+            _ => panic!("Expected LiteralType"),
+        }
+        self.set_fresh_type(&fresh_type);
+        self.fresh_type().unwrap().upgrade().unwrap()
+    }
+}
+
+impl TypeInterface for NumberLiteralType {
+    fn flags(&self) -> TypeFlags {
+        self._literal_type.flags()
+    }
+}
+
+impl LiteralTypeInterface for NumberLiteralType {
+    fn fresh_type(&self) -> Option<&Weak<Type>> {
+        self._literal_type.fresh_type()
+    }
+
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+        self._literal_type.set_fresh_type(fresh_type);
+    }
+
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type> {
+        if self.fresh_type().is_none() {
+            let fresh_type = self.create_fresh_type_from_self(type_checker);
+            self.set_fresh_type(&fresh_type);
+        }
+        return self.fresh_type().unwrap().upgrade().unwrap();
+    }
+}
+
+impl From<NumberLiteralType> for LiteralType {
+    fn from(number_literal_type: NumberLiteralType) -> Self {
+        LiteralType::NumberLiteralType(number_literal_type)
+    }
+}
+
+impl From<NumberLiteralType> for Type {
+    fn from(number_literal_type: NumberLiteralType) -> Self {
+        Type::LiteralType(LiteralType::NumberLiteralType(number_literal_type))
     }
 }
 

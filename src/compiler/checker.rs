@@ -5,11 +5,12 @@ use std::sync::RwLock;
 
 use crate::{
     bind_source_file, create_diagnostic_collection, create_diagnostic_for_node, for_each,
-    object_allocator, BaseIntrinsicType, BaseType, BaseUnionOrIntersectionType, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
-    FreshableIntrinsicType, IntrinsicType, Node, NodeInterface, PrefixUnaryExpression,
-    RelationComparisonResult, SourceFile, Statement, SyntaxKind, Type, TypeChecker,
-    TypeCheckerHost, TypeFlags, TypeInterface, UnionType,
+    object_allocator, BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType,
+    Diagnostic, DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression,
+    ExpressionStatement, FreshableIntrinsicType, IntrinsicType, LiteralLikeNode,
+    LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType,
+    NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile, Statement,
+    SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, UnionType,
 };
 
 pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
@@ -18,6 +19,8 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 ) -> TypeChecker {
     let mut type_checker = TypeChecker {
         Type: object_allocator.get_type_constructor(),
+
+        number_literal_types: HashMap::new(),
 
         number_type: None,
         bigint_type: None,
@@ -187,6 +190,23 @@ impl TypeChecker {
         type_.unwrap()
     }
 
+    pub fn create_literal_type(&self, flags: TypeFlags) -> BaseLiteralType {
+        let type_ = self.create_type(flags);
+        BaseLiteralType::new(type_)
+    }
+
+    fn get_fresh_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Literal) {
+            match &*type_ {
+                Type::LiteralType(literal_type) => {
+                    return literal_type.get_or_initialize_fresh_type(&self);
+                }
+                _ => panic!("Expected LiteralType"),
+            }
+        }
+        type_
+    }
+
     fn is_fresh_literal_type(&self, type_: Rc<Type>) -> bool {
         if !type_.flags().intersects(TypeFlags::Literal) {
             return false;
@@ -198,8 +218,21 @@ impl TypeChecker {
                 }
                 _ => panic!("Expected FreshableIntrinsicType"),
             },
-            _ => panic!("Expected IntrinsicType"),
+            Type::LiteralType(literal_type) => {
+                ptr::eq(&*type_, literal_type.fresh_type().unwrap().as_ptr())
+            }
+            _ => panic!("Expected IntrinsicType or LiteralType"),
         }
+    }
+
+    fn get_number_literal_type(&self, value: Number) -> Rc<Type> {
+        if self.number_literal_types.contains_key(&value) {
+            return self.number_literal_types.get(&value).unwrap().clone();
+        }
+        let type_ = self.create_literal_type(TypeFlags::NumberLiteral /*, value*/);
+        let type_: Rc<Type> = Rc::new(NumberLiteralType::new(type_, value).into());
+        self.number_literal_types.insert(value, type_.clone());
+        type_
     }
 
     fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {
@@ -343,6 +376,14 @@ impl TypeChecker {
             // Expression::BinaryExpression(binary_expression) => {
             //     return self.check_binary_expression(binary_expression);
             // }
+            Expression::LiteralLikeNode(literal_like_node) => match literal_like_node {
+                LiteralLikeNode::NumericLiteral(numeric_literal) => {
+                    self.check_grammar_numeric_literal(numeric_literal);
+                    return self.get_fresh_type_of_literal_type(
+                        self.get_number_literal_type(numeric_literal.text().into()),
+                    );
+                }
+            },
             _ => unimplemented!(),
         }
     }
@@ -359,5 +400,9 @@ impl TypeChecker {
         for file in host.get_source_files() {
             bind_source_file(file);
         }
+    }
+
+    fn check_grammar_numeric_literal(&self, node: &NumericLiteral) -> bool {
+        false
     }
 }
