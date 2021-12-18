@@ -190,16 +190,30 @@ impl TypeChecker {
         type_.unwrap()
     }
 
-    pub fn create_literal_type(&self, flags: TypeFlags) -> BaseLiteralType {
+    // pub fn create_literal_type(
+    pub fn create_number_literal_type(
+        &self,
+        flags: TypeFlags,
+        value: Number,
+        regular_type: Option<Rc<Type>>,
+    ) -> Rc<Type> {
         let type_ = self.create_type(flags);
-        BaseLiteralType::new(type_)
+        let type_ = BaseLiteralType::new(type_);
+        let type_: Rc<Type> = Rc::new(NumberLiteralType::new(type_, value).into());
+        match &*type_ {
+            Type::LiteralType(literal_type) => {
+                literal_type.set_regular_type(&regular_type.unwrap_or(type_.clone()));
+            }
+            _ => panic!("Expected LiteralType"),
+        }
+        type_
     }
 
     fn get_fresh_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Literal) {
             match &*type_ {
                 Type::LiteralType(literal_type) => {
-                    return literal_type.get_or_initialize_fresh_type(&self);
+                    return literal_type.get_or_initialize_fresh_type(&self, &type_);
                 }
                 _ => panic!("Expected LiteralType"),
             }
@@ -225,12 +239,11 @@ impl TypeChecker {
         }
     }
 
-    fn get_number_literal_type(&self, value: Number) -> Rc<Type> {
+    fn get_number_literal_type(&mut self, value: Number) -> Rc<Type> {
         if self.number_literal_types.contains_key(&value) {
             return self.number_literal_types.get(&value).unwrap().clone();
         }
-        let type_ = self.create_literal_type(TypeFlags::NumberLiteral /*, value*/);
-        let type_: Rc<Type> = Rc::new(NumberLiteralType::new(type_, value).into());
+        let type_ = self.create_number_literal_type(TypeFlags::NumberLiteral, value, None);
         self.number_literal_types.insert(value, type_.clone());
         type_
     }
@@ -253,7 +266,8 @@ impl TypeChecker {
                     }
                     _ => panic!("Expected IntrinsicType"),
                 },
-                _ => panic!("Expected IntrinsicType"),
+                Type::LiteralType(literal_type) => literal_type.regular_type(),
+                _ => panic!("Expected IntrinsicType or LiteralType"),
             };
         }
         if source
@@ -277,11 +291,11 @@ impl TypeChecker {
         false
     }
 
-    fn check_source_element(&self, node: &Node) {
+    fn check_source_element(&mut self, node: &Node) {
         self.check_source_element_worker(node)
     }
 
-    fn check_source_element_worker(&self, node: &Node) {
+    fn check_source_element_worker(&mut self, node: &Node) {
         match node {
             Node::Statement(statement) => {
                 match statement {
@@ -295,11 +309,11 @@ impl TypeChecker {
         };
     }
 
-    fn check_source_file(&self, source_file: &SourceFile) {
+    fn check_source_file(&mut self, source_file: &SourceFile) {
         self.check_source_file_worker(source_file)
     }
 
-    fn check_source_file_worker(&self, node: &SourceFile) {
+    fn check_source_file_worker(&mut self, node: &SourceFile) {
         if true {
             for_each(&node.statements, |statement, _index| {
                 self.check_source_element(statement);
@@ -308,11 +322,11 @@ impl TypeChecker {
         }
     }
 
-    pub fn get_diagnostics(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
+    pub fn get_diagnostics(&mut self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         self.get_diagnostics_worker(source_file)
     }
 
-    fn get_diagnostics_worker(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
+    fn get_diagnostics_worker(&mut self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         self.check_source_file(source_file);
 
         let semantic_diagnostics = self
@@ -337,7 +351,7 @@ impl TypeChecker {
         true
     }
 
-    fn check_prefix_unary_expression(&self, node: &PrefixUnaryExpression) -> Rc<Type> {
+    fn check_prefix_unary_expression(&mut self, node: &PrefixUnaryExpression) -> Rc<Type> {
         let operand_expression = match &*node.operand {
             Node::Expression(expression) => expression,
             _ => panic!("Expected Expression"),
@@ -358,11 +372,11 @@ impl TypeChecker {
         self.number_type()
     }
 
-    fn check_expression(&self, node: &Expression) -> Rc<Type> {
+    fn check_expression(&mut self, node: &Expression) -> Rc<Type> {
         self.check_expression_worker(node)
     }
 
-    fn check_expression_worker(&self, node: &Expression) -> Rc<Type> {
+    fn check_expression_worker(&mut self, node: &Expression) -> Rc<Type> {
         match node {
             Expression::TokenExpression(token_expression) => match token_expression.kind() {
                 SyntaxKind::TrueKeyword => {
@@ -379,16 +393,16 @@ impl TypeChecker {
             Expression::LiteralLikeNode(literal_like_node) => match literal_like_node {
                 LiteralLikeNode::NumericLiteral(numeric_literal) => {
                     self.check_grammar_numeric_literal(numeric_literal);
-                    return self.get_fresh_type_of_literal_type(
-                        self.get_number_literal_type(numeric_literal.text().into()),
-                    );
+                    let type_: Rc<Type> =
+                        self.get_number_literal_type(numeric_literal.text().into());
+                    return self.get_fresh_type_of_literal_type(type_);
                 }
             },
             _ => unimplemented!(),
         }
     }
 
-    fn check_expression_statement(&self, node: &ExpressionStatement) {
+    fn check_expression_statement(&mut self, node: &ExpressionStatement) {
         let expression = match &*node.expression {
             Node::Expression(expression) => expression,
             _ => panic!("Expected Expression"),

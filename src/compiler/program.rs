@@ -53,7 +53,7 @@ impl ProgramConcrete {
         }
     }
 
-    fn get_diagnostics_producing_type_checker(&mut self) -> &TypeChecker {
+    fn get_diagnostics_producing_type_checker(&mut self) -> &mut TypeChecker {
         // self.diagnostics_producing_type_checker
         //     .get_or_insert_with(|| create_type_checker(self, true))
 
@@ -66,7 +66,7 @@ impl ProgramConcrete {
         if self.diagnostics_producing_type_checker.is_none() {
             self.diagnostics_producing_type_checker = Some(create_type_checker(self, true));
         }
-        self.diagnostics_producing_type_checker.as_ref().unwrap()
+        self.diagnostics_producing_type_checker.as_mut().unwrap()
     }
 
     fn get_diagnostics_helper(
