@@ -934,7 +934,7 @@ bitflags! {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Type {
     IntrinsicType(IntrinsicType),
     LiteralType(LiteralType),
@@ -957,7 +957,7 @@ pub trait TypeInterface {
     fn flags(&self) -> TypeFlags;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BaseType {
     pub flags: TypeFlags,
 }
@@ -970,7 +970,7 @@ impl TypeInterface for BaseType {
 
 pub trait IntrinsicTypeInterface: TypeInterface {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum IntrinsicType {
     BaseIntrinsicType(BaseIntrinsicType),
     FreshableIntrinsicType(FreshableIntrinsicType),
@@ -995,7 +995,7 @@ impl From<IntrinsicType> for Type {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BaseIntrinsicType {
     _type: BaseType,
 }
@@ -1026,7 +1026,7 @@ impl From<BaseIntrinsicType> for Type {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FreshableIntrinsicType {
     _intrinsic_type: BaseIntrinsicType,
     pub fresh_type: WeakSelf<Type>,
@@ -1085,7 +1085,7 @@ pub trait LiteralTypeInterface: TypeInterface {
     fn set_regular_type(&self, regular_type: &Rc<Type>);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum LiteralType {
     NumberLiteralType(NumberLiteralType),
 }
@@ -1148,7 +1148,7 @@ impl From<LiteralType> for Type {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BaseLiteralType {
     _type: BaseType,
     fresh_type: WeakSelf<Type>,
@@ -1197,7 +1197,7 @@ impl LiteralTypeInterface for BaseLiteralType {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NumberLiteralType {
     _literal_type: BaseLiteralType,
     value: Number,
@@ -1285,7 +1285,7 @@ pub trait UnionOrIntersectionTypeInterface: TypeInterface {
     fn types(&self) -> &[Rc<Type>];
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum UnionOrIntersectionType {
     UnionType(UnionType),
 }
@@ -1312,7 +1312,7 @@ impl From<UnionOrIntersectionType> for Type {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BaseUnionOrIntersectionType {
     pub _type: BaseType,
     pub types: Vec<Rc<Type>>,
@@ -1330,7 +1330,7 @@ impl UnionOrIntersectionTypeInterface for BaseUnionOrIntersectionType {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UnionType {
     pub _union_or_intersection_type: BaseUnionOrIntersectionType,
 }
@@ -1357,6 +1357,14 @@ impl From<UnionType> for Type {
     fn from(union_type: UnionType) -> Self {
         Type::UnionOrIntersectionType(UnionOrIntersectionType::UnionType(union_type))
     }
+}
+
+#[derive(Eq, PartialEq)]
+pub enum Ternary {
+    False = 0,
+    Unknown = 1,
+    Maybe = 3,
+    True = -1,
 }
 
 #[derive(Debug)]

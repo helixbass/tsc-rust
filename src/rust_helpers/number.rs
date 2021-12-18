@@ -1,6 +1,6 @@
 use std::hash;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Number(f64);
 
 impl Number {

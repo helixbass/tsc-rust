@@ -10,7 +10,8 @@ use crate::{
     ExpressionStatement, FreshableIntrinsicType, IntrinsicType, LiteralLikeNode,
     LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType,
     NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile, Statement,
-    SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, UnionType,
+    SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
 };
 
 pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
@@ -202,7 +203,7 @@ impl TypeChecker {
         let type_: Rc<Type> = Rc::new(NumberLiteralType::new(type_, value).into());
         match &*type_ {
             Type::LiteralType(literal_type) => {
-                literal_type.set_regular_type(&regular_type.unwrap_or(type_.clone()));
+                literal_type.set_regular_type(&regular_type.unwrap_or_else(|| type_.clone()));
             }
             _ => panic!("Expected LiteralType"),
         }
@@ -213,7 +214,7 @@ impl TypeChecker {
         if type_.flags().intersects(TypeFlags::Literal) {
             match &*type_ {
                 Type::LiteralType(literal_type) => {
-                    return literal_type.get_or_initialize_fresh_type(&self, &type_);
+                    return literal_type.get_or_initialize_fresh_type(self, &type_);
                 }
                 _ => panic!("Expected LiteralType"),
             }
@@ -282,13 +283,52 @@ impl TypeChecker {
         false
     }
 
+    fn get_normalized_type(&self, mut type_: Rc<Type>) -> Rc<Type> {
+        loop {
+            let t: Rc<Type> = if self.is_fresh_literal_type(type_.clone()) {
+                match &*type_ {
+                    Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
+                        IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                            freshable_intrinsic_type.regular_type().upgrade().unwrap()
+                        }
+                        _ => panic!("Expected FreshableIntrinsicType"),
+                    },
+                    Type::LiteralType(literal_type) => literal_type.regular_type(),
+                    _ => panic!("Expected IntrinsicType or LiteralType"),
+                }
+            } else {
+                type_.clone()
+            };
+            if Rc::ptr_eq(&t, &type_) {
+                break;
+            }
+            type_ = t.clone();
+        }
+        type_
+    }
+
     fn check_type_related_to(
         &self,
         source: Rc<Type>,
         target: Rc<Type>,
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> bool {
-        false
+        CheckTypeRelatedTo::new(self, source, target, relation).call()
+    }
+
+    fn get_constituent_count(&self, type_: Rc<Type>) -> usize {
+        if type_.flags().intersects(TypeFlags::Union) {
+            match &*type_ {
+                Type::UnionOrIntersectionType(union_or_intersection_type) => {
+                    match union_or_intersection_type {
+                        UnionOrIntersectionType::UnionType(union_type) => union_type.types().len(),
+                    }
+                }
+                _ => panic!("Expected UnionOrIntersectionType"),
+            }
+        } else {
+            1
+        }
     }
 
     fn check_source_element(&mut self, node: &Node) {
@@ -418,5 +458,61 @@ impl TypeChecker {
 
     fn check_grammar_numeric_literal(&self, node: &NumericLiteral) -> bool {
         false
+    }
+}
+
+struct CheckTypeRelatedTo<'type_checker> {
+    type_checker: &'type_checker TypeChecker,
+    source: Rc<Type>,
+    target: Rc<Type>,
+    relation: &'type_checker HashMap<String, RelationComparisonResult>,
+}
+
+impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
+    fn new(
+        type_checker: &'type_checker TypeChecker,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        relation: &'type_checker HashMap<String, RelationComparisonResult>,
+    ) -> Self {
+        Self {
+            type_checker,
+            source,
+            target,
+            relation,
+        }
+    }
+
+    fn call(&self) -> bool {
+        let result = self.is_related_to(self.source.clone(), self.target.clone());
+
+        result != Ternary::False
+    }
+
+    fn is_related_to(&self, original_source: Rc<Type>, original_target: Rc<Type>) -> Ternary {
+        let source = self.type_checker.get_normalized_type(original_source);
+        let target = self.type_checker.get_normalized_type(original_target);
+
+        let mut result = Ternary::False;
+
+        if (source.flags().intersects(TypeFlags::Union)
+            || target.flags().intersects(TypeFlags::Union))
+            && self.type_checker.get_constituent_count(source.clone())
+                * self.type_checker.get_constituent_count(target.clone())
+                < 4
+        {
+            result = self.structured_type_related_to(source, target);
+        }
+
+        result
+    }
+
+    fn structured_type_related_to(&self, source: Rc<Type>, target: Rc<Type>) -> Ternary {
+        let result = self.structured_type_related_to_worker(source, target);
+        result
+    }
+
+    fn structured_type_related_to_worker(&self, source: Rc<Type>, target: Rc<Type>) -> Ternary {
+        Ternary::False
     }
 }

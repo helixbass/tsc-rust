@@ -30,7 +30,8 @@ pub use compiler::types::{
     ModuleSpecifierResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
     NumberLiteralType, NumericLiteral, ParsedCommandLine, Path, PrefixUnaryExpression, Program,
     ReadonlyTextRange, RelationComparisonResult, SourceFile, Statement, StructureIsReused,
-    SyntaxKind, TextSpan, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, UnionType,
+    SyntaxKind, Ternary, TextSpan, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,
