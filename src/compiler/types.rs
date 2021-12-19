@@ -919,6 +919,7 @@ pub struct TypeChecker {
 bitflags! {
     pub struct TypeFlags: u32 {
         const Number = 1 << 3;
+        const Enum = 1 << 5;
         const BigInt = 1 << 6;
         const StringLiteral = 1 << 7;
         const NumberLiteral = 1 << 8;
@@ -929,6 +930,7 @@ bitflags! {
         const Intersection = 1 << 21;
 
         const Literal = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::BigIntLiteral.bits | Self::BooleanLiteral.bits;
+        const NumberLike = Self::Number.bits | Self::NumberLiteral.bits | Self::Enum.bits;
         const StructuredType = Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
         const StructuredOrInstantiable = Self::StructuredType.bits /*| Self::Instantiable.bits */;
     }

@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -13,6 +14,17 @@ use crate::{
     SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface,
     UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
 };
+
+bitflags! {
+    struct IntersectionState: u32 {
+        const None = 0;
+        const Source = 1 << 0;
+        const Target = 1 << 1;
+        const PropertyCheck = 1 << 2;
+        const UnionIntersectionCheck = 1 << 3;
+        const InPropertyCheck = 1 << 4;
+    }
+}
 
 pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     host: &TTypeCheckerHost,
@@ -253,6 +265,20 @@ impl TypeChecker {
         self.is_type_related_to(source, target, &self.assignable_relation)
     }
 
+    fn is_simple_type_related_to(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        relation: &HashMap<String, RelationComparisonResult>,
+    ) -> bool {
+        let s = source.flags();
+        let t = target.flags();
+        if s.intersects(TypeFlags::NumberLike) && t.intersects(TypeFlags::Number) {
+            return true;
+        }
+        false
+    }
+
     fn is_type_related_to(
         &self,
         mut source: Rc<Type>,
@@ -314,6 +340,10 @@ impl TypeChecker {
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> bool {
         CheckTypeRelatedTo::new(self, source, target, relation).call()
+    }
+
+    fn get_regular_type_of_object_literal(&self, type_: Rc<Type>) -> Rc<Type> {
+        type_
     }
 
     fn get_constituent_count(&self, type_: Rc<Type>) -> usize {
@@ -484,14 +514,29 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
     }
 
     fn call(&self) -> bool {
-        let result = self.is_related_to(self.source.clone(), self.target.clone());
+        let result = self.is_related_to(self.source.clone(), self.target.clone(), None);
 
         result != Ternary::False
     }
 
-    fn is_related_to(&self, original_source: Rc<Type>, original_target: Rc<Type>) -> Ternary {
+    fn is_related_to(
+        &self,
+        original_source: Rc<Type>,
+        original_target: Rc<Type>,
+        intersection_state: Option<IntersectionState>,
+    ) -> Ternary {
+        let intersection_state = intersection_state.unwrap_or(IntersectionState::None);
+
         let source = self.type_checker.get_normalized_type(original_source);
         let target = self.type_checker.get_normalized_type(original_target);
+
+        if self.type_checker.is_simple_type_related_to(
+            source.clone(),
+            target.clone(),
+            self.relation,
+        ) {
+            return Ternary::True;
+        }
 
         let mut result = Ternary::False;
 
@@ -501,18 +546,64 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                 * self.type_checker.get_constituent_count(target.clone())
                 < 4
         {
-            result = self.structured_type_related_to(source, target);
+            result = self.structured_type_related_to(
+                source,
+                target,
+                intersection_state | IntersectionState::UnionIntersectionCheck,
+            );
         }
 
         result
     }
 
-    fn structured_type_related_to(&self, source: Rc<Type>, target: Rc<Type>) -> Ternary {
-        let result = self.structured_type_related_to_worker(source, target);
+    fn type_related_to_some_type(
+        &self,
+        source: Rc<Type>,
+        target: &UnionOrIntersectionType,
+    ) -> Ternary {
+        let target_types = target.types();
+
+        for type_ in target_types {
+            let related = self.is_related_to(source.clone(), type_.clone(), None);
+            if related != Ternary::False {
+                return related;
+            }
+        }
+
+        Ternary::False
+    }
+
+    fn structured_type_related_to(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        let result = self.structured_type_related_to_worker(source, target, intersection_state);
         result
     }
 
-    fn structured_type_related_to_worker(&self, source: Rc<Type>, target: Rc<Type>) -> Ternary {
+    fn structured_type_related_to_worker(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        if intersection_state.intersects(IntersectionState::UnionIntersectionCheck) {
+            if target.flags().intersects(TypeFlags::Union) {
+                return self.type_related_to_some_type(
+                    self.type_checker.get_regular_type_of_object_literal(source),
+                    match &*target {
+                        Type::UnionOrIntersectionType(union_or_intersection_type) => {
+                            union_or_intersection_type
+                        }
+                        _ => panic!("Expected UnionOrIntersectionType"),
+                    },
+                );
+            }
+            unimplemented!()
+        }
+
         Ternary::False
     }
 }
