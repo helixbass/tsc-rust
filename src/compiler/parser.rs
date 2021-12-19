@@ -300,11 +300,37 @@ impl ParserType {
         false
     }
 
+    fn parse_error_for_missing_semicolon_after(&self, node: &Expression) {
+        unimplemented!()
+    }
+
     fn parse_token_node(&mut self) -> BaseNode {
         let pos = self.get_node_pos();
         let kind = self.token();
         self.next_token();
         self.finish_node(self.factory.create_token(self, kind), pos, None)
+    }
+
+    fn can_parse_semicolon(&self) -> bool {
+        if self.token() == SyntaxKind::SemicolonToken {
+            return true;
+        }
+
+        self.token() == SyntaxKind::CloseBraceToken
+            || self.token() == SyntaxKind::EndOfFileToken
+            || self.scanner.has_preceding_line_break()
+    }
+
+    fn try_parse_semicolon(&mut self) -> bool {
+        if !self.can_parse_semicolon() {
+            return false;
+        }
+
+        if self.token() == SyntaxKind::SemicolonToken {
+            self.next_token();
+        }
+
+        true
     }
 
     fn create_node_array(&self, elements: Vec<Node>) -> NodeArray {
@@ -318,7 +344,11 @@ impl ParserType {
         pos: usize,
         end: Option<usize>,
     ) -> TParsedNode {
-        set_text_range_pos_end(&mut node, pos, end.unwrap_or(self.scanner.get_start_pos()));
+        set_text_range_pos_end(
+            &mut node,
+            pos,
+            end.unwrap_or_else(|| self.scanner.get_start_pos()),
+        );
 
         if self.parse_error_before_next_finished_node {
             self.parse_error_before_next_finished_node = false;
@@ -580,8 +610,17 @@ impl ParserType {
     fn parse_expression_or_labeled_statement(&mut self) -> Statement {
         let pos = self.get_node_pos();
         let expression = self.parse_expression();
-        let node = self.factory.create_expression_statement(self, expression);
-        self.finish_node(node.into(), pos, None)
+        let node: Statement = if false {
+            unimplemented!()
+        } else {
+            if !self.try_parse_semicolon() {
+                self.parse_error_for_missing_semicolon_after(&expression);
+            }
+            self.factory
+                .create_expression_statement(self, expression)
+                .into()
+        };
+        self.finish_node(node, pos, None)
     }
 
     fn parse_empty_statement(&mut self) -> Statement {
