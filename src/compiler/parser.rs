@@ -511,7 +511,7 @@ impl ParserType {
             let operator_token = self.parse_token_node();
             let right = self.parse_binary_expression_or_higher(new_precedence);
             left_operand = self
-                .make_binary_expression(left_operand, operator_token.into(), right, pos)
+                .make_binary_expression(left_operand, operator_token, right, pos)
                 .into();
         }
 
@@ -522,16 +522,16 @@ impl ParserType {
         get_binary_operator_precedence(self.token()) > OperatorPrecedence::Comma
     }
 
-    fn make_binary_expression(
+    fn make_binary_expression<TNode: Into<Node>>(
         &mut self,
         left: Expression,
-        operator_token: Node,
+        operator_token: TNode,
         right: Expression,
         pos: usize,
     ) -> BinaryExpression {
         self.finish_node(
             self.factory
-                .create_binary_expression(self, left, operator_token, right),
+                .create_binary_expression(self, left, operator_token.into(), right),
             pos,
             None,
         )
