@@ -206,15 +206,15 @@ fn process_root_file(helper_context: &mut CreateProgramHelperContext, file_name:
     process_source_file(helper_context, &normalize_path(file_name));
 }
 
-fn get_source_file_from_reference_worker(
+fn get_source_file_from_reference_worker<TClosure: FnMut(&str) -> Option<Rc<Node>>>(
     file_name: &str,
-    get_source_file: &mut dyn FnMut(&str) -> Option<Rc<Node>>,
+    mut get_source_file: TClosure,
 ) -> Option<Rc<Node>> {
     get_source_file(file_name)
 }
 
 fn process_source_file(helper_context: &mut CreateProgramHelperContext, file_name: &str) {
-    get_source_file_from_reference_worker(file_name, &mut |file_name| {
+    get_source_file_from_reference_worker(file_name, |file_name| {
         find_source_file(helper_context, file_name)
     });
 }
