@@ -1,4 +1,12 @@
-use std::rc::Rc;
+#![allow(non_upper_case_globals)]
+
+use bitflags::bitflags;
+use std::collections::HashMap;
+use std::rc::{Rc, Weak};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::RwLock;
+
+use crate::{SortedArray, WeakSelf};
 
 pub struct Path(String);
 
@@ -8,24 +16,49 @@ impl Path {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub trait ReadonlyTextRange {
+    fn pos(&self) -> usize;
+    fn set_pos(&self, pos: usize);
+    fn end(&self) -> usize;
+    fn set_end(&self, end: usize);
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
     NumericLiteral,
     SemicolonToken,
     AsteriskToken,
+    PlusPlusToken,
     Identifier,
     FalseKeyword,
     TrueKeyword,
+    OfKeyword,
+    PrefixUnaryExpression,
     BinaryExpression,
     EmptyStatement,
     ExpressionStatement,
+    FunctionDeclaration,
     SourceFile,
 }
 
-pub trait NodeInterface {
+impl SyntaxKind {
+    pub const LastKeyword: SyntaxKind = SyntaxKind::OfKeyword;
+    pub const LastToken: SyntaxKind = SyntaxKind::LastKeyword;
+}
+
+bitflags! {
+    pub struct RelationComparisonResult: u32 {
+        const Succeeded = 1 << 0;
+        const Failed = 1 << 1;
+    }
+}
+
+pub trait NodeInterface: ReadonlyTextRange {
     fn kind(&self) -> SyntaxKind;
+    fn parent(&self) -> Rc<Node>;
+    fn set_parent(&self, parent: Rc<Node>);
 }
 
 #[derive(Debug)]
@@ -33,6 +66,45 @@ pub enum Node {
     BaseNode(BaseNode),
     Expression(Expression),
     Statement(Statement),
+    SourceFile(Rc<SourceFile>),
+}
+
+impl ReadonlyTextRange for Node {
+    fn pos(&self) -> usize {
+        match self {
+            Node::BaseNode(base_node) => base_node.pos(),
+            Node::Expression(expression) => expression.pos(),
+            Node::Statement(statement) => statement.pos(),
+            Node::SourceFile(source_file) => source_file.pos(),
+        }
+    }
+
+    fn set_pos(&self, pos: usize) {
+        match self {
+            Node::BaseNode(base_node) => base_node.set_pos(pos),
+            Node::Expression(expression) => expression.set_pos(pos),
+            Node::Statement(statement) => statement.set_pos(pos),
+            Node::SourceFile(source_file) => source_file.set_pos(pos),
+        }
+    }
+
+    fn end(&self) -> usize {
+        match self {
+            Node::BaseNode(base_node) => base_node.end(),
+            Node::Expression(expression) => expression.end(),
+            Node::Statement(statement) => statement.end(),
+            Node::SourceFile(source_file) => source_file.end(),
+        }
+    }
+
+    fn set_end(&self, end: usize) {
+        match self {
+            Node::BaseNode(base_node) => base_node.set_end(end),
+            Node::Expression(expression) => expression.set_end(end),
+            Node::Statement(statement) => statement.set_end(end),
+            Node::SourceFile(source_file) => source_file.set_end(end),
+        }
+    }
 }
 
 impl NodeInterface for Node {
@@ -41,6 +113,25 @@ impl NodeInterface for Node {
             Node::BaseNode(base_node) => base_node.kind(),
             Node::Expression(expression) => expression.kind(),
             Node::Statement(statement) => statement.kind(),
+            Node::SourceFile(source_file) => source_file.kind(),
+        }
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        match self {
+            Node::BaseNode(base_node) => base_node.parent(),
+            Node::Expression(expression) => expression.parent(),
+            Node::Statement(statement) => statement.parent(),
+            Node::SourceFile(source_file) => source_file.parent(),
+        }
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        match self {
+            Node::BaseNode(base_node) => base_node.set_parent(parent),
+            Node::Expression(expression) => expression.set_parent(parent),
+            Node::Statement(statement) => statement.set_parent(parent),
+            Node::SourceFile(source_file) => source_file.set_parent(parent),
         }
     }
 }
@@ -48,11 +139,57 @@ impl NodeInterface for Node {
 #[derive(Debug)]
 pub struct BaseNode {
     pub kind: SyntaxKind,
+    pub parent: RwLock<Option<Weak<Node>>>,
+    pub pos: AtomicUsize,
+    pub end: AtomicUsize,
+}
+
+impl BaseNode {
+    pub fn new(kind: SyntaxKind, pos: usize, end: usize) -> Self {
+        Self {
+            kind,
+            parent: RwLock::new(None),
+            pos: pos.into(),
+            end: end.into(),
+        }
+    }
 }
 
 impl NodeInterface for BaseNode {
     fn kind(&self) -> SyntaxKind {
         self.kind
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self.parent
+            .read()
+            .unwrap()
+            .clone()
+            .unwrap()
+            .upgrade()
+            .unwrap()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        *self.parent.write().unwrap() = Some(Rc::downgrade(&parent));
+    }
+}
+
+impl ReadonlyTextRange for BaseNode {
+    fn pos(&self) -> usize {
+        self.pos.load(Ordering::Relaxed)
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self.pos.store(pos, Ordering::Relaxed);
+    }
+
+    fn end(&self) -> usize {
+        self.end.load(Ordering::Relaxed)
+    }
+
+    fn set_end(&self, end: usize) {
+        self.end.store(end, Ordering::Relaxed);
     }
 }
 
@@ -64,18 +201,43 @@ impl From<BaseNode> for Node {
 
 #[derive(Debug)]
 pub struct NodeArray {
-    _nodes: Vec<Node>,
+    _nodes: Vec<Rc<Node>>,
 }
 
 impl NodeArray {
-    pub fn new(nodes: Vec<Node>) -> Self {
+    pub fn new(nodes: Vec<Rc<Node>>) -> Self {
         NodeArray { _nodes: nodes }
+    }
+
+    pub fn iter(&self) -> NodeArrayIter {
+        NodeArrayIter(Box::new(self._nodes.iter()))
+    }
+}
+
+pub struct NodeArrayIter<'node_array>(
+    Box<dyn Iterator<Item = &'node_array Rc<Node>> + 'node_array>,
+);
+
+impl<'node_array> Iterator for NodeArrayIter<'node_array> {
+    type Item = &'node_array Rc<Node>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+impl<'node_array> IntoIterator for &'node_array NodeArray {
+    type Item = &'node_array Rc<Node>;
+    type IntoIter = NodeArrayIter<'node_array>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
 pub enum NodeArrayOrVec {
     NodeArray(NodeArray),
-    Vec(Vec<Node>),
+    Vec(Vec<Rc<Node>>),
 }
 
 impl From<NodeArray> for NodeArrayOrVec {
@@ -84,8 +246,8 @@ impl From<NodeArray> for NodeArrayOrVec {
     }
 }
 
-impl From<Vec<Node>> for NodeArrayOrVec {
-    fn from(vec: Vec<Node>) -> Self {
+impl From<Vec<Rc<Node>>> for NodeArrayOrVec {
+    fn from(vec: Vec<Rc<Node>>) -> Self {
         NodeArrayOrVec::Vec(vec)
     }
 }
@@ -100,6 +262,32 @@ impl NodeInterface for Identifier {
     fn kind(&self) -> SyntaxKind {
         self._node.kind
     }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for Identifier {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._node.set_end(end);
+    }
 }
 
 impl From<Identifier> for Expression {
@@ -112,6 +300,7 @@ impl From<Identifier> for Expression {
 pub enum Expression {
     TokenExpression(BaseNode),
     Identifier(Identifier),
+    PrefixUnaryExpression(PrefixUnaryExpression),
     BinaryExpression(BinaryExpression),
     LiteralLikeNode(LiteralLikeNode),
 }
@@ -121,8 +310,85 @@ impl NodeInterface for Expression {
         match self {
             Expression::TokenExpression(token_expression) => token_expression.kind(),
             Expression::Identifier(identifier) => identifier.kind(),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.kind()
+            }
             Expression::BinaryExpression(binary_expression) => binary_expression.kind(),
             Expression::LiteralLikeNode(literal_like_node) => literal_like_node.kind(),
+        }
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.parent(),
+            Expression::Identifier(identifier) => identifier.parent(),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.parent()
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.parent(),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.parent(),
+        }
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.set_parent(parent),
+            Expression::Identifier(identifier) => identifier.set_parent(parent),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.set_parent(parent)
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.set_parent(parent),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_parent(parent),
+        }
+    }
+}
+
+impl ReadonlyTextRange for Expression {
+    fn pos(&self) -> usize {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.pos(),
+            Expression::Identifier(identifier) => identifier.pos(),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.pos()
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.pos(),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.pos(),
+        }
+    }
+
+    fn set_pos(&self, pos: usize) {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.set_pos(pos),
+            Expression::Identifier(identifier) => identifier.set_pos(pos),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.set_pos(pos)
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.set_pos(pos),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_pos(pos),
+        }
+    }
+
+    fn end(&self) -> usize {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.end(),
+            Expression::Identifier(identifier) => identifier.end(),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.end()
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.end(),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.end(),
+        }
+    }
+
+    fn set_end(&self, end: usize) {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.set_end(end),
+            Expression::Identifier(identifier) => identifier.set_end(end),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.set_end(end)
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.set_end(end),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_end(end),
         }
     }
 }
@@ -140,11 +406,66 @@ impl From<BaseNode> for Expression {
 }
 
 #[derive(Debug)]
+pub struct PrefixUnaryExpression {
+    pub _node: BaseNode,
+    pub operator: SyntaxKind,
+    pub operand: Rc<Node>,
+}
+
+impl PrefixUnaryExpression {
+    pub fn new(base_node: BaseNode, operator: SyntaxKind, operand: Expression) -> Self {
+        Self {
+            _node: base_node,
+            operator,
+            operand: Rc::new(operand.into()),
+        }
+    }
+}
+
+impl NodeInterface for PrefixUnaryExpression {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for PrefixUnaryExpression {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._node.set_end(end);
+    }
+}
+
+impl From<PrefixUnaryExpression> for Expression {
+    fn from(prefix_unary_expression: PrefixUnaryExpression) -> Self {
+        Expression::PrefixUnaryExpression(prefix_unary_expression)
+    }
+}
+
+#[derive(Debug)]
 pub struct BinaryExpression {
     pub _node: BaseNode,
-    pub left: Box<Expression>,
+    pub left: Rc<Node>,
     pub operator_token: Box<Node>,
-    pub right: Box<Expression>,
+    pub right: Rc<Node>,
 }
 
 impl BinaryExpression {
@@ -156,16 +477,42 @@ impl BinaryExpression {
     ) -> Self {
         Self {
             _node: base_node,
-            left: Box::new(left),
+            left: Rc::new(left.into()),
             operator_token: Box::new(operator_token),
-            right: Box::new(right),
+            right: Rc::new(right.into()),
         }
     }
 }
 
 impl NodeInterface for BinaryExpression {
     fn kind(&self) -> SyntaxKind {
-        self._node.kind
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for BinaryExpression {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._node.set_end(end);
     }
 }
 
@@ -181,6 +528,38 @@ pub struct BaseLiteralLikeNode {
     pub text: String,
 }
 
+impl NodeInterface for BaseLiteralLikeNode {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for BaseLiteralLikeNode {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._node.set_end(end);
+    }
+}
+
 pub trait LiteralLikeNodeInterface {
     fn text(&self) -> &str;
 }
@@ -194,6 +573,44 @@ impl NodeInterface for LiteralLikeNode {
     fn kind(&self) -> SyntaxKind {
         match self {
             LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.kind(),
+        }
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.parent(),
+        }
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_parent(parent),
+        }
+    }
+}
+
+impl ReadonlyTextRange for LiteralLikeNode {
+    fn pos(&self) -> usize {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.pos(),
+        }
+    }
+
+    fn set_pos(&self, pos: usize) {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_pos(pos),
+        }
+    }
+
+    fn end(&self) -> usize {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.end(),
+        }
+    }
+
+    fn set_end(&self, end: usize) {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_end(end),
         }
     }
 }
@@ -220,6 +637,32 @@ pub struct NumericLiteral {
 impl NodeInterface for NumericLiteral {
     fn kind(&self) -> SyntaxKind {
         self._literal_like_node._node.kind
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._literal_like_node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._literal_like_node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for NumericLiteral {
+    fn pos(&self) -> usize {
+        self._literal_like_node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._literal_like_node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._literal_like_node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._literal_like_node.set_end(end);
     }
 }
 
@@ -248,6 +691,56 @@ impl NodeInterface for Statement {
             Statement::ExpressionStatement(expression_statement) => expression_statement.kind(),
         }
     }
+
+    fn parent(&self) -> Rc<Node> {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.parent(),
+            Statement::ExpressionStatement(expression_statement) => expression_statement.parent(),
+        }
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.set_parent(parent),
+            Statement::ExpressionStatement(expression_statement) => {
+                expression_statement.set_parent(parent)
+            }
+        }
+    }
+}
+
+impl ReadonlyTextRange for Statement {
+    fn pos(&self) -> usize {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.pos(),
+            Statement::ExpressionStatement(expression_statement) => expression_statement.pos(),
+        }
+    }
+
+    fn set_pos(&self, pos: usize) {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.set_pos(pos),
+            Statement::ExpressionStatement(expression_statement) => {
+                expression_statement.set_pos(pos)
+            }
+        }
+    }
+
+    fn end(&self) -> usize {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.end(),
+            Statement::ExpressionStatement(expression_statement) => expression_statement.end(),
+        }
+    }
+
+    fn set_end(&self, end: usize) {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.set_end(end),
+            Statement::ExpressionStatement(expression_statement) => {
+                expression_statement.set_end(end)
+            }
+        }
+    }
 }
 
 impl From<Statement> for Node {
@@ -263,7 +756,33 @@ pub struct EmptyStatement {
 
 impl NodeInterface for EmptyStatement {
     fn kind(&self) -> SyntaxKind {
-        self._node.kind
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for EmptyStatement {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._node.set_end(end);
     }
 }
 
@@ -276,12 +795,38 @@ impl From<EmptyStatement> for Statement {
 #[derive(Debug)]
 pub struct ExpressionStatement {
     pub _node: BaseNode,
-    pub expression: Expression,
+    pub expression: Rc</*Expression*/ Node>,
 }
 
 impl NodeInterface for ExpressionStatement {
     fn kind(&self) -> SyntaxKind {
-        self._node.kind
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for ExpressionStatement {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._node.set_end(end);
     }
 }
 
@@ -295,11 +840,50 @@ impl From<ExpressionStatement> for Statement {
 pub struct SourceFile {
     pub _node: BaseNode,
     pub statements: NodeArray,
+
+    pub file_name: String,
 }
 
-pub trait Program {
-    fn get_source_files(&self) -> &[Rc<SourceFile>];
-    fn get_semantic_diagnostics(&self) -> Vec<Box<dyn Diagnostic>>;
+impl NodeInterface for SourceFile {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent() // this would always fail?
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for SourceFile {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._node.set_end(end);
+    }
+}
+
+impl From<Rc<SourceFile>> for Node {
+    fn from(source_file: Rc<SourceFile>) -> Self {
+        Node::SourceFile(source_file)
+    }
+}
+
+pub trait Program: TypeCheckerHost {
+    fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>>;
 }
 
 #[derive(Eq, PartialEq)]
@@ -312,6 +896,255 @@ pub enum ExitStatus {
     Success,
     #[allow(non_camel_case_types)]
     DiagnosticsPresent_OutputsGenerated,
+}
+
+pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
+    fn get_source_files(&self) -> Vec<Rc<Node>>;
+}
+
+#[allow(non_snake_case)]
+pub struct TypeChecker {
+    pub Type: fn(TypeFlags) -> BaseType,
+    pub number_type: Option<Rc<Type>>,
+    pub bigint_type: Option<Rc<Type>>,
+    pub true_type: Option<Rc<Type>>,
+    pub regular_true_type: Option<Rc<Type>>,
+    pub number_or_big_int_type: Option<Rc<Type>>,
+    pub diagnostics: RwLock<DiagnosticCollection>,
+    pub assignable_relation: HashMap<String, RelationComparisonResult>,
+}
+
+bitflags! {
+    pub struct TypeFlags: u32 {
+        const Number = 1 << 3;
+        const BigInt = 1 << 6;
+        const StringLiteral = 1 << 7;
+        const NumberLiteral = 1 << 8;
+        const BooleanLiteral = 1 << 9;
+        const BigIntLiteral = 1 << 11;
+        const Object = 1 << 19;
+        const Union = 1 << 20;
+        const Intersection = 1 << 21;
+
+        const Literal = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::BigIntLiteral.bits | Self::BooleanLiteral.bits;
+        const StructuredType = Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
+        const StructuredOrInstantiable = Self::StructuredType.bits /*| Self::Instantiable.bits */;
+    }
+}
+
+#[derive(Clone)]
+pub enum Type {
+    IntrinsicType(IntrinsicType),
+    UnionOrIntersectionType(UnionOrIntersectionType),
+}
+
+impl TypeInterface for Type {
+    fn flags(&self) -> TypeFlags {
+        match self {
+            Type::IntrinsicType(intrinsic_type) => intrinsic_type.flags(),
+            Type::UnionOrIntersectionType(union_or_intersection_type) => {
+                union_or_intersection_type.flags()
+            }
+        }
+    }
+}
+
+pub trait TypeInterface {
+    fn flags(&self) -> TypeFlags;
+}
+
+#[derive(Clone)]
+pub struct BaseType {
+    pub flags: TypeFlags,
+}
+
+impl TypeInterface for BaseType {
+    fn flags(&self) -> TypeFlags {
+        self.flags
+    }
+}
+
+pub trait IntrinsicTypeInterface: TypeInterface {}
+
+#[derive(Clone)]
+pub enum IntrinsicType {
+    BaseIntrinsicType(BaseIntrinsicType),
+    FreshableIntrinsicType(FreshableIntrinsicType),
+}
+
+impl TypeInterface for IntrinsicType {
+    fn flags(&self) -> TypeFlags {
+        match self {
+            IntrinsicType::BaseIntrinsicType(base_intrinsic_type) => base_intrinsic_type.flags(),
+            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                freshable_intrinsic_type.flags()
+            }
+        }
+    }
+}
+
+impl IntrinsicTypeInterface for IntrinsicType {}
+
+impl From<IntrinsicType> for Type {
+    fn from(intrinsic_type: IntrinsicType) -> Self {
+        Type::IntrinsicType(intrinsic_type)
+    }
+}
+
+#[derive(Clone)]
+pub struct BaseIntrinsicType {
+    _type: BaseType,
+}
+
+impl BaseIntrinsicType {
+    pub fn new(type_: BaseType) -> Self {
+        Self { _type: type_ }
+    }
+}
+
+impl TypeInterface for BaseIntrinsicType {
+    fn flags(&self) -> TypeFlags {
+        self._type.flags()
+    }
+}
+
+impl IntrinsicTypeInterface for BaseIntrinsicType {}
+
+impl From<BaseIntrinsicType> for IntrinsicType {
+    fn from(base_intrinsic_type: BaseIntrinsicType) -> Self {
+        IntrinsicType::BaseIntrinsicType(base_intrinsic_type)
+    }
+}
+
+impl From<BaseIntrinsicType> for Type {
+    fn from(base_intrinsic_type: BaseIntrinsicType) -> Self {
+        Type::IntrinsicType(IntrinsicType::BaseIntrinsicType(base_intrinsic_type))
+    }
+}
+
+#[derive(Clone)]
+pub struct FreshableIntrinsicType {
+    _intrinsic_type: BaseIntrinsicType,
+    pub fresh_type: WeakSelf<Type>,
+    pub regular_type: WeakSelf<Type>,
+}
+
+impl FreshableIntrinsicType {
+    pub fn new(intrinsic_type: BaseIntrinsicType) -> Self {
+        Self {
+            _intrinsic_type: intrinsic_type,
+            fresh_type: WeakSelf::new(),
+            regular_type: WeakSelf::new(),
+        }
+    }
+
+    pub fn fresh_type(&self) -> Weak<Type> {
+        self.fresh_type.get()
+    }
+
+    pub fn regular_type(&self) -> Weak<Type> {
+        self.regular_type.get()
+    }
+}
+
+impl TypeInterface for FreshableIntrinsicType {
+    fn flags(&self) -> TypeFlags {
+        self._intrinsic_type.flags()
+    }
+}
+
+impl IntrinsicTypeInterface for FreshableIntrinsicType {}
+
+impl From<FreshableIntrinsicType> for IntrinsicType {
+    fn from(freshable_intrinsic_type: FreshableIntrinsicType) -> Self {
+        IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type)
+    }
+}
+
+impl From<FreshableIntrinsicType> for Type {
+    fn from(freshable_intrinsic_type: FreshableIntrinsicType) -> Self {
+        Type::IntrinsicType(IntrinsicType::FreshableIntrinsicType(
+            freshable_intrinsic_type,
+        ))
+    }
+}
+
+pub trait UnionOrIntersectionTypeInterface: TypeInterface {
+    fn types(&self) -> &[Rc<Type>];
+}
+
+#[derive(Clone)]
+pub enum UnionOrIntersectionType {
+    UnionType(UnionType),
+}
+
+impl TypeInterface for UnionOrIntersectionType {
+    fn flags(&self) -> TypeFlags {
+        match self {
+            UnionOrIntersectionType::UnionType(union_type) => union_type.flags(),
+        }
+    }
+}
+
+impl UnionOrIntersectionTypeInterface for UnionOrIntersectionType {
+    fn types(&self) -> &[Rc<Type>] {
+        match self {
+            UnionOrIntersectionType::UnionType(union_type) => union_type.types(),
+        }
+    }
+}
+
+impl From<UnionOrIntersectionType> for Type {
+    fn from(union_or_intersection_type: UnionOrIntersectionType) -> Self {
+        Type::UnionOrIntersectionType(union_or_intersection_type)
+    }
+}
+
+#[derive(Clone)]
+pub struct BaseUnionOrIntersectionType {
+    pub _type: BaseType,
+    pub types: Vec<Rc<Type>>,
+}
+
+impl TypeInterface for BaseUnionOrIntersectionType {
+    fn flags(&self) -> TypeFlags {
+        self._type.flags()
+    }
+}
+
+impl UnionOrIntersectionTypeInterface for BaseUnionOrIntersectionType {
+    fn types(&self) -> &[Rc<Type>] {
+        &self.types
+    }
+}
+
+#[derive(Clone)]
+pub struct UnionType {
+    pub _union_or_intersection_type: BaseUnionOrIntersectionType,
+}
+
+impl TypeInterface for UnionType {
+    fn flags(&self) -> TypeFlags {
+        self._union_or_intersection_type.flags()
+    }
+}
+
+impl UnionOrIntersectionTypeInterface for UnionType {
+    fn types(&self) -> &[Rc<Type>] {
+        &self._union_or_intersection_type.types
+    }
+}
+
+impl From<UnionType> for UnionOrIntersectionType {
+    fn from(union_type: UnionType) -> Self {
+        UnionOrIntersectionType::UnionType(union_type)
+    }
+}
+
+impl From<UnionType> for Type {
+    fn from(union_type: UnionType) -> Self {
+        Type::UnionOrIntersectionType(UnionOrIntersectionType::UnionType(union_type))
+    }
 }
 
 #[derive(Debug)]
@@ -400,6 +1233,7 @@ impl CharacterCodes {
     pub const Z: char = 'Z';
 
     pub const asterisk: char = '*';
+    pub const plus: char = '+';
     pub const semicolon: char = ';';
     pub const slash: char = '/';
 }
@@ -421,19 +1255,165 @@ pub struct DiagnosticMessage {
     pub message: &'static str,
 }
 
-pub trait Diagnostic: DiagnosticRelatedInformation {}
+#[derive(Debug)]
+pub enum Diagnostic {
+    DiagnosticWithLocation(DiagnosticWithLocation),
+    DiagnosticWithDetachedLocation(DiagnosticWithDetachedLocation),
+}
 
-pub trait DiagnosticRelatedInformation {}
+pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {}
 
-pub struct DiagnosticWithDetachedLocation {
-    pub file_name: String,
+#[derive(Clone, Debug)]
+pub struct BaseDiagnostic {
+    _diagnostic_related_information: BaseDiagnosticRelatedInformation,
+}
+
+impl BaseDiagnostic {
+    pub fn new(diagnostic_related_information: BaseDiagnosticRelatedInformation) -> Self {
+        Self {
+            _diagnostic_related_information: diagnostic_related_information,
+        }
+    }
+}
+
+impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
+    fn file(&self) -> Option<Rc<SourceFile>> {
+        self._diagnostic_related_information.file()
+    }
+
+    fn start(&self) -> usize {
+        self._diagnostic_related_information.start()
+    }
+
+    fn length(&self) -> usize {
+        self._diagnostic_related_information.length()
+    }
+}
+
+impl DiagnosticRelatedInformationInterface for Diagnostic {
+    fn file(&self) -> Option<Rc<SourceFile>> {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
+                diagnostic_with_location.file()
+            }
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
+                diagnostic_with_detached_location.file()
+            }
+        }
+    }
+
+    fn start(&self) -> usize {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
+                diagnostic_with_location.start()
+            }
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
+                diagnostic_with_detached_location.start()
+            }
+        }
+    }
+
+    fn length(&self) -> usize {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
+                diagnostic_with_location.length()
+            }
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
+                diagnostic_with_detached_location.length()
+            }
+        }
+    }
+}
+
+impl DiagnosticInterface for Diagnostic {}
+
+pub trait DiagnosticRelatedInformationInterface {
+    fn file(&self) -> Option<Rc<SourceFile>>;
+    fn start(&self) -> usize;
+    fn length(&self) -> usize;
+}
+
+#[derive(Clone, Debug)]
+pub struct BaseDiagnosticRelatedInformation {
+    pub file: Option<Rc<SourceFile>>,
     pub start: usize,
     pub length: usize,
 }
 
-impl DiagnosticRelatedInformation for DiagnosticWithDetachedLocation {}
+impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation {
+    fn file(&self) -> Option<Rc<SourceFile>> {
+        self.file.clone()
+    }
 
-impl Diagnostic for DiagnosticWithDetachedLocation {}
+    fn start(&self) -> usize {
+        self.start
+    }
+
+    fn length(&self) -> usize {
+        self.length
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct DiagnosticWithLocation {
+    pub _diagnostic: BaseDiagnostic,
+}
+
+impl DiagnosticWithLocation {
+    pub fn file_unwrapped(&self) -> Rc<SourceFile> {
+        self.file().unwrap()
+    }
+}
+
+impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
+    fn file(&self) -> Option<Rc<SourceFile>> {
+        self._diagnostic.file()
+    }
+
+    fn start(&self) -> usize {
+        self._diagnostic.start()
+    }
+
+    fn length(&self) -> usize {
+        self._diagnostic.length()
+    }
+}
+
+impl DiagnosticInterface for DiagnosticWithLocation {}
+
+impl From<DiagnosticWithLocation> for Diagnostic {
+    fn from(diagnostic_with_location: DiagnosticWithLocation) -> Self {
+        Diagnostic::DiagnosticWithLocation(diagnostic_with_location)
+    }
+}
+
+#[derive(Debug)]
+pub struct DiagnosticWithDetachedLocation {
+    pub _diagnostic: BaseDiagnostic,
+    pub file_name: String,
+}
+
+impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
+    fn file(&self) -> Option<Rc<SourceFile>> {
+        self._diagnostic.file()
+    }
+
+    fn start(&self) -> usize {
+        self._diagnostic.start()
+    }
+
+    fn length(&self) -> usize {
+        self._diagnostic.length()
+    }
+}
+
+impl DiagnosticInterface for DiagnosticWithDetachedLocation {}
+
+impl From<DiagnosticWithDetachedLocation> for Diagnostic {
+    fn from(diagnostic_with_detached_location: DiagnosticWithDetachedLocation) -> Self {
+        Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location)
+    }
+}
 
 pub enum DiagnosticCategory {
     Warning,
@@ -443,3 +1423,14 @@ pub enum DiagnosticCategory {
 }
 
 pub struct NodeFactory {}
+
+pub trait ModuleSpecifierResolutionHost {}
+
+pub struct TextSpan {
+    pub start: usize,
+    pub length: usize,
+}
+
+pub struct DiagnosticCollection {
+    pub file_diagnostics: HashMap<String, SortedArray<Rc<Diagnostic>>>,
+}

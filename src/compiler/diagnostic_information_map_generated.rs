@@ -36,4 +36,11 @@ impl Diagnostics {
         "Expression_expected_1109",
         "Expression expected.",
     );
+    pub const An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type:
+        DiagnosticMessage = diag(
+        2356,
+        DiagnosticCategory::Error,
+        "An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type_2356",
+        "An arithmetic operand must be of type 'any', 'number', 'bigint' or an enum type.",
+    );
 }

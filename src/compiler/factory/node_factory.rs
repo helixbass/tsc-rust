@@ -1,7 +1,9 @@
+use std::rc::Rc;
+
 use crate::{
     BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, EmptyStatement, Expression,
     ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NumericLiteral,
-    SourceFile, SyntaxKind,
+    PrefixUnaryExpression, SourceFile, SyntaxKind,
 };
 
 impl NodeFactory {
@@ -87,6 +89,17 @@ impl NodeFactory {
         node
     }
 
+    pub fn create_prefix_unary_expression<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operator: SyntaxKind,
+        operand: Expression,
+    ) -> PrefixUnaryExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::PrefixUnaryExpression);
+        let node = PrefixUnaryExpression::new(node, operator, operand);
+        node
+    }
+
     pub fn create_binary_expression<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -115,7 +128,7 @@ impl NodeFactory {
     ) -> ExpressionStatement {
         ExpressionStatement {
             _node: self.create_base_node(base_factory, SyntaxKind::ExpressionStatement),
-            expression,
+            expression: Rc::new(expression.into()),
         }
     }
 
@@ -128,6 +141,7 @@ impl NodeFactory {
         let node = SourceFile {
             _node: node,
             statements: self.create_node_array(statements),
+            file_name: "".to_string(),
         };
         node
     }

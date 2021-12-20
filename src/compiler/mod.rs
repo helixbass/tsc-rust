@@ -1,5 +1,8 @@
+pub mod binder;
+pub mod checker;
 pub mod command_line_parser;
 pub mod core;
+pub mod core_public;
 pub mod debug;
 pub mod diagnostic_information_map_generated;
 pub mod factory;
@@ -10,4 +13,5 @@ pub mod scanner;
 pub mod sys;
 pub mod types;
 pub mod utilities;
+pub mod utilities_public;
 pub mod watch;
