@@ -4,7 +4,7 @@ use std::array::IntoIter;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
-use crate::{CharacterCodes, SyntaxKind};
+use crate::{CharacterCodes, SyntaxKind, TokenFlags};
 
 lazy_static! {
     static ref text_to_keyword_obj: HashMap<&'static str, SyntaxKind> =
@@ -53,6 +53,7 @@ pub struct Scanner {
     token_pos: Option<usize>,
     token: Option<SyntaxKind>,
     token_value: Option<String>,
+    token_flags: Option<TokenFlags>,
 }
 
 impl Scanner {
@@ -72,6 +73,11 @@ impl Scanner {
         self.token_value()
     }
 
+    pub fn has_preceding_line_break(&self) -> bool {
+        self.token_flags()
+            .intersects(TokenFlags::PrecedingLineBreak)
+    }
+
     fn get_identifier_token(&mut self) -> SyntaxKind {
         let len = self.token_value().len();
         if len >= 2 && len <= 12 {
@@ -88,6 +94,7 @@ impl Scanner {
 
     pub fn scan(&mut self) -> SyntaxKind {
         self.set_start_pos(self.pos());
+        self.set_token_flags(TokenFlags::None);
 
         loop {
             self.set_token_pos(self.pos());
@@ -97,6 +104,15 @@ impl Scanner {
             let ch = code_point_at(self.text(), self.pos());
 
             match ch {
+                CharacterCodes::lineFeed => {
+                    self.set_token_flags(self.token_flags() | TokenFlags::PrecedingLineBreak);
+                    if self.skip_trivia {
+                        self.set_pos(self.pos() + 1);
+                        continue;
+                    } else {
+                        unimplemented!()
+                    }
+                }
                 CharacterCodes::space => {
                     if self.skip_trivia {
                         self.set_pos(self.pos() + 1);
@@ -207,6 +223,7 @@ impl Scanner {
             token_pos: None,
             token: None,
             token_value: None,
+            token_flags: None,
         }
     }
 
@@ -265,6 +282,14 @@ impl Scanner {
 
     fn set_token_value(&mut self, token_value: &str) {
         self.token_value = Some(token_value.to_string());
+    }
+
+    fn token_flags(&self) -> TokenFlags {
+        self.token_flags.unwrap()
+    }
+
+    fn set_token_flags(&mut self, token_flags: TokenFlags) {
+        self.token_flags = Some(token_flags);
     }
 
     fn is_digit(&self, ch: char) -> bool {

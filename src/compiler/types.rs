@@ -28,6 +28,7 @@ pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
     NumericLiteral,
+    CloseBraceToken,
     SemicolonToken,
     AsteriskToken,
     PlusPlusToken,
@@ -162,7 +163,7 @@ impl NodeInterface for BaseNode {
 
     fn parent(&self) -> Rc<Node> {
         self.parent
-            .read()
+            .try_read()
             .unwrap()
             .clone()
             .unwrap()
@@ -171,7 +172,7 @@ impl NodeInterface for BaseNode {
     }
 
     fn set_parent(&self, parent: Rc<Node>) {
-        *self.parent.write().unwrap() = Some(Rc::downgrade(&parent));
+        *self.parent.try_write().unwrap() = Some(Rc::downgrade(&parent));
     }
 }
 
@@ -626,6 +627,13 @@ impl LiteralLikeNodeInterface for LiteralLikeNode {
         match self {
             LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.text(),
         }
+    }
+}
+
+bitflags! {
+    pub struct TokenFlags: u32 {
+        const None = 0;
+        const PrecedingLineBreak = 1 << 0;
     }
 }
 
@@ -1383,6 +1391,8 @@ pub struct CharacterCodes;
 #[allow(non_upper_case_globals)]
 impl CharacterCodes {
     pub const max_ascii_character: char = '';
+
+    pub const lineFeed: char = '\n';
 
     pub const space: char = ' ';
 
