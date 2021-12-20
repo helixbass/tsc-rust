@@ -48,19 +48,19 @@ impl BinderType {
     }
 
     fn file(&self) -> Rc<Node> {
-        self.file.read().unwrap().as_ref().unwrap().clone()
+        self.file.try_read().unwrap().as_ref().unwrap().clone()
     }
 
     fn set_file(&self, file: Option<Rc<Node>>) {
-        *self.file.write().unwrap() = file;
+        *self.file.try_write().unwrap() = file;
     }
 
     fn parent(&self) -> Rc<Node> {
-        self.parent.read().unwrap().as_ref().unwrap().clone()
+        self.parent.try_read().unwrap().as_ref().unwrap().clone()
     }
 
     fn set_parent(&self, parent: Option<Rc<Node>>) {
-        *self.parent.write().unwrap() = parent;
+        *self.parent.try_write().unwrap() = parent;
     }
 
     fn bind_source_file(&self, f: Rc<Node>) {
@@ -170,14 +170,14 @@ impl BinderType {
         };
         set_parent(
             &*node,
-            match self.parent.read().unwrap().as_ref() {
+            match self.parent.try_read().unwrap().as_ref() {
                 None => None,
                 Some(parent) => Some(parent.clone()),
             },
         );
 
         if node.kind() > SyntaxKind::LastToken {
-            let save_parent = match *self.parent.read().unwrap() {
+            let save_parent = match *self.parent.try_read().unwrap() {
                 None => None,
                 Some(ref rc_node) => Some(rc_node.clone()),
             };

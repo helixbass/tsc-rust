@@ -166,7 +166,7 @@ impl NodeInterface for BaseNode {
 
     fn parent(&self) -> Rc<Node> {
         self.parent
-            .read()
+            .try_read()
             .unwrap()
             .clone()
             .unwrap()
@@ -175,7 +175,7 @@ impl NodeInterface for BaseNode {
     }
 
     fn set_parent(&self, parent: Rc<Node>) {
-        *self.parent.write().unwrap() = Some(Rc::downgrade(&parent));
+        *self.parent.try_write().unwrap() = Some(Rc::downgrade(&parent));
     }
 }
 
