@@ -1,6 +1,8 @@
 #![allow(non_upper_case_globals)]
 
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
@@ -98,22 +100,22 @@ impl ReadonlyTextRange for MissingNode {
 
 #[allow(non_snake_case)]
 struct ParserType {
-    scanner: Scanner,
+    scanner: RwLock<Scanner>,
     NodeConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     IdentifierConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     TokenConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     SourceFileConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     factory: NodeFactory,
     file_name: Option<String>,
-    parse_diagnostics: Option<Vec<DiagnosticWithDetachedLocation>>,
-    current_token: Option<SyntaxKind>,
-    parse_error_before_next_finished_node: bool,
+    parse_diagnostics: Option<RwLock<Vec<DiagnosticWithDetachedLocation>>>,
+    current_token: RwLock<Option<SyntaxKind>>,
+    parse_error_before_next_finished_node: AtomicBool,
 }
 
 impl ParserType {
     fn new() -> Self {
         ParserType {
-            scanner: create_scanner(true),
+            scanner: RwLock::new(create_scanner(true)),
             NodeConstructor: None,
             IdentifierConstructor: None,
             TokenConstructor: None,
@@ -121,9 +123,17 @@ impl ParserType {
             factory: create_node_factory(),
             file_name: None,
             parse_diagnostics: None,
-            current_token: None,
-            parse_error_before_next_finished_node: false,
+            current_token: RwLock::new(None),
+            parse_error_before_next_finished_node: AtomicBool::new(false),
         }
+    }
+
+    fn scanner(&self) -> RwLockReadGuard<Scanner> {
+        self.scanner.try_read().unwrap()
+    }
+
+    fn scanner_mut(&self) -> RwLockWriteGuard<Scanner> {
+        self.scanner.try_write().unwrap()
     }
 
     #[allow(non_snake_case)]
@@ -180,20 +190,34 @@ impl ParserType {
         self.file_name = Some(file_name.to_string());
     }
 
-    fn parse_diagnostics(&mut self) -> &mut Vec<DiagnosticWithDetachedLocation> {
-        self.parse_diagnostics.as_mut().unwrap()
+    fn parse_diagnostics(&self) -> RwLockWriteGuard<Vec<DiagnosticWithDetachedLocation>> {
+        self.parse_diagnostics
+            .as_ref()
+            .unwrap()
+            .try_write()
+            .unwrap()
     }
 
     fn set_parse_diagnostics(&mut self, parse_diagnostics: Vec<DiagnosticWithDetachedLocation>) {
-        self.parse_diagnostics = Some(parse_diagnostics);
+        self.parse_diagnostics = Some(RwLock::new(parse_diagnostics));
     }
 
     fn current_token(&self) -> SyntaxKind {
-        self.current_token.unwrap()
+        self.current_token.try_read().unwrap().unwrap()
     }
 
-    fn set_current_token(&mut self, token: SyntaxKind) {
-        self.current_token = Some(token);
+    fn set_current_token(&self, token: SyntaxKind) {
+        *self.current_token.try_write().unwrap() = Some(token);
+    }
+
+    fn parse_error_before_next_finished_node(&self) -> bool {
+        self.parse_error_before_next_finished_node
+            .load(Ordering::Relaxed)
+    }
+
+    fn set_parse_error_before_next_finished_node(&self, value: bool) {
+        self.parse_error_before_next_finished_node
+            .store(value, Ordering::Relaxed);
     }
 
     fn parse_source_file(&mut self, file_name: &str, source_text: &str) -> SourceFile {
@@ -211,7 +235,7 @@ impl ParserType {
 
         self.set_parse_diagnostics(vec![]);
 
-        self.scanner.set_text(Some(_source_text), None, None);
+        self.scanner_mut().set_text(Some(_source_text), None, None);
     }
 
     fn parse_source_file_worker(&mut self) -> SourceFile {
@@ -238,37 +262,35 @@ impl ParserType {
         source_file
     }
 
-    fn parse_error_at_current_token(&mut self, message: &DiagnosticMessage) {
+    fn parse_error_at_current_token(&self, message: &DiagnosticMessage) {
         self.parse_error_at(
-            self.scanner.get_token_pos(),
-            self.scanner.get_text_pos(),
+            self.scanner().get_token_pos(),
+            self.scanner().get_text_pos(),
             message,
         );
     }
 
-    fn parse_error_at_position(
-        &mut self,
-        start: usize,
-        length: usize,
-        message: &DiagnosticMessage,
-    ) {
-        let last_error = last_or_undefined(self.parse_diagnostics());
-        if last_error.map_or(true, |last_error| last_error.start() != start) {
-            let file_name = self.file_name().to_string();
-            self.parse_diagnostics().push(create_detached_diagnostic(
-                &file_name, start, length, message,
-            ));
+    fn parse_error_at_position(&self, start: usize, length: usize, message: &DiagnosticMessage) {
+        {
+            let mut parse_diagnostics = self.parse_diagnostics();
+            let last_error = last_or_undefined(&*parse_diagnostics);
+            if last_error.map_or(true, |last_error| last_error.start() != start) {
+                let file_name = self.file_name().to_string();
+                parse_diagnostics.push(create_detached_diagnostic(
+                    &file_name, start, length, message,
+                ));
+            }
         }
 
-        self.parse_error_before_next_finished_node = true;
+        self.set_parse_error_before_next_finished_node(true);
     }
 
-    fn parse_error_at(&mut self, start: usize, end: usize, message: &DiagnosticMessage) {
+    fn parse_error_at(&self, start: usize, end: usize, message: &DiagnosticMessage) {
         self.parse_error_at_position(start, end - start, message);
     }
 
     fn get_node_pos(&self) -> usize {
-        self.scanner.get_start_pos()
+        self.scanner().get_start_pos()
     }
 
     fn token(&self) -> SyntaxKind {
@@ -276,7 +298,7 @@ impl ParserType {
     }
 
     fn next_token_without_check(&mut self) -> SyntaxKind {
-        let current_token = self.scanner.scan();
+        let current_token = self.scanner_mut().scan();
         self.set_current_token(current_token);
         self.current_token()
     }
@@ -297,10 +319,11 @@ impl ParserType {
     ) -> Option<TReturn> {
         let save_token = self.current_token();
         let save_parse_diagnostics_length = self.parse_diagnostics().len();
-        let save_parse_error_before_next_finished_node = self.parse_error_before_next_finished_node;
+        let save_parse_error_before_next_finished_node =
+            self.parse_error_before_next_finished_node();
 
         let result = if speculation_kind != SpeculationKind::TryParse {
-            self.scanner.look_ahead(callback)
+            self.scanner_mut().look_ahead(callback)
         } else {
             unimplemented!()
         };
@@ -311,7 +334,9 @@ impl ParserType {
                 self.parse_diagnostics()
                     .truncate(save_parse_diagnostics_length);
             }
-            self.parse_error_before_next_finished_node = save_parse_error_before_next_finished_node;
+            self.set_parse_error_before_next_finished_node(
+                save_parse_error_before_next_finished_node,
+            );
         }
 
         result
@@ -363,7 +388,7 @@ impl ParserType {
 
         self.token() == SyntaxKind::CloseBraceToken
             || self.token() == SyntaxKind::EndOfFileToken
-            || self.scanner.has_preceding_line_break()
+            || self.scanner().has_preceding_line_break()
     }
 
     fn try_parse_semicolon(&mut self) -> bool {
@@ -392,11 +417,11 @@ impl ParserType {
         set_text_range_pos_end(
             &mut node,
             pos,
-            end.unwrap_or_else(|| self.scanner.get_start_pos()),
+            end.unwrap_or_else(|| self.scanner().get_start_pos()),
         );
 
-        if self.parse_error_before_next_finished_node {
-            self.parse_error_before_next_finished_node = false;
+        if self.parse_error_before_next_finished_node() {
+            self.set_parse_error_before_next_finished_node(false);
         }
 
         node
@@ -482,7 +507,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         let node: LiteralLikeNode = if kind == SyntaxKind::NumericLiteral {
             self.factory
-                .create_numeric_literal(self, self.scanner.get_token_value())
+                .create_numeric_literal(self, self.scanner().get_token_value())
                 .into()
         } else {
             Debug_.fail(None)
