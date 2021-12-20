@@ -3,8 +3,9 @@ use std::rc::Rc;
 use crate::{
     BaseBindingLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
     BaseNodeFactory, BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression,
-    ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NumericLiteral,
-    PrefixUnaryExpression, SourceFile, SyntaxKind, VariableDeclaration,
+    ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NumericLiteral, PrefixUnaryExpression, SourceFile, SyntaxKind, VariableDeclaration,
+    VariableDeclarationList,
 };
 
 impl NodeFactory {
@@ -198,6 +199,20 @@ impl NodeFactory {
             initializer,
         );
         VariableDeclaration::new(node)
+    }
+
+    pub fn create_variable_declaration_list<
+        TBaseNodeFactory: BaseNodeFactory,
+        TDeclarations: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        declarations: TDeclarations,
+        flags: Option<NodeFlags>,
+    ) -> VariableDeclarationList {
+        let node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
+        let node = VariableDeclarationList::new(node, self.create_node_array(declarations));
+        node
     }
 
     pub fn create_source_file<TBaseNodeFactory: BaseNodeFactory, TNodes: Into<NodeArrayOrVec>>(

@@ -46,6 +46,7 @@ pub enum SyntaxKind {
     EmptyStatement,
     ExpressionStatement,
     VariableDeclaration,
+    VariableDeclarationList,
     FunctionDeclaration,
     SourceFile,
 }
@@ -617,8 +618,17 @@ impl From<VariableDeclaration> for Node {
 
 #[derive(Debug)]
 pub struct VariableDeclarationList {
-    pub _node: BaseNode,
-    pub declarations: NodeArray, /*<VariableDeclaration>*/
+    _node: BaseNode,
+    declarations: NodeArray, /*<VariableDeclaration>*/
+}
+
+impl VariableDeclarationList {
+    pub fn new(base_node: BaseNode, declarations: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            declarations,
+        }
+    }
 }
 
 impl NodeInterface for VariableDeclarationList {

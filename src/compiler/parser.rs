@@ -985,7 +985,7 @@ impl ParserType {
 
         self.finish_node(
             self.factory
-                .create_variable_declaration_list(declarations, flags),
+                .create_variable_declaration_list(self, declarations, Some(flags)),
             pos,
             None,
         )
