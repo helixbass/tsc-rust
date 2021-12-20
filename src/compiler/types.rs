@@ -6,7 +6,7 @@ use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::RwLock;
 
-use crate::{SortedArray, WeakSelf};
+use crate::{Number, SortedArray, WeakSelf};
 
 pub struct Path(String);
 
@@ -892,9 +892,9 @@ pub enum StructureIsReused {
     Completely,
 }
 
+#[allow(non_camel_case_types)]
 pub enum ExitStatus {
     Success,
-    #[allow(non_camel_case_types)]
     DiagnosticsPresent_OutputsGenerated,
 }
 
@@ -905,6 +905,8 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 #[allow(non_snake_case)]
 pub struct TypeChecker {
     pub Type: fn(TypeFlags) -> BaseType,
+
+    pub number_literal_types: HashMap<Number, Rc</*NumberLiteralType*/ Type>>,
     pub number_type: Option<Rc<Type>>,
     pub bigint_type: Option<Rc<Type>>,
     pub true_type: Option<Rc<Type>>,
@@ -917,6 +919,7 @@ pub struct TypeChecker {
 bitflags! {
     pub struct TypeFlags: u32 {
         const Number = 1 << 3;
+        const Enum = 1 << 5;
         const BigInt = 1 << 6;
         const StringLiteral = 1 << 7;
         const NumberLiteral = 1 << 8;
@@ -927,14 +930,16 @@ bitflags! {
         const Intersection = 1 << 21;
 
         const Literal = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::BigIntLiteral.bits | Self::BooleanLiteral.bits;
+        const NumberLike = Self::Number.bits | Self::NumberLiteral.bits | Self::Enum.bits;
         const StructuredType = Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
         const StructuredOrInstantiable = Self::StructuredType.bits /*| Self::Instantiable.bits */;
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Type {
     IntrinsicType(IntrinsicType),
+    LiteralType(LiteralType),
     UnionOrIntersectionType(UnionOrIntersectionType),
 }
 
@@ -942,6 +947,7 @@ impl TypeInterface for Type {
     fn flags(&self) -> TypeFlags {
         match self {
             Type::IntrinsicType(intrinsic_type) => intrinsic_type.flags(),
+            Type::LiteralType(literal_type) => literal_type.flags(),
             Type::UnionOrIntersectionType(union_or_intersection_type) => {
                 union_or_intersection_type.flags()
             }
@@ -953,7 +959,7 @@ pub trait TypeInterface {
     fn flags(&self) -> TypeFlags;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BaseType {
     pub flags: TypeFlags,
 }
@@ -966,7 +972,7 @@ impl TypeInterface for BaseType {
 
 pub trait IntrinsicTypeInterface: TypeInterface {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum IntrinsicType {
     BaseIntrinsicType(BaseIntrinsicType),
     FreshableIntrinsicType(FreshableIntrinsicType),
@@ -991,7 +997,7 @@ impl From<IntrinsicType> for Type {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BaseIntrinsicType {
     _type: BaseType,
 }
@@ -1022,7 +1028,7 @@ impl From<BaseIntrinsicType> for Type {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FreshableIntrinsicType {
     _intrinsic_type: BaseIntrinsicType,
     pub fresh_type: WeakSelf<Type>,
@@ -1069,11 +1075,219 @@ impl From<FreshableIntrinsicType> for Type {
     }
 }
 
+pub trait LiteralTypeInterface: TypeInterface {
+    fn fresh_type(&self) -> Option<&Weak<Type>>;
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>);
+    fn get_or_initialize_fresh_type(
+        &self,
+        type_checker: &TypeChecker,
+        wrapper: &Rc<Type>,
+    ) -> Rc<Type>;
+    fn regular_type(&self) -> Rc<Type>;
+    fn set_regular_type(&self, regular_type: &Rc<Type>);
+}
+
+#[derive(Clone, Debug)]
+pub enum LiteralType {
+    NumberLiteralType(NumberLiteralType),
+}
+
+impl TypeInterface for LiteralType {
+    fn flags(&self) -> TypeFlags {
+        match self {
+            LiteralType::NumberLiteralType(number_literal_type) => number_literal_type.flags(),
+        }
+    }
+}
+
+impl LiteralTypeInterface for LiteralType {
+    fn fresh_type(&self) -> Option<&Weak<Type>> {
+        match self {
+            LiteralType::NumberLiteralType(number_literal_type) => number_literal_type.fresh_type(),
+        }
+    }
+
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+        match self {
+            LiteralType::NumberLiteralType(number_literal_type) => {
+                number_literal_type.set_fresh_type(fresh_type)
+            }
+        }
+    }
+
+    fn get_or_initialize_fresh_type(
+        &self,
+        type_checker: &TypeChecker,
+        wrapper: &Rc<Type>,
+    ) -> Rc<Type> {
+        match self {
+            LiteralType::NumberLiteralType(number_literal_type) => {
+                number_literal_type.get_or_initialize_fresh_type(type_checker, wrapper)
+            }
+        }
+    }
+
+    fn regular_type(&self) -> Rc<Type> {
+        match self {
+            LiteralType::NumberLiteralType(number_literal_type) => {
+                number_literal_type.regular_type()
+            }
+        }
+    }
+
+    fn set_regular_type(&self, regular_type: &Rc<Type>) {
+        match self {
+            LiteralType::NumberLiteralType(number_literal_type) => {
+                number_literal_type.set_regular_type(regular_type)
+            }
+        }
+    }
+}
+
+impl From<LiteralType> for Type {
+    fn from(literal_type: LiteralType) -> Self {
+        Type::LiteralType(literal_type)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BaseLiteralType {
+    _type: BaseType,
+    fresh_type: WeakSelf<Type>,
+    regular_type: WeakSelf<Type>,
+}
+
+impl BaseLiteralType {
+    pub fn new(type_: BaseType) -> Self {
+        Self {
+            _type: type_,
+            fresh_type: WeakSelf::new(),
+            regular_type: WeakSelf::new(),
+        }
+    }
+}
+
+impl TypeInterface for BaseLiteralType {
+    fn flags(&self) -> TypeFlags {
+        self._type.flags()
+    }
+}
+
+impl LiteralTypeInterface for BaseLiteralType {
+    fn fresh_type(&self) -> Option<&Weak<Type>> {
+        self.fresh_type.try_get()
+    }
+
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+        self.fresh_type.init(fresh_type, false);
+    }
+
+    fn get_or_initialize_fresh_type(
+        &self,
+        type_checker: &TypeChecker,
+        wrapper: &Rc<Type>,
+    ) -> Rc<Type> {
+        panic!("Shouldn't call get_or_initialize_fresh_type() on base BaseLiteralType");
+    }
+
+    fn regular_type(&self) -> Rc<Type> {
+        self.regular_type.get().upgrade().unwrap()
+    }
+
+    fn set_regular_type(&self, regular_type: &Rc<Type>) {
+        self.regular_type.init(regular_type, false);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NumberLiteralType {
+    _literal_type: BaseLiteralType,
+    value: Number,
+}
+
+impl NumberLiteralType {
+    pub fn new(literal_type: BaseLiteralType, value: Number) -> Self {
+        Self {
+            _literal_type: literal_type,
+            value,
+        }
+    }
+
+    fn create_fresh_type_from_self(
+        &self,
+        type_checker: &TypeChecker,
+        wrapper: &Rc<Type>,
+    ) -> Rc<Type> {
+        let fresh_type = type_checker.create_number_literal_type(
+            self.flags(),
+            self.value,
+            Some(wrapper.clone()),
+        );
+        match &*fresh_type {
+            Type::LiteralType(literal_type) => {
+                literal_type.set_fresh_type(&fresh_type);
+            }
+            _ => panic!("Expected LiteralType"),
+        }
+        self.set_fresh_type(&fresh_type);
+        self.fresh_type().unwrap().upgrade().unwrap()
+    }
+}
+
+impl TypeInterface for NumberLiteralType {
+    fn flags(&self) -> TypeFlags {
+        self._literal_type.flags()
+    }
+}
+
+impl LiteralTypeInterface for NumberLiteralType {
+    fn fresh_type(&self) -> Option<&Weak<Type>> {
+        self._literal_type.fresh_type()
+    }
+
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+        self._literal_type.set_fresh_type(fresh_type);
+    }
+
+    fn get_or_initialize_fresh_type(
+        &self,
+        type_checker: &TypeChecker,
+        wrapper: &Rc<Type>,
+    ) -> Rc<Type> {
+        if self.fresh_type().is_none() {
+            let fresh_type = self.create_fresh_type_from_self(type_checker, wrapper);
+            self.set_fresh_type(&fresh_type);
+            return self.fresh_type().unwrap().upgrade().unwrap();
+        }
+        return self.fresh_type().unwrap().upgrade().unwrap();
+    }
+
+    fn regular_type(&self) -> Rc<Type> {
+        self._literal_type.regular_type()
+    }
+
+    fn set_regular_type(&self, regular_type: &Rc<Type>) {
+        self._literal_type.set_regular_type(regular_type);
+    }
+}
+
+impl From<NumberLiteralType> for LiteralType {
+    fn from(number_literal_type: NumberLiteralType) -> Self {
+        LiteralType::NumberLiteralType(number_literal_type)
+    }
+}
+
+impl From<NumberLiteralType> for Type {
+    fn from(number_literal_type: NumberLiteralType) -> Self {
+        Type::LiteralType(LiteralType::NumberLiteralType(number_literal_type))
+    }
+}
+
 pub trait UnionOrIntersectionTypeInterface: TypeInterface {
     fn types(&self) -> &[Rc<Type>];
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum UnionOrIntersectionType {
     UnionType(UnionType),
 }
@@ -1100,7 +1314,7 @@ impl From<UnionOrIntersectionType> for Type {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BaseUnionOrIntersectionType {
     pub _type: BaseType,
     pub types: Vec<Rc<Type>>,
@@ -1118,7 +1332,7 @@ impl UnionOrIntersectionTypeInterface for BaseUnionOrIntersectionType {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UnionType {
     pub _union_or_intersection_type: BaseUnionOrIntersectionType,
 }
@@ -1145,6 +1359,14 @@ impl From<UnionType> for Type {
     fn from(union_type: UnionType) -> Self {
         Type::UnionOrIntersectionType(UnionOrIntersectionType::UnionType(union_type))
     }
+}
+
+#[derive(Eq, PartialEq)]
+pub enum Ternary {
+    False = 0,
+    Unknown = 1,
+    Maybe = 3,
+    True = -1,
 }
 
 #[derive(Debug)]

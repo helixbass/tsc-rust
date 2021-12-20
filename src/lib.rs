@@ -21,15 +21,17 @@ pub use compiler::scanner::{create_scanner, Scanner};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseIntrinsicType, BaseLiteralLikeNode,
-    BaseNode, BaseType, BaseUnionOrIntersectionType, BinaryExpression, CharacterCodes,
-    CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticCollection,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
-    DiagnosticWithLocation, EmptyStatement, ExitStatus, Expression, ExpressionStatement,
-    FreshableIntrinsicType, Identifier, IntrinsicType, LiteralLikeNode, ModuleResolutionHost,
+    BaseLiteralType, BaseNode, BaseType, BaseUnionOrIntersectionType, BinaryExpression,
+    CharacterCodes, CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmptyStatement, ExitStatus, Expression,
+    ExpressionStatement, FreshableIntrinsicType, Identifier, IntrinsicType, LiteralLikeNode,
+    LiteralLikeNodeInterface, LiteralTypeInterface, ModuleResolutionHost,
     ModuleSpecifierResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    NumericLiteral, ParsedCommandLine, Path, PrefixUnaryExpression, Program, ReadonlyTextRange,
-    RelationComparisonResult, SourceFile, Statement, StructureIsReused, SyntaxKind, TextSpan, Type,
-    TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, UnionType,
+    NumberLiteralType, NumericLiteral, ParsedCommandLine, Path, PrefixUnaryExpression, Program,
+    ReadonlyTextRange, RelationComparisonResult, SourceFile, Statement, StructureIsReused,
+    SyntaxKind, Ternary, TextSpan, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,
@@ -40,4 +42,5 @@ pub use compiler::utilities_public::create_text_span_from_bounds;
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::is_same_variant;
+pub use rust_helpers::number::Number;
 pub use rust_helpers::weak_self::WeakSelf;

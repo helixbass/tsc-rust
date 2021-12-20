@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -5,12 +6,25 @@ use std::sync::RwLock;
 
 use crate::{
     bind_source_file, create_diagnostic_collection, create_diagnostic_for_node, for_each,
-    object_allocator, BaseIntrinsicType, BaseType, BaseUnionOrIntersectionType, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
-    FreshableIntrinsicType, IntrinsicType, Node, NodeInterface, PrefixUnaryExpression,
-    RelationComparisonResult, SourceFile, Statement, SyntaxKind, Type, TypeChecker,
-    TypeCheckerHost, TypeFlags, TypeInterface, UnionType,
+    object_allocator, BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType,
+    Diagnostic, DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression,
+    ExpressionStatement, FreshableIntrinsicType, IntrinsicType, LiteralLikeNode,
+    LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType,
+    NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile, Statement,
+    SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
 };
+
+bitflags! {
+    struct IntersectionState: u32 {
+        const None = 0;
+        const Source = 1 << 0;
+        const Target = 1 << 1;
+        const PropertyCheck = 1 << 2;
+        const UnionIntersectionCheck = 1 << 3;
+        const InPropertyCheck = 1 << 4;
+    }
+}
 
 pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     host: &TTypeCheckerHost,
@@ -18,6 +32,8 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 ) -> TypeChecker {
     let mut type_checker = TypeChecker {
         Type: object_allocator.get_type_constructor(),
+
+        number_literal_types: HashMap::new(),
 
         number_type: None,
         bigint_type: None,
@@ -187,6 +203,37 @@ impl TypeChecker {
         type_.unwrap()
     }
 
+    // pub fn create_literal_type(
+    pub fn create_number_literal_type(
+        &self,
+        flags: TypeFlags,
+        value: Number,
+        regular_type: Option<Rc<Type>>,
+    ) -> Rc<Type> {
+        let type_ = self.create_type(flags);
+        let type_ = BaseLiteralType::new(type_);
+        let type_: Rc<Type> = Rc::new(NumberLiteralType::new(type_, value).into());
+        match &*type_ {
+            Type::LiteralType(literal_type) => {
+                literal_type.set_regular_type(&regular_type.unwrap_or_else(|| type_.clone()));
+            }
+            _ => panic!("Expected LiteralType"),
+        }
+        type_
+    }
+
+    fn get_fresh_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Literal) {
+            match &*type_ {
+                Type::LiteralType(literal_type) => {
+                    return literal_type.get_or_initialize_fresh_type(self, &type_);
+                }
+                _ => panic!("Expected LiteralType"),
+            }
+        }
+        type_
+    }
+
     fn is_fresh_literal_type(&self, type_: Rc<Type>) -> bool {
         if !type_.flags().intersects(TypeFlags::Literal) {
             return false;
@@ -198,12 +245,38 @@ impl TypeChecker {
                 }
                 _ => panic!("Expected FreshableIntrinsicType"),
             },
-            _ => panic!("Expected IntrinsicType"),
+            Type::LiteralType(literal_type) => {
+                ptr::eq(&*type_, literal_type.fresh_type().unwrap().as_ptr())
+            }
+            _ => panic!("Expected IntrinsicType or LiteralType"),
         }
+    }
+
+    fn get_number_literal_type(&mut self, value: Number) -> Rc<Type> {
+        if self.number_literal_types.contains_key(&value) {
+            return self.number_literal_types.get(&value).unwrap().clone();
+        }
+        let type_ = self.create_number_literal_type(TypeFlags::NumberLiteral, value, None);
+        self.number_literal_types.insert(value, type_.clone());
+        type_
     }
 
     fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {
         self.is_type_related_to(source, target, &self.assignable_relation)
+    }
+
+    fn is_simple_type_related_to(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        relation: &HashMap<String, RelationComparisonResult>,
+    ) -> bool {
+        let s = source.flags();
+        let t = target.flags();
+        if s.intersects(TypeFlags::NumberLike) && t.intersects(TypeFlags::Number) {
+            return true;
+        }
+        false
     }
 
     fn is_type_related_to(
@@ -220,7 +293,8 @@ impl TypeChecker {
                     }
                     _ => panic!("Expected IntrinsicType"),
                 },
-                _ => panic!("Expected IntrinsicType"),
+                Type::LiteralType(literal_type) => literal_type.regular_type(),
+                _ => panic!("Expected IntrinsicType or LiteralType"),
             };
         }
         if source
@@ -235,20 +309,63 @@ impl TypeChecker {
         false
     }
 
+    fn get_normalized_type(&self, mut type_: Rc<Type>) -> Rc<Type> {
+        loop {
+            let t: Rc<Type> = if self.is_fresh_literal_type(type_.clone()) {
+                match &*type_ {
+                    Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
+                        IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                            freshable_intrinsic_type.regular_type().upgrade().unwrap()
+                        }
+                        _ => panic!("Expected FreshableIntrinsicType"),
+                    },
+                    Type::LiteralType(literal_type) => literal_type.regular_type(),
+                    _ => panic!("Expected IntrinsicType or LiteralType"),
+                }
+            } else {
+                type_.clone()
+            };
+            if Rc::ptr_eq(&t, &type_) {
+                break;
+            }
+            type_ = t.clone();
+        }
+        type_
+    }
+
     fn check_type_related_to(
         &self,
         source: Rc<Type>,
         target: Rc<Type>,
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> bool {
-        false
+        CheckTypeRelatedTo::new(self, source, target, relation).call()
     }
 
-    fn check_source_element(&self, node: &Node) {
+    fn get_regular_type_of_object_literal(&self, type_: Rc<Type>) -> Rc<Type> {
+        type_
+    }
+
+    fn get_constituent_count(&self, type_: Rc<Type>) -> usize {
+        if type_.flags().intersects(TypeFlags::Union) {
+            match &*type_ {
+                Type::UnionOrIntersectionType(union_or_intersection_type) => {
+                    match union_or_intersection_type {
+                        UnionOrIntersectionType::UnionType(union_type) => union_type.types().len(),
+                    }
+                }
+                _ => panic!("Expected UnionOrIntersectionType"),
+            }
+        } else {
+            1
+        }
+    }
+
+    fn check_source_element(&mut self, node: &Node) {
         self.check_source_element_worker(node)
     }
 
-    fn check_source_element_worker(&self, node: &Node) {
+    fn check_source_element_worker(&mut self, node: &Node) {
         match node {
             Node::Statement(statement) => {
                 match statement {
@@ -262,11 +379,11 @@ impl TypeChecker {
         };
     }
 
-    fn check_source_file(&self, source_file: &SourceFile) {
+    fn check_source_file(&mut self, source_file: &SourceFile) {
         self.check_source_file_worker(source_file)
     }
 
-    fn check_source_file_worker(&self, node: &SourceFile) {
+    fn check_source_file_worker(&mut self, node: &SourceFile) {
         if true {
             for_each(&node.statements, |statement, _index| {
                 self.check_source_element(statement);
@@ -275,11 +392,11 @@ impl TypeChecker {
         }
     }
 
-    pub fn get_diagnostics(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
+    pub fn get_diagnostics(&mut self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         self.get_diagnostics_worker(source_file)
     }
 
-    fn get_diagnostics_worker(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
+    fn get_diagnostics_worker(&mut self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         self.check_source_file(source_file);
 
         let semantic_diagnostics = self
@@ -304,7 +421,7 @@ impl TypeChecker {
         true
     }
 
-    fn check_prefix_unary_expression(&self, node: &PrefixUnaryExpression) -> Rc<Type> {
+    fn check_prefix_unary_expression(&mut self, node: &PrefixUnaryExpression) -> Rc<Type> {
         let operand_expression = match &*node.operand {
             Node::Expression(expression) => expression,
             _ => panic!("Expected Expression"),
@@ -325,11 +442,11 @@ impl TypeChecker {
         self.number_type()
     }
 
-    fn check_expression(&self, node: &Expression) -> Rc<Type> {
+    fn check_expression(&mut self, node: &Expression) -> Rc<Type> {
         self.check_expression_worker(node)
     }
 
-    fn check_expression_worker(&self, node: &Expression) -> Rc<Type> {
+    fn check_expression_worker(&mut self, node: &Expression) -> Rc<Type> {
         match node {
             Expression::TokenExpression(token_expression) => match token_expression.kind() {
                 SyntaxKind::TrueKeyword => {
@@ -343,11 +460,19 @@ impl TypeChecker {
             // Expression::BinaryExpression(binary_expression) => {
             //     return self.check_binary_expression(binary_expression);
             // }
+            Expression::LiteralLikeNode(literal_like_node) => match literal_like_node {
+                LiteralLikeNode::NumericLiteral(numeric_literal) => {
+                    self.check_grammar_numeric_literal(numeric_literal);
+                    let type_: Rc<Type> =
+                        self.get_number_literal_type(numeric_literal.text().into());
+                    return self.get_fresh_type_of_literal_type(type_);
+                }
+            },
             _ => unimplemented!(),
         }
     }
 
-    fn check_expression_statement(&self, node: &ExpressionStatement) {
+    fn check_expression_statement(&mut self, node: &ExpressionStatement) {
         let expression = match &*node.expression {
             Node::Expression(expression) => expression,
             _ => panic!("Expected Expression"),
@@ -359,5 +484,126 @@ impl TypeChecker {
         for file in host.get_source_files() {
             bind_source_file(file);
         }
+    }
+
+    fn check_grammar_numeric_literal(&self, node: &NumericLiteral) -> bool {
+        false
+    }
+}
+
+struct CheckTypeRelatedTo<'type_checker> {
+    type_checker: &'type_checker TypeChecker,
+    source: Rc<Type>,
+    target: Rc<Type>,
+    relation: &'type_checker HashMap<String, RelationComparisonResult>,
+}
+
+impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
+    fn new(
+        type_checker: &'type_checker TypeChecker,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        relation: &'type_checker HashMap<String, RelationComparisonResult>,
+    ) -> Self {
+        Self {
+            type_checker,
+            source,
+            target,
+            relation,
+        }
+    }
+
+    fn call(&self) -> bool {
+        let result = self.is_related_to(self.source.clone(), self.target.clone(), None);
+
+        result != Ternary::False
+    }
+
+    fn is_related_to(
+        &self,
+        original_source: Rc<Type>,
+        original_target: Rc<Type>,
+        intersection_state: Option<IntersectionState>,
+    ) -> Ternary {
+        let intersection_state = intersection_state.unwrap_or(IntersectionState::None);
+
+        let source = self.type_checker.get_normalized_type(original_source);
+        let target = self.type_checker.get_normalized_type(original_target);
+
+        if self.type_checker.is_simple_type_related_to(
+            source.clone(),
+            target.clone(),
+            self.relation,
+        ) {
+            return Ternary::True;
+        }
+
+        let mut result = Ternary::False;
+
+        if (source.flags().intersects(TypeFlags::Union)
+            || target.flags().intersects(TypeFlags::Union))
+            && self.type_checker.get_constituent_count(source.clone())
+                * self.type_checker.get_constituent_count(target.clone())
+                < 4
+        {
+            result = self.structured_type_related_to(
+                source,
+                target,
+                intersection_state | IntersectionState::UnionIntersectionCheck,
+            );
+        }
+
+        result
+    }
+
+    fn type_related_to_some_type(
+        &self,
+        source: Rc<Type>,
+        target: &UnionOrIntersectionType,
+    ) -> Ternary {
+        let target_types = target.types();
+
+        for type_ in target_types {
+            let related = self.is_related_to(source.clone(), type_.clone(), None);
+            if related != Ternary::False {
+                return related;
+            }
+        }
+
+        Ternary::False
+    }
+
+    fn structured_type_related_to(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        let result = self.structured_type_related_to_worker(source, target, intersection_state);
+        result
+    }
+
+    fn structured_type_related_to_worker(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        if intersection_state.intersects(IntersectionState::UnionIntersectionCheck) {
+            if target.flags().intersects(TypeFlags::Union) {
+                return self.type_related_to_some_type(
+                    self.type_checker.get_regular_type_of_object_literal(source),
+                    match &*target {
+                        Type::UnionOrIntersectionType(union_or_intersection_type) => {
+                            union_or_intersection_type
+                        }
+                        _ => panic!("Expected UnionOrIntersectionType"),
+                    },
+                );
+            }
+            unimplemented!()
+        }
+
+        Ternary::False
     }
 }
