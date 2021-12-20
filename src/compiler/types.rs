@@ -32,11 +32,14 @@ pub enum SyntaxKind {
     SemicolonToken,
     AsteriskToken,
     PlusPlusToken,
+    ColonToken,
+    EqualsToken,
     Identifier,
     ConstKeyword,
     FalseKeyword,
     TrueKeyword,
     WithKeyword,
+    NumberKeyword,
     OfKeyword,
     PrefixUnaryExpression,
     BinaryExpression,
@@ -50,6 +53,17 @@ impl SyntaxKind {
     pub const LastReservedWord: SyntaxKind = SyntaxKind::WithKeyword;
     pub const LastKeyword: SyntaxKind = SyntaxKind::OfKeyword;
     pub const LastToken: SyntaxKind = SyntaxKind::LastKeyword;
+}
+
+bitflags! {
+    pub struct NodeFlags: u32 {
+        const None = 0;
+        const Const = 1 << 1;
+        const YieldContext = 1 << 13;
+        const AwaitContext = 1 << 15;
+
+        const TypeExcludesFlags = Self::YieldContext.bits | Self::AwaitContext.bits;
+    }
 }
 
 bitflags! {
@@ -68,6 +82,9 @@ pub trait NodeInterface: ReadonlyTextRange {
 #[derive(Debug)]
 pub enum Node {
     BaseNode(BaseNode),
+    VariableDeclaration(VariableDeclaration),
+    VariableDeclarationList(VariableDeclarationList),
+    TypeNode(TypeNode),
     Expression(Expression),
     Statement(Statement),
     SourceFile(Rc<SourceFile>),
@@ -294,9 +311,214 @@ impl ReadonlyTextRange for Identifier {
     }
 }
 
+#[derive(Debug)]
+pub struct VariableDeclaration {
+    pub _node: BaseNode,
+}
+
+impl NodeInterface for VariableDeclaration {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for VariableDeclaration {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._node.set_end(end);
+    }
+}
+
+impl From<VariableDeclaration> for Node {
+    fn from(variable_declaration: VariableDeclaration) -> Self {
+        Node::VariableDeclaration(variable_declaration)
+    }
+}
+
+#[derive(Debug)]
+pub struct VariableDeclarationList {
+    pub _node: BaseNode,
+    pub declarations: NodeArray, /*<VariableDeclaration>*/
+}
+
+impl NodeInterface for VariableDeclarationList {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for VariableDeclarationList {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._node.set_end(end);
+    }
+}
+
+impl From<VariableDeclarationList> for Node {
+    fn from(variable_declaration_list: VariableDeclarationList) -> Self {
+        Node::VariableDeclarationList(variable_declaration_list)
+    }
+}
+
 impl From<Identifier> for Expression {
     fn from(identifier: Identifier) -> Self {
         Expression::Identifier(identifier)
+    }
+}
+
+impl From<Identifier> for Node {
+    fn from(identifier: Identifier) -> Self {
+        Node::Expression(Expression::Identifier(identifier))
+    }
+}
+
+#[derive(Debug)]
+pub enum TypeNode {
+    KeywordTypeNode(KeywordTypeNode),
+}
+
+impl NodeInterface for TypeNode {
+    fn kind(&self) -> SyntaxKind {
+        match self {
+            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.kind(),
+        }
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        match self {
+            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.parent(),
+        }
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        match self {
+            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.set_parent(parent),
+        }
+    }
+}
+
+impl ReadonlyTextRange for TypeNode {
+    fn pos(&self) -> usize {
+        match self {
+            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.pos(),
+        }
+    }
+
+    fn set_pos(&self, pos: usize) {
+        match self {
+            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.set_pos(pos),
+        }
+    }
+
+    fn end(&self) -> usize {
+        match self {
+            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.end(),
+        }
+    }
+
+    fn set_end(&self, end: usize) {
+        match self {
+            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.set_end(end),
+        }
+    }
+}
+
+impl From<TypeNode> for Node {
+    fn from(type_node: TypeNode) -> Self {
+        Node::TypeNode(type_node)
+    }
+}
+
+#[derive(Debug)]
+pub struct KeywordTypeNode {
+    _node: BaseNode,
+}
+
+impl KeywordTypeNode {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+impl NodeInterface for KeywordTypeNode {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for KeywordTypeNode {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._node.set_end(end);
+    }
+}
+
+impl From<KeywordTypeNode> for TypeNode {
+    fn from(keyword_type_node: KeywordTypeNode) -> Self {
+        TypeNode::KeywordTypeNode(keyword_type_node)
+    }
+}
+
+impl From<BaseNode> for KeywordTypeNode {
+    fn from(base_node: BaseNode) -> Self {
+        KeywordTypeNode::new(base_node)
     }
 }
 

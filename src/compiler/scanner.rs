@@ -375,6 +375,13 @@ impl Scanner {
     ) -> Option<TReturn> {
         self.speculation_helper(callback, true)
     }
+
+    pub fn try_scan<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+        &mut self,
+        callback: TCallback,
+    ) -> Option<TReturn> {
+        self.speculation_helper(callback, false)
+    }
 }
 
 pub fn create_scanner(skip_trivia: bool) -> Scanner {
