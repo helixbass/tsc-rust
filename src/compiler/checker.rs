@@ -146,7 +146,10 @@ impl TypeChecker {
         message: &DiagnosticMessage,
     ) -> Rc<Diagnostic> {
         let diagnostic = self.create_error(location, message);
-        self.diagnostics().write().unwrap().add(diagnostic.clone());
+        self.diagnostics()
+            .try_write()
+            .unwrap()
+            .add(diagnostic.clone());
         diagnostic
     }
 
@@ -401,7 +404,7 @@ impl TypeChecker {
 
         let semantic_diagnostics = self
             .diagnostics()
-            .read()
+            .try_read()
             .unwrap()
             .get_diagnostics(&source_file.file_name);
 
