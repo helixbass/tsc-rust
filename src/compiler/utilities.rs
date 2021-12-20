@@ -133,7 +133,7 @@ impl DiagnosticCollection {
     pub fn get_diagnostics(&self, file_name: &str) -> Vec<Rc<Diagnostic>> {
         self.file_diagnostics
             .get(file_name)
-            .map(|sorted_array| sorted_array._vec.clone())
+            .map(|sorted_array| sorted_array.into())
             .unwrap_or(vec![])
     }
 }
