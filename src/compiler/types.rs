@@ -45,6 +45,7 @@ pub enum SyntaxKind {
     BinaryExpression,
     EmptyStatement,
     ExpressionStatement,
+    VariableDeclaration,
     FunctionDeclaration,
     SourceFile,
 }
@@ -311,12 +312,27 @@ impl ReadonlyTextRange for Identifier {
     }
 }
 
-#[derive(Debug)]
-pub struct VariableDeclaration {
-    pub _node: BaseNode,
+pub trait NamedDeclarationInterface: NodeInterface {
+    fn name(&self) -> Rc<Node>;
+    fn set_name(&self, name: Rc<Node>);
 }
 
-impl NodeInterface for VariableDeclaration {
+#[derive(Debug)]
+pub struct BaseNamedDeclaration {
+    _node: BaseNode,
+    name: Option<Rc<Node>>,
+}
+
+impl BaseNamedDeclaration {
+    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+        }
+    }
+}
+
+impl NodeInterface for BaseNamedDeclaration {
     fn kind(&self) -> SyntaxKind {
         self._node.kind()
     }
@@ -330,7 +346,7 @@ impl NodeInterface for VariableDeclaration {
     }
 }
 
-impl ReadonlyTextRange for VariableDeclaration {
+impl ReadonlyTextRange for BaseNamedDeclaration {
     fn pos(&self) -> usize {
         self._node.pos()
     }
@@ -345,6 +361,251 @@ impl ReadonlyTextRange for VariableDeclaration {
 
     fn set_end(&self, end: usize) {
         self._node.set_end(end);
+    }
+}
+
+impl NamedDeclarationInterface for BaseNamedDeclaration {
+    fn name(&self) -> Rc<Node> {
+        self.name.unwrap().clone()
+    }
+
+    fn set_name(&self, name: Rc<Node>) {
+        self.name = Some(name);
+    }
+}
+
+pub trait BindingLikeDeclarationInterface: NamedDeclarationInterface {
+    fn initializer(&self) -> Option<Rc<Node>>;
+    fn set_initializer(&self, initializer: Rc<Node>);
+}
+
+#[derive(Debug)]
+pub struct BaseBindingLikeDeclaration {
+    _named_declaration: BaseNamedDeclaration,
+    initializer: Option<Rc<Node>>,
+}
+
+impl BaseBindingLikeDeclaration {
+    pub fn new(
+        base_named_declaration: BaseNamedDeclaration,
+        initializer: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+            initializer,
+        }
+    }
+}
+
+impl NodeInterface for BaseBindingLikeDeclaration {
+    fn kind(&self) -> SyntaxKind {
+        self._named_declaration.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._named_declaration.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._named_declaration.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for BaseBindingLikeDeclaration {
+    fn pos(&self) -> usize {
+        self._named_declaration.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._named_declaration.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._named_declaration.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._named_declaration.set_end(end);
+    }
+}
+
+impl NamedDeclarationInterface for BaseBindingLikeDeclaration {
+    fn name(&self) -> Rc<Node> {
+        self._named_declaration.name()
+    }
+
+    fn set_name(&self, name: Rc<Node>) {
+        self._named_declaration.set_name(name);
+    }
+}
+
+impl BindingLikeDeclarationInterface for BaseBindingLikeDeclaration {
+    fn initializer(&self) -> Option<Rc<Node>> {
+        self.initializer.as_ref().map(Clone::clone)
+    }
+
+    fn set_initializer(&self, initializer: Rc<Node>) {
+        self.initializer = Some(initializer);
+    }
+}
+
+pub trait VariableLikeDeclarationInterface: BindingLikeDeclarationInterface {
+    fn type_(&self) -> Option<Rc<Node>>;
+    fn set_type(&self, type_: Rc<Node>);
+}
+
+#[derive(Debug)]
+pub struct BaseVariableLikeDeclaration {
+    _binding_like_declaration: BaseBindingLikeDeclaration,
+    type_: Option<Rc<Node>>,
+}
+
+impl BaseVariableLikeDeclaration {
+    pub fn new(
+        base_binding_like_declaration: BaseBindingLikeDeclaration,
+        type_: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _binding_like_declaration: base_binding_like_declaration,
+            type_,
+        }
+    }
+}
+
+impl NodeInterface for BaseVariableLikeDeclaration {
+    fn kind(&self) -> SyntaxKind {
+        self._binding_like_declaration.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._binding_like_declaration.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._binding_like_declaration.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for BaseVariableLikeDeclaration {
+    fn pos(&self) -> usize {
+        self._binding_like_declaration.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._binding_like_declaration.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._binding_like_declaration.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._binding_like_declaration.set_end(end);
+    }
+}
+
+impl NamedDeclarationInterface for BaseVariableLikeDeclaration {
+    fn name(&self) -> Rc<Node> {
+        self._binding_like_declaration.name()
+    }
+
+    fn set_name(&self, name: Rc<Node>) {
+        self._binding_like_declaration.set_name(name);
+    }
+}
+
+impl BindingLikeDeclarationInterface for BaseVariableLikeDeclaration {
+    fn initializer(&self) -> Option<Rc<Node>> {
+        self._binding_like_declaration.initializer()
+    }
+
+    fn set_initializer(&self, initializer: Rc<Node>) {
+        self._binding_like_declaration.set_initializer(initializer);
+    }
+}
+
+impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {
+    fn type_(&self) -> Option<Rc<Node>> {
+        self.type_.as_ref().map(Clone::clone)
+    }
+
+    fn set_type(&self, type_: Rc<Node>) {
+        self.type_ = Some(type_);
+    }
+}
+
+#[derive(Debug)]
+pub struct VariableDeclaration {
+    _variable_like_declaration: BaseVariableLikeDeclaration,
+}
+
+impl VariableDeclaration {
+    pub fn new(base_variable_like_declaration: BaseVariableLikeDeclaration) -> Self {
+        Self {
+            _variable_like_declaration: base_variable_like_declaration,
+        }
+    }
+}
+
+impl NodeInterface for VariableDeclaration {
+    fn kind(&self) -> SyntaxKind {
+        self._variable_like_declaration.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._variable_like_declaration.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._variable_like_declaration.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for VariableDeclaration {
+    fn pos(&self) -> usize {
+        self._variable_like_declaration.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._variable_like_declaration.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._variable_like_declaration.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._variable_like_declaration.set_end(end);
+    }
+}
+
+impl NamedDeclarationInterface for VariableDeclaration {
+    fn name(&self) -> Rc<Node> {
+        self._variable_like_declaration.name()
+    }
+
+    fn set_name(&self, name: Rc<Node>) {
+        self._variable_like_declaration.set_name(name);
+    }
+}
+
+impl BindingLikeDeclarationInterface for VariableDeclaration {
+    fn initializer(&self) -> Option<Rc<Node>> {
+        self._variable_like_declaration.initializer()
+    }
+
+    fn set_initializer(&self, initializer: Rc<Node>) {
+        self._variable_like_declaration.set_initializer(initializer);
+    }
+}
+
+impl VariableLikeDeclarationInterface for VariableDeclaration {
+    fn type_(&self) -> Option<Rc<Node>> {
+        self._variable_like_declaration.type_()
+    }
+
+    fn set_type(&self, type_: Rc<Node>) {
+        self._variable_like_declaration.set_type(type_);
     }
 }
 

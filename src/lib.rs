@@ -20,8 +20,9 @@ pub use compiler::program::create_program;
 pub use compiler::scanner::{create_scanner, Scanner};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseIntrinsicType, BaseLiteralLikeNode,
-    BaseLiteralType, BaseNode, BaseType, BaseUnionOrIntersectionType, BinaryExpression,
+    BaseBindingLikeDeclaration, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    BaseIntrinsicType, BaseLiteralLikeNode, BaseLiteralType, BaseNamedDeclaration, BaseNode,
+    BaseType, BaseUnionOrIntersectionType, BaseVariableLikeDeclaration, BinaryExpression,
     CharacterCodes, CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory,
     DiagnosticCollection, DiagnosticMessage, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmptyStatement, ExitStatus, Expression,

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use bitflags::bitflags;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -109,6 +110,7 @@ struct ParserType {
     file_name: Option<String>,
     parse_diagnostics: Option<RwLock<Vec<DiagnosticWithDetachedLocation>>>,
     current_token: RwLock<Option<SyntaxKind>>,
+    parsing_context: Option<ParsingContext>,
     parse_error_before_next_finished_node: AtomicBool,
 }
 
@@ -124,6 +126,7 @@ impl ParserType {
             file_name: None,
             parse_diagnostics: None,
             current_token: RwLock::new(None),
+            parsing_context: None,
             parse_error_before_next_finished_node: AtomicBool::new(false),
         }
     }
@@ -210,6 +213,14 @@ impl ParserType {
         *self.current_token.try_write().unwrap() = Some(token);
     }
 
+    fn parsing_context(&self) -> ParsingContext {
+        self.parsing_context.unwrap()
+    }
+
+    fn set_parsing_context(&mut self, parsing_context: ParsingContext) {
+        self.parsing_context = Some(parsing_context);
+    }
+
     fn parse_error_before_next_finished_node(&self) -> bool {
         self.parse_error_before_next_finished_node
             .load(Ordering::Relaxed)
@@ -234,6 +245,7 @@ impl ParserType {
         self.set_file_name(&normalize_path(_file_name));
 
         self.set_parse_diagnostics(vec![]);
+        self.set_parsing_context(ParsingContext::None);
 
         self.scanner_mut().set_text(Some(_source_text), None, None);
     }
@@ -519,11 +531,14 @@ impl ParserType {
         }
     }
 
-    fn is_list_terminator(&self) -> bool {
+    fn is_list_terminator(&self, kind: ParsingContext) -> bool {
         if self.token() == SyntaxKind::EndOfFileToken {
             return true;
         }
-        false
+        match kind {
+            ParsingContext::VariableDeclarations => self.is_variable_declarator_list_terminator(),
+            _ => false,
+        }
     }
 
     fn parse_delimited_list<TItem: Into<Node>>(
@@ -531,6 +546,38 @@ impl ParserType {
         kind: ParsingContext,
         parse_element: fn(&mut ParserType) -> TItem,
     ) -> NodeArray {
+        let save_parsing_context = self.parsing_context();
+        self.set_parsing_context(self.parsing_context() | kind);
+        let list: Vec<Node> = vec![];
+        let list_pos = self.get_node_pos();
+
+        loop {
+            if self.is_list_element(kind) {
+                let start_pos = self.scanner().get_start_pos();
+                list.push(self.parse_list_element(kind, parse_element).into());
+
+                if self.is_list_terminator(kind) {
+                    break;
+                }
+
+                unimplemented!()
+            }
+
+            if self.is_list_terminator(kind) {
+                break;
+            }
+        }
+
+        self.set_parsing_context(save_parsing_context);
+        self.create_node_array(list)
+    }
+
+    fn is_variable_declarator_list_terminator(&self) -> bool {
+        if self.can_parse_semicolon() {
+            return true;
+        }
+
+        false
     }
 
     fn parse_list<TItem: Into<Node>>(
@@ -540,7 +587,7 @@ impl ParserType {
     ) -> NodeArray {
         let mut list = vec![];
 
-        while !self.is_list_terminator() {
+        while !self.is_list_terminator(kind) {
             if self.is_list_element(kind) {
                 list.push(self.parse_list_element(kind, parse_element).into());
 
@@ -905,9 +952,12 @@ impl ParserType {
         } else {
             self.parse_initializer()
         };
-        let node = self
-            .factory
-            .create_variable_declaration(name, type_, initializer);
+        let node = self.factory.create_variable_declaration(
+            self,
+            Some(name),
+            type_.map(|type_| Rc::new(type_.into())),
+            initializer.map(|initializer| Rc::new(initializer.into())),
+        );
         self.finish_node(node, pos, None)
     }
 
@@ -979,8 +1029,10 @@ fn Parser() -> ParserType {
 //     ParserMut.lock().unwrap()
 // }
 
-#[derive(Copy, Clone)]
-enum ParsingContext {
-    SourceElements,
-    VariableDeclarations,
+bitflags! {
+    pub struct ParsingContext: u32 {
+        const None = 0;
+        const SourceElements = 1 << 0;
+        const VariableDeclarations = 1 << 8;
+    }
 }
