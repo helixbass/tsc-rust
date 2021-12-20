@@ -9,6 +9,7 @@ use crate::{CharacterCodes, SyntaxKind, TokenFlags};
 lazy_static! {
     static ref text_to_keyword_obj: HashMap<&'static str, SyntaxKind> =
         HashMap::from_iter(IntoIter::new([
+            ("const", SyntaxKind::ConstKeyword),
             ("false", SyntaxKind::FalseKeyword),
             ("true", SyntaxKind::TrueKeyword),
         ]));
@@ -89,7 +90,7 @@ impl Scanner {
                 }
             }
         }
-        unimplemented!()
+        self.set_token(SyntaxKind::Identifier)
     }
 
     pub fn scan(&mut self) -> SyntaxKind {
@@ -343,6 +344,37 @@ impl Scanner {
 
     // fn scan_identifier(&self, start_character: char) -> {
     // }
+
+    fn speculation_helper<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+        &mut self,
+        mut callback: TCallback,
+        is_lookahead: bool,
+    ) -> Option<TReturn> {
+        let save_pos = self.pos();
+        let save_start_pos = self.start_pos();
+        let save_token_pos = self.token_pos();
+        let save_token = self.token();
+        let save_token_value = self.token_value().to_string();
+        let save_token_flags = self.token_flags();
+        let result = callback();
+
+        if result.is_none() || is_lookahead {
+            self.set_pos(save_pos);
+            self.set_start_pos(save_start_pos);
+            self.set_token_pos(save_token_pos);
+            self.set_token(save_token);
+            self.set_token_value(&save_token_value);
+            self.set_token_flags(save_token_flags);
+        }
+        result
+    }
+
+    pub fn look_ahead<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+        &mut self,
+        callback: TCallback,
+    ) -> Option<TReturn> {
+        self.speculation_helper(callback, true)
+    }
 }
 
 pub fn create_scanner(skip_trivia: bool) -> Scanner {

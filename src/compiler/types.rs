@@ -33,8 +33,10 @@ pub enum SyntaxKind {
     AsteriskToken,
     PlusPlusToken,
     Identifier,
+    ConstKeyword,
     FalseKeyword,
     TrueKeyword,
+    WithKeyword,
     OfKeyword,
     PrefixUnaryExpression,
     BinaryExpression,
@@ -45,6 +47,7 @@ pub enum SyntaxKind {
 }
 
 impl SyntaxKind {
+    pub const LastReservedWord: SyntaxKind = SyntaxKind::WithKeyword;
     pub const LastKeyword: SyntaxKind = SyntaxKind::OfKeyword;
     pub const LastToken: SyntaxKind = SyntaxKind::LastKeyword;
 }

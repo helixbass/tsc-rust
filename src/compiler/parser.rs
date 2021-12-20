@@ -12,6 +12,13 @@ use crate::{
     Statement, SyntaxKind,
 };
 
+#[derive(Eq, PartialEq)]
+enum SpeculationKind {
+    TryParse,
+    Lookahead,
+    Reparse,
+}
+
 fn visit_node<TNodeCallback: FnMut(Rc<Node>)>(mut cb_node: TNodeCallback, node: Rc<Node>) {
     cb_node(node)
 }
@@ -283,8 +290,46 @@ impl ParserType {
         self.next_token_without_check()
     }
 
+    fn speculation_helper<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+        &self,
+        callback: TCallback,
+        speculation_kind: SpeculationKind,
+    ) -> Option<TReturn> {
+        let save_token = self.current_token();
+        let save_parse_diagnostics_length = self.parse_diagnostics().len();
+        let save_parse_error_before_next_finished_node = self.parse_error_before_next_finished_node;
+
+        let result = if speculation_kind != SpeculationKind::TryParse {
+            self.scanner.look_ahead(callback)
+        } else {
+            unimplemented!()
+        };
+
+        if result.is_none() || speculation_kind != SpeculationKind::TryParse {
+            self.set_current_token(save_token);
+            if speculation_kind != SpeculationKind::Reparse {
+                self.parse_diagnostics()
+                    .truncate(save_parse_diagnostics_length);
+            }
+            self.parse_error_before_next_finished_node = save_parse_error_before_next_finished_node;
+        }
+
+        result
+    }
+
+    fn look_ahead<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+        &self,
+        callback: TCallback,
+    ) -> Option<TReturn> {
+        self.speculation_helper(callback, SpeculationKind::Lookahead)
+    }
+
     fn is_identifier(&self) -> bool {
-        false
+        if self.token() == SyntaxKind::Identifier {
+            return true;
+        }
+
+        self.token() > SyntaxKind::LastReservedWord
     }
 
     fn parse_expected(&mut self, kind: SyntaxKind, should_advance: Option<bool>) -> bool {
@@ -389,7 +434,7 @@ impl ParserType {
         self.create_identifier(self.is_identifier(), diagnostic_message)
     }
 
-    fn is_list_element(&self, kind: ParsingContext) -> bool {
+    fn is_list_element(&mut self, kind: ParsingContext) -> bool {
         match kind {
             ParsingContext::SourceElements => self.is_start_of_statement(),
             _ => unimplemented!(),
@@ -629,9 +674,25 @@ impl ParserType {
         self.finish_node(self.factory.create_empty_statement(self).into(), pos, None)
     }
 
-    fn is_start_of_statement(&self) -> bool {
+    fn is_declaration(&self) -> bool {
+        loop {
+            match self.token() {
+                SyntaxKind::ConstKeyword => {
+                    return true;
+                }
+                _ => unimplemented!(),
+            }
+        }
+    }
+
+    fn is_start_of_declaration(&mut self) -> bool {
+        self.look_ahead(|| Some(self.is_declaration())).unwrap()
+    }
+
+    fn is_start_of_statement(&mut self) -> bool {
         match self.token() {
             SyntaxKind::SemicolonToken => true,
+            SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
             _ => self.is_start_of_expression(),
         }
     }
