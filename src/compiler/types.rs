@@ -16,15 +16,12 @@ pub enum SyntaxKind {
     SemicolonToken,
     AsteriskToken,
     Identifier,
+    FalseKeyword,
+    TrueKeyword,
     BinaryExpression,
     EmptyStatement,
     ExpressionStatement,
     SourceFile,
-}
-
-#[derive(Debug)]
-pub struct BaseNode {
-    pub kind: SyntaxKind,
 }
 
 pub trait NodeInterface {
@@ -33,7 +30,7 @@ pub trait NodeInterface {
 
 #[derive(Debug)]
 pub enum Node {
-    Token(Token),
+    BaseNode(BaseNode),
     Expression(Expression),
     Statement(Statement),
 }
@@ -41,7 +38,7 @@ pub enum Node {
 impl NodeInterface for Node {
     fn kind(&self) -> SyntaxKind {
         match self {
-            Node::Token(token) => token.kind(),
+            Node::BaseNode(base_node) => base_node.kind(),
             Node::Expression(expression) => expression.kind(),
             Node::Statement(statement) => statement.kind(),
         }
@@ -49,19 +46,19 @@ impl NodeInterface for Node {
 }
 
 #[derive(Debug)]
-pub struct Token {
-    pub _node: BaseNode,
+pub struct BaseNode {
+    pub kind: SyntaxKind,
 }
 
-impl NodeInterface for Token {
+impl NodeInterface for BaseNode {
     fn kind(&self) -> SyntaxKind {
-        self._node.kind
+        self.kind
     }
 }
 
-impl From<Token> for Node {
-    fn from(token: Token) -> Self {
-        Node::Token(token)
+impl From<BaseNode> for Node {
+    fn from(base_node: BaseNode) -> Self {
+        Node::BaseNode(base_node)
     }
 }
 
@@ -113,6 +110,7 @@ impl From<Identifier> for Expression {
 
 #[derive(Debug)]
 pub enum Expression {
+    TokenExpression(BaseNode),
     Identifier(Identifier),
     BinaryExpression(BinaryExpression),
     LiteralLikeNode(LiteralLikeNode),
@@ -121,6 +119,7 @@ pub enum Expression {
 impl NodeInterface for Expression {
     fn kind(&self) -> SyntaxKind {
         match self {
+            Expression::TokenExpression(token_expression) => token_expression.kind(),
             Expression::Identifier(identifier) => identifier.kind(),
             Expression::BinaryExpression(binary_expression) => binary_expression.kind(),
             Expression::LiteralLikeNode(literal_like_node) => literal_like_node.kind(),
@@ -131,6 +130,12 @@ impl NodeInterface for Expression {
 impl From<Expression> for Node {
     fn from(expression: Expression) -> Self {
         Node::Expression(expression)
+    }
+}
+
+impl From<BaseNode> for Expression {
+    fn from(base_node: BaseNode) -> Self {
+        Expression::TokenExpression(base_node)
     }
 }
 
@@ -322,7 +327,13 @@ pub struct CreateProgramOptions<'config> {
 pub struct CharacterCodes;
 #[allow(non_upper_case_globals)]
 impl CharacterCodes {
+    pub const max_ascii_character: char = '';
+
     pub const space: char = ' ';
+
+    pub const underscore: char = '_';
+    pub const dollar_sign: char = '$';
+
     pub const _0: char = '0';
     pub const _1: char = '1';
     pub const _2: char = '2';
@@ -333,6 +344,61 @@ impl CharacterCodes {
     pub const _7: char = '7';
     pub const _8: char = '8';
     pub const _9: char = '9';
+
+    pub const a: char = 'a';
+    pub const b: char = 'b';
+    pub const c: char = 'c';
+    pub const d: char = 'd';
+    pub const e: char = 'e';
+    pub const f: char = 'f';
+    pub const g: char = 'g';
+    pub const h: char = 'h';
+    pub const i: char = 'i';
+    pub const j: char = 'j';
+    pub const k: char = 'k';
+    pub const l: char = 'l';
+    pub const m: char = 'm';
+    pub const n: char = 'n';
+    pub const o: char = 'o';
+    pub const p: char = 'p';
+    pub const q: char = 'q';
+    pub const r: char = 'r';
+    pub const s: char = 's';
+    pub const t: char = 't';
+    pub const u: char = 'u';
+    pub const v: char = 'v';
+    pub const w: char = 'w';
+    pub const x: char = 'x';
+    pub const y: char = 'y';
+    pub const z: char = 'z';
+
+    pub const A: char = 'A';
+    pub const B: char = 'B';
+    pub const C: char = 'C';
+    pub const D: char = 'D';
+    pub const E: char = 'E';
+    pub const F: char = 'F';
+    pub const G: char = 'G';
+    pub const H: char = 'H';
+    pub const I: char = 'I';
+    pub const J: char = 'J';
+    pub const K: char = 'K';
+    pub const L: char = 'L';
+    pub const M: char = 'M';
+    pub const N: char = 'N';
+    pub const O: char = 'O';
+    pub const P: char = 'P';
+    pub const Q: char = 'Q';
+    pub const R: char = 'R';
+    pub const S: char = 'S';
+    pub const T: char = 'T';
+    pub const U: char = 'U';
+    pub const V: char = 'V';
+    pub const W: char = 'W';
+    pub const X: char = 'X';
+    pub const Y: char = 'Y';
+    pub const Z: char = 'Z';
+
     pub const asterisk: char = '*';
     pub const semicolon: char = ';';
     pub const slash: char = '/';

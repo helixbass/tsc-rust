@@ -1,4 +1,43 @@
+#![allow(non_upper_case_globals)]
+
+use std::array::IntoIter;
+use std::collections::HashMap;
+use std::iter::FromIterator;
+
 use crate::{CharacterCodes, SyntaxKind};
+
+lazy_static! {
+    static ref text_to_keyword_obj: HashMap<&'static str, SyntaxKind> =
+        HashMap::from_iter(IntoIter::new([
+            ("false", SyntaxKind::FalseKeyword),
+            ("true", SyntaxKind::TrueKeyword),
+        ]));
+}
+
+lazy_static! {
+    static ref text_to_keyword: HashMap<&'static str, SyntaxKind> = text_to_keyword_obj.clone();
+}
+
+fn is_unicode_identifier_start(ch: char) -> bool {
+    false
+}
+
+fn is_identifier_start(ch: char) -> bool {
+    ch >= CharacterCodes::A && ch <= CharacterCodes::Z
+        || ch >= CharacterCodes::a && ch <= CharacterCodes::z
+        || ch == CharacterCodes::dollar_sign
+        || ch == CharacterCodes::underscore
+        || ch > CharacterCodes::max_ascii_character && is_unicode_identifier_start(ch)
+}
+
+fn is_identifier_part(ch: char) -> bool {
+    ch >= CharacterCodes::A && ch <= CharacterCodes::Z
+        || ch >= CharacterCodes::a && ch <= CharacterCodes::z
+        || ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
+        || ch == CharacterCodes::dollar_sign
+        || ch == CharacterCodes::underscore
+        || ch > CharacterCodes::max_ascii_character && is_unicode_identifier_start(ch)
+}
 
 struct ScanNumberReturn {
     type_: SyntaxKind,
@@ -27,6 +66,20 @@ impl Scanner {
 
     pub fn get_token_value(&self) -> &str {
         self.token_value()
+    }
+
+    fn get_identifier_token(&mut self) -> SyntaxKind {
+        let len = self.token_value().len();
+        if len >= 2 && len <= 12 {
+            let ch = self.token_value().chars().nth(0).unwrap();
+            if ch >= CharacterCodes::a && ch <= CharacterCodes::z {
+                let keyword = text_to_keyword.get(self.token_value());
+                if let Some(keyword) = keyword {
+                    return self.set_token(*keyword);
+                }
+            }
+        }
+        unimplemented!()
     }
 
     pub fn scan(&mut self) -> SyntaxKind {
@@ -73,11 +126,41 @@ impl Scanner {
                     return self.set_token(SyntaxKind::SemicolonToken);
                 }
                 _ch => {
-                    unimplemented!();
-                    // let identifier_kind = self.scan_identifier(ch);
+                    let identifier_kind = self.scan_identifier(ch);
+                    if let Some(identifier_kind) = identifier_kind {
+                        return self.set_token(identifier_kind);
+                    }
+                    unimplemented!()
                 }
             }
         }
+    }
+
+    fn scan_identifier(&mut self, start_character: char) -> Option<SyntaxKind> {
+        let mut ch = start_character;
+        if is_identifier_start(ch) {
+            self.set_pos(self.pos() + char_size(ch));
+            loop {
+                if !(self.pos() < self.end()) {
+                    break;
+                }
+                ch = code_point_at(self.text(), self.pos());
+                if !is_identifier_part(ch) {
+                    break;
+                }
+                self.set_pos(self.pos() + char_size(ch));
+            }
+            self.set_token_value(
+                &self
+                    .text()
+                    .chars()
+                    .skip(self.token_pos())
+                    .take(self.pos() - self.token_pos())
+                    .collect::<String>(),
+            );
+            return Some(self.get_identifier_token());
+        }
+        None
     }
 
     pub fn set_text(
@@ -229,4 +312,8 @@ pub fn create_scanner(skip_trivia: bool) -> Scanner {
 
 fn code_point_at(s: &str, i: usize) -> char {
     s.chars().nth(i).unwrap()
+}
+
+fn char_size(ch: char) -> usize {
+    1
 }

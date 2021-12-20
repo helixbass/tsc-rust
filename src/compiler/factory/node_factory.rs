@@ -1,7 +1,7 @@
 use crate::{
     BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, EmptyStatement, Expression,
     ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NumericLiteral,
-    SourceFile, SyntaxKind, Token,
+    SourceFile, SyntaxKind,
 };
 
 impl NodeFactory {
@@ -73,9 +73,9 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
         token: SyntaxKind,
-    ) -> Token {
+    ) -> BaseNode {
         let node = self.create_base_token(base_factory, token);
-        Token { _node: node }
+        node
     }
 
     fn create_base_expression<TBaseNodeFactory: BaseNodeFactory>(

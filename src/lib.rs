@@ -22,7 +22,7 @@ pub use compiler::types::{
     DiagnosticWithDetachedLocation, EmptyStatement, ExitStatus, Expression, ExpressionStatement,
     Identifier, LiteralLikeNode, ModuleResolutionHost, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeInterface, NumericLiteral, ParsedCommandLine, Path, Program, SourceFile,
-    Statement, StructureIsReused, SyntaxKind, Token,
+    Statement, StructureIsReused, SyntaxKind,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, get_binary_operator_precedence, object_allocator,

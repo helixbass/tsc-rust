@@ -219,11 +219,10 @@ impl ParserType {
         false
     }
 
-    fn parse_token_node(&mut self) -> Node {
+    fn parse_token_node(&mut self) -> BaseNode {
         let kind = self.token();
         self.next_token();
         self.finish_node(self.factory.create_token(self, kind))
-            .into()
     }
 
     fn create_node_array(&self, elements: Vec<Node>) -> NodeArray {
@@ -398,16 +397,18 @@ impl ParserType {
         get_binary_operator_precedence(self.token()) > OperatorPrecedence::Comma
     }
 
-    fn make_binary_expression(
+    fn make_binary_expression<TNode: Into<Node>>(
         &mut self,
         left: Expression,
-        operator_token: Node,
+        operator_token: TNode,
         right: Expression,
     ) -> BinaryExpression {
-        self.finish_node(
-            self.factory
-                .create_binary_expression(self, left, operator_token, right),
-        )
+        self.finish_node(self.factory.create_binary_expression(
+            self,
+            left,
+            operator_token.into(),
+            right,
+        ))
     }
 
     fn parse_unary_expression_or_higher(&mut self) -> Expression {
@@ -455,6 +456,9 @@ impl ParserType {
     fn parse_primary_expression(&mut self) -> Expression {
         match self.token() {
             SyntaxKind::NumericLiteral => return self.parse_literal_node().into(),
+            SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => {
+                return self.parse_token_node().into()
+            }
             _ => (),
         }
 
