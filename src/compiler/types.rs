@@ -2,6 +2,7 @@
 
 use bitflags::bitflags;
 use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -85,6 +86,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn kind(&self) -> SyntaxKind;
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
+    fn symbol(&self) -> Rc<Symbol>;
+    fn set_symbol(&self, symbol: Rc<Symbol>);
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable>;
     fn set_locals(&self, locals: SymbolTable);
 }
@@ -232,6 +235,36 @@ impl NodeInterface for Node {
         }
     }
 
+    fn symbol(&self) -> Rc<Symbol> {
+        match self {
+            Node::BaseNode(base_node) => base_node.symbol(),
+            Node::VariableDeclaration(variable_declaration) => variable_declaration.symbol(),
+            Node::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.symbol()
+            }
+            Node::TypeNode(type_node) => type_node.symbol(),
+            Node::Expression(expression) => expression.symbol(),
+            Node::Statement(statement) => statement.symbol(),
+            Node::SourceFile(source_file) => source_file.symbol(),
+        }
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        match self {
+            Node::BaseNode(base_node) => base_node.set_symbol(symbol),
+            Node::VariableDeclaration(variable_declaration) => {
+                variable_declaration.set_symbol(symbol)
+            }
+            Node::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.set_symbol(symbol)
+            }
+            Node::TypeNode(type_node) => type_node.set_symbol(symbol),
+            Node::Expression(expression) => expression.set_symbol(symbol),
+            Node::Statement(statement) => statement.set_symbol(symbol),
+            Node::SourceFile(source_file) => source_file.set_symbol(symbol),
+        }
+    }
+
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
         match self {
             Node::BaseNode(base_node) => base_node.locals(),
@@ -269,6 +302,7 @@ pub struct BaseNode {
     pub parent: RwLock<Option<Weak<Node>>>,
     pub pos: AtomicUsize,
     pub end: AtomicUsize,
+    pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RwLock<Option<SymbolTable>>,
 }
 
@@ -279,6 +313,7 @@ impl BaseNode {
             parent: RwLock::new(None),
             pos: pos.into(),
             end: end.into(),
+            symbol: RefCell::new(None),
             locals: RwLock::new(None),
         }
     }
@@ -301,6 +336,14 @@ impl NodeInterface for BaseNode {
 
     fn set_parent(&self, parent: Rc<Node>) {
         *self.parent.try_write().unwrap() = Some(Rc::downgrade(&parent));
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        self.symbol.borrow().unwrap().upgrade().unwrap().clone()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        *self.symbol.borrow_mut() = Some(Rc::downgrade(&symbol));
     }
 
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
@@ -419,6 +462,14 @@ impl NodeInterface for Identifier {
         self._node.set_parent(parent)
     }
 
+    fn symbol(&self) -> Rc<Symbol> {
+        self._node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._node.set_symbol(symbol);
+    }
+
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
         self._node.locals()
     }
@@ -487,6 +538,14 @@ impl NodeInterface for BaseNamedDeclaration {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        self._node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._node.set_symbol(symbol);
     }
 
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
@@ -560,6 +619,14 @@ impl NodeInterface for BaseBindingLikeDeclaration {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._named_declaration.set_parent(parent)
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        self._named_declaration.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._named_declaration.set_symbol(symbol);
     }
 
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
@@ -645,6 +712,14 @@ impl NodeInterface for BaseVariableLikeDeclaration {
         self._binding_like_declaration.set_parent(parent)
     }
 
+    fn symbol(&self) -> Rc<Symbol> {
+        self._binding_like_declaration.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._binding_like_declaration.set_symbol(symbol);
+    }
+
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
         self._binding_like_declaration.locals()
     }
@@ -726,6 +801,14 @@ impl NodeInterface for VariableDeclaration {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._variable_like_declaration.set_parent(parent)
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        self._variable_like_declaration.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._variable_like_declaration.set_symbol(symbol);
     }
 
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
@@ -819,6 +902,14 @@ impl NodeInterface for VariableDeclarationList {
         self._node.set_parent(parent)
     }
 
+    fn symbol(&self) -> Rc<Symbol> {
+        self._node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._node.set_symbol(symbol);
+    }
+
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
         self._node.locals()
     }
@@ -885,6 +976,18 @@ impl NodeInterface for TypeNode {
     fn set_parent(&self, parent: Rc<Node>) {
         match self {
             TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.set_parent(parent),
+        }
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        match self {
+            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.symbol(),
+        }
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        match self {
+            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.set_symbol(symbol),
         }
     }
 
@@ -955,6 +1058,14 @@ impl NodeInterface for KeywordTypeNode {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        self._node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._node.set_symbol(symbol);
     }
 
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
@@ -1039,6 +1150,30 @@ impl NodeInterface for Expression {
             }
             Expression::BinaryExpression(binary_expression) => binary_expression.set_parent(parent),
             Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_parent(parent),
+        }
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.symbol(),
+            Expression::Identifier(identifier) => identifier.symbol(),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.symbol()
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.symbol(),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.symbol(),
+        }
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.set_symbol(symbol),
+            Expression::Identifier(identifier) => identifier.set_symbol(symbol),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.set_symbol(symbol)
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.set_symbol(symbol),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_symbol(symbol),
         }
     }
 
@@ -1159,6 +1294,14 @@ impl NodeInterface for PrefixUnaryExpression {
         self._node.set_parent(parent)
     }
 
+    fn symbol(&self) -> Rc<Symbol> {
+        self._node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._node.set_symbol(symbol);
+    }
+
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
         self._node.locals()
     }
@@ -1229,6 +1372,14 @@ impl NodeInterface for BinaryExpression {
         self._node.set_parent(parent)
     }
 
+    fn symbol(&self) -> Rc<Symbol> {
+        self._node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._node.set_symbol(symbol);
+    }
+
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
         self._node.locals()
     }
@@ -1279,6 +1430,14 @@ impl NodeInterface for BaseLiteralLikeNode {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        self._node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._node.set_symbol(symbol);
     }
 
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
@@ -1333,6 +1492,18 @@ impl NodeInterface for LiteralLikeNode {
     fn set_parent(&self, parent: Rc<Node>) {
         match self {
             LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_parent(parent),
+        }
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.symbol(),
+        }
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_symbol(symbol),
         }
     }
 
@@ -1414,6 +1585,14 @@ impl NodeInterface for NumericLiteral {
         self._literal_like_node.set_parent(parent)
     }
 
+    fn symbol(&self) -> Rc<Symbol> {
+        self._literal_like_node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._literal_like_node.set_symbol(symbol);
+    }
+
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
         self._literal_like_node.locals()
     }
@@ -1485,6 +1664,26 @@ impl NodeInterface for Statement {
             }
             Statement::ExpressionStatement(expression_statement) => {
                 expression_statement.set_parent(parent)
+            }
+        }
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.symbol(),
+            Statement::VariableStatement(variable_statement) => variable_statement.symbol(),
+            Statement::ExpressionStatement(expression_statement) => expression_statement.symbol(),
+        }
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.set_symbol(symbol),
+            Statement::VariableStatement(variable_statement) => {
+                variable_statement.set_symbol(symbol)
+            }
+            Statement::ExpressionStatement(expression_statement) => {
+                expression_statement.set_symbol(symbol)
             }
         }
     }
@@ -1572,6 +1771,14 @@ impl NodeInterface for EmptyStatement {
         self._node.set_parent(parent)
     }
 
+    fn symbol(&self) -> Rc<Symbol> {
+        self._node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._node.set_symbol(symbol);
+    }
+
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
         self._node.locals()
     }
@@ -1633,6 +1840,14 @@ impl NodeInterface for VariableStatement {
         self._node.set_parent(parent)
     }
 
+    fn symbol(&self) -> Rc<Symbol> {
+        self._node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._node.set_symbol(symbol);
+    }
+
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
         self._node.locals()
     }
@@ -1683,6 +1898,14 @@ impl NodeInterface for ExpressionStatement {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        self._node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._node.set_symbol(symbol);
     }
 
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
@@ -1737,6 +1960,14 @@ impl NodeInterface for SourceFile {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        self._node.symbol()
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        self._node.set_symbol(symbol);
     }
 
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {

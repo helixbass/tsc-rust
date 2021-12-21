@@ -115,6 +115,11 @@ impl BinderType {
         self.Symbol()(flags, name)
     }
 
+    fn add_declaration_to_symbol(&self, symbol: Rc<Symbol>, node: Rc<Node /*Declaration*/>) {
+        node.set_symbol(symbol.clone());
+        symbol.set_declarations(append_if_unique(symbol.declarations(), node));
+    }
+
     fn get_declaration_name(&self, node: Rc<Node>) -> Option<__String> {
         let name = get_name_of_declaration(node);
         if let Some(name) = name {
@@ -144,8 +149,11 @@ impl BinderType {
                 }
             }
         }
+        let symbol = symbol.unwrap();
 
-        symbol.unwrap()
+        self.add_declaration_to_symbol(symbol.clone(), node);
+
+        symbol
     }
 
     fn bind_container(&self, node: Rc<Node>, container_flags: ContainerFlags) {

@@ -14,7 +14,7 @@ use crate::{
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
     Identifier, KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface, Node, NodeArray,
     NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OperatorPrecedence, ReadonlyTextRange,
-    Scanner, SourceFile, Statement, SymbolTable, SyntaxKind, TypeNode, VariableDeclaration,
+    Scanner, SourceFile, Statement, Symbol, SymbolTable, SyntaxKind, TypeNode, VariableDeclaration,
     VariableDeclarationList, VariableLikeDeclarationInterface,
 };
 
@@ -105,6 +105,18 @@ impl NodeInterface for MissingNode {
     fn set_parent(&self, parent: Rc<Node>) {
         match self {
             MissingNode::Identifier(identifier) => identifier.set_parent(parent),
+        }
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.symbol(),
+        }
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.set_symbol(symbol),
         }
     }
 
