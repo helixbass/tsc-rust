@@ -28,6 +28,8 @@ pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
     NumericLiteral,
+    StringLiteral,
+    NoSubstitutionTemplateLiteral,
     CloseBraceToken,
     SemicolonToken,
     AsteriskToken,
@@ -35,6 +37,7 @@ pub enum SyntaxKind {
     ColonToken,
     EqualsToken,
     Identifier,
+    PrivateIdentifier,
     ConstKeyword,
     FalseKeyword,
     TrueKeyword,
@@ -95,6 +98,35 @@ pub enum Node {
     Expression(Expression),
     Statement(Statement),
     SourceFile(Rc<SourceFile>),
+}
+
+impl Node {
+    pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
+        match self {
+            Node::VariableDeclaration(variable_declaration) => variable_declaration,
+            _ => panic!("Expected named declaration"),
+        }
+    }
+
+    pub fn as_member_name(&self) -> &dyn MemberNameInterface {
+        match self {
+            Node::Expression(expression) => match expression {
+                Expression::Identifier(identifier) => identifier,
+                _ => panic!("Expected member name"),
+            },
+            _ => panic!("Expected member name"),
+        }
+    }
+
+    pub fn as_literal_like_node(&self) -> &dyn LiteralLikeNodeInterface {
+        match self {
+            Node::Expression(expression) => match expression {
+                Expression::LiteralLikeNode(literal_like_node) => literal_like_node,
+                _ => panic!("Expected literal like node"),
+            },
+            _ => panic!("Expected literal like node"),
+        }
+    }
 }
 
 impl ReadonlyTextRange for Node {
@@ -361,8 +393,17 @@ impl From<Vec<Rc<Node>>> for NodeArrayOrVec {
 
 #[derive(Debug)]
 pub struct Identifier {
-    pub _node: BaseNode,
-    pub escaped_text: String,
+    _node: BaseNode,
+    pub escaped_text: __String,
+}
+
+impl Identifier {
+    pub fn new(base_node: BaseNode, escaped_text: __String) -> Self {
+        Self {
+            _node: base_node,
+            escaped_text,
+        }
+    }
 }
 
 impl NodeInterface for Identifier {
@@ -403,6 +444,16 @@ impl ReadonlyTextRange for Identifier {
     fn set_end(&self, end: usize) {
         self._node.set_end(end);
     }
+}
+
+impl MemberNameInterface for Identifier {
+    fn escaped_text(&self) -> __String {
+        self.escaped_text.clone()
+    }
+}
+
+pub trait MemberNameInterface: NodeInterface {
+    fn escaped_text(&self) -> __String;
 }
 
 pub trait NamedDeclarationInterface: NodeInterface {
@@ -1758,8 +1809,14 @@ pub struct TypeChecker {
 #[derive(Debug)]
 pub struct Symbol {}
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct __String(String);
+
+impl __String {
+    pub fn new(string: String) -> Self {
+        Self(string)
+    }
+}
 
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 

@@ -5,11 +5,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    create_text_span_from_bounds, insert_sorted, BaseDiagnostic, BaseDiagnosticRelatedInformation,
-    BaseNode, BaseType, Diagnostic, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile, SyntaxKind, TextSpan,
-    TypeFlags,
+    create_text_span_from_bounds, escape_leading_underscores, insert_sorted, is_member_name,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    DiagnosticWithDetachedLocation, DiagnosticWithLocation, Node, NodeInterface, ReadonlyTextRange,
+    SortedArray, SourceFile, SyntaxKind, TextSpan, TypeFlags, __String,
 };
 
 fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceFile> {
@@ -52,6 +52,24 @@ fn get_error_span_for_node<TNode: NodeInterface>(
     let pos = error_node.pos();
 
     create_text_span_from_bounds(pos, error_node.end())
+}
+
+pub fn is_property_name_literal<TNode: NodeInterface>(node: &TNode) -> bool {
+    match node.kind() {
+        SyntaxKind::Identifier
+        | SyntaxKind::StringLiteral
+        | SyntaxKind::NoSubstitutionTemplateLiteral
+        | SyntaxKind::NumericLiteral => true,
+        _ => false,
+    }
+}
+
+pub fn get_escaped_text_of_identifier_or_literal(node: Rc<Node>) -> __String {
+    if is_member_name(&*node) {
+        node.as_member_name().escaped_text()
+    } else {
+        escape_leading_underscores(node.as_literal_like_node().text())
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

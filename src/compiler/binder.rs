@@ -7,7 +7,8 @@ use std::sync::RwLock;
 use crate::{
     for_each, for_each_child, is_binding_pattern, set_parent, Expression, ExpressionStatement,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Statement, Symbol, SymbolTable,
-    SyntaxKind, VariableDeclaration,
+    SyntaxKind, VariableDeclaration, __String, get_escaped_text_of_identifier_or_literal,
+    get_name_of_declaration, is_property_name_literal,
 };
 
 bitflags! {
@@ -70,7 +71,7 @@ impl BinderType {
         self.container.try_read().unwrap().as_ref().unwrap().clone()
     }
 
-    fn container_maybe(&self) -> Option<Rc<Node>> {
+    fn maybe_container(&self) -> Option<Rc<Node>> {
         self.container
             .try_read()
             .unwrap()
@@ -94,12 +95,24 @@ impl BinderType {
         self.set_container(None);
     }
 
-    fn declare_symbol(&self, symbol_table: &SymbolTable, node: Rc<Node /*Declaration*/>) -> Symbol {
+    fn get_declaration_name(&self, node: Rc<Node>) -> Option<__String> {
+        let name = get_name_of_declaration(node);
+        if let Some(name) = name {
+            return if is_property_name_literal(&*name) {
+                Some(get_escaped_text_of_identifier_or_literal(name.clone()))
+            } else {
+                None
+            };
+        }
         unimplemented!()
     }
 
+    fn declare_symbol(&self, symbol_table: &SymbolTable, node: Rc<Node /*Declaration*/>) -> Symbol {
+        let name = self.get_declaration_name(node);
+    }
+
     fn bind_container(&self, node: Rc<Node>, container_flags: ContainerFlags) {
-        let save_container = self.container_maybe();
+        let save_container = self.maybe_container();
 
         if container_flags.intersects(ContainerFlags::IsContainer) {
             self.set_container(Some(node.clone()));
