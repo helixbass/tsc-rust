@@ -9,8 +9,14 @@ use crate::{
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Diagnostic,
     DiagnosticCollection, DiagnosticMessage, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, Node, NodeInterface, ReadonlyTextRange,
-    SortedArray, SourceFile, SyntaxKind, TextSpan, TypeFlags, __String,
+    SortedArray, SourceFile, Symbol, SymbolFlags, SymbolTable, SyntaxKind, TextSpan, TypeFlags,
+    __String,
 };
+
+pub fn create_symbol_table() -> SymbolTable {
+    let result = SymbolTable::new();
+    result
+}
 
 fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceFile> {
     if node.kind() == SyntaxKind::SourceFile {
@@ -157,6 +163,11 @@ impl DiagnosticCollection {
 }
 
 #[allow(non_snake_case)]
+fn Symbol(flags: SymbolFlags, name: __String) -> Symbol {
+    Symbol::new(flags, name)
+}
+
+#[allow(non_snake_case)]
 fn Type(flags: TypeFlags) -> BaseType {
     BaseType { flags }
 }
@@ -193,6 +204,10 @@ impl ObjectAllocator {
 
     pub fn get_source_file_constructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
         Node
+    }
+
+    pub fn get_symbol_constructor(&self) -> fn(SymbolFlags, __String) -> Symbol {
+        Symbol
     }
 
     pub fn get_type_constructor(&self) -> fn(TypeFlags) -> BaseType {

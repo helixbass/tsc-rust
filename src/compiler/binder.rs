@@ -1,14 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use parking_lot::RwLock;
 use std::rc::Rc;
-use std::sync::RwLock;
 
 use crate::{
-    for_each, for_each_child, is_binding_pattern, set_parent, Expression, ExpressionStatement,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Statement, Symbol, SymbolTable,
-    SyntaxKind, VariableDeclaration, __String, get_escaped_text_of_identifier_or_literal,
-    get_name_of_declaration, is_property_name_literal,
+    Symbol, SymbolTable, SyntaxKind, VariableDeclaration, __String, create_symbol_table, for_each,
+    for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
+    is_binding_pattern, is_property_name_literal, object_allocator, set_parent, Expression,
+    ExpressionStatement, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Statement,
+    SymbolFlags,
 };
 
 bitflags! {
@@ -32,10 +33,12 @@ pub fn bind_source_file(file: Rc<Node>) {
     create_binder().call(file);
 }
 
+#[allow(non_snake_case)]
 struct BinderType {
     file: RwLock<Option<Rc</*SourceFile*/ Node>>>,
     parent: RwLock<Option<Rc<Node>>>,
     container: RwLock<Option<Rc<Node>>>,
+    Symbol: RwLock<Option<fn(SymbolFlags, __String) -> Symbol>>,
 }
 
 fn create_binder() -> BinderType {
@@ -43,6 +46,7 @@ fn create_binder() -> BinderType {
         file: RwLock::new(None),
         parent: RwLock::new(None),
         container: RwLock::new(None),
+        Symbol: RwLock::new(None),
     }
 }
 
@@ -83,8 +87,20 @@ impl BinderType {
         *self.container.try_write().unwrap() = container;
     }
 
+    #[allow(non_snake_case)]
+    fn Symbol(&self) -> fn(SymbolFlags, __String) -> Symbol {
+        self.Symbol.try_read().unwrap().unwrap()
+    }
+
+    #[allow(non_snake_case)]
+    fn set_Symbol(&self, Symbol: fn(SymbolFlags, __String) -> Symbol) {
+        *self.Symbol.try_write().unwrap() = Some(Symbol);
+    }
+
     fn bind_source_file(&self, f: Rc<Node>) {
         self.set_file(Some(f.clone()));
+
+        self.set_Symbol(object_allocator.get_symbol_constructor());
 
         if true {
             self.bind(Some(self.file()));
@@ -93,6 +109,10 @@ impl BinderType {
         self.set_file(None);
         self.set_parent(None);
         self.set_container(None);
+    }
+
+    fn create_symbol(&self, flags: SymbolFlags, name: __String) -> Symbol {
+        self.Symbol()(flags, name)
     }
 
     fn get_declaration_name(&self, node: Rc<Node>) -> Option<__String> {
@@ -107,8 +127,25 @@ impl BinderType {
         unimplemented!()
     }
 
-    fn declare_symbol(&self, symbol_table: &SymbolTable, node: Rc<Node /*Declaration*/>) -> Symbol {
+    fn declare_symbol(
+        &self,
+        symbol_table: &mut SymbolTable,
+        node: Rc<Node /*Declaration*/>,
+    ) -> Rc<Symbol> {
         let name = self.get_declaration_name(node);
+
+        let mut symbol = None;
+        match name {
+            None => unimplemented!(),
+            Some(name) => {
+                if true {
+                    symbol = Some(Rc::new(self.create_symbol(SymbolFlags::None, name.clone())));
+                    symbol_table.insert(name, symbol.as_ref().unwrap().clone());
+                }
+            }
+        }
+
+        symbol.unwrap()
     }
 
     fn bind_container(&self, node: Rc<Node>, container_flags: ContainerFlags) {
@@ -116,6 +153,9 @@ impl BinderType {
 
         if container_flags.intersects(ContainerFlags::IsContainer) {
             self.set_container(Some(node.clone()));
+            if container_flags.intersects(ContainerFlags::HasLocals) {
+                self.container().set_locals(create_symbol_table());
+            }
         }
 
         if false {
@@ -157,11 +197,7 @@ impl BinderType {
     }
 
     fn bind_each_child(&self, node: Rc<Node>) {
-        for_each_child(
-            node,
-            |node| self.bind(Some(node)),
-            |nodes| self.bind_each(nodes),
-        );
+        for_each_child(node, |node| self.bind(node), |nodes| self.bind_each(nodes));
     }
 
     fn bind_children(&self, node: Rc<Node>) {
@@ -170,16 +206,27 @@ impl BinderType {
                 Statement::ExpressionStatement(expression_statement) => {
                     self.bind_expression_statement(expression_statement);
                 }
-                _ => unimplemented!(),
+                _ => {
+                    self.bind_each_child(node);
+                }
             },
             Node::Expression(expression) => match expression {
                 Expression::PrefixUnaryExpression(_) => {
                     self.bind_prefix_unary_expression_flow(node);
                 }
-                _ => unimplemented!(),
+                Expression::BinaryExpression(_) => unimplemented!(),
+                _ => {
+                    self.bind_each_child(node);
+                }
             },
             Node::SourceFile(source_file) => {
                 self.bind_each_functions_first(&source_file.statements);
+            }
+            Node::VariableDeclarationList(_) => {
+                self.bind_each_child(node);
+            }
+            Node::VariableDeclaration(_) => {
+                self.bind_variable_declaration_flow(node);
             }
             Node::BaseNode(_) => panic!("Didn't expect to bind BaseNode?"),
             _ => unimplemented!(),
@@ -195,6 +242,10 @@ impl BinderType {
         } else {
             self.bind_each_child(node);
         }
+    }
+
+    fn bind_variable_declaration_flow(&self, node: Rc<Node /*VariableDeclaration*/>) {
+        self.bind_each_child(node);
     }
 
     fn get_container_flags(&self, node: Rc<Node>) -> ContainerFlags {
@@ -213,18 +264,18 @@ impl BinderType {
     fn declare_symbol_and_add_to_symbol_table(
         &self,
         node: Rc<Node /*Declaration*/>,
-    ) -> Option<Symbol> {
+    ) -> Option<Rc<Symbol>> {
         match self.container().kind() {
             SyntaxKind::SourceFile => Some(self.declare_source_file_member(node)),
             _ => unimplemented!(),
         }
     }
 
-    fn declare_source_file_member(&self, node: Rc<Node /*Declaration*/>) -> Symbol {
+    fn declare_source_file_member(&self, node: Rc<Node /*Declaration*/>) -> Rc<Symbol> {
         if false {
             unimplemented!()
         } else {
-            self.declare_symbol(&*self.file().locals(), node)
+            self.declare_symbol(&mut *self.file().locals(), node)
         }
     }
 

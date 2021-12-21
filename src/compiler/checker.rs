@@ -485,7 +485,8 @@ impl TypeChecker {
 
     fn initialize_type_checker<TTypeCheckerHost: TypeCheckerHost>(&self, host: &TTypeCheckerHost) {
         for file in host.get_source_files() {
-            bind_source_file(file);
+            bind_source_file(file.clone());
+            println!("post-binding: {:#?}", file);
         }
     }
 

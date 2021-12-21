@@ -794,7 +794,7 @@ impl From<VariableDeclaration> for Node {
 #[derive(Debug)]
 pub struct VariableDeclarationList {
     _node: BaseNode,
-    declarations: NodeArray, /*<VariableDeclaration>*/
+    pub declarations: NodeArray, /*<VariableDeclaration>*/
 }
 
 impl VariableDeclarationList {
@@ -1806,10 +1806,22 @@ pub struct TypeChecker {
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
 
+bitflags! {
+    pub struct SymbolFlags: u32 {
+        const None = 0;
+    }
+}
+
 #[derive(Debug)]
 pub struct Symbol {}
 
-#[derive(Clone, Debug)]
+impl Symbol {
+    pub fn new(flags: SymbolFlags, name: __String) -> Self {
+        Self {}
+    }
+}
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct __String(String);
 
 impl __String {
@@ -1820,7 +1832,7 @@ impl __String {
 
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
-pub type SymbolTable = UnderscoreEscapedMap<Symbol>;
+pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
 
 bitflags! {
     pub struct TypeFlags: u32 {
