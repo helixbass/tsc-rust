@@ -1813,11 +1813,17 @@ bitflags! {
 }
 
 #[derive(Debug)]
-pub struct Symbol {}
+pub struct Symbol {
+    pub flags: SymbolFlags,
+    pub escaped_name: __String,
+}
 
 impl Symbol {
     pub fn new(flags: SymbolFlags, name: __String) -> Self {
-        Self {}
+        Self {
+            flags,
+            escaped_name: name,
+        }
     }
 }
 
