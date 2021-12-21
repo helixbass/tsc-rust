@@ -8,7 +8,9 @@ mod rust_helpers;
 pub use compiler::binder::bind_source_file;
 pub use compiler::checker::create_type_checker;
 pub use compiler::command_line_parser::parse_command_line;
-pub use compiler::core::{concatenate, for_each, insert_sorted, last_or_undefined};
+pub use compiler::core::{
+    append_if_unique, concatenate, for_each, insert_sorted, last_or_undefined,
+};
 pub use compiler::core_public::SortedArray;
 pub use compiler::debug::Debug_;
 pub use compiler::diagnostic_information_map_generated::Diagnostics;

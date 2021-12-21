@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
+use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
@@ -339,7 +339,7 @@ impl NodeInterface for BaseNode {
     }
 
     fn symbol(&self) -> Rc<Symbol> {
-        self.symbol.borrow().unwrap().upgrade().unwrap().clone()
+        self.symbol.borrow().as_ref().unwrap().upgrade().unwrap()
     }
 
     fn set_symbol(&self, symbol: Rc<Symbol>) {
@@ -2047,6 +2047,7 @@ bitflags! {
 pub struct Symbol {
     pub flags: SymbolFlags,
     pub escaped_name: __String,
+    declarations: RwLock<Option<Vec<Rc<Node /*Declaration*/>>>>,
 }
 
 impl Symbol {
@@ -2054,7 +2055,16 @@ impl Symbol {
         Self {
             flags,
             escaped_name: name,
+            declarations: RwLock::new(None),
         }
+    }
+
+    pub fn maybe_declarations(&self) -> RwLockReadGuard<Option<Vec<Rc<Node>>>> {
+        self.declarations.try_read().unwrap()
+    }
+
+    pub fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
+        *self.declarations.try_write().unwrap() = Some(declarations);
     }
 }
 

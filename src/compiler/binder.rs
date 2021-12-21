@@ -5,11 +5,11 @@ use parking_lot::RwLock;
 use std::rc::Rc;
 
 use crate::{
-    Symbol, SymbolTable, SyntaxKind, VariableDeclaration, __String, create_symbol_table, for_each,
-    for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
-    is_binding_pattern, is_property_name_literal, object_allocator, set_parent, Expression,
-    ExpressionStatement, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Statement,
-    SymbolFlags,
+    Symbol, SymbolTable, SyntaxKind, VariableDeclaration, __String, append_if_unique,
+    create_symbol_table, for_each, for_each_child, get_escaped_text_of_identifier_or_literal,
+    get_name_of_declaration, is_binding_pattern, is_property_name_literal, object_allocator,
+    set_parent, Expression, ExpressionStatement, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, Statement, SymbolFlags,
 };
 
 bitflags! {
@@ -117,7 +117,13 @@ impl BinderType {
 
     fn add_declaration_to_symbol(&self, symbol: Rc<Symbol>, node: Rc<Node /*Declaration*/>) {
         node.set_symbol(symbol.clone());
-        symbol.set_declarations(append_if_unique(symbol.declarations(), node));
+        let declarations = {
+            append_if_unique(
+                symbol.maybe_declarations().as_ref().map(|vec| vec.clone()),
+                node,
+            )
+        };
+        symbol.set_declarations(declarations);
     }
 
     fn get_declaration_name(&self, node: Rc<Node>) -> Option<__String> {
@@ -137,7 +143,7 @@ impl BinderType {
         symbol_table: &mut SymbolTable,
         node: Rc<Node /*Declaration*/>,
     ) -> Rc<Symbol> {
-        let name = self.get_declaration_name(node);
+        let name = self.get_declaration_name(node.clone());
 
         let mut symbol = None;
         match name {
