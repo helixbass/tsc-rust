@@ -44,6 +44,7 @@ pub enum SyntaxKind {
     PrefixUnaryExpression,
     BinaryExpression,
     EmptyStatement,
+    VariableStatement,
     ExpressionStatement,
     VariableDeclaration,
     VariableDeclarationList,
@@ -96,6 +97,11 @@ impl ReadonlyTextRange for Node {
     fn pos(&self) -> usize {
         match self {
             Node::BaseNode(base_node) => base_node.pos(),
+            Node::VariableDeclaration(variable_declaration) => variable_declaration.pos(),
+            Node::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.pos()
+            }
+            Node::TypeNode(type_node) => type_node.pos(),
             Node::Expression(expression) => expression.pos(),
             Node::Statement(statement) => statement.pos(),
             Node::SourceFile(source_file) => source_file.pos(),
@@ -105,6 +111,11 @@ impl ReadonlyTextRange for Node {
     fn set_pos(&self, pos: usize) {
         match self {
             Node::BaseNode(base_node) => base_node.set_pos(pos),
+            Node::VariableDeclaration(variable_declaration) => variable_declaration.set_pos(pos),
+            Node::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.set_pos(pos)
+            }
+            Node::TypeNode(type_node) => type_node.set_pos(pos),
             Node::Expression(expression) => expression.set_pos(pos),
             Node::Statement(statement) => statement.set_pos(pos),
             Node::SourceFile(source_file) => source_file.set_pos(pos),
@@ -114,6 +125,11 @@ impl ReadonlyTextRange for Node {
     fn end(&self) -> usize {
         match self {
             Node::BaseNode(base_node) => base_node.end(),
+            Node::VariableDeclaration(variable_declaration) => variable_declaration.end(),
+            Node::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.end()
+            }
+            Node::TypeNode(type_node) => type_node.end(),
             Node::Expression(expression) => expression.end(),
             Node::Statement(statement) => statement.end(),
             Node::SourceFile(source_file) => source_file.end(),
@@ -123,6 +139,11 @@ impl ReadonlyTextRange for Node {
     fn set_end(&self, end: usize) {
         match self {
             Node::BaseNode(base_node) => base_node.set_end(end),
+            Node::VariableDeclaration(variable_declaration) => variable_declaration.set_end(end),
+            Node::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.set_end(end)
+            }
+            Node::TypeNode(type_node) => type_node.set_end(end),
             Node::Expression(expression) => expression.set_end(end),
             Node::Statement(statement) => statement.set_end(end),
             Node::SourceFile(source_file) => source_file.set_end(end),
@@ -134,6 +155,11 @@ impl NodeInterface for Node {
     fn kind(&self) -> SyntaxKind {
         match self {
             Node::BaseNode(base_node) => base_node.kind(),
+            Node::VariableDeclaration(variable_declaration) => variable_declaration.kind(),
+            Node::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.kind()
+            }
+            Node::TypeNode(type_node) => type_node.kind(),
             Node::Expression(expression) => expression.kind(),
             Node::Statement(statement) => statement.kind(),
             Node::SourceFile(source_file) => source_file.kind(),
@@ -143,6 +169,11 @@ impl NodeInterface for Node {
     fn parent(&self) -> Rc<Node> {
         match self {
             Node::BaseNode(base_node) => base_node.parent(),
+            Node::VariableDeclaration(variable_declaration) => variable_declaration.parent(),
+            Node::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.parent()
+            }
+            Node::TypeNode(type_node) => type_node.parent(),
             Node::Expression(expression) => expression.parent(),
             Node::Statement(statement) => statement.parent(),
             Node::SourceFile(source_file) => source_file.parent(),
@@ -152,6 +183,13 @@ impl NodeInterface for Node {
     fn set_parent(&self, parent: Rc<Node>) {
         match self {
             Node::BaseNode(base_node) => base_node.set_parent(parent),
+            Node::VariableDeclaration(variable_declaration) => {
+                variable_declaration.set_parent(parent)
+            }
+            Node::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.set_parent(parent)
+            }
+            Node::TypeNode(type_node) => type_node.set_parent(parent),
             Node::Expression(expression) => expression.set_parent(parent),
             Node::Statement(statement) => statement.set_parent(parent),
             Node::SourceFile(source_file) => source_file.set_parent(parent),
@@ -315,7 +353,7 @@ impl ReadonlyTextRange for Identifier {
 
 pub trait NamedDeclarationInterface: NodeInterface {
     fn name(&self) -> Rc<Node>;
-    fn set_name(&self, name: Rc<Node>);
+    fn set_name(&mut self, name: Rc<Node>);
 }
 
 #[derive(Debug)]
@@ -367,17 +405,17 @@ impl ReadonlyTextRange for BaseNamedDeclaration {
 
 impl NamedDeclarationInterface for BaseNamedDeclaration {
     fn name(&self) -> Rc<Node> {
-        self.name.unwrap().clone()
+        self.name.as_ref().unwrap().clone()
     }
 
-    fn set_name(&self, name: Rc<Node>) {
+    fn set_name(&mut self, name: Rc<Node>) {
         self.name = Some(name);
     }
 }
 
 pub trait BindingLikeDeclarationInterface: NamedDeclarationInterface {
     fn initializer(&self) -> Option<Rc<Node>>;
-    fn set_initializer(&self, initializer: Rc<Node>);
+    fn set_initializer(&mut self, initializer: Rc<Node>);
 }
 
 #[derive(Debug)]
@@ -435,7 +473,7 @@ impl NamedDeclarationInterface for BaseBindingLikeDeclaration {
         self._named_declaration.name()
     }
 
-    fn set_name(&self, name: Rc<Node>) {
+    fn set_name(&mut self, name: Rc<Node>) {
         self._named_declaration.set_name(name);
     }
 }
@@ -445,14 +483,14 @@ impl BindingLikeDeclarationInterface for BaseBindingLikeDeclaration {
         self.initializer.as_ref().map(Clone::clone)
     }
 
-    fn set_initializer(&self, initializer: Rc<Node>) {
+    fn set_initializer(&mut self, initializer: Rc<Node>) {
         self.initializer = Some(initializer);
     }
 }
 
 pub trait VariableLikeDeclarationInterface: BindingLikeDeclarationInterface {
     fn type_(&self) -> Option<Rc<Node>>;
-    fn set_type(&self, type_: Rc<Node>);
+    fn set_type(&mut self, type_: Rc<Node>);
 }
 
 #[derive(Debug)]
@@ -510,7 +548,7 @@ impl NamedDeclarationInterface for BaseVariableLikeDeclaration {
         self._binding_like_declaration.name()
     }
 
-    fn set_name(&self, name: Rc<Node>) {
+    fn set_name(&mut self, name: Rc<Node>) {
         self._binding_like_declaration.set_name(name);
     }
 }
@@ -520,7 +558,7 @@ impl BindingLikeDeclarationInterface for BaseVariableLikeDeclaration {
         self._binding_like_declaration.initializer()
     }
 
-    fn set_initializer(&self, initializer: Rc<Node>) {
+    fn set_initializer(&mut self, initializer: Rc<Node>) {
         self._binding_like_declaration.set_initializer(initializer);
     }
 }
@@ -530,7 +568,7 @@ impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {
         self.type_.as_ref().map(Clone::clone)
     }
 
-    fn set_type(&self, type_: Rc<Node>) {
+    fn set_type(&mut self, type_: Rc<Node>) {
         self.type_ = Some(type_);
     }
 }
@@ -585,7 +623,7 @@ impl NamedDeclarationInterface for VariableDeclaration {
         self._variable_like_declaration.name()
     }
 
-    fn set_name(&self, name: Rc<Node>) {
+    fn set_name(&mut self, name: Rc<Node>) {
         self._variable_like_declaration.set_name(name);
     }
 }
@@ -595,7 +633,7 @@ impl BindingLikeDeclarationInterface for VariableDeclaration {
         self._variable_like_declaration.initializer()
     }
 
-    fn set_initializer(&self, initializer: Rc<Node>) {
+    fn set_initializer(&mut self, initializer: Rc<Node>) {
         self._variable_like_declaration.set_initializer(initializer);
     }
 }
@@ -605,7 +643,7 @@ impl VariableLikeDeclarationInterface for VariableDeclaration {
         self._variable_like_declaration.type_()
     }
 
-    fn set_type(&self, type_: Rc<Node>) {
+    fn set_type(&mut self, type_: Rc<Node>) {
         self._variable_like_declaration.set_type(type_);
     }
 }
@@ -1185,6 +1223,7 @@ impl LiteralLikeNodeInterface for NumericLiteral {
 #[derive(Debug)]
 pub enum Statement {
     EmptyStatement(EmptyStatement),
+    VariableStatement(VariableStatement),
     ExpressionStatement(ExpressionStatement),
 }
 
@@ -1192,6 +1231,7 @@ impl NodeInterface for Statement {
     fn kind(&self) -> SyntaxKind {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.kind(),
+            Statement::VariableStatement(variable_statement) => variable_statement.kind(),
             Statement::ExpressionStatement(expression_statement) => expression_statement.kind(),
         }
     }
@@ -1199,6 +1239,7 @@ impl NodeInterface for Statement {
     fn parent(&self) -> Rc<Node> {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.parent(),
+            Statement::VariableStatement(variable_statement) => variable_statement.parent(),
             Statement::ExpressionStatement(expression_statement) => expression_statement.parent(),
         }
     }
@@ -1206,6 +1247,9 @@ impl NodeInterface for Statement {
     fn set_parent(&self, parent: Rc<Node>) {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.set_parent(parent),
+            Statement::VariableStatement(variable_statement) => {
+                variable_statement.set_parent(parent)
+            }
             Statement::ExpressionStatement(expression_statement) => {
                 expression_statement.set_parent(parent)
             }
@@ -1217,6 +1261,7 @@ impl ReadonlyTextRange for Statement {
     fn pos(&self) -> usize {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.pos(),
+            Statement::VariableStatement(variable_statement) => variable_statement.pos(),
             Statement::ExpressionStatement(expression_statement) => expression_statement.pos(),
         }
     }
@@ -1224,6 +1269,7 @@ impl ReadonlyTextRange for Statement {
     fn set_pos(&self, pos: usize) {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.set_pos(pos),
+            Statement::VariableStatement(variable_statement) => variable_statement.set_pos(pos),
             Statement::ExpressionStatement(expression_statement) => {
                 expression_statement.set_pos(pos)
             }
@@ -1233,6 +1279,7 @@ impl ReadonlyTextRange for Statement {
     fn end(&self) -> usize {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.end(),
+            Statement::VariableStatement(variable_statement) => variable_statement.end(),
             Statement::ExpressionStatement(expression_statement) => expression_statement.end(),
         }
     }
@@ -1240,6 +1287,7 @@ impl ReadonlyTextRange for Statement {
     fn set_end(&self, end: usize) {
         match self {
             Statement::EmptyStatement(empty_statement) => empty_statement.set_end(end),
+            Statement::VariableStatement(variable_statement) => variable_statement.set_end(end),
             Statement::ExpressionStatement(expression_statement) => {
                 expression_statement.set_end(end)
             }
@@ -1293,6 +1341,59 @@ impl ReadonlyTextRange for EmptyStatement {
 impl From<EmptyStatement> for Statement {
     fn from(empty_statement: EmptyStatement) -> Self {
         Statement::EmptyStatement(empty_statement)
+    }
+}
+
+#[derive(Debug)]
+pub struct VariableStatement {
+    _node: BaseNode,
+    pub declaration_list: Rc</*VariableDeclarationList*/ Node>,
+}
+
+impl VariableStatement {
+    pub fn new(base_node: BaseNode, declaration_list: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            declaration_list,
+        }
+    }
+}
+
+impl NodeInterface for VariableStatement {
+    fn kind(&self) -> SyntaxKind {
+        self._node.kind()
+    }
+
+    fn parent(&self) -> Rc<Node> {
+        self._node.parent()
+    }
+
+    fn set_parent(&self, parent: Rc<Node>) {
+        self._node.set_parent(parent)
+    }
+}
+
+impl ReadonlyTextRange for VariableStatement {
+    fn pos(&self) -> usize {
+        self._node.pos()
+    }
+
+    fn set_pos(&self, pos: usize) {
+        self._node.set_pos(pos);
+    }
+
+    fn end(&self) -> usize {
+        self._node.end()
+    }
+
+    fn set_end(&self, end: usize) {
+        self._node.set_end(end);
+    }
+}
+
+impl From<VariableStatement> for Statement {
+    fn from(variable_statement: VariableStatement) -> Self {
+        Statement::VariableStatement(variable_statement)
     }
 }
 
@@ -1961,6 +2062,8 @@ impl CharacterCodes {
     pub const Z: char = 'Z';
 
     pub const asterisk: char = '*';
+    pub const colon: char = ':';
+    pub const equals: char = '=';
     pub const plus: char = '+';
     pub const semicolon: char = ';';
     pub const slash: char = '/';

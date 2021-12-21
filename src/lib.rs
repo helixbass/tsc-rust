@@ -34,6 +34,7 @@ pub use compiler::types::{
     Statement, StructureIsReused, SyntaxKind, Ternary, TextSpan, TokenFlags, Type, TypeChecker,
     TypeCheckerHost, TypeFlags, TypeInterface, TypeNode, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration, VariableDeclarationList,
+    VariableStatement,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,

@@ -5,7 +5,7 @@ use crate::{
     BaseNodeFactory, BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression,
     ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NumericLiteral, PrefixUnaryExpression, SourceFile, SyntaxKind, VariableDeclaration,
-    VariableDeclarationList,
+    VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -161,6 +161,16 @@ impl NodeFactory {
     ) -> BinaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::BinaryExpression);
         let node = BinaryExpression::new(node, left, operator, right);
+        node
+    }
+
+    pub fn create_variable_statement<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        declaration_list: VariableDeclarationList,
+    ) -> VariableStatement {
+        let node = self.create_base_declaration(base_factory, SyntaxKind::VariableStatement);
+        let node = VariableStatement::new(node, Rc::new(declaration_list.into()));
         node
     }
 

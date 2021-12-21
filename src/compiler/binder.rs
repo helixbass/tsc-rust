@@ -134,6 +134,7 @@ impl BinderType {
                 self.bind_each_functions_first(&source_file.statements);
             }
             Node::BaseNode(_) => panic!("Didn't expect to bind BaseNode?"),
+            _ => unimplemented!(),
         };
     }
 

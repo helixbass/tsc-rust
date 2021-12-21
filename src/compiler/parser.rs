@@ -317,8 +317,8 @@ impl ParserType {
         self.current_token()
     }
 
-    fn next_token_without_check(&mut self) -> SyntaxKind {
-        let current_token = self.scanner_mut().scan();
+    fn next_token_without_check(&self) -> SyntaxKind {
+        let current_token = self.scanner().scan();
         self.set_current_token(current_token);
         self.current_token()
     }
@@ -328,7 +328,7 @@ impl ParserType {
         func(self)
     }
 
-    fn next_token(&mut self) -> SyntaxKind {
+    fn next_token(&self) -> SyntaxKind {
         self.next_token_without_check()
     }
 
@@ -343,9 +343,9 @@ impl ParserType {
             self.parse_error_before_next_finished_node();
 
         let result = if speculation_kind != SpeculationKind::TryParse {
-            self.scanner_mut().look_ahead(callback)
+            self.scanner().look_ahead(callback)
         } else {
-            self.scanner_mut().try_scan(callback)
+            self.scanner().try_scan(callback)
         };
 
         if result.is_none() || speculation_kind != SpeculationKind::TryParse {
@@ -412,7 +412,7 @@ impl ParserType {
         unimplemented!()
     }
 
-    fn parse_optional(&self, t: SyntaxKind) -> bool {
+    fn parse_optional(&mut self, t: SyntaxKind) -> bool {
         if self.token() == t {
             self.next_token();
             return true;
@@ -420,7 +420,7 @@ impl ParserType {
         false
     }
 
-    fn parse_token_node(&mut self) -> BaseNode {
+    fn parse_token_node(&self) -> BaseNode {
         let pos = self.get_node_pos();
         let kind = self.token();
         self.next_token();
@@ -459,7 +459,7 @@ impl ParserType {
     }
 
     fn finish_node<TParsedNode: NodeInterface>(
-        &mut self,
+        &self,
         mut node: TParsedNode,
         pos: usize,
         end: Option<usize>,
@@ -500,7 +500,7 @@ impl ParserType {
     ) -> Identifier {
         if is_identifier {
             let pos = self.get_node_pos();
-            let text = self.intern_identifier(self.scanner().get_token_value());
+            let text = self.intern_identifier(&self.scanner().get_token_value());
             self.next_token_without_check();
             return self.finish_node(self.factory.create_identifier(self, &text), pos, None);
         }
@@ -527,6 +527,9 @@ impl ParserType {
     fn is_list_element(&mut self, kind: ParsingContext) -> bool {
         match kind {
             ParsingContext::SourceElements => self.is_start_of_statement(),
+            ParsingContext::VariableDeclarations => {
+                self.is_binding_identifier_or_private_identifier_or_pattern()
+            }
             _ => unimplemented!(),
         }
     }
@@ -548,7 +551,7 @@ impl ParserType {
     ) -> NodeArray {
         let save_parsing_context = self.parsing_context();
         self.set_parsing_context(self.parsing_context() | kind);
-        let list: Vec<Node> = vec![];
+        let mut list: Vec<Node> = vec![];
         let list_pos = self.get_node_pos();
 
         loop {
@@ -614,7 +617,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         let node: LiteralLikeNode = if kind == SyntaxKind::NumericLiteral {
             self.factory
-                .create_numeric_literal(self, self.scanner().get_token_value())
+                .create_numeric_literal(self, &self.scanner().get_token_value())
                 .into()
         } else {
             Debug_.fail(None)
@@ -667,11 +670,11 @@ impl ParserType {
         self.parse_union_or_intersection_type(ParserType::parse_type_operator_or_higher)
     }
 
-    fn parse_union_type_or_higher(&self) -> TypeNode {
+    fn parse_union_type_or_higher(&mut self) -> TypeNode {
         self.parse_union_or_intersection_type(ParserType::parse_intersection_type_or_higher)
     }
 
-    fn parse_type(&self) -> TypeNode {
+    fn parse_type(&mut self) -> TypeNode {
         self.do_outside_of_context(NodeFlags::TypeExcludesFlags, ParserType::parse_type_worker)
     }
 
@@ -681,7 +684,7 @@ impl ParserType {
         type_
     }
 
-    fn parse_type_annotation(&self) -> Option<TypeNode> {
+    fn parse_type_annotation(&mut self) -> Option<TypeNode> {
         if self.parse_optional(SyntaxKind::ColonToken) {
             Some(self.parse_type())
         } else {
@@ -915,7 +918,7 @@ impl ParserType {
         return self.parse_expression_or_labeled_statement();
     }
 
-    fn parse_declaration(&self) -> Statement {
+    fn parse_declaration(&mut self) -> Statement {
         let pos = self.get_node_pos();
         if false {
             unimplemented!()
@@ -924,18 +927,22 @@ impl ParserType {
         }
     }
 
-    fn parse_declaration_worker(&self, pos: usize) -> Statement {
+    fn parse_declaration_worker(&mut self, pos: usize) -> Statement {
         match self.token() {
             SyntaxKind::ConstKeyword => self.parse_variable_statement(pos),
             _ => unimplemented!(),
         }
     }
 
-    fn parse_identifier_or_pattern(&self) -> Rc<Node> {
+    fn is_binding_identifier_or_private_identifier_or_pattern(&self) -> bool {
+        self.is_binding_identifier()
+    }
+
+    fn parse_identifier_or_pattern(&mut self) -> Rc<Node> {
         Rc::new(self.parse_binding_identifier().into())
     }
 
-    fn parse_variable_declaration_no_exclamation(&self) -> VariableDeclaration {
+    fn parse_variable_declaration_no_exclamation(&mut self) -> VariableDeclaration {
         self.parse_variable_declaration(false)
     }
 
@@ -943,7 +950,7 @@ impl ParserType {
         self.parse_variable_declaration(true)
     }
 
-    fn parse_variable_declaration(&self, allow_exclamation: bool) -> VariableDeclaration {
+    fn parse_variable_declaration(&mut self, allow_exclamation: bool) -> VariableDeclaration {
         let pos = self.get_node_pos();
         let name = self.parse_identifier_or_pattern();
         let type_ = self.parse_type_annotation();
@@ -961,7 +968,7 @@ impl ParserType {
         self.finish_node(node, pos, None)
     }
 
-    fn parse_variable_declaration_list(&self) -> VariableDeclarationList {
+    fn parse_variable_declaration_list(&mut self) -> VariableDeclarationList {
         let pos = self.get_node_pos();
 
         let mut flags = NodeFlags::None;
@@ -976,6 +983,7 @@ impl ParserType {
 
         let declarations: NodeArray;
         if false {
+            unimplemented!()
         } else {
             declarations = self.parse_delimited_list(
                 ParsingContext::VariableDeclarations,
@@ -991,11 +999,13 @@ impl ParserType {
         )
     }
 
-    fn parse_variable_statement(&self, pos: usize) -> Statement {
+    fn parse_variable_statement(&mut self, pos: usize) -> Statement {
         let declaration_list = self.parse_variable_declaration_list();
         self.parse_semicolon();
-        let node = self.factory.create_variable_statement(declaration_list);
-        self.finish_node(node, pos, None)
+        let node = self
+            .factory
+            .create_variable_statement(self, declaration_list);
+        self.finish_node(node.into(), pos, None)
     }
 }
 
