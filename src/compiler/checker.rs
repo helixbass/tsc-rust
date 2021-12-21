@@ -10,9 +10,10 @@ use crate::{
     Diagnostic, DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression,
     ExpressionStatement, FreshableIntrinsicType, IntrinsicType, LiteralLikeNode,
     LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType,
-    NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile, Statement,
+    NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile, Statement, Symbol,
     SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration,
+    VariableLikeDeclarationInterface, VariableStatement,
 };
 
 bitflags! {
@@ -160,6 +161,14 @@ impl TypeChecker {
     ) -> Rc<Diagnostic> {
         let diagnostic = self.error(Some(location), message);
         diagnostic
+    }
+
+    fn get_merged_symbol(&self, symbol: Option<Rc<Symbol>>) -> Option<Rc<Symbol>> {
+        symbol
+    }
+
+    fn get_symbol_of_node<TNode: NodeInterface>(&self, node: &TNode) -> Option<Rc<Symbol>> {
+        self.get_merged_symbol(node.maybe_symbol())
     }
 
     fn create_type(&self, flags: TypeFlags) -> BaseType {
@@ -364,19 +373,27 @@ impl TypeChecker {
         }
     }
 
-    fn check_source_element(&mut self, node: &Node) {
-        self.check_source_element_worker(node)
+    fn check_source_element(&mut self, node: Option<Rc<Node>>) {
+        if let Some(node) = node {
+            self.check_source_element_worker(&*node);
+        }
     }
 
     fn check_source_element_worker(&mut self, node: &Node) {
         match node {
             Node::Statement(statement) => {
                 match statement {
+                    Statement::VariableStatement(variable_statement) => {
+                        return self.check_variable_statement(variable_statement);
+                    }
                     Statement::ExpressionStatement(expression_statement) => {
                         return self.check_expression_statement(expression_statement);
                     }
                     _ => unimplemented!(),
                 };
+            }
+            Node::VariableDeclaration(variable_declaration) => {
+                return self.check_variable_declaration(variable_declaration);
             }
             _ => unimplemented!(),
         };
@@ -389,7 +406,7 @@ impl TypeChecker {
     fn check_source_file_worker(&mut self, node: &SourceFile) {
         if true {
             for_each(&node.statements, |statement, _index| {
-                self.check_source_element(statement);
+                self.check_source_element(Some(statement.clone()));
                 Option::<()>::None
             });
         }
@@ -473,6 +490,31 @@ impl TypeChecker {
             },
             _ => unimplemented!(),
         }
+    }
+
+    fn check_variable_like_declaration(&mut self, node: &VariableDeclaration) {
+        if true {
+            self.check_source_element(node.type_());
+        }
+
+        let symbol = self.get_symbol_of_node(node);
+    }
+
+    fn check_variable_declaration(&mut self, node: &VariableDeclaration) {
+        self.check_variable_like_declaration(node);
+    }
+
+    fn check_variable_statement(&mut self, node: &VariableStatement) {
+        for_each(
+            &match &*node.declaration_list {
+                Node::VariableDeclarationList(variable_declaration_list) => {
+                    variable_declaration_list
+                }
+                _ => panic!("Expected VariableDeclarationList"),
+            }
+            .declarations,
+            |declaration, _| Some(self.check_source_element(Some(declaration.clone()))),
+        );
     }
 
     fn check_expression_statement(&mut self, node: &ExpressionStatement) {

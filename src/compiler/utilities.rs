@@ -60,6 +60,15 @@ fn get_error_span_for_node<TNode: NodeInterface>(
     create_text_span_from_bounds(pos, error_node.end())
 }
 
+pub fn set_value_declaration(symbol: &Symbol, node: Rc<Node>) {
+    {
+        if !(symbol.maybe_value_declaration().is_none()) {
+            return;
+        }
+    }
+    symbol.set_value_declaration(node);
+}
+
 pub fn is_property_name_literal<TNode: NodeInterface>(node: &TNode) -> bool {
     match node.kind() {
         SyntaxKind::Identifier

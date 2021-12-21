@@ -1,7 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{
+    MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
@@ -86,6 +88,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn kind(&self) -> SyntaxKind;
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
     fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable>;
@@ -235,6 +238,20 @@ impl NodeInterface for Node {
         }
     }
 
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        match self {
+            Node::BaseNode(base_node) => base_node.maybe_symbol(),
+            Node::VariableDeclaration(variable_declaration) => variable_declaration.maybe_symbol(),
+            Node::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.maybe_symbol()
+            }
+            Node::TypeNode(type_node) => type_node.maybe_symbol(),
+            Node::Expression(expression) => expression.maybe_symbol(),
+            Node::Statement(statement) => statement.maybe_symbol(),
+            Node::SourceFile(source_file) => source_file.maybe_symbol(),
+        }
+    }
+
     fn symbol(&self) -> Rc<Symbol> {
         match self {
             Node::BaseNode(base_node) => base_node.symbol(),
@@ -336,6 +353,13 @@ impl NodeInterface for BaseNode {
 
     fn set_parent(&self, parent: Rc<Node>) {
         *self.parent.try_write().unwrap() = Some(Rc::downgrade(&parent));
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self.symbol
+            .borrow()
+            .as_ref()
+            .map(|weak| weak.upgrade().unwrap())
     }
 
     fn symbol(&self) -> Rc<Symbol> {
@@ -462,6 +486,10 @@ impl NodeInterface for Identifier {
         self._node.set_parent(parent)
     }
 
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._node.maybe_symbol()
+    }
+
     fn symbol(&self) -> Rc<Symbol> {
         self._node.symbol()
     }
@@ -538,6 +566,10 @@ impl NodeInterface for BaseNamedDeclaration {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._node.maybe_symbol()
     }
 
     fn symbol(&self) -> Rc<Symbol> {
@@ -619,6 +651,10 @@ impl NodeInterface for BaseBindingLikeDeclaration {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._named_declaration.set_parent(parent)
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._named_declaration.maybe_symbol()
     }
 
     fn symbol(&self) -> Rc<Symbol> {
@@ -712,6 +748,10 @@ impl NodeInterface for BaseVariableLikeDeclaration {
         self._binding_like_declaration.set_parent(parent)
     }
 
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._binding_like_declaration.maybe_symbol()
+    }
+
     fn symbol(&self) -> Rc<Symbol> {
         self._binding_like_declaration.symbol()
     }
@@ -801,6 +841,10 @@ impl NodeInterface for VariableDeclaration {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._variable_like_declaration.set_parent(parent)
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._variable_like_declaration.maybe_symbol()
     }
 
     fn symbol(&self) -> Rc<Symbol> {
@@ -902,6 +946,10 @@ impl NodeInterface for VariableDeclarationList {
         self._node.set_parent(parent)
     }
 
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._node.maybe_symbol()
+    }
+
     fn symbol(&self) -> Rc<Symbol> {
         self._node.symbol()
     }
@@ -976,6 +1024,12 @@ impl NodeInterface for TypeNode {
     fn set_parent(&self, parent: Rc<Node>) {
         match self {
             TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.set_parent(parent),
+        }
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        match self {
+            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.maybe_symbol(),
         }
     }
 
@@ -1058,6 +1112,10 @@ impl NodeInterface for KeywordTypeNode {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._node.maybe_symbol()
     }
 
     fn symbol(&self) -> Rc<Symbol> {
@@ -1150,6 +1208,18 @@ impl NodeInterface for Expression {
             }
             Expression::BinaryExpression(binary_expression) => binary_expression.set_parent(parent),
             Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_parent(parent),
+        }
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        match self {
+            Expression::TokenExpression(token_expression) => token_expression.maybe_symbol(),
+            Expression::Identifier(identifier) => identifier.maybe_symbol(),
+            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
+                prefix_unary_expression.maybe_symbol()
+            }
+            Expression::BinaryExpression(binary_expression) => binary_expression.maybe_symbol(),
+            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.maybe_symbol(),
         }
     }
 
@@ -1294,6 +1364,10 @@ impl NodeInterface for PrefixUnaryExpression {
         self._node.set_parent(parent)
     }
 
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._node.maybe_symbol()
+    }
+
     fn symbol(&self) -> Rc<Symbol> {
         self._node.symbol()
     }
@@ -1372,6 +1446,10 @@ impl NodeInterface for BinaryExpression {
         self._node.set_parent(parent)
     }
 
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._node.maybe_symbol()
+    }
+
     fn symbol(&self) -> Rc<Symbol> {
         self._node.symbol()
     }
@@ -1430,6 +1508,10 @@ impl NodeInterface for BaseLiteralLikeNode {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._node.maybe_symbol()
     }
 
     fn symbol(&self) -> Rc<Symbol> {
@@ -1492,6 +1574,12 @@ impl NodeInterface for LiteralLikeNode {
     fn set_parent(&self, parent: Rc<Node>) {
         match self {
             LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_parent(parent),
+        }
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        match self {
+            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.maybe_symbol(),
         }
     }
 
@@ -1585,6 +1673,10 @@ impl NodeInterface for NumericLiteral {
         self._literal_like_node.set_parent(parent)
     }
 
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._literal_like_node.maybe_symbol()
+    }
+
     fn symbol(&self) -> Rc<Symbol> {
         self._literal_like_node.symbol()
     }
@@ -1664,6 +1756,16 @@ impl NodeInterface for Statement {
             }
             Statement::ExpressionStatement(expression_statement) => {
                 expression_statement.set_parent(parent)
+            }
+        }
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        match self {
+            Statement::EmptyStatement(empty_statement) => empty_statement.maybe_symbol(),
+            Statement::VariableStatement(variable_statement) => variable_statement.maybe_symbol(),
+            Statement::ExpressionStatement(expression_statement) => {
+                expression_statement.maybe_symbol()
             }
         }
     }
@@ -1771,6 +1873,10 @@ impl NodeInterface for EmptyStatement {
         self._node.set_parent(parent)
     }
 
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._node.maybe_symbol()
+    }
+
     fn symbol(&self) -> Rc<Symbol> {
         self._node.symbol()
     }
@@ -1840,6 +1946,10 @@ impl NodeInterface for VariableStatement {
         self._node.set_parent(parent)
     }
 
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._node.maybe_symbol()
+    }
+
     fn symbol(&self) -> Rc<Symbol> {
         self._node.symbol()
     }
@@ -1898,6 +2008,10 @@ impl NodeInterface for ExpressionStatement {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._node.maybe_symbol()
     }
 
     fn symbol(&self) -> Rc<Symbol> {
@@ -1960,6 +2074,10 @@ impl NodeInterface for SourceFile {
 
     fn set_parent(&self, parent: Rc<Node>) {
         self._node.set_parent(parent)
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._node.maybe_symbol()
     }
 
     fn symbol(&self) -> Rc<Symbol> {
@@ -2040,6 +2158,23 @@ pub struct TypeChecker {
 bitflags! {
     pub struct SymbolFlags: u32 {
         const None = 0;
+        const FunctionScopedVariable = 1 << 0;
+        const BlockScopedVariable = 1 << 1;
+        const Property = 1 << 2;
+        const EnumMember = 1 << 3;
+        const Function = 1 << 4;
+        const Class = 1 << 5;
+        const ConstEnum = 1 << 7;
+        const RegularEnum = 1 << 8;
+        const ValueModule = 1 << 9;
+        const ObjectLiteral = 1 << 12;
+        const Method = 1 << 13;
+        const GetAccessor = 1 << 15;
+        const SetAccessor = 1 << 16;
+
+        const Enum = Self::RegularEnum.bits | Self::ConstEnum.bits;
+        const Variable = Self::FunctionScopedVariable.bits | Self::BlockScopedVariable.bits;
+        const Value = Self::Variable.bits | Self::Property.bits | Self::EnumMember.bits | Self::ObjectLiteral.bits | Self::Function.bits | Self::Class.bits | Self::Enum.bits | Self::ValueModule.bits | Self::Method.bits | Self::GetAccessor.bits | Self::SetAccessor.bits;
     }
 }
 
@@ -2047,7 +2182,8 @@ bitflags! {
 pub struct Symbol {
     pub flags: SymbolFlags,
     pub escaped_name: __String,
-    declarations: RwLock<Option<Vec<Rc<Node /*Declaration*/>>>>,
+    declarations: RwLock<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
+    value_declaration: RwLock<Option<Weak<Node>>>,
 }
 
 impl Symbol {
@@ -2056,6 +2192,7 @@ impl Symbol {
             flags,
             escaped_name: name,
             declarations: RwLock::new(None),
+            value_declaration: RwLock::new(None),
         }
     }
 
@@ -2065,6 +2202,14 @@ impl Symbol {
 
     pub fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
         *self.declarations.try_write().unwrap() = Some(declarations);
+    }
+
+    pub fn maybe_value_declaration(&self) -> RwLockReadGuard<Option<Weak<Node>>> {
+        self.value_declaration.try_read().unwrap()
+    }
+
+    pub fn set_value_declaration(&self, node: Rc<Node>) {
+        *self.value_declaration.try_write().unwrap() = Some(Rc::downgrade(&node));
     }
 }
 

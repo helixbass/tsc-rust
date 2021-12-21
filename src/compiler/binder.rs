@@ -8,8 +8,8 @@ use crate::{
     Symbol, SymbolTable, SyntaxKind, VariableDeclaration, __String, append_if_unique,
     create_symbol_table, for_each, for_each_child, get_escaped_text_of_identifier_or_literal,
     get_name_of_declaration, is_binding_pattern, is_property_name_literal, object_allocator,
-    set_parent, Expression, ExpressionStatement, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, Statement, SymbolFlags,
+    set_parent, set_value_declaration, Expression, ExpressionStatement, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, Statement, SymbolFlags,
 };
 
 bitflags! {
@@ -115,15 +115,24 @@ impl BinderType {
         self.Symbol()(flags, name)
     }
 
-    fn add_declaration_to_symbol(&self, symbol: Rc<Symbol>, node: Rc<Node /*Declaration*/>) {
+    fn add_declaration_to_symbol(
+        &self,
+        symbol: Rc<Symbol>,
+        node: Rc<Node /*Declaration*/>,
+        symbol_flags: SymbolFlags,
+    ) {
         node.set_symbol(symbol.clone());
         let declarations = {
             append_if_unique(
                 symbol.maybe_declarations().as_ref().map(|vec| vec.clone()),
-                node,
+                node.clone(),
             )
         };
         symbol.set_declarations(declarations);
+
+        if symbol_flags.intersects(SymbolFlags::Value) {
+            set_value_declaration(&*symbol, node);
+        }
     }
 
     fn get_declaration_name(&self, node: Rc<Node>) -> Option<__String> {
@@ -142,6 +151,7 @@ impl BinderType {
         &self,
         symbol_table: &mut SymbolTable,
         node: Rc<Node /*Declaration*/>,
+        includes: SymbolFlags,
     ) -> Rc<Symbol> {
         let name = self.get_declaration_name(node.clone());
 
@@ -157,7 +167,7 @@ impl BinderType {
         }
         let symbol = symbol.unwrap();
 
-        self.add_declaration_to_symbol(symbol.clone(), node);
+        self.add_declaration_to_symbol(symbol.clone(), node, includes);
 
         symbol
     }
@@ -278,18 +288,23 @@ impl BinderType {
     fn declare_symbol_and_add_to_symbol_table(
         &self,
         node: Rc<Node /*Declaration*/>,
+        symbol_flags: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
         match self.container().kind() {
-            SyntaxKind::SourceFile => Some(self.declare_source_file_member(node)),
+            SyntaxKind::SourceFile => Some(self.declare_source_file_member(node, symbol_flags)),
             _ => unimplemented!(),
         }
     }
 
-    fn declare_source_file_member(&self, node: Rc<Node /*Declaration*/>) -> Rc<Symbol> {
+    fn declare_source_file_member(
+        &self,
+        node: Rc<Node /*Declaration*/>,
+        symbol_flags: SymbolFlags,
+    ) -> Rc<Symbol> {
         if false {
             unimplemented!()
         } else {
-            self.declare_symbol(&mut *self.file().locals(), node)
+            self.declare_symbol(&mut *self.file().locals(), node, symbol_flags)
         }
     }
 
@@ -346,7 +361,10 @@ impl BinderType {
         if !is_binding_pattern(&*node.name()) {
             if false {
             } else {
-                self.declare_symbol_and_add_to_symbol_table(wrapper);
+                self.declare_symbol_and_add_to_symbol_table(
+                    wrapper,
+                    SymbolFlags::FunctionScopedVariable,
+                );
             }
         }
     }

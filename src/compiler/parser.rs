@@ -108,6 +108,12 @@ impl NodeInterface for MissingNode {
         }
     }
 
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.maybe_symbol(),
+        }
+    }
+
     fn symbol(&self) -> Rc<Symbol> {
         match self {
             MissingNode::Identifier(identifier) => identifier.symbol(),

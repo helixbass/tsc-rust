@@ -43,7 +43,7 @@ pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,
     create_symbol_table, get_binary_operator_precedence, get_escaped_text_of_identifier_or_literal,
     is_property_name_literal, object_allocator, set_parent, set_text_range_pos_end,
-    OperatorPrecedence,
+    set_value_declaration, OperatorPrecedence,
 };
 pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores, get_name_of_declaration,
