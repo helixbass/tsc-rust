@@ -5,8 +5,9 @@ use std::rc::Rc;
 use std::sync::RwLock;
 
 use crate::{
-    for_each, for_each_child, set_parent, Expression, ExpressionStatement, Node, NodeArray,
-    NodeInterface, Statement, SyntaxKind,
+    for_each, for_each_child, is_binding_pattern, set_parent, Expression, ExpressionStatement,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Statement, Symbol, SymbolTable,
+    SyntaxKind, VariableDeclaration,
 };
 
 bitflags! {
@@ -33,12 +34,14 @@ pub fn bind_source_file(file: Rc<Node>) {
 struct BinderType {
     file: RwLock<Option<Rc</*SourceFile*/ Node>>>,
     parent: RwLock<Option<Rc<Node>>>,
+    container: RwLock<Option<Rc<Node>>>,
 }
 
 fn create_binder() -> BinderType {
     BinderType {
         file: RwLock::new(None),
         parent: RwLock::new(None),
+        container: RwLock::new(None),
     }
 }
 
@@ -63,6 +66,22 @@ impl BinderType {
         *self.parent.try_write().unwrap() = parent;
     }
 
+    fn container(&self) -> Rc<Node> {
+        self.container.try_read().unwrap().as_ref().unwrap().clone()
+    }
+
+    fn container_maybe(&self) -> Option<Rc<Node>> {
+        self.container
+            .try_read()
+            .unwrap()
+            .as_ref()
+            .map(Clone::clone)
+    }
+
+    fn set_container(&self, container: Option<Rc<Node>>) {
+        *self.container.try_write().unwrap() = container;
+    }
+
     fn bind_source_file(&self, f: Rc<Node>) {
         self.set_file(Some(f.clone()));
 
@@ -72,10 +91,26 @@ impl BinderType {
 
         self.set_file(None);
         self.set_parent(None);
+        self.set_container(None);
+    }
+
+    fn declare_symbol(&self, symbol_table: &SymbolTable, node: Rc<Node /*Declaration*/>) -> Symbol {
+        unimplemented!()
     }
 
     fn bind_container(&self, node: Rc<Node>, container_flags: ContainerFlags) {
-        self.bind_children(node);
+        let save_container = self.container_maybe();
+
+        if container_flags.intersects(ContainerFlags::IsContainer) {
+            self.set_container(Some(node.clone()));
+        }
+
+        if false {
+        } else {
+            self.bind_children(node);
+        }
+
+        self.set_container(save_container);
     }
 
     fn bind_each_functions_first(&self, nodes: &NodeArray) {
@@ -162,6 +197,24 @@ impl BinderType {
         ContainerFlags::None
     }
 
+    fn declare_symbol_and_add_to_symbol_table(
+        &self,
+        node: Rc<Node /*Declaration*/>,
+    ) -> Option<Symbol> {
+        match self.container().kind() {
+            SyntaxKind::SourceFile => Some(self.declare_source_file_member(node)),
+            _ => unimplemented!(),
+        }
+    }
+
+    fn declare_source_file_member(&self, node: Rc<Node /*Declaration*/>) -> Symbol {
+        if false {
+            unimplemented!()
+        } else {
+            self.declare_symbol(&*self.file().locals(), node)
+        }
+    }
+
     fn bind(&self, node: Option<Rc<Node>>) {
         let node = match node.as_ref() {
             None => {
@@ -177,6 +230,8 @@ impl BinderType {
             },
         );
 
+        self.bind_worker(node.clone());
+
         if node.kind() > SyntaxKind::LastToken {
             let save_parent = match *self.parent.try_read().unwrap() {
                 None => None,
@@ -190,6 +245,31 @@ impl BinderType {
                 self.bind_container(node, container_flags);
             }
             self.set_parent(save_parent);
+        }
+    }
+
+    fn bind_worker(&self, node: Rc<Node>) {
+        match &*node {
+            Node::VariableDeclaration(variable_declaration) => {
+                return self.bind_variable_declaration_or_binding_element(
+                    variable_declaration,
+                    node.clone(),
+                );
+            }
+            _ => (),
+        }
+    }
+
+    fn bind_variable_declaration_or_binding_element(
+        &self,
+        node: &VariableDeclaration,
+        wrapper: Rc<Node>,
+    ) {
+        if !is_binding_pattern(&*node.name()) {
+            if false {
+            } else {
+                self.declare_symbol_and_add_to_symbol_table(wrapper);
+            }
         }
     }
 }

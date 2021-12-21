@@ -1,8 +1,8 @@
 use bitflags::bitflags;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
-use std::sync::RwLock;
 
 use crate::{
     bind_source_file, create_diagnostic_collection, create_diagnostic_for_node, for_each,

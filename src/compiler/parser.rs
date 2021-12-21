@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use parking_lot::MappedRwLockWriteGuard;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -12,7 +13,7 @@ use crate::{
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
     Identifier, KeywordTypeNode, LiteralLikeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory,
     NodeFlags, NodeInterface, OperatorPrecedence, ReadonlyTextRange, Scanner, SourceFile,
-    Statement, SyntaxKind, TypeNode, VariableDeclaration, VariableDeclarationList,
+    Statement, SymbolTable, SyntaxKind, TypeNode, VariableDeclaration, VariableDeclarationList,
 };
 
 #[derive(Eq, PartialEq)]
@@ -69,6 +70,18 @@ impl NodeInterface for MissingNode {
     fn set_parent(&self, parent: Rc<Node>) {
         match self {
             MissingNode::Identifier(identifier) => identifier.set_parent(parent),
+        }
+    }
+
+    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.locals(),
+        }
+    }
+
+    fn set_locals(&self, locals: SymbolTable) {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.set_locals(locals),
         }
     }
 }

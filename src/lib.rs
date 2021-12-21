@@ -28,20 +28,20 @@ pub use compiler::types::{
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmptyStatement, ExitStatus, Expression,
     ExpressionStatement, FreshableIntrinsicType, Identifier, IntrinsicType, KeywordTypeNode,
     LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface, ModuleResolutionHost,
-    ModuleSpecifierResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, NumberLiteralType, NumericLiteral, ParsedCommandLine, Path,
-    PrefixUnaryExpression, Program, ReadonlyTextRange, RelationComparisonResult, SourceFile,
-    Statement, StructureIsReused, SyntaxKind, Ternary, TextSpan, TokenFlags, Type, TypeChecker,
-    TypeCheckerHost, TypeFlags, TypeInterface, TypeNode, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    ModuleSpecifierResolutionHost, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, NumberLiteralType, NumericLiteral, ParsedCommandLine,
+    Path, PrefixUnaryExpression, Program, ReadonlyTextRange, RelationComparisonResult, SourceFile,
+    Statement, StructureIsReused, Symbol, SymbolTable, SyntaxKind, Ternary, TextSpan, TokenFlags,
+    Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, TypeNode,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration,
+    VariableDeclarationList, VariableStatement,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,
     get_binary_operator_precedence, object_allocator, set_parent, set_text_range_pos_end,
     OperatorPrecedence,
 };
-pub use compiler::utilities_public::create_text_span_from_bounds;
+pub use compiler::utilities_public::{create_text_span_from_bounds, is_binding_pattern};
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::is_same_variant;
