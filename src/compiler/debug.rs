@@ -17,6 +17,12 @@ impl DebugType {
             self.fail(Some(message));
         }
     }
+
+    pub fn assert_is_defined<TValue>(&self, value: Option<TValue>, message: Option<&str>) {
+        if value.is_none() {
+            self.fail(message);
+        }
+    }
 }
 
 lazy_static! {

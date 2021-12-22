@@ -6,14 +6,15 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, create_diagnostic_collection, create_diagnostic_for_node, for_each,
-    object_allocator, BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType,
-    Diagnostic, DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression,
-    ExpressionStatement, FreshableIntrinsicType, IntrinsicType, LiteralLikeNode,
+    get_effective_type_annotation_node, is_variable_declaration, object_allocator,
+    BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
+    FreshableIntrinsicType, HasTypeInterface, IntrinsicType, LiteralLikeNode,
     LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType,
     NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile, Statement, Symbol,
-    SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration,
-    VariableLikeDeclarationInterface, VariableStatement,
+    SymbolFlags, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface,
+    TypeNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
+    VariableDeclaration, VariableStatement,
 };
 
 bitflags! {
@@ -182,6 +183,87 @@ impl TypeChecker {
         type_
     }
 
+    fn add_optionality(&self, type_: Rc<Type>) -> Rc<Type> {
+        type_
+    }
+
+    fn get_type_for_variable_like_declaration(&self, declaration: &Node) -> Option<Rc<Type>> {
+        let declared_type = self.try_get_type_from_effective_type_node(declaration);
+        if let Some(declared_type) = declared_type {
+            return Some(self.add_optionality(declared_type));
+        }
+        unimplemented!()
+    }
+
+    fn get_widened_type_for_variable_like_declaration(&self, declaration: &Node) -> Rc<Type> {
+        self.widen_type_for_variable_like_declaration(
+            self.get_type_for_variable_like_declaration(declaration),
+            declaration,
+        )
+    }
+
+    fn widen_type_for_variable_like_declaration(
+        &self,
+        type_: Option<Rc<Type>>,
+        declaration: &Node,
+    ) -> Rc<Type> {
+        if let Some(type_) = type_ {
+            return self.get_widened_type(type_);
+        }
+        unimplemented!()
+    }
+
+    fn try_get_type_from_effective_type_node(
+        &self,
+        declaration: &Node, /*Declaration*/
+    ) -> Option<Rc<Type>> {
+        let type_node = get_effective_type_annotation_node(declaration);
+        type_node.map(|type_node| self.get_type_from_type_node(&*type_node))
+    }
+
+    fn get_type_of_variable_or_parameter_or_property(&self, symbol: &Symbol) -> Rc<Type> {
+        // let links = self.get_symbol_links(symbol);
+        // if links.type_.is_none() {
+        self.get_type_of_variable_or_parameter_or_property_worker(symbol)
+        // }
+        // links.type.unwrap().clone()
+    }
+
+    fn get_type_of_variable_or_parameter_or_property_worker(&self, symbol: &Symbol) -> Rc<Type> {
+        Debug_.assert_is_defined(*symbol.maybe_value_declaration(), None);
+        let declaration = symbol
+            .maybe_value_declaration()
+            .as_ref()
+            .unwrap()
+            .upgrade()
+            .unwrap();
+
+        let type_: Rc<Type>;
+        if false {
+            unimplemented!()
+        } else if is_variable_declaration(&*declaration) {
+            type_ = self.get_widened_type_for_variable_like_declaration(&*declaration);
+        } else {
+            unimplemented!()
+        }
+
+        type_
+    }
+
+    fn get_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+        if symbol
+            .flags
+            .intersects(SymbolFlags::Variable | SymbolFlags::Property)
+        {
+            return self.get_type_of_variable_or_parameter_or_property(symbol);
+        }
+        unimplemented!()
+    }
+
+    fn get_conditional_flow_type_of_type(&self, type_: Rc<Type>, node: &Node) -> Rc<Type> {
+        type_
+    }
+
     fn add_type_to_union(&self, type_set: &mut Vec<Rc<Type>>, type_: Rc<Type>) {
         type_set.push(type_);
     }
@@ -273,6 +355,17 @@ impl TypeChecker {
         type_
     }
 
+    fn get_type_from_type_node(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
+        self.get_conditional_flow_type_of_type(self.get_type_from_type_node_worker(node), node)
+    }
+
+    fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
+        match node.kind() {
+            SyntaxKind::NumberKeyword => self.number_type(),
+            _ => unimplemented!(),
+        }
+    }
+
     fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {
         self.is_type_related_to(source, target, &self.assignable_relation)
     }
@@ -358,6 +451,14 @@ impl TypeChecker {
         type_
     }
 
+    fn get_widened_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        self.get_widened_type_with_context(type_)
+    }
+
+    fn get_widened_type_with_context(&self, type_: Rc<Type>) -> Rc<Type> {
+        type_
+    }
+
     fn get_constituent_count(&self, type_: Rc<Type>) -> usize {
         if type_.flags().intersects(TypeFlags::Union) {
             match &*type_ {
@@ -375,12 +476,16 @@ impl TypeChecker {
 
     fn check_source_element(&mut self, node: Option<Rc<Node>>) {
         if let Some(node) = node {
-            self.check_source_element_worker(&*node);
+            self.check_source_element_worker(node);
         }
     }
 
-    fn check_source_element_worker(&mut self, node: &Node) {
-        match node {
+    fn check_source_element_worker(&mut self, node: Rc<Node>) {
+        match &*node {
+            Node::TypeNode(type_node) => match type_node {
+                TypeNode::KeywordTypeNode(_) => (),
+                _ => unimplemented!(),
+            },
             Node::Statement(statement) => {
                 match statement {
                     Statement::VariableStatement(variable_statement) => {
@@ -393,7 +498,7 @@ impl TypeChecker {
                 };
             }
             Node::VariableDeclaration(variable_declaration) => {
-                return self.check_variable_declaration(variable_declaration);
+                return self.check_variable_declaration(variable_declaration, node);
             }
             _ => unimplemented!(),
         };
@@ -492,16 +597,34 @@ impl TypeChecker {
         }
     }
 
-    fn check_variable_like_declaration(&mut self, node: &VariableDeclaration) {
+    fn check_variable_like_declaration(&mut self, node: &VariableDeclaration, wrapper: Rc<Node>) {
         if true {
             self.check_source_element(node.type_());
         }
 
-        let symbol = self.get_symbol_of_node(node);
+        let symbol = self.get_symbol_of_node(node).unwrap();
+
+        let type_ = self.convert_auto_to_any(self.get_type_of_symbol(&*symbol));
+        let value_declaration = symbol.maybe_value_declaration();
+        if value_declaration.is_some()
+            && Rc::ptr_eq(&wrapper, &value_declaration.unwrap().upgrade().unwrap())
+        {
+            let initializer = self.get_effective_initializer(node);
+            if true {
+                self.check_type_assignable_to_and_optionally_elaborate(
+                    self.check_expression_cached(initializer),
+                    type_,
+                    node,
+                    initializer,
+                );
+            }
+        } else {
+            unimplemented!()
+        }
     }
 
-    fn check_variable_declaration(&mut self, node: &VariableDeclaration) {
-        self.check_variable_like_declaration(node);
+    fn check_variable_declaration(&mut self, node: &VariableDeclaration, wrapper: Rc<Node>) {
+        self.check_variable_like_declaration(node, wrapper);
     }
 
     fn check_variable_statement(&mut self, node: &VariableStatement) {

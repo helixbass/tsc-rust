@@ -1,9 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use parking_lot::{
-    MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard,
-};
+use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
@@ -131,6 +129,13 @@ impl Node {
                 _ => panic!("Expected literal like node"),
             },
             _ => panic!("Expected literal like node"),
+        }
+    }
+
+    pub fn maybe_as_has_type(&self) -> Option<&dyn HasTypeInterface> {
+        match self {
+            Node::VariableDeclaration(variable_declaration) => Some(variable_declaration),
+            _ => None,
         }
     }
 }
@@ -403,6 +408,11 @@ impl From<BaseNode> for Node {
     fn from(base_node: BaseNode) -> Self {
         Node::BaseNode(base_node)
     }
+}
+
+pub trait HasTypeInterface {
+    fn type_(&self) -> Option<Rc<Node>>;
+    fn set_type(&mut self, type_: Rc<Node>);
 }
 
 #[derive(Debug)]
@@ -712,9 +722,9 @@ impl BindingLikeDeclarationInterface for BaseBindingLikeDeclaration {
     }
 }
 
-pub trait VariableLikeDeclarationInterface: BindingLikeDeclarationInterface {
-    fn type_(&self) -> Option<Rc<Node>>;
-    fn set_type(&mut self, type_: Rc<Node>);
+pub trait VariableLikeDeclarationInterface:
+    BindingLikeDeclarationInterface + HasTypeInterface
+{
 }
 
 #[derive(Debug)]
@@ -807,7 +817,7 @@ impl BindingLikeDeclarationInterface for BaseVariableLikeDeclaration {
     }
 }
 
-impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {
+impl HasTypeInterface for BaseVariableLikeDeclaration {
     fn type_(&self) -> Option<Rc<Node>> {
         self.type_.as_ref().map(Clone::clone)
     }
@@ -816,6 +826,8 @@ impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {
         self.type_ = Some(type_);
     }
 }
+
+impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 
 #[derive(Debug)]
 pub struct VariableDeclaration {
@@ -902,7 +914,7 @@ impl BindingLikeDeclarationInterface for VariableDeclaration {
     }
 }
 
-impl VariableLikeDeclarationInterface for VariableDeclaration {
+impl HasTypeInterface for VariableDeclaration {
     fn type_(&self) -> Option<Rc<Node>> {
         self._variable_like_declaration.type_()
     }
@@ -911,6 +923,8 @@ impl VariableLikeDeclarationInterface for VariableDeclaration {
         self._variable_like_declaration.set_type(type_);
     }
 }
+
+impl VariableLikeDeclarationInterface for VariableDeclaration {}
 
 impl From<VariableDeclaration> for Node {
     fn from(variable_declaration: VariableDeclaration) -> Self {

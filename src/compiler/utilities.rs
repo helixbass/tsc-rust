@@ -171,6 +171,13 @@ impl DiagnosticCollection {
     }
 }
 
+pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
+    let type_ = node
+        .maybe_as_has_type()
+        .and_then(|has_type| has_type.type_());
+    type_
+}
+
 #[allow(non_snake_case)]
 fn Symbol(flags: SymbolFlags, name: __String) -> Symbol {
     Symbol::new(flags, name)
