@@ -20,18 +20,21 @@ pub use compiler::program::create_program;
 pub use compiler::scanner::{create_scanner, Scanner};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseIntrinsicType, BaseLiteralLikeNode,
-    BaseLiteralType, BaseNode, BaseType, BaseUnionOrIntersectionType, BinaryExpression,
+    BaseBindingLikeDeclaration, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    BaseIntrinsicType, BaseLiteralLikeNode, BaseLiteralType, BaseNamedDeclaration, BaseNode,
+    BaseType, BaseUnionOrIntersectionType, BaseVariableLikeDeclaration, BinaryExpression,
     CharacterCodes, CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory,
     DiagnosticCollection, DiagnosticMessage, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmptyStatement, ExitStatus, Expression,
-    ExpressionStatement, FreshableIntrinsicType, Identifier, IntrinsicType, LiteralLikeNode,
-    LiteralLikeNodeInterface, LiteralTypeInterface, ModuleResolutionHost,
-    ModuleSpecifierResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    NumberLiteralType, NumericLiteral, ParsedCommandLine, Path, PrefixUnaryExpression, Program,
-    ReadonlyTextRange, RelationComparisonResult, SourceFile, Statement, StructureIsReused,
-    SyntaxKind, Ternary, TextSpan, TokenFlags, Type, TypeChecker, TypeCheckerHost, TypeFlags,
-    TypeInterface, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
+    ExpressionStatement, FreshableIntrinsicType, Identifier, IntrinsicType, KeywordTypeNode,
+    LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface, ModuleResolutionHost,
+    ModuleSpecifierResolutionHost, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, NumberLiteralType, NumericLiteral, ParsedCommandLine, Path,
+    PrefixUnaryExpression, Program, ReadonlyTextRange, RelationComparisonResult, SourceFile,
+    Statement, StructureIsReused, SyntaxKind, Ternary, TextSpan, TokenFlags, Type, TypeChecker,
+    TypeCheckerHost, TypeFlags, TypeInterface, TypeNode, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration, VariableDeclarationList,
+    VariableStatement,
 };
 pub use compiler::utilities::{
     create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,

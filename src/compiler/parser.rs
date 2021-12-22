@@ -1,16 +1,26 @@
 #![allow(non_upper_case_globals)]
 
+use bitflags::bitflags;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
-    get_binary_operator_precedence, is_same_variant, last_or_undefined, normalize_path,
-    object_allocator, set_text_range_pos_end, BaseNode, BaseNodeFactory, BinaryExpression, Debug_,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
-    Diagnostics, Expression, Identifier, LiteralLikeNode, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeInterface, OperatorPrecedence, ReadonlyTextRange, Scanner, SourceFile,
-    Statement, SyntaxKind,
+    get_binary_operator_precedence, last_or_undefined, normalize_path, object_allocator,
+    set_text_range_pos_end, BaseNode, BaseNodeFactory, BinaryExpression, Debug_, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
+    Identifier, KeywordTypeNode, LiteralLikeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeInterface, OperatorPrecedence, ReadonlyTextRange, Scanner, SourceFile,
+    Statement, SyntaxKind, TypeNode, VariableDeclaration, VariableDeclarationList,
 };
+
+#[derive(Eq, PartialEq)]
+enum SpeculationKind {
+    TryParse,
+    Lookahead,
+    Reparse,
+}
 
 fn visit_node<TNodeCallback: FnMut(Rc<Node>)>(mut cb_node: TNodeCallback, node: Rc<Node>) {
     cb_node(node)
@@ -91,22 +101,23 @@ impl ReadonlyTextRange for MissingNode {
 
 #[allow(non_snake_case)]
 struct ParserType {
-    scanner: Scanner,
+    scanner: RwLock<Scanner>,
     NodeConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     IdentifierConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     TokenConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     SourceFileConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     factory: NodeFactory,
     file_name: Option<String>,
-    parse_diagnostics: Option<Vec<DiagnosticWithDetachedLocation>>,
-    current_token: Option<SyntaxKind>,
-    parse_error_before_next_finished_node: bool,
+    parse_diagnostics: Option<RwLock<Vec<DiagnosticWithDetachedLocation>>>,
+    current_token: RwLock<Option<SyntaxKind>>,
+    parsing_context: Option<ParsingContext>,
+    parse_error_before_next_finished_node: AtomicBool,
 }
 
 impl ParserType {
     fn new() -> Self {
         ParserType {
-            scanner: create_scanner(true),
+            scanner: RwLock::new(create_scanner(true)),
             NodeConstructor: None,
             IdentifierConstructor: None,
             TokenConstructor: None,
@@ -114,9 +125,18 @@ impl ParserType {
             factory: create_node_factory(),
             file_name: None,
             parse_diagnostics: None,
-            current_token: None,
-            parse_error_before_next_finished_node: false,
+            current_token: RwLock::new(None),
+            parsing_context: None,
+            parse_error_before_next_finished_node: AtomicBool::new(false),
         }
+    }
+
+    fn scanner(&self) -> RwLockReadGuard<Scanner> {
+        self.scanner.try_read().unwrap()
+    }
+
+    fn scanner_mut(&self) -> RwLockWriteGuard<Scanner> {
+        self.scanner.try_write().unwrap()
     }
 
     #[allow(non_snake_case)]
@@ -173,20 +193,42 @@ impl ParserType {
         self.file_name = Some(file_name.to_string());
     }
 
-    fn parse_diagnostics(&mut self) -> &mut Vec<DiagnosticWithDetachedLocation> {
-        self.parse_diagnostics.as_mut().unwrap()
+    fn parse_diagnostics(&self) -> RwLockWriteGuard<Vec<DiagnosticWithDetachedLocation>> {
+        self.parse_diagnostics
+            .as_ref()
+            .unwrap()
+            .try_write()
+            .unwrap()
     }
 
     fn set_parse_diagnostics(&mut self, parse_diagnostics: Vec<DiagnosticWithDetachedLocation>) {
-        self.parse_diagnostics = Some(parse_diagnostics);
+        self.parse_diagnostics = Some(RwLock::new(parse_diagnostics));
     }
 
     fn current_token(&self) -> SyntaxKind {
-        self.current_token.unwrap()
+        self.current_token.try_read().unwrap().unwrap()
     }
 
-    fn set_current_token(&mut self, token: SyntaxKind) {
-        self.current_token = Some(token);
+    fn set_current_token(&self, token: SyntaxKind) {
+        *self.current_token.try_write().unwrap() = Some(token);
+    }
+
+    fn parsing_context(&self) -> ParsingContext {
+        self.parsing_context.unwrap()
+    }
+
+    fn set_parsing_context(&mut self, parsing_context: ParsingContext) {
+        self.parsing_context = Some(parsing_context);
+    }
+
+    fn parse_error_before_next_finished_node(&self) -> bool {
+        self.parse_error_before_next_finished_node
+            .load(Ordering::Relaxed)
+    }
+
+    fn set_parse_error_before_next_finished_node(&self, value: bool) {
+        self.parse_error_before_next_finished_node
+            .store(value, Ordering::Relaxed);
     }
 
     fn parse_source_file(&mut self, file_name: &str, source_text: &str) -> SourceFile {
@@ -203,8 +245,9 @@ impl ParserType {
         self.set_file_name(&normalize_path(_file_name));
 
         self.set_parse_diagnostics(vec![]);
+        self.set_parsing_context(ParsingContext::None);
 
-        self.scanner.set_text(Some(_source_text), None, None);
+        self.scanner_mut().set_text(Some(_source_text), None, None);
     }
 
     fn parse_source_file_worker(&mut self) -> SourceFile {
@@ -231,45 +274,51 @@ impl ParserType {
         source_file
     }
 
-    fn parse_error_at_current_token(&mut self, message: &DiagnosticMessage) {
+    fn do_outside_of_context<TReturn>(
+        &mut self,
+        context: NodeFlags,
+        func: fn(&mut ParserType) -> TReturn,
+    ) -> TReturn {
+        func(self)
+    }
+
+    fn parse_error_at_current_token(&self, message: &DiagnosticMessage) {
         self.parse_error_at(
-            self.scanner.get_token_pos(),
-            self.scanner.get_text_pos(),
+            self.scanner().get_token_pos(),
+            self.scanner().get_text_pos(),
             message,
         );
     }
 
-    fn parse_error_at_position(
-        &mut self,
-        start: usize,
-        length: usize,
-        message: &DiagnosticMessage,
-    ) {
-        let last_error = last_or_undefined(self.parse_diagnostics());
-        if last_error.map_or(true, |last_error| last_error.start() != start) {
-            let file_name = self.file_name().to_string();
-            self.parse_diagnostics().push(create_detached_diagnostic(
-                &file_name, start, length, message,
-            ));
+    fn parse_error_at_position(&self, start: usize, length: usize, message: &DiagnosticMessage) {
+        {
+            let mut parse_diagnostics = self.parse_diagnostics();
+            let last_error = last_or_undefined(&*parse_diagnostics);
+            if last_error.map_or(true, |last_error| last_error.start() != start) {
+                let file_name = self.file_name().to_string();
+                parse_diagnostics.push(create_detached_diagnostic(
+                    &file_name, start, length, message,
+                ));
+            }
         }
 
-        self.parse_error_before_next_finished_node = true;
+        self.set_parse_error_before_next_finished_node(true);
     }
 
-    fn parse_error_at(&mut self, start: usize, end: usize, message: &DiagnosticMessage) {
+    fn parse_error_at(&self, start: usize, end: usize, message: &DiagnosticMessage) {
         self.parse_error_at_position(start, end - start, message);
     }
 
     fn get_node_pos(&self) -> usize {
-        self.scanner.get_start_pos()
+        self.scanner().get_start_pos()
     }
 
     fn token(&self) -> SyntaxKind {
         self.current_token()
     }
 
-    fn next_token_without_check(&mut self) -> SyntaxKind {
-        let current_token = self.scanner.scan();
+    fn next_token_without_check(&self) -> SyntaxKind {
+        let current_token = self.scanner().scan();
         self.set_current_token(current_token);
         self.current_token()
     }
@@ -279,24 +328,83 @@ impl ParserType {
         func(self)
     }
 
-    fn next_token(&mut self) -> SyntaxKind {
+    fn next_token(&self) -> SyntaxKind {
         self.next_token_without_check()
     }
 
+    fn speculation_helper<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+        &self,
+        callback: TCallback,
+        speculation_kind: SpeculationKind,
+    ) -> Option<TReturn> {
+        let save_token = self.current_token();
+        let save_parse_diagnostics_length = self.parse_diagnostics().len();
+        let save_parse_error_before_next_finished_node =
+            self.parse_error_before_next_finished_node();
+
+        let result = if speculation_kind != SpeculationKind::TryParse {
+            self.scanner().look_ahead(callback)
+        } else {
+            self.scanner().try_scan(callback)
+        };
+
+        if result.is_none() || speculation_kind != SpeculationKind::TryParse {
+            self.set_current_token(save_token);
+            if speculation_kind != SpeculationKind::Reparse {
+                self.parse_diagnostics()
+                    .truncate(save_parse_diagnostics_length);
+            }
+            self.set_parse_error_before_next_finished_node(
+                save_parse_error_before_next_finished_node,
+            );
+        }
+
+        result
+    }
+
+    fn look_ahead<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+        &self,
+        callback: TCallback,
+    ) -> Option<TReturn> {
+        self.speculation_helper(callback, SpeculationKind::Lookahead)
+    }
+
+    fn try_parse<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+        &self,
+        callback: TCallback,
+    ) -> Option<TReturn> {
+        self.speculation_helper(callback, SpeculationKind::TryParse)
+    }
+
+    fn is_binding_identifier(&self) -> bool {
+        if self.token() == SyntaxKind::Identifier {
+            return true;
+        }
+
+        self.token() > SyntaxKind::LastReservedWord
+    }
+
     fn is_identifier(&self) -> bool {
-        false
+        if self.token() == SyntaxKind::Identifier {
+            return true;
+        }
+
+        self.token() > SyntaxKind::LastReservedWord
     }
 
     fn parse_expected(&mut self, kind: SyntaxKind, should_advance: Option<bool>) -> bool {
         let should_advance = should_advance.unwrap_or(true);
-        if is_same_variant(&self.token(), &kind) {
+        if self.token() == kind {
             if should_advance {
                 self.next_token();
             }
             return true;
         }
 
-        self.parse_error_at_current_token(&Diagnostics::_0_expected);
+        if false {
+        } else {
+            self.parse_error_at_current_token(&Diagnostics::_0_expected);
+        }
         false
     }
 
@@ -304,7 +412,15 @@ impl ParserType {
         unimplemented!()
     }
 
-    fn parse_token_node(&mut self) -> BaseNode {
+    fn parse_optional(&mut self, t: SyntaxKind) -> bool {
+        if self.token() == t {
+            self.next_token();
+            return true;
+        }
+        false
+    }
+
+    fn parse_token_node(&self) -> BaseNode {
         let pos = self.get_node_pos();
         let kind = self.token();
         self.next_token();
@@ -318,7 +434,7 @@ impl ParserType {
 
         self.token() == SyntaxKind::CloseBraceToken
             || self.token() == SyntaxKind::EndOfFileToken
-            || self.scanner.has_preceding_line_break()
+            || self.scanner().has_preceding_line_break()
     }
 
     fn try_parse_semicolon(&mut self) -> bool {
@@ -333,13 +449,17 @@ impl ParserType {
         true
     }
 
+    fn parse_semicolon(&mut self) -> bool {
+        self.try_parse_semicolon() || self.parse_expected(SyntaxKind::SemicolonToken, None)
+    }
+
     fn create_node_array(&self, elements: Vec<Node>) -> NodeArray {
         self.factory
             .create_node_array(elements.into_iter().map(Rc::new).collect::<Vec<Rc<Node>>>())
     }
 
     fn finish_node<TParsedNode: NodeInterface>(
-        &mut self,
+        &self,
         mut node: TParsedNode,
         pos: usize,
         end: Option<usize>,
@@ -347,11 +467,11 @@ impl ParserType {
         set_text_range_pos_end(
             &mut node,
             pos,
-            end.unwrap_or_else(|| self.scanner.get_start_pos()),
+            end.unwrap_or_else(|| self.scanner().get_start_pos()),
         );
 
-        if self.parse_error_before_next_finished_node {
-            self.parse_error_before_next_finished_node = false;
+        if self.parse_error_before_next_finished_node() {
+            self.set_parse_error_before_next_finished_node(false);
         }
 
         node
@@ -369,11 +489,22 @@ impl ParserType {
         self.finish_node(result, pos, None)
     }
 
+    fn intern_identifier(&self, text: &str) -> String {
+        text.to_string()
+    }
+
     fn create_identifier(
         &mut self,
         is_identifier: bool,
         diagnostic_message: Option<DiagnosticMessage>,
     ) -> Identifier {
+        if is_identifier {
+            let pos = self.get_node_pos();
+            let text = self.intern_identifier(&self.scanner().get_token_value());
+            self.next_token_without_check();
+            return self.finish_node(self.factory.create_identifier(self, &text), pos, None);
+        }
+
         let default_message = Diagnostics::Identifier_expected;
 
         match self.create_missing_node(
@@ -385,21 +516,70 @@ impl ParserType {
         }
     }
 
+    fn parse_binding_identifier(&mut self) -> Identifier {
+        self.create_identifier(self.is_binding_identifier(), None)
+    }
+
     fn parse_identifier(&mut self, diagnostic_message: Option<DiagnosticMessage>) -> Identifier {
         self.create_identifier(self.is_identifier(), diagnostic_message)
     }
 
-    fn is_list_element(&self, kind: ParsingContext) -> bool {
+    fn is_list_element(&mut self, kind: ParsingContext) -> bool {
         match kind {
             ParsingContext::SourceElements => self.is_start_of_statement(),
+            ParsingContext::VariableDeclarations => {
+                self.is_binding_identifier_or_private_identifier_or_pattern()
+            }
             _ => unimplemented!(),
         }
     }
 
-    fn is_list_terminator(&self) -> bool {
+    fn is_list_terminator(&self, kind: ParsingContext) -> bool {
         if self.token() == SyntaxKind::EndOfFileToken {
             return true;
         }
+        match kind {
+            ParsingContext::VariableDeclarations => self.is_variable_declarator_list_terminator(),
+            _ => false,
+        }
+    }
+
+    fn parse_delimited_list<TItem: Into<Node>>(
+        &mut self,
+        kind: ParsingContext,
+        parse_element: fn(&mut ParserType) -> TItem,
+    ) -> NodeArray {
+        let save_parsing_context = self.parsing_context();
+        self.set_parsing_context(self.parsing_context() | kind);
+        let mut list: Vec<Node> = vec![];
+        let list_pos = self.get_node_pos();
+
+        loop {
+            if self.is_list_element(kind) {
+                let start_pos = self.scanner().get_start_pos();
+                list.push(self.parse_list_element(kind, parse_element).into());
+
+                if self.is_list_terminator(kind) {
+                    break;
+                }
+
+                unimplemented!()
+            }
+
+            if self.is_list_terminator(kind) {
+                break;
+            }
+        }
+
+        self.set_parsing_context(save_parsing_context);
+        self.create_node_array(list)
+    }
+
+    fn is_variable_declarator_list_terminator(&self) -> bool {
+        if self.can_parse_semicolon() {
+            return true;
+        }
+
         false
     }
 
@@ -410,7 +590,7 @@ impl ParserType {
     ) -> NodeArray {
         let mut list = vec![];
 
-        while !self.is_list_terminator() {
+        while !self.is_list_terminator(kind) {
             if self.is_list_element(kind) {
                 list.push(self.parse_list_element(kind, parse_element).into());
 
@@ -437,7 +617,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         let node: LiteralLikeNode = if kind == SyntaxKind::NumericLiteral {
             self.factory
-                .create_numeric_literal(self, self.scanner.get_token_value())
+                .create_numeric_literal(self, &self.scanner().get_token_value())
                 .into()
         } else {
             Debug_.fail(None)
@@ -445,6 +625,71 @@ impl ParserType {
 
         self.next_token();
         self.finish_node(node, pos, None)
+    }
+
+    fn parse_keyword_and_no_dot(&self) -> Option<TypeNode> {
+        let node = self.parse_token_node();
+        if false {
+            None
+        } else {
+            Some(Into::<KeywordTypeNode>::into(node).into())
+        }
+    }
+
+    fn parse_non_array_type(&mut self) -> TypeNode {
+        match self.token() {
+            SyntaxKind::NumberKeyword => self
+                .try_parse(|| self.parse_keyword_and_no_dot())
+                .unwrap_or_else(|| unimplemented!()),
+            _ => unimplemented!(),
+        }
+    }
+
+    fn parse_postfix_type_or_higher(&mut self) -> TypeNode {
+        let pos = self.get_node_pos();
+        let type_ = self.parse_non_array_type();
+        type_
+    }
+
+    fn parse_type_operator_or_higher(&mut self) -> TypeNode {
+        // let operator = self.token();
+        // match operator {
+
+        // }
+        self.parse_postfix_type_or_higher()
+    }
+
+    fn parse_union_or_intersection_type(
+        &mut self,
+        parse_constituent_type: fn(&mut ParserType) -> TypeNode,
+    ) -> TypeNode {
+        parse_constituent_type(self)
+    }
+
+    fn parse_intersection_type_or_higher(&mut self) -> TypeNode {
+        self.parse_union_or_intersection_type(ParserType::parse_type_operator_or_higher)
+    }
+
+    fn parse_union_type_or_higher(&mut self) -> TypeNode {
+        self.parse_union_or_intersection_type(ParserType::parse_intersection_type_or_higher)
+    }
+
+    fn parse_type(&mut self) -> TypeNode {
+        self.do_outside_of_context(NodeFlags::TypeExcludesFlags, ParserType::parse_type_worker)
+    }
+
+    fn parse_type_worker(&mut self) -> TypeNode {
+        let pos = self.get_node_pos();
+        let type_ = self.parse_union_type_or_higher();
+        type_
+    }
+
+    fn parse_type_annotation(&mut self) -> Option<TypeNode> {
+        if self.parse_optional(SyntaxKind::ColonToken) {
+            Some(self.parse_type())
+        } else {
+            None
+        }
     }
 
     fn is_start_of_left_hand_side_expression(&self) -> bool {
@@ -475,6 +720,14 @@ impl ParserType {
         let expr = self.parse_assignment_expression_or_higher();
 
         expr
+    }
+
+    fn parse_initializer(&mut self) -> Option<Expression> {
+        if self.parse_optional(SyntaxKind::EqualsToken) {
+            Some(self.parse_assignment_expression_or_higher())
+        } else {
+            None
+        }
     }
 
     fn parse_assignment_expression_or_higher(&mut self) -> Expression {
@@ -629,18 +882,130 @@ impl ParserType {
         self.finish_node(self.factory.create_empty_statement(self).into(), pos, None)
     }
 
-    fn is_start_of_statement(&self) -> bool {
+    fn is_declaration(&self) -> bool {
+        loop {
+            match self.token() {
+                SyntaxKind::ConstKeyword => {
+                    return true;
+                }
+                _ => unimplemented!(),
+            }
+        }
+    }
+
+    fn is_start_of_declaration(&mut self) -> bool {
+        self.look_ahead(|| Some(self.is_declaration())).unwrap()
+    }
+
+    fn is_start_of_statement(&mut self) -> bool {
         match self.token() {
             SyntaxKind::SemicolonToken => true,
+            SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
             _ => self.is_start_of_expression(),
         }
     }
 
     fn parse_statement(&mut self) -> Statement {
         match self.token() {
-            SyntaxKind::SemicolonToken => self.parse_empty_statement(),
-            _ => self.parse_expression_or_labeled_statement(),
+            SyntaxKind::SemicolonToken => return self.parse_empty_statement(),
+            SyntaxKind::ConstKeyword => {
+                if self.is_start_of_declaration() {
+                    return self.parse_declaration();
+                }
+            }
+            _ => (),
         }
+        return self.parse_expression_or_labeled_statement();
+    }
+
+    fn parse_declaration(&mut self) -> Statement {
+        let pos = self.get_node_pos();
+        if false {
+            unimplemented!()
+        } else {
+            self.parse_declaration_worker(pos)
+        }
+    }
+
+    fn parse_declaration_worker(&mut self, pos: usize) -> Statement {
+        match self.token() {
+            SyntaxKind::ConstKeyword => self.parse_variable_statement(pos),
+            _ => unimplemented!(),
+        }
+    }
+
+    fn is_binding_identifier_or_private_identifier_or_pattern(&self) -> bool {
+        self.is_binding_identifier()
+    }
+
+    fn parse_identifier_or_pattern(&mut self) -> Rc<Node> {
+        Rc::new(self.parse_binding_identifier().into())
+    }
+
+    fn parse_variable_declaration_no_exclamation(&mut self) -> VariableDeclaration {
+        self.parse_variable_declaration(false)
+    }
+
+    fn parse_variable_declaration_allow_exclamation(&mut self) -> VariableDeclaration {
+        self.parse_variable_declaration(true)
+    }
+
+    fn parse_variable_declaration(&mut self, allow_exclamation: bool) -> VariableDeclaration {
+        let pos = self.get_node_pos();
+        let name = self.parse_identifier_or_pattern();
+        let type_ = self.parse_type_annotation();
+        let initializer = if false {
+            None
+        } else {
+            self.parse_initializer()
+        };
+        let node = self.factory.create_variable_declaration(
+            self,
+            Some(name),
+            type_.map(|type_| Rc::new(type_.into())),
+            initializer.map(|initializer| Rc::new(initializer.into())),
+        );
+        self.finish_node(node, pos, None)
+    }
+
+    fn parse_variable_declaration_list(&mut self) -> VariableDeclarationList {
+        let pos = self.get_node_pos();
+
+        let mut flags = NodeFlags::None;
+        match self.token() {
+            SyntaxKind::ConstKeyword => {
+                flags |= NodeFlags::Const;
+            }
+            _ => Debug_.fail(None),
+        }
+
+        self.next_token();
+
+        let declarations: NodeArray;
+        if false {
+            unimplemented!()
+        } else {
+            declarations = self.parse_delimited_list(
+                ParsingContext::VariableDeclarations,
+                ParserType::parse_variable_declaration_allow_exclamation,
+            );
+        }
+
+        self.finish_node(
+            self.factory
+                .create_variable_declaration_list(self, declarations, Some(flags)),
+            pos,
+            None,
+        )
+    }
+
+    fn parse_variable_statement(&mut self, pos: usize) -> Statement {
+        let declaration_list = self.parse_variable_declaration_list();
+        self.parse_semicolon();
+        let node = self
+            .factory
+            .create_variable_statement(self, declaration_list);
+        self.finish_node(node.into(), pos, None)
     }
 }
 
@@ -674,7 +1039,10 @@ fn Parser() -> ParserType {
 //     ParserMut.lock().unwrap()
 // }
 
-#[derive(Copy, Clone)]
-enum ParsingContext {
-    SourceElements,
+bitflags! {
+    pub struct ParsingContext: u32 {
+        const None = 0;
+        const SourceElements = 1 << 0;
+        const VariableDeclarations = 1 << 8;
+    }
 }

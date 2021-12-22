@@ -1,9 +1,11 @@
 use std::rc::Rc;
 
 use crate::{
-    BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, EmptyStatement, Expression,
-    ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NumericLiteral,
-    PrefixUnaryExpression, SourceFile, SyntaxKind,
+    BaseBindingLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
+    BaseNodeFactory, BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression,
+    ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NumericLiteral, PrefixUnaryExpression, SourceFile, SyntaxKind, VariableDeclaration,
+    VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -15,6 +17,56 @@ impl NodeFactory {
             NodeArrayOrVec::NodeArray(node_array) => node_array,
             NodeArrayOrVec::Vec(elements) => NodeArray::new(elements),
         }
+    }
+
+    fn create_base_node<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+    ) -> BaseNode {
+        base_factory.create_base_node(kind)
+    }
+
+    fn create_base_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+    ) -> BaseNode {
+        let node = self.create_base_node(base_factory, kind);
+        node
+    }
+
+    fn create_base_named_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        name: Option<Rc<Node>>,
+    ) -> BaseNamedDeclaration {
+        let node = self.create_base_declaration(base_factory, kind);
+        BaseNamedDeclaration::new(node, name)
+    }
+
+    fn create_base_binding_like_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        name: Option<Rc<Node>>,
+        initializer: Option<Rc<Node>>,
+    ) -> BaseBindingLikeDeclaration {
+        let node = self.create_base_named_declaration(base_factory, kind, name);
+        BaseBindingLikeDeclaration::new(node, initializer)
+    }
+
+    fn create_base_variable_like_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        name: Option<Rc<Node>>,
+        type_: Option<Rc<Node>>,
+        initializer: Option<Rc<Node>>,
+    ) -> BaseVariableLikeDeclaration {
+        let node = self.create_base_binding_like_declaration(base_factory, kind, name, initializer);
+        BaseVariableLikeDeclaration::new(node, type_)
     }
 
     fn create_base_literal<TBaseNodeFactory: BaseNodeFactory>(
@@ -112,6 +164,16 @@ impl NodeFactory {
         node
     }
 
+    pub fn create_variable_statement<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        declaration_list: VariableDeclarationList,
+    ) -> VariableStatement {
+        let node = self.create_base_declaration(base_factory, SyntaxKind::VariableStatement);
+        let node = VariableStatement::new(node, Rc::new(declaration_list.into()));
+        node
+    }
+
     pub fn create_empty_statement<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -132,6 +194,37 @@ impl NodeFactory {
         }
     }
 
+    pub fn create_variable_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Option<Rc<Node>>,
+        type_: Option<Rc<Node>>,
+        initializer: Option<Rc<Node>>,
+    ) -> VariableDeclaration {
+        let node = self.create_base_variable_like_declaration(
+            base_factory,
+            SyntaxKind::VariableDeclaration,
+            name,
+            type_,
+            initializer,
+        );
+        VariableDeclaration::new(node)
+    }
+
+    pub fn create_variable_declaration_list<
+        TBaseNodeFactory: BaseNodeFactory,
+        TDeclarations: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        declarations: TDeclarations,
+        flags: Option<NodeFlags>,
+    ) -> VariableDeclarationList {
+        let node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
+        let node = VariableDeclarationList::new(node, self.create_node_array(declarations));
+        node
+    }
+
     pub fn create_source_file<TBaseNodeFactory: BaseNodeFactory, TNodes: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -144,14 +237,6 @@ impl NodeFactory {
             file_name: "".to_string(),
         };
         node
-    }
-
-    fn create_base_node<TBaseNodeFactory: BaseNodeFactory>(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        kind: SyntaxKind,
-    ) -> BaseNode {
-        base_factory.create_base_node(kind)
     }
 }
 

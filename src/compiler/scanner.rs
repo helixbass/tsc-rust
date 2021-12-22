@@ -3,19 +3,22 @@
 use std::array::IntoIter;
 use std::collections::HashMap;
 use std::iter::FromIterator;
+use std::sync::RwLock;
 
 use crate::{CharacterCodes, SyntaxKind, TokenFlags};
 
 lazy_static! {
-    static ref text_to_keyword_obj: HashMap<&'static str, SyntaxKind> =
+    static ref text_to_keyword_obj: HashMap<String, SyntaxKind> =
         HashMap::from_iter(IntoIter::new([
-            ("false", SyntaxKind::FalseKeyword),
-            ("true", SyntaxKind::TrueKeyword),
+            ("const".to_string(), SyntaxKind::ConstKeyword),
+            ("false".to_string(), SyntaxKind::FalseKeyword),
+            ("number".to_string(), SyntaxKind::NumberKeyword),
+            ("true".to_string(), SyntaxKind::TrueKeyword),
         ]));
 }
 
 lazy_static! {
-    static ref text_to_keyword: HashMap<&'static str, SyntaxKind> = text_to_keyword_obj.clone();
+    static ref text_to_keyword: HashMap<String, SyntaxKind> = text_to_keyword_obj.clone();
 }
 
 fn is_unicode_identifier_start(ch: char) -> bool {
@@ -47,13 +50,13 @@ struct ScanNumberReturn {
 pub struct Scanner {
     skip_trivia: bool,
     text: Option<String>,
-    pos: Option<usize>,
+    pos: RwLock<Option<usize>>,
     end: Option<usize>,
-    start_pos: Option<usize>,
-    token_pos: Option<usize>,
-    token: Option<SyntaxKind>,
-    token_value: Option<String>,
-    token_flags: Option<TokenFlags>,
+    start_pos: RwLock<Option<usize>>,
+    token_pos: RwLock<Option<usize>>,
+    token: RwLock<Option<SyntaxKind>>,
+    token_value: RwLock<Option<String>>,
+    token_flags: RwLock<Option<TokenFlags>>,
 }
 
 impl Scanner {
@@ -69,7 +72,7 @@ impl Scanner {
         self.token_pos()
     }
 
-    pub fn get_token_value(&self) -> &str {
+    pub fn get_token_value(&self) -> String {
         self.token_value()
     }
 
@@ -78,21 +81,21 @@ impl Scanner {
             .intersects(TokenFlags::PrecedingLineBreak)
     }
 
-    fn get_identifier_token(&mut self) -> SyntaxKind {
+    fn get_identifier_token(&self) -> SyntaxKind {
         let len = self.token_value().len();
         if len >= 2 && len <= 12 {
             let ch = self.token_value().chars().nth(0).unwrap();
             if ch >= CharacterCodes::a && ch <= CharacterCodes::z {
-                let keyword = text_to_keyword.get(self.token_value());
+                let keyword = text_to_keyword.get(&self.token_value());
                 if let Some(keyword) = keyword {
                     return self.set_token(*keyword);
                 }
             }
         }
-        unimplemented!()
+        self.set_token(SyntaxKind::Identifier)
     }
 
-    pub fn scan(&mut self) -> SyntaxKind {
+    pub fn scan(&self) -> SyntaxKind {
         self.set_start_pos(self.pos());
         self.set_token_flags(TokenFlags::None);
 
@@ -151,9 +154,17 @@ impl Scanner {
                     self.set_token_value(&token_value);
                     return token;
                 }
+                CharacterCodes::colon => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::ColonToken);
+                }
                 CharacterCodes::semicolon => {
                     self.set_pos(self.pos() + 1);
                     return self.set_token(SyntaxKind::SemicolonToken);
+                }
+                CharacterCodes::equals => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::EqualsToken);
                 }
                 _ch => {
                     let identifier_kind = self.scan_identifier(ch);
@@ -166,7 +177,7 @@ impl Scanner {
         }
     }
 
-    fn scan_identifier(&mut self, start_character: char) -> Option<SyntaxKind> {
+    fn scan_identifier(&self, start_character: char) -> Option<SyntaxKind> {
         let mut ch = start_character;
         if is_identifier_start(ch) {
             self.set_pos(self.pos() + char_size(ch));
@@ -217,13 +228,13 @@ impl Scanner {
         Scanner {
             skip_trivia,
             text: None,
-            pos: None,
+            pos: RwLock::new(None),
             end: None,
-            start_pos: None,
-            token_pos: None,
-            token: None,
-            token_value: None,
-            token_flags: None,
+            start_pos: RwLock::new(None),
+            token_pos: RwLock::new(None),
+            token: RwLock::new(None),
+            token_value: RwLock::new(None),
+            token_flags: RwLock::new(None),
         }
     }
 
@@ -236,11 +247,11 @@ impl Scanner {
     }
 
     fn pos(&self) -> usize {
-        self.pos.unwrap()
+        self.pos.try_read().unwrap().unwrap()
     }
 
-    fn set_pos(&mut self, pos: usize) {
-        self.pos = Some(pos);
+    fn set_pos(&self, pos: usize) {
+        *self.pos.try_write().unwrap() = Some(pos);
     }
 
     fn end(&self) -> usize {
@@ -252,51 +263,56 @@ impl Scanner {
     }
 
     fn start_pos(&self) -> usize {
-        self.start_pos.unwrap()
+        self.start_pos.try_read().unwrap().unwrap()
     }
 
-    fn set_start_pos(&mut self, start_pos: usize) {
-        self.start_pos = Some(start_pos);
+    fn set_start_pos(&self, start_pos: usize) {
+        *self.start_pos.try_write().unwrap() = Some(start_pos);
     }
 
     fn token_pos(&self) -> usize {
-        self.token_pos.unwrap()
+        self.token_pos.try_read().unwrap().unwrap()
     }
 
-    fn set_token_pos(&mut self, token_pos: usize) {
-        self.token_pos = Some(token_pos);
+    fn set_token_pos(&self, token_pos: usize) {
+        *self.token_pos.try_write().unwrap() = Some(token_pos);
     }
 
     fn token(&self) -> SyntaxKind {
-        self.token.unwrap()
+        self.token.try_read().unwrap().unwrap()
     }
 
-    fn set_token(&mut self, token: SyntaxKind) -> SyntaxKind {
-        self.token = Some(token);
+    fn set_token(&self, token: SyntaxKind) -> SyntaxKind {
+        *self.token.try_write().unwrap() = Some(token);
         token
     }
 
-    fn token_value(&self) -> &str {
-        self.token_value.as_ref().unwrap()
+    fn token_value(&self) -> String {
+        self.token_value
+            .try_read()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .to_string()
     }
 
-    fn set_token_value(&mut self, token_value: &str) {
-        self.token_value = Some(token_value.to_string());
+    fn set_token_value(&self, token_value: &str) {
+        *self.token_value.try_write().unwrap() = Some(token_value.to_string());
     }
 
     fn token_flags(&self) -> TokenFlags {
-        self.token_flags.unwrap()
+        self.token_flags.try_read().unwrap().unwrap()
     }
 
-    fn set_token_flags(&mut self, token_flags: TokenFlags) {
-        self.token_flags = Some(token_flags);
+    fn set_token_flags(&self, token_flags: TokenFlags) {
+        *self.token_flags.try_write().unwrap() = Some(token_flags);
     }
 
     fn is_digit(&self, ch: char) -> bool {
         ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
     }
 
-    fn scan_number_fragment(&mut self) -> String {
+    fn scan_number_fragment(&self) -> String {
         let start = self.pos();
         let result = "".to_string();
         loop {
@@ -323,7 +339,7 @@ impl Scanner {
         ret
     }
 
-    fn scan_number(&mut self) -> ScanNumberReturn {
+    fn scan_number(&self) -> ScanNumberReturn {
         let start = self.pos();
         let main_fragment = self.scan_number_fragment();
         let end = self.pos();
@@ -343,6 +359,44 @@ impl Scanner {
 
     // fn scan_identifier(&self, start_character: char) -> {
     // }
+
+    fn speculation_helper<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+        &self,
+        mut callback: TCallback,
+        is_lookahead: bool,
+    ) -> Option<TReturn> {
+        let save_pos = self.pos();
+        let save_start_pos = self.start_pos();
+        let save_token_pos = self.token_pos();
+        let save_token = self.token();
+        let save_token_value = self.token_value().to_string();
+        let save_token_flags = self.token_flags();
+        let result = callback();
+
+        if result.is_none() || is_lookahead {
+            self.set_pos(save_pos);
+            self.set_start_pos(save_start_pos);
+            self.set_token_pos(save_token_pos);
+            self.set_token(save_token);
+            self.set_token_value(&save_token_value);
+            self.set_token_flags(save_token_flags);
+        }
+        result
+    }
+
+    pub fn look_ahead<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+        &self,
+        callback: TCallback,
+    ) -> Option<TReturn> {
+        self.speculation_helper(callback, true)
+    }
+
+    pub fn try_scan<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+        &self,
+        callback: TCallback,
+    ) -> Option<TReturn> {
+        self.speculation_helper(callback, false)
+    }
 }
 
 pub fn create_scanner(skip_trivia: bool) -> Scanner {
