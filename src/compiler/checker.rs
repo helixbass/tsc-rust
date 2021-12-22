@@ -1,14 +1,16 @@
 use bitflags::bitflags;
 use parking_lot::RwLock;
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    bind_source_file, create_diagnostic_collection, create_diagnostic_for_node, for_each,
-    get_effective_initializer, get_effective_type_annotation_node, is_variable_declaration,
-    object_allocator, BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType,
-    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression,
+    bind_source_file, chain_diagnostic_messages, create_diagnostic_collection,
+    create_diagnostic_for_node, for_each, get_effective_initializer,
+    get_effective_type_annotation_node, is_variable_declaration, object_allocator,
+    BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, Expression,
     ExpressionStatement, FreshableIntrinsicType, HasTypeInterface, IntrinsicType, LiteralLikeNode,
     LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType,
     NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile, Statement, Symbol,
@@ -252,7 +254,7 @@ impl TypeChecker {
 
     fn get_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
         if symbol
-            .flags
+            .flags()
             .intersects(SymbolFlags::Variable | SymbolFlags::Property)
         {
             return self.get_type_of_variable_or_parameter_or_property(symbol);
@@ -394,17 +396,21 @@ impl TypeChecker {
         error_node: Option<&Node>,
         expr: Option<&Expression>,
     ) -> bool {
-        if self.is_type_related_to(source, target, relation) {
+        if self.is_type_related_to(source.clone(), target.clone(), relation) {
             return true;
+        }
+        if true {
+            return self.check_type_related_to(source, target, relation, error_node);
         }
         false
     }
 
     fn is_simple_type_related_to(
         &self,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
+        error_reporter: Option<ErrorReporter>,
     ) -> bool {
         let s = source.flags();
         let t = target.flags();
@@ -432,6 +438,13 @@ impl TypeChecker {
                 _ => panic!("Expected IntrinsicType or LiteralType"),
             };
         }
+        if true {
+            if self.is_simple_type_related_to(&*source, &*target, relation, None) {
+                return true;
+            }
+        } else {
+            unimplemented!()
+        }
         if source
             .flags()
             .intersects(TypeFlags::StructuredOrInstantiable)
@@ -439,7 +452,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::StructuredOrInstantiable)
         {
-            return self.check_type_related_to(source, target, relation);
+            return self.check_type_related_to(source, target, relation, None);
         }
         false
     }
@@ -473,8 +486,9 @@ impl TypeChecker {
         source: Rc<Type>,
         target: Rc<Type>,
         relation: &HashMap<String, RelationComparisonResult>,
+        error_node: Option<&Node>,
     ) -> bool {
-        CheckTypeRelatedTo::new(self, source, target, relation).call()
+        CheckTypeRelatedTo::new(self, source, target, relation, error_node).call()
     }
 
     fn get_regular_type_of_object_literal(&self, type_: Rc<Type>) -> Rc<Type> {
@@ -710,11 +724,15 @@ impl TypeChecker {
     }
 }
 
+type ErrorReporter<'a> = &'a dyn FnMut(DiagnosticMessage);
+
 struct CheckTypeRelatedTo<'type_checker> {
     type_checker: &'type_checker TypeChecker,
     source: Rc<Type>,
     target: Rc<Type>,
     relation: &'type_checker HashMap<String, RelationComparisonResult>,
+    error_node: Option<&'type_checker Node>,
+    error_info: RefCell<Option<DiagnosticMessageChain>>,
 }
 
 impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
@@ -723,25 +741,50 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         source: Rc<Type>,
         target: Rc<Type>,
         relation: &'type_checker HashMap<String, RelationComparisonResult>,
+        error_node: Option<&'type_checker Node>,
     ) -> Self {
         Self {
             type_checker,
             source,
             target,
             relation,
+            error_node,
+            error_info: RefCell::new(None),
         }
     }
 
+    fn error_info(&self) -> Ref<Option<DiagnosticMessageChain>> {
+        self.error_info.borrow()
+    }
+
+    fn set_error_info(&self, error_info: DiagnosticMessageChain) {
+        *self.error_info.borrow_mut() = Some(error_info);
+    }
+
     fn call(&self) -> bool {
-        let result = self.is_related_to(self.source.clone(), self.target.clone(), None);
+        let result = self.is_related_to(
+            self.source.clone(),
+            self.target.clone(),
+            self.error_node.is_some(),
+            None,
+        );
 
         result != Ternary::False
+    }
+
+    fn report_error(&self, message: DiagnosticMessage) {
+        Debug_.assert(self.error_node.is_some());
+        self.set_error_info(chain_diagnostic_messages(
+            self.error_info().clone(),
+            message,
+        ));
     }
 
     fn is_related_to(
         &self,
         original_source: Rc<Type>,
         original_target: Rc<Type>,
+        report_errors: bool,
         intersection_state: Option<IntersectionState>,
     ) -> Ternary {
         let intersection_state = intersection_state.unwrap_or(IntersectionState::None);
@@ -749,10 +792,19 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         let source = self.type_checker.get_normalized_type(original_source);
         let target = self.type_checker.get_normalized_type(original_target);
 
+        let report_error = |message: DiagnosticMessage| {
+            self.report_error(message);
+        };
+
         if self.type_checker.is_simple_type_related_to(
-            source.clone(),
-            target.clone(),
+            &*source,
+            &*target,
             self.relation,
+            if report_errors {
+                Some(&report_error)
+            } else {
+                None
+            },
         ) {
             return Ternary::True;
         }
@@ -783,7 +835,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         let target_types = target.types();
 
         for type_ in target_types {
-            let related = self.is_related_to(source.clone(), type_.clone(), None);
+            let related = self.is_related_to(source.clone(), type_.clone(), false, None);
             if related != Ternary::False {
                 return related;
             }

@@ -2,7 +2,7 @@
 
 use bitflags::bitflags;
 use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -2212,7 +2212,7 @@ bitflags! {
 
 #[derive(Debug)]
 pub struct Symbol {
-    pub flags: SymbolFlags,
+    pub flags: Cell<SymbolFlags>,
     pub escaped_name: __String,
     declarations: RwLock<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
     value_declaration: RwLock<Option<Weak<Node>>>,
@@ -2221,11 +2221,19 @@ pub struct Symbol {
 impl Symbol {
     pub fn new(flags: SymbolFlags, name: __String) -> Self {
         Self {
-            flags,
+            flags: Cell::new(flags),
             escaped_name: name,
             declarations: RwLock::new(None),
             value_declaration: RwLock::new(None),
         }
+    }
+
+    pub fn flags(&self) -> SymbolFlags {
+        self.flags.get()
+    }
+
+    pub fn set_flags(&self, flags: SymbolFlags) {
+        self.flags.set(flags);
     }
 
     pub fn maybe_declarations(&self) -> RwLockReadGuard<Option<Vec<Rc<Node>>>> {
@@ -2821,6 +2829,12 @@ pub struct DiagnosticMessage {
     pub category: DiagnosticCategory,
     pub code: u32,
     pub message: &'static str,
+}
+
+#[derive(Clone)]
+pub struct DiagnosticMessageChain {
+    pub message_text: String,
+    pub next: Option<Vec<DiagnosticMessageChain>>,
 }
 
 #[derive(Debug)]

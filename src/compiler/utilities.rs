@@ -7,10 +7,10 @@ use std::rc::Rc;
 use crate::{
     create_text_span_from_bounds, escape_leading_underscores, insert_sorted, is_member_name,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, Node, NodeInterface, ReadonlyTextRange,
-    SortedArray, SourceFile, Symbol, SymbolFlags, SymbolTable, SyntaxKind, TextSpan, TypeFlags,
-    __String,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags,
+    SymbolTable, SyntaxKind, TextSpan, TypeFlags, __String,
 };
 
 pub fn create_symbol_table() -> SymbolTable {
@@ -239,6 +239,10 @@ lazy_static! {
     pub static ref object_allocator: ObjectAllocator = ObjectAllocator {};
 }
 
+fn get_locale_specific_message(message: &DiagnosticMessage) -> String {
+    message.message.to_string()
+}
+
 pub fn create_detached_diagnostic(
     file_name: &str,
     start: usize,
@@ -267,6 +271,18 @@ fn create_file_diagnostic(
             start,
             length,
         }),
+    }
+}
+
+pub fn chain_diagnostic_messages(
+    details: Option<DiagnosticMessageChain>,
+    message: DiagnosticMessage,
+) -> DiagnosticMessageChain {
+    let text = get_locale_specific_message(&message);
+
+    DiagnosticMessageChain {
+        message_text: text,
+        next: details.map(|details| vec![details]),
     }
 }
 

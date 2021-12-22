@@ -121,6 +121,8 @@ impl BinderType {
         node: Rc<Node /*Declaration*/>,
         symbol_flags: SymbolFlags,
     ) {
+        symbol.set_flags(symbol.flags() | symbol_flags);
+
         node.set_symbol(symbol.clone());
         let declarations = {
             append_if_unique(
