@@ -1,11 +1,11 @@
 use std::rc::Rc;
 
 use crate::{
-    BaseBindingLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
-    BaseNodeFactory, BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression,
-    ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NumericLiteral, PrefixUnaryExpression, SourceFile, SyntaxKind, VariableDeclaration,
-    VariableDeclarationList, VariableStatement,
+    escape_leading_underscores, BaseBindingLikeDeclaration, BaseLiteralLikeNode,
+    BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseVariableLikeDeclaration, BinaryExpression,
+    EmptyStatement, Expression, ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NumericLiteral, PrefixUnaryExpression, SourceFile, SyntaxKind,
+    VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -99,10 +99,7 @@ impl NodeFactory {
         text: &str,
     ) -> Identifier {
         let node = base_factory.create_base_identifier_node(SyntaxKind::Identifier);
-        let node = Identifier {
-            _node: node,
-            escaped_text: text.to_string(),
-        };
+        let node = Identifier::new(node, escape_leading_underscores(text));
         node
     }
 

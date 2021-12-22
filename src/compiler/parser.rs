@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use parking_lot::MappedRwLockWriteGuard;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -8,11 +9,13 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
     get_binary_operator_precedence, last_or_undefined, normalize_path, object_allocator,
-    set_text_range_pos_end, BaseNode, BaseNodeFactory, BinaryExpression, Debug_, DiagnosticMessage,
+    set_text_range_pos_end, BaseNode, BaseNodeFactory, BinaryExpression,
+    BindingLikeDeclarationInterface, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
-    Identifier, KeywordTypeNode, LiteralLikeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, OperatorPrecedence, ReadonlyTextRange, Scanner, SourceFile,
-    Statement, SyntaxKind, TypeNode, VariableDeclaration, VariableDeclarationList,
+    Identifier, KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OperatorPrecedence, ReadonlyTextRange,
+    Scanner, SourceFile, Statement, Symbol, SymbolTable, SyntaxKind, TypeNode, VariableDeclaration,
+    VariableDeclarationList, VariableLikeDeclarationInterface,
 };
 
 #[derive(Eq, PartialEq)]
@@ -22,25 +25,58 @@ enum SpeculationKind {
     Reparse,
 }
 
-fn visit_node<TNodeCallback: FnMut(Rc<Node>)>(mut cb_node: TNodeCallback, node: Rc<Node>) {
+fn visit_node<TNodeCallback: FnMut(Option<Rc<Node>>)>(
+    mut cb_node: &mut TNodeCallback,
+    node: Option<Rc<Node>>,
+) {
     cb_node(node)
 }
 
-pub fn for_each_child<TNodeCallback: FnMut(Rc<Node>), TNodesCallback: FnMut(&NodeArray)>(
+fn visit_nodes<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: FnMut(&NodeArray)>(
+    mut cb_node: TNodeCallback,
+    mut cb_nodes: TNodesCallback,
+    nodes: &NodeArray,
+) {
+    if true {
+        if true {
+            return cb_nodes(nodes);
+        }
+    }
+    unimplemented!()
+}
+
+pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: FnMut(&NodeArray)>(
     node: Rc<Node>,
-    cb_node: TNodeCallback,
+    mut cb_node: TNodeCallback,
     cb_nodes: TNodesCallback,
 ) {
     if node.kind() <= SyntaxKind::LastToken {
         return;
     }
     match &*node {
+        Node::VariableDeclaration(variable_declaration) => {
+            visit_node(&mut cb_node, Some(variable_declaration.name()));
+            visit_node(&mut cb_node, variable_declaration.type_());
+            return visit_node(&mut cb_node, variable_declaration.initializer());
+        }
         Node::Expression(expression) => match expression {
             Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                return visit_node(cb_node, prefix_unary_expression.operand.clone());
+                return visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()));
             }
             _ => unimplemented!(),
         },
+        Node::Statement(statement) => match statement {
+            Statement::VariableStatement(variable_statement) => {
+                return visit_node(
+                    &mut cb_node,
+                    Some(variable_statement.declaration_list.clone()),
+                );
+            }
+            _ => unimplemented!(),
+        },
+        Node::VariableDeclarationList(variable_declaration_list) => {
+            return visit_nodes(cb_node, cb_nodes, &variable_declaration_list.declarations);
+        }
         _ => unimplemented!(),
     }
 }
@@ -69,6 +105,30 @@ impl NodeInterface for MissingNode {
     fn set_parent(&self, parent: Rc<Node>) {
         match self {
             MissingNode::Identifier(identifier) => identifier.set_parent(parent),
+        }
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.symbol(),
+        }
+    }
+
+    fn set_symbol(&self, symbol: Rc<Symbol>) {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.set_symbol(symbol),
+        }
+    }
+
+    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.locals(),
+        }
+    }
+
+    fn set_locals(&self, locals: SymbolTable) {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.set_locals(locals),
         }
     }
 }

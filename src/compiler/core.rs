@@ -37,6 +37,24 @@ pub fn insert_sorted<TItem>(array: &mut SortedArray<TItem>, insert: TItem) {
     unimplemented!()
 }
 
+fn push_if_unique<TItem>(array: &mut Vec<TItem>, to_add: TItem) -> bool {
+    if false {
+        unimplemented!()
+    } else {
+        array.push(to_add);
+        true
+    }
+}
+
+pub fn append_if_unique<TItem>(array: Option<Vec<TItem>>, to_add: TItem) -> Vec<TItem> {
+    if let Some(mut array) = array {
+        push_if_unique(&mut array, to_add);
+        array
+    } else {
+        vec![to_add]
+    }
+}
+
 pub fn last_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
     array.last()
 }
