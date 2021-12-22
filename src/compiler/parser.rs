@@ -9,13 +9,13 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
     get_binary_operator_precedence, last_or_undefined, normalize_path, object_allocator,
-    set_text_range_pos_end, BaseNode, BaseNodeFactory, BinaryExpression,
-    BindingLikeDeclarationInterface, Debug_, DiagnosticMessage,
+    set_text_range_pos_end, BaseNode, BaseNodeFactory, BinaryExpression, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
-    Identifier, KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OperatorPrecedence, ReadonlyTextRange,
-    Scanner, SourceFile, Statement, Symbol, SymbolTable, SyntaxKind, TypeNode, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface,
+    HasExpressionInitializerInterface, HasTypeInterface, Identifier, KeywordTypeNode,
+    LiteralLikeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeInterface, OperatorPrecedence, ReadonlyTextRange, Scanner, SourceFile,
+    Statement, Symbol, SymbolTable, SyntaxKind, TypeNode, VariableDeclaration,
+    VariableDeclarationList,
 };
 
 #[derive(Eq, PartialEq)]
@@ -26,14 +26,14 @@ enum SpeculationKind {
 }
 
 fn visit_node<TNodeCallback: FnMut(Option<Rc<Node>>)>(
-    mut cb_node: &mut TNodeCallback,
+    cb_node: &mut TNodeCallback,
     node: Option<Rc<Node>>,
 ) {
     cb_node(node)
 }
 
 fn visit_nodes<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: FnMut(&NodeArray)>(
-    mut cb_node: TNodeCallback,
+    cb_node: TNodeCallback,
     mut cb_nodes: TNodesCallback,
     nodes: &NodeArray,
 ) {

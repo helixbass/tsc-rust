@@ -60,6 +60,10 @@ fn get_error_span_for_node<TNode: NodeInterface>(
     create_text_span_from_bounds(pos, error_node.end())
 }
 
+pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> Option<Rc<Node>> {
+    node.as_has_expression_initializer().initializer()
+}
+
 pub fn set_value_declaration(symbol: &Symbol, node: Rc<Node>) {
     {
         if !(symbol.maybe_value_declaration().is_none()) {

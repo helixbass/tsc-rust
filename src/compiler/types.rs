@@ -138,6 +138,13 @@ impl Node {
             _ => None,
         }
     }
+
+    pub fn as_has_expression_initializer(&self) -> &dyn HasExpressionInitializerInterface {
+        match self {
+            Node::VariableDeclaration(variable_declaration) => variable_declaration,
+            _ => panic!("Expected has expression initializer"),
+        }
+    }
 }
 
 impl ReadonlyTextRange for Node {
@@ -415,6 +422,11 @@ pub trait HasTypeInterface {
     fn set_type(&mut self, type_: Rc<Node>);
 }
 
+pub trait HasExpressionInitializerInterface {
+    fn initializer(&self) -> Option<Rc<Node>>;
+    fn set_initializer(&mut self, initializer: Rc<Node>);
+}
+
 #[derive(Debug)]
 pub struct NodeArray {
     _nodes: Vec<Rc<Node>>,
@@ -627,9 +639,9 @@ impl NamedDeclarationInterface for BaseNamedDeclaration {
     }
 }
 
-pub trait BindingLikeDeclarationInterface: NamedDeclarationInterface {
-    fn initializer(&self) -> Option<Rc<Node>>;
-    fn set_initializer(&mut self, initializer: Rc<Node>);
+pub trait BindingLikeDeclarationInterface:
+    NamedDeclarationInterface + HasExpressionInitializerInterface
+{
 }
 
 #[derive(Debug)]
@@ -712,7 +724,7 @@ impl NamedDeclarationInterface for BaseBindingLikeDeclaration {
     }
 }
 
-impl BindingLikeDeclarationInterface for BaseBindingLikeDeclaration {
+impl HasExpressionInitializerInterface for BaseBindingLikeDeclaration {
     fn initializer(&self) -> Option<Rc<Node>> {
         self.initializer.as_ref().map(Clone::clone)
     }
@@ -721,6 +733,8 @@ impl BindingLikeDeclarationInterface for BaseBindingLikeDeclaration {
         self.initializer = Some(initializer);
     }
 }
+
+impl BindingLikeDeclarationInterface for BaseBindingLikeDeclaration {}
 
 pub trait VariableLikeDeclarationInterface:
     BindingLikeDeclarationInterface + HasTypeInterface
@@ -807,7 +821,7 @@ impl NamedDeclarationInterface for BaseVariableLikeDeclaration {
     }
 }
 
-impl BindingLikeDeclarationInterface for BaseVariableLikeDeclaration {
+impl HasExpressionInitializerInterface for BaseVariableLikeDeclaration {
     fn initializer(&self) -> Option<Rc<Node>> {
         self._binding_like_declaration.initializer()
     }
@@ -816,6 +830,8 @@ impl BindingLikeDeclarationInterface for BaseVariableLikeDeclaration {
         self._binding_like_declaration.set_initializer(initializer);
     }
 }
+
+impl BindingLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 
 impl HasTypeInterface for BaseVariableLikeDeclaration {
     fn type_(&self) -> Option<Rc<Node>> {
@@ -904,7 +920,7 @@ impl NamedDeclarationInterface for VariableDeclaration {
     }
 }
 
-impl BindingLikeDeclarationInterface for VariableDeclaration {
+impl HasExpressionInitializerInterface for VariableDeclaration {
     fn initializer(&self) -> Option<Rc<Node>> {
         self._variable_like_declaration.initializer()
     }
@@ -913,6 +929,8 @@ impl BindingLikeDeclarationInterface for VariableDeclaration {
         self._variable_like_declaration.set_initializer(initializer);
     }
 }
+
+impl BindingLikeDeclarationInterface for VariableDeclaration {}
 
 impl HasTypeInterface for VariableDeclaration {
     fn type_(&self) -> Option<Rc<Node>> {

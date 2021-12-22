@@ -6,10 +6,10 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, create_diagnostic_collection, create_diagnostic_for_node, for_each,
-    get_effective_type_annotation_node, is_variable_declaration, object_allocator,
-    BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
-    FreshableIntrinsicType, HasTypeInterface, IntrinsicType, LiteralLikeNode,
+    get_effective_initializer, get_effective_type_annotation_node, is_variable_declaration,
+    object_allocator, BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType,
+    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression,
+    ExpressionStatement, FreshableIntrinsicType, HasTypeInterface, IntrinsicType, LiteralLikeNode,
     LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType,
     NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile, Statement, Symbol,
     SymbolFlags, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface,
@@ -230,7 +230,7 @@ impl TypeChecker {
     }
 
     fn get_type_of_variable_or_parameter_or_property_worker(&self, symbol: &Symbol) -> Rc<Type> {
-        Debug_.assert_is_defined(*symbol.maybe_value_declaration(), None);
+        Debug_.assert_is_defined(symbol.maybe_value_declaration().as_ref(), None);
         let declaration = symbol
             .maybe_value_declaration()
             .as_ref()
@@ -370,6 +370,36 @@ impl TypeChecker {
         self.is_type_related_to(source, target, &self.assignable_relation)
     }
 
+    fn check_type_assignable_to_and_optionally_elaborate(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        error_node: Option<&Node>,
+        expr: Option<&Expression>,
+    ) -> bool {
+        self.check_type_related_to_and_optionally_elaborate(
+            source,
+            target,
+            &self.assignable_relation,
+            error_node,
+            expr,
+        )
+    }
+
+    fn check_type_related_to_and_optionally_elaborate(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        relation: &HashMap<String, RelationComparisonResult>,
+        error_node: Option<&Node>,
+        expr: Option<&Expression>,
+    ) -> bool {
+        if self.is_type_related_to(source, target, relation) {
+            return true;
+        }
+        false
+    }
+
     fn is_simple_type_related_to(
         &self,
         source: Rc<Type>,
@@ -498,7 +528,7 @@ impl TypeChecker {
                 };
             }
             Node::VariableDeclaration(variable_declaration) => {
-                return self.check_variable_declaration(variable_declaration, node);
+                return self.check_variable_declaration(variable_declaration, node.clone());
             }
             _ => unimplemented!(),
         };
@@ -567,6 +597,10 @@ impl TypeChecker {
         self.number_type()
     }
 
+    fn check_expression_cached(&mut self, node: &Expression) -> Rc<Type> {
+        self.check_expression(node)
+    }
+
     fn check_expression(&mut self, node: &Expression) -> Rc<Type> {
         self.check_expression_worker(node)
     }
@@ -597,6 +631,10 @@ impl TypeChecker {
         }
     }
 
+    fn convert_auto_to_any(&self, type_: Rc<Type>) -> Rc<Type> {
+        type_
+    }
+
     fn check_variable_like_declaration(&mut self, node: &VariableDeclaration, wrapper: Rc<Node>) {
         if true {
             self.check_source_element(node.type_());
@@ -607,16 +645,28 @@ impl TypeChecker {
         let type_ = self.convert_auto_to_any(self.get_type_of_symbol(&*symbol));
         let value_declaration = symbol.maybe_value_declaration();
         if value_declaration.is_some()
-            && Rc::ptr_eq(&wrapper, &value_declaration.unwrap().upgrade().unwrap())
+            && Rc::ptr_eq(
+                &wrapper,
+                &value_declaration.as_ref().unwrap().upgrade().unwrap(),
+            )
         {
-            let initializer = self.get_effective_initializer(node);
-            if true {
-                self.check_type_assignable_to_and_optionally_elaborate(
-                    self.check_expression_cached(initializer),
-                    type_,
-                    node,
-                    initializer,
-                );
+            let initializer = get_effective_initializer(&*wrapper);
+            if let Some(initializer) = initializer {
+                if true {
+                    let initializer_type = self.check_expression_cached(match &*initializer {
+                        Node::Expression(expression) => expression,
+                        _ => panic!("Expected Expression"),
+                    });
+                    self.check_type_assignable_to_and_optionally_elaborate(
+                        initializer_type,
+                        type_,
+                        Some(&*wrapper),
+                        Some(match &*initializer {
+                            Node::Expression(expression) => expression,
+                            _ => panic!("Expected Expression"),
+                        }),
+                    );
+                }
             }
         } else {
             unimplemented!()
