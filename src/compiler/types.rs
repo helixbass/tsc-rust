@@ -2711,7 +2711,7 @@ impl From<UnionType> for Type {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Ternary {
     False = 0,
     Unknown = 1,
@@ -2831,7 +2831,7 @@ pub struct DiagnosticMessage {
     pub message: &'static str,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DiagnosticMessageChain {
     pub message_text: String,
     pub next: Option<Vec<DiagnosticMessageChain>>,

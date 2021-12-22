@@ -49,6 +49,31 @@ fn create_diagnostic_for_node_in_source_file<TNode: NodeInterface>(
     create_file_diagnostic(source_file, span.start, span.length, message)
 }
 
+pub fn create_diagnostic_for_node_from_message_chain<TNode: NodeInterface>(
+    node: &TNode,
+    message_chain: &DiagnosticMessageChain,
+) -> DiagnosticWithLocation {
+    let source_file = get_source_file_of_node(node);
+    let span = get_error_span_for_node(source_file.clone(), node);
+    create_file_diagnostic_from_message_chain(source_file, span.start, span.length, message_chain)
+}
+
+fn create_file_diagnostic_from_message_chain(
+    file: Rc<SourceFile>,
+    start: usize,
+    length: usize,
+    message_chain: &DiagnosticMessageChain,
+) -> DiagnosticWithLocation {
+    // assert_diagnostic_location(&*file, start, length);
+    DiagnosticWithLocation {
+        _diagnostic: BaseDiagnostic::new(BaseDiagnosticRelatedInformation {
+            file: Some(file),
+            start,
+            length,
+        }),
+    }
+}
+
 fn get_error_span_for_node<TNode: NodeInterface>(
     source_file: Rc<SourceFile>,
     node: &TNode,

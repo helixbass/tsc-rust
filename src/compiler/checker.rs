@@ -7,16 +7,17 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, chain_diagnostic_messages, create_diagnostic_collection,
-    create_diagnostic_for_node, for_each, get_effective_initializer,
-    get_effective_type_annotation_node, is_variable_declaration, object_allocator,
-    BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, Expression,
-    ExpressionStatement, FreshableIntrinsicType, HasTypeInterface, IntrinsicType, LiteralLikeNode,
-    LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType,
-    NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile, Statement, Symbol,
-    SymbolFlags, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface,
-    TypeNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
-    VariableDeclaration, VariableStatement,
+    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, for_each,
+    get_effective_initializer, get_effective_type_annotation_node, is_variable_declaration,
+    object_allocator, BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType,
+    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
+    Diagnostics, Expression, ExpressionStatement, FreshableIntrinsicType, HasTypeInterface,
+    IntrinsicType, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface, Node,
+    NodeInterface, Number, NumberLiteralType, NumericLiteral, PrefixUnaryExpression,
+    RelationComparisonResult, SourceFile, Statement, Symbol, SymbolFlags, SyntaxKind, Ternary,
+    Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, TypeNode,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration,
+    VariableStatement,
 };
 
 bitflags! {
@@ -183,6 +184,22 @@ impl TypeChecker {
         let type_ = self.create_type(kind);
         let type_ = BaseIntrinsicType::new(type_);
         type_
+    }
+
+    fn type_to_string(&self, type_: &Type) -> String {}
+
+    fn get_type_names_for_error_display(&self, left: &Type, right: &Type) -> (String, String) {
+        let left_str = if false {
+            unimplemented!()
+        } else {
+            self.type_to_string(left);
+        };
+        let right_str = if false {
+            unimplemented!()
+        } else {
+            self.type_to_string(right);
+        };
+        (left_str, right_str)
     }
 
     fn add_optionality(&self, type_: Rc<Type>) -> Rc<Type> {
@@ -769,6 +786,22 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             None,
         );
 
+        if false {
+            unimplemented!()
+        } else if self.error_info().is_some() {
+            let diag = create_diagnostic_for_node_from_message_chain(
+                &*self.error_node.unwrap(),
+                &*self.error_info().as_ref().unwrap(),
+            );
+            if true {
+                self.type_checker
+                    .diagnostics()
+                    .try_write()
+                    .unwrap()
+                    .add(Rc::new(diag.into()));
+            }
+        }
+
         result != Ternary::False
     }
 
@@ -778,6 +811,39 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             self.error_info().clone(),
             message,
         ));
+    }
+
+    fn report_relation_error(
+        &self,
+        mut message: Option<DiagnosticMessage>,
+        source: Rc<Type>,
+        target: Rc<Type>,
+    ) {
+        let (source_type, target_type) = self
+            .type_checker
+            .get_type_names_for_error_display(source, target);
+        let mut generalized_source = source;
+        let mut generalized_source_type = source_type;
+
+        if is_literal_type(source) && !type_could_have_top_level_singleton_types(target) {
+            generalized_source = get_base_type_of_literal_type(source);
+            Debug_.assert(
+                !self
+                    .type_checker
+                    .is_type_assignable_to(generalized_source, target),
+                Some("generalized source shouldn't be assignable"),
+            );
+            generalized_source_type = self.type_checker.get_type_name_for_error_display(source);
+        }
+
+        if message.is_none() {
+            if false {
+            } else {
+                message = Some(Diagnostics::Type_0_is_not_assignable_to_type_1);
+            }
+        }
+
+        self.report_error(message, generalized_source_type, target_type);
     }
 
     fn is_related_to(
@@ -791,6 +857,14 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
         let source = self.type_checker.get_normalized_type(original_source);
         let target = self.type_checker.get_normalized_type(original_target);
+
+        let report_error_results = |source, target, result| {
+            if result == Ternary::False && report_errors {
+                let source = source;
+                let target = target;
+                self.report_relation_error(source, target);
+            }
+        };
 
         let report_error = |message: DiagnosticMessage| {
             self.report_error(message);
@@ -818,11 +892,13 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                 < 4
         {
             result = self.structured_type_related_to(
-                source,
-                target,
+                source.clone(),
+                target.clone(),
                 intersection_state | IntersectionState::UnionIntersectionCheck,
             );
         }
+
+        report_error_results(&*source, &*target, result);
 
         result
     }

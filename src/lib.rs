@@ -43,8 +43,8 @@ pub use compiler::types::{
 };
 pub use compiler::utilities::{
     chain_diagnostic_messages, create_detached_diagnostic, create_diagnostic_collection,
-    create_diagnostic_for_node, create_symbol_table, get_binary_operator_precedence,
-    get_effective_initializer, get_effective_type_annotation_node,
+    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_symbol_table,
+    get_binary_operator_precedence, get_effective_initializer, get_effective_type_annotation_node,
     get_escaped_text_of_identifier_or_literal, is_property_name_literal, object_allocator,
     set_parent, set_text_range_pos_end, set_value_declaration, OperatorPrecedence,
 };
