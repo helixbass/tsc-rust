@@ -512,78 +512,9 @@ impl From<Identifier> for Node {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
-}
-
-impl NodeInterface for TypeNode {
-    fn kind(&self) -> SyntaxKind {
-        match self {
-            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.kind(),
-        }
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        match self {
-            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.parent(),
-        }
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        match self {
-            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.set_parent(parent),
-        }
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        match self {
-            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.symbol(),
-        }
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        match self {
-            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.set_symbol(symbol),
-        }
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        match self {
-            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.locals(),
-        }
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        match self {
-            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.set_locals(locals),
-        }
-    }
-}
-
-impl ReadonlyTextRange for TypeNode {
-    fn pos(&self) -> usize {
-        match self {
-            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.pos(),
-        }
-    }
-
-    fn set_pos(&self, pos: usize) {
-        match self {
-            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.set_pos(pos),
-        }
-    }
-
-    fn end(&self) -> usize {
-        match self {
-            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.end(),
-        }
-    }
-
-    fn set_end(&self, end: usize) {
-        match self {
-            TypeNode::KeywordTypeNode(keyword_type_node) => keyword_type_node.set_end(end),
-        }
-    }
 }
 
 impl From<TypeNode> for Node {
@@ -617,148 +548,13 @@ impl From<BaseNode> for KeywordTypeNode {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub enum Expression {
     TokenExpression(BaseNode),
     Identifier(Identifier),
     PrefixUnaryExpression(PrefixUnaryExpression),
     BinaryExpression(BinaryExpression),
     LiteralLikeNode(LiteralLikeNode),
-}
-
-impl NodeInterface for Expression {
-    fn kind(&self) -> SyntaxKind {
-        match self {
-            Expression::TokenExpression(token_expression) => token_expression.kind(),
-            Expression::Identifier(identifier) => identifier.kind(),
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                prefix_unary_expression.kind()
-            }
-            Expression::BinaryExpression(binary_expression) => binary_expression.kind(),
-            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.kind(),
-        }
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        match self {
-            Expression::TokenExpression(token_expression) => token_expression.parent(),
-            Expression::Identifier(identifier) => identifier.parent(),
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                prefix_unary_expression.parent()
-            }
-            Expression::BinaryExpression(binary_expression) => binary_expression.parent(),
-            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.parent(),
-        }
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        match self {
-            Expression::TokenExpression(token_expression) => token_expression.set_parent(parent),
-            Expression::Identifier(identifier) => identifier.set_parent(parent),
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                prefix_unary_expression.set_parent(parent)
-            }
-            Expression::BinaryExpression(binary_expression) => binary_expression.set_parent(parent),
-            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_parent(parent),
-        }
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        match self {
-            Expression::TokenExpression(token_expression) => token_expression.symbol(),
-            Expression::Identifier(identifier) => identifier.symbol(),
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                prefix_unary_expression.symbol()
-            }
-            Expression::BinaryExpression(binary_expression) => binary_expression.symbol(),
-            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.symbol(),
-        }
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        match self {
-            Expression::TokenExpression(token_expression) => token_expression.set_symbol(symbol),
-            Expression::Identifier(identifier) => identifier.set_symbol(symbol),
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                prefix_unary_expression.set_symbol(symbol)
-            }
-            Expression::BinaryExpression(binary_expression) => binary_expression.set_symbol(symbol),
-            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_symbol(symbol),
-        }
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        match self {
-            Expression::TokenExpression(token_expression) => token_expression.locals(),
-            Expression::Identifier(identifier) => identifier.locals(),
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                prefix_unary_expression.locals()
-            }
-            Expression::BinaryExpression(binary_expression) => binary_expression.locals(),
-            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.locals(),
-        }
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        match self {
-            Expression::TokenExpression(token_expression) => token_expression.set_locals(locals),
-            Expression::Identifier(identifier) => identifier.set_locals(locals),
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                prefix_unary_expression.set_locals(locals)
-            }
-            Expression::BinaryExpression(binary_expression) => binary_expression.set_locals(locals),
-            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_locals(locals),
-        }
-    }
-}
-
-impl ReadonlyTextRange for Expression {
-    fn pos(&self) -> usize {
-        match self {
-            Expression::TokenExpression(token_expression) => token_expression.pos(),
-            Expression::Identifier(identifier) => identifier.pos(),
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                prefix_unary_expression.pos()
-            }
-            Expression::BinaryExpression(binary_expression) => binary_expression.pos(),
-            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.pos(),
-        }
-    }
-
-    fn set_pos(&self, pos: usize) {
-        match self {
-            Expression::TokenExpression(token_expression) => token_expression.set_pos(pos),
-            Expression::Identifier(identifier) => identifier.set_pos(pos),
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                prefix_unary_expression.set_pos(pos)
-            }
-            Expression::BinaryExpression(binary_expression) => binary_expression.set_pos(pos),
-            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_pos(pos),
-        }
-    }
-
-    fn end(&self) -> usize {
-        match self {
-            Expression::TokenExpression(token_expression) => token_expression.end(),
-            Expression::Identifier(identifier) => identifier.end(),
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                prefix_unary_expression.end()
-            }
-            Expression::BinaryExpression(binary_expression) => binary_expression.end(),
-            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.end(),
-        }
-    }
-
-    fn set_end(&self, end: usize) {
-        match self {
-            Expression::TokenExpression(token_expression) => token_expression.set_end(end),
-            Expression::Identifier(identifier) => identifier.set_end(end),
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                prefix_unary_expression.set_end(end)
-            }
-            Expression::BinaryExpression(binary_expression) => binary_expression.set_end(end),
-            Expression::LiteralLikeNode(literal_like_node) => literal_like_node.set_end(end),
-        }
-    }
 }
 
 impl From<Expression> for Node {
@@ -840,78 +636,9 @@ pub trait LiteralLikeNodeInterface {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub enum LiteralLikeNode {
     NumericLiteral(NumericLiteral),
-}
-
-impl NodeInterface for LiteralLikeNode {
-    fn kind(&self) -> SyntaxKind {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.kind(),
-        }
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.parent(),
-        }
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_parent(parent),
-        }
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.symbol(),
-        }
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_symbol(symbol),
-        }
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.locals(),
-        }
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_locals(locals),
-        }
-    }
-}
-
-impl ReadonlyTextRange for LiteralLikeNode {
-    fn pos(&self) -> usize {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.pos(),
-        }
-    }
-
-    fn set_pos(&self, pos: usize) {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_pos(pos),
-        }
-    }
-
-    fn end(&self) -> usize {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.end(),
-        }
-    }
-
-    fn set_end(&self, end: usize) {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.set_end(end),
-        }
-    }
 }
 
 impl From<LiteralLikeNode> for Expression {
@@ -954,118 +681,11 @@ impl LiteralLikeNodeInterface for NumericLiteral {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub enum Statement {
     EmptyStatement(EmptyStatement),
     VariableStatement(VariableStatement),
     ExpressionStatement(ExpressionStatement),
-}
-
-impl NodeInterface for Statement {
-    fn kind(&self) -> SyntaxKind {
-        match self {
-            Statement::EmptyStatement(empty_statement) => empty_statement.kind(),
-            Statement::VariableStatement(variable_statement) => variable_statement.kind(),
-            Statement::ExpressionStatement(expression_statement) => expression_statement.kind(),
-        }
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        match self {
-            Statement::EmptyStatement(empty_statement) => empty_statement.parent(),
-            Statement::VariableStatement(variable_statement) => variable_statement.parent(),
-            Statement::ExpressionStatement(expression_statement) => expression_statement.parent(),
-        }
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        match self {
-            Statement::EmptyStatement(empty_statement) => empty_statement.set_parent(parent),
-            Statement::VariableStatement(variable_statement) => {
-                variable_statement.set_parent(parent)
-            }
-            Statement::ExpressionStatement(expression_statement) => {
-                expression_statement.set_parent(parent)
-            }
-        }
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        match self {
-            Statement::EmptyStatement(empty_statement) => empty_statement.symbol(),
-            Statement::VariableStatement(variable_statement) => variable_statement.symbol(),
-            Statement::ExpressionStatement(expression_statement) => expression_statement.symbol(),
-        }
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        match self {
-            Statement::EmptyStatement(empty_statement) => empty_statement.set_symbol(symbol),
-            Statement::VariableStatement(variable_statement) => {
-                variable_statement.set_symbol(symbol)
-            }
-            Statement::ExpressionStatement(expression_statement) => {
-                expression_statement.set_symbol(symbol)
-            }
-        }
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        match self {
-            Statement::EmptyStatement(empty_statement) => empty_statement.locals(),
-            Statement::VariableStatement(variable_statement) => variable_statement.locals(),
-            Statement::ExpressionStatement(expression_statement) => expression_statement.locals(),
-        }
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        match self {
-            Statement::EmptyStatement(empty_statement) => empty_statement.set_locals(locals),
-            Statement::VariableStatement(variable_statement) => {
-                variable_statement.set_locals(locals)
-            }
-            Statement::ExpressionStatement(expression_statement) => {
-                expression_statement.set_locals(locals)
-            }
-        }
-    }
-}
-
-impl ReadonlyTextRange for Statement {
-    fn pos(&self) -> usize {
-        match self {
-            Statement::EmptyStatement(empty_statement) => empty_statement.pos(),
-            Statement::VariableStatement(variable_statement) => variable_statement.pos(),
-            Statement::ExpressionStatement(expression_statement) => expression_statement.pos(),
-        }
-    }
-
-    fn set_pos(&self, pos: usize) {
-        match self {
-            Statement::EmptyStatement(empty_statement) => empty_statement.set_pos(pos),
-            Statement::VariableStatement(variable_statement) => variable_statement.set_pos(pos),
-            Statement::ExpressionStatement(expression_statement) => {
-                expression_statement.set_pos(pos)
-            }
-        }
-    }
-
-    fn end(&self) -> usize {
-        match self {
-            Statement::EmptyStatement(empty_statement) => empty_statement.end(),
-            Statement::VariableStatement(variable_statement) => variable_statement.end(),
-            Statement::ExpressionStatement(expression_statement) => expression_statement.end(),
-        }
-    }
-
-    fn set_end(&self, end: usize) {
-        match self {
-            Statement::EmptyStatement(empty_statement) => empty_statement.set_end(end),
-            Statement::VariableStatement(variable_statement) => variable_statement.set_end(end),
-            Statement::ExpressionStatement(expression_statement) => {
-                expression_statement.set_end(end)
-            }
-        }
-    }
 }
 
 impl From<Statement> for Node {
