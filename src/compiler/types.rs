@@ -778,7 +778,7 @@ pub struct TypeChecker {
     pub true_type: Option<Rc<Type>>,
     pub regular_true_type: Option<Rc<Type>>,
     pub number_or_big_int_type: Option<Rc<Type>>,
-    pub diagnostics: RwLock<DiagnosticCollection>,
+    pub diagnostics: RefCell<DiagnosticCollection>,
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
 
