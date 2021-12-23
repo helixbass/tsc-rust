@@ -137,7 +137,7 @@ impl Node {
 #[derive(Debug)]
 pub struct BaseNode {
     pub kind: SyntaxKind,
-    pub parent: RwLock<Option<Weak<Node>>>,
+    pub parent: RefCell<Option<Weak<Node>>>,
     pub pos: AtomicUsize,
     pub end: AtomicUsize,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
@@ -148,7 +148,7 @@ impl BaseNode {
     pub fn new(kind: SyntaxKind, pos: usize, end: usize) -> Self {
         Self {
             kind,
-            parent: RwLock::new(None),
+            parent: RefCell::new(None),
             pos: pos.into(),
             end: end.into(),
             symbol: RefCell::new(None),
@@ -163,17 +163,11 @@ impl NodeInterface for BaseNode {
     }
 
     fn parent(&self) -> Rc<Node> {
-        self.parent
-            .try_read()
-            .unwrap()
-            .clone()
-            .unwrap()
-            .upgrade()
-            .unwrap()
+        self.parent.borrow().clone().unwrap().upgrade().unwrap()
     }
 
     fn set_parent(&self, parent: Rc<Node>) {
-        *self.parent.try_write().unwrap() = Some(Rc::downgrade(&parent));
+        *self.parent.borrow_mut() = Some(Rc::downgrade(&parent));
     }
 
     fn symbol(&self) -> Rc<Symbol> {
