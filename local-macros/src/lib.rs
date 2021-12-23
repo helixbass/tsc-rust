@@ -54,6 +54,24 @@ pub fn ast_type(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         self.#first_field_name.set_locals(locals)
                     }
                 }
+
+                impl crate::ReadonlyTextRange for #ast_type_name {
+                    fn pos(&self) -> usize {
+                        self.#first_field_name.pos()
+                    }
+
+                    fn set_pos(&self, pos: usize) {
+                        self.#first_field_name.set_pos(pos);
+                    }
+
+                    fn end(&self) -> usize {
+                        self.#first_field_name.end()
+                    }
+
+                    fn set_end(&self, end: usize) {
+                        self.#first_field_name.set_end(end);
+                    }
+                }
             }
         }
         _ => panic!("Expected struct"),

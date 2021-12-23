@@ -451,24 +451,6 @@ impl Identifier {
     }
 }
 
-impl ReadonlyTextRange for Identifier {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
-    }
-}
-
 impl MemberNameInterface for Identifier {
     fn escaped_text(&self) -> __String {
         self.escaped_text.clone()
