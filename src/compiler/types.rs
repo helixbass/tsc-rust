@@ -1,10 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::{Number, SortedArray, WeakSelf};
 use local_macros::ast_type;
@@ -137,8 +136,8 @@ impl Node {
 pub struct BaseNode {
     pub kind: SyntaxKind,
     pub parent: RefCell<Option<Weak<Node>>>,
-    pub pos: AtomicUsize,
-    pub end: AtomicUsize,
+    pub pos: Cell<usize>,
+    pub end: Cell<usize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RefCell<Option<SymbolTable>>,
 }
@@ -188,19 +187,19 @@ impl NodeInterface for BaseNode {
 
 impl ReadonlyTextRange for BaseNode {
     fn pos(&self) -> usize {
-        self.pos.load(Ordering::Relaxed)
+        self.pos.get()
     }
 
     fn set_pos(&self, pos: usize) {
-        self.pos.store(pos, Ordering::Relaxed);
+        self.pos.set(pos);
     }
 
     fn end(&self) -> usize {
-        self.end.load(Ordering::Relaxed)
+        self.end.get()
     }
 
     fn set_end(&self, end: usize) {
-        self.end.store(end, Ordering::Relaxed);
+        self.end.set(end);
     }
 }
 
