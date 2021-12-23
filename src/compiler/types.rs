@@ -1,8 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use parking_lot::{RwLock, RwLockReadGuard};
-use std::cell::{RefCell, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -792,7 +791,7 @@ bitflags! {
 pub struct Symbol {
     pub flags: SymbolFlags,
     pub escaped_name: __String,
-    declarations: RwLock<Option<Vec<Rc<Node /*Declaration*/>>>>,
+    declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>,
 }
 
 impl Symbol {
@@ -800,16 +799,16 @@ impl Symbol {
         Self {
             flags,
             escaped_name: name,
-            declarations: RwLock::new(None),
+            declarations: RefCell::new(None),
         }
     }
 
-    pub fn maybe_declarations(&self) -> RwLockReadGuard<Option<Vec<Rc<Node>>>> {
-        self.declarations.try_read().unwrap()
+    pub fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+        self.declarations.borrow()
     }
 
     pub fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
-        *self.declarations.try_write().unwrap() = Some(declarations);
+        *self.declarations.borrow_mut() = Some(declarations);
     }
 }
 
