@@ -9,7 +9,7 @@ pub use compiler::binder::bind_source_file;
 pub use compiler::checker::create_type_checker;
 pub use compiler::command_line_parser::parse_command_line;
 pub use compiler::core::{
-    append_if_unique, concatenate, for_each, insert_sorted, last_or_undefined,
+    append_if_unique, concatenate, every, for_each, insert_sorted, last_or_undefined,
 };
 pub use compiler::core_public::SortedArray;
 pub use compiler::debug::Debug_;

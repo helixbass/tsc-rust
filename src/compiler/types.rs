@@ -914,20 +914,39 @@ pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
 bitflags! {
     pub struct TypeFlags: u32 {
         const Number = 1 << 3;
+        const Boolean = 1 << 4;
         const Enum = 1 << 5;
         const BigInt = 1 << 6;
         const StringLiteral = 1 << 7;
         const NumberLiteral = 1 << 8;
         const BooleanLiteral = 1 << 9;
+        const EnumLiteral = 1 << 10;
         const BigIntLiteral = 1 << 11;
+        const UniqueESSymbol = 1 << 13;
+        const Undefined = 1 << 15;
+        const Null = 1 << 16;
+        const TypeParameter = 1 << 18;
         const Object = 1 << 19;
         const Union = 1 << 20;
         const Intersection = 1 << 21;
+        const Index = 1 << 22;
+        const IndexedAccess = 1 << 23;
+        const Conditional = 1 << 24;
+        const Substitution = 1 << 25;
+        const TemplateLiteral = 1 << 27;
+        const StringMapping = 1 << 28;
 
+        const Nullable = Self::Undefined.bits | Self::Null.bits;
         const Literal = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::BigIntLiteral.bits | Self::BooleanLiteral.bits;
+        const Unit = Self::Literal.bits | Self::UniqueESSymbol.bits | Self::Nullable.bits;
         const NumberLike = Self::Number.bits | Self::NumberLiteral.bits | Self::Enum.bits;
+        const UnionOrIntersection =  Self::Union.bits | Self::Intersection.bits;
         const StructuredType = Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
-        const StructuredOrInstantiable = Self::StructuredType.bits /*| Self::Instantiable.bits */;
+        const TypeVariable = Self::TypeParameter.bits | Self::IndexedAccess.bits;
+        const InstantiableNonPrimitive = Self::TypeVariable.bits | Self::Conditional.bits | Self::Substitution.bits;
+        const InstantiablePrimitive = Self::Index.bits | Self::TemplateLiteral.bits | Self::StringMapping.bits;
+        const Instantiable = Self::InstantiableNonPrimitive.bits | Self::InstantiablePrimitive.bits;
+        const StructuredOrInstantiable = Self::StructuredType.bits | Self::Instantiable.bits;
     }
 }
 
@@ -936,6 +955,15 @@ pub enum Type {
     IntrinsicType(IntrinsicType),
     LiteralType(LiteralType),
     UnionOrIntersectionType(UnionOrIntersectionType),
+}
+
+impl Type {
+    pub fn as_union_or_intersection_type(&self) -> &dyn UnionOrIntersectionTypeInterface {
+        match self {
+            Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
+            _ => panic!("Expected union or intersection type"),
+        }
+    }
 }
 
 impl TypeInterface for Type {

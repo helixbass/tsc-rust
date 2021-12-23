@@ -321,7 +321,7 @@ impl ParserType {
 
         let statements =
             self.parse_list(ParsingContext::SourceElements, ParserType::parse_statement);
-        Debug_.assert(matches!(self.token(), SyntaxKind::EndOfFileToken));
+        Debug_.assert(matches!(self.token(), SyntaxKind::EndOfFileToken), None);
 
         let source_file = self.create_source_file(self.file_name(), statements);
 

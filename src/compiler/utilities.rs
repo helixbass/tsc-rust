@@ -301,9 +301,9 @@ fn create_file_diagnostic(
 
 pub fn chain_diagnostic_messages(
     details: Option<DiagnosticMessageChain>,
-    message: DiagnosticMessage,
+    message: &DiagnosticMessage,
 ) -> DiagnosticMessageChain {
-    let text = get_locale_specific_message(&message);
+    let text = get_locale_specific_message(message);
 
     DiagnosticMessageChain {
         message_text: text,
