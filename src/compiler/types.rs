@@ -1,11 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::{Number, SortedArray, WeakSelf};
 use local_macros::ast_type;
@@ -90,7 +88,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable>;
+    fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: SymbolTable);
 }
 
@@ -152,22 +150,22 @@ impl Node {
 #[derive(Debug)]
 pub struct BaseNode {
     pub kind: SyntaxKind,
-    pub parent: RwLock<Option<Weak<Node>>>,
-    pub pos: AtomicUsize,
-    pub end: AtomicUsize,
+    pub parent: RefCell<Option<Weak<Node>>>,
+    pub pos: Cell<usize>,
+    pub end: Cell<usize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
-    pub locals: RwLock<Option<SymbolTable>>,
+    pub locals: RefCell<Option<SymbolTable>>,
 }
 
 impl BaseNode {
     pub fn new(kind: SyntaxKind, pos: usize, end: usize) -> Self {
         Self {
             kind,
-            parent: RwLock::new(None),
+            parent: RefCell::new(None),
             pos: pos.into(),
             end: end.into(),
             symbol: RefCell::new(None),
-            locals: RwLock::new(None),
+            locals: RefCell::new(None),
         }
     }
 }
@@ -178,17 +176,11 @@ impl NodeInterface for BaseNode {
     }
 
     fn parent(&self) -> Rc<Node> {
-        self.parent
-            .try_read()
-            .unwrap()
-            .clone()
-            .unwrap()
-            .upgrade()
-            .unwrap()
+        self.parent.borrow().clone().unwrap().upgrade().unwrap()
     }
 
     fn set_parent(&self, parent: Rc<Node>) {
-        *self.parent.try_write().unwrap() = Some(Rc::downgrade(&parent));
+        *self.parent.borrow_mut() = Some(Rc::downgrade(&parent));
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
@@ -206,32 +198,30 @@ impl NodeInterface for BaseNode {
         *self.symbol.borrow_mut() = Some(Rc::downgrade(&symbol));
     }
 
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        RwLockWriteGuard::map(self.locals.try_write().unwrap(), |option| {
-            option.as_mut().unwrap()
-        })
+    fn locals(&self) -> RefMut<SymbolTable> {
+        RefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
     }
 
     fn set_locals(&self, locals: SymbolTable) {
-        *self.locals.try_write().unwrap() = Some(locals);
+        *self.locals.borrow_mut() = Some(locals);
     }
 }
 
 impl ReadonlyTextRange for BaseNode {
     fn pos(&self) -> usize {
-        self.pos.load(Ordering::Relaxed)
+        self.pos.get()
     }
 
     fn set_pos(&self, pos: usize) {
-        self.pos.store(pos, Ordering::Relaxed);
+        self.pos.set(pos);
     }
 
     fn end(&self) -> usize {
-        self.end.load(Ordering::Relaxed)
+        self.end.get()
     }
 
     fn set_end(&self, end: usize) {
-        self.end.store(end, Ordering::Relaxed);
+        self.end.set(end);
     }
 }
 
@@ -828,7 +818,7 @@ pub struct TypeChecker {
     pub true_type: Option<Rc<Type>>,
     pub regular_true_type: Option<Rc<Type>>,
     pub number_or_big_int_type: Option<Rc<Type>>,
-    pub diagnostics: RwLock<DiagnosticCollection>,
+    pub diagnostics: RefCell<DiagnosticCollection>,
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
 
@@ -859,8 +849,8 @@ bitflags! {
 pub struct Symbol {
     pub flags: Cell<SymbolFlags>,
     pub escaped_name: __String,
-    declarations: RwLock<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
-    value_declaration: RwLock<Option<Weak<Node>>>,
+    declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
+    value_declaration: RefCell<Option<Weak<Node>>>,
 }
 
 impl Symbol {
@@ -868,8 +858,8 @@ impl Symbol {
         Self {
             flags: Cell::new(flags),
             escaped_name: name,
-            declarations: RwLock::new(None),
-            value_declaration: RwLock::new(None),
+            declarations: RefCell::new(None),
+            value_declaration: RefCell::new(None),
         }
     }
 
@@ -881,20 +871,20 @@ impl Symbol {
         self.flags.set(flags);
     }
 
-    pub fn maybe_declarations(&self) -> RwLockReadGuard<Option<Vec<Rc<Node>>>> {
-        self.declarations.try_read().unwrap()
+    pub fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+        self.declarations.borrow()
     }
 
     pub fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
-        *self.declarations.try_write().unwrap() = Some(declarations);
+        *self.declarations.borrow_mut() = Some(declarations);
     }
 
-    pub fn maybe_value_declaration(&self) -> RwLockReadGuard<Option<Weak<Node>>> {
-        self.value_declaration.try_read().unwrap()
+    pub fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>> {
+        self.value_declaration.borrow()
     }
 
     pub fn set_value_declaration(&self, node: Rc<Node>) {
-        *self.value_declaration.try_write().unwrap() = Some(Rc::downgrade(&node));
+        *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node));
     }
 }
 

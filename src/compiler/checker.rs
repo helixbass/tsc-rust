@@ -1,6 +1,5 @@
 use bitflags::bitflags;
-use parking_lot::RwLock;
-use std::cell::{Ref, RefCell};
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -46,7 +45,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         regular_true_type: None,
         number_or_big_int_type: None,
 
-        diagnostics: RwLock::new(create_diagnostic_collection()),
+        diagnostics: RefCell::new(create_diagnostic_collection()),
 
         assignable_relation: HashMap::new(),
     };
@@ -129,8 +128,8 @@ impl TypeChecker {
         self.number_or_big_int_type.as_ref().unwrap().clone()
     }
 
-    fn diagnostics(&self) -> &RwLock<DiagnosticCollection> {
-        &self.diagnostics
+    fn diagnostics(&self) -> RefMut<DiagnosticCollection> {
+        self.diagnostics.borrow_mut()
     }
 
     fn create_error<TNode: NodeInterface>(
@@ -151,10 +150,7 @@ impl TypeChecker {
         message: &DiagnosticMessage,
     ) -> Rc<Diagnostic> {
         let diagnostic = self.create_error(location, message);
-        self.diagnostics()
-            .try_write()
-            .unwrap()
-            .add(diagnostic.clone());
+        self.diagnostics().add(diagnostic.clone());
         diagnostic
     }
 
@@ -661,11 +657,7 @@ impl TypeChecker {
     fn get_diagnostics_worker(&mut self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         self.check_source_file(source_file);
 
-        let semantic_diagnostics = self
-            .diagnostics()
-            .try_read()
-            .unwrap()
-            .get_diagnostics(&source_file.file_name);
+        let semantic_diagnostics = self.diagnostics().get_diagnostics(&source_file.file_name);
 
         semantic_diagnostics
     }
@@ -875,11 +867,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                 &*self.error_info().as_ref().unwrap(),
             );
             if true {
-                self.type_checker
-                    .diagnostics()
-                    .try_write()
-                    .unwrap()
-                    .add(Rc::new(diag.into()));
+                self.type_checker.diagnostics().add(Rc::new(diag.into()));
             }
         }
 
