@@ -1,8 +1,8 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use std::cell::RefCell;
+use parking_lot::{RwLock, RwLockReadGuard};
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -89,7 +89,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_parent(&self, parent: Rc<Node>);
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable>;
+    fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: SymbolTable);
 }
 
@@ -141,7 +141,7 @@ pub struct BaseNode {
     pub pos: AtomicUsize,
     pub end: AtomicUsize,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
-    pub locals: RwLock<Option<SymbolTable>>,
+    pub locals: RefCell<Option<SymbolTable>>,
 }
 
 impl BaseNode {
@@ -152,7 +152,7 @@ impl BaseNode {
             pos: pos.into(),
             end: end.into(),
             symbol: RefCell::new(None),
-            locals: RwLock::new(None),
+            locals: RefCell::new(None),
         }
     }
 }
@@ -184,14 +184,12 @@ impl NodeInterface for BaseNode {
         *self.symbol.borrow_mut() = Some(Rc::downgrade(&symbol));
     }
 
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        RwLockWriteGuard::map(self.locals.try_write().unwrap(), |option| {
-            option.as_mut().unwrap()
-        })
+    fn locals(&self) -> RefMut<SymbolTable> {
+        RefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
     }
 
     fn set_locals(&self, locals: SymbolTable) {
-        *self.locals.try_write().unwrap() = Some(locals);
+        *self.locals.borrow_mut() = Some(locals);
     }
 }
 

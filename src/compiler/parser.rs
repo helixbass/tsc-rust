@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use parking_lot::MappedRwLockWriteGuard;
+use std::cell::RefMut;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -120,7 +120,7 @@ impl NodeInterface for MissingNode {
         }
     }
 
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
+    fn locals(&self) -> RefMut<SymbolTable> {
         match self {
             MissingNode::Identifier(identifier) => identifier.locals(),
         }
