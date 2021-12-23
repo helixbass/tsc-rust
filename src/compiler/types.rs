@@ -8,6 +8,7 @@ use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::{Number, SortedArray, WeakSelf};
+use local_macros::ast_type;
 
 pub struct Path(String);
 
@@ -435,6 +436,7 @@ impl From<Vec<Rc<Node>>> for NodeArrayOrVec {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct Identifier {
     _node: BaseNode,
     pub escaped_text: __String,
@@ -446,36 +448,6 @@ impl Identifier {
             _node: base_node,
             escaped_text,
         }
-    }
-}
-
-impl NodeInterface for Identifier {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
     }
 }
 
