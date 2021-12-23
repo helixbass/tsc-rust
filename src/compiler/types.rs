@@ -925,6 +925,7 @@ bitflags! {
         const UniqueESSymbol = 1 << 13;
         const Undefined = 1 << 15;
         const Null = 1 << 16;
+        const Never = 1 << 17;
         const TypeParameter = 1 << 18;
         const Object = 1 << 19;
         const Union = 1 << 20;

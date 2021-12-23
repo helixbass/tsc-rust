@@ -202,6 +202,10 @@ impl TypeChecker {
         (left_str, right_str)
     }
 
+    fn get_type_name_for_error_display(&self, type_: &Type) -> String {
+        self.type_to_string(type_)
+    }
+
     fn add_optionality(&self, type_: Rc<Type>) -> Rc<Type> {
         type_
     }
@@ -555,6 +559,24 @@ impl TypeChecker {
         }
     }
 
+    fn get_base_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::EnumLiteral) {
+            unimplemented!()
+        } else if type_.flags().intersects(TypeFlags::StringLiteral) {
+            unimplemented!()
+        } else if type_.flags().intersects(TypeFlags::NumberLiteral) {
+            self.number_type()
+        } else if type_.flags().intersects(TypeFlags::BigIntLiteral) {
+            self.bigint_type()
+        } else if type_.flags().intersects(TypeFlags::BooleanLiteral) {
+            unimplemented!()
+        } else if type_.flags().intersects(TypeFlags::Union) {
+            self.map_type(type_, |type_| self.get_base_type_of_literal_type(type_))
+        } else {
+            type_
+        }
+    }
+
     fn get_regular_type_of_object_literal(&self, type_: Rc<Type>) -> Rc<Type> {
         type_
     }
@@ -567,16 +589,23 @@ impl TypeChecker {
         type_
     }
 
+    fn map_type<TMapper: FnMut(Rc<Type>) -> Rc<Type>>(
+        &self,
+        type_: Rc<Type>,
+        mapper: TMapper,
+    ) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Never) {
+            return type_;
+        }
+        if !type_.flags().intersects(TypeFlags::Union) {
+            return mapper(type_);
+        }
+        let types = type_.as_union_or_intersection_type().types();
+    }
+
     fn get_constituent_count(&self, type_: Rc<Type>) -> usize {
         if type_.flags().intersects(TypeFlags::Union) {
-            match &*type_ {
-                Type::UnionOrIntersectionType(union_or_intersection_type) => {
-                    match union_or_intersection_type {
-                        UnionOrIntersectionType::UnionType(union_type) => union_type.types().len(),
-                    }
-                }
-                _ => panic!("Expected UnionOrIntersectionType"),
-            }
+            type_.as_union_or_intersection_type().types().len()
         } else {
             1
         }
@@ -882,20 +911,20 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                 .type_checker
                 .type_could_have_top_level_singleton_types(&*target)
         {
-            generalized_source = get_base_type_of_literal_type(source);
+            generalized_source = self.type_checker.get_base_type_of_literal_type(source);
             Debug_.assert(
                 !self
                     .type_checker
                     .is_type_assignable_to(generalized_source, target),
                 Some("generalized source shouldn't be assignable"),
             );
-            generalized_source_type = self.type_checker.get_type_name_for_error_display(source);
+            generalized_source_type = self.type_checker.get_type_name_for_error_display(&*source);
         }
 
         if message.is_none() {
             if false {
             } else {
-                message = Some(Diagnostics::Type_0_is_not_assignable_to_type_1);
+                message = Some(&Diagnostics::Type_0_is_not_assignable_to_type_1);
             }
         }
 
@@ -926,7 +955,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         };
 
         let report_error = |message: DiagnosticMessage| {
-            self.report_error(message);
+            self.report_error(&message);
         };
 
         if self.type_checker.is_simple_type_related_to(
