@@ -1,10 +1,8 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::RefMut;
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
@@ -161,23 +159,23 @@ impl ReadonlyTextRange for MissingNode {
 
 #[allow(non_snake_case)]
 struct ParserType {
-    scanner: RwLock<Scanner>,
+    scanner: RefCell<Scanner>,
     NodeConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     IdentifierConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     TokenConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     SourceFileConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
     factory: NodeFactory,
     file_name: Option<String>,
-    parse_diagnostics: Option<RwLock<Vec<DiagnosticWithDetachedLocation>>>,
-    current_token: RwLock<Option<SyntaxKind>>,
+    parse_diagnostics: Option<RefCell<Vec<DiagnosticWithDetachedLocation>>>,
+    current_token: RefCell<Option<SyntaxKind>>,
     parsing_context: Option<ParsingContext>,
-    parse_error_before_next_finished_node: AtomicBool,
+    parse_error_before_next_finished_node: Cell<bool>,
 }
 
 impl ParserType {
     fn new() -> Self {
         ParserType {
-            scanner: RwLock::new(create_scanner(true)),
+            scanner: RefCell::new(create_scanner(true)),
             NodeConstructor: None,
             IdentifierConstructor: None,
             TokenConstructor: None,
@@ -185,18 +183,18 @@ impl ParserType {
             factory: create_node_factory(),
             file_name: None,
             parse_diagnostics: None,
-            current_token: RwLock::new(None),
+            current_token: RefCell::new(None),
             parsing_context: None,
-            parse_error_before_next_finished_node: AtomicBool::new(false),
+            parse_error_before_next_finished_node: Cell::new(false),
         }
     }
 
-    fn scanner(&self) -> RwLockReadGuard<Scanner> {
-        self.scanner.try_read().unwrap()
+    fn scanner(&self) -> Ref<Scanner> {
+        self.scanner.borrow()
     }
 
-    fn scanner_mut(&self) -> RwLockWriteGuard<Scanner> {
-        self.scanner.try_write().unwrap()
+    fn scanner_mut(&self) -> RefMut<Scanner> {
+        self.scanner.borrow_mut()
     }
 
     #[allow(non_snake_case)]
@@ -253,24 +251,20 @@ impl ParserType {
         self.file_name = Some(file_name.to_string());
     }
 
-    fn parse_diagnostics(&self) -> RwLockWriteGuard<Vec<DiagnosticWithDetachedLocation>> {
-        self.parse_diagnostics
-            .as_ref()
-            .unwrap()
-            .try_write()
-            .unwrap()
+    fn parse_diagnostics(&self) -> RefMut<Vec<DiagnosticWithDetachedLocation>> {
+        self.parse_diagnostics.as_ref().unwrap().borrow_mut()
     }
 
     fn set_parse_diagnostics(&mut self, parse_diagnostics: Vec<DiagnosticWithDetachedLocation>) {
-        self.parse_diagnostics = Some(RwLock::new(parse_diagnostics));
+        self.parse_diagnostics = Some(RefCell::new(parse_diagnostics));
     }
 
     fn current_token(&self) -> SyntaxKind {
-        self.current_token.try_read().unwrap().unwrap()
+        self.current_token.borrow().unwrap()
     }
 
     fn set_current_token(&self, token: SyntaxKind) {
-        *self.current_token.try_write().unwrap() = Some(token);
+        *self.current_token.borrow_mut() = Some(token);
     }
 
     fn parsing_context(&self) -> ParsingContext {
@@ -282,13 +276,11 @@ impl ParserType {
     }
 
     fn parse_error_before_next_finished_node(&self) -> bool {
-        self.parse_error_before_next_finished_node
-            .load(Ordering::Relaxed)
+        self.parse_error_before_next_finished_node.get()
     }
 
     fn set_parse_error_before_next_finished_node(&self, value: bool) {
-        self.parse_error_before_next_finished_node
-            .store(value, Ordering::Relaxed);
+        self.parse_error_before_next_finished_node.set(value);
     }
 
     fn parse_source_file(&mut self, file_name: &str, source_text: &str) -> SourceFile {
