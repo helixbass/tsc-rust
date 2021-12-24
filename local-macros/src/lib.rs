@@ -26,6 +26,14 @@ pub fn ast_type(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
+                    fn node_wrapper(&self) -> ::std::rc::Rc<crate::Node> {
+                        self.#first_field_name.node_wrapper()
+                    }
+
+                    fn set_node_wrapper(&self, wrapper: ::std::rc::Rc<crate::Node>) {
+                        self.#first_field_name.set_node_wrapper(wrapper)
+                    }
+
                     fn kind(&self) -> crate::SyntaxKind {
                         self.#first_field_name.kind()
                     }
@@ -91,9 +99,23 @@ pub fn ast_type(_attr: TokenStream, item: TokenStream) -> TokenStream {
             let variant_names_10 = variant_names.clone();
             let variant_names_11 = variant_names.clone();
             let variant_names_12 = variant_names.clone();
+            let variant_names_13 = variant_names.clone();
+            let variant_names_14 = variant_names.clone();
 
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
+                    fn node_wrapper(&self) -> ::std::rc::Rc<crate::Node> {
+                        match self {
+                            #(#ast_type_name::#variant_names_13(nested) => nested.node_wrapper()),*
+                        }
+                    }
+
+                    fn set_node_wrapper(&self, wrapper: ::std::rc::Rc<crate::Node>) {
+                        match self {
+                            #(#ast_type_name::#variant_names_14(nested) => nested.set_node_wrapper(wrapper)),*
+                        }
+                    }
+
                     fn kind(&self) -> crate::SyntaxKind {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.kind()),*

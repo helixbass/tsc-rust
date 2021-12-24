@@ -88,6 +88,18 @@ enum MissingNode {
 }
 
 impl NodeInterface for MissingNode {
+    fn node_wrapper(&self) -> Rc<Node> {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.node_wrapper(),
+        }
+    }
+
+    fn set_node_wrapper(&self, wrapper: Rc<Node>) {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.set_node_wrapper(wrapper),
+        }
+    }
+
     fn kind(&self) -> SyntaxKind {
         match self {
             MissingNode::Identifier(identifier) => identifier.kind(),

@@ -82,6 +82,8 @@ bitflags! {
 }
 
 pub trait NodeInterface: ReadonlyTextRange {
+    fn node_wrapper(&self) -> Rc<Node>;
+    fn set_node_wrapper(&self, wrapper: Rc<Node>);
     fn kind(&self) -> SyntaxKind;
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
@@ -149,6 +151,7 @@ impl Node {
 
 #[derive(Debug)]
 pub struct BaseNode {
+    _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
     pub parent: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<usize>,
@@ -160,6 +163,7 @@ pub struct BaseNode {
 impl BaseNode {
     pub fn new(kind: SyntaxKind, pos: usize, end: usize) -> Self {
         Self {
+            _node_wrapper: RefCell::new(None),
             kind,
             parent: RefCell::new(None),
             pos: pos.into(),
@@ -171,6 +175,19 @@ impl BaseNode {
 }
 
 impl NodeInterface for BaseNode {
+    fn node_wrapper(&self) -> Rc<Node> {
+        self._node_wrapper
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .upgrade()
+            .unwrap()
+    }
+
+    fn set_node_wrapper(&self, wrapper: Rc<Node>) {
+        *self._node_wrapper.borrow_mut() = Some(Rc::downgrade(&wrapper));
+    }
+
     fn kind(&self) -> SyntaxKind {
         self.kind
     }
