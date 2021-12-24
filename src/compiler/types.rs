@@ -107,6 +107,12 @@ pub enum Node {
 }
 
 impl Node {
+    pub fn wrap(self) -> Rc<Node> {
+        let rc = Rc::new(self);
+        rc.set_node_wrapper(rc.clone());
+        rc
+    }
+
     pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
         match self {
             Node::VariableDeclaration(variable_declaration) => variable_declaration,

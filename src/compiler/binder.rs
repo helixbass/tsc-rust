@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -28,7 +29,7 @@ bitflags! {
 //     static ref binder: BinderType = create_binder();
 // }
 
-pub fn bind_source_file(file: Rc<Node>) {
+pub fn bind_source_file(file: &Node) {
     // binder.call(file);
     create_binder().call(file);
 }
@@ -51,7 +52,7 @@ fn create_binder() -> BinderType {
 }
 
 impl BinderType {
-    fn call(&self, f: Rc<Node>) {
+    fn call(&self, f: &Node) {
         self.bind_source_file(f);
     }
 
@@ -97,13 +98,13 @@ impl BinderType {
         *self.Symbol.borrow_mut() = Some(Symbol);
     }
 
-    fn bind_source_file(&self, f: Rc<Node>) {
-        self.set_file(Some(f.clone()));
+    fn bind_source_file(&self, f: &Node) {
+        self.set_file(Some(f.node_wrapper()));
 
         self.set_Symbol(object_allocator.get_symbol_constructor());
 
         if true {
-            self.bind(Some(self.file()));
+            self.bind(Some(&*self.file()));
         }
 
         self.set_file(None);
@@ -174,11 +175,11 @@ impl BinderType {
         symbol
     }
 
-    fn bind_container(&self, node: Rc<Node>, container_flags: ContainerFlags) {
+    fn bind_container(&self, node: &Node, container_flags: ContainerFlags) {
         let save_container = self.maybe_container();
 
         if container_flags.intersects(ContainerFlags::IsContainer) {
-            self.set_container(Some(node.clone()));
+            self.set_container(Some(node.node_wrapper()));
             if container_flags.intersects(ContainerFlags::HasLocals) {
                 self.container().set_locals(create_symbol_table());
             }
@@ -222,12 +223,12 @@ impl BinderType {
         });
     }
 
-    fn bind_each_child(&self, node: Rc<Node>) {
+    fn bind_each_child(&self, node: &Node) {
         for_each_child(node, |node| self.bind(node), |nodes| self.bind_each(nodes));
     }
 
-    fn bind_children(&self, node: Rc<Node>) {
-        match &*node {
+    fn bind_children(&self, node: &Node) {
+        match node {
             Node::Statement(statement) => match statement {
                 Statement::ExpressionStatement(expression_statement) => {
                     self.bind_expression_statement(expression_statement);
@@ -263,18 +264,18 @@ impl BinderType {
         self.bind(Some(node.expression.clone()));
     }
 
-    fn bind_prefix_unary_expression_flow(&self, node: Rc<Node>) {
+    fn bind_prefix_unary_expression_flow(&self, node: &Node) {
         if false {
         } else {
             self.bind_each_child(node);
         }
     }
 
-    fn bind_variable_declaration_flow(&self, node: Rc<Node /*VariableDeclaration*/>) {
+    fn bind_variable_declaration_flow(&self, node: &Node /*VariableDeclaration*/) {
         self.bind_each_child(node);
     }
 
-    fn get_container_flags(&self, node: Rc<Node>) -> ContainerFlags {
+    fn get_container_flags(&self, node: &Node) -> ContainerFlags {
         match node.kind() {
             SyntaxKind::SourceFile => {
                 return ContainerFlags::IsContainer
@@ -310,21 +311,20 @@ impl BinderType {
         }
     }
 
-    fn bind(&self, node: Option<Rc<Node>>) {
-        let node = match node.as_ref() {
-            None => {
-                return;
-            }
-            Some(node) => node.clone(),
-        };
-        set_parent(&*node, self.maybe_parent());
+    fn bind<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef>) {
+        if node.is_none() {
+            return;
+        }
+        let node = node.unwrap();
+        let node = node.borrow();
+        set_parent(node, self.maybe_parent());
 
-        self.bind_worker(node.clone());
+        self.bind_worker(node);
 
         if node.kind() > SyntaxKind::LastToken {
             let save_parent = self.maybe_parent();
-            self.set_parent(Some(node.clone()));
-            let container_flags = self.get_container_flags(node.clone());
+            self.set_parent(Some(node.node_wrapper()));
+            let container_flags = self.get_container_flags(node);
             if container_flags == ContainerFlags::None {
                 self.bind_children(node);
             } else {
@@ -334,7 +334,7 @@ impl BinderType {
         }
     }
 
-    fn bind_worker(&self, node: Rc<Node>) {
+    fn bind_worker(&self, node: &Node) {
         match &*node {
             Node::VariableDeclaration(variable_declaration) => {
                 return self.bind_variable_declaration_or_binding_element(variable_declaration);

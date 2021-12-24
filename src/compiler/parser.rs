@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -23,9 +24,9 @@ enum SpeculationKind {
     Reparse,
 }
 
-fn visit_node<TNodeCallback: FnMut(Option<Rc<Node>>)>(
+fn visit_node<TNodeRef: Borrow<Node>, TNodeCallback: FnMut(Option<TNodeRef>)>(
     cb_node: &mut TNodeCallback,
-    node: Option<Rc<Node>>,
+    node: Option<TNodeRef>,
 ) {
     cb_node(node)
 }
@@ -44,14 +45,14 @@ fn visit_nodes<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: FnMut(&No
 }
 
 pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: FnMut(&NodeArray)>(
-    node: Rc<Node>,
+    node: &Node,
     mut cb_node: TNodeCallback,
     cb_nodes: TNodesCallback,
 ) {
     if node.kind() <= SyntaxKind::LastToken {
         return;
     }
-    match &*node {
+    match node {
         Node::VariableDeclaration(variable_declaration) => {
             visit_node(&mut cb_node, Some(variable_declaration.name()));
             visit_node(&mut cb_node, variable_declaration.type_());
@@ -527,7 +528,7 @@ impl ParserType {
         self.factory.create_node_array(
             elements
                 .into_iter()
-                .map(Into::<Rc<Node>>::into)
+                .map(Node::wrap)
                 .collect::<Vec<Rc<Node>>>(),
         )
     }
