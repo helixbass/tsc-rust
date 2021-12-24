@@ -181,7 +181,7 @@ impl TypeChecker {
 
     fn create_intrinsic_type(&self, kind: TypeFlags, intrinsic_name: &str) -> BaseIntrinsicType {
         let type_ = self.create_type(kind);
-        let type_ = BaseIntrinsicType::new(type_);
+        let type_ = BaseIntrinsicType::new(type_, intrinsic_name.to_string());
         type_
     }
 
@@ -855,6 +855,12 @@ impl NodeBuilder {
             return Into::<KeywordTypeNode>::into(
                 factory
                     .create_keyword_type_node(get_synthetic_factory(), SyntaxKind::NumberKeyword),
+            )
+            .into();
+        }
+        if type_.flags().intersects(TypeFlags::BooleanLiteral) {
+            return Into::<KeywordTypeNode>::into(
+                factory.create_literal_type_node(get_synthetic_factory()),
             )
             .into();
         }

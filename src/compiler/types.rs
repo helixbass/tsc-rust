@@ -855,7 +855,9 @@ impl TypeInterface for BaseType {
     }
 }
 
-pub trait IntrinsicTypeInterface: TypeInterface {}
+pub trait IntrinsicTypeInterface: TypeInterface {
+    fn intrinsic_name(&self) -> &str;
+}
 
 #[derive(Clone, Debug)]
 pub enum IntrinsicType {
@@ -874,7 +876,18 @@ impl TypeInterface for IntrinsicType {
     }
 }
 
-impl IntrinsicTypeInterface for IntrinsicType {}
+impl IntrinsicTypeInterface for IntrinsicType {
+    fn intrinsic_name(&self) -> &str {
+        match self {
+            IntrinsicType::BaseIntrinsicType(base_intrinsic_type) => {
+                base_intrinsic_type.intrinsic_name()
+            }
+            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                freshable_intrinsic_type.intrinsic_name()
+            }
+        }
+    }
+}
 
 impl From<IntrinsicType> for Type {
     fn from(intrinsic_type: IntrinsicType) -> Self {
@@ -885,11 +898,15 @@ impl From<IntrinsicType> for Type {
 #[derive(Clone, Debug)]
 pub struct BaseIntrinsicType {
     _type: BaseType,
+    intrinsic_name: String,
 }
 
 impl BaseIntrinsicType {
-    pub fn new(type_: BaseType) -> Self {
-        Self { _type: type_ }
+    pub fn new(type_: BaseType, intrinsic_name: String) -> Self {
+        Self {
+            _type: type_,
+            intrinsic_name,
+        }
     }
 }
 
@@ -899,7 +916,11 @@ impl TypeInterface for BaseIntrinsicType {
     }
 }
 
-impl IntrinsicTypeInterface for BaseIntrinsicType {}
+impl IntrinsicTypeInterface for BaseIntrinsicType {
+    fn intrinsic_name(&self) -> &str {
+        &self.intrinsic_name
+    }
+}
 
 impl From<BaseIntrinsicType> for IntrinsicType {
     fn from(base_intrinsic_type: BaseIntrinsicType) -> Self {
@@ -944,7 +965,11 @@ impl TypeInterface for FreshableIntrinsicType {
     }
 }
 
-impl IntrinsicTypeInterface for FreshableIntrinsicType {}
+impl IntrinsicTypeInterface for FreshableIntrinsicType {
+    fn intrinsic_name(&self) -> &str {
+        self._intrinsic_type.intrinsic_name()
+    }
+}
 
 impl From<FreshableIntrinsicType> for IntrinsicType {
     fn from(freshable_intrinsic_type: FreshableIntrinsicType) -> Self {
