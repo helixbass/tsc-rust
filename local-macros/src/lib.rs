@@ -46,7 +46,7 @@ pub fn ast_type(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         self.#first_field_name.set_symbol(symbol);
                     }
 
-                    fn locals(&self) -> ::parking_lot::MappedRwLockWriteGuard<crate::SymbolTable> {
+                    fn locals(&self) -> ::std::cell::RefMut<crate::SymbolTable> {
                         self.#first_field_name.locals()
                     }
 
@@ -119,7 +119,7 @@ pub fn ast_type(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         }
                     }
 
-                    fn locals(&self) -> ::parking_lot::MappedRwLockWriteGuard<crate::SymbolTable> {
+                    fn locals(&self) -> ::std::cell::RefMut<crate::SymbolTable> {
                         match self {
                             #(#ast_type_name::#variant_names_6(nested_6) => nested_6.locals()),*
                         }

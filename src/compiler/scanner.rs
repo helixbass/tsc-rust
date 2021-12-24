@@ -1,9 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use std::array::IntoIter;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use std::sync::RwLock;
 
 use crate::{CharacterCodes, SyntaxKind, TokenFlags};
 
@@ -50,13 +50,13 @@ struct ScanNumberReturn {
 pub struct Scanner {
     skip_trivia: bool,
     text: Option<String>,
-    pos: RwLock<Option<usize>>,
+    pos: RefCell<Option<usize>>,
     end: Option<usize>,
-    start_pos: RwLock<Option<usize>>,
-    token_pos: RwLock<Option<usize>>,
-    token: RwLock<Option<SyntaxKind>>,
-    token_value: RwLock<Option<String>>,
-    token_flags: RwLock<Option<TokenFlags>>,
+    start_pos: RefCell<Option<usize>>,
+    token_pos: RefCell<Option<usize>>,
+    token: RefCell<Option<SyntaxKind>>,
+    token_value: RefCell<Option<String>>,
+    token_flags: RefCell<Option<TokenFlags>>,
 }
 
 impl Scanner {
@@ -228,13 +228,13 @@ impl Scanner {
         Scanner {
             skip_trivia,
             text: None,
-            pos: RwLock::new(None),
+            pos: RefCell::new(None),
             end: None,
-            start_pos: RwLock::new(None),
-            token_pos: RwLock::new(None),
-            token: RwLock::new(None),
-            token_value: RwLock::new(None),
-            token_flags: RwLock::new(None),
+            start_pos: RefCell::new(None),
+            token_pos: RefCell::new(None),
+            token: RefCell::new(None),
+            token_value: RefCell::new(None),
+            token_flags: RefCell::new(None),
         }
     }
 
@@ -247,11 +247,11 @@ impl Scanner {
     }
 
     fn pos(&self) -> usize {
-        self.pos.try_read().unwrap().unwrap()
+        self.pos.borrow().unwrap()
     }
 
     fn set_pos(&self, pos: usize) {
-        *self.pos.try_write().unwrap() = Some(pos);
+        *self.pos.borrow_mut() = Some(pos);
     }
 
     fn end(&self) -> usize {
@@ -263,49 +263,44 @@ impl Scanner {
     }
 
     fn start_pos(&self) -> usize {
-        self.start_pos.try_read().unwrap().unwrap()
+        self.start_pos.borrow().unwrap()
     }
 
     fn set_start_pos(&self, start_pos: usize) {
-        *self.start_pos.try_write().unwrap() = Some(start_pos);
+        *self.start_pos.borrow_mut() = Some(start_pos);
     }
 
     fn token_pos(&self) -> usize {
-        self.token_pos.try_read().unwrap().unwrap()
+        self.token_pos.borrow().unwrap()
     }
 
     fn set_token_pos(&self, token_pos: usize) {
-        *self.token_pos.try_write().unwrap() = Some(token_pos);
+        *self.token_pos.borrow_mut() = Some(token_pos);
     }
 
     fn token(&self) -> SyntaxKind {
-        self.token.try_read().unwrap().unwrap()
+        self.token.borrow().unwrap()
     }
 
     fn set_token(&self, token: SyntaxKind) -> SyntaxKind {
-        *self.token.try_write().unwrap() = Some(token);
+        *self.token.borrow_mut() = Some(token);
         token
     }
 
     fn token_value(&self) -> String {
-        self.token_value
-            .try_read()
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .to_string()
+        self.token_value.borrow().as_ref().unwrap().to_string()
     }
 
     fn set_token_value(&self, token_value: &str) {
-        *self.token_value.try_write().unwrap() = Some(token_value.to_string());
+        *self.token_value.borrow_mut() = Some(token_value.to_string());
     }
 
     fn token_flags(&self) -> TokenFlags {
-        self.token_flags.try_read().unwrap().unwrap()
+        self.token_flags.borrow().unwrap()
     }
 
     fn set_token_flags(&self, token_flags: TokenFlags) {
-        *self.token_flags.try_write().unwrap() = Some(token_flags);
+        *self.token_flags.borrow_mut() = Some(token_flags);
     }
 
     fn is_digit(&self, ch: char) -> bool {

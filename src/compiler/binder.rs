@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use parking_lot::RwLock;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
@@ -35,18 +35,18 @@ pub fn bind_source_file(file: Rc<Node>) {
 
 #[allow(non_snake_case)]
 struct BinderType {
-    file: RwLock<Option<Rc</*SourceFile*/ Node>>>,
-    parent: RwLock<Option<Rc<Node>>>,
-    container: RwLock<Option<Rc<Node>>>,
-    Symbol: RwLock<Option<fn(SymbolFlags, __String) -> Symbol>>,
+    file: RefCell<Option<Rc</*SourceFile*/ Node>>>,
+    parent: RefCell<Option<Rc<Node>>>,
+    container: RefCell<Option<Rc<Node>>>,
+    Symbol: RefCell<Option<fn(SymbolFlags, __String) -> Symbol>>,
 }
 
 fn create_binder() -> BinderType {
     BinderType {
-        file: RwLock::new(None),
-        parent: RwLock::new(None),
-        container: RwLock::new(None),
-        Symbol: RwLock::new(None),
+        file: RefCell::new(None),
+        parent: RefCell::new(None),
+        container: RefCell::new(None),
+        Symbol: RefCell::new(None),
     }
 }
 
@@ -56,45 +56,45 @@ impl BinderType {
     }
 
     fn file(&self) -> Rc<Node> {
-        self.file.try_read().unwrap().as_ref().unwrap().clone()
+        self.file.borrow().as_ref().unwrap().clone()
     }
 
     fn set_file(&self, file: Option<Rc<Node>>) {
-        *self.file.try_write().unwrap() = file;
+        *self.file.borrow_mut() = file;
+    }
+
+    fn maybe_parent(&self) -> Option<Rc<Node>> {
+        self.parent.borrow().as_ref().map(Clone::clone)
     }
 
     fn parent(&self) -> Rc<Node> {
-        self.parent.try_read().unwrap().as_ref().unwrap().clone()
+        self.parent.borrow().as_ref().unwrap().clone()
     }
 
     fn set_parent(&self, parent: Option<Rc<Node>>) {
-        *self.parent.try_write().unwrap() = parent;
+        *self.parent.borrow_mut() = parent;
     }
 
     fn container(&self) -> Rc<Node> {
-        self.container.try_read().unwrap().as_ref().unwrap().clone()
+        self.container.borrow().as_ref().unwrap().clone()
     }
 
     fn maybe_container(&self) -> Option<Rc<Node>> {
-        self.container
-            .try_read()
-            .unwrap()
-            .as_ref()
-            .map(Clone::clone)
+        self.container.borrow().as_ref().map(Clone::clone)
     }
 
     fn set_container(&self, container: Option<Rc<Node>>) {
-        *self.container.try_write().unwrap() = container;
+        *self.container.borrow_mut() = container;
     }
 
     #[allow(non_snake_case)]
     fn Symbol(&self) -> fn(SymbolFlags, __String) -> Symbol {
-        self.Symbol.try_read().unwrap().unwrap()
+        self.Symbol.borrow().unwrap()
     }
 
     #[allow(non_snake_case)]
     fn set_Symbol(&self, Symbol: fn(SymbolFlags, __String) -> Symbol) {
-        *self.Symbol.try_write().unwrap() = Some(Symbol);
+        *self.Symbol.borrow_mut() = Some(Symbol);
     }
 
     fn bind_source_file(&self, f: Rc<Node>) {
@@ -300,21 +300,12 @@ impl BinderType {
             }
             Some(node) => node.clone(),
         };
-        set_parent(
-            &*node,
-            match self.parent.try_read().unwrap().as_ref() {
-                None => None,
-                Some(parent) => Some(parent.clone()),
-            },
-        );
+        set_parent(&*node, self.maybe_parent());
 
         self.bind_worker(node.clone());
 
         if node.kind() > SyntaxKind::LastToken {
-            let save_parent = match *self.parent.try_read().unwrap() {
-                None => None,
-                Some(ref rc_node) => Some(rc_node.clone()),
-            };
+            let save_parent = self.maybe_parent();
             self.set_parent(Some(node.clone()));
             let container_flags = self.get_container_flags(node.clone());
             if container_flags == ContainerFlags::None {
