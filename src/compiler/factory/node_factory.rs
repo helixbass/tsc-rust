@@ -167,7 +167,7 @@ impl NodeFactory {
         declaration_list: VariableDeclarationList,
     ) -> VariableStatement {
         let node = self.create_base_declaration(base_factory, SyntaxKind::VariableStatement);
-        let node = VariableStatement::new(node, Rc::new(declaration_list.into()));
+        let node = VariableStatement::new(node, declaration_list.into());
         node
     }
 
@@ -187,7 +187,7 @@ impl NodeFactory {
     ) -> ExpressionStatement {
         ExpressionStatement {
             _node: self.create_base_node(base_factory, SyntaxKind::ExpressionStatement),
-            expression: Rc::new(expression.into()),
+            expression: expression.into(),
         }
     }
 

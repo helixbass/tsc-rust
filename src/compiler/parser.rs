@@ -524,8 +524,12 @@ impl ParserType {
     }
 
     fn create_node_array(&self, elements: Vec<Node>) -> NodeArray {
-        self.factory
-            .create_node_array(elements.into_iter().map(Rc::new).collect::<Vec<Rc<Node>>>())
+        self.factory.create_node_array(
+            elements
+                .into_iter()
+                .map(Into::<Rc<Node>>::into)
+                .collect::<Vec<Rc<Node>>>(),
+        )
     }
 
     fn finish_node<TParsedNode: NodeInterface>(
@@ -1009,7 +1013,7 @@ impl ParserType {
     }
 
     fn parse_identifier_or_pattern(&mut self) -> Rc<Node> {
-        Rc::new(self.parse_binding_identifier().into())
+        self.parse_binding_identifier().into()
     }
 
     fn parse_variable_declaration_no_exclamation(&mut self) -> VariableDeclaration {
@@ -1032,8 +1036,8 @@ impl ParserType {
         let node = self.factory.create_variable_declaration(
             self,
             Some(name),
-            type_.map(|type_| Rc::new(type_.into())),
-            initializer.map(|initializer| Rc::new(initializer.into())),
+            type_.map(|type_| type_.into()),
+            initializer.map(|initializer| initializer.into()),
         );
         self.finish_node(node, pos, None)
     }
