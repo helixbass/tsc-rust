@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
@@ -151,25 +152,25 @@ impl NodeInterface for MissingNode {
 }
 
 impl ReadonlyTextRange for MissingNode {
-    fn pos(&self) -> usize {
+    fn pos(&self) -> isize {
         match self {
             MissingNode::Identifier(identifier) => identifier.pos(),
         }
     }
 
-    fn set_pos(&self, pos: usize) {
+    fn set_pos(&self, pos: isize) {
         match self {
             MissingNode::Identifier(identifier) => identifier.set_pos(pos),
         }
     }
 
-    fn end(&self) -> usize {
+    fn end(&self) -> isize {
         match self {
             MissingNode::Identifier(identifier) => identifier.end(),
         }
     }
 
-    fn set_end(&self, end: usize) {
+    fn set_end(&self, end: isize) {
         match self {
             MissingNode::Identifier(identifier) => identifier.set_end(end),
         }
@@ -179,10 +180,10 @@ impl ReadonlyTextRange for MissingNode {
 #[allow(non_snake_case)]
 struct ParserType {
     scanner: RefCell<Scanner>,
-    NodeConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
-    IdentifierConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
-    TokenConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
-    SourceFileConstructor: Option<fn(SyntaxKind, usize, usize) -> BaseNode>,
+    NodeConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
+    IdentifierConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
+    TokenConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
+    SourceFileConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     factory: NodeFactory,
     file_name: Option<String>,
     parse_diagnostics: Option<RefCell<Vec<DiagnosticWithDetachedLocation>>>,
@@ -217,47 +218,47 @@ impl ParserType {
     }
 
     #[allow(non_snake_case)]
-    fn NodeConstructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
+    fn NodeConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
         self.NodeConstructor.unwrap()
     }
 
     #[allow(non_snake_case)]
-    fn set_NodeConstructor(&mut self, NodeConstructor: fn(SyntaxKind, usize, usize) -> BaseNode) {
+    fn set_NodeConstructor(&mut self, NodeConstructor: fn(SyntaxKind, isize, isize) -> BaseNode) {
         self.NodeConstructor = Some(NodeConstructor);
     }
 
     #[allow(non_snake_case)]
-    fn IdentifierConstructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
+    fn IdentifierConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
         self.IdentifierConstructor.unwrap()
     }
 
     #[allow(non_snake_case)]
     fn set_IdentifierConstructor(
         &mut self,
-        IdentifierConstructor: fn(SyntaxKind, usize, usize) -> BaseNode,
+        IdentifierConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
     ) {
         self.IdentifierConstructor = Some(IdentifierConstructor);
     }
 
     #[allow(non_snake_case)]
-    fn TokenConstructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
+    fn TokenConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
         self.TokenConstructor.unwrap()
     }
 
     #[allow(non_snake_case)]
-    fn set_TokenConstructor(&mut self, TokenConstructor: fn(SyntaxKind, usize, usize) -> BaseNode) {
+    fn set_TokenConstructor(&mut self, TokenConstructor: fn(SyntaxKind, isize, isize) -> BaseNode) {
         self.TokenConstructor = Some(TokenConstructor);
     }
 
     #[allow(non_snake_case)]
-    fn SourceFileConstructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
+    fn SourceFileConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
         self.SourceFileConstructor.unwrap()
     }
 
     #[allow(non_snake_case)]
     fn set_SourceFileConstructor(
         &mut self,
-        SourceFileConstructor: fn(SyntaxKind, usize, usize) -> BaseNode,
+        SourceFileConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
     ) {
         self.SourceFileConstructor = Some(SourceFileConstructor);
     }
@@ -355,13 +356,13 @@ impl ParserType {
 
     fn parse_error_at_current_token(&self, message: &DiagnosticMessage) {
         self.parse_error_at(
-            self.scanner().get_token_pos(),
-            self.scanner().get_text_pos(),
+            self.scanner().get_token_pos().try_into().unwrap(),
+            self.scanner().get_text_pos().try_into().unwrap(),
             message,
         );
     }
 
-    fn parse_error_at_position(&self, start: usize, length: usize, message: &DiagnosticMessage) {
+    fn parse_error_at_position(&self, start: isize, length: isize, message: &DiagnosticMessage) {
         {
             let mut parse_diagnostics = self.parse_diagnostics();
             let last_error = last_or_undefined(&*parse_diagnostics);
@@ -376,12 +377,12 @@ impl ParserType {
         self.set_parse_error_before_next_finished_node(true);
     }
 
-    fn parse_error_at(&self, start: usize, end: usize, message: &DiagnosticMessage) {
+    fn parse_error_at(&self, start: isize, end: isize, message: &DiagnosticMessage) {
         self.parse_error_at_position(start, end - start, message);
     }
 
-    fn get_node_pos(&self) -> usize {
-        self.scanner().get_start_pos()
+    fn get_node_pos(&self) -> isize {
+        self.scanner().get_start_pos().try_into().unwrap()
     }
 
     fn token(&self) -> SyntaxKind {
@@ -536,13 +537,13 @@ impl ParserType {
     fn finish_node<TParsedNode: NodeInterface>(
         &self,
         mut node: TParsedNode,
-        pos: usize,
-        end: Option<usize>,
+        pos: isize,
+        end: Option<isize>,
     ) -> TParsedNode {
         set_text_range_pos_end(
             &mut node,
             pos,
-            end.unwrap_or_else(|| self.scanner().get_start_pos()),
+            end.unwrap_or_else(|| self.scanner().get_start_pos().try_into().unwrap()),
         );
 
         if self.parse_error_before_next_finished_node() {
@@ -825,7 +826,7 @@ impl ParserType {
         &mut self,
         precedence: OperatorPrecedence,
         mut left_operand: Expression,
-        pos: usize,
+        pos: isize,
     ) -> Expression {
         loop {
             let new_precedence = get_binary_operator_precedence(self.token());
@@ -855,7 +856,7 @@ impl ParserType {
         left: Expression,
         operator_token: TNode,
         right: Expression,
-        pos: usize,
+        pos: isize,
     ) -> BinaryExpression {
         self.finish_node(
             self.factory
@@ -1002,7 +1003,7 @@ impl ParserType {
         }
     }
 
-    fn parse_declaration_worker(&mut self, pos: usize) -> Statement {
+    fn parse_declaration_worker(&mut self, pos: isize) -> Statement {
         match self.token() {
             SyntaxKind::ConstKeyword => self.parse_variable_statement(pos),
             _ => unimplemented!(),
@@ -1074,7 +1075,7 @@ impl ParserType {
         )
     }
 
-    fn parse_variable_statement(&mut self, pos: usize) -> Statement {
+    fn parse_variable_statement(&mut self, pos: isize) -> Statement {
         let declaration_list = self.parse_variable_declaration_list();
         self.parse_semicolon();
         let node = self

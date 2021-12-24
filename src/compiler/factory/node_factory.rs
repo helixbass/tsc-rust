@@ -1,11 +1,12 @@
 use std::rc::Rc;
 
 use crate::{
-    escape_leading_underscores, BaseBindingLikeDeclaration, BaseLiteralLikeNode,
-    BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseVariableLikeDeclaration, BinaryExpression,
-    EmptyStatement, Expression, ExpressionStatement, Identifier, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NumericLiteral, PrefixUnaryExpression, SourceFile, SyntaxKind,
-    VariableDeclaration, VariableDeclarationList, VariableStatement,
+    create_base_node_factory, escape_leading_underscores, BaseBindingLikeDeclaration,
+    BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression, ExpressionStatement,
+    Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NumericLiteral,
+    PrefixUnaryExpression, SourceFile, SyntaxKind, VariableDeclaration, VariableDeclarationList,
+    VariableStatement,
 };
 
 impl NodeFactory {
@@ -129,6 +130,14 @@ impl NodeFactory {
         node
     }
 
+    pub fn create_keyword_type_node<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        token: SyntaxKind,
+    ) -> BaseNode {
+        self.create_token(base_factory, token)
+    }
+
     fn create_base_expression<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -239,4 +248,50 @@ impl NodeFactory {
 
 pub fn create_node_factory() -> NodeFactory {
     NodeFactory {}
+}
+
+lazy_static! {
+    static ref base_factory_static: BaseNodeFactoryConcrete = create_base_node_factory();
+}
+
+fn make_synthetic(node: BaseNode) -> BaseNode {
+    node
+}
+
+lazy_static! {
+    pub static ref synthetic_factory: BaseNodeFactorySynthetic = BaseNodeFactorySynthetic::new();
+}
+
+pub fn get_synthetic_factory() -> &'static impl BaseNodeFactory {
+    &*synthetic_factory
+}
+
+struct BaseNodeFactorySynthetic {}
+
+impl BaseNodeFactorySynthetic {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl BaseNodeFactory for BaseNodeFactorySynthetic {
+    fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
+        make_synthetic(base_factory_static.create_base_source_file_node(kind))
+    }
+
+    fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
+        make_synthetic(base_factory_static.create_base_identifier_node(kind))
+    }
+
+    fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
+        make_synthetic(base_factory_static.create_base_token_node(kind))
+    }
+
+    fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
+        make_synthetic(base_factory_static.create_base_node(kind))
+    }
+}
+
+lazy_static! {
+    pub static ref factory: NodeFactory = create_node_factory();
 }

@@ -7,17 +7,17 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, chain_diagnostic_messages, create_diagnostic_collection,
-    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, every, for_each,
-    get_effective_initializer, get_effective_type_annotation_node, is_variable_declaration,
-    object_allocator, BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType,
-    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
-    Diagnostics, Expression, ExpressionStatement, FreshableIntrinsicType, HasTypeInterface,
-    IntrinsicType, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface, Node,
-    NodeInterface, Number, NumberLiteralType, NumericLiteral, PrefixUnaryExpression,
-    RelationComparisonResult, SourceFile, Statement, Symbol, SymbolFlags, SyntaxKind, Ternary,
-    Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, TypeNode,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration,
-    VariableStatement,
+    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_text_writer,
+    every, factory, for_each, get_effective_initializer, get_effective_type_annotation_node,
+    get_synthetic_factory, is_variable_declaration, object_allocator, BaseIntrinsicType,
+    BaseLiteralType, BaseType, BaseUnionOrIntersectionType, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, Expression,
+    ExpressionStatement, FreshableIntrinsicType, HasTypeInterface, IntrinsicType, KeywordTypeNode,
+    LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number,
+    NumberLiteralType, NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile,
+    Statement, Symbol, SymbolFlags, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker,
+    TypeCheckerHost, TypeFlags, TypeInterface, TypeNode, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration, VariableStatement,
 };
 
 bitflags! {
@@ -37,6 +37,8 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 ) -> TypeChecker {
     let mut type_checker = TypeChecker {
         Type: object_allocator.get_type_constructor(),
+
+        node_builder: create_node_builder(),
 
         number_literal_types: HashMap::new(),
 
@@ -184,7 +186,8 @@ impl TypeChecker {
     }
 
     fn type_to_string(&self, type_: &Type) -> String {
-        unimplemented!()
+        let writer = create_text_writer("");
+        let type_node = self.node_builder.type_to_type_node(type_, Some(&writer));
     }
 
     fn get_type_names_for_error_display(&self, left: &Type, right: &Type) -> (String, String) {
@@ -813,6 +816,58 @@ impl TypeChecker {
 
     fn check_grammar_numeric_literal(&self, node: &NumericLiteral) -> bool {
         false
+    }
+}
+
+fn create_node_builder() -> NodeBuilder {
+    NodeBuilder::new()
+}
+
+pub struct NodeBuilder {}
+
+impl NodeBuilder {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn type_to_type_node(
+        &self,
+        type_: &Type,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<TypeNode> {
+        self.with_context(tracker, |context| {
+            self.type_to_type_node_helper(type_, context)
+        })
+    }
+
+    fn with_context<TReturn, TCallback: FnMut(&NodeBuilderContext) -> TReturn>(
+        &self,
+        tracker: Option<&dyn SymbolTracker>,
+        cb: TCallback,
+    ) -> Option<TReturn> {
+        let context = NodeBuilderContext::new(tracker.unwrap());
+        let resulting_node = cb(&context);
+        Some(resulting_node)
+    }
+
+    pub fn type_to_type_node_helper(&self, type_: &Type, context: &NodeBuilderContext) -> TypeNode {
+        if type_.flags().intersects(TypeFlags::Number) {
+            return Into::<KeywordTypeNode>::into(
+                factory
+                    .create_keyword_type_node(get_synthetic_factory(), SyntaxKind::NumberKeyword),
+            )
+            .into();
+        }
+    }
+}
+
+struct NodeBuilderContext<'symbol_tracker> {
+    tracker: &'symbol_tracker dyn SymbolTracker,
+}
+
+impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
+    pub fn new(tracker: &'symbol_tracker dyn SymbolTracker) -> Self {
+        Self { tracker }
     }
 }
 

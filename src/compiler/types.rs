@@ -5,7 +5,7 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
-use crate::{Number, SortedArray, WeakSelf};
+use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
 use local_macros::ast_type;
 
 pub struct Path(String);
@@ -17,10 +17,10 @@ impl Path {
 }
 
 pub trait ReadonlyTextRange {
-    fn pos(&self) -> usize;
-    fn set_pos(&self, pos: usize);
-    fn end(&self) -> usize;
-    fn set_end(&self, end: usize);
+    fn pos(&self) -> isize;
+    fn set_pos(&self, pos: isize);
+    fn end(&self) -> isize;
+    fn set_end(&self, end: isize);
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -160,20 +160,20 @@ pub struct BaseNode {
     _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
     pub parent: RefCell<Option<Weak<Node>>>,
-    pub pos: Cell<usize>,
-    pub end: Cell<usize>,
+    pub pos: Cell<isize>,
+    pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RefCell<Option<SymbolTable>>,
 }
 
 impl BaseNode {
-    pub fn new(kind: SyntaxKind, pos: usize, end: usize) -> Self {
+    pub fn new(kind: SyntaxKind, pos: isize, end: isize) -> Self {
         Self {
             _node_wrapper: RefCell::new(None),
             kind,
             parent: RefCell::new(None),
-            pos: pos.into(),
-            end: end.into(),
+            pos: Cell::new(pos),
+            end: Cell::new(end),
             symbol: RefCell::new(None),
             locals: RefCell::new(None),
         }
@@ -231,19 +231,19 @@ impl NodeInterface for BaseNode {
 }
 
 impl ReadonlyTextRange for BaseNode {
-    fn pos(&self) -> usize {
+    fn pos(&self) -> isize {
         self.pos.get()
     }
 
-    fn set_pos(&self, pos: usize) {
+    fn set_pos(&self, pos: isize) {
         self.pos.set(pos);
     }
 
-    fn end(&self) -> usize {
+    fn end(&self) -> isize {
         self.end.get()
     }
 
-    fn set_end(&self, end: usize) {
+    fn set_end(&self, end: isize) {
         self.end.set(end);
     }
 }
@@ -680,7 +680,7 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 #[allow(non_snake_case)]
 pub struct TypeChecker {
     pub Type: fn(TypeFlags) -> BaseType,
-
+    pub node_builder: NodeBuilder,
     pub number_literal_types: HashMap<Number, Rc</*NumberLiteralType*/ Type>>,
     pub number_type: Option<Rc<Type>>,
     pub bigint_type: Option<Rc<Type>>,
@@ -690,6 +690,8 @@ pub struct TypeChecker {
     pub diagnostics: RefCell<DiagnosticCollection>,
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
+
+pub trait SymbolWriter: SymbolTracker {}
 
 bitflags! {
     pub struct SymbolFlags: u32 {
@@ -1396,11 +1398,11 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
         self._diagnostic_related_information.file()
     }
 
-    fn start(&self) -> usize {
+    fn start(&self) -> isize {
         self._diagnostic_related_information.start()
     }
 
-    fn length(&self) -> usize {
+    fn length(&self) -> isize {
         self._diagnostic_related_information.length()
     }
 }
@@ -1417,7 +1419,7 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
         }
     }
 
-    fn start(&self) -> usize {
+    fn start(&self) -> isize {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
                 diagnostic_with_location.start()
@@ -1428,7 +1430,7 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
         }
     }
 
-    fn length(&self) -> usize {
+    fn length(&self) -> isize {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
                 diagnostic_with_location.length()
@@ -1444,15 +1446,15 @@ impl DiagnosticInterface for Diagnostic {}
 
 pub trait DiagnosticRelatedInformationInterface {
     fn file(&self) -> Option<Rc<SourceFile>>;
-    fn start(&self) -> usize;
-    fn length(&self) -> usize;
+    fn start(&self) -> isize;
+    fn length(&self) -> isize;
 }
 
 #[derive(Clone, Debug)]
 pub struct BaseDiagnosticRelatedInformation {
     pub file: Option<Rc<SourceFile>>,
-    pub start: usize,
-    pub length: usize,
+    pub start: isize,
+    pub length: isize,
 }
 
 impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation {
@@ -1460,11 +1462,11 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
         self.file.clone()
     }
 
-    fn start(&self) -> usize {
+    fn start(&self) -> isize {
         self.start
     }
 
-    fn length(&self) -> usize {
+    fn length(&self) -> isize {
         self.length
     }
 }
@@ -1485,11 +1487,11 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
         self._diagnostic.file()
     }
 
-    fn start(&self) -> usize {
+    fn start(&self) -> isize {
         self._diagnostic.start()
     }
 
-    fn length(&self) -> usize {
+    fn length(&self) -> isize {
         self._diagnostic.length()
     }
 }
@@ -1513,11 +1515,11 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
         self._diagnostic.file()
     }
 
-    fn start(&self) -> usize {
+    fn start(&self) -> isize {
         self._diagnostic.start()
     }
 
-    fn length(&self) -> usize {
+    fn length(&self) -> isize {
         self._diagnostic.length()
     }
 }
@@ -1539,11 +1541,15 @@ pub enum DiagnosticCategory {
 
 pub struct NodeFactory {}
 
+pub trait EmitTextWriter {}
+
 pub trait ModuleSpecifierResolutionHost {}
 
+pub trait SymbolTracker {}
+
 pub struct TextSpan {
-    pub start: usize,
-    pub length: usize,
+    pub start: isize,
+    pub length: isize,
 }
 
 pub struct DiagnosticCollection {

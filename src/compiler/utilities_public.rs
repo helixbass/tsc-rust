@@ -2,11 +2,11 @@ use std::rc::Rc;
 
 use crate::{CharacterCodes, Node, NodeInterface, SyntaxKind, TextSpan, __String};
 
-fn create_text_span(start: usize, length: usize) -> TextSpan {
+fn create_text_span(start: isize, length: isize) -> TextSpan {
     TextSpan { start, length }
 }
 
-pub fn create_text_span_from_bounds(start: usize, end: usize) -> TextSpan {
+pub fn create_text_span_from_bounds(start: isize, end: isize) -> TextSpan {
     create_text_span(start, end - start)
 }
 
