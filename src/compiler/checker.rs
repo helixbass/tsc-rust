@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use std::borrow::Borrow;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
@@ -610,14 +611,15 @@ impl TypeChecker {
         }
     }
 
-    fn check_source_element(&mut self, node: Option<Rc<Node>>) {
+    fn check_source_element<TNodeRef: Borrow<Node>>(&mut self, node: Option<TNodeRef>) {
         if let Some(node) = node {
+            let node = node.borrow();
             self.check_source_element_worker(node);
         }
     }
 
-    fn check_source_element_worker(&mut self, node: Rc<Node>) {
-        match &*node {
+    fn check_source_element_worker(&mut self, node: &Node) {
+        match node {
             Node::TypeNode(type_node) => match type_node {
                 TypeNode::KeywordTypeNode(_) => (),
                 _ => unimplemented!(),
@@ -647,7 +649,7 @@ impl TypeChecker {
     fn check_source_file_worker(&mut self, node: &SourceFile) {
         if true {
             for_each(&node.statements, |statement, _index| {
-                self.check_source_element(Some(statement.clone()));
+                self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });
         }
@@ -790,7 +792,7 @@ impl TypeChecker {
                 _ => panic!("Expected VariableDeclarationList"),
             }
             .declarations,
-            |declaration, _| Some(self.check_source_element(Some(declaration.clone()))),
+            |declaration, _| Some(self.check_source_element(Some(&**declaration))),
         );
     }
 
