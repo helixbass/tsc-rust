@@ -755,7 +755,7 @@ impl TypeChecker {
                 &value_declaration.as_ref().unwrap().upgrade().unwrap(),
             )
         {
-            let initializer = get_effective_initializer(&*wrapper);
+            let initializer = get_effective_initializer(node);
             if let Some(initializer) = initializer {
                 if true {
                     let initializer_type = self.check_expression_cached(match &*initializer {

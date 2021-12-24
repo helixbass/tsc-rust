@@ -85,8 +85,12 @@ fn get_error_span_for_node<TNode: NodeInterface>(
     create_text_span_from_bounds(pos, error_node.end())
 }
 
-pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> Option<Rc<Node>> {
-    node.as_has_expression_initializer().initializer()
+pub fn get_effective_initializer<TNode: NodeInterface>(
+    node: &TNode, /*HasExpressionInitializer*/
+) -> Option<Rc<Node>> {
+    node.node_wrapper()
+        .as_has_expression_initializer()
+        .initializer()
 }
 
 pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode) {
@@ -108,11 +112,11 @@ pub fn is_property_name_literal<TNode: NodeInterface>(node: &TNode) -> bool {
     }
 }
 
-pub fn get_escaped_text_of_identifier_or_literal(node: Rc<Node>) -> __String {
+pub fn get_escaped_text_of_identifier_or_literal<TNode: NodeInterface>(node: &TNode) -> __String {
     if is_member_name(&*node) {
-        node.as_member_name().escaped_text()
+        node.node_wrapper().as_member_name().escaped_text()
     } else {
-        escape_leading_underscores(node.as_literal_like_node().text())
+        escape_leading_underscores(node.node_wrapper().as_literal_like_node().text())
     }
 }
 

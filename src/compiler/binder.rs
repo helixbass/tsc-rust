@@ -140,7 +140,7 @@ impl BinderType {
         let name = get_name_of_declaration(node);
         if let Some(name) = name {
             return if is_property_name_literal(&*name) {
-                Some(get_escaped_text_of_identifier_or_literal(name.clone()))
+                Some(get_escaped_text_of_identifier_or_literal(&*name))
             } else {
                 None
             };
