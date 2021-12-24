@@ -190,68 +190,67 @@ fn get_enum_interface_impl(
     variant_names: &[&Ident],
     ast_type_name: &Ident,
 ) -> TokenStream2 {
-    let variant_names_ref = &variant_names;
     match interface_name {
         "NodeInterface" => {
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
                     fn node_wrapper(&self) -> ::std::rc::Rc<crate::Node> {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.node_wrapper()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.node_wrapper()),*
                         }
                     }
 
                     fn set_node_wrapper(&self, wrapper: ::std::rc::Rc<crate::Node>) {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.set_node_wrapper(wrapper)),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_node_wrapper(wrapper)),*
                         }
                     }
 
                     fn kind(&self) -> crate::SyntaxKind {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.kind()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.kind()),*
                         }
                     }
 
                     fn parent(&self) -> ::std::rc::Rc<crate::Node> {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.parent()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.parent()),*
                         }
                     }
 
                     fn set_parent(&self, parent: ::std::rc::Rc<crate::Node>) {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.set_parent(parent)),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_parent(parent)),*
                         }
                     }
 
                     fn maybe_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.maybe_symbol()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_symbol()),*
                         }
                     }
 
                     fn symbol(&self) -> ::std::rc::Rc<crate::Symbol> {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.symbol()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.symbol()),*
                         }
                     }
 
                     fn set_symbol(&self, symbol: ::std::rc::Rc<crate::Symbol>) {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.set_symbol(symbol)),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
                         }
                     }
 
                     fn locals(&self) -> ::std::cell::RefMut<crate::SymbolTable> {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.locals()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.locals()),*
                         }
                     }
 
                     fn set_locals(&self, locals: crate::SymbolTable) {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.set_locals(locals)),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_locals(locals)),*
                         }
                     }
                 }
@@ -262,25 +261,25 @@ fn get_enum_interface_impl(
                 impl crate::ReadonlyTextRange for #ast_type_name {
                     fn pos(&self) -> usize {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.pos()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.pos()),*
                         }
                     }
 
                     fn set_pos(&self, pos: usize) {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.set_pos(pos)),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_pos(pos)),*
                         }
                     }
 
                     fn end(&self) -> usize {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.end()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.end()),*
                         }
                     }
 
                     fn set_end(&self, end: usize) {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.set_end(end)),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_end(end)),*
                         }
                     }
                 }
@@ -291,7 +290,7 @@ fn get_enum_interface_impl(
                 impl crate::LiteralLikeNodeInterface for #ast_type_name {
                     fn text(&self) -> &str {
                         match self {
-                            #(#ast_type_name::#variant_names_ref(nested) => nested.text()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.text()),*
                         }
                     }
                 }
