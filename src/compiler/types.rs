@@ -380,7 +380,7 @@ pub trait BindingLikeDeclarationInterface:
 }
 
 #[derive(Debug)]
-#[ast_type(impl_from = false)]
+#[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseBindingLikeDeclaration {
     _named_declaration: BaseNamedDeclaration,
     initializer: Option<Rc<Node>>,
@@ -395,16 +395,6 @@ impl BaseBindingLikeDeclaration {
             _named_declaration: base_named_declaration,
             initializer,
         }
-    }
-}
-
-impl NamedDeclarationInterface for BaseBindingLikeDeclaration {
-    fn name(&self) -> Rc<Node> {
-        self._named_declaration.name()
-    }
-
-    fn set_name(&mut self, name: Rc<Node>) {
-        self._named_declaration.set_name(name);
     }
 }
 

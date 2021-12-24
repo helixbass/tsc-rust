@@ -1,6 +1,6 @@
 use darling::FromMeta;
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::Data::{Enum, Struct};
 use syn::{parse_macro_input, AttributeArgs, DataEnum, DeriveInput, Fields, FieldsNamed};
@@ -11,6 +11,8 @@ struct AstTypeArgs {
     ancestors: Option<String>,
     #[darling(default)]
     impl_from: Option<bool>,
+    #[darling(default)]
+    interfaces: Option<String>,
 }
 
 impl AstTypeArgs {
@@ -32,29 +34,30 @@ impl AstTypeArgs {
     fn should_impl_from(&self) -> bool {
         self.impl_from.unwrap_or(true)
     }
+
+    fn interfaces_vec(&self) -> Vec<String> {
+        let mut vec = vec!["ReadonlyTextRange".to_string(), "NodeInterface".to_string()];
+        vec.append(&mut self.interfaces.as_ref().map_or_else(
+            || vec![],
+            |interfaces_str| {
+                interfaces_str
+                    .split(",")
+                    .into_iter()
+                    .map(|chunk| chunk.trim().to_string())
+                    .collect()
+            },
+        ));
+        vec
+    }
 }
 
-#[proc_macro_attribute]
-pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let item_for_parsing = item.clone();
-    let DeriveInput {
-        ident: ast_type_name,
-        data,
-        ..
-    } = parse_macro_input!(item_for_parsing);
-
-    let node_interface_and_readonly_text_range_implementation = match data {
-        Struct(struct_) => {
-            let first_field_name = match struct_.fields {
-                Fields::Named(FieldsNamed { named, .. }) => named
-                    .iter()
-                    .nth(0)
-                    .expect("Expected at least one struct field")
-                    .ident
-                    .clone(),
-                _ => panic!("Expected named fields"),
-            };
-
+fn get_struct_interface_impl(
+    interface_name: &str,
+    first_field_name: &Ident,
+    ast_type_name: &Ident,
+) -> TokenStream2 {
+    match interface_name {
+        "NodeInterface" => {
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
                     fn node_wrapper(&self) -> ::std::rc::Rc<crate::Node> {
@@ -97,7 +100,10 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
                         self.#first_field_name.set_locals(locals)
                     }
                 }
-
+            }
+        }
+        "ReadonlyTextRange" => {
+            quote! {
                 impl crate::ReadonlyTextRange for #ast_type_name {
                     fn pos(&self) -> usize {
                         self.#first_field_name.pos()
@@ -116,6 +122,66 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
                     }
                 }
             }
+        }
+        "NamedDeclarationInterface" => {
+            quote! {
+                impl crate::NamedDeclarationInterface for #ast_type_name {
+                    fn name(&self) -> ::std::rc::Rc<crate::Node> {
+                        self.#first_field_name.name()
+                    }
+
+                    fn set_name(&mut self, name: ::std::rc::Rc<crate::Node>) {
+                        self.#first_field_name.set_name(name);
+                    }
+                }
+            }
+        }
+        _ => panic!("Unknown interface: {}", interface_name),
+    }
+}
+
+#[proc_macro_attribute]
+pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let item_for_parsing = item.clone();
+    let DeriveInput {
+        ident: ast_type_name,
+        data,
+        ..
+    } = parse_macro_input!(item_for_parsing);
+
+    let attr_args = parse_macro_input!(attr as AttributeArgs);
+    let args = match AstTypeArgs::from_list(&attr_args) {
+        Ok(args) => args,
+        Err(error) => {
+            return TokenStream::from(error.write_errors());
+        }
+    };
+
+    let node_interface_and_readonly_text_range_implementation = match data {
+        Struct(struct_) => {
+            let first_field_name = match struct_.fields {
+                Fields::Named(FieldsNamed { named, .. }) => named
+                    .iter()
+                    .nth(0)
+                    .expect("Expected at least one struct field")
+                    .ident
+                    .clone()
+                    .expect("Expected ident"),
+                _ => panic!("Expected named fields"),
+            };
+
+            let mut interface_impls: TokenStream2 = quote! {};
+            for interface in args.interfaces_vec() {
+                let interface_impl =
+                    get_struct_interface_impl(&interface, &first_field_name, &ast_type_name);
+                interface_impls = quote! {
+                    #interface_impls
+
+                    #interface_impl
+                };
+            }
+
+            interface_impls
         }
         Enum(DataEnum { variants, .. }) => {
             let variant_names = variants.iter().map(|variant| &variant.ident);
@@ -224,14 +290,6 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
         _ => panic!("Expected struct or enum"),
-    };
-
-    let attr_args = parse_macro_input!(attr as AttributeArgs);
-    let args = match AstTypeArgs::from_list(&attr_args) {
-        Ok(args) => args,
-        Err(error) => {
-            return TokenStream::from(error.write_errors());
-        }
     };
 
     let into_implementations = if args.should_impl_from() {
