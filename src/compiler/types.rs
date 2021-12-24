@@ -8,6 +8,7 @@ use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::{Number, SortedArray, WeakSelf};
+use local_macros::ast_type;
 
 pub struct Path(String);
 
@@ -435,6 +436,7 @@ impl From<Vec<Rc<Node>>> for NodeArrayOrVec {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct Identifier {
     _node: BaseNode,
     pub escaped_text: __String,
@@ -446,54 +448,6 @@ impl Identifier {
             _node: base_node,
             escaped_text,
         }
-    }
-}
-
-impl NodeInterface for Identifier {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for Identifier {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
     }
 }
 
@@ -513,6 +467,7 @@ pub trait NamedDeclarationInterface: NodeInterface {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct BaseNamedDeclaration {
     _node: BaseNode,
     name: Option<Rc<Node>>,
@@ -524,54 +479,6 @@ impl BaseNamedDeclaration {
             _node: base_node,
             name,
         }
-    }
-}
-
-impl NodeInterface for BaseNamedDeclaration {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for BaseNamedDeclaration {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
     }
 }
 
@@ -591,6 +498,7 @@ pub trait BindingLikeDeclarationInterface: NamedDeclarationInterface {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct BaseBindingLikeDeclaration {
     _named_declaration: BaseNamedDeclaration,
     initializer: Option<Rc<Node>>,
@@ -605,54 +513,6 @@ impl BaseBindingLikeDeclaration {
             _named_declaration: base_named_declaration,
             initializer,
         }
-    }
-}
-
-impl NodeInterface for BaseBindingLikeDeclaration {
-    fn kind(&self) -> SyntaxKind {
-        self._named_declaration.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._named_declaration.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._named_declaration.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._named_declaration.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._named_declaration.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._named_declaration.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._named_declaration.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for BaseBindingLikeDeclaration {
-    fn pos(&self) -> usize {
-        self._named_declaration.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._named_declaration.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._named_declaration.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._named_declaration.set_end(end);
     }
 }
 
@@ -682,6 +542,7 @@ pub trait VariableLikeDeclarationInterface: BindingLikeDeclarationInterface {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct BaseVariableLikeDeclaration {
     _binding_like_declaration: BaseBindingLikeDeclaration,
     type_: Option<Rc<Node>>,
@@ -696,54 +557,6 @@ impl BaseVariableLikeDeclaration {
             _binding_like_declaration: base_binding_like_declaration,
             type_,
         }
-    }
-}
-
-impl NodeInterface for BaseVariableLikeDeclaration {
-    fn kind(&self) -> SyntaxKind {
-        self._binding_like_declaration.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._binding_like_declaration.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._binding_like_declaration.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._binding_like_declaration.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._binding_like_declaration.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._binding_like_declaration.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._binding_like_declaration.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for BaseVariableLikeDeclaration {
-    fn pos(&self) -> usize {
-        self._binding_like_declaration.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._binding_like_declaration.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._binding_like_declaration.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._binding_like_declaration.set_end(end);
     }
 }
 
@@ -778,6 +591,7 @@ impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct VariableDeclaration {
     _variable_like_declaration: BaseVariableLikeDeclaration,
 }
@@ -787,54 +601,6 @@ impl VariableDeclaration {
         Self {
             _variable_like_declaration: base_variable_like_declaration,
         }
-    }
-}
-
-impl NodeInterface for VariableDeclaration {
-    fn kind(&self) -> SyntaxKind {
-        self._variable_like_declaration.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._variable_like_declaration.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._variable_like_declaration.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._variable_like_declaration.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._variable_like_declaration.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._variable_like_declaration.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._variable_like_declaration.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for VariableDeclaration {
-    fn pos(&self) -> usize {
-        self._variable_like_declaration.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._variable_like_declaration.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._variable_like_declaration.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._variable_like_declaration.set_end(end);
     }
 }
 
@@ -875,6 +641,7 @@ impl From<VariableDeclaration> for Node {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct VariableDeclarationList {
     _node: BaseNode,
     pub declarations: NodeArray, /*<VariableDeclaration>*/
@@ -886,54 +653,6 @@ impl VariableDeclarationList {
             _node: base_node,
             declarations,
         }
-    }
-}
-
-impl NodeInterface for VariableDeclarationList {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for VariableDeclarationList {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
     }
 }
 
@@ -1037,6 +756,7 @@ impl From<TypeNode> for Node {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct KeywordTypeNode {
     _node: BaseNode,
 }
@@ -1044,54 +764,6 @@ pub struct KeywordTypeNode {
 impl KeywordTypeNode {
     pub fn new(base_node: BaseNode) -> Self {
         Self { _node: base_node }
-    }
-}
-
-impl NodeInterface for KeywordTypeNode {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for KeywordTypeNode {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
     }
 }
 
@@ -1265,6 +937,7 @@ impl From<BaseNode> for Expression {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct PrefixUnaryExpression {
     pub _node: BaseNode,
     pub operator: SyntaxKind,
@@ -1281,54 +954,6 @@ impl PrefixUnaryExpression {
     }
 }
 
-impl NodeInterface for PrefixUnaryExpression {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for PrefixUnaryExpression {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
-    }
-}
-
 impl From<PrefixUnaryExpression> for Expression {
     fn from(prefix_unary_expression: PrefixUnaryExpression) -> Self {
         Expression::PrefixUnaryExpression(prefix_unary_expression)
@@ -1336,6 +961,7 @@ impl From<PrefixUnaryExpression> for Expression {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct BinaryExpression {
     pub _node: BaseNode,
     pub left: Rc<Node>,
@@ -1359,54 +985,6 @@ impl BinaryExpression {
     }
 }
 
-impl NodeInterface for BinaryExpression {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for BinaryExpression {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
-    }
-}
-
 impl From<BinaryExpression> for Expression {
     fn from(binary_expression: BinaryExpression) -> Self {
         Expression::BinaryExpression(binary_expression)
@@ -1414,57 +992,10 @@ impl From<BinaryExpression> for Expression {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct BaseLiteralLikeNode {
     pub _node: BaseNode,
     pub text: String,
-}
-
-impl NodeInterface for BaseLiteralLikeNode {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for BaseLiteralLikeNode {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
-    }
 }
 
 pub trait LiteralLikeNodeInterface {
@@ -1568,56 +1099,9 @@ bitflags! {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct NumericLiteral {
     pub _literal_like_node: BaseLiteralLikeNode,
-}
-
-impl NodeInterface for NumericLiteral {
-    fn kind(&self) -> SyntaxKind {
-        self._literal_like_node._node.kind
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._literal_like_node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._literal_like_node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._literal_like_node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._literal_like_node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._literal_like_node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._literal_like_node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for NumericLiteral {
-    fn pos(&self) -> usize {
-        self._literal_like_node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._literal_like_node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._literal_like_node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._literal_like_node.set_end(end);
-    }
 }
 
 impl From<NumericLiteral> for LiteralLikeNode {
@@ -1754,56 +1238,9 @@ impl From<Statement> for Node {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct EmptyStatement {
     pub _node: BaseNode,
-}
-
-impl NodeInterface for EmptyStatement {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for EmptyStatement {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
-    }
 }
 
 impl From<EmptyStatement> for Statement {
@@ -1813,6 +1250,7 @@ impl From<EmptyStatement> for Statement {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct VariableStatement {
     _node: BaseNode,
     pub declaration_list: Rc</*VariableDeclarationList*/ Node>,
@@ -1827,54 +1265,6 @@ impl VariableStatement {
     }
 }
 
-impl NodeInterface for VariableStatement {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for VariableStatement {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
-    }
-}
-
 impl From<VariableStatement> for Statement {
     fn from(variable_statement: VariableStatement) -> Self {
         Statement::VariableStatement(variable_statement)
@@ -1882,57 +1272,10 @@ impl From<VariableStatement> for Statement {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct ExpressionStatement {
     pub _node: BaseNode,
     pub expression: Rc</*Expression*/ Node>,
-}
-
-impl NodeInterface for ExpressionStatement {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent()
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for ExpressionStatement {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
-    }
 }
 
 impl From<ExpressionStatement> for Statement {
@@ -1942,59 +1285,12 @@ impl From<ExpressionStatement> for Statement {
 }
 
 #[derive(Debug)]
+#[ast_type]
 pub struct SourceFile {
     pub _node: BaseNode,
     pub statements: NodeArray,
 
     pub file_name: String,
-}
-
-impl NodeInterface for SourceFile {
-    fn kind(&self) -> SyntaxKind {
-        self._node.kind()
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        self._node.parent() // this would always fail?
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        self._node.set_parent(parent)
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        self._node.symbol()
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        self._node.set_symbol(symbol);
-    }
-
-    fn locals(&self) -> MappedRwLockWriteGuard<SymbolTable> {
-        self._node.locals()
-    }
-
-    fn set_locals(&self, locals: SymbolTable) {
-        self._node.set_locals(locals)
-    }
-}
-
-impl ReadonlyTextRange for SourceFile {
-    fn pos(&self) -> usize {
-        self._node.pos()
-    }
-
-    fn set_pos(&self, pos: usize) {
-        self._node.set_pos(pos);
-    }
-
-    fn end(&self) -> usize {
-        self._node.end()
-    }
-
-    fn set_end(&self, end: usize) {
-        self._node.set_end(end);
-    }
 }
 
 impl From<Rc<SourceFile>> for Node {
