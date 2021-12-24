@@ -859,11 +859,18 @@ impl NodeBuilder {
             .into();
         }
         if type_.flags().intersects(TypeFlags::BooleanLiteral) {
-            return Into::<KeywordTypeNode>::into(
-                factory.create_literal_type_node(get_synthetic_factory()),
-            )
-            .into();
+            return factory
+                .create_literal_type_node(
+                    get_synthetic_factory(),
+                    &if type_.as_intrinsic_type().intrinsic_name() == "true" {
+                        factory.create_true(get_synthetic_factory())
+                    } else {
+                        factory.create_false(get_synthetic_factory())
+                    },
+                )
+                .into();
         }
+        unimplemented!()
     }
 }
 

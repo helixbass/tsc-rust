@@ -4,9 +4,9 @@ use crate::{
     create_base_node_factory, escape_leading_underscores, BaseBindingLikeDeclaration,
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression, ExpressionStatement,
-    Identifier, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NumericLiteral,
-    PrefixUnaryExpression, SourceFile, SyntaxKind, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    Identifier, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, NumericLiteral, PrefixUnaryExpression, SourceFile, SyntaxKind,
+    VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -130,12 +130,36 @@ impl NodeFactory {
         node
     }
 
+    pub fn create_true<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+    ) -> BaseNode {
+        self.create_token(base_factory, SyntaxKind::TrueKeyword)
+    }
+
+    pub fn create_false<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+    ) -> BaseNode {
+        self.create_token(base_factory, SyntaxKind::FalseKeyword)
+    }
+
     pub fn create_keyword_type_node<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
         token: SyntaxKind,
     ) -> BaseNode {
         self.create_token(base_factory, token)
+    }
+
+    pub fn create_literal_type_node<TBaseNodeFactory: BaseNodeFactory, TNode: NodeInterface>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        literal: &TNode,
+    ) -> LiteralTypeNode {
+        let node = self.create_token(base_factory, SyntaxKind::LiteralType);
+        let node = LiteralTypeNode::new(node, literal.node_wrapper());
+        node
     }
 
     fn create_base_expression<TBaseNodeFactory: BaseNodeFactory>(

@@ -44,6 +44,7 @@ pub enum SyntaxKind {
     WithKeyword,
     NumberKeyword,
     OfKeyword,
+    LiteralType,
     ObjectBindingPattern,
     ArrayBindingPattern,
     PrefixUnaryExpression,
@@ -485,6 +486,7 @@ impl VariableDeclarationList {
 #[ast_type]
 pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
+    LiteralTypeNode(LiteralTypeNode),
 }
 
 #[derive(Debug)]
@@ -502,6 +504,22 @@ impl KeywordTypeNode {
 impl From<BaseNode> for KeywordTypeNode {
     fn from(base_node: BaseNode) -> Self {
         KeywordTypeNode::new(base_node)
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct LiteralTypeNode {
+    _node: BaseNode,
+    literal: Rc<Node>, // TODO: should be weak?
+}
+
+impl LiteralTypeNode {
+    pub fn new(base_node: BaseNode, literal: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            literal,
+        }
     }
 }
 
@@ -820,6 +838,13 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn as_intrinsic_type(&self) -> &dyn IntrinsicTypeInterface {
+        match self {
+            Type::IntrinsicType(intrinsic_type) => intrinsic_type,
+            _ => panic!("Expected intrinsic type"),
+        }
+    }
+
     pub fn as_union_or_intersection_type(&self) -> &dyn UnionOrIntersectionTypeInterface {
         match self {
             Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
