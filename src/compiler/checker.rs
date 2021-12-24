@@ -634,7 +634,7 @@ impl TypeChecker {
                 };
             }
             Node::VariableDeclaration(variable_declaration) => {
-                return self.check_variable_declaration(variable_declaration, node.clone());
+                return self.check_variable_declaration(variable_declaration);
             }
             _ => unimplemented!(),
         };
@@ -737,7 +737,7 @@ impl TypeChecker {
         type_
     }
 
-    fn check_variable_like_declaration(&mut self, node: &VariableDeclaration, wrapper: Rc<Node>) {
+    fn check_variable_like_declaration(&mut self, node: &VariableDeclaration) {
         if true {
             self.check_source_element(node.type_());
         }
@@ -746,6 +746,7 @@ impl TypeChecker {
 
         let type_ = self.convert_auto_to_any(self.get_type_of_symbol(&*symbol));
         let value_declaration = symbol.maybe_value_declaration();
+        let wrapper = node.node_wrapper();
         if value_declaration.is_some()
             && Rc::ptr_eq(
                 &wrapper,
@@ -776,8 +777,8 @@ impl TypeChecker {
         }
     }
 
-    fn check_variable_declaration(&mut self, node: &VariableDeclaration, wrapper: Rc<Node>) {
-        self.check_variable_like_declaration(node, wrapper);
+    fn check_variable_declaration(&mut self, node: &VariableDeclaration) {
+        self.check_variable_like_declaration(node);
     }
 
     fn check_variable_statement(&mut self, node: &VariableStatement) {

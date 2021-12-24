@@ -337,25 +337,18 @@ impl BinderType {
     fn bind_worker(&self, node: Rc<Node>) {
         match &*node {
             Node::VariableDeclaration(variable_declaration) => {
-                return self.bind_variable_declaration_or_binding_element(
-                    variable_declaration,
-                    node.clone(),
-                );
+                return self.bind_variable_declaration_or_binding_element(variable_declaration);
             }
             _ => (),
         }
     }
 
-    fn bind_variable_declaration_or_binding_element(
-        &self,
-        node: &VariableDeclaration,
-        wrapper: Rc<Node>,
-    ) {
+    fn bind_variable_declaration_or_binding_element(&self, node: &VariableDeclaration) {
         if !is_binding_pattern(&*node.name()) {
             if false {
             } else {
                 self.declare_symbol_and_add_to_symbol_table(
-                    wrapper,
+                    node.node_wrapper(),
                     SymbolFlags::FunctionScopedVariable,
                 );
             }

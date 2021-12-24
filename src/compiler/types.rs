@@ -711,7 +711,9 @@ pub struct SourceFile {
 
 impl From<SourceFile> for Rc<Node> {
     fn from(source_file: SourceFile) -> Self {
-        Rc::new(Node::SourceFile(Rc::new(source_file)))
+        let rc = Rc::new(Node::SourceFile(Rc::new(source_file)));
+        rc.set_node_wrapper(rc.clone());
+        rc
     }
 }
 
