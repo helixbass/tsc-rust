@@ -416,7 +416,10 @@ pub trait VariableLikeDeclarationInterface:
 }
 
 #[derive(Debug)]
-#[ast_type(impl_from = false)]
+#[ast_type(
+    impl_from = false,
+    interfaces = "NamedDeclarationInterface, HasExpressionInitializerInterface"
+)]
 pub struct BaseVariableLikeDeclaration {
     _binding_like_declaration: BaseBindingLikeDeclaration,
     type_: Option<Rc<Node>>,
@@ -431,26 +434,6 @@ impl BaseVariableLikeDeclaration {
             _binding_like_declaration: base_binding_like_declaration,
             type_,
         }
-    }
-}
-
-impl NamedDeclarationInterface for BaseVariableLikeDeclaration {
-    fn name(&self) -> Rc<Node> {
-        self._binding_like_declaration.name()
-    }
-
-    fn set_name(&mut self, name: Rc<Node>) {
-        self._binding_like_declaration.set_name(name);
-    }
-}
-
-impl HasExpressionInitializerInterface for BaseVariableLikeDeclaration {
-    fn initializer(&self) -> Option<Rc<Node>> {
-        self._binding_like_declaration.initializer()
-    }
-
-    fn set_initializer(&mut self, initializer: Rc<Node>) {
-        self._binding_like_declaration.set_initializer(initializer);
     }
 }
 
@@ -469,7 +452,7 @@ impl HasTypeInterface for BaseVariableLikeDeclaration {
 impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(interfaces = "NamedDeclarationInterface, HasExpressionInitializerInterface")]
 pub struct VariableDeclaration {
     _variable_like_declaration: BaseVariableLikeDeclaration,
 }
@@ -479,26 +462,6 @@ impl VariableDeclaration {
         Self {
             _variable_like_declaration: base_variable_like_declaration,
         }
-    }
-}
-
-impl NamedDeclarationInterface for VariableDeclaration {
-    fn name(&self) -> Rc<Node> {
-        self._variable_like_declaration.name()
-    }
-
-    fn set_name(&mut self, name: Rc<Node>) {
-        self._variable_like_declaration.set_name(name);
-    }
-}
-
-impl HasExpressionInitializerInterface for VariableDeclaration {
-    fn initializer(&self) -> Option<Rc<Node>> {
-        self._variable_like_declaration.initializer()
-    }
-
-    fn set_initializer(&mut self, initializer: Rc<Node>) {
-        self._variable_like_declaration.set_initializer(initializer);
     }
 }
 

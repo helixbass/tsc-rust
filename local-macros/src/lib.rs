@@ -136,6 +136,19 @@ fn get_struct_interface_impl(
                 }
             }
         }
+        "HasExpressionInitializerInterface" => {
+            quote! {
+                impl crate::HasExpressionInitializerInterface for #ast_type_name {
+                    fn initializer(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self.#first_field_name.initializer()
+                    }
+
+                    fn set_initializer(&mut self, initializer: ::std::rc::Rc<crate::Node>) {
+                        self.#first_field_name.set_initializer(initializer);
+                    }
+                }
+            }
+        }
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
