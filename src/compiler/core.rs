@@ -16,7 +16,7 @@ pub fn for_each<
 
 pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     array: &[TItem],
-    predicate: TCallback,
+    mut predicate: TCallback,
 ) -> bool {
     array
         .into_iter()

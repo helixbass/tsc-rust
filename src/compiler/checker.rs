@@ -182,7 +182,9 @@ impl TypeChecker {
         type_
     }
 
-    fn type_to_string(&self, type_: &Type) -> String {}
+    fn type_to_string(&self, type_: &Type) -> String {
+        unimplemented!()
+    }
 
     fn get_type_names_for_error_display(&self, left: &Type, right: &Type) -> (String, String) {
         let left_str = if false {
@@ -588,7 +590,7 @@ impl TypeChecker {
     fn map_type<TMapper: FnMut(Rc<Type>) -> Rc<Type>>(
         &self,
         type_: Rc<Type>,
-        mapper: TMapper,
+        mut mapper: TMapper,
     ) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Never) {
             return type_;
@@ -597,6 +599,7 @@ impl TypeChecker {
             return mapper(type_);
         }
         let types = type_.as_union_or_intersection_type().types();
+        unimplemented!()
     }
 
     fn get_constituent_count(&self, type_: Rc<Type>) -> usize {
@@ -891,7 +894,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         let (source_type, target_type) = self
             .type_checker
             .get_type_names_for_error_display(&*source, &*target);
-        let mut generalized_source = source;
+        let mut generalized_source = source.clone();
         let mut generalized_source_type = source_type;
 
         if self.type_checker.is_literal_type(&*source)
@@ -899,7 +902,9 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                 .type_checker
                 .type_could_have_top_level_singleton_types(&*target)
         {
-            generalized_source = self.type_checker.get_base_type_of_literal_type(source);
+            generalized_source = self
+                .type_checker
+                .get_base_type_of_literal_type(source.clone());
             Debug_.assert(
                 !self
                     .type_checker
