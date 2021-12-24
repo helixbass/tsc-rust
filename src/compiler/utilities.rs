@@ -89,7 +89,7 @@ pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> O
     node.as_has_expression_initializer().initializer()
 }
 
-pub fn set_value_declaration(symbol: &Symbol, node: Rc<Node>) {
+pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode) {
     {
         if !(symbol.maybe_value_declaration().is_none()) {
             return;

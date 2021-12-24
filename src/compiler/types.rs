@@ -818,8 +818,8 @@ impl Symbol {
         self.value_declaration.borrow()
     }
 
-    pub fn set_value_declaration(&self, node: Rc<Node>) {
-        *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node));
+    pub fn set_value_declaration<TNode: NodeInterface>(&self, node: &TNode) {
+        *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node.node_wrapper()));
     }
 }
 

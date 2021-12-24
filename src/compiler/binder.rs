@@ -116,21 +116,19 @@ impl BinderType {
         self.Symbol()(flags, name)
     }
 
-    fn add_declaration_to_symbol(
+    fn add_declaration_to_symbol<TNode: NodeInterface>(
         &self,
         symbol: Rc<Symbol>,
-        node: Rc<Node /*Declaration*/>,
+        node: &TNode, /*Declaration*/
         symbol_flags: SymbolFlags,
     ) {
         symbol.set_flags(symbol.flags() | symbol_flags);
 
         node.set_symbol(symbol.clone());
-        let declarations = {
-            append_if_unique(
-                symbol.maybe_declarations().as_ref().map(|vec| vec.clone()),
-                node.clone(),
-            )
-        };
+        let declarations = append_if_unique(
+            symbol.maybe_declarations().as_ref().map(|vec| vec.clone()),
+            node.node_wrapper(),
+        );
         symbol.set_declarations(declarations);
 
         if symbol_flags.intersects(SymbolFlags::Value) {
@@ -138,7 +136,7 @@ impl BinderType {
         }
     }
 
-    fn get_declaration_name(&self, node: Rc<Node>) -> Option<__String> {
+    fn get_declaration_name<TNode: NodeInterface>(&self, node: &TNode) -> Option<__String> {
         let name = get_name_of_declaration(node);
         if let Some(name) = name {
             return if is_property_name_literal(&*name) {
@@ -150,13 +148,13 @@ impl BinderType {
         unimplemented!()
     }
 
-    fn declare_symbol(
+    fn declare_symbol<TNode: NodeInterface>(
         &self,
         symbol_table: &mut SymbolTable,
-        node: Rc<Node /*Declaration*/>,
+        node: &TNode, /*Declaration*/
         includes: SymbolFlags,
     ) -> Rc<Symbol> {
-        let name = self.get_declaration_name(node.clone());
+        let name = self.get_declaration_name(node);
 
         let mut symbol = None;
         match name {
@@ -213,12 +211,12 @@ impl BinderType {
         });
     }
 
-    fn bind_each_callback<TNodeCallback: FnMut(Rc<Node>)>(
+    fn bind_each_callback<TNodeCallback: FnMut(&Node)>(
         nodes: &NodeArray,
         mut bind_function: TNodeCallback,
     ) {
         for_each(nodes, |node, _| {
-            bind_function(node.clone());
+            bind_function(&*node);
             Option::<()>::None
         });
     }
@@ -288,9 +286,9 @@ impl BinderType {
         ContainerFlags::None
     }
 
-    fn declare_symbol_and_add_to_symbol_table(
+    fn declare_symbol_and_add_to_symbol_table<TNode: NodeInterface>(
         &self,
-        node: Rc<Node /*Declaration*/>,
+        node: &TNode, /*Declaration*/
         symbol_flags: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
         match self.container().kind() {
@@ -299,9 +297,9 @@ impl BinderType {
         }
     }
 
-    fn declare_source_file_member(
+    fn declare_source_file_member<TNode: NodeInterface>(
         &self,
-        node: Rc<Node /*Declaration*/>,
+        node: &TNode, /*Declaration*/
         symbol_flags: SymbolFlags,
     ) -> Rc<Symbol> {
         if false {
@@ -348,7 +346,7 @@ impl BinderType {
             if false {
             } else {
                 self.declare_symbol_and_add_to_symbol_table(
-                    node.node_wrapper(),
+                    node,
                     SymbolFlags::FunctionScopedVariable,
                 );
             }
