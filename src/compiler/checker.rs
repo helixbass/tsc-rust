@@ -191,16 +191,16 @@ impl TypeChecker {
         let type_node = self
             .node_builder
             .type_to_type_node(type_, Some(&*(*writer).borrow()));
-        let type_node = match type_node {
+        let type_node: Rc<Node> = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
-            Some(type_node) => type_node,
+            Some(type_node) => type_node.into(),
         };
         let options = PrinterOptions {};
         let mut printer = create_printer(options);
         let source_file: Option<Rc<SourceFile>> = if false { unimplemented!() } else { None };
         printer.write_node(
             EmitHint::Unspecified,
-            &type_node,
+            &*type_node,
             source_file,
             writer.clone(),
         );
@@ -881,11 +881,13 @@ impl NodeBuilder {
             return factory
                 .create_literal_type_node(
                     &synthetic_factory,
-                    &if type_.as_intrinsic_type().intrinsic_name() == "true" {
-                        factory.create_true(&synthetic_factory)
-                    } else {
-                        factory.create_false(&synthetic_factory)
-                    },
+                    &*Into::<Rc<Node>>::into(
+                        if type_.as_intrinsic_type().intrinsic_name() == "true" {
+                            factory.create_true(&synthetic_factory)
+                        } else {
+                            factory.create_false(&synthetic_factory)
+                        },
+                    ),
                 )
                 .into();
         }

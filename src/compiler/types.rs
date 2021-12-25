@@ -257,6 +257,14 @@ impl From<BaseNode> for Node {
     }
 }
 
+impl From<BaseNode> for Rc<Node> {
+    fn from(base_node: BaseNode) -> Self {
+        let rc = Rc::new(Node::BaseNode(base_node));
+        rc.set_node_wrapper(rc.clone());
+        rc
+    }
+}
+
 pub trait HasTypeInterface {
     fn type_(&self) -> Option<Rc<Node>>;
     fn set_type(&mut self, type_: Rc<Node>);
