@@ -1492,6 +1492,10 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
     fn length(&self) -> isize {
         self._diagnostic_related_information.length()
     }
+
+    fn message_text(&self) -> &DiagnosticMessageText {
+        self._diagnostic_related_information.message_text()
+    }
 }
 
 impl DiagnosticRelatedInformationInterface for Diagnostic {
@@ -1527,21 +1531,68 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
             }
         }
     }
+
+    fn message_text(&self) -> &DiagnosticMessageText {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
+                diagnostic_with_location.message_text()
+            }
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
+                diagnostic_with_detached_location.message_text()
+            }
+        }
+    }
 }
 
 impl DiagnosticInterface for Diagnostic {}
+
+#[derive(Clone, Debug)]
+pub enum DiagnosticMessageText {
+    String(String),
+    DiagnosticMessageChain(DiagnosticMessageChain),
+}
+
+impl From<String> for DiagnosticMessageText {
+    fn from(string: String) -> Self {
+        DiagnosticMessageText::String(string)
+    }
+}
+
+impl From<DiagnosticMessageChain> for DiagnosticMessageText {
+    fn from(diagnostic_message_chain: DiagnosticMessageChain) -> Self {
+        DiagnosticMessageText::DiagnosticMessageChain(diagnostic_message_chain)
+    }
+}
 
 pub trait DiagnosticRelatedInformationInterface {
     fn file(&self) -> Option<Rc<SourceFile>>;
     fn start(&self) -> isize;
     fn length(&self) -> isize;
+    fn message_text(&self) -> &DiagnosticMessageText;
 }
 
 #[derive(Clone, Debug)]
 pub struct BaseDiagnosticRelatedInformation {
-    pub file: Option<Rc<SourceFile>>,
-    pub start: isize,
-    pub length: isize,
+    file: Option<Rc<SourceFile>>,
+    start: isize,
+    length: isize,
+    message_text: DiagnosticMessageText,
+}
+
+impl BaseDiagnosticRelatedInformation {
+    pub fn new<TDiagnosticMessageText: Into<DiagnosticMessageText>>(
+        file: Option<Rc<SourceFile>>,
+        start: isize,
+        length: isize,
+        message_text: TDiagnosticMessageText,
+    ) -> Self {
+        Self {
+            file,
+            start,
+            length,
+            message_text: message_text.into(),
+        }
+    }
 }
 
 impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation {
@@ -1556,14 +1607,24 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
     fn length(&self) -> isize {
         self.length
     }
+
+    fn message_text(&self) -> &DiagnosticMessageText {
+        &self.message_text
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct DiagnosticWithLocation {
-    pub _diagnostic: BaseDiagnostic,
+    _diagnostic: BaseDiagnostic,
 }
 
 impl DiagnosticWithLocation {
+    pub fn new(base_diagnostic: BaseDiagnostic) -> Self {
+        Self {
+            _diagnostic: base_diagnostic,
+        }
+    }
+
     pub fn file_unwrapped(&self) -> Rc<SourceFile> {
         self.file().unwrap()
     }
@@ -1581,6 +1642,10 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
     fn length(&self) -> isize {
         self._diagnostic.length()
     }
+
+    fn message_text(&self) -> &DiagnosticMessageText {
+        self._diagnostic.message_text()
+    }
 }
 
 impl DiagnosticInterface for DiagnosticWithLocation {}
@@ -1593,8 +1658,17 @@ impl From<DiagnosticWithLocation> for Diagnostic {
 
 #[derive(Debug)]
 pub struct DiagnosticWithDetachedLocation {
-    pub _diagnostic: BaseDiagnostic,
-    pub file_name: String,
+    _diagnostic: BaseDiagnostic,
+    file_name: String,
+}
+
+impl DiagnosticWithDetachedLocation {
+    pub fn new(base_diagnostic: BaseDiagnostic, file_name: String) -> Self {
+        Self {
+            _diagnostic: base_diagnostic,
+            file_name,
+        }
+    }
 }
 
 impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
@@ -1608,6 +1682,10 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
 
     fn length(&self) -> isize {
         self._diagnostic.length()
+    }
+
+    fn message_text(&self) -> &DiagnosticMessageText {
+        self._diagnostic.message_text()
     }
 }
 

@@ -332,7 +332,7 @@ impl TypeChecker {
     }
 
     fn get_type_of_variable_or_parameter_or_property_worker(&self, symbol: &Symbol) -> Rc<Type> {
-        Debug_.assert_is_defined(symbol.maybe_value_declaration().as_ref(), None);
+        Debug_.assert_is_defined(&symbol.maybe_value_declaration(), None);
         let declaration = symbol
             .maybe_value_declaration()
             .as_ref()
@@ -963,7 +963,7 @@ impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
     }
 }
 
-type ErrorReporter<'a> = &'a dyn FnMut(DiagnosticMessage);
+type ErrorReporter<'a> = &'a dyn FnMut(DiagnosticMessage, Option<Vec<String>>);
 
 struct CheckTypeRelatedTo<'type_checker> {
     type_checker: &'type_checker TypeChecker,
@@ -1017,7 +1017,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         } else if self.error_info().is_some() {
             let diag = create_diagnostic_for_node_from_message_chain(
                 &*self.error_node.unwrap(),
-                &*self.error_info().as_ref().unwrap(),
+                self.error_info().clone().unwrap(),
             );
             if true {
                 self.type_checker.diagnostics().add(Rc::new(diag.into()));
@@ -1027,9 +1027,9 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         result != Ternary::False
     }
 
-    fn report_error(&self, message: &DiagnosticMessage) {
+    fn report_error(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
         Debug_.assert(self.error_node.is_some(), None);
-        let error_info = { chain_diagnostic_messages(self.error_info().clone(), message) };
+        let error_info = { chain_diagnostic_messages(self.error_info().clone(), message, args) };
         self.set_error_info(error_info);
     }
 
@@ -1071,6 +1071,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
         self.report_error(
             message.unwrap(), /*, generalized_source_type, target_type*/
+            Some(vec![generalized_source_type, target_type]),
         );
     }
 
@@ -1095,8 +1096,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             }
         };
 
-        let report_error = |message: DiagnosticMessage| {
-            self.report_error(&message);
+        let report_error = |message: DiagnosticMessage, args: Option<Vec<String>>| {
+            self.report_error(&message, args);
         };
 
         if self.type_checker.is_simple_type_related_to(

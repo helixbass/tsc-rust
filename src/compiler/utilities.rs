@@ -1,12 +1,13 @@
 #![allow(non_upper_case_globals)]
 
+use regex::{Captures, Regex};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
     create_text_span_from_bounds, escape_leading_underscores, insert_sorted, is_member_name,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Diagnostic,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Debug_, Diagnostic,
     DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     EmitTextWriter, Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
@@ -52,7 +53,7 @@ fn create_diagnostic_for_node_in_source_file<TNode: NodeInterface>(
 
 pub fn create_diagnostic_for_node_from_message_chain<TNode: NodeInterface>(
     node: &TNode,
-    message_chain: &DiagnosticMessageChain,
+    message_chain: DiagnosticMessageChain,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node);
     let span = get_error_span_for_node(source_file.clone(), node);
@@ -63,16 +64,15 @@ fn create_file_diagnostic_from_message_chain(
     file: Rc<SourceFile>,
     start: isize,
     length: isize,
-    message_chain: &DiagnosticMessageChain,
+    message_chain: DiagnosticMessageChain,
 ) -> DiagnosticWithLocation {
     // assert_diagnostic_location(&*file, start, length);
-    DiagnosticWithLocation {
-        _diagnostic: BaseDiagnostic::new(BaseDiagnosticRelatedInformation {
-            file: Some(file),
-            start,
-            length,
-        }),
-    }
+    DiagnosticWithLocation::new(BaseDiagnostic::new(BaseDiagnosticRelatedInformation::new(
+        Some(file),
+        start,
+        length,
+        message_chain,
+    )))
 }
 
 fn get_error_span_for_node<TNode: NodeInterface>(
@@ -320,6 +320,15 @@ lazy_static! {
     pub static ref object_allocator: ObjectAllocator = ObjectAllocator {};
 }
 
+fn format_string_from_args(text: &str, args: Vec<String>) -> String {
+    let re = Regex::new(r"\{(\d+)\}").unwrap();
+    re.replace_all(text, |captures: &Captures| {
+        let index = captures.get(1).unwrap().as_str().parse::<usize>().unwrap();
+        Debug_.check_defined(args.get(index), None)
+    })
+    .to_string()
+}
+
 fn get_locale_specific_message(message: &DiagnosticMessage) -> String {
     message.message.to_string()
 }
@@ -330,14 +339,14 @@ pub fn create_detached_diagnostic(
     length: isize,
     message: &DiagnosticMessage,
 ) -> DiagnosticWithDetachedLocation {
-    DiagnosticWithDetachedLocation {
-        _diagnostic: BaseDiagnostic::new(BaseDiagnosticRelatedInformation {
-            file: None,
-            start,
-            length,
-        }),
-        file_name: file_name.to_string(),
-    }
+    let text = get_locale_specific_message(message);
+
+    DiagnosticWithDetachedLocation::new(
+        BaseDiagnostic::new(BaseDiagnosticRelatedInformation::new(
+            None, start, length, text,
+        )),
+        file_name.to_string(),
+    )
 }
 
 fn create_file_diagnostic(
@@ -346,21 +355,26 @@ fn create_file_diagnostic(
     length: isize,
     message: &DiagnosticMessage,
 ) -> DiagnosticWithLocation {
-    DiagnosticWithLocation {
-        _diagnostic: BaseDiagnostic::new(BaseDiagnosticRelatedInformation {
-            file: Some(file),
-            start,
-            length,
-        }),
-    }
+    let text = get_locale_specific_message(message);
+
+    DiagnosticWithLocation::new(BaseDiagnostic::new(BaseDiagnosticRelatedInformation::new(
+        Some(file),
+        start,
+        length,
+        text,
+    )))
 }
 
 pub fn chain_diagnostic_messages(
     details: Option<DiagnosticMessageChain>,
     message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
 ) -> DiagnosticMessageChain {
-    let text = get_locale_specific_message(message);
+    let mut text = get_locale_specific_message(message);
 
+    if let Some(args) = args {
+        text = format_string_from_args(&text, args);
+    }
     DiagnosticMessageChain {
         message_text: text,
         next: details.map(|details| vec![details]),

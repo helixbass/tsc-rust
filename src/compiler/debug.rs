@@ -20,10 +20,15 @@ impl DebugType {
         }
     }
 
-    pub fn assert_is_defined<TValue>(&self, value: Option<TValue>, message: Option<&str>) {
+    pub fn assert_is_defined<TValue>(&self, value: &Option<TValue>, message: Option<&str>) {
         if value.is_none() {
             self.fail(message);
         }
+    }
+
+    pub fn check_defined<TValue>(&self, value: Option<TValue>, message: Option<&str>) -> TValue {
+        self.assert_is_defined(&value, message);
+        value.unwrap()
     }
 
     pub fn assert_never<TValue>(&self, value: TValue, message: Option<&str>) -> ! {
