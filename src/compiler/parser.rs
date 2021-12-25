@@ -60,6 +60,9 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             return visit_node(&mut cb_node, variable_declaration.initializer());
         }
         Node::Expression(expression) => match expression {
+            Expression::ArrayLiteralExpression(array_literal_expression) => {
+                return visit_nodes(&mut cb_node, cb_nodes, &array_literal_expression.elements);
+            }
             Expression::PrefixUnaryExpression(prefix_unary_expression) => {
                 return visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()));
             }

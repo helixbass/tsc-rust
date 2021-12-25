@@ -644,7 +644,7 @@ pub struct NumericLiteral {
 #[ast_type(ancestors = "Expression")]
 pub struct ArrayLiteralExpression {
     _node: BaseNode,
-    elements: NodeArray, /*<Expression>*/
+    pub elements: NodeArray, /*<Expression>*/
 }
 
 impl ArrayLiteralExpression {
