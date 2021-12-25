@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use crate::{object_allocator, BaseNode, SyntaxKind};
 
 pub trait BaseNodeFactory {
@@ -13,49 +15,54 @@ pub fn create_base_node_factory() -> BaseNodeFactoryConcrete {
 
 #[allow(non_snake_case)]
 pub struct BaseNodeFactoryConcrete {
-    SourceFileConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
-    IdentifierConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
-    TokenConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
-    NodeConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
+    SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    TokenConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    NodeConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
 }
 
 impl BaseNodeFactoryConcrete {
     pub fn new() -> Self {
         Self {
-            SourceFileConstructor: None,
-            IdentifierConstructor: None,
-            TokenConstructor: None,
-            NodeConstructor: None,
+            SourceFileConstructor: RefCell::new(None),
+            IdentifierConstructor: RefCell::new(None),
+            TokenConstructor: RefCell::new(None),
+            NodeConstructor: RefCell::new(None),
         }
     }
 }
 
+#[allow(non_snake_case)]
 impl BaseNodeFactory for BaseNodeFactoryConcrete {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
-        if self.SourceFileConstructor.is_none() {
-            self.SourceFileConstructor = Some(object_allocator.get_source_file_constructor());
+        let mut SourceFileConstructor = self.SourceFileConstructor.borrow_mut();
+        if SourceFileConstructor.is_none() {
+            *SourceFileConstructor = Some(object_allocator.get_source_file_constructor());
         }
-        (self.SourceFileConstructor.unwrap())(kind, -1, -1)
+        (SourceFileConstructor.unwrap())(kind, -1, -1)
     }
 
     fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
-        if self.IdentifierConstructor.is_none() {
-            self.IdentifierConstructor = Some(object_allocator.get_identifier_constructor());
+        let mut IdentifierConstructor = self.IdentifierConstructor.borrow_mut();
+        if IdentifierConstructor.is_none() {
+            *IdentifierConstructor = Some(object_allocator.get_identifier_constructor());
         }
-        (self.IdentifierConstructor.unwrap())(kind, -1, -1)
+        (IdentifierConstructor.unwrap())(kind, -1, -1)
     }
 
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
-        if self.TokenConstructor.is_none() {
-            self.TokenConstructor = Some(object_allocator.get_token_constructor());
+        let mut TokenConstructor = self.TokenConstructor.borrow_mut();
+        if TokenConstructor.is_none() {
+            *TokenConstructor = Some(object_allocator.get_token_constructor());
         }
-        (self.TokenConstructor.unwrap())(kind, -1, -1)
+        (TokenConstructor.unwrap())(kind, -1, -1)
     }
 
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
-        if self.NodeConstructor.is_none() {
-            self.NodeConstructor = Some(object_allocator.get_node_constructor());
+        let mut NodeConstructor = self.NodeConstructor.borrow_mut();
+        if NodeConstructor.is_none() {
+            *NodeConstructor = Some(object_allocator.get_node_constructor());
         }
-        (self.NodeConstructor.unwrap())(kind, -1, -1)
+        (NodeConstructor.unwrap())(kind, -1, -1)
     }
 }

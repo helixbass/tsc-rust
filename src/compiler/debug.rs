@@ -25,6 +25,11 @@ impl DebugType {
             self.fail(message);
         }
     }
+
+    pub fn assert_never<TValue>(&self, value: TValue, message: Option<&str>) -> ! {
+        let message = message.unwrap_or("Illegal value:");
+        self.fail(Some(message));
+    }
 }
 
 lazy_static! {

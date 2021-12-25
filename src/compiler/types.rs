@@ -23,7 +23,7 @@ pub trait ReadonlyTextRange {
     fn set_end(&self, end: isize);
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
@@ -38,6 +38,7 @@ pub enum SyntaxKind {
     EqualsToken,
     Identifier,
     PrivateIdentifier,
+    BreakKeyword,
     ConstKeyword,
     FalseKeyword,
     TrueKeyword,
@@ -60,6 +61,7 @@ pub enum SyntaxKind {
 
 impl SyntaxKind {
     pub const LastReservedWord: SyntaxKind = SyntaxKind::WithKeyword;
+    pub const FirstKeyword: SyntaxKind = SyntaxKind::BreakKeyword;
     pub const LastKeyword: SyntaxKind = SyntaxKind::OfKeyword;
     pub const LastToken: SyntaxKind = SyntaxKind::LastKeyword;
 }
@@ -511,7 +513,7 @@ impl From<BaseNode> for KeywordTypeNode {
 #[ast_type(ancestors = "TypeNode")]
 pub struct LiteralTypeNode {
     _node: BaseNode,
-    literal: Rc<Node>, // TODO: should be weak?
+    pub literal: Rc<Node>, // TODO: should be weak?
 }
 
 impl LiteralTypeNode {
@@ -709,7 +711,9 @@ pub struct TypeChecker {
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
 
-pub trait SymbolWriter: SymbolTracker {}
+pub trait SymbolWriter: SymbolTracker {
+    fn write_keyword(&mut self, text: &str);
+}
 
 bitflags! {
     pub struct SymbolFlags: u32 {
@@ -1589,9 +1593,23 @@ pub enum DiagnosticCategory {
     Message,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum EmitHint {
+    Expression,
+    Unspecified,
+}
+
 pub struct NodeFactory {}
 
-pub trait EmitTextWriter {}
+pub struct Printer {
+    pub writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+}
+
+pub struct PrinterOptions {}
+
+pub trait EmitTextWriter: SymbolWriter {
+    fn get_text(&self) -> String;
+}
 
 pub trait ModuleSpecifierResolutionHost {}
 

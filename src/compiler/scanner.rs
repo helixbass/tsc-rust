@@ -21,8 +21,35 @@ lazy_static! {
     static ref text_to_keyword: HashMap<String, SyntaxKind> = text_to_keyword_obj.clone();
 }
 
+lazy_static! {
+    static ref text_to_token: HashMap<String, SyntaxKind> = {
+        let mut ret = text_to_keyword_obj.clone();
+        ret.extend(IntoIter::new([(
+            ";".to_string(),
+            SyntaxKind::SemicolonToken,
+        )]));
+        ret
+    };
+}
+
 fn is_unicode_identifier_start(ch: char) -> bool {
     false
+}
+
+fn make_reverse_map(source: &HashMap<String, SyntaxKind>) -> HashMap<SyntaxKind, String> {
+    let mut result = HashMap::new();
+    for (key, val) in source.iter() {
+        result.insert(*val, key.clone());
+    }
+    result
+}
+
+lazy_static! {
+    static ref token_strings: HashMap<SyntaxKind, String> = make_reverse_map(&text_to_token);
+}
+
+pub fn token_to_string(t: SyntaxKind) -> Option<&'static String> {
+    token_strings.get(&t)
 }
 
 fn is_identifier_start(ch: char) -> bool {

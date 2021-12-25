@@ -103,6 +103,10 @@ pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode
     symbol.set_value_declaration(node);
 }
 
+pub fn is_keyword(token: SyntaxKind) -> bool {
+    SyntaxKind::FirstKeyword <= token && token <= SyntaxKind::LastKeyword
+}
+
 pub fn is_property_name_literal<TNode: NodeInterface>(node: &TNode) -> bool {
     match node.kind() {
         SyntaxKind::Identifier
@@ -205,21 +209,46 @@ impl DiagnosticCollection {
     }
 }
 
+#[derive(Clone)]
 pub struct TextWriter {
     new_line: String,
+    output: String,
 }
 
 impl TextWriter {
     pub fn new(new_line: &str) -> Self {
         Self {
             new_line: new_line.to_string(),
+            output: String::new(),
         }
+    }
+
+    fn push_output(&mut self, str: &str) {
+        self.output.push_str(str);
+    }
+
+    fn write_text(&mut self, s: &str) {
+        if !s.is_empty() {
+            self.push_output(s);
+        }
+    }
+
+    fn write(&mut self, s: &str) {
+        self.write_text(s);
     }
 }
 
-impl EmitTextWriter for TextWriter {}
+impl EmitTextWriter for TextWriter {
+    fn get_text(&self) -> String {
+        self.output.clone()
+    }
+}
 
-impl SymbolWriter for TextWriter {}
+impl SymbolWriter for TextWriter {
+    fn write_keyword(&mut self, text: &str) {
+        self.write(text);
+    }
+}
 
 impl SymbolTracker for TextWriter {}
 

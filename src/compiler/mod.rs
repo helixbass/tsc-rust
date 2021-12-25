@@ -5,6 +5,7 @@ pub mod core;
 pub mod core_public;
 pub mod debug;
 pub mod diagnostic_information_map_generated;
+pub mod emitter;
 pub mod factory;
 pub mod parser;
 pub mod path;

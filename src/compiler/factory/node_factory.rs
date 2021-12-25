@@ -274,45 +274,53 @@ pub fn create_node_factory() -> NodeFactory {
     NodeFactory {}
 }
 
-lazy_static! {
-    static ref base_factory_static: BaseNodeFactoryConcrete = create_base_node_factory();
-}
+// lazy_static! {
+//     static ref base_factory_static: BaseNodeFactoryConcrete = create_base_node_factory();
+// }
 
 fn make_synthetic(node: BaseNode) -> BaseNode {
     node
 }
 
-lazy_static! {
-    pub static ref synthetic_factory: BaseNodeFactorySynthetic = BaseNodeFactorySynthetic::new();
+// lazy_static! {
+//     pub static ref synthetic_factory: BaseNodeFactorySynthetic = BaseNodeFactorySynthetic::new();
+// }
+
+// pub fn get_synthetic_factory() -> &'static impl BaseNodeFactory {
+//     &*synthetic_factory
+// }
+
+pub fn get_synthetic_factory() -> BaseNodeFactorySynthetic {
+    BaseNodeFactorySynthetic::new()
 }
 
-pub fn get_synthetic_factory() -> &'static impl BaseNodeFactory {
-    &*synthetic_factory
+struct BaseNodeFactorySynthetic {
+    base_factory: BaseNodeFactoryConcrete,
 }
-
-struct BaseNodeFactorySynthetic {}
 
 impl BaseNodeFactorySynthetic {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            base_factory: create_base_node_factory(),
+        }
     }
 }
 
 impl BaseNodeFactory for BaseNodeFactorySynthetic {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(base_factory_static.create_base_source_file_node(kind))
+        make_synthetic(self.base_factory.create_base_source_file_node(kind))
     }
 
     fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(base_factory_static.create_base_identifier_node(kind))
+        make_synthetic(self.base_factory.create_base_identifier_node(kind))
     }
 
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(base_factory_static.create_base_token_node(kind))
+        make_synthetic(self.base_factory.create_base_token_node(kind))
     }
 
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(base_factory_static.create_base_node(kind))
+        make_synthetic(self.base_factory.create_base_node(kind))
     }
 }
 

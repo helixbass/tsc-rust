@@ -7,17 +7,18 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, chain_diagnostic_messages, create_diagnostic_collection,
-    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_text_writer,
-    every, factory, for_each, get_effective_initializer, get_effective_type_annotation_node,
-    get_synthetic_factory, is_variable_declaration, object_allocator, BaseIntrinsicType,
-    BaseLiteralType, BaseType, BaseUnionOrIntersectionType, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, Expression,
-    ExpressionStatement, FreshableIntrinsicType, HasTypeInterface, IntrinsicType, KeywordTypeNode,
-    LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number,
-    NumberLiteralType, NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile,
-    Statement, Symbol, SymbolFlags, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker,
-    TypeCheckerHost, TypeFlags, TypeInterface, TypeNode, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration, VariableStatement,
+    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_printer,
+    create_text_writer, every, factory, for_each, get_effective_initializer,
+    get_effective_type_annotation_node, get_synthetic_factory, is_variable_declaration,
+    object_allocator, BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType,
+    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
+    Diagnostics, EmitHint, EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType,
+    HasTypeInterface, IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType, NumericLiteral,
+    PrefixUnaryExpression, PrinterOptions, RelationComparisonResult, SourceFile, Statement, Symbol,
+    SymbolFlags, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags,
+    TypeInterface, TypeNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
+    VariableDeclaration, VariableStatement,
 };
 
 bitflags! {
@@ -186,8 +187,27 @@ impl TypeChecker {
     }
 
     fn type_to_string(&self, type_: &Type) -> String {
-        let writer = create_text_writer("");
-        let type_node = self.node_builder.type_to_type_node(type_, Some(&writer));
+        let writer = Rc::new(RefCell::new(create_text_writer("")));
+        let writer_ref: Ref<dyn EmitTextWriter> = *writer.borrow();
+        let type_node = self
+            .node_builder
+            .type_to_type_node(type_, Some(&*writer_ref));
+        let type_node = match type_node {
+            None => Debug_.fail(Some("should always get typenode")),
+            Some(type_node) => type_node,
+        };
+        let options = PrinterOptions {};
+        let printer = create_printer(options);
+        let source_file: Option<Rc<SourceFile>> = if false { unimplemented!() } else { None };
+        printer.write_node(
+            EmitHint::Unspecified,
+            &type_node,
+            source_file,
+            writer.clone(),
+        );
+        let result = writer.get_text();
+
+        result
     }
 
     fn get_type_names_for_error_display(&self, left: &Type, right: &Type) -> (String, String) {
@@ -851,21 +871,21 @@ impl NodeBuilder {
     }
 
     pub fn type_to_type_node_helper(&self, type_: &Type, context: &NodeBuilderContext) -> TypeNode {
+        let synthetic_factory = get_synthetic_factory();
         if type_.flags().intersects(TypeFlags::Number) {
             return Into::<KeywordTypeNode>::into(
-                factory
-                    .create_keyword_type_node(get_synthetic_factory(), SyntaxKind::NumberKeyword),
+                factory.create_keyword_type_node(&synthetic_factory, SyntaxKind::NumberKeyword),
             )
             .into();
         }
         if type_.flags().intersects(TypeFlags::BooleanLiteral) {
             return factory
                 .create_literal_type_node(
-                    get_synthetic_factory(),
+                    &synthetic_factory,
                     &if type_.as_intrinsic_type().intrinsic_name() == "true" {
-                        factory.create_true(get_synthetic_factory())
+                        factory.create_true(&synthetic_factory)
                     } else {
-                        factory.create_false(get_synthetic_factory())
+                        factory.create_false(&synthetic_factory)
                     },
                 )
                 .into();

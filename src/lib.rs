@@ -14,17 +14,16 @@ pub use compiler::core::{
 pub use compiler::core_public::SortedArray;
 pub use compiler::debug::Debug_;
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
+pub use compiler::emitter::create_printer;
 pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
 };
-pub use compiler::factory::node_factory::{
-    create_node_factory, factory, get_synthetic_factory, synthetic_factory,
-};
+pub use compiler::factory::node_factory::{create_node_factory, factory, get_synthetic_factory};
 pub use compiler::factory::node_tests::is_variable_declaration;
 pub use compiler::parser::{create_source_file, for_each_child};
 pub use compiler::path::{normalize_path, to_path};
 pub use compiler::program::create_program;
-pub use compiler::scanner::{create_scanner, Scanner};
+pub use compiler::scanner::{create_scanner, token_to_string, Scanner};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
     BaseBindingLikeDeclaration, BaseDiagnostic, BaseDiagnosticRelatedInformation,
@@ -33,24 +32,24 @@ pub use compiler::types::{
     BindingLikeDeclarationInterface, CharacterCodes, CompilerHost, CreateProgramOptions,
     Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
-    DiagnosticWithLocation, EmitTextWriter, EmptyStatement, ExitStatus, Expression,
+    DiagnosticWithLocation, EmitHint, EmitTextWriter, EmptyStatement, ExitStatus, Expression,
     ExpressionStatement, FreshableIntrinsicType, HasExpressionInitializerInterface,
     HasTypeInterface, Identifier, IntrinsicType, KeywordTypeNode, LiteralLikeNode,
     LiteralLikeNodeInterface, LiteralTypeInterface, LiteralTypeNode, ModuleResolutionHost,
     ModuleSpecifierResolutionHost, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, NumberLiteralType, NumericLiteral, ParsedCommandLine,
-    Path, PrefixUnaryExpression, Program, ReadonlyTextRange, RelationComparisonResult, SourceFile,
-    Statement, StructureIsReused, Symbol, SymbolFlags, SymbolTable, SymbolTracker, SymbolWriter,
-    SyntaxKind, Ternary, TextSpan, TokenFlags, Type, TypeChecker, TypeCheckerHost, TypeFlags,
-    TypeInterface, TypeNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
-    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, __String,
+    Path, PrefixUnaryExpression, Printer, PrinterOptions, Program, ReadonlyTextRange,
+    RelationComparisonResult, SourceFile, Statement, StructureIsReused, Symbol, SymbolFlags,
+    SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, Ternary, TextSpan, TokenFlags, Type,
+    TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, TypeNode, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration, VariableDeclarationList,
+    VariableLikeDeclarationInterface, VariableStatement, __String,
 };
 pub use compiler::utilities::{
     chain_diagnostic_messages, create_detached_diagnostic, create_diagnostic_collection,
     create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_symbol_table,
     create_text_writer, get_binary_operator_precedence, get_effective_initializer,
-    get_effective_type_annotation_node, get_escaped_text_of_identifier_or_literal,
+    get_effective_type_annotation_node, get_escaped_text_of_identifier_or_literal, is_keyword,
     is_property_name_literal, object_allocator, set_parent, set_text_range_pos_end,
     set_value_declaration, OperatorPrecedence,
 };
