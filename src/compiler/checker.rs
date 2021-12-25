@@ -188,16 +188,15 @@ impl TypeChecker {
 
     fn type_to_string(&self, type_: &Type) -> String {
         let writer = Rc::new(RefCell::new(create_text_writer("")));
-        let writer_ref: Ref<dyn EmitTextWriter> = *writer.borrow();
         let type_node = self
             .node_builder
-            .type_to_type_node(type_, Some(&*writer_ref));
+            .type_to_type_node(type_, Some(&*(*writer).borrow()));
         let type_node = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
             Some(type_node) => type_node,
         };
         let options = PrinterOptions {};
-        let printer = create_printer(options);
+        let mut printer = create_printer(options);
         let source_file: Option<Rc<SourceFile>> = if false { unimplemented!() } else { None };
         printer.write_node(
             EmitHint::Unspecified,
@@ -205,7 +204,7 @@ impl TypeChecker {
             source_file,
             writer.clone(),
         );
-        let result = writer.get_text();
+        let result = (*writer).borrow().get_text();
 
         result
     }
@@ -863,7 +862,7 @@ impl NodeBuilder {
     fn with_context<TReturn, TCallback: FnMut(&NodeBuilderContext) -> TReturn>(
         &self,
         tracker: Option<&dyn SymbolTracker>,
-        cb: TCallback,
+        mut cb: TCallback,
     ) -> Option<TReturn> {
         let context = NodeBuilderContext::new(tracker.unwrap());
         let resulting_node = cb(&context);
@@ -894,7 +893,7 @@ impl NodeBuilder {
     }
 }
 
-struct NodeBuilderContext<'symbol_tracker> {
+pub struct NodeBuilderContext<'symbol_tracker> {
     tracker: &'symbol_tracker dyn SymbolTracker,
 }
 

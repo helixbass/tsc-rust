@@ -294,7 +294,7 @@ pub fn get_synthetic_factory() -> BaseNodeFactorySynthetic {
     BaseNodeFactorySynthetic::new()
 }
 
-struct BaseNodeFactorySynthetic {
+pub struct BaseNodeFactorySynthetic {
     base_factory: BaseNodeFactoryConcrete,
 }
 

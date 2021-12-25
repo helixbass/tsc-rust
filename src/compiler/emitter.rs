@@ -13,7 +13,7 @@ enum PipelinePhase {
 }
 
 pub fn create_printer(printer_options: PrinterOptions) -> Printer {
-    let printer = Printer::new();
+    let mut printer = Printer::new();
     printer.reset();
     printer
 }
@@ -28,11 +28,14 @@ impl Printer {
     }
 
     fn writer_(&self) -> RefMut<dyn EmitTextWriter> {
-        self.writer.clone().unwrap().borrow_mut()
+        match &self.writer {
+            None => panic!("Expected writer"),
+            Some(writer) => writer.borrow_mut(),
+        }
     }
 
     pub fn write_node<TNode: NodeInterface>(
-        &self,
+        &mut self,
         hint: EmitHint,
         node: &TNode,
         source_file: Option<Rc<SourceFile>>,
@@ -58,11 +61,11 @@ impl Printer {
         self.pipeline_emit(hint, node);
     }
 
-    fn set_writer(&self, writer: Option<Rc<RefCell<dyn EmitTextWriter>>>) {
+    fn set_writer(&mut self, writer: Option<Rc<RefCell<dyn EmitTextWriter>>>) {
         self.writer = writer;
     }
 
-    fn reset(&self) {
+    fn reset(&mut self) {
         self.set_writer(None);
     }
 
