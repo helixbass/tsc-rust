@@ -1029,10 +1029,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     fn report_error(&self, message: &DiagnosticMessage) {
         Debug_.assert(self.error_node.is_some(), None);
-        self.set_error_info(chain_diagnostic_messages(
-            self.error_info().clone(),
-            message,
-        ));
+        let error_info = { chain_diagnostic_messages(self.error_info().clone(), message) };
+        self.set_error_info(error_info);
     }
 
     fn report_relation_error(
@@ -1125,6 +1123,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             result = self.structured_type_related_to(
                 source.clone(),
                 target.clone(),
+                report_errors,
                 intersection_state | IntersectionState::UnionIntersectionCheck,
             );
         }
@@ -1151,13 +1150,44 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         Ternary::False
     }
 
+    fn each_type_related_to_type(
+        &self,
+        source: &UnionOrIntersectionType,
+        target: Rc<Type>,
+        report_errors: bool,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        let mut result = Ternary::True;
+        let source_types = source.types();
+        for source_type in source_types {
+            let related = self.is_related_to(
+                source_type.clone(),
+                target.clone(),
+                report_errors,
+                None,
+                Some(intersection_state),
+            );
+            if related == Ternary::False {
+                return Ternary::False;
+            }
+            result &= related;
+        }
+        result
+    }
+
     fn structured_type_related_to(
         &self,
         source: Rc<Type>,
         target: Rc<Type>,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        let result = self.structured_type_related_to_worker(source, target, intersection_state);
+        let result = self.structured_type_related_to_worker(
+            source,
+            target,
+            report_errors,
+            intersection_state,
+        );
         result
     }
 
@@ -1165,9 +1195,27 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         &self,
         source: Rc<Type>,
         target: Rc<Type>,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
         if intersection_state.intersects(IntersectionState::UnionIntersectionCheck) {
+            if source.flags().intersects(TypeFlags::Union) {
+                return if false {
+                    unimplemented!()
+                } else {
+                    self.each_type_related_to_type(
+                        match &*source {
+                            Type::UnionOrIntersectionType(union_or_intersection_type) => {
+                                union_or_intersection_type
+                            }
+                            _ => panic!("Expected UnionOrIntersectionType"),
+                        },
+                        target,
+                        report_errors,
+                        intersection_state & !IntersectionState::UnionIntersectionCheck,
+                    )
+                };
+            }
             if target.flags().intersects(TypeFlags::Union) {
                 return self.type_related_to_some_type(
                     self.type_checker.get_regular_type_of_object_literal(source),

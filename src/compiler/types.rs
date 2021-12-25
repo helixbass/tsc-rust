@@ -3,6 +3,8 @@
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
+use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
 use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
@@ -1317,6 +1319,26 @@ pub enum Ternary {
     Unknown = 1,
     Maybe = 3,
     True = -1,
+}
+
+impl TryFrom<i32> for Ternary {
+    type Error = ();
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            value if value == Ternary::False as i32 => Ok(Ternary::False),
+            value if value == Ternary::Unknown as i32 => Ok(Ternary::Unknown),
+            value if value == Ternary::Maybe as i32 => Ok(Ternary::Maybe),
+            value if value == Ternary::True as i32 => Ok(Ternary::True),
+            _ => Err(()),
+        }
+    }
+}
+
+impl BitAndAssign for Ternary {
+    fn bitand_assign(&mut self, rhs: Self) {
+        *self = (*self as i32 & rhs as i32).try_into().unwrap();
+    }
 }
 
 #[derive(Debug)]
