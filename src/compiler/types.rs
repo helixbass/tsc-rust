@@ -33,7 +33,12 @@ pub enum SyntaxKind {
     StringLiteral,
     NoSubstitutionTemplateLiteral,
     CloseBraceToken,
+    OpenBracketToken,
+    CloseBracketToken,
+    DotToken,
+    DotDotDotToken,
     SemicolonToken,
+    CommaToken,
     AsteriskToken,
     PlusPlusToken,
     ColonToken,
@@ -50,6 +55,7 @@ pub enum SyntaxKind {
     LiteralType,
     ObjectBindingPattern,
     ArrayBindingPattern,
+    ArrayLiteralExpression,
     PrefixUnaryExpression,
     BinaryExpression,
     EmptyStatement,
@@ -543,6 +549,7 @@ pub enum Expression {
     PrefixUnaryExpression(PrefixUnaryExpression),
     BinaryExpression(BinaryExpression),
     LiteralLikeNode(LiteralLikeNode),
+    ArrayLiteralExpression(ArrayLiteralExpression),
 }
 
 impl From<BaseNode> for Expression {
@@ -631,6 +638,22 @@ bitflags! {
 )]
 pub struct NumericLiteral {
     pub _literal_like_node: BaseLiteralLikeNode,
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct ArrayLiteralExpression {
+    _node: BaseNode,
+    elements: NodeArray, /*<Expression>*/
+}
+
+impl ArrayLiteralExpression {
+    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1429,8 +1452,11 @@ impl CharacterCodes {
     pub const Z: char = 'Z';
 
     pub const asterisk: char = '*';
+    pub const close_bracket: char = ']';
     pub const colon: char = ':';
+    pub const comma: char = ',';
     pub const equals: char = '=';
+    pub const open_bracket: char = '[';
     pub const plus: char = '+';
     pub const semicolon: char = ';';
     pub const slash: char = '/';

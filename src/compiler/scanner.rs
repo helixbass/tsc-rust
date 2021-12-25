@@ -163,6 +163,10 @@ impl Scanner {
                     }
                     unimplemented!();
                 }
+                CharacterCodes::comma => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::CommaToken);
+                }
                 CharacterCodes::_0
                 | CharacterCodes::_1
                 | CharacterCodes::_2
@@ -192,6 +196,14 @@ impl Scanner {
                 CharacterCodes::equals => {
                     self.set_pos(self.pos() + 1);
                     return self.set_token(SyntaxKind::EqualsToken);
+                }
+                CharacterCodes::open_bracket => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::OpenBracketToken);
+                }
+                CharacterCodes::close_bracket => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::CloseBracketToken);
                 }
                 _ch => {
                     let identifier_kind = self.scan_identifier(ch);

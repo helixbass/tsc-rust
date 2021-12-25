@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use crate::{
-    create_base_node_factory, escape_leading_underscores, BaseBindingLikeDeclaration,
-    BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
-    BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression, ExpressionStatement,
-    Identifier, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, NumericLiteral, PrefixUnaryExpression, SourceFile, SyntaxKind,
-    VariableDeclaration, VariableDeclarationList, VariableStatement,
+    create_base_node_factory, escape_leading_underscores, ArrayLiteralExpression,
+    BaseBindingLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
+    BaseNodeFactory, BaseNodeFactoryConcrete, BaseVariableLikeDeclaration, BinaryExpression,
+    EmptyStatement, Expression, ExpressionStatement, Identifier, LiteralTypeNode, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NumericLiteral, PrefixUnaryExpression,
+    SourceFile, SyntaxKind, VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -168,6 +168,20 @@ impl NodeFactory {
         kind: SyntaxKind,
     ) -> BaseNode {
         let node = self.create_base_node(base_factory, kind);
+        node
+    }
+
+    pub fn create_array_literal_expression<
+        TBaseNodeFactory: BaseNodeFactory,
+        TElements: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: TElements, /*Expression*/
+    ) -> ArrayLiteralExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::ArrayLiteralExpression);
+        let elements_array = self.create_node_array(elements);
+        let node = ArrayLiteralExpression::new(node, elements_array);
         node
     }
 

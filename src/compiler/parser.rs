@@ -9,13 +9,13 @@ use std::rc::Rc;
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
     get_binary_operator_precedence, last_or_undefined, normalize_path, object_allocator,
-    set_text_range_pos_end, BaseNode, BaseNodeFactory, BinaryExpression, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
-    HasExpressionInitializerInterface, HasTypeInterface, Identifier, KeywordTypeNode,
-    LiteralLikeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, OperatorPrecedence, ReadonlyTextRange, Scanner, SourceFile,
-    Statement, Symbol, SymbolTable, SyntaxKind, TypeNode, VariableDeclaration,
-    VariableDeclarationList,
+    set_text_range_pos_end, ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression,
+    Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    DiagnosticWithDetachedLocation, Diagnostics, Expression, HasExpressionInitializerInterface,
+    HasTypeInterface, Identifier, KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface,
+    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OperatorPrecedence,
+    ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable, SyntaxKind, TypeNode,
+    VariableDeclaration, VariableDeclarationList,
 };
 
 #[derive(Eq, PartialEq)]
@@ -606,6 +606,12 @@ impl ParserType {
             ParsingContext::VariableDeclarations => {
                 self.is_binding_identifier_or_private_identifier_or_pattern()
             }
+            ParsingContext::ArrayLiteralMembers => {
+                self.token() == SyntaxKind::CommaToken
+                    || self.token() == SyntaxKind::DotToken
+                    || self.token() == SyntaxKind::DotDotDotToken
+                    || self.is_start_of_expression()
+            }
             _ => unimplemented!(),
         }
     }
@@ -616,6 +622,7 @@ impl ParserType {
         }
         match kind {
             ParsingContext::VariableDeclarations => self.is_variable_declarator_list_terminator(),
+            ParsingContext::ArrayLiteralMembers => self.token() == SyntaxKind::CloseBracketToken,
             _ => false,
         }
     }
@@ -634,6 +641,10 @@ impl ParserType {
             if self.is_list_element(kind) {
                 let start_pos = self.scanner().get_start_pos();
                 list.push(self.parse_list_element(kind, parse_element).into());
+
+                if self.parse_optional(SyntaxKind::CommaToken) {
+                    continue;
+                }
 
                 if self.is_list_terminator(kind) {
                     break;
@@ -771,6 +782,7 @@ impl ParserType {
     fn is_start_of_left_hand_side_expression(&self) -> bool {
         match self.token() {
             SyntaxKind::NumericLiteral => true,
+            SyntaxKind::OpenBracketToken => true,
             _ => self.is_identifier(),
         }
     }
@@ -929,11 +941,37 @@ impl ParserType {
             SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => {
                 return self.parse_token_node().into()
             }
+            SyntaxKind::OpenBracketToken => return self.parse_array_literal_expression().into(),
             _ => (),
         }
 
         self.parse_identifier(Some(Diagnostics::Expression_expected))
             .into()
+    }
+
+    fn parse_argument_or_array_literal_element(&mut self) -> Expression {
+        if false {
+            unimplemented!()
+        } else if false {
+            unimplemented!()
+        } else {
+            self.parse_assignment_expression_or_higher()
+        }
+    }
+
+    fn parse_array_literal_expression(&mut self) -> ArrayLiteralExpression {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::OpenBracketToken, None);
+        let elements = self.parse_delimited_list(
+            ParsingContext::ArrayLiteralMembers,
+            ParserType::parse_argument_or_array_literal_element,
+        );
+        self.parse_expected(SyntaxKind::CloseBracketToken, None);
+        self.finish_node(
+            self.factory.create_array_literal_expression(self, elements),
+            pos,
+            None,
+        )
     }
 
     fn parse_expression_or_labeled_statement(&mut self) -> Statement {
@@ -1120,5 +1158,6 @@ bitflags! {
         const None = 0;
         const SourceElements = 1 << 0;
         const VariableDeclarations = 1 << 8;
+        const ArrayLiteralMembers = 1 << 15;
     }
 }
