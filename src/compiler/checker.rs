@@ -47,6 +47,9 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         bigint_type: None,
         true_type: None,
         regular_true_type: None,
+        false_type: None,
+        regular_false_type: None,
+        boolean_type: None,
         number_or_big_int_type: None,
 
         diagnostics: RefCell::new(create_diagnostic_collection()),
@@ -103,13 +106,52 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         _ => panic!("Expected IntrinsicType"),
     }
     type_checker.regular_true_type = Some(regular_true_type);
+    let false_type: Rc<Type> = Rc::new(
+        FreshableIntrinsicType::new(
+            type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "false"),
+        )
+        .into(),
+    );
+    let regular_false_type: Rc<Type> = Rc::new(
+        FreshableIntrinsicType::new(
+            type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "false"),
+        )
+        .into(),
+    );
+    match &*false_type {
+        Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
+            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                freshable_intrinsic_type
+                    .regular_type
+                    .init(&regular_false_type, false);
+                freshable_intrinsic_type.fresh_type.init(&false_type, true);
+            }
+            _ => panic!("Expected FreshableIntrinsicType"),
+        },
+        _ => panic!("Expected IntrinsicType"),
+    }
+    type_checker.false_type = Some(false_type);
+    match &*regular_false_type {
+        Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
+            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                freshable_intrinsic_type
+                    .regular_type
+                    .init(&regular_false_type, false);
+                freshable_intrinsic_type
+                    .fresh_type
+                    .init(type_checker.false_type.as_ref().unwrap(), false);
+            }
+            _ => panic!("Expected FreshableIntrinsicType"),
+        },
+        _ => panic!("Expected IntrinsicType"),
+    }
+    type_checker.regular_false_type = Some(regular_false_type);
+    type_checker.boolean_type = Some(type_checker.get_union_type(vec![
+        type_checker.regular_false_type(),
+        type_checker.regular_true_type(),
+    ]));
     type_checker.number_or_big_int_type = Some(
-        type_checker
-            .get_union_type(vec![
-                type_checker.number_type().clone(),
-                type_checker.bigint_type().clone(),
-            ])
-            .into(),
+        type_checker.get_union_type(vec![type_checker.number_type(), type_checker.bigint_type()]),
     );
     type_checker.initialize_type_checker(host);
     type_checker
@@ -126,6 +168,22 @@ impl TypeChecker {
 
     fn true_type(&self) -> Rc<Type> {
         self.true_type.as_ref().unwrap().clone()
+    }
+
+    fn regular_true_type(&self) -> Rc<Type> {
+        self.regular_true_type.as_ref().unwrap().clone()
+    }
+
+    fn false_type(&self) -> Rc<Type> {
+        self.false_type.as_ref().unwrap().clone()
+    }
+
+    fn regular_false_type(&self) -> Rc<Type> {
+        self.regular_false_type.as_ref().unwrap().clone()
+    }
+
+    fn boolean_type(&self) -> Rc<Type> {
+        self.boolean_type.as_ref().unwrap().clone()
     }
 
     fn number_or_big_int_type(&self) -> Rc<Type> {
@@ -590,7 +648,7 @@ impl TypeChecker {
         } else if type_.flags().intersects(TypeFlags::BigIntLiteral) {
             self.bigint_type()
         } else if type_.flags().intersects(TypeFlags::BooleanLiteral) {
-            unimplemented!()
+            self.boolean_type()
         } else if type_.flags().intersects(TypeFlags::Union) {
             self.map_type(type_, |type_| self.get_base_type_of_literal_type(type_))
         } else {
