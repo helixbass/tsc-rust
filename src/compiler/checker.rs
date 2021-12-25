@@ -1070,7 +1070,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         }
 
         self.report_error(
-            message.unwrap(), /*, generalized_source_type, target_type*/
+            message.unwrap(),
             Some(vec![generalized_source_type, target_type]),
         );
     }
