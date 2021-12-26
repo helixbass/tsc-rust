@@ -36,6 +36,12 @@ impl Diagnostics {
         "Expression_expected_1109",
         "Expression expected.",
     );
+    pub const Type_expected: DiagnosticMessage = diag(
+        1110,
+        DiagnosticCategory::Error,
+        "Type_expected_1110",
+        "Type expected.",
+    );
     pub const Type_0_is_not_assignable_to_type_1: DiagnosticMessage = diag(
         2322,
         DiagnosticCategory::Error,

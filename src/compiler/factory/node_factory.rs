@@ -7,8 +7,8 @@ use crate::{
     BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression, ExpressionStatement,
     Identifier, InterfaceDeclaration, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, NumericLiteral, PrefixUnaryExpression,
-    PropertySignature, SourceFile, SyntaxKind, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    PropertySignature, SourceFile, SyntaxKind, TypeReferenceNode, VariableDeclaration,
+    VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -191,6 +191,16 @@ impl NodeFactory {
         self.create_token(base_factory, token)
     }
 
+    pub fn create_type_reference_node<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_name: Rc<Node>,
+    ) -> TypeReferenceNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::TypeReference);
+        let node = TypeReferenceNode::new(node, self.as_name(type_name));
+        node
+    }
+
     pub fn create_array_type_node<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -348,6 +358,10 @@ impl NodeFactory {
             file_name: "".to_string(),
         };
         node
+    }
+
+    fn as_name(&self, name: Rc<Node>) -> Rc<Node> {
+        name
     }
 }
 

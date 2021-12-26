@@ -46,8 +46,9 @@ pub use compiler::types::{
     RelationComparisonResult, SourceFile, Statement, StructureIsReused, Symbol, SymbolFlags,
     SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, Ternary, TextSpan, TokenFlags, Type,
     TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeNode,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, __String,
+    TypeReferenceNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
+    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, __String,
 };
 pub use compiler::utilities::{
     chain_diagnostic_messages, create_detached_diagnostic, create_diagnostic_collection,

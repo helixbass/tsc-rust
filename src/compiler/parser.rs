@@ -705,6 +705,20 @@ impl ParserType {
         self.create_node_array(list)
     }
 
+    fn parse_entity_name(
+        &mut self,
+        allow_reserved_words: bool,
+        diagnostic_message: Option<DiagnosticMessage>,
+    ) -> Node /*EntityName*/ {
+        let pos = self.get_node_pos();
+        let entity: Node = if allow_reserved_words {
+            self.parse_identifier_name(diagnostic_message).into()
+        } else {
+            self.parse_identifier(diagnostic_message).into()
+        };
+        entity
+    }
+
     fn is_variable_declarator_list_terminator(&self) -> bool {
         if self.can_parse_semicolon() {
             return true;
@@ -757,6 +771,20 @@ impl ParserType {
 
         self.next_token();
         self.finish_node(node, pos, None)
+    }
+
+    fn parse_entity_name_of_type_reference(&mut self) -> Node /*EntityName*/ {
+        self.parse_entity_name(true, Some(Diagnostics::Type_expected))
+    }
+
+    fn parse_type_reference(&mut self) -> TypeNode {
+        let pos = self.get_node_pos();
+        let name = self.parse_entity_name_of_type_reference().wrap();
+        self.finish_node(
+            self.factory.create_type_reference_node(self, name).into(),
+            pos,
+            None,
+        )
     }
 
     fn parse_type_member_semicolon(&mut self) {
@@ -833,7 +861,7 @@ impl ParserType {
             SyntaxKind::NumberKeyword => self
                 .try_parse(|| self.parse_keyword_and_no_dot())
                 .unwrap_or_else(|| unimplemented!()),
-            _ => unimplemented!(),
+            _ => self.parse_type_reference(),
         }
     }
 

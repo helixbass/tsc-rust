@@ -59,6 +59,7 @@ pub enum SyntaxKind {
     NumberKeyword,
     OfKeyword,
     PropertySignature,
+    TypeReference,
     ArrayType,
     LiteralType,
     ObjectBindingPattern,
@@ -524,6 +525,7 @@ impl VariableDeclarationList {
 pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
     LiteralTypeNode(LiteralTypeNode),
+    TypeReferenceNode(TypeReferenceNode),
     ArrayTypeNode(ArrayTypeNode),
 }
 
@@ -542,6 +544,22 @@ impl KeywordTypeNode {
 impl From<BaseNode> for KeywordTypeNode {
     fn from(base_node: BaseNode) -> Self {
         KeywordTypeNode::new(base_node)
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct TypeReferenceNode {
+    _node: BaseNode,
+    pub type_name: Rc<Node /*EntityName*/>,
+}
+
+impl TypeReferenceNode {
+    pub fn new(base_node: BaseNode, type_name: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_name,
+        }
     }
 }
 
