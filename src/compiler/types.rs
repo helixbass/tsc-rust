@@ -141,6 +141,7 @@ impl Node {
             Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
                 interface_declaration
             }
+            Node::TypeElement(type_element) => type_element,
             _ => panic!("Expected named declaration"),
         }
     }

@@ -55,6 +55,10 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
         return;
     }
     match node {
+        Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
+            visit_node(&mut cb_node, Some(property_signature.name()));
+            visit_node(&mut cb_node, property_signature.type_())
+        }
         Node::VariableDeclaration(variable_declaration) => {
             visit_node(&mut cb_node, Some(variable_declaration.name()));
             visit_node(&mut cb_node, variable_declaration.type_());
@@ -772,7 +776,7 @@ impl ParserType {
             let type_ = self.parse_type_annotation();
             node = self
                 .factory
-                .create_property_signature(self, name.into(), type_.map(Into::into))
+                .create_property_signature(self, name.wrap(), type_.map(Into::into))
                 .into();
         }
         self.parse_type_member_semicolon();
