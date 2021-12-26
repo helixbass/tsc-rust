@@ -59,24 +59,21 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             visit_node(&mut cb_node, variable_declaration.type_());
             return visit_node(&mut cb_node, variable_declaration.initializer());
         }
-        Node::Expression(expression) => match expression {
-            Expression::ArrayLiteralExpression(array_literal_expression) => {
-                return visit_nodes(&mut cb_node, cb_nodes, &array_literal_expression.elements);
-            }
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                return visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()));
-            }
-            _ => unimplemented!(),
-        },
-        Node::Statement(statement) => match statement {
-            Statement::VariableStatement(variable_statement) => {
-                return visit_node(
-                    &mut cb_node,
-                    Some(variable_statement.declaration_list.clone()),
-                );
-            }
-            _ => unimplemented!(),
-        },
+        Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
+            return visit_node(&mut cb_node, Some(array_type.element_type.clone()));
+        }
+        Node::Expression(Expression::ArrayLiteralExpression(array_literal_expression)) => {
+            return visit_nodes(&mut cb_node, cb_nodes, &array_literal_expression.elements);
+        }
+        Node::Expression(Expression::PrefixUnaryExpression(prefix_unary_expression)) => {
+            return visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()));
+        }
+        Node::Statement(Statement::VariableStatement(variable_statement)) => {
+            return visit_node(
+                &mut cb_node,
+                Some(variable_statement.declaration_list.clone()),
+            );
+        }
         Node::VariableDeclarationList(variable_declaration_list) => {
             return visit_nodes(cb_node, cb_nodes, &variable_declaration_list.declarations);
         }

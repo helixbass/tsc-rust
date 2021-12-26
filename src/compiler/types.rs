@@ -533,7 +533,7 @@ impl From<BaseNode> for KeywordTypeNode {
 #[ast_type(ancestors = "TypeNode")]
 pub struct ArrayTypeNode {
     _node: BaseNode,
-    element_type: Rc<Node /*TypeNode*/>,
+    pub element_type: Rc<Node /*TypeNode*/>,
 }
 
 impl ArrayTypeNode {
