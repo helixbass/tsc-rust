@@ -6,9 +6,9 @@ use crate::{
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression, ExpressionStatement,
     Identifier, InterfaceDeclaration, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, NumericLiteral, PrefixUnaryExpression,
-    PropertySignature, SourceFile, SyntaxKind, TypeReferenceNode, VariableDeclaration,
-    VariableDeclarationList, VariableStatement,
+    NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
+    PrefixUnaryExpression, PropertyAssignment, PropertySignature, SourceFile, SyntaxKind,
+    TypeReferenceNode, VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -244,6 +244,19 @@ impl NodeFactory {
         node
     }
 
+    pub fn create_object_literal_expression<
+        TBaseNodeFactory: BaseNodeFactory,
+        TProperties: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        properties: TProperties, /*ObjectLiteralElementLike*/
+    ) -> ObjectLiteralExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::ObjectLiteralExpression);
+        let node = ObjectLiteralExpression::new(node, self.create_node_array(properties));
+        node
+    }
+
     pub fn create_prefix_unary_expression<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -343,6 +356,21 @@ impl NodeFactory {
             name,
         );
         let node = InterfaceDeclaration::new(node, self.create_node_array(members));
+        node
+    }
+
+    pub fn create_property_assignment<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Rc<Node>,
+        initializer: Rc<Node>,
+    ) -> PropertyAssignment {
+        let node = self.create_base_named_declaration(
+            base_factory,
+            SyntaxKind::PropertyAssignment,
+            Some(name),
+        );
+        let node = PropertyAssignment::new(node, initializer);
         node
     }
 
