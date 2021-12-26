@@ -41,6 +41,8 @@ pub enum SyntaxKind {
     CommaToken,
     AsteriskToken,
     PlusPlusToken,
+    ExclamationToken,
+    QuestionToken,
     ColonToken,
     EqualsToken,
     Identifier,
@@ -52,6 +54,7 @@ pub enum SyntaxKind {
     WithKeyword,
     NumberKeyword,
     OfKeyword,
+    ArrayType,
     LiteralType,
     ObjectBindingPattern,
     ArrayBindingPattern,
@@ -505,6 +508,7 @@ impl VariableDeclarationList {
 pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
     LiteralTypeNode(LiteralTypeNode),
+    ArrayTypeNode(ArrayTypeNode),
 }
 
 #[derive(Debug)]
@@ -522,6 +526,22 @@ impl KeywordTypeNode {
 impl From<BaseNode> for KeywordTypeNode {
     fn from(base_node: BaseNode) -> Self {
         KeywordTypeNode::new(base_node)
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct ArrayTypeNode {
+    _node: BaseNode,
+    element_type: Rc<Node /*TypeNode*/>,
+}
+
+impl ArrayTypeNode {
+    pub fn new(base_node: BaseNode, element_type: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            element_type,
+        }
     }
 }
 

@@ -652,6 +652,7 @@ impl ParserType {
                 if self.is_list_terminator(kind) {
                     break;
                 }
+                println!("kind: {:?}", kind);
 
                 unimplemented!()
             }
@@ -735,9 +736,43 @@ impl ParserType {
         }
     }
 
+    fn is_start_of_type(&self) -> bool {
+        match self.token() {
+            _ => self.is_identifier(),
+        }
+    }
+
     fn parse_postfix_type_or_higher(&mut self) -> TypeNode {
         let pos = self.get_node_pos();
-        let type_ = self.parse_non_array_type();
+        let mut type_ = self.parse_non_array_type();
+        while !self.scanner().has_preceding_line_break() {
+            match self.token() {
+                SyntaxKind::ExclamationToken => {
+                    unimplemented!()
+                }
+                SyntaxKind::QuestionToken => {
+                    unimplemented!()
+                }
+                SyntaxKind::OpenBracketToken => {
+                    self.parse_expected(SyntaxKind::OpenBracketToken, None);
+                    if self.is_start_of_type() {
+                        unimplemented!()
+                    } else {
+                        self.parse_expected(SyntaxKind::CloseBracketToken, None);
+                        type_ = self.finish_node(
+                            self.factory
+                                .create_array_type_node(self, type_.into())
+                                .into(),
+                            pos,
+                            None,
+                        );
+                    }
+                }
+                _ => {
+                    return type_;
+                }
+            }
+        }
         type_
     }
 
