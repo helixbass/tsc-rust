@@ -945,6 +945,10 @@ impl Symbol {
         *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node.node_wrapper()));
     }
 
+    pub fn maybe_members(&self) -> RefMut<Option<SymbolTable>> {
+        self.members.borrow_mut()
+    }
+
     pub fn members(&self) -> RefMut<SymbolTable> {
         RefMut::map(self.members.borrow_mut(), |option| option.as_mut().unwrap())
     }

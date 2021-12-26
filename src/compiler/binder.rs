@@ -153,6 +153,18 @@ impl BinderType {
         );
         symbol.set_declarations(declarations);
 
+        if symbol_flags.intersects(
+            SymbolFlags::Class
+                | SymbolFlags::Interface
+                | SymbolFlags::TypeLiteral
+                | SymbolFlags::ObjectLiteral,
+        ) {
+            let mut members = symbol.maybe_members();
+            if members.is_none() {
+                *members = Some(create_symbol_table());
+            }
+        }
+
         if symbol_flags.intersects(SymbolFlags::Value) {
             set_value_declaration(&*symbol, node);
         }
