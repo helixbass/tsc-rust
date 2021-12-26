@@ -611,6 +611,12 @@ impl ParserType {
         )
     }
 
+    fn is_literal_property_name(&self) -> bool {
+        token_is_identifier_or_keyword(self.token())
+            || self.token() == SyntaxKind::StringLiteral
+            || self.token() == SyntaxKind::NumericLiteral
+    }
+
     fn parse_property_name_worker(&mut self) -> Node /*PropertyName*/ {
         self.parse_identifier_name(None).into()
     }
@@ -622,6 +628,9 @@ impl ParserType {
     fn is_list_element(&mut self, kind: ParsingContext) -> bool {
         match kind {
             ParsingContext::SourceElements => self.is_start_of_statement(),
+            ParsingContext::TypeMembers => self
+                .look_ahead(|| Some(self.is_type_member_start()))
+                .unwrap(),
             ParsingContext::VariableDeclarations => {
                 self.is_binding_identifier_or_private_identifier_or_pattern()
             }
@@ -757,6 +766,25 @@ impl ParserType {
         }
         self.parse_type_member_semicolon();
         self.finish_node(node, pos, None)
+    }
+
+    fn is_type_member_start(&self) -> bool {
+        let mut id_token = false;
+
+        if self.is_literal_property_name() {
+            id_token = true;
+            self.next_token();
+        }
+
+        if id_token {
+            return self.token() == SyntaxKind::OpenParenToken
+                || self.token() == SyntaxKind::LessThanToken
+                || self.token() == SyntaxKind::QuestionToken
+                || self.token() == SyntaxKind::ColonToken
+                || self.token() == SyntaxKind::CommaToken
+                || self.can_parse_semicolon();
+        }
+        false
     }
 
     fn parse_type_member(&mut self) -> TypeElement {

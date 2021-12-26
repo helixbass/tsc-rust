@@ -210,6 +210,14 @@ impl Scanner {
                     self.set_pos(self.pos() + 1);
                     return self.set_token(SyntaxKind::CloseBracketToken);
                 }
+                CharacterCodes::open_brace => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::OpenBraceToken);
+                }
+                CharacterCodes::close_brace => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::CloseBraceToken);
+                }
                 _ch => {
                     let identifier_kind = self.scan_identifier(ch);
                     if let Some(identifier_kind) = identifier_kind {

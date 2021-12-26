@@ -34,12 +34,14 @@ pub enum SyntaxKind {
     NoSubstitutionTemplateLiteral,
     OpenBraceToken,
     CloseBraceToken,
+    OpenParenToken,
     OpenBracketToken,
     CloseBracketToken,
     DotToken,
     DotDotDotToken,
     SemicolonToken,
     CommaToken,
+    LessThanToken,
     AsteriskToken,
     PlusPlusToken,
     ExclamationToken,
@@ -1563,10 +1565,12 @@ impl CharacterCodes {
     pub const Z: char = 'Z';
 
     pub const asterisk: char = '*';
+    pub const close_brace: char = '}';
     pub const close_bracket: char = ']';
     pub const colon: char = ':';
     pub const comma: char = ',';
     pub const equals: char = '=';
+    pub const open_brace: char = '{';
     pub const open_bracket: char = '[';
     pub const plus: char = '+';
     pub const semicolon: char = ';';
