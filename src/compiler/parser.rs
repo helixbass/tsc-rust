@@ -58,25 +58,27 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
         Node::VariableDeclaration(variable_declaration) => {
             visit_node(&mut cb_node, Some(variable_declaration.name()));
             visit_node(&mut cb_node, variable_declaration.type_());
-            return visit_node(&mut cb_node, variable_declaration.initializer());
+            visit_node(&mut cb_node, variable_declaration.initializer())
         }
         Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
-            return visit_node(&mut cb_node, Some(array_type.element_type.clone()));
+            visit_node(&mut cb_node, Some(array_type.element_type.clone()))
         }
         Node::Expression(Expression::ArrayLiteralExpression(array_literal_expression)) => {
-            return visit_nodes(&mut cb_node, cb_nodes, &array_literal_expression.elements);
+            visit_nodes(&mut cb_node, cb_nodes, &array_literal_expression.elements)
         }
         Node::Expression(Expression::PrefixUnaryExpression(prefix_unary_expression)) => {
-            return visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()));
+            visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()))
         }
-        Node::Statement(Statement::VariableStatement(variable_statement)) => {
-            return visit_node(
-                &mut cb_node,
-                Some(variable_statement.declaration_list.clone()),
-            );
-        }
+        Node::Statement(Statement::VariableStatement(variable_statement)) => visit_node(
+            &mut cb_node,
+            Some(variable_statement.declaration_list.clone()),
+        ),
         Node::VariableDeclarationList(variable_declaration_list) => {
-            return visit_nodes(cb_node, cb_nodes, &variable_declaration_list.declarations);
+            visit_nodes(cb_node, cb_nodes, &variable_declaration_list.declarations)
+        }
+        Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
+            visit_node(&mut cb_node, Some(interface_declaration.name()));
+            visit_nodes(cb_node, cb_nodes, &interface_declaration.members)
         }
         _ => unimplemented!(),
     }
@@ -136,6 +138,12 @@ impl NodeInterface for MissingNode {
     fn set_symbol(&self, symbol: Rc<Symbol>) {
         match self {
             MissingNode::Identifier(identifier) => identifier.set_symbol(symbol),
+        }
+    }
+
+    fn maybe_locals(&self) -> RefMut<Option<SymbolTable>> {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.maybe_locals(),
         }
     }
 

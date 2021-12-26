@@ -110,6 +110,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
+    fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
     fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: SymbolTable);
 }
@@ -137,6 +138,9 @@ impl Node {
     pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
         match self {
             Node::VariableDeclaration(variable_declaration) => variable_declaration,
+            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
+                interface_declaration
+            }
             _ => panic!("Expected named declaration"),
         }
     }
@@ -240,6 +244,10 @@ impl NodeInterface for BaseNode {
 
     fn set_symbol(&self, symbol: Rc<Symbol>) {
         *self.symbol.borrow_mut() = Some(Rc::downgrade(&symbol));
+    }
+
+    fn maybe_locals(&self) -> RefMut<Option<SymbolTable>> {
+        self.locals.borrow_mut()
     }
 
     fn locals(&self) -> RefMut<SymbolTable> {
@@ -884,6 +892,11 @@ bitflags! {
         const Variable = Self::FunctionScopedVariable.bits | Self::BlockScopedVariable.bits;
         const Value = Self::Variable.bits | Self::Property.bits | Self::EnumMember.bits | Self::ObjectLiteral.bits | Self::Function.bits | Self::Class.bits | Self::Enum.bits | Self::ValueModule.bits | Self::Method.bits | Self::GetAccessor.bits | Self::SetAccessor.bits;
         const Type = Self::Class.bits | Self::Interface.bits | Self::Enum.bits | Self::EnumMember.bits | Self::TypeLiteral.bits | Self::TypeParameter.bits | Self::TypeAlias.bits;
+
+        const FunctionScopedVariableExcludes = Self::Value.bits & !Self::FunctionScopedVariable.bits;
+
+        const PropertyExcludes = Self::None.bits;
+        const InterfaceExcludes = Self::Type.bits & !(Self::Interface.bits | Self::Class.bits);
     }
 }
 

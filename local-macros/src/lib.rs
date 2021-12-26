@@ -92,6 +92,10 @@ fn get_struct_interface_impl(
                         self.#first_field_name.set_symbol(symbol);
                     }
 
+                    fn maybe_locals(&self) -> ::std::cell::RefMut<::std::option::Option<crate::SymbolTable>> {
+                        self.#first_field_name.maybe_locals()
+                    }
+
                     fn locals(&self) -> ::std::cell::RefMut<crate::SymbolTable> {
                         self.#first_field_name.locals()
                     }
@@ -239,6 +243,12 @@ fn get_enum_interface_impl(
                     fn set_symbol(&self, symbol: ::std::rc::Rc<crate::Symbol>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
+                        }
+                    }
+
+                    fn maybe_locals(&self) -> ::std::cell::RefMut<::std::option::Option<crate::SymbolTable>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_locals()),*
                         }
                     }
 
