@@ -59,16 +59,30 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             visit_node(&mut cb_node, Some(property_signature.name()));
             visit_node(&mut cb_node, property_signature.type_())
         }
+        Node::PropertyAssignment(property_assignment) => {
+            visit_node(&mut cb_node, Some(property_assignment.name()));
+            visit_node(&mut cb_node, Some(property_assignment.initializer.clone()))
+        }
         Node::VariableDeclaration(variable_declaration) => {
             visit_node(&mut cb_node, Some(variable_declaration.name()));
             visit_node(&mut cb_node, variable_declaration.type_());
             visit_node(&mut cb_node, variable_declaration.initializer())
+        }
+        Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
+            visit_node(&mut cb_node, Some(type_reference_node.type_name.clone()))
         }
         Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
             visit_node(&mut cb_node, Some(array_type.element_type.clone()))
         }
         Node::Expression(Expression::ArrayLiteralExpression(array_literal_expression)) => {
             visit_nodes(&mut cb_node, cb_nodes, &array_literal_expression.elements)
+        }
+        Node::Expression(Expression::ObjectLiteralExpression(object_literal_expression)) => {
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes,
+                &object_literal_expression.properties,
+            )
         }
         Node::Expression(Expression::PrefixUnaryExpression(prefix_unary_expression)) => {
             visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()))

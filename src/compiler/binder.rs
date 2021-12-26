@@ -282,7 +282,9 @@ impl BinderType {
             Node::SourceFile(source_file) => {
                 self.bind_each_functions_first(&source_file.statements);
             }
-            Node::Expression(Expression::ArrayLiteralExpression(_)) => {
+            Node::Expression(Expression::ArrayLiteralExpression(_))
+            | Node::Expression(Expression::ObjectLiteralExpression(_))
+            | Node::PropertyAssignment(_) => {
                 // self.set_in_assignment_pattern(save_in_assignment_pattern);
                 self.bind_each_child(node);
             }
