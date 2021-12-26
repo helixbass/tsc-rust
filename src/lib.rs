@@ -38,7 +38,7 @@ pub use compiler::types::{
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitHint, EmitTextWriter,
     EmptyStatement, ExitStatus, Expression, ExpressionStatement, FreshableIntrinsicType,
     HasExpressionInitializerInterface, HasTypeInterface, Identifier, InterfaceDeclaration,
-    IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    InternalSymbolName, IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeInterface, LiteralTypeNode, ModuleResolutionHost, ModuleSpecifierResolutionHost,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, NumberLiteralType, NumericLiteral, ObjectLiteralExpression, ParsedCommandLine,

@@ -1014,6 +1014,15 @@ impl Symbol {
     }
 }
 
+pub struct InternalSymbolName;
+
+#[allow(non_snake_case)]
+impl InternalSymbolName {
+    pub fn Object() -> __String {
+        __String::new("__object".to_string())
+    }
+}
+
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct __String(String);
 

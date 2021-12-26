@@ -9,8 +9,9 @@ use crate::{
     Symbol, SymbolTable, SyntaxKind, VariableDeclaration, __String, append_if_unique,
     create_symbol_table, for_each, for_each_child, get_escaped_text_of_identifier_or_literal,
     get_name_of_declaration, is_binding_pattern, is_property_name_literal, object_allocator,
-    set_parent, set_value_declaration, Expression, ExpressionStatement, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, PropertySignature, Statement, SymbolFlags, TypeElement,
+    set_parent, set_value_declaration, Expression, ExpressionStatement, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectLiteralExpression,
+    PropertySignature, Statement, SymbolFlags, TypeElement,
 };
 
 bitflags! {
@@ -362,6 +363,25 @@ impl BinderType {
         }
     }
 
+    fn bind_object_literal_expression(&self, node: &ObjectLiteralExpression) {
+        self.bind_anonymous_declaration(
+            node,
+            SymbolFlags::ObjectLiteral,
+            InternalSymbolName::Object(),
+        );
+    }
+
+    fn bind_anonymous_declaration<TNode: NodeInterface>(
+        &self,
+        node: &TNode,
+        symbol_flags: SymbolFlags,
+        name: __String,
+    ) -> Rc<Symbol> {
+        let symbol = Rc::new(self.create_symbol(symbol_flags, name));
+        self.add_declaration_to_symbol(symbol.clone(), node, symbol_flags);
+        symbol
+    }
+
     fn bind_block_scoped_declaration<TNode: NodeInterface>(
         &self,
         node: &TNode, /*Declaration*/
@@ -414,6 +434,15 @@ impl BinderType {
             }
             Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
                 self.bind_property_worker(property_signature)
+            }
+            Node::PropertyAssignment(property_assignment) => self
+                .bind_property_or_method_or_accessor(
+                    property_assignment,
+                    SymbolFlags::Property,
+                    SymbolFlags::PropertyExcludes,
+                ),
+            Node::Expression(Expression::ObjectLiteralExpression(object_literal_expression)) => {
+                self.bind_object_literal_expression(object_literal_expression)
             }
             Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => self
                 .bind_block_scoped_declaration(
