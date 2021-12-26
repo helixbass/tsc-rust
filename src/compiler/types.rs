@@ -907,6 +907,7 @@ pub struct Symbol {
     pub escaped_name: __String,
     declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
     value_declaration: RefCell<Option<Weak<Node>>>,
+    members: RefCell<Option<SymbolTable>>,
 }
 
 impl Symbol {
@@ -916,6 +917,7 @@ impl Symbol {
             escaped_name: name,
             declarations: RefCell::new(None),
             value_declaration: RefCell::new(None),
+            members: RefCell::new(None),
         }
     }
 
@@ -941,6 +943,10 @@ impl Symbol {
 
     pub fn set_value_declaration<TNode: NodeInterface>(&self, node: &TNode) {
         *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node.node_wrapper()));
+    }
+
+    pub fn members(&self) -> RefMut<SymbolTable> {
+        RefMut::map(self.members.borrow_mut(), |option| option.as_mut().unwrap())
     }
 }
 

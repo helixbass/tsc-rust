@@ -22,6 +22,7 @@ bitflags! {
         const IsControlFlowContainer = 1 << 2;
 
         const HasLocals = 1 << 5;
+        const IsInterface = 1 << 6;
     }
 }
 
@@ -172,6 +173,7 @@ impl BinderType {
     fn declare_symbol<TNode: NodeInterface>(
         &self,
         symbol_table: &mut SymbolTable,
+        parent: Option<Rc<Symbol>>,
         node: &TNode, /*Declaration*/
         includes: SymbolFlags,
         excludes: SymbolFlags,
@@ -208,6 +210,8 @@ impl BinderType {
         }
 
         if false {
+        } else if container_flags.intersects(ContainerFlags::IsInterface) {
+            self.bind_children(node);
         } else {
             self.bind_children(node);
         }
@@ -292,6 +296,9 @@ impl BinderType {
 
     fn get_container_flags(&self, node: &Node) -> ContainerFlags {
         match node.kind() {
+            SyntaxKind::InterfaceDeclaration => {
+                return ContainerFlags::IsContainer | ContainerFlags::IsInterface;
+            }
             SyntaxKind::SourceFile => {
                 return ContainerFlags::IsContainer
                     | ContainerFlags::IsControlFlowContainer
@@ -313,6 +320,13 @@ impl BinderType {
             SyntaxKind::SourceFile => {
                 Some(self.declare_source_file_member(node, symbol_flags, symbol_excludes))
             }
+            SyntaxKind::InterfaceDeclaration => Some(self.declare_symbol(
+                &mut *self.container().symbol().members(),
+                Some(self.container().symbol()),
+                node,
+                symbol_flags,
+                symbol_excludes,
+            )),
             _ => unimplemented!(),
         }
     }
@@ -328,6 +342,7 @@ impl BinderType {
         } else {
             self.declare_symbol(
                 &mut *self.file().locals(),
+                None,
                 node,
                 symbol_flags,
                 symbol_excludes,
@@ -350,6 +365,7 @@ impl BinderType {
         }
         self.declare_symbol(
             &mut *block_scope_container.locals(),
+            None,
             node,
             symbol_flags,
             symbol_excludes,
