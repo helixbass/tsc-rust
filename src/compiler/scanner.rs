@@ -7,11 +7,16 @@ use std::iter::FromIterator;
 
 use crate::{CharacterCodes, SyntaxKind, TokenFlags};
 
+pub fn token_is_identifier_or_keyword(token: SyntaxKind) -> bool {
+    token >= SyntaxKind::Identifier
+}
+
 lazy_static! {
     static ref text_to_keyword_obj: HashMap<String, SyntaxKind> =
         HashMap::from_iter(IntoIter::new([
             ("const".to_string(), SyntaxKind::ConstKeyword),
             ("false".to_string(), SyntaxKind::FalseKeyword),
+            ("interface".to_string(), SyntaxKind::InterfaceKeyword),
             ("number".to_string(), SyntaxKind::NumberKeyword),
             ("true".to_string(), SyntaxKind::TrueKeyword),
         ]));

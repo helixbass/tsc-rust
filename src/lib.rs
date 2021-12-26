@@ -23,28 +23,31 @@ pub use compiler::factory::node_tests::is_variable_declaration;
 pub use compiler::parser::{create_source_file, for_each_child};
 pub use compiler::path::{normalize_path, to_path};
 pub use compiler::program::create_program;
-pub use compiler::scanner::{create_scanner, token_to_string, Scanner};
+pub use compiler::scanner::{
+    create_scanner, token_is_identifier_or_keyword, token_to_string, Scanner,
+};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
     ArrayLiteralExpression, ArrayTypeNode, BaseBindingLikeDeclaration, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseIntrinsicType, BaseLiteralLikeNode, BaseLiteralType,
+    BaseDiagnosticRelatedInformation, BaseGenericNamedDeclaration,
+    BaseInterfaceOrClassLikeDeclaration, BaseIntrinsicType, BaseLiteralLikeNode, BaseLiteralType,
     BaseNamedDeclaration, BaseNode, BaseType, BaseUnionOrIntersectionType,
     BaseVariableLikeDeclaration, BinaryExpression, BindingLikeDeclarationInterface, CharacterCodes,
     CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticCollection,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitHint, EmitTextWriter,
     EmptyStatement, ExitStatus, Expression, ExpressionStatement, FreshableIntrinsicType,
-    HasExpressionInitializerInterface, HasTypeInterface, Identifier, IntrinsicType,
-    KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface,
-    LiteralTypeNode, ModuleResolutionHost, ModuleSpecifierResolutionHost,
+    HasExpressionInitializerInterface, HasTypeInterface, Identifier, InterfaceDeclaration,
+    IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    LiteralTypeInterface, LiteralTypeNode, ModuleResolutionHost, ModuleSpecifierResolutionHost,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, NumberLiteralType, NumericLiteral, ParsedCommandLine, Path,
-    PrefixUnaryExpression, Printer, PrinterOptions, Program, ReadonlyTextRange,
+    PrefixUnaryExpression, Printer, PrinterOptions, Program, PropertySignature, ReadonlyTextRange,
     RelationComparisonResult, SourceFile, Statement, StructureIsReused, Symbol, SymbolFlags,
     SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, Ternary, TextSpan, TokenFlags, Type,
-    TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, TypeNode, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration, VariableDeclarationList,
-    VariableLikeDeclarationInterface, VariableStatement, __String,
+    TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeNode,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration,
+    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, __String,
 };
 pub use compiler::utilities::{
     chain_diagnostic_messages, create_detached_diagnostic, create_diagnostic_collection,

@@ -32,6 +32,7 @@ pub enum SyntaxKind {
     NumericLiteral,
     StringLiteral,
     NoSubstitutionTemplateLiteral,
+    OpenBraceToken,
     CloseBraceToken,
     OpenBracketToken,
     CloseBracketToken,
@@ -52,8 +53,10 @@ pub enum SyntaxKind {
     FalseKeyword,
     TrueKeyword,
     WithKeyword,
+    InterfaceKeyword,
     NumberKeyword,
     OfKeyword,
+    PropertySignature,
     ArrayType,
     LiteralType,
     ObjectBindingPattern,
@@ -67,6 +70,7 @@ pub enum SyntaxKind {
     VariableDeclaration,
     VariableDeclarationList,
     FunctionDeclaration,
+    InterfaceDeclaration,
     SourceFile,
 }
 
@@ -117,6 +121,7 @@ pub enum Node {
     TypeNode(TypeNode),
     Expression(Expression),
     Statement(Statement),
+    TypeElement(TypeElement),
     SourceFile(Rc<SourceFile>),
 }
 
@@ -682,6 +687,7 @@ pub enum Statement {
     EmptyStatement(EmptyStatement),
     VariableStatement(VariableStatement),
     ExpressionStatement(ExpressionStatement),
+    InterfaceDeclaration(InterfaceDeclaration),
 }
 
 #[derive(Debug)]
@@ -711,6 +717,85 @@ impl VariableStatement {
 pub struct ExpressionStatement {
     pub _node: BaseNode,
     pub expression: Rc</*Expression*/ Node>,
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
+pub enum TypeElement {
+    PropertySignature(PropertySignature),
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeElement", interfaces = "NamedDeclarationInterface")]
+pub struct PropertySignature {
+    _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
+    pub type_: Option<Rc<Node /*TypeNode*/>>,
+}
+
+impl PropertySignature {
+    pub fn new(base_named_declaration: BaseNamedDeclaration, type_: Option<Rc<Node>>) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for PropertySignature {
+    fn type_(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = Some(type_);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
+pub struct BaseGenericNamedDeclaration {
+    _named_declaration: BaseNamedDeclaration,
+}
+
+impl BaseGenericNamedDeclaration {
+    pub fn new(base_named_declaration: BaseNamedDeclaration) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
+pub struct BaseInterfaceOrClassLikeDeclaration {
+    _generic_named_declaration: BaseGenericNamedDeclaration,
+}
+
+impl BaseInterfaceOrClassLikeDeclaration {
+    pub fn new(base_generic_named_declaration: BaseGenericNamedDeclaration) -> Self {
+        Self {
+            _generic_named_declaration: base_generic_named_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement", interfaces = "NamedDeclarationInterface")]
+pub struct InterfaceDeclaration {
+    _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration, /*name: Identifier*/
+    pub members: NodeArray,                                                    /*<TypeElement>*/
+}
+
+impl InterfaceDeclaration {
+    pub fn new(
+        base_interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration,
+        members: NodeArray,
+    ) -> Self {
+        Self {
+            _interface_or_class_like_declaration: base_interface_or_class_like_declaration,
+            members,
+        }
+    }
 }
 
 #[derive(Debug)]

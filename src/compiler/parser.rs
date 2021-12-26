@@ -9,12 +9,13 @@ use std::rc::Rc;
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
     get_binary_operator_precedence, last_or_undefined, normalize_path, object_allocator,
-    set_text_range_pos_end, ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression,
-    Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, Diagnostics, Expression, HasExpressionInitializerInterface,
-    HasTypeInterface, Identifier, KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OperatorPrecedence,
-    ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable, SyntaxKind, TypeNode,
+    set_text_range_pos_end, token_is_identifier_or_keyword, ArrayLiteralExpression, BaseNode,
+    BaseNodeFactory, BinaryExpression, Debug_, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
+    HasExpressionInitializerInterface, HasTypeInterface, Identifier, InterfaceDeclaration,
+    KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, OperatorPrecedence, ReadonlyTextRange, Scanner,
+    SourceFile, Statement, Symbol, SymbolTable, SyntaxKind, TypeElement, TypeNode,
     VariableDeclaration, VariableDeclarationList,
 };
 
@@ -600,6 +601,24 @@ impl ParserType {
         self.create_identifier(self.is_identifier(), diagnostic_message)
     }
 
+    fn parse_identifier_name(
+        &mut self,
+        diagnostic_message: Option<DiagnosticMessage>,
+    ) -> Identifier {
+        self.create_identifier(
+            token_is_identifier_or_keyword(self.token()),
+            diagnostic_message,
+        )
+    }
+
+    fn parse_property_name_worker(&mut self) -> Node /*PropertyName*/ {
+        self.parse_identifier_name(None).into()
+    }
+
+    fn parse_property_name(&mut self) -> Node /*PropertyName*/ {
+        self.parse_property_name_worker()
+    }
+
     fn is_list_element(&mut self, kind: ParsingContext) -> bool {
         match kind {
             ParsingContext::SourceElements => self.is_start_of_statement(),
@@ -714,6 +733,46 @@ impl ParserType {
 
         self.next_token();
         self.finish_node(node, pos, None)
+    }
+
+    fn parse_type_member_semicolon(&mut self) {
+        if self.parse_optional(SyntaxKind::CommaToken) {
+            return;
+        }
+
+        self.parse_semicolon();
+    }
+
+    fn parse_property_or_method_signature(&mut self, pos: isize) -> TypeElement {
+        let name = self.parse_property_name();
+        let node: TypeElement;
+        if false {
+            unimplemented!()
+        } else {
+            let type_ = self.parse_type_annotation();
+            node = self
+                .factory
+                .create_property_signature(self, name.into(), type_.map(Into::into))
+                .into();
+        }
+        self.parse_type_member_semicolon();
+        self.finish_node(node, pos, None)
+    }
+
+    fn parse_type_member(&mut self) -> TypeElement {
+        let pos = self.get_node_pos();
+        self.parse_property_or_method_signature(pos)
+    }
+
+    fn parse_object_type_members(&mut self) -> NodeArray /*<TypeElement>*/ {
+        let members: NodeArray;
+        if self.parse_expected(SyntaxKind::OpenBraceToken, None) {
+            members = self.parse_list(ParsingContext::TypeMembers, ParserType::parse_type_member);
+        } else {
+            unimplemented!()
+        }
+
+        members
     }
 
     fn parse_keyword_and_no_dot(&self) -> Option<TypeNode> {
@@ -861,6 +920,11 @@ impl ParserType {
         let expr = self.parse_binary_expression_or_higher(OperatorPrecedence::Lowest);
 
         self.parse_conditional_expression_rest(expr)
+    }
+
+    fn next_token_is_identifier_on_same_line(&self) -> bool {
+        self.next_token();
+        !self.scanner().has_preceding_line_break() && self.is_identifier()
     }
 
     fn parse_conditional_expression_rest(&self, left_operand: Expression) -> Expression {
@@ -1041,6 +1105,9 @@ impl ParserType {
                 SyntaxKind::ConstKeyword => {
                     return true;
                 }
+                SyntaxKind::InterfaceKeyword => {
+                    return self.next_token_is_identifier_on_same_line();
+                }
                 _ => unimplemented!(),
             }
         }
@@ -1054,6 +1121,7 @@ impl ParserType {
         match self.token() {
             SyntaxKind::SemicolonToken => true,
             SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
+            SyntaxKind::InterfaceKeyword => true,
             _ => self.is_start_of_expression(),
         }
     }
@@ -1066,9 +1134,14 @@ impl ParserType {
                     return self.parse_declaration();
                 }
             }
+            SyntaxKind::InterfaceKeyword => {
+                if self.is_start_of_declaration() {
+                    return self.parse_declaration();
+                }
+            }
             _ => (),
         }
-        return self.parse_expression_or_labeled_statement();
+        self.parse_expression_or_labeled_statement()
     }
 
     fn parse_declaration(&mut self) -> Statement {
@@ -1083,6 +1156,7 @@ impl ParserType {
     fn parse_declaration_worker(&mut self, pos: isize) -> Statement {
         match self.token() {
             SyntaxKind::ConstKeyword => self.parse_variable_statement(pos),
+            SyntaxKind::InterfaceKeyword => self.parse_interface_declaration(pos).into(),
             _ => unimplemented!(),
         }
     }
@@ -1160,6 +1234,16 @@ impl ParserType {
             .create_variable_statement(self, declaration_list);
         self.finish_node(node.into(), pos, None)
     }
+
+    fn parse_interface_declaration(&mut self, pos: isize) -> InterfaceDeclaration {
+        self.parse_expected(SyntaxKind::InterfaceKeyword, None);
+        let name = self.parse_identifier(None);
+        let members = self.parse_object_type_members();
+        let node = self
+            .factory
+            .create_interface_declaration(self, name.into(), members);
+        self.finish_node(node, pos, None)
+    }
 }
 
 impl BaseNodeFactory for ParserType {
@@ -1196,6 +1280,7 @@ bitflags! {
     pub struct ParsingContext: u32 {
         const None = 0;
         const SourceElements = 1 << 0;
+        const TypeMembers = 1 << 4;
         const VariableDeclarations = 1 << 8;
         const ArrayLiteralMembers = 1 << 15;
     }

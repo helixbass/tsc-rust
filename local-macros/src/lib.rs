@@ -296,6 +296,23 @@ fn get_enum_interface_impl(
                 }
             }
         }
+        "NamedDeclarationInterface" => {
+            quote! {
+                impl crate::NamedDeclarationInterface for #ast_type_name {
+                    fn name(&self) -> ::std::rc::Rc<crate::Node> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.name()),*
+                        }
+                    }
+
+                    fn set_name(&mut self, name: ::std::rc::Rc<crate::Node>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_name(name)),*
+                        }
+                    }
+                }
+            }
+        }
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
