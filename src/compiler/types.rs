@@ -763,6 +763,7 @@ pub struct TypeChecker {
     pub regular_false_type: Option<Rc<Type>>,
     pub boolean_type: Option<Rc<Type>>,
     pub number_or_big_int_type: Option<Rc<Type>>,
+    pub global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub diagnostics: RefCell<DiagnosticCollection>,
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
@@ -780,17 +781,22 @@ bitflags! {
         const EnumMember = 1 << 3;
         const Function = 1 << 4;
         const Class = 1 << 5;
+        const Interface = 1 << 6;
         const ConstEnum = 1 << 7;
         const RegularEnum = 1 << 8;
         const ValueModule = 1 << 9;
+        const TypeLiteral = 1 << 11;
         const ObjectLiteral = 1 << 12;
         const Method = 1 << 13;
         const GetAccessor = 1 << 15;
         const SetAccessor = 1 << 16;
+        const TypeParameter = 1 << 18;
+        const TypeAlias = 1 << 19;
 
         const Enum = Self::RegularEnum.bits | Self::ConstEnum.bits;
         const Variable = Self::FunctionScopedVariable.bits | Self::BlockScopedVariable.bits;
         const Value = Self::Variable.bits | Self::Property.bits | Self::EnumMember.bits | Self::ObjectLiteral.bits | Self::Function.bits | Self::Class.bits | Self::Enum.bits | Self::ValueModule.bits | Self::Method.bits | Self::GetAccessor.bits | Self::SetAccessor.bits;
+        const Type = Self::Class.bits | Self::Interface.bits | Self::Enum.bits | Self::EnumMember.bits | Self::TypeLiteral.bits | Self::TypeParameter.bits | Self::TypeAlias.bits;
     }
 }
 
