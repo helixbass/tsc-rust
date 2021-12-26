@@ -652,7 +652,6 @@ impl ParserType {
                 if self.is_list_terminator(kind) {
                     break;
                 }
-                println!("kind: {:?}", kind);
 
                 unimplemented!()
             }
@@ -660,6 +659,8 @@ impl ParserType {
             if self.is_list_terminator(kind) {
                 break;
             }
+
+            unimplemented!()
         }
 
         self.set_parsing_context(save_parsing_context);
@@ -767,6 +768,7 @@ impl ParserType {
                             None,
                         );
                     }
+                    break;
                 }
                 _ => {
                     return type_;
@@ -819,6 +821,8 @@ impl ParserType {
 
     fn is_start_of_left_hand_side_expression(&self) -> bool {
         match self.token() {
+            SyntaxKind::TrueKeyword => true,
+            SyntaxKind::FalseKeyword => true,
             SyntaxKind::NumericLiteral => true,
             SyntaxKind::OpenBracketToken => true,
             _ => self.is_identifier(),
