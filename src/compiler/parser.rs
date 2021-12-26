@@ -649,6 +649,7 @@ impl ParserType {
             return true;
         }
         match kind {
+            ParsingContext::TypeMembers => self.token() == SyntaxKind::CloseBraceToken,
             ParsingContext::VariableDeclarations => self.is_variable_declarator_list_terminator(),
             ParsingContext::ArrayLiteralMembers => self.token() == SyntaxKind::CloseBracketToken,
             _ => false,
@@ -713,6 +714,8 @@ impl ParserType {
 
                 continue;
             }
+
+            unimplemented!()
         }
 
         self.create_node_array(list)
@@ -796,6 +799,7 @@ impl ParserType {
         let members: NodeArray;
         if self.parse_expected(SyntaxKind::OpenBraceToken, None) {
             members = self.parse_list(ParsingContext::TypeMembers, ParserType::parse_type_member);
+            self.parse_expected(SyntaxKind::CloseBraceToken, None);
         } else {
             unimplemented!()
         }
