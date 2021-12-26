@@ -647,6 +647,13 @@ impl ParserType {
             ParsingContext::TypeMembers => self
                 .look_ahead(|| Some(self.is_type_member_start()))
                 .unwrap(),
+            ParsingContext::ObjectLiteralMembers => match self.token() {
+                SyntaxKind::OpenBracketToken
+                | SyntaxKind::AsteriskToken
+                | SyntaxKind::DotDotDotToken
+                | SyntaxKind::DotToken => true,
+                _ => self.is_literal_property_name(),
+            },
             ParsingContext::VariableDeclarations => {
                 self.is_binding_identifier_or_private_identifier_or_pattern()
             }
@@ -665,7 +672,9 @@ impl ParserType {
             return true;
         }
         match kind {
-            ParsingContext::TypeMembers => self.token() == SyntaxKind::CloseBraceToken,
+            ParsingContext::TypeMembers | ParsingContext::ObjectLiteralMembers => {
+                self.token() == SyntaxKind::CloseBraceToken
+            }
             ParsingContext::VariableDeclarations => self.is_variable_declarator_list_terminator(),
             ParsingContext::ArrayLiteralMembers => self.token() == SyntaxKind::CloseBracketToken,
             _ => false,
