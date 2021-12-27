@@ -55,4 +55,10 @@ impl Diagnostics {
         "An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type_2356",
         "An arithmetic operand must be of type 'any', 'number', 'bigint' or an enum type.",
     );
+    pub const Private_identifiers_are_not_allowed_outside_class_bodies: DiagnosticMessage = diag(
+        18016,
+        DiagnosticCategory::Error,
+        "Private_identifiers_are_not_allowed_outside_class_bodies_18016",
+        "Private identifiers are not allowed outside class bodies.",
+    );
 }

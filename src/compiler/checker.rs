@@ -6,19 +6,22 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    bind_source_file, chain_diagnostic_messages, create_diagnostic_collection,
-    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_printer,
-    create_text_writer, every, factory, for_each, get_effective_initializer,
-    get_effective_type_annotation_node, get_synthetic_factory, is_variable_declaration,
-    object_allocator, ArrayTypeNode, BaseIntrinsicType, BaseLiteralType, BaseType,
-    BaseUnionOrIntersectionType, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression, ExpressionStatement,
-    FreshableIntrinsicType, HasTypeInterface, IntrinsicType, KeywordTypeNode, LiteralLikeNode,
-    LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType,
-    NumericLiteral, PrefixUnaryExpression, PrinterOptions, RelationComparisonResult, SourceFile,
+    TypeNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
+    VariableDeclaration, VariableStatement, __String, bind_source_file, chain_diagnostic_messages,
+    create_diagnostic_collection, create_diagnostic_for_node,
+    create_diagnostic_for_node_from_message_chain, create_printer, create_text_writer, every,
+    factory, for_each, get_effective_initializer, get_effective_type_annotation_node,
+    get_synthetic_factory, is_binding_element, is_private_identifier, is_property_signature,
+    is_variable_declaration, object_allocator, ArrayTypeNode, BaseIntrinsicType, BaseLiteralType,
+    BaseType, BaseUnionOrIntersectionType, Debug_, Diagnostic, DiagnosticCollection,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression,
+    ExpressionStatement, FreshableIntrinsicType, InterfaceDeclaration, IntrinsicType,
+    KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType, NumericLiteral,
+    PrefixUnaryExpression, PrinterOptions, PropertySignature, RelationComparisonResult, SourceFile,
     Statement, Symbol, SymbolFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type,
-    TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, TypeNode, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration, VariableStatement, __String,
+    TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface,
+    VariableLikeDeclarationInterface,
 };
 
 bitflags! {
@@ -385,7 +388,7 @@ impl TypeChecker {
         let type_: Rc<Type>;
         if false {
             unimplemented!()
-        } else if is_variable_declaration(&*declaration) {
+        } else if is_property_signature(&*declaration) || is_variable_declaration(&*declaration) {
             type_ = self.get_widened_type_for_variable_like_declaration(&*declaration);
         } else {
             unimplemented!()
@@ -796,8 +799,29 @@ impl TypeChecker {
         }
     }
 
+    fn check_property_declaration(&mut self, node: &PropertySignature) {
+        self.check_variable_like_declaration(node);
+    }
+
+    fn check_property_signature(&mut self, node: &PropertySignature) {
+        if is_private_identifier(&*node.name()) {
+            self.error(
+                Some(node),
+                &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+            );
+        }
+        self.check_property_declaration(node)
+    }
+
     fn check_array_type(&mut self, node: &ArrayTypeNode) {
         self.check_source_element(Some(&*node.element_type));
+    }
+
+    fn check_interface_declaration(&mut self, node: &InterfaceDeclaration) {
+        for_each(&node.members, |member, _| {
+            self.check_source_element(Some(&**member));
+            Option::<()>::None
+        });
     }
 
     fn check_source_element<TNodeRef: Borrow<Node>>(&mut self, node: Option<TNodeRef>) {
@@ -809,18 +833,24 @@ impl TypeChecker {
 
     fn check_source_element_worker(&mut self, node: &Node) {
         match node {
+            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
+                self.check_property_signature(property_signature)
+            }
             Node::TypeNode(TypeNode::KeywordTypeNode(_)) => (),
             Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => {
-                return self.check_array_type(array_type_node);
+                self.check_array_type(array_type_node)
             }
             Node::Statement(Statement::VariableStatement(variable_statement)) => {
-                return self.check_variable_statement(variable_statement);
+                self.check_variable_statement(variable_statement)
             }
             Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
-                return self.check_expression_statement(expression_statement);
+                self.check_expression_statement(expression_statement)
             }
             Node::VariableDeclaration(variable_declaration) => {
-                return self.check_variable_declaration(variable_declaration);
+                self.check_variable_declaration(variable_declaration)
+            }
+            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
+                self.check_interface_declaration(interface_declaration)
             }
             _ => unimplemented!(),
         };
@@ -923,8 +953,11 @@ impl TypeChecker {
         type_
     }
 
-    fn check_variable_like_declaration(&mut self, node: &VariableDeclaration) {
-        if true {
+    fn check_variable_like_declaration<TNode: VariableLikeDeclarationInterface>(
+        &mut self,
+        node: &TNode,
+    ) {
+        if !is_binding_element(node) {
             self.check_source_element(node.type_());
         }
 

@@ -64,6 +64,7 @@ pub enum SyntaxKind {
     LiteralType,
     ObjectBindingPattern,
     ArrayBindingPattern,
+    BindingElement,
     ArrayLiteralExpression,
     ObjectLiteralExpression,
     PrefixUnaryExpression,
@@ -175,6 +176,9 @@ impl Node {
     pub fn maybe_as_has_type(&self) -> Option<&dyn HasTypeInterface> {
         match self {
             Node::VariableDeclaration(variable_declaration) => Some(variable_declaration),
+            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
+                Some(property_signature)
+            }
             _ => None,
         }
     }
@@ -182,6 +186,9 @@ impl Node {
     pub fn as_has_expression_initializer(&self) -> &dyn HasExpressionInitializerInterface {
         match self {
             Node::VariableDeclaration(variable_declaration) => variable_declaration,
+            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
+                property_signature
+            }
             _ => panic!("Expected has expression initializer"),
         }
     }
@@ -801,6 +808,20 @@ impl HasTypeInterface for PropertySignature {
         self.type_ = Some(type_);
     }
 }
+
+impl HasExpressionInitializerInterface for PropertySignature {
+    fn initializer(&self) -> Option<Rc<Node>> {
+        None
+    }
+
+    fn set_initializer(&mut self, _initializer: Rc<Node>) {
+        panic!("Shouldn't call set_initializer() on PropertySignature")
+    }
+}
+
+impl BindingLikeDeclarationInterface for PropertySignature {}
+
+impl VariableLikeDeclarationInterface for PropertySignature {}
 
 #[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
