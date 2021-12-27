@@ -1,6 +1,6 @@
 use darling::FromMeta;
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::Data::{Enum, Struct};
 use syn::{parse_macro_input, AttributeArgs, DataEnum, DeriveInput, Fields, FieldsNamed};
@@ -11,6 +11,8 @@ struct AstTypeArgs {
     ancestors: Option<String>,
     #[darling(default)]
     impl_from: Option<bool>,
+    #[darling(default)]
+    interfaces: Option<String>,
 }
 
 impl AstTypeArgs {
@@ -32,29 +34,29 @@ impl AstTypeArgs {
     fn should_impl_from(&self) -> bool {
         self.impl_from.unwrap_or(true)
     }
+
+    fn interfaces_vec(&self) -> Vec<String> {
+        let mut vec = vec!["ReadonlyTextRange".to_string(), "NodeInterface".to_string()];
+        if let Some(interfaces_str) = self.interfaces.as_ref() {
+            vec.append(
+                &mut interfaces_str
+                    .split(",")
+                    .into_iter()
+                    .map(|chunk| chunk.trim().to_string())
+                    .collect(),
+            );
+        }
+        vec
+    }
 }
 
-#[proc_macro_attribute]
-pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let item_for_parsing = item.clone();
-    let DeriveInput {
-        ident: ast_type_name,
-        data,
-        ..
-    } = parse_macro_input!(item_for_parsing);
-
-    let node_interface_and_readonly_text_range_implementation = match data {
-        Struct(struct_) => {
-            let first_field_name = match struct_.fields {
-                Fields::Named(FieldsNamed { named, .. }) => named
-                    .iter()
-                    .nth(0)
-                    .expect("Expected at least one struct field")
-                    .ident
-                    .clone(),
-                _ => panic!("Expected named fields"),
-            };
-
+fn get_struct_interface_impl(
+    interface_name: &str,
+    first_field_name: &Ident,
+    ast_type_name: &Ident,
+) -> TokenStream2 {
+    match interface_name {
+        "NodeInterface" => {
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
                     fn node_wrapper(&self) -> ::std::rc::Rc<crate::Node> {
@@ -97,7 +99,10 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
                         self.#first_field_name.set_locals(locals)
                     }
                 }
-
+            }
+        }
+        "ReadonlyTextRange" => {
+            quote! {
                 impl crate::ReadonlyTextRange for #ast_type_name {
                     fn pos(&self) -> usize {
                         self.#first_field_name.pos()
@@ -117,33 +122,86 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
             }
         }
-        Enum(DataEnum { variants, .. }) => {
-            let variant_names = variants.iter().map(|variant| &variant.ident);
-            let variant_names_2 = variant_names.clone();
-            let variant_names_3 = variant_names.clone();
-            let variant_names_4 = variant_names.clone();
-            let variant_names_5 = variant_names.clone();
-            let variant_names_6 = variant_names.clone();
-            let variant_names_7 = variant_names.clone();
-            let variant_names_8 = variant_names.clone();
-            let variant_names_9 = variant_names.clone();
-            let variant_names_10 = variant_names.clone();
-            let variant_names_11 = variant_names.clone();
-            let variant_names_12 = variant_names.clone();
-            let variant_names_13 = variant_names.clone();
-            let variant_names_14 = variant_names.clone();
+        "NamedDeclarationInterface" => {
+            quote! {
+                impl crate::NamedDeclarationInterface for #ast_type_name {
+                    fn name(&self) -> ::std::rc::Rc<crate::Node> {
+                        self.#first_field_name.name()
+                    }
 
+                    fn set_name(&mut self, name: ::std::rc::Rc<crate::Node>) {
+                        self.#first_field_name.set_name(name);
+                    }
+                }
+            }
+        }
+        "HasExpressionInitializerInterface" => {
+            quote! {
+                impl crate::HasExpressionInitializerInterface for #ast_type_name {
+                    fn initializer(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self.#first_field_name.initializer()
+                    }
+
+                    fn set_initializer(&mut self, initializer: ::std::rc::Rc<crate::Node>) {
+                        self.#first_field_name.set_initializer(initializer);
+                    }
+                }
+            }
+        }
+        "BindingLikeDeclarationInterface" => {
+            quote! {
+                impl crate::BindingLikeDeclarationInterface for #ast_type_name {}
+            }
+        }
+        "HasTypeInterface" => {
+            quote! {
+                impl crate::HasTypeInterface for #ast_type_name {
+                    fn type_(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self._variable_like_declaration.type_()
+                    }
+
+                    fn set_type(&mut self, type_: ::std::rc::Rc<crate::Node>) {
+                        self._variable_like_declaration.set_type(type_);
+                    }
+                }
+            }
+        }
+        "VariableLikeDeclarationInterface" => {
+            quote! {
+                impl crate::VariableLikeDeclarationInterface for #ast_type_name {}
+            }
+        }
+        "LiteralLikeNodeInterface" => {
+            quote! {
+                impl crate::LiteralLikeNodeInterface for #ast_type_name {
+                    fn text(&self) -> &str {
+                        self._literal_like_node.text()
+                    }
+                }
+            }
+        }
+        _ => panic!("Unknown interface: {}", interface_name),
+    }
+}
+
+fn get_enum_interface_impl(
+    interface_name: &str,
+    variant_names: &[&Ident],
+    ast_type_name: &Ident,
+) -> TokenStream2 {
+    match interface_name {
+        "NodeInterface" => {
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
                     fn node_wrapper(&self) -> ::std::rc::Rc<crate::Node> {
                         match self {
-                            #(#ast_type_name::#variant_names_13(nested) => nested.node_wrapper()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.node_wrapper()),*
                         }
                     }
 
                     fn set_node_wrapper(&self, wrapper: ::std::rc::Rc<crate::Node>) {
                         match self {
-                            #(#ast_type_name::#variant_names_14(nested) => nested.set_node_wrapper(wrapper)),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_node_wrapper(wrapper)),*
                         }
                     }
 
@@ -155,76 +213,100 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
                     fn parent(&self) -> ::std::rc::Rc<crate::Node> {
                         match self {
-                            #(#ast_type_name::#variant_names_2(nested_2) => nested_2.parent()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.parent()),*
                         }
                     }
 
                     fn set_parent(&self, parent: ::std::rc::Rc<crate::Node>) {
                         match self {
-                            #(#ast_type_name::#variant_names_3(nested_3) => nested_3.set_parent(parent)),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_parent(parent)),*
                         }
                     }
 
                     fn maybe_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
                         match self {
-                            #(#ast_type_name::#variant_names_12(nested_12) => nested_12.maybe_symbol()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_symbol()),*
                         }
                     }
 
                     fn symbol(&self) -> ::std::rc::Rc<crate::Symbol> {
                         match self {
-                            #(#ast_type_name::#variant_names_4(nested_4) => nested_4.symbol()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.symbol()),*
                         }
                     }
 
                     fn set_symbol(&self, symbol: ::std::rc::Rc<crate::Symbol>) {
                         match self {
-                            #(#ast_type_name::#variant_names_5(nested_5) => nested_5.set_symbol(symbol)),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
                         }
                     }
 
                     fn locals(&self) -> ::std::cell::RefMut<crate::SymbolTable> {
                         match self {
-                            #(#ast_type_name::#variant_names_6(nested_6) => nested_6.locals()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.locals()),*
                         }
                     }
 
                     fn set_locals(&self, locals: crate::SymbolTable) {
                         match self {
-                            #(#ast_type_name::#variant_names_7(nested_7) => nested_7.set_locals(locals)),*
-                        }
-                    }
-                }
-
-                impl crate::ReadonlyTextRange for #ast_type_name {
-                    fn pos(&self) -> usize {
-                        match self {
-                            #(#ast_type_name::#variant_names_8(nested_8) => nested_8.pos()),*
-                        }
-                    }
-
-                    fn set_pos(&self, pos: usize) {
-                        match self {
-                            #(#ast_type_name::#variant_names_9(nested_9) => nested_9.set_pos(pos)),*
-                        }
-                    }
-
-                    fn end(&self) -> usize {
-                        match self {
-                            #(#ast_type_name::#variant_names_10(nested_10) => nested_10.end()),*
-                        }
-                    }
-
-                    fn set_end(&self, end: usize) {
-                        match self {
-                            #(#ast_type_name::#variant_names_11(nested_11) => nested_11.set_end(end)),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_locals(locals)),*
                         }
                     }
                 }
             }
         }
-        _ => panic!("Expected struct or enum"),
-    };
+        "ReadonlyTextRange" => {
+            quote! {
+                impl crate::ReadonlyTextRange for #ast_type_name {
+                    fn pos(&self) -> usize {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.pos()),*
+                        }
+                    }
+
+                    fn set_pos(&self, pos: usize) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_pos(pos)),*
+                        }
+                    }
+
+                    fn end(&self) -> usize {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.end()),*
+                        }
+                    }
+
+                    fn set_end(&self, end: usize) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_end(end)),*
+                        }
+                    }
+                }
+            }
+        }
+        "LiteralLikeNodeInterface" => {
+            quote! {
+                impl crate::LiteralLikeNodeInterface for #ast_type_name {
+                    fn text(&self) -> &str {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.text()),*
+                        }
+                    }
+                }
+            }
+        }
+        _ => panic!("Unknown interface: {}", interface_name),
+    }
+}
+
+#[proc_macro_attribute]
+pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let item_for_parsing = item.clone();
+    let DeriveInput {
+        ident: ast_type_name,
+        data,
+        ..
+    } = parse_macro_input!(item_for_parsing);
 
     let attr_args = parse_macro_input!(attr as AttributeArgs);
     let args = match AstTypeArgs::from_list(&attr_args) {
@@ -232,6 +314,54 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
         Err(error) => {
             return TokenStream::from(error.write_errors());
         }
+    };
+
+    let node_interface_and_readonly_text_range_implementation = match data {
+        Struct(struct_) => {
+            let first_field_name = match struct_.fields {
+                Fields::Named(FieldsNamed { named, .. }) => named
+                    .iter()
+                    .nth(0)
+                    .expect("Expected at least one struct field")
+                    .ident
+                    .clone()
+                    .expect("Expected ident"),
+                _ => panic!("Expected named fields"),
+            };
+
+            let mut interface_impls: TokenStream2 = quote! {};
+            for interface in args.interfaces_vec() {
+                let interface_impl =
+                    get_struct_interface_impl(&interface, &first_field_name, &ast_type_name);
+                interface_impls = quote! {
+                    #interface_impls
+
+                    #interface_impl
+                };
+            }
+
+            interface_impls
+        }
+        Enum(DataEnum { variants, .. }) => {
+            let variant_names = variants
+                .iter()
+                .map(|variant| &variant.ident)
+                .collect::<Vec<_>>();
+
+            let mut interface_impls: TokenStream2 = quote! {};
+            for interface in args.interfaces_vec() {
+                let interface_impl =
+                    get_enum_interface_impl(&interface, &variant_names, &ast_type_name);
+                interface_impls = quote! {
+                    #interface_impls
+
+                    #interface_impl
+                };
+            }
+
+            interface_impls
+        }
+        _ => panic!("Expected struct or enum"),
     };
 
     let into_implementations = if args.should_impl_from() {

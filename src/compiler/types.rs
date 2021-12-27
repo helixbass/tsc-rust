@@ -380,7 +380,7 @@ pub trait BindingLikeDeclarationInterface:
 }
 
 #[derive(Debug)]
-#[ast_type(impl_from = false)]
+#[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseBindingLikeDeclaration {
     _named_declaration: BaseNamedDeclaration,
     initializer: Option<Rc<Node>>,
@@ -395,16 +395,6 @@ impl BaseBindingLikeDeclaration {
             _named_declaration: base_named_declaration,
             initializer,
         }
-    }
-}
-
-impl NamedDeclarationInterface for BaseBindingLikeDeclaration {
-    fn name(&self) -> Rc<Node> {
-        self._named_declaration.name()
-    }
-
-    fn set_name(&mut self, name: Rc<Node>) {
-        self._named_declaration.set_name(name);
     }
 }
 
@@ -426,7 +416,10 @@ pub trait VariableLikeDeclarationInterface:
 }
 
 #[derive(Debug)]
-#[ast_type(impl_from = false)]
+#[ast_type(
+    impl_from = false,
+    interfaces = "NamedDeclarationInterface, HasExpressionInitializerInterface, BindingLikeDeclarationInterface"
+)]
 pub struct BaseVariableLikeDeclaration {
     _binding_like_declaration: BaseBindingLikeDeclaration,
     type_: Option<Rc<Node>>,
@@ -444,28 +437,6 @@ impl BaseVariableLikeDeclaration {
     }
 }
 
-impl NamedDeclarationInterface for BaseVariableLikeDeclaration {
-    fn name(&self) -> Rc<Node> {
-        self._binding_like_declaration.name()
-    }
-
-    fn set_name(&mut self, name: Rc<Node>) {
-        self._binding_like_declaration.set_name(name);
-    }
-}
-
-impl HasExpressionInitializerInterface for BaseVariableLikeDeclaration {
-    fn initializer(&self) -> Option<Rc<Node>> {
-        self._binding_like_declaration.initializer()
-    }
-
-    fn set_initializer(&mut self, initializer: Rc<Node>) {
-        self._binding_like_declaration.set_initializer(initializer);
-    }
-}
-
-impl BindingLikeDeclarationInterface for BaseVariableLikeDeclaration {}
-
 impl HasTypeInterface for BaseVariableLikeDeclaration {
     fn type_(&self) -> Option<Rc<Node>> {
         self.type_.as_ref().map(Clone::clone)
@@ -479,7 +450,9 @@ impl HasTypeInterface for BaseVariableLikeDeclaration {
 impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasExpressionInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
+)]
 pub struct VariableDeclaration {
     _variable_like_declaration: BaseVariableLikeDeclaration,
 }
@@ -491,40 +464,6 @@ impl VariableDeclaration {
         }
     }
 }
-
-impl NamedDeclarationInterface for VariableDeclaration {
-    fn name(&self) -> Rc<Node> {
-        self._variable_like_declaration.name()
-    }
-
-    fn set_name(&mut self, name: Rc<Node>) {
-        self._variable_like_declaration.set_name(name);
-    }
-}
-
-impl HasExpressionInitializerInterface for VariableDeclaration {
-    fn initializer(&self) -> Option<Rc<Node>> {
-        self._variable_like_declaration.initializer()
-    }
-
-    fn set_initializer(&mut self, initializer: Rc<Node>) {
-        self._variable_like_declaration.set_initializer(initializer);
-    }
-}
-
-impl BindingLikeDeclarationInterface for VariableDeclaration {}
-
-impl HasTypeInterface for VariableDeclaration {
-    fn type_(&self) -> Option<Rc<Node>> {
-        self._variable_like_declaration.type_()
-    }
-
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self._variable_like_declaration.set_type(type_);
-    }
-}
-
-impl VariableLikeDeclarationInterface for VariableDeclaration {}
 
 #[derive(Debug)]
 #[ast_type]
@@ -632,22 +571,20 @@ pub struct BaseLiteralLikeNode {
     pub text: String,
 }
 
+impl LiteralLikeNodeInterface for BaseLiteralLikeNode {
+    fn text(&self) -> &str {
+        &self.text
+    }
+}
+
 pub trait LiteralLikeNodeInterface {
     fn text(&self) -> &str;
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type(ancestors = "Expression", interfaces = "LiteralLikeNodeInterface")]
 pub enum LiteralLikeNode {
     NumericLiteral(NumericLiteral),
-}
-
-impl LiteralLikeNodeInterface for LiteralLikeNode {
-    fn text(&self) -> &str {
-        match self {
-            LiteralLikeNode::NumericLiteral(numeric_literal) => numeric_literal.text(),
-        }
-    }
 }
 
 bitflags! {
@@ -658,15 +595,12 @@ bitflags! {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "LiteralLikeNode, Expression")]
+#[ast_type(
+    ancestors = "LiteralLikeNode, Expression",
+    interfaces = "LiteralLikeNodeInterface"
+)]
 pub struct NumericLiteral {
     pub _literal_like_node: BaseLiteralLikeNode,
-}
-
-impl LiteralLikeNodeInterface for NumericLiteral {
-    fn text(&self) -> &str {
-        &self._literal_like_node.text
-    }
 }
 
 #[derive(Debug)]
