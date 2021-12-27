@@ -1,18 +1,22 @@
 use bitflags::bitflags;
-use std::cell::{RefCell, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    bind_source_file, create_diagnostic_collection, create_diagnostic_for_node, for_each,
+    bind_source_file, chain_diagnostic_messages, create_diagnostic_collection,
+    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, every, for_each,
+    get_effective_initializer, get_effective_type_annotation_node, is_variable_declaration,
     object_allocator, BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType,
-    Diagnostic, DiagnosticCollection, DiagnosticMessage, Diagnostics, Expression,
-    ExpressionStatement, FreshableIntrinsicType, IntrinsicType, LiteralLikeNode,
-    LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType,
-    NumericLiteral, PrefixUnaryExpression, RelationComparisonResult, SourceFile, Statement,
-    SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
+    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
+    Diagnostics, Expression, ExpressionStatement, FreshableIntrinsicType, HasTypeInterface,
+    IntrinsicType, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface, Node,
+    NodeInterface, Number, NumberLiteralType, NumericLiteral, PrefixUnaryExpression,
+    RelationComparisonResult, SourceFile, Statement, Symbol, SymbolFlags, SyntaxKind, Ternary,
+    Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, TypeNode,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration,
+    VariableStatement,
 };
 
 bitflags! {
@@ -159,6 +163,14 @@ impl TypeChecker {
         diagnostic
     }
 
+    fn get_merged_symbol(&self, symbol: Option<Rc<Symbol>>) -> Option<Rc<Symbol>> {
+        symbol
+    }
+
+    fn get_symbol_of_node<TNode: NodeInterface>(&self, node: &TNode) -> Option<Rc<Symbol>> {
+        self.get_merged_symbol(node.maybe_symbol())
+    }
+
     fn create_type(&self, flags: TypeFlags) -> BaseType {
         let result = (self.Type)(flags);
         result
@@ -167,6 +179,109 @@ impl TypeChecker {
     fn create_intrinsic_type(&self, kind: TypeFlags, intrinsic_name: &str) -> BaseIntrinsicType {
         let type_ = self.create_type(kind);
         let type_ = BaseIntrinsicType::new(type_);
+        type_
+    }
+
+    fn type_to_string(&self, type_: &Type) -> String {
+        unimplemented!()
+    }
+
+    fn get_type_names_for_error_display(&self, left: &Type, right: &Type) -> (String, String) {
+        let left_str = if false {
+            unimplemented!()
+        } else {
+            self.type_to_string(left)
+        };
+        let right_str = if false {
+            unimplemented!()
+        } else {
+            self.type_to_string(right)
+        };
+        (left_str, right_str)
+    }
+
+    fn get_type_name_for_error_display(&self, type_: &Type) -> String {
+        self.type_to_string(type_)
+    }
+
+    fn add_optionality(&self, type_: Rc<Type>) -> Rc<Type> {
+        type_
+    }
+
+    fn get_type_for_variable_like_declaration(&self, declaration: &Node) -> Option<Rc<Type>> {
+        let declared_type = self.try_get_type_from_effective_type_node(declaration);
+        if let Some(declared_type) = declared_type {
+            return Some(self.add_optionality(declared_type));
+        }
+        unimplemented!()
+    }
+
+    fn get_widened_type_for_variable_like_declaration(&self, declaration: &Node) -> Rc<Type> {
+        self.widen_type_for_variable_like_declaration(
+            self.get_type_for_variable_like_declaration(declaration),
+            declaration,
+        )
+    }
+
+    fn widen_type_for_variable_like_declaration(
+        &self,
+        type_: Option<Rc<Type>>,
+        declaration: &Node,
+    ) -> Rc<Type> {
+        if let Some(type_) = type_ {
+            return self.get_widened_type(type_);
+        }
+        unimplemented!()
+    }
+
+    fn try_get_type_from_effective_type_node(
+        &self,
+        declaration: &Node, /*Declaration*/
+    ) -> Option<Rc<Type>> {
+        let type_node = get_effective_type_annotation_node(declaration);
+        type_node.map(|type_node| self.get_type_from_type_node(&*type_node))
+    }
+
+    fn get_type_of_variable_or_parameter_or_property(&self, symbol: &Symbol) -> Rc<Type> {
+        // let links = self.get_symbol_links(symbol);
+        // if links.type_.is_none() {
+        self.get_type_of_variable_or_parameter_or_property_worker(symbol)
+        // }
+        // links.type.unwrap().clone()
+    }
+
+    fn get_type_of_variable_or_parameter_or_property_worker(&self, symbol: &Symbol) -> Rc<Type> {
+        Debug_.assert_is_defined(symbol.maybe_value_declaration().as_ref(), None);
+        let declaration = symbol
+            .maybe_value_declaration()
+            .as_ref()
+            .unwrap()
+            .upgrade()
+            .unwrap();
+
+        let type_: Rc<Type>;
+        if false {
+            unimplemented!()
+        } else if is_variable_declaration(&*declaration) {
+            type_ = self.get_widened_type_for_variable_like_declaration(&*declaration);
+        } else {
+            unimplemented!()
+        }
+
+        type_
+    }
+
+    fn get_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+        if symbol
+            .flags()
+            .intersects(SymbolFlags::Variable | SymbolFlags::Property)
+        {
+            return self.get_type_of_variable_or_parameter_or_property(symbol);
+        }
+        unimplemented!()
+    }
+
+    fn get_conditional_flow_type_of_type(&self, type_: Rc<Type>, node: &Node) -> Rc<Type> {
         type_
     }
 
@@ -261,15 +376,63 @@ impl TypeChecker {
         type_
     }
 
+    fn get_type_from_type_node(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
+        self.get_conditional_flow_type_of_type(self.get_type_from_type_node_worker(node), node)
+    }
+
+    fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
+        match node.kind() {
+            SyntaxKind::NumberKeyword => self.number_type(),
+            _ => unimplemented!(),
+        }
+    }
+
     fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {
         self.is_type_related_to(source, target, &self.assignable_relation)
     }
 
-    fn is_simple_type_related_to(
+    fn check_type_assignable_to_and_optionally_elaborate(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        error_node: Option<&Node>,
+        expr: Option<&Expression>,
+        head_message: Option<DiagnosticMessage>,
+    ) -> bool {
+        self.check_type_related_to_and_optionally_elaborate(
+            source,
+            target,
+            &self.assignable_relation,
+            error_node,
+            expr,
+            head_message,
+        )
+    }
+
+    fn check_type_related_to_and_optionally_elaborate(
         &self,
         source: Rc<Type>,
         target: Rc<Type>,
         relation: &HashMap<String, RelationComparisonResult>,
+        error_node: Option<&Node>,
+        expr: Option<&Expression>,
+        head_message: Option<DiagnosticMessage>,
+    ) -> bool {
+        if self.is_type_related_to(source.clone(), target.clone(), relation) {
+            return true;
+        }
+        if true {
+            return self.check_type_related_to(source, target, relation, error_node, head_message);
+        }
+        false
+    }
+
+    fn is_simple_type_related_to(
+        &self,
+        source: &Type,
+        target: &Type,
+        relation: &HashMap<String, RelationComparisonResult>,
+        error_reporter: Option<ErrorReporter>,
     ) -> bool {
         let s = source.flags();
         let t = target.flags();
@@ -297,6 +460,13 @@ impl TypeChecker {
                 _ => panic!("Expected IntrinsicType or LiteralType"),
             };
         }
+        if true {
+            if self.is_simple_type_related_to(&*source, &*target, relation, None) {
+                return true;
+            }
+        } else {
+            unimplemented!()
+        }
         if source
             .flags()
             .intersects(TypeFlags::StructuredOrInstantiable)
@@ -304,7 +474,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::StructuredOrInstantiable)
         {
-            return self.check_type_related_to(source, target, relation);
+            return self.check_type_related_to(source, target, relation, None, None);
         }
         false
     }
@@ -338,42 +508,133 @@ impl TypeChecker {
         source: Rc<Type>,
         target: Rc<Type>,
         relation: &HashMap<String, RelationComparisonResult>,
+        error_node: Option<&Node>,
+        head_message: Option<DiagnosticMessage>,
     ) -> bool {
-        CheckTypeRelatedTo::new(self, source, target, relation).call()
+        CheckTypeRelatedTo::new(self, source, target, relation, error_node, head_message).call()
+    }
+
+    fn type_could_have_top_level_singleton_types(&self, type_: &Type) -> bool {
+        if type_.flags().intersects(TypeFlags::Boolean) {
+            return false;
+        }
+
+        if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
+            return for_each(type_.as_union_or_intersection_type().types(), |type_, _| {
+                if self.type_could_have_top_level_singleton_types(type_) {
+                    Some(())
+                } else {
+                    None
+                }
+            })
+            .is_some();
+        }
+
+        if type_.flags().intersects(TypeFlags::Instantiable) {
+            unimplemented!()
+        }
+
+        self.is_unit_type(type_) || type_.flags().intersects(TypeFlags::TemplateLiteral)
+    }
+
+    fn is_unit_type(&self, type_: &Type) -> bool {
+        type_.flags().intersects(TypeFlags::Unit)
+    }
+
+    fn is_literal_type(&self, type_: &Type) -> bool {
+        if type_.flags().intersects(TypeFlags::Boolean) {
+            true
+        } else if type_.flags().intersects(TypeFlags::Union) {
+            if type_.flags().intersects(TypeFlags::EnumLiteral) {
+                true
+            } else {
+                every(type_.as_union_or_intersection_type().types(), |type_, _| {
+                    self.is_unit_type(&**type_)
+                })
+            }
+        } else {
+            self.is_unit_type(type_)
+        }
+    }
+
+    fn get_base_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::EnumLiteral) {
+            unimplemented!()
+        } else if type_.flags().intersects(TypeFlags::StringLiteral) {
+            unimplemented!()
+        } else if type_.flags().intersects(TypeFlags::NumberLiteral) {
+            self.number_type()
+        } else if type_.flags().intersects(TypeFlags::BigIntLiteral) {
+            self.bigint_type()
+        } else if type_.flags().intersects(TypeFlags::BooleanLiteral) {
+            unimplemented!()
+        } else if type_.flags().intersects(TypeFlags::Union) {
+            self.map_type(type_, |type_| self.get_base_type_of_literal_type(type_))
+        } else {
+            type_
+        }
     }
 
     fn get_regular_type_of_object_literal(&self, type_: Rc<Type>) -> Rc<Type> {
         type_
     }
 
+    fn get_widened_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        self.get_widened_type_with_context(type_)
+    }
+
+    fn get_widened_type_with_context(&self, type_: Rc<Type>) -> Rc<Type> {
+        type_
+    }
+
+    fn map_type<TMapper: FnMut(Rc<Type>) -> Rc<Type>>(
+        &self,
+        type_: Rc<Type>,
+        mut mapper: TMapper,
+    ) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Never) {
+            return type_;
+        }
+        if !type_.flags().intersects(TypeFlags::Union) {
+            return mapper(type_);
+        }
+        let types = type_.as_union_or_intersection_type().types();
+        unimplemented!()
+    }
+
     fn get_constituent_count(&self, type_: Rc<Type>) -> usize {
         if type_.flags().intersects(TypeFlags::Union) {
-            match &*type_ {
-                Type::UnionOrIntersectionType(union_or_intersection_type) => {
-                    match union_or_intersection_type {
-                        UnionOrIntersectionType::UnionType(union_type) => union_type.types().len(),
-                    }
-                }
-                _ => panic!("Expected UnionOrIntersectionType"),
-            }
+            type_.as_union_or_intersection_type().types().len()
         } else {
             1
         }
     }
 
-    fn check_source_element(&mut self, node: &Node) {
-        self.check_source_element_worker(node)
+    fn check_source_element(&mut self, node: Option<Rc<Node>>) {
+        if let Some(node) = node {
+            self.check_source_element_worker(node);
+        }
     }
 
-    fn check_source_element_worker(&mut self, node: &Node) {
-        match node {
+    fn check_source_element_worker(&mut self, node: Rc<Node>) {
+        match &*node {
+            Node::TypeNode(type_node) => match type_node {
+                TypeNode::KeywordTypeNode(_) => (),
+                _ => unimplemented!(),
+            },
             Node::Statement(statement) => {
                 match statement {
+                    Statement::VariableStatement(variable_statement) => {
+                        return self.check_variable_statement(variable_statement);
+                    }
                     Statement::ExpressionStatement(expression_statement) => {
                         return self.check_expression_statement(expression_statement);
                     }
                     _ => unimplemented!(),
                 };
+            }
+            Node::VariableDeclaration(variable_declaration) => {
+                return self.check_variable_declaration(variable_declaration, node.clone());
             }
             _ => unimplemented!(),
         };
@@ -386,7 +647,7 @@ impl TypeChecker {
     fn check_source_file_worker(&mut self, node: &SourceFile) {
         if true {
             for_each(&node.statements, |statement, _index| {
-                self.check_source_element(statement);
+                self.check_source_element(Some(statement.clone()));
                 Option::<()>::None
             });
         }
@@ -438,6 +699,10 @@ impl TypeChecker {
         self.number_type()
     }
 
+    fn check_expression_cached(&mut self, node: &Expression) -> Rc<Type> {
+        self.check_expression(node)
+    }
+
     fn check_expression(&mut self, node: &Expression) -> Rc<Type> {
         self.check_expression_worker(node)
     }
@@ -468,6 +733,66 @@ impl TypeChecker {
         }
     }
 
+    fn convert_auto_to_any(&self, type_: Rc<Type>) -> Rc<Type> {
+        type_
+    }
+
+    fn check_variable_like_declaration(&mut self, node: &VariableDeclaration, wrapper: Rc<Node>) {
+        if true {
+            self.check_source_element(node.type_());
+        }
+
+        let symbol = self.get_symbol_of_node(node).unwrap();
+
+        let type_ = self.convert_auto_to_any(self.get_type_of_symbol(&*symbol));
+        let value_declaration = symbol.maybe_value_declaration();
+        if value_declaration.is_some()
+            && Rc::ptr_eq(
+                &wrapper,
+                &value_declaration.as_ref().unwrap().upgrade().unwrap(),
+            )
+        {
+            let initializer = get_effective_initializer(&*wrapper);
+            if let Some(initializer) = initializer {
+                if true {
+                    let initializer_type = self.check_expression_cached(match &*initializer {
+                        Node::Expression(expression) => expression,
+                        _ => panic!("Expected Expression"),
+                    });
+                    self.check_type_assignable_to_and_optionally_elaborate(
+                        initializer_type,
+                        type_,
+                        Some(&*wrapper),
+                        Some(match &*initializer {
+                            Node::Expression(expression) => expression,
+                            _ => panic!("Expected Expression"),
+                        }),
+                        None,
+                    );
+                }
+            }
+        } else {
+            unimplemented!()
+        }
+    }
+
+    fn check_variable_declaration(&mut self, node: &VariableDeclaration, wrapper: Rc<Node>) {
+        self.check_variable_like_declaration(node, wrapper);
+    }
+
+    fn check_variable_statement(&mut self, node: &VariableStatement) {
+        for_each(
+            &match &*node.declaration_list {
+                Node::VariableDeclarationList(variable_declaration_list) => {
+                    variable_declaration_list
+                }
+                _ => panic!("Expected VariableDeclarationList"),
+            }
+            .declarations,
+            |declaration, _| Some(self.check_source_element(Some(declaration.clone()))),
+        );
+    }
+
     fn check_expression_statement(&mut self, node: &ExpressionStatement) {
         let expression = match &*node.expression {
             Node::Expression(expression) => expression,
@@ -488,11 +813,16 @@ impl TypeChecker {
     }
 }
 
+type ErrorReporter<'a> = &'a dyn FnMut(DiagnosticMessage);
+
 struct CheckTypeRelatedTo<'type_checker> {
     type_checker: &'type_checker TypeChecker,
     source: Rc<Type>,
     target: Rc<Type>,
     relation: &'type_checker HashMap<String, RelationComparisonResult>,
+    error_node: Option<&'type_checker Node>,
+    head_message: Option<DiagnosticMessage>,
+    error_info: RefCell<Option<DiagnosticMessageChain>>,
 }
 
 impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
@@ -501,25 +831,107 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         source: Rc<Type>,
         target: Rc<Type>,
         relation: &'type_checker HashMap<String, RelationComparisonResult>,
+        error_node: Option<&'type_checker Node>,
+        head_message: Option<DiagnosticMessage>,
     ) -> Self {
         Self {
             type_checker,
             source,
             target,
             relation,
+            error_node,
+            head_message,
+            error_info: RefCell::new(None),
         }
     }
 
+    fn error_info(&self) -> Ref<Option<DiagnosticMessageChain>> {
+        self.error_info.borrow()
+    }
+
+    fn set_error_info(&self, error_info: DiagnosticMessageChain) {
+        *self.error_info.borrow_mut() = Some(error_info);
+    }
+
     fn call(&self) -> bool {
-        let result = self.is_related_to(self.source.clone(), self.target.clone(), None);
+        let result = self.is_related_to(
+            self.source.clone(),
+            self.target.clone(),
+            self.error_node.is_some(),
+            self.head_message.as_ref(),
+            None,
+        );
+
+        if false {
+            unimplemented!()
+        } else if self.error_info().is_some() {
+            let diag = create_diagnostic_for_node_from_message_chain(
+                &*self.error_node.unwrap(),
+                &*self.error_info().as_ref().unwrap(),
+            );
+            if true {
+                self.type_checker.diagnostics().add(Rc::new(diag.into()));
+            }
+        }
 
         result != Ternary::False
+    }
+
+    fn report_error(&self, message: &DiagnosticMessage) {
+        Debug_.assert(self.error_node.is_some(), None);
+        self.set_error_info(chain_diagnostic_messages(
+            self.error_info().clone(),
+            message,
+        ));
+    }
+
+    fn report_relation_error(
+        &self,
+        mut message: Option<&DiagnosticMessage>,
+        source: Rc<Type>,
+        target: Rc<Type>,
+    ) {
+        let (source_type, target_type) = self
+            .type_checker
+            .get_type_names_for_error_display(&*source, &*target);
+        let mut generalized_source = source.clone();
+        let mut generalized_source_type = source_type;
+
+        if self.type_checker.is_literal_type(&*source)
+            && !self
+                .type_checker
+                .type_could_have_top_level_singleton_types(&*target)
+        {
+            generalized_source = self
+                .type_checker
+                .get_base_type_of_literal_type(source.clone());
+            Debug_.assert(
+                !self
+                    .type_checker
+                    .is_type_assignable_to(generalized_source, target),
+                Some("generalized source shouldn't be assignable"),
+            );
+            generalized_source_type = self.type_checker.get_type_name_for_error_display(&*source);
+        }
+
+        if message.is_none() {
+            if false {
+            } else {
+                message = Some(&Diagnostics::Type_0_is_not_assignable_to_type_1);
+            }
+        }
+
+        self.report_error(
+            message.unwrap(), /*, generalized_source_type, target_type*/
+        );
     }
 
     fn is_related_to(
         &self,
         original_source: Rc<Type>,
         original_target: Rc<Type>,
+        report_errors: bool,
+        head_message: Option<&DiagnosticMessage>,
         intersection_state: Option<IntersectionState>,
     ) -> Ternary {
         let intersection_state = intersection_state.unwrap_or(IntersectionState::None);
@@ -527,10 +939,27 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         let source = self.type_checker.get_normalized_type(original_source);
         let target = self.type_checker.get_normalized_type(original_target);
 
+        let report_error_results = |source, target, result| {
+            if result == Ternary::False && report_errors {
+                let source = source;
+                let target = target;
+                self.report_relation_error(head_message, source, target);
+            }
+        };
+
+        let report_error = |message: DiagnosticMessage| {
+            self.report_error(&message);
+        };
+
         if self.type_checker.is_simple_type_related_to(
-            source.clone(),
-            target.clone(),
+            &*source,
+            &*target,
             self.relation,
+            if report_errors {
+                Some(&report_error)
+            } else {
+                None
+            },
         ) {
             return Ternary::True;
         }
@@ -544,11 +973,13 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                 < 4
         {
             result = self.structured_type_related_to(
-                source,
-                target,
+                source.clone(),
+                target.clone(),
                 intersection_state | IntersectionState::UnionIntersectionCheck,
             );
         }
+
+        report_error_results(source, target, result);
 
         result
     }
@@ -561,7 +992,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         let target_types = target.types();
 
         for type_ in target_types {
-            let related = self.is_related_to(source.clone(), type_.clone(), None);
+            let related = self.is_related_to(source.clone(), type_.clone(), false, None, None);
             if related != Ternary::False {
                 return related;
             }

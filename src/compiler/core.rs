@@ -14,6 +14,16 @@ pub fn for_each<
         .find_map(|(index, item)| callback(item, index))
 }
 
+pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: &[TItem],
+    mut predicate: TCallback,
+) -> bool {
+    array
+        .into_iter()
+        .enumerate()
+        .all(|(index, value)| predicate(value, index))
+}
+
 fn some<TItem>(array: &[TItem], predicate: Option<Box<dyn FnMut(&TItem) -> bool>>) -> bool {
     predicate.map_or(!array.is_empty(), |predicate| array.iter().any(predicate))
 }

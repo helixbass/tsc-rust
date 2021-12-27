@@ -9,13 +9,14 @@ pub use compiler::binder::bind_source_file;
 pub use compiler::checker::create_type_checker;
 pub use compiler::command_line_parser::parse_command_line;
 pub use compiler::core::{
-    append_if_unique, concatenate, for_each, insert_sorted, last_or_undefined,
+    append_if_unique, concatenate, every, for_each, insert_sorted, last_or_undefined,
 };
 pub use compiler::core_public::SortedArray;
 pub use compiler::debug::Debug_;
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::factory::base_node_factory::BaseNodeFactory;
 pub use compiler::factory::node_factory::create_node_factory;
+pub use compiler::factory::node_tests::is_variable_declaration;
 pub use compiler::parser::{create_source_file, for_each_child};
 pub use compiler::path::{normalize_path, to_path};
 pub use compiler::program::create_program;
@@ -27,9 +28,10 @@ pub use compiler::types::{
     BaseType, BaseUnionOrIntersectionType, BaseVariableLikeDeclaration, BinaryExpression,
     BindingLikeDeclarationInterface, CharacterCodes, CompilerHost, CreateProgramOptions,
     Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmptyStatement, ExitStatus, Expression, ExpressionStatement, FreshableIntrinsicType,
-    Identifier, IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
+    DiagnosticWithLocation, EmptyStatement, ExitStatus, Expression, ExpressionStatement,
+    FreshableIntrinsicType, HasExpressionInitializerInterface, HasTypeInterface, Identifier,
+    IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeInterface, ModuleResolutionHost, ModuleSpecifierResolutionHost,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, NumberLiteralType, NumericLiteral, ParsedCommandLine, Path,
@@ -40,10 +42,11 @@ pub use compiler::types::{
     VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, __String,
 };
 pub use compiler::utilities::{
-    create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,
-    create_symbol_table, get_binary_operator_precedence, get_escaped_text_of_identifier_or_literal,
-    is_property_name_literal, object_allocator, set_parent, set_text_range_pos_end,
-    OperatorPrecedence,
+    chain_diagnostic_messages, create_detached_diagnostic, create_diagnostic_collection,
+    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_symbol_table,
+    get_binary_operator_precedence, get_effective_initializer, get_effective_type_annotation_node,
+    get_escaped_text_of_identifier_or_literal, is_property_name_literal, object_allocator,
+    set_parent, set_text_range_pos_end, set_value_declaration, OperatorPrecedence,
 };
 pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores, get_name_of_declaration,

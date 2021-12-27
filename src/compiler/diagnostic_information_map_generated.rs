@@ -36,6 +36,12 @@ impl Diagnostics {
         "Expression_expected_1109",
         "Expression expected.",
     );
+    pub const Type_0_is_not_assignable_to_type_1: DiagnosticMessage = diag(
+        2322,
+        DiagnosticCategory::Error,
+        "Type_0_is_not_assignable_to_type_1_2322",
+        "Type '{0}' is not assignable to type '{1}'.",
+    );
     pub const An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type:
         DiagnosticMessage = diag(
         2356,

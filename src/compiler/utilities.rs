@@ -7,10 +7,10 @@ use std::rc::Rc;
 use crate::{
     create_text_span_from_bounds, escape_leading_underscores, insert_sorted, is_member_name,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, Node, NodeInterface, ReadonlyTextRange,
-    SortedArray, SourceFile, Symbol, SymbolFlags, SymbolTable, SyntaxKind, TextSpan, TypeFlags,
-    __String,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags,
+    SymbolTable, SyntaxKind, TextSpan, TypeFlags, __String,
 };
 
 pub fn create_symbol_table() -> SymbolTable {
@@ -49,6 +49,31 @@ fn create_diagnostic_for_node_in_source_file<TNode: NodeInterface>(
     create_file_diagnostic(source_file, span.start, span.length, message)
 }
 
+pub fn create_diagnostic_for_node_from_message_chain<TNode: NodeInterface>(
+    node: &TNode,
+    message_chain: &DiagnosticMessageChain,
+) -> DiagnosticWithLocation {
+    let source_file = get_source_file_of_node(node);
+    let span = get_error_span_for_node(source_file.clone(), node);
+    create_file_diagnostic_from_message_chain(source_file, span.start, span.length, message_chain)
+}
+
+fn create_file_diagnostic_from_message_chain(
+    file: Rc<SourceFile>,
+    start: usize,
+    length: usize,
+    message_chain: &DiagnosticMessageChain,
+) -> DiagnosticWithLocation {
+    // assert_diagnostic_location(&*file, start, length);
+    DiagnosticWithLocation {
+        _diagnostic: BaseDiagnostic::new(BaseDiagnosticRelatedInformation {
+            file: Some(file),
+            start,
+            length,
+        }),
+    }
+}
+
 fn get_error_span_for_node<TNode: NodeInterface>(
     source_file: Rc<SourceFile>,
     node: &TNode,
@@ -58,6 +83,19 @@ fn get_error_span_for_node<TNode: NodeInterface>(
     let pos = error_node.pos();
 
     create_text_span_from_bounds(pos, error_node.end())
+}
+
+pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> Option<Rc<Node>> {
+    node.as_has_expression_initializer().initializer()
+}
+
+pub fn set_value_declaration(symbol: &Symbol, node: Rc<Node>) {
+    {
+        if !(symbol.maybe_value_declaration().is_none()) {
+            return;
+        }
+    }
+    symbol.set_value_declaration(node);
 }
 
 pub fn is_property_name_literal<TNode: NodeInterface>(node: &TNode) -> bool {
@@ -162,6 +200,13 @@ impl DiagnosticCollection {
     }
 }
 
+pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
+    let type_ = node
+        .maybe_as_has_type()
+        .and_then(|has_type| has_type.type_());
+    type_
+}
+
 #[allow(non_snake_case)]
 fn Symbol(flags: SymbolFlags, name: __String) -> Symbol {
     Symbol::new(flags, name)
@@ -219,6 +264,10 @@ lazy_static! {
     pub static ref object_allocator: ObjectAllocator = ObjectAllocator {};
 }
 
+fn get_locale_specific_message(message: &DiagnosticMessage) -> String {
+    message.message.to_string()
+}
+
 pub fn create_detached_diagnostic(
     file_name: &str,
     start: usize,
@@ -247,6 +296,18 @@ fn create_file_diagnostic(
             start,
             length,
         }),
+    }
+}
+
+pub fn chain_diagnostic_messages(
+    details: Option<DiagnosticMessageChain>,
+    message: &DiagnosticMessage,
+) -> DiagnosticMessageChain {
+    let text = get_locale_specific_message(message);
+
+    DiagnosticMessageChain {
+        message_text: text,
+        next: details.map(|details| vec![details]),
     }
 }
 

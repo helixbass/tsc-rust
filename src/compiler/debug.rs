@@ -11,10 +11,18 @@ impl DebugType {
         panic!("{}", message);
     }
 
-    pub fn assert(&self, expression: bool) {
+    pub fn assert(&self, expression: bool, message: Option<&str>) {
         if !expression {
-            let message = "False expression.";
-            self.fail(Some(message));
+            let message = message.map_or("False expression.".to_string(), |message| {
+                format!("False expression: {}", message)
+            });
+            self.fail(Some(&message));
+        }
+    }
+
+    pub fn assert_is_defined<TValue>(&self, value: Option<TValue>, message: Option<&str>) {
+        if value.is_none() {
+            self.fail(message);
         }
     }
 }

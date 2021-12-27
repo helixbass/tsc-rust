@@ -85,6 +85,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn kind(&self) -> SyntaxKind;
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
     fn locals(&self) -> RefMut<SymbolTable>;
@@ -130,6 +131,20 @@ impl Node {
             _ => panic!("Expected literal like node"),
         }
     }
+
+    pub fn maybe_as_has_type(&self) -> Option<&dyn HasTypeInterface> {
+        match self {
+            Node::VariableDeclaration(variable_declaration) => Some(variable_declaration),
+            _ => None,
+        }
+    }
+
+    pub fn as_has_expression_initializer(&self) -> &dyn HasExpressionInitializerInterface {
+        match self {
+            Node::VariableDeclaration(variable_declaration) => variable_declaration,
+            _ => panic!("Expected has expression initializer"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -166,6 +181,13 @@ impl NodeInterface for BaseNode {
 
     fn set_parent(&self, parent: Rc<Node>) {
         *self.parent.borrow_mut() = Some(Rc::downgrade(&parent));
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self.symbol
+            .borrow()
+            .as_ref()
+            .map(|weak| weak.upgrade().unwrap())
     }
 
     fn symbol(&self) -> Rc<Symbol> {
@@ -207,6 +229,16 @@ impl From<BaseNode> for Node {
     fn from(base_node: BaseNode) -> Self {
         Node::BaseNode(base_node)
     }
+}
+
+pub trait HasTypeInterface {
+    fn type_(&self) -> Option<Rc<Node>>;
+    fn set_type(&mut self, type_: Rc<Node>);
+}
+
+pub trait HasExpressionInitializerInterface {
+    fn initializer(&self) -> Option<Rc<Node>>;
+    fn set_initializer(&mut self, initializer: Rc<Node>);
 }
 
 #[derive(Debug)]
@@ -319,9 +351,9 @@ impl NamedDeclarationInterface for BaseNamedDeclaration {
     }
 }
 
-pub trait BindingLikeDeclarationInterface: NamedDeclarationInterface {
-    fn initializer(&self) -> Option<Rc<Node>>;
-    fn set_initializer(&mut self, initializer: Rc<Node>);
+pub trait BindingLikeDeclarationInterface:
+    NamedDeclarationInterface + HasExpressionInitializerInterface
+{
 }
 
 #[derive(Debug)]
@@ -353,7 +385,7 @@ impl NamedDeclarationInterface for BaseBindingLikeDeclaration {
     }
 }
 
-impl BindingLikeDeclarationInterface for BaseBindingLikeDeclaration {
+impl HasExpressionInitializerInterface for BaseBindingLikeDeclaration {
     fn initializer(&self) -> Option<Rc<Node>> {
         self.initializer.as_ref().map(Clone::clone)
     }
@@ -363,9 +395,11 @@ impl BindingLikeDeclarationInterface for BaseBindingLikeDeclaration {
     }
 }
 
-pub trait VariableLikeDeclarationInterface: BindingLikeDeclarationInterface {
-    fn type_(&self) -> Option<Rc<Node>>;
-    fn set_type(&mut self, type_: Rc<Node>);
+impl BindingLikeDeclarationInterface for BaseBindingLikeDeclaration {}
+
+pub trait VariableLikeDeclarationInterface:
+    BindingLikeDeclarationInterface + HasTypeInterface
+{
 }
 
 #[derive(Debug)]
@@ -397,7 +431,7 @@ impl NamedDeclarationInterface for BaseVariableLikeDeclaration {
     }
 }
 
-impl BindingLikeDeclarationInterface for BaseVariableLikeDeclaration {
+impl HasExpressionInitializerInterface for BaseVariableLikeDeclaration {
     fn initializer(&self) -> Option<Rc<Node>> {
         self._binding_like_declaration.initializer()
     }
@@ -407,7 +441,9 @@ impl BindingLikeDeclarationInterface for BaseVariableLikeDeclaration {
     }
 }
 
-impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {
+impl BindingLikeDeclarationInterface for BaseVariableLikeDeclaration {}
+
+impl HasTypeInterface for BaseVariableLikeDeclaration {
     fn type_(&self) -> Option<Rc<Node>> {
         self.type_.as_ref().map(Clone::clone)
     }
@@ -416,6 +452,8 @@ impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {
         self.type_ = Some(type_);
     }
 }
+
+impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 
 #[derive(Debug)]
 #[ast_type]
@@ -441,7 +479,7 @@ impl NamedDeclarationInterface for VariableDeclaration {
     }
 }
 
-impl BindingLikeDeclarationInterface for VariableDeclaration {
+impl HasExpressionInitializerInterface for VariableDeclaration {
     fn initializer(&self) -> Option<Rc<Node>> {
         self._variable_like_declaration.initializer()
     }
@@ -451,7 +489,9 @@ impl BindingLikeDeclarationInterface for VariableDeclaration {
     }
 }
 
-impl VariableLikeDeclarationInterface for VariableDeclaration {
+impl BindingLikeDeclarationInterface for VariableDeclaration {}
+
+impl HasTypeInterface for VariableDeclaration {
     fn type_(&self) -> Option<Rc<Node>> {
         self._variable_like_declaration.type_()
     }
@@ -460,6 +500,8 @@ impl VariableLikeDeclarationInterface for VariableDeclaration {
         self._variable_like_declaration.set_type(type_);
     }
 }
+
+impl VariableLikeDeclarationInterface for VariableDeclaration {}
 
 impl From<VariableDeclaration> for Node {
     fn from(variable_declaration: VariableDeclaration) -> Self {
@@ -783,23 +825,50 @@ pub struct TypeChecker {
 bitflags! {
     pub struct SymbolFlags: u32 {
         const None = 0;
+        const FunctionScopedVariable = 1 << 0;
+        const BlockScopedVariable = 1 << 1;
+        const Property = 1 << 2;
+        const EnumMember = 1 << 3;
+        const Function = 1 << 4;
+        const Class = 1 << 5;
+        const ConstEnum = 1 << 7;
+        const RegularEnum = 1 << 8;
+        const ValueModule = 1 << 9;
+        const ObjectLiteral = 1 << 12;
+        const Method = 1 << 13;
+        const GetAccessor = 1 << 15;
+        const SetAccessor = 1 << 16;
+
+        const Enum = Self::RegularEnum.bits | Self::ConstEnum.bits;
+        const Variable = Self::FunctionScopedVariable.bits | Self::BlockScopedVariable.bits;
+        const Value = Self::Variable.bits | Self::Property.bits | Self::EnumMember.bits | Self::ObjectLiteral.bits | Self::Function.bits | Self::Class.bits | Self::Enum.bits | Self::ValueModule.bits | Self::Method.bits | Self::GetAccessor.bits | Self::SetAccessor.bits;
     }
 }
 
 #[derive(Debug)]
 pub struct Symbol {
-    pub flags: SymbolFlags,
+    pub flags: Cell<SymbolFlags>,
     pub escaped_name: __String,
-    declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>,
+    declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
+    value_declaration: RefCell<Option<Weak<Node>>>,
 }
 
 impl Symbol {
     pub fn new(flags: SymbolFlags, name: __String) -> Self {
         Self {
-            flags,
+            flags: Cell::new(flags),
             escaped_name: name,
             declarations: RefCell::new(None),
+            value_declaration: RefCell::new(None),
         }
+    }
+
+    pub fn flags(&self) -> SymbolFlags {
+        self.flags.get()
+    }
+
+    pub fn set_flags(&self, flags: SymbolFlags) {
+        self.flags.set(flags);
     }
 
     pub fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
@@ -808,6 +877,14 @@ impl Symbol {
 
     pub fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
         *self.declarations.borrow_mut() = Some(declarations);
+    }
+
+    pub fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>> {
+        self.value_declaration.borrow()
+    }
+
+    pub fn set_value_declaration(&self, node: Rc<Node>) {
+        *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node));
     }
 }
 
@@ -827,20 +904,40 @@ pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
 bitflags! {
     pub struct TypeFlags: u32 {
         const Number = 1 << 3;
+        const Boolean = 1 << 4;
         const Enum = 1 << 5;
         const BigInt = 1 << 6;
         const StringLiteral = 1 << 7;
         const NumberLiteral = 1 << 8;
         const BooleanLiteral = 1 << 9;
+        const EnumLiteral = 1 << 10;
         const BigIntLiteral = 1 << 11;
+        const UniqueESSymbol = 1 << 13;
+        const Undefined = 1 << 15;
+        const Null = 1 << 16;
+        const Never = 1 << 17;
+        const TypeParameter = 1 << 18;
         const Object = 1 << 19;
         const Union = 1 << 20;
         const Intersection = 1 << 21;
+        const Index = 1 << 22;
+        const IndexedAccess = 1 << 23;
+        const Conditional = 1 << 24;
+        const Substitution = 1 << 25;
+        const TemplateLiteral = 1 << 27;
+        const StringMapping = 1 << 28;
 
+        const Nullable = Self::Undefined.bits | Self::Null.bits;
         const Literal = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::BigIntLiteral.bits | Self::BooleanLiteral.bits;
+        const Unit = Self::Literal.bits | Self::UniqueESSymbol.bits | Self::Nullable.bits;
         const NumberLike = Self::Number.bits | Self::NumberLiteral.bits | Self::Enum.bits;
+        const UnionOrIntersection =  Self::Union.bits | Self::Intersection.bits;
         const StructuredType = Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
-        const StructuredOrInstantiable = Self::StructuredType.bits /*| Self::Instantiable.bits */;
+        const TypeVariable = Self::TypeParameter.bits | Self::IndexedAccess.bits;
+        const InstantiableNonPrimitive = Self::TypeVariable.bits | Self::Conditional.bits | Self::Substitution.bits;
+        const InstantiablePrimitive = Self::Index.bits | Self::TemplateLiteral.bits | Self::StringMapping.bits;
+        const Instantiable = Self::InstantiableNonPrimitive.bits | Self::InstantiablePrimitive.bits;
+        const StructuredOrInstantiable = Self::StructuredType.bits | Self::Instantiable.bits;
     }
 }
 
@@ -849,6 +946,15 @@ pub enum Type {
     IntrinsicType(IntrinsicType),
     LiteralType(LiteralType),
     UnionOrIntersectionType(UnionOrIntersectionType),
+}
+
+impl Type {
+    pub fn as_union_or_intersection_type(&self) -> &dyn UnionOrIntersectionTypeInterface {
+        match self {
+            Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
+            _ => panic!("Expected union or intersection type"),
+        }
+    }
 }
 
 impl TypeInterface for Type {
@@ -1269,7 +1375,7 @@ impl From<UnionType> for Type {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Ternary {
     False = 0,
     Unknown = 1,
@@ -1387,6 +1493,12 @@ pub struct DiagnosticMessage {
     pub category: DiagnosticCategory,
     pub code: u32,
     pub message: &'static str,
+}
+
+#[derive(Clone, Debug)]
+pub struct DiagnosticMessageChain {
+    pub message_text: String,
+    pub next: Option<Vec<DiagnosticMessageChain>>,
 }
 
 #[derive(Debug)]

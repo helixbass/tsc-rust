@@ -38,6 +38,10 @@ pub fn ast_type(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         self.#first_field_name.set_parent(parent)
                     }
 
+                    fn maybe_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        self.#first_field_name.maybe_symbol()
+                    }
+
                     fn symbol(&self) -> ::std::rc::Rc<crate::Symbol> {
                         self.#first_field_name.symbol()
                     }
@@ -86,6 +90,7 @@ pub fn ast_type(_attr: TokenStream, item: TokenStream) -> TokenStream {
             let variant_names_9 = variant_names.clone();
             let variant_names_10 = variant_names.clone();
             let variant_names_11 = variant_names.clone();
+            let variant_names_12 = variant_names.clone();
 
             quote! {
                 impl crate::NodeInterface for #ast_type_name {
@@ -104,6 +109,12 @@ pub fn ast_type(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     fn set_parent(&self, parent: ::std::rc::Rc<crate::Node>) {
                         match self {
                             #(#ast_type_name::#variant_names_3(nested_3) => nested_3.set_parent(parent)),*
+                        }
+                    }
+
+                    fn maybe_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        match self {
+                            #(#ast_type_name::#variant_names_12(nested_12) => nested_12.maybe_symbol()),*
                         }
                     }
 
