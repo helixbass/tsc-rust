@@ -82,6 +82,8 @@ bitflags! {
 }
 
 pub trait NodeInterface: ReadonlyTextRange {
+    fn node_wrapper(&self) -> Rc<Node>;
+    fn set_node_wrapper(&self, wrapper: Rc<Node>);
     fn kind(&self) -> SyntaxKind;
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
@@ -93,7 +95,7 @@ pub trait NodeInterface: ReadonlyTextRange {
 }
 
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(impl_from = false)]
 pub enum Node {
     BaseNode(BaseNode),
     VariableDeclaration(VariableDeclaration),
@@ -105,6 +107,12 @@ pub enum Node {
 }
 
 impl Node {
+    pub fn wrap(self) -> Rc<Node> {
+        let rc = Rc::new(self);
+        rc.set_node_wrapper(rc.clone());
+        rc
+    }
+
     pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
         match self {
             Node::VariableDeclaration(variable_declaration) => variable_declaration,
@@ -149,6 +157,7 @@ impl Node {
 
 #[derive(Debug)]
 pub struct BaseNode {
+    _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
     pub parent: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<usize>,
@@ -160,6 +169,7 @@ pub struct BaseNode {
 impl BaseNode {
     pub fn new(kind: SyntaxKind, pos: usize, end: usize) -> Self {
         Self {
+            _node_wrapper: RefCell::new(None),
             kind,
             parent: RefCell::new(None),
             pos: pos.into(),
@@ -171,6 +181,19 @@ impl BaseNode {
 }
 
 impl NodeInterface for BaseNode {
+    fn node_wrapper(&self) -> Rc<Node> {
+        self._node_wrapper
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .upgrade()
+            .unwrap()
+    }
+
+    fn set_node_wrapper(&self, wrapper: Rc<Node>) {
+        *self._node_wrapper.borrow_mut() = Some(Rc::downgrade(&wrapper));
+    }
+
     fn kind(&self) -> SyntaxKind {
         self.kind
     }
@@ -295,7 +318,7 @@ impl From<Vec<Rc<Node>>> for NodeArrayOrVec {
 }
 
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(ancestors = "Expression")]
 pub struct Identifier {
     _node: BaseNode,
     pub escaped_text: __String,
@@ -326,7 +349,7 @@ pub trait NamedDeclarationInterface: NodeInterface {
 }
 
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(impl_from = false)]
 pub struct BaseNamedDeclaration {
     _node: BaseNode,
     name: Option<Rc<Node>>,
@@ -357,7 +380,7 @@ pub trait BindingLikeDeclarationInterface:
 }
 
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(impl_from = false)]
 pub struct BaseBindingLikeDeclaration {
     _named_declaration: BaseNamedDeclaration,
     initializer: Option<Rc<Node>>,
@@ -403,7 +426,7 @@ pub trait VariableLikeDeclarationInterface:
 }
 
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(impl_from = false)]
 pub struct BaseVariableLikeDeclaration {
     _binding_like_declaration: BaseBindingLikeDeclaration,
     type_: Option<Rc<Node>>,
@@ -503,12 +526,6 @@ impl HasTypeInterface for VariableDeclaration {
 
 impl VariableLikeDeclarationInterface for VariableDeclaration {}
 
-impl From<VariableDeclaration> for Node {
-    fn from(variable_declaration: VariableDeclaration) -> Self {
-        Node::VariableDeclaration(variable_declaration)
-    }
-}
-
 #[derive(Debug)]
 #[ast_type]
 pub struct VariableDeclarationList {
@@ -525,38 +542,14 @@ impl VariableDeclarationList {
     }
 }
 
-impl From<VariableDeclarationList> for Node {
-    fn from(variable_declaration_list: VariableDeclarationList) -> Self {
-        Node::VariableDeclarationList(variable_declaration_list)
-    }
-}
-
-impl From<Identifier> for Expression {
-    fn from(identifier: Identifier) -> Self {
-        Expression::Identifier(identifier)
-    }
-}
-
-impl From<Identifier> for Node {
-    fn from(identifier: Identifier) -> Self {
-        Node::Expression(Expression::Identifier(identifier))
-    }
-}
-
 #[derive(Debug)]
 #[ast_type]
 pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
 }
 
-impl From<TypeNode> for Node {
-    fn from(type_node: TypeNode) -> Self {
-        Node::TypeNode(type_node)
-    }
-}
-
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(ancestors = "TypeNode")]
 pub struct KeywordTypeNode {
     _node: BaseNode,
 }
@@ -564,12 +557,6 @@ pub struct KeywordTypeNode {
 impl KeywordTypeNode {
     pub fn new(base_node: BaseNode) -> Self {
         Self { _node: base_node }
-    }
-}
-
-impl From<KeywordTypeNode> for TypeNode {
-    fn from(keyword_type_node: KeywordTypeNode) -> Self {
-        TypeNode::KeywordTypeNode(keyword_type_node)
     }
 }
 
@@ -589,12 +576,6 @@ pub enum Expression {
     LiteralLikeNode(LiteralLikeNode),
 }
 
-impl From<Expression> for Node {
-    fn from(expression: Expression) -> Self {
-        Node::Expression(expression)
-    }
-}
-
 impl From<BaseNode> for Expression {
     fn from(base_node: BaseNode) -> Self {
         Expression::TokenExpression(base_node)
@@ -602,7 +583,7 @@ impl From<BaseNode> for Expression {
 }
 
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(ancestors = "Expression")]
 pub struct PrefixUnaryExpression {
     pub _node: BaseNode,
     pub operator: SyntaxKind,
@@ -614,19 +595,13 @@ impl PrefixUnaryExpression {
         Self {
             _node: base_node,
             operator,
-            operand: Rc::new(operand.into()),
+            operand: operand.into(),
         }
     }
 }
 
-impl From<PrefixUnaryExpression> for Expression {
-    fn from(prefix_unary_expression: PrefixUnaryExpression) -> Self {
-        Expression::PrefixUnaryExpression(prefix_unary_expression)
-    }
-}
-
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(ancestors = "Expression")]
 pub struct BinaryExpression {
     pub _node: BaseNode,
     pub left: Rc<Node>,
@@ -643,21 +618,15 @@ impl BinaryExpression {
     ) -> Self {
         Self {
             _node: base_node,
-            left: Rc::new(left.into()),
+            left: left.into(),
             operator_token: Box::new(operator_token),
-            right: Rc::new(right.into()),
+            right: right.into(),
         }
     }
 }
 
-impl From<BinaryExpression> for Expression {
-    fn from(binary_expression: BinaryExpression) -> Self {
-        Expression::BinaryExpression(binary_expression)
-    }
-}
-
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(impl_from = false)]
 pub struct BaseLiteralLikeNode {
     pub _node: BaseNode,
     pub text: String,
@@ -668,15 +637,9 @@ pub trait LiteralLikeNodeInterface {
 }
 
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(ancestors = "Expression")]
 pub enum LiteralLikeNode {
     NumericLiteral(NumericLiteral),
-}
-
-impl From<LiteralLikeNode> for Expression {
-    fn from(literal_like_node: LiteralLikeNode) -> Self {
-        Expression::LiteralLikeNode(literal_like_node)
-    }
 }
 
 impl LiteralLikeNodeInterface for LiteralLikeNode {
@@ -695,15 +658,9 @@ bitflags! {
 }
 
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(ancestors = "LiteralLikeNode, Expression")]
 pub struct NumericLiteral {
     pub _literal_like_node: BaseLiteralLikeNode,
-}
-
-impl From<NumericLiteral> for LiteralLikeNode {
-    fn from(numeric_literal: NumericLiteral) -> Self {
-        LiteralLikeNode::NumericLiteral(numeric_literal)
-    }
 }
 
 impl LiteralLikeNodeInterface for NumericLiteral {
@@ -720,26 +677,14 @@ pub enum Statement {
     ExpressionStatement(ExpressionStatement),
 }
 
-impl From<Statement> for Node {
-    fn from(statement: Statement) -> Self {
-        Node::Statement(statement)
-    }
-}
-
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(ancestors = "Statement")]
 pub struct EmptyStatement {
     pub _node: BaseNode,
 }
 
-impl From<EmptyStatement> for Statement {
-    fn from(empty_statement: EmptyStatement) -> Self {
-        Statement::EmptyStatement(empty_statement)
-    }
-}
-
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(ancestors = "Statement")]
 pub struct VariableStatement {
     _node: BaseNode,
     pub declaration_list: Rc</*VariableDeclarationList*/ Node>,
@@ -754,27 +699,15 @@ impl VariableStatement {
     }
 }
 
-impl From<VariableStatement> for Statement {
-    fn from(variable_statement: VariableStatement) -> Self {
-        Statement::VariableStatement(variable_statement)
-    }
-}
-
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(ancestors = "Statement")]
 pub struct ExpressionStatement {
     pub _node: BaseNode,
     pub expression: Rc</*Expression*/ Node>,
 }
 
-impl From<ExpressionStatement> for Statement {
-    fn from(expression_statement: ExpressionStatement) -> Self {
-        Statement::ExpressionStatement(expression_statement)
-    }
-}
-
 #[derive(Debug)]
-#[ast_type]
+#[ast_type(impl_from = false)]
 pub struct SourceFile {
     pub _node: BaseNode,
     pub statements: NodeArray,
@@ -782,9 +715,11 @@ pub struct SourceFile {
     pub file_name: String,
 }
 
-impl From<Rc<SourceFile>> for Node {
-    fn from(source_file: Rc<SourceFile>) -> Self {
-        Node::SourceFile(source_file)
+impl From<SourceFile> for Rc<Node> {
+    fn from(source_file: SourceFile) -> Self {
+        let rc = Rc::new(Node::SourceFile(Rc::new(source_file)));
+        rc.set_node_wrapper(rc.clone());
+        rc
     }
 }
 
@@ -883,8 +818,8 @@ impl Symbol {
         self.value_declaration.borrow()
     }
 
-    pub fn set_value_declaration(&self, node: Rc<Node>) {
-        *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node));
+    pub fn set_value_declaration<TNode: NodeInterface>(&self, node: &TNode) {
+        *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node.node_wrapper()));
     }
 }
 

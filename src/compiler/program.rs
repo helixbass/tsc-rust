@@ -235,7 +235,7 @@ fn find_source_file_worker(
     let file = helper_context.host.get_source_file(file_name);
 
     file.map(|file| {
-        let file: Rc<Node> = Rc::new(Rc::new(file).into());
+        let file: Rc<Node> = file.into();
         helper_context.processing_other_files.push(file.clone());
         file
     })

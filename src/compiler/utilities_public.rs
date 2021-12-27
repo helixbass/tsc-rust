@@ -23,11 +23,13 @@ pub fn escape_leading_underscores(identifier: &str) -> __String {
     )
 }
 
-fn get_non_assigned_name_of_declaration(declaration: Rc<Node>) -> Option<Rc<Node>> {
-    Some(declaration.as_named_declaration().name())
+fn get_non_assigned_name_of_declaration<TNode: NodeInterface>(
+    declaration: &TNode,
+) -> Option<Rc<Node>> {
+    Some(declaration.node_wrapper().as_named_declaration().name())
 }
 
-pub fn get_name_of_declaration(declaration: Rc<Node>) -> Option<Rc<Node>> {
+pub fn get_name_of_declaration<TNode: NodeInterface>(declaration: &TNode) -> Option<Rc<Node>> {
     get_non_assigned_name_of_declaration(declaration)
 }
 

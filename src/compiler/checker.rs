@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use std::borrow::Borrow;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
@@ -610,14 +611,15 @@ impl TypeChecker {
         }
     }
 
-    fn check_source_element(&mut self, node: Option<Rc<Node>>) {
+    fn check_source_element<TNodeRef: Borrow<Node>>(&mut self, node: Option<TNodeRef>) {
         if let Some(node) = node {
+            let node = node.borrow();
             self.check_source_element_worker(node);
         }
     }
 
-    fn check_source_element_worker(&mut self, node: Rc<Node>) {
-        match &*node {
+    fn check_source_element_worker(&mut self, node: &Node) {
+        match node {
             Node::TypeNode(type_node) => match type_node {
                 TypeNode::KeywordTypeNode(_) => (),
                 _ => unimplemented!(),
@@ -634,7 +636,7 @@ impl TypeChecker {
                 };
             }
             Node::VariableDeclaration(variable_declaration) => {
-                return self.check_variable_declaration(variable_declaration, node.clone());
+                return self.check_variable_declaration(variable_declaration);
             }
             _ => unimplemented!(),
         };
@@ -647,7 +649,7 @@ impl TypeChecker {
     fn check_source_file_worker(&mut self, node: &SourceFile) {
         if true {
             for_each(&node.statements, |statement, _index| {
-                self.check_source_element(Some(statement.clone()));
+                self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });
         }
@@ -737,7 +739,7 @@ impl TypeChecker {
         type_
     }
 
-    fn check_variable_like_declaration(&mut self, node: &VariableDeclaration, wrapper: Rc<Node>) {
+    fn check_variable_like_declaration(&mut self, node: &VariableDeclaration) {
         if true {
             self.check_source_element(node.type_());
         }
@@ -746,13 +748,14 @@ impl TypeChecker {
 
         let type_ = self.convert_auto_to_any(self.get_type_of_symbol(&*symbol));
         let value_declaration = symbol.maybe_value_declaration();
+        let wrapper = node.node_wrapper();
         if value_declaration.is_some()
             && Rc::ptr_eq(
                 &wrapper,
                 &value_declaration.as_ref().unwrap().upgrade().unwrap(),
             )
         {
-            let initializer = get_effective_initializer(&*wrapper);
+            let initializer = get_effective_initializer(node);
             if let Some(initializer) = initializer {
                 if true {
                     let initializer_type = self.check_expression_cached(match &*initializer {
@@ -776,8 +779,8 @@ impl TypeChecker {
         }
     }
 
-    fn check_variable_declaration(&mut self, node: &VariableDeclaration, wrapper: Rc<Node>) {
-        self.check_variable_like_declaration(node, wrapper);
+    fn check_variable_declaration(&mut self, node: &VariableDeclaration) {
+        self.check_variable_like_declaration(node);
     }
 
     fn check_variable_statement(&mut self, node: &VariableStatement) {
@@ -789,7 +792,7 @@ impl TypeChecker {
                 _ => panic!("Expected VariableDeclarationList"),
             }
             .declarations,
-            |declaration, _| Some(self.check_source_element(Some(declaration.clone()))),
+            |declaration, _| Some(self.check_source_element(Some(&**declaration))),
         );
     }
 
@@ -803,7 +806,7 @@ impl TypeChecker {
 
     fn initialize_type_checker<TTypeCheckerHost: TypeCheckerHost>(&self, host: &TTypeCheckerHost) {
         for file in host.get_source_files() {
-            bind_source_file(file.clone());
+            bind_source_file(&*file);
             println!("post-binding: {:#?}", file);
         }
     }

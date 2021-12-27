@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -23,9 +24,9 @@ enum SpeculationKind {
     Reparse,
 }
 
-fn visit_node<TNodeCallback: FnMut(Option<Rc<Node>>)>(
+fn visit_node<TNodeRef: Borrow<Node>, TNodeCallback: FnMut(Option<TNodeRef>)>(
     cb_node: &mut TNodeCallback,
-    node: Option<Rc<Node>>,
+    node: Option<TNodeRef>,
 ) {
     cb_node(node)
 }
@@ -44,14 +45,14 @@ fn visit_nodes<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: FnMut(&No
 }
 
 pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: FnMut(&NodeArray)>(
-    node: Rc<Node>,
+    node: &Node,
     mut cb_node: TNodeCallback,
     cb_nodes: TNodesCallback,
 ) {
     if node.kind() <= SyntaxKind::LastToken {
         return;
     }
-    match &*node {
+    match node {
         Node::VariableDeclaration(variable_declaration) => {
             visit_node(&mut cb_node, Some(variable_declaration.name()));
             visit_node(&mut cb_node, variable_declaration.type_());
@@ -88,6 +89,18 @@ enum MissingNode {
 }
 
 impl NodeInterface for MissingNode {
+    fn node_wrapper(&self) -> Rc<Node> {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.node_wrapper(),
+        }
+    }
+
+    fn set_node_wrapper(&self, wrapper: Rc<Node>) {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.set_node_wrapper(wrapper),
+        }
+    }
+
     fn kind(&self) -> SyntaxKind {
         match self {
             MissingNode::Identifier(identifier) => identifier.kind(),
@@ -512,8 +525,12 @@ impl ParserType {
     }
 
     fn create_node_array(&self, elements: Vec<Node>) -> NodeArray {
-        self.factory
-            .create_node_array(elements.into_iter().map(Rc::new).collect::<Vec<Rc<Node>>>())
+        self.factory.create_node_array(
+            elements
+                .into_iter()
+                .map(Node::wrap)
+                .collect::<Vec<Rc<Node>>>(),
+        )
     }
 
     fn finish_node<TParsedNode: NodeInterface>(
@@ -997,7 +1014,7 @@ impl ParserType {
     }
 
     fn parse_identifier_or_pattern(&mut self) -> Rc<Node> {
-        Rc::new(self.parse_binding_identifier().into())
+        self.parse_binding_identifier().into()
     }
 
     fn parse_variable_declaration_no_exclamation(&mut self) -> VariableDeclaration {
@@ -1020,8 +1037,8 @@ impl ParserType {
         let node = self.factory.create_variable_declaration(
             self,
             Some(name),
-            type_.map(|type_| Rc::new(type_.into())),
-            initializer.map(|initializer| Rc::new(initializer.into())),
+            type_.map(|type_| type_.into()),
+            initializer.map(|initializer| initializer.into()),
         );
         self.finish_node(node, pos, None)
     }
