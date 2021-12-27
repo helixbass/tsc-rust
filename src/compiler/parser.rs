@@ -129,6 +129,12 @@ impl NodeInterface for MissingNode {
         }
     }
 
+    fn maybe_parent(&self) -> Option<Rc<Node>> {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.maybe_parent(),
+        }
+    }
+
     fn parent(&self) -> Rc<Node> {
         match self {
             MissingNode::Identifier(identifier) => identifier.parent(),

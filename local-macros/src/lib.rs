@@ -72,6 +72,10 @@ fn get_struct_interface_impl(
                         self.#first_field_name.kind()
                     }
 
+                    fn maybe_parent(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self.#first_field_name.maybe_parent()
+                    }
+
                     fn parent(&self) -> ::std::rc::Rc<crate::Node> {
                         self.#first_field_name.parent()
                     }
@@ -213,6 +217,12 @@ fn get_enum_interface_impl(
                     fn kind(&self) -> crate::SyntaxKind {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.kind()),*
+                        }
+                    }
+
+                    fn maybe_parent(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_parent()),*
                         }
                     }
 

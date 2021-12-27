@@ -10,8 +10,8 @@ use crate::{
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Debug_, Diagnostic,
     DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitTextWriter, Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
-    SymbolFlags, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags,
+    EmitTextWriter, Expression, Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile,
+    Symbol, SymbolFlags, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags,
     __String,
 };
 
@@ -32,6 +32,10 @@ fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceFile>
         Node::SourceFile(source_file) => source_file.clone(),
         _ => panic!("Expected SourceFile"),
     }
+}
+
+pub fn node_is_missing<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
 }
 
 pub fn create_diagnostic_for_node<TNode: NodeInterface>(
@@ -261,6 +265,14 @@ pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeN
         .maybe_as_has_type()
         .and_then(|has_type| has_type.type_());
     type_
+}
+
+pub fn get_first_identifier<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*Identifier*/> {
+    let wrapper = node.node_wrapper();
+    match &*wrapper {
+        Node::Expression(Expression::Identifier(_)) => wrapper,
+        _ => unimplemented!(),
+    }
 }
 
 #[allow(non_snake_case)]

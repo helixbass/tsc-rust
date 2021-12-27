@@ -9,19 +9,20 @@ use crate::{
     TypeNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
     VariableDeclaration, VariableStatement, __String, bind_source_file, chain_diagnostic_messages,
     create_diagnostic_collection, create_diagnostic_for_node,
-    create_diagnostic_for_node_from_message_chain, create_printer, create_text_writer, every,
-    factory, for_each, get_effective_initializer, get_effective_type_annotation_node,
-    get_synthetic_factory, is_binding_element, is_private_identifier, is_property_signature,
-    is_variable_declaration, object_allocator, ArrayTypeNode, BaseIntrinsicType, BaseLiteralType,
-    BaseType, BaseUnionOrIntersectionType, Debug_, Diagnostic, DiagnosticCollection,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression,
-    ExpressionStatement, FreshableIntrinsicType, InterfaceDeclaration, IntrinsicType,
-    KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType, NumericLiteral,
-    PrefixUnaryExpression, PrinterOptions, PropertySignature, RelationComparisonResult, SourceFile,
-    Statement, Symbol, SymbolFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type,
-    TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface,
-    VariableLikeDeclarationInterface,
+    create_diagnostic_for_node_from_message_chain, create_printer, create_symbol_table,
+    create_text_writer, every, factory, for_each, get_effective_initializer,
+    get_effective_type_annotation_node, get_first_identifier, get_synthetic_factory,
+    is_binding_element, is_private_identifier, is_property_signature, is_variable_declaration,
+    node_is_missing, object_allocator, ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType,
+    BaseLiteralType, BaseObjectType, BaseType, BaseUnionOrIntersectionType, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint,
+    EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType, InterfaceDeclaration,
+    InterfaceType, IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
+    NumberLiteralType, NumericLiteral, ObjectFlags, PrefixUnaryExpression, PrinterOptions,
+    PropertySignature, RelationComparisonResult, SourceFile, Statement, Symbol, SymbolFlags,
+    SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost,
+    TypeElement, TypeFlags, TypeInterface, TypeReferenceNode, VariableLikeDeclarationInterface,
 };
 
 bitflags! {
@@ -40,11 +41,16 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     produce_diagnostics: bool,
 ) -> TypeChecker {
     let mut type_checker = TypeChecker {
+        Symbol: object_allocator.get_symbol_constructor(),
         Type: object_allocator.get_type_constructor(),
 
         node_builder: create_node_builder(),
 
+        globals: create_symbol_table(),
+
         number_literal_types: HashMap::new(),
+
+        unknown_symbol: None,
 
         number_type: None,
         bigint_type: None,
@@ -61,6 +67,9 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         assignable_relation: HashMap::new(),
     };
+    type_checker.unknown_symbol = Some(Rc::new(
+        type_checker.create_symbol(SymbolFlags::Property, __String::new("unknown".to_string())),
+    ));
     type_checker.number_type = Some(Rc::new(
         type_checker
             .create_intrinsic_type(TypeFlags::Number, "number")
@@ -163,6 +172,10 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 }
 
 impl TypeChecker {
+    fn unknown_symbol(&self) -> Rc<Symbol> {
+        self.unknown_symbol.as_ref().unwrap().clone()
+    }
+
     fn number_type(&self) -> Rc<Type> {
         self.number_type.as_ref().unwrap().clone()
     }
@@ -234,14 +247,23 @@ impl TypeChecker {
         diagnostic
     }
 
+    fn create_symbol(&self, flags: SymbolFlags, name: __String) -> Symbol {
+        let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
+        symbol
+    }
+
+    fn is_global_source_file(&self, node: &Node) -> bool {
+        node.kind() == SyntaxKind::SourceFile && true
+    }
+
     fn get_symbol(
         &self,
         symbols: &SymbolTable,
-        name: __String,
+        name: &__String,
         meaning: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
         if meaning != SymbolFlags::None {
-            let symbol = self.get_merged_symbol(symbols.get(&name).map(|rc| rc.clone()));
+            let symbol = self.get_merged_symbol(symbols.get(name).map(|rc| rc.clone()));
             if let Some(symbol) = symbol {
                 if symbol.flags().intersects(meaning) {
                     return Some(symbol);
@@ -251,23 +273,122 @@ impl TypeChecker {
         None
     }
 
-    fn resolve_name(
+    fn resolve_name<TLocation: NodeInterface, TNameArg: Into<ResolveNameNameArg>>(
         &self,
-        location: Option<Rc<Node>>,
-        name: __String,
+        location: Option<&TLocation>,
+        name: &__String,
         meaning: SymbolFlags,
+        name_not_found_message: Option<DiagnosticMessage>,
+        name_arg: Option<TNameArg>,
+        is_use: bool,
+        exclude_globals: Option<bool>,
     ) -> Option<Rc<Symbol>> {
-        self.resolve_name_helper(location, name, meaning, TypeChecker::get_symbol)
+        let exclude_globals = exclude_globals.unwrap_or(false);
+        self.resolve_name_helper(
+            location,
+            name,
+            meaning,
+            name_not_found_message,
+            name_arg,
+            is_use,
+            exclude_globals,
+            TypeChecker::get_symbol,
+        )
     }
 
-    fn resolve_name_helper(
+    fn resolve_name_helper<TLocation: NodeInterface, TNameArg: Into<ResolveNameNameArg>>(
         &self,
-        location: Option<Rc<Node>>,
-        name: __String,
+        location: Option<&TLocation>,
+        name: &__String,
         meaning: SymbolFlags,
-        lookup: fn(&TypeChecker, &SymbolTable, __String, SymbolFlags) -> Option<Rc<Symbol>>,
+        name_not_found_message: Option<DiagnosticMessage>,
+        name_arg: Option<TNameArg>,
+        is_use: bool,
+        exclude_globals: bool,
+        lookup: fn(&TypeChecker, &SymbolTable, &__String, SymbolFlags) -> Option<Rc<Symbol>>,
     ) -> Option<Rc<Symbol>> {
+        let mut location: Option<Rc<Node>> = location.map(|node| node.node_wrapper());
+        let mut result: Option<Rc<Symbol>> = None;
+        let mut last_location: Option<Rc<Node>> = None;
+
+        while let Some(location_unwrapped) = location {
+            if location_unwrapped.maybe_locals().is_some()
+                && !self.is_global_source_file(&*location_unwrapped)
+            {
+                unimplemented!()
+            }
+            last_location = Some(location_unwrapped.clone());
+            location = location_unwrapped.maybe_parent();
+        }
+
+        if result.is_none() {
+            if let Some(last_location) = last_location {
+                Debug_.assert(last_location.kind() == SyntaxKind::SourceFile, None);
+            }
+
+            if !exclude_globals {
+                result = lookup(self, &self.globals, name, meaning);
+            }
+        }
+
+        result
+    }
+
+    fn resolve_alias(&self, symbol: Rc<Symbol>) -> Rc<Symbol> {
         unimplemented!()
+    }
+
+    fn resolve_entity_name(
+        &self,
+        name: &Node, /*EntityNameOrEntityNameExpression*/
+        meaning: SymbolFlags,
+        ignore_errors: Option<bool>,
+        dont_resolve_alias: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        let ignore_errors = ignore_errors.unwrap_or(false);
+        let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);
+        if node_is_missing(name) {
+            return None;
+        }
+
+        let symbol: Option<Rc<Symbol>>;
+        match name {
+            Node::Expression(Expression::Identifier(name)) => {
+                let message = if false {
+                    unimplemented!()
+                } else {
+                    self.get_cannot_find_name_diagnostic_for_name(&*get_first_identifier(name))
+                };
+                let symbol_from_js_prototype: Option<Rc<Symbol>> =
+                    if false { unimplemented!() } else { None };
+                symbol = self.get_merged_symbol(self.resolve_name(
+                    Some(name),
+                    &name.escaped_text,
+                    meaning,
+                    if ignore_errors || symbol_from_js_prototype.is_some() {
+                        None
+                    } else {
+                        Some(message)
+                    },
+                    Some(name.node_wrapper()),
+                    true,
+                    Some(false),
+                ));
+                if symbol.is_none() {
+                    unimplemented!()
+                }
+            }
+            // else if name.kind() == SyntaxKind::QualifiedName
+            //     || name.kind() == SyntaxKind::PropertyAccessExpression
+            //     unimplemented!()
+            _ => Debug_.assert_never(name, Some("Unknown entity name kind.")),
+        }
+        let symbol = symbol.unwrap();
+        if symbol.flags().intersects(meaning) || dont_resolve_alias {
+            Some(symbol)
+        } else {
+            Some(self.resolve_alias(symbol))
+        }
     }
 
     fn get_merged_symbol(&self, symbol: Option<Rc<Symbol>>) -> Option<Rc<Symbol>> {
@@ -286,6 +407,12 @@ impl TypeChecker {
     fn create_intrinsic_type(&self, kind: TypeFlags, intrinsic_name: &str) -> BaseIntrinsicType {
         let type_ = self.create_type(kind);
         let type_ = BaseIntrinsicType::new(type_, intrinsic_name.to_string());
+        type_
+    }
+
+    fn create_object_type(&self, object_flags: ObjectFlags, symbol: Rc<Symbol>) -> BaseObjectType {
+        let type_ = self.create_type(TypeFlags::Object);
+        let type_ = BaseObjectType::new(type_, object_flags);
         type_
     }
 
@@ -407,7 +534,117 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    fn get_declared_type_of_class_or_interface(
+        &self,
+        symbol: Rc<Symbol>,
+    ) -> Rc<Type /*InterfaceType*/> {
+        let kind = if symbol.flags().intersects(SymbolFlags::Class) {
+            ObjectFlags::Class
+        } else {
+            ObjectFlags::Interface
+        };
+
+        let type_: InterfaceType =
+            BaseInterfaceType::new(self.create_object_type(kind, symbol)).into();
+        Rc::new(type_.into())
+    }
+
+    fn get_declared_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {
+        self.try_get_declared_type_of_symbol(symbol)
+            .unwrap_or_else(|| unimplemented!())
+    }
+
+    fn try_get_declared_type_of_symbol(&self, symbol: Rc<Symbol>) -> Option<Rc<Type>> {
+        if symbol
+            .flags()
+            .intersects(SymbolFlags::Class | SymbolFlags::Interface)
+        {
+            return Some(self.get_declared_type_of_class_or_interface(symbol));
+        }
+        unimplemented!()
+    }
+
+    fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
+        &self,
+        node: &TNode,
+        symbol: Rc<Symbol>,
+    ) -> Rc<Type> {
+        let type_ = self.get_declared_type_of_symbol(self.get_merged_symbol(Some(symbol)).unwrap());
+        if true {
+            type_
+        } else {
+            unimplemented!()
+        }
+    }
+
+    fn get_type_reference_name(
+        &self,
+        node: &TypeReferenceNode,
+    ) -> Option<Rc<Node /*EntityNameOrEntityNameExpression*/>> {
+        match node.kind() {
+            SyntaxKind::TypeReference => {
+                return Some(node.type_name.clone());
+            }
+            SyntaxKind::ExpressionWithTypeArguments => unimplemented!(),
+            _ => (),
+        }
+        None
+    }
+
+    fn resolve_type_reference_name(
+        &self,
+        type_reference: &TypeReferenceNode,
+        meaning: SymbolFlags,
+        ignore_errors: Option<bool>,
+    ) -> Rc<Symbol> {
+        let ignore_errors = ignore_errors.unwrap_or(false);
+        let name = self.get_type_reference_name(type_reference);
+        let name = match name {
+            Some(name) => name,
+            None => {
+                return self.unknown_symbol();
+            }
+        };
+        let symbol = self.resolve_entity_name(&*name, meaning, Some(ignore_errors), None);
+        if symbol.is_some() && !Rc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
+            symbol.unwrap()
+        } else if ignore_errors {
+            self.unknown_symbol()
+        } else {
+            unimplemented!()
+        }
+    }
+
+    fn get_type_reference_type<TNode: NodeInterface>(
+        &self,
+        node: &TNode,
+        symbol: Rc<Symbol>,
+    ) -> Rc<Type> {
+        if Rc::ptr_eq(&symbol, &self.unknown_symbol()) {
+            unimplemented!()
+        }
+        if symbol
+            .flags()
+            .intersects(SymbolFlags::Class | SymbolFlags::Interface)
+        {
+            return self.get_type_from_class_or_interface_reference(node, symbol);
+        }
+        unimplemented!()
+    }
+
     fn get_conditional_flow_type_of_type(&self, type_: Rc<Type>, node: &Node) -> Rc<Type> {
+        type_
+    }
+
+    fn get_type_from_type_reference(&self, node: &TypeReferenceNode) -> Rc<Type> {
+        let mut symbol: Option<Rc<Symbol>> = None;
+        let mut type_: Option<Rc<Type>> = None;
+        let meaning = SymbolFlags::Type;
+        if type_.is_none() {
+            symbol = Some(self.resolve_type_reference_name(node, meaning, None));
+            type_ = Some(self.get_type_reference_type(node, symbol.unwrap()));
+        }
+        let type_ = type_.unwrap();
         type_
     }
 
@@ -415,16 +652,37 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    fn get_global_type_symbol(&self, name: __String) -> Option<Rc<Symbol>> {
-        self.get_global_symbol(name, SymbolFlags::Type)
+    fn get_global_type_symbol(&self, name: &__String, report_errors: bool) -> Option<Rc<Symbol>> {
+        self.get_global_symbol(
+            name,
+            SymbolFlags::Type,
+            if report_errors {
+                Some(Diagnostics::Cannot_find_global_type_0)
+            } else {
+                None
+            },
+        )
     }
 
-    fn get_global_symbol(&self, name: __String, meaning: SymbolFlags) -> Option<Rc<Symbol>> {
-        self.resolve_name(None, name, meaning)
+    fn get_global_symbol(
+        &self,
+        name: &__String,
+        meaning: SymbolFlags,
+        diagnostic: Option<DiagnosticMessage>,
+    ) -> Option<Rc<Symbol>> {
+        self.resolve_name(
+            Option::<&Node>::None,
+            name,
+            meaning,
+            diagnostic,
+            Some(name.clone()),
+            false,
+            None,
+        )
     }
 
-    fn get_global_type(&self, name: __String) -> Option<Rc<Type>> {
-        let symbol = self.get_global_type_symbol(name);
+    fn get_global_type(&self, name: &__String, report_errors: bool) -> Option<Rc<Type>> {
+        let symbol = self.get_global_type_symbol(name, report_errors);
         if true {
             Some(self.get_type_of_global_symbol(symbol))
         } else {
@@ -776,6 +1034,21 @@ impl TypeChecker {
         type_
     }
 
+    fn get_cannot_find_name_diagnostic_for_name(&self, node: &Node) -> DiagnosticMessage {
+        match node {
+            Node::Expression(Expression::Identifier(identifier)) => match identifier.escaped_text {
+                _ => {
+                    if false {
+                        unimplemented!()
+                    } else {
+                        Diagnostics::Cannot_find_name_0
+                    }
+                }
+            },
+            _ => panic!("Expected Identifier"),
+        }
+    }
+
     fn map_type<TMapper: FnMut(Rc<Type>) -> Rc<Type>>(
         &self,
         type_: Rc<Type>,
@@ -813,6 +1086,10 @@ impl TypeChecker {
         self.check_property_declaration(node)
     }
 
+    fn check_type_reference_node(&mut self, node: &TypeReferenceNode) {
+        let type_ = self.get_type_from_type_reference(node);
+    }
+
     fn check_array_type(&mut self, node: &ArrayTypeNode) {
         self.check_source_element(Some(&*node.element_type));
     }
@@ -836,6 +1113,9 @@ impl TypeChecker {
             Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
                 self.check_property_signature(property_signature)
             }
+            Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
+                self.check_type_reference_node(type_reference_node)
+            }
             Node::TypeNode(TypeNode::KeywordTypeNode(_)) => (),
             Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => {
                 self.check_array_type(array_type_node)
@@ -852,7 +1132,7 @@ impl TypeChecker {
             Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
                 self.check_interface_declaration(interface_declaration)
             }
-            _ => unimplemented!(),
+            _ => unimplemented!("{:?}", node.kind()),
         };
     }
 
@@ -1092,6 +1372,23 @@ impl NodeBuilder {
                 .into();
         }
         unimplemented!()
+    }
+}
+
+enum ResolveNameNameArg {
+    Node(Rc<Node>),
+    __String(__String),
+}
+
+impl From<Rc<Node>> for ResolveNameNameArg {
+    fn from(node: Rc<Node>) -> Self {
+        ResolveNameNameArg::Node(node)
+    }
+}
+
+impl From<__String> for ResolveNameNameArg {
+    fn from(string: __String) -> Self {
+        ResolveNameNameArg::__String(string)
     }
 }
 

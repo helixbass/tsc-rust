@@ -42,6 +42,18 @@ impl Diagnostics {
         "Type_expected_1110",
         "Type expected.",
     );
+    pub const Cannot_find_name_0: DiagnosticMessage = diag(
+        2304,
+        DiagnosticCategory::Error,
+        "Cannot_find_name_0_2304",
+        "Cannot find name '{0}'.",
+    );
+    pub const Cannot_find_global_type_0: DiagnosticMessage = diag(
+        2318,
+        DiagnosticCategory::Error,
+        "Cannot_find_global_type_0_2318",
+        "Cannot find global type '{0}'.",
+    );
     pub const Type_0_is_not_assignable_to_type_1: DiagnosticMessage = diag(
         2322,
         DiagnosticCategory::Error,

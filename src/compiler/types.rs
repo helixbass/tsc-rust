@@ -58,6 +58,7 @@ pub enum SyntaxKind {
     InterfaceKeyword,
     NumberKeyword,
     OfKeyword,
+    QualifiedName,
     PropertySignature,
     TypeReference,
     ArrayType,
@@ -67,8 +68,10 @@ pub enum SyntaxKind {
     BindingElement,
     ArrayLiteralExpression,
     ObjectLiteralExpression,
+    PropertyAccessExpression,
     PrefixUnaryExpression,
     BinaryExpression,
+    ExpressionWithTypeArguments,
     EmptyStatement,
     VariableStatement,
     ExpressionStatement,
@@ -110,6 +113,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn node_wrapper(&self) -> Rc<Node>;
     fn set_node_wrapper(&self, wrapper: Rc<Node>);
     fn kind(&self) -> SyntaxKind;
+    fn maybe_parent(&self) -> Option<Rc<Node>>;
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
@@ -235,6 +239,13 @@ impl NodeInterface for BaseNode {
 
     fn kind(&self) -> SyntaxKind {
         self.kind
+    }
+
+    fn maybe_parent(&self) -> Option<Rc<Node>> {
+        self.parent
+            .borrow()
+            .as_ref()
+            .map(|weak| weak.upgrade().unwrap())
     }
 
     fn parent(&self) -> Rc<Node> {
@@ -929,9 +940,12 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 
 #[allow(non_snake_case)]
 pub struct TypeChecker {
+    pub Symbol: fn(SymbolFlags, __String) -> Symbol,
     pub Type: fn(TypeFlags) -> BaseType,
     pub node_builder: NodeBuilder,
+    pub globals: SymbolTable,
     pub number_literal_types: HashMap<Number, Rc</*NumberLiteralType*/ Type>>,
+    pub unknown_symbol: Option<Rc<Symbol>>,
     pub number_type: Option<Rc<Type>>,
     pub bigint_type: Option<Rc<Type>>,
     pub true_type: Option<Rc<Type>>,
@@ -969,6 +983,7 @@ bitflags! {
         const SetAccessor = 1 << 16;
         const TypeParameter = 1 << 18;
         const TypeAlias = 1 << 19;
+        const Transient = 1 << 25;
 
         const Enum = Self::RegularEnum.bits | Self::ConstEnum.bits;
         const Variable = Self::FunctionScopedVariable.bits | Self::BlockScopedVariable.bits;
@@ -1101,6 +1116,7 @@ bitflags! {
 pub enum Type {
     IntrinsicType(IntrinsicType),
     LiteralType(LiteralType),
+    ObjectType(ObjectType),
     UnionOrIntersectionType(UnionOrIntersectionType),
 }
 
@@ -1125,6 +1141,7 @@ impl TypeInterface for Type {
         match self {
             Type::IntrinsicType(intrinsic_type) => intrinsic_type.flags(),
             Type::LiteralType(literal_type) => literal_type.flags(),
+            Type::ObjectType(object_type) => object_type.flags(),
             Type::UnionOrIntersectionType(union_or_intersection_type) => {
                 union_or_intersection_type.flags()
             }
@@ -1482,6 +1499,103 @@ impl From<NumberLiteralType> for LiteralType {
 impl From<NumberLiteralType> for Type {
     fn from(number_literal_type: NumberLiteralType) -> Self {
         Type::LiteralType(LiteralType::NumberLiteralType(number_literal_type))
+    }
+}
+
+bitflags! {
+    pub struct ObjectFlags: u32 {
+        const Class = 1 << 0;
+        const Interface = 1 << 1;
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum ObjectType {
+    InterfaceType(InterfaceType),
+}
+
+impl TypeInterface for ObjectType {
+    fn flags(&self) -> TypeFlags {
+        match self {
+            ObjectType::InterfaceType(interface_type) => interface_type.flags(),
+        }
+    }
+}
+
+impl From<ObjectType> for Type {
+    fn from(object_type: ObjectType) -> Self {
+        Type::ObjectType(object_type)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BaseObjectType {
+    _type: BaseType,
+    object_flags: ObjectFlags,
+}
+
+impl BaseObjectType {
+    pub fn new(base_type: BaseType, object_flags: ObjectFlags) -> Self {
+        Self {
+            _type: base_type,
+            object_flags,
+        }
+    }
+}
+
+impl TypeInterface for BaseObjectType {
+    fn flags(&self) -> TypeFlags {
+        self._type.flags()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum InterfaceType {
+    BaseInterfaceType(BaseInterfaceType),
+}
+
+impl TypeInterface for InterfaceType {
+    fn flags(&self) -> TypeFlags {
+        match self {
+            InterfaceType::BaseInterfaceType(base_interface_type) => base_interface_type.flags(),
+        }
+    }
+}
+
+impl From<InterfaceType> for ObjectType {
+    fn from(interface_type: InterfaceType) -> Self {
+        ObjectType::InterfaceType(interface_type)
+    }
+}
+
+impl From<InterfaceType> for Type {
+    fn from(interface_type: InterfaceType) -> Self {
+        Type::ObjectType(ObjectType::InterfaceType(interface_type))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BaseInterfaceType {
+    _object_type: BaseObjectType,
+}
+
+impl BaseInterfaceType {
+    pub fn new(object_type: BaseObjectType) -> Self {
+        Self {
+            _object_type: object_type,
+        }
+    }
+}
+
+impl TypeInterface for BaseInterfaceType {
+    fn flags(&self) -> TypeFlags {
+        self._object_type.flags()
+    }
+}
+
+impl From<BaseInterfaceType> for InterfaceType {
+    fn from(base_interface_type: BaseInterfaceType) -> Self {
+        InterfaceType::BaseInterfaceType(base_interface_type)
     }
 }
 
