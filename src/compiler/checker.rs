@@ -7,17 +7,18 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, chain_diagnostic_messages, create_diagnostic_collection,
-    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, every, for_each,
-    get_effective_initializer, get_effective_type_annotation_node, is_variable_declaration,
+    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_printer,
+    create_text_writer, every, factory, for_each, get_effective_initializer,
+    get_effective_type_annotation_node, get_synthetic_factory, is_variable_declaration,
     object_allocator, BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType,
     Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
-    Diagnostics, Expression, ExpressionStatement, FreshableIntrinsicType, HasTypeInterface,
-    IntrinsicType, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface, Node,
-    NodeInterface, Number, NumberLiteralType, NumericLiteral, PrefixUnaryExpression,
-    RelationComparisonResult, SourceFile, Statement, Symbol, SymbolFlags, SyntaxKind, Ternary,
-    Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, TypeNode,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration,
-    VariableStatement,
+    Diagnostics, EmitHint, EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType,
+    HasTypeInterface, IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType, NumericLiteral,
+    PrefixUnaryExpression, PrinterOptions, RelationComparisonResult, SourceFile, Statement, Symbol,
+    SymbolFlags, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags,
+    TypeInterface, TypeNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
+    VariableDeclaration, VariableStatement,
 };
 
 bitflags! {
@@ -38,12 +39,17 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     let mut type_checker = TypeChecker {
         Type: object_allocator.get_type_constructor(),
 
+        node_builder: create_node_builder(),
+
         number_literal_types: HashMap::new(),
 
         number_type: None,
         bigint_type: None,
         true_type: None,
         regular_true_type: None,
+        false_type: None,
+        regular_false_type: None,
+        boolean_type: None,
         number_or_big_int_type: None,
 
         diagnostics: RefCell::new(create_diagnostic_collection()),
@@ -100,13 +106,52 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         _ => panic!("Expected IntrinsicType"),
     }
     type_checker.regular_true_type = Some(regular_true_type);
+    let false_type: Rc<Type> = Rc::new(
+        FreshableIntrinsicType::new(
+            type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "false"),
+        )
+        .into(),
+    );
+    let regular_false_type: Rc<Type> = Rc::new(
+        FreshableIntrinsicType::new(
+            type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "false"),
+        )
+        .into(),
+    );
+    match &*false_type {
+        Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
+            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                freshable_intrinsic_type
+                    .regular_type
+                    .init(&regular_false_type, false);
+                freshable_intrinsic_type.fresh_type.init(&false_type, true);
+            }
+            _ => panic!("Expected FreshableIntrinsicType"),
+        },
+        _ => panic!("Expected IntrinsicType"),
+    }
+    type_checker.false_type = Some(false_type);
+    match &*regular_false_type {
+        Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
+            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                freshable_intrinsic_type
+                    .regular_type
+                    .init(&regular_false_type, false);
+                freshable_intrinsic_type
+                    .fresh_type
+                    .init(type_checker.false_type.as_ref().unwrap(), false);
+            }
+            _ => panic!("Expected FreshableIntrinsicType"),
+        },
+        _ => panic!("Expected IntrinsicType"),
+    }
+    type_checker.regular_false_type = Some(regular_false_type);
+    type_checker.boolean_type = Some(type_checker.get_union_type(vec![
+        type_checker.regular_false_type(),
+        type_checker.regular_true_type(),
+    ]));
     type_checker.number_or_big_int_type = Some(
-        type_checker
-            .get_union_type(vec![
-                type_checker.number_type().clone(),
-                type_checker.bigint_type().clone(),
-            ])
-            .into(),
+        type_checker.get_union_type(vec![type_checker.number_type(), type_checker.bigint_type()]),
     );
     type_checker.initialize_type_checker(host);
     type_checker
@@ -123,6 +168,22 @@ impl TypeChecker {
 
     fn true_type(&self) -> Rc<Type> {
         self.true_type.as_ref().unwrap().clone()
+    }
+
+    fn regular_true_type(&self) -> Rc<Type> {
+        self.regular_true_type.as_ref().unwrap().clone()
+    }
+
+    fn false_type(&self) -> Rc<Type> {
+        self.false_type.as_ref().unwrap().clone()
+    }
+
+    fn regular_false_type(&self) -> Rc<Type> {
+        self.regular_false_type.as_ref().unwrap().clone()
+    }
+
+    fn boolean_type(&self) -> Rc<Type> {
+        self.boolean_type.as_ref().unwrap().clone()
     }
 
     fn number_or_big_int_type(&self) -> Rc<Type> {
@@ -179,12 +240,31 @@ impl TypeChecker {
 
     fn create_intrinsic_type(&self, kind: TypeFlags, intrinsic_name: &str) -> BaseIntrinsicType {
         let type_ = self.create_type(kind);
-        let type_ = BaseIntrinsicType::new(type_);
+        let type_ = BaseIntrinsicType::new(type_, intrinsic_name.to_string());
         type_
     }
 
     fn type_to_string(&self, type_: &Type) -> String {
-        unimplemented!()
+        let writer = Rc::new(RefCell::new(create_text_writer("")));
+        let type_node = self
+            .node_builder
+            .type_to_type_node(type_, Some(&*(*writer).borrow()));
+        let type_node: Rc<Node> = match type_node {
+            None => Debug_.fail(Some("should always get typenode")),
+            Some(type_node) => type_node.into(),
+        };
+        let options = PrinterOptions {};
+        let mut printer = create_printer(options);
+        let source_file: Option<Rc<SourceFile>> = if false { unimplemented!() } else { None };
+        printer.write_node(
+            EmitHint::Unspecified,
+            &*type_node,
+            source_file,
+            writer.clone(),
+        );
+        let result = (*writer).borrow().get_text();
+
+        result
     }
 
     fn get_type_names_for_error_display(&self, left: &Type, right: &Type) -> (String, String) {
@@ -252,7 +332,7 @@ impl TypeChecker {
     }
 
     fn get_type_of_variable_or_parameter_or_property_worker(&self, symbol: &Symbol) -> Rc<Type> {
-        Debug_.assert_is_defined(symbol.maybe_value_declaration().as_ref(), None);
+        Debug_.assert_is_defined(&symbol.maybe_value_declaration(), None);
         let declaration = symbol
             .maybe_value_declaration()
             .as_ref()
@@ -568,7 +648,7 @@ impl TypeChecker {
         } else if type_.flags().intersects(TypeFlags::BigIntLiteral) {
             self.bigint_type()
         } else if type_.flags().intersects(TypeFlags::BooleanLiteral) {
-            unimplemented!()
+            self.boolean_type()
         } else if type_.flags().intersects(TypeFlags::Union) {
             self.map_type(type_, |type_| self.get_base_type_of_literal_type(type_))
         } else {
@@ -816,7 +896,74 @@ impl TypeChecker {
     }
 }
 
-type ErrorReporter<'a> = &'a dyn FnMut(DiagnosticMessage);
+fn create_node_builder() -> NodeBuilder {
+    NodeBuilder::new()
+}
+
+pub struct NodeBuilder {}
+
+impl NodeBuilder {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn type_to_type_node(
+        &self,
+        type_: &Type,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<TypeNode> {
+        self.with_context(tracker, |context| {
+            self.type_to_type_node_helper(type_, context)
+        })
+    }
+
+    fn with_context<TReturn, TCallback: FnMut(&NodeBuilderContext) -> TReturn>(
+        &self,
+        tracker: Option<&dyn SymbolTracker>,
+        mut cb: TCallback,
+    ) -> Option<TReturn> {
+        let context = NodeBuilderContext::new(tracker.unwrap());
+        let resulting_node = cb(&context);
+        Some(resulting_node)
+    }
+
+    pub fn type_to_type_node_helper(&self, type_: &Type, context: &NodeBuilderContext) -> TypeNode {
+        let synthetic_factory = get_synthetic_factory();
+        if type_.flags().intersects(TypeFlags::Number) {
+            return Into::<KeywordTypeNode>::into(
+                factory.create_keyword_type_node(&synthetic_factory, SyntaxKind::NumberKeyword),
+            )
+            .into();
+        }
+        if type_.flags().intersects(TypeFlags::BooleanLiteral) {
+            return factory
+                .create_literal_type_node(
+                    &synthetic_factory,
+                    &*Into::<Rc<Node>>::into(
+                        if type_.as_intrinsic_type().intrinsic_name() == "true" {
+                            factory.create_true(&synthetic_factory)
+                        } else {
+                            factory.create_false(&synthetic_factory)
+                        },
+                    ),
+                )
+                .into();
+        }
+        unimplemented!()
+    }
+}
+
+pub struct NodeBuilderContext<'symbol_tracker> {
+    tracker: &'symbol_tracker dyn SymbolTracker,
+}
+
+impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
+    pub fn new(tracker: &'symbol_tracker dyn SymbolTracker) -> Self {
+        Self { tracker }
+    }
+}
+
+type ErrorReporter<'a> = &'a dyn FnMut(DiagnosticMessage, Option<Vec<String>>);
 
 struct CheckTypeRelatedTo<'type_checker> {
     type_checker: &'type_checker TypeChecker,
@@ -870,7 +1017,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         } else if self.error_info().is_some() {
             let diag = create_diagnostic_for_node_from_message_chain(
                 &*self.error_node.unwrap(),
-                &*self.error_info().as_ref().unwrap(),
+                self.error_info().clone().unwrap(),
             );
             if true {
                 self.type_checker.diagnostics().add(Rc::new(diag.into()));
@@ -880,12 +1027,10 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         result != Ternary::False
     }
 
-    fn report_error(&self, message: &DiagnosticMessage) {
+    fn report_error(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
         Debug_.assert(self.error_node.is_some(), None);
-        self.set_error_info(chain_diagnostic_messages(
-            self.error_info().clone(),
-            message,
-        ));
+        let error_info = { chain_diagnostic_messages(self.error_info().clone(), message, args) };
+        self.set_error_info(error_info);
     }
 
     fn report_relation_error(
@@ -925,7 +1070,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         }
 
         self.report_error(
-            message.unwrap(), /*, generalized_source_type, target_type*/
+            message.unwrap(),
+            Some(vec![generalized_source_type, target_type]),
         );
     }
 
@@ -950,8 +1096,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             }
         };
 
-        let report_error = |message: DiagnosticMessage| {
-            self.report_error(&message);
+        let report_error = |message: DiagnosticMessage, args: Option<Vec<String>>| {
+            self.report_error(&message, args);
         };
 
         if self.type_checker.is_simple_type_related_to(
@@ -978,6 +1124,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             result = self.structured_type_related_to(
                 source.clone(),
                 target.clone(),
+                report_errors,
                 intersection_state | IntersectionState::UnionIntersectionCheck,
             );
         }
@@ -1004,13 +1151,44 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         Ternary::False
     }
 
+    fn each_type_related_to_type(
+        &self,
+        source: &UnionOrIntersectionType,
+        target: Rc<Type>,
+        report_errors: bool,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        let mut result = Ternary::True;
+        let source_types = source.types();
+        for source_type in source_types {
+            let related = self.is_related_to(
+                source_type.clone(),
+                target.clone(),
+                report_errors,
+                None,
+                Some(intersection_state),
+            );
+            if related == Ternary::False {
+                return Ternary::False;
+            }
+            result &= related;
+        }
+        result
+    }
+
     fn structured_type_related_to(
         &self,
         source: Rc<Type>,
         target: Rc<Type>,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        let result = self.structured_type_related_to_worker(source, target, intersection_state);
+        let result = self.structured_type_related_to_worker(
+            source,
+            target,
+            report_errors,
+            intersection_state,
+        );
         result
     }
 
@@ -1018,9 +1196,27 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         &self,
         source: Rc<Type>,
         target: Rc<Type>,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
         if intersection_state.intersects(IntersectionState::UnionIntersectionCheck) {
+            if source.flags().intersects(TypeFlags::Union) {
+                return if false {
+                    unimplemented!()
+                } else {
+                    self.each_type_related_to_type(
+                        match &*source {
+                            Type::UnionOrIntersectionType(union_or_intersection_type) => {
+                                union_or_intersection_type
+                            }
+                            _ => panic!("Expected UnionOrIntersectionType"),
+                        },
+                        target,
+                        report_errors,
+                        intersection_state & !IntersectionState::UnionIntersectionCheck,
+                    )
+                };
+            }
             if target.flags().intersects(TypeFlags::Union) {
                 return self.type_related_to_some_type(
                     self.type_checker.get_regular_type_of_object_literal(source),

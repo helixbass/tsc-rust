@@ -104,19 +104,19 @@ fn get_struct_interface_impl(
         "ReadonlyTextRange" => {
             quote! {
                 impl crate::ReadonlyTextRange for #ast_type_name {
-                    fn pos(&self) -> usize {
+                    fn pos(&self) -> isize {
                         self.#first_field_name.pos()
                     }
 
-                    fn set_pos(&self, pos: usize) {
+                    fn set_pos(&self, pos: isize) {
                         self.#first_field_name.set_pos(pos);
                     }
 
-                    fn end(&self) -> usize {
+                    fn end(&self) -> isize {
                         self.#first_field_name.end()
                     }
 
-                    fn set_end(&self, end: usize) {
+                    fn set_end(&self, end: isize) {
                         self.#first_field_name.set_end(end);
                     }
                 }
@@ -258,25 +258,25 @@ fn get_enum_interface_impl(
         "ReadonlyTextRange" => {
             quote! {
                 impl crate::ReadonlyTextRange for #ast_type_name {
-                    fn pos(&self) -> usize {
+                    fn pos(&self) -> isize {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.pos()),*
                         }
                     }
 
-                    fn set_pos(&self, pos: usize) {
+                    fn set_pos(&self, pos: isize) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_pos(pos)),*
                         }
                     }
 
-                    fn end(&self) -> usize {
+                    fn end(&self) -> isize {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.end()),*
                         }
                     }
 
-                    fn set_end(&self, end: usize) {
+                    fn set_end(&self, end: isize) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_end(end)),*
                         }

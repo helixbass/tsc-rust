@@ -3,9 +3,11 @@
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
+use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
-use crate::{Number, SortedArray, WeakSelf};
+use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
 use local_macros::ast_type;
 
 pub struct Path(String);
@@ -17,13 +19,13 @@ impl Path {
 }
 
 pub trait ReadonlyTextRange {
-    fn pos(&self) -> usize;
-    fn set_pos(&self, pos: usize);
-    fn end(&self) -> usize;
-    fn set_end(&self, end: usize);
+    fn pos(&self) -> isize;
+    fn set_pos(&self, pos: isize);
+    fn end(&self) -> isize;
+    fn set_end(&self, end: isize);
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
@@ -38,12 +40,14 @@ pub enum SyntaxKind {
     EqualsToken,
     Identifier,
     PrivateIdentifier,
+    BreakKeyword,
     ConstKeyword,
     FalseKeyword,
     TrueKeyword,
     WithKeyword,
     NumberKeyword,
     OfKeyword,
+    LiteralType,
     ObjectBindingPattern,
     ArrayBindingPattern,
     PrefixUnaryExpression,
@@ -59,6 +63,7 @@ pub enum SyntaxKind {
 
 impl SyntaxKind {
     pub const LastReservedWord: SyntaxKind = SyntaxKind::WithKeyword;
+    pub const FirstKeyword: SyntaxKind = SyntaxKind::BreakKeyword;
     pub const LastKeyword: SyntaxKind = SyntaxKind::OfKeyword;
     pub const LastToken: SyntaxKind = SyntaxKind::LastKeyword;
 }
@@ -160,20 +165,20 @@ pub struct BaseNode {
     _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
     pub parent: RefCell<Option<Weak<Node>>>,
-    pub pos: Cell<usize>,
-    pub end: Cell<usize>,
+    pub pos: Cell<isize>,
+    pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RefCell<Option<SymbolTable>>,
 }
 
 impl BaseNode {
-    pub fn new(kind: SyntaxKind, pos: usize, end: usize) -> Self {
+    pub fn new(kind: SyntaxKind, pos: isize, end: isize) -> Self {
         Self {
             _node_wrapper: RefCell::new(None),
             kind,
             parent: RefCell::new(None),
-            pos: pos.into(),
-            end: end.into(),
+            pos: Cell::new(pos),
+            end: Cell::new(end),
             symbol: RefCell::new(None),
             locals: RefCell::new(None),
         }
@@ -231,19 +236,19 @@ impl NodeInterface for BaseNode {
 }
 
 impl ReadonlyTextRange for BaseNode {
-    fn pos(&self) -> usize {
+    fn pos(&self) -> isize {
         self.pos.get()
     }
 
-    fn set_pos(&self, pos: usize) {
+    fn set_pos(&self, pos: isize) {
         self.pos.set(pos);
     }
 
-    fn end(&self) -> usize {
+    fn end(&self) -> isize {
         self.end.get()
     }
 
-    fn set_end(&self, end: usize) {
+    fn set_end(&self, end: isize) {
         self.end.set(end);
     }
 }
@@ -251,6 +256,14 @@ impl ReadonlyTextRange for BaseNode {
 impl From<BaseNode> for Node {
     fn from(base_node: BaseNode) -> Self {
         Node::BaseNode(base_node)
+    }
+}
+
+impl From<BaseNode> for Rc<Node> {
+    fn from(base_node: BaseNode) -> Self {
+        let rc = Rc::new(Node::BaseNode(base_node));
+        rc.set_node_wrapper(rc.clone());
+        rc
     }
 }
 
@@ -485,6 +498,7 @@ impl VariableDeclarationList {
 #[ast_type]
 pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
+    LiteralTypeNode(LiteralTypeNode),
 }
 
 #[derive(Debug)]
@@ -502,6 +516,22 @@ impl KeywordTypeNode {
 impl From<BaseNode> for KeywordTypeNode {
     fn from(base_node: BaseNode) -> Self {
         KeywordTypeNode::new(base_node)
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct LiteralTypeNode {
+    _node: BaseNode,
+    pub literal: Rc<Node>, // TODO: should be weak?
+}
+
+impl LiteralTypeNode {
+    pub fn new(base_node: BaseNode, literal: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            literal,
+        }
     }
 }
 
@@ -680,15 +710,22 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 #[allow(non_snake_case)]
 pub struct TypeChecker {
     pub Type: fn(TypeFlags) -> BaseType,
-
+    pub node_builder: NodeBuilder,
     pub number_literal_types: HashMap<Number, Rc</*NumberLiteralType*/ Type>>,
     pub number_type: Option<Rc<Type>>,
     pub bigint_type: Option<Rc<Type>>,
     pub true_type: Option<Rc<Type>>,
     pub regular_true_type: Option<Rc<Type>>,
+    pub false_type: Option<Rc<Type>>,
+    pub regular_false_type: Option<Rc<Type>>,
+    pub boolean_type: Option<Rc<Type>>,
     pub number_or_big_int_type: Option<Rc<Type>>,
     pub diagnostics: RefCell<DiagnosticCollection>,
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
+}
+
+pub trait SymbolWriter: SymbolTracker {
+    fn write_keyword(&mut self, text: &str);
 }
 
 bitflags! {
@@ -818,6 +855,13 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn as_intrinsic_type(&self) -> &dyn IntrinsicTypeInterface {
+        match self {
+            Type::IntrinsicType(intrinsic_type) => intrinsic_type,
+            _ => panic!("Expected intrinsic type"),
+        }
+    }
+
     pub fn as_union_or_intersection_type(&self) -> &dyn UnionOrIntersectionTypeInterface {
         match self {
             Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
@@ -853,7 +897,9 @@ impl TypeInterface for BaseType {
     }
 }
 
-pub trait IntrinsicTypeInterface: TypeInterface {}
+pub trait IntrinsicTypeInterface: TypeInterface {
+    fn intrinsic_name(&self) -> &str;
+}
 
 #[derive(Clone, Debug)]
 pub enum IntrinsicType {
@@ -872,7 +918,18 @@ impl TypeInterface for IntrinsicType {
     }
 }
 
-impl IntrinsicTypeInterface for IntrinsicType {}
+impl IntrinsicTypeInterface for IntrinsicType {
+    fn intrinsic_name(&self) -> &str {
+        match self {
+            IntrinsicType::BaseIntrinsicType(base_intrinsic_type) => {
+                base_intrinsic_type.intrinsic_name()
+            }
+            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                freshable_intrinsic_type.intrinsic_name()
+            }
+        }
+    }
+}
 
 impl From<IntrinsicType> for Type {
     fn from(intrinsic_type: IntrinsicType) -> Self {
@@ -883,11 +940,15 @@ impl From<IntrinsicType> for Type {
 #[derive(Clone, Debug)]
 pub struct BaseIntrinsicType {
     _type: BaseType,
+    intrinsic_name: String,
 }
 
 impl BaseIntrinsicType {
-    pub fn new(type_: BaseType) -> Self {
-        Self { _type: type_ }
+    pub fn new(type_: BaseType, intrinsic_name: String) -> Self {
+        Self {
+            _type: type_,
+            intrinsic_name,
+        }
     }
 }
 
@@ -897,7 +958,11 @@ impl TypeInterface for BaseIntrinsicType {
     }
 }
 
-impl IntrinsicTypeInterface for BaseIntrinsicType {}
+impl IntrinsicTypeInterface for BaseIntrinsicType {
+    fn intrinsic_name(&self) -> &str {
+        &self.intrinsic_name
+    }
+}
 
 impl From<BaseIntrinsicType> for IntrinsicType {
     fn from(base_intrinsic_type: BaseIntrinsicType) -> Self {
@@ -942,7 +1007,11 @@ impl TypeInterface for FreshableIntrinsicType {
     }
 }
 
-impl IntrinsicTypeInterface for FreshableIntrinsicType {}
+impl IntrinsicTypeInterface for FreshableIntrinsicType {
+    fn intrinsic_name(&self) -> &str {
+        self._intrinsic_type.intrinsic_name()
+    }
+}
 
 impl From<FreshableIntrinsicType> for IntrinsicType {
     fn from(freshable_intrinsic_type: FreshableIntrinsicType) -> Self {
@@ -1252,6 +1321,26 @@ pub enum Ternary {
     True = -1,
 }
 
+impl TryFrom<i32> for Ternary {
+    type Error = ();
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            value if value == Ternary::False as i32 => Ok(Ternary::False),
+            value if value == Ternary::Unknown as i32 => Ok(Ternary::Unknown),
+            value if value == Ternary::Maybe as i32 => Ok(Ternary::Maybe),
+            value if value == Ternary::True as i32 => Ok(Ternary::True),
+            _ => Err(()),
+        }
+    }
+}
+
+impl BitAndAssign for Ternary {
+    fn bitand_assign(&mut self, rhs: Self) {
+        *self = (*self as i32 & rhs as i32).try_into().unwrap();
+    }
+}
+
 #[derive(Debug)]
 pub struct ParsedCommandLine {
     pub file_names: Vec<String>,
@@ -1396,12 +1485,16 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
         self._diagnostic_related_information.file()
     }
 
-    fn start(&self) -> usize {
+    fn start(&self) -> isize {
         self._diagnostic_related_information.start()
     }
 
-    fn length(&self) -> usize {
+    fn length(&self) -> isize {
         self._diagnostic_related_information.length()
+    }
+
+    fn message_text(&self) -> &DiagnosticMessageText {
+        self._diagnostic_related_information.message_text()
     }
 }
 
@@ -1417,7 +1510,7 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
         }
     }
 
-    fn start(&self) -> usize {
+    fn start(&self) -> isize {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
                 diagnostic_with_location.start()
@@ -1428,7 +1521,7 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
         }
     }
 
-    fn length(&self) -> usize {
+    fn length(&self) -> isize {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
                 diagnostic_with_location.length()
@@ -1438,21 +1531,68 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
             }
         }
     }
+
+    fn message_text(&self) -> &DiagnosticMessageText {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
+                diagnostic_with_location.message_text()
+            }
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
+                diagnostic_with_detached_location.message_text()
+            }
+        }
+    }
 }
 
 impl DiagnosticInterface for Diagnostic {}
 
+#[derive(Clone, Debug)]
+pub enum DiagnosticMessageText {
+    String(String),
+    DiagnosticMessageChain(DiagnosticMessageChain),
+}
+
+impl From<String> for DiagnosticMessageText {
+    fn from(string: String) -> Self {
+        DiagnosticMessageText::String(string)
+    }
+}
+
+impl From<DiagnosticMessageChain> for DiagnosticMessageText {
+    fn from(diagnostic_message_chain: DiagnosticMessageChain) -> Self {
+        DiagnosticMessageText::DiagnosticMessageChain(diagnostic_message_chain)
+    }
+}
+
 pub trait DiagnosticRelatedInformationInterface {
     fn file(&self) -> Option<Rc<SourceFile>>;
-    fn start(&self) -> usize;
-    fn length(&self) -> usize;
+    fn start(&self) -> isize;
+    fn length(&self) -> isize;
+    fn message_text(&self) -> &DiagnosticMessageText;
 }
 
 #[derive(Clone, Debug)]
 pub struct BaseDiagnosticRelatedInformation {
-    pub file: Option<Rc<SourceFile>>,
-    pub start: usize,
-    pub length: usize,
+    file: Option<Rc<SourceFile>>,
+    start: isize,
+    length: isize,
+    message_text: DiagnosticMessageText,
+}
+
+impl BaseDiagnosticRelatedInformation {
+    pub fn new<TDiagnosticMessageText: Into<DiagnosticMessageText>>(
+        file: Option<Rc<SourceFile>>,
+        start: isize,
+        length: isize,
+        message_text: TDiagnosticMessageText,
+    ) -> Self {
+        Self {
+            file,
+            start,
+            length,
+            message_text: message_text.into(),
+        }
+    }
 }
 
 impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation {
@@ -1460,21 +1600,31 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
         self.file.clone()
     }
 
-    fn start(&self) -> usize {
+    fn start(&self) -> isize {
         self.start
     }
 
-    fn length(&self) -> usize {
+    fn length(&self) -> isize {
         self.length
+    }
+
+    fn message_text(&self) -> &DiagnosticMessageText {
+        &self.message_text
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct DiagnosticWithLocation {
-    pub _diagnostic: BaseDiagnostic,
+    _diagnostic: BaseDiagnostic,
 }
 
 impl DiagnosticWithLocation {
+    pub fn new(base_diagnostic: BaseDiagnostic) -> Self {
+        Self {
+            _diagnostic: base_diagnostic,
+        }
+    }
+
     pub fn file_unwrapped(&self) -> Rc<SourceFile> {
         self.file().unwrap()
     }
@@ -1485,12 +1635,16 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
         self._diagnostic.file()
     }
 
-    fn start(&self) -> usize {
+    fn start(&self) -> isize {
         self._diagnostic.start()
     }
 
-    fn length(&self) -> usize {
+    fn length(&self) -> isize {
         self._diagnostic.length()
+    }
+
+    fn message_text(&self) -> &DiagnosticMessageText {
+        self._diagnostic.message_text()
     }
 }
 
@@ -1504,8 +1658,17 @@ impl From<DiagnosticWithLocation> for Diagnostic {
 
 #[derive(Debug)]
 pub struct DiagnosticWithDetachedLocation {
-    pub _diagnostic: BaseDiagnostic,
-    pub file_name: String,
+    _diagnostic: BaseDiagnostic,
+    file_name: String,
+}
+
+impl DiagnosticWithDetachedLocation {
+    pub fn new(base_diagnostic: BaseDiagnostic, file_name: String) -> Self {
+        Self {
+            _diagnostic: base_diagnostic,
+            file_name,
+        }
+    }
 }
 
 impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
@@ -1513,12 +1676,16 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
         self._diagnostic.file()
     }
 
-    fn start(&self) -> usize {
+    fn start(&self) -> isize {
         self._diagnostic.start()
     }
 
-    fn length(&self) -> usize {
+    fn length(&self) -> isize {
         self._diagnostic.length()
+    }
+
+    fn message_text(&self) -> &DiagnosticMessageText {
+        self._diagnostic.message_text()
     }
 }
 
@@ -1537,13 +1704,31 @@ pub enum DiagnosticCategory {
     Message,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum EmitHint {
+    Expression,
+    Unspecified,
+}
+
 pub struct NodeFactory {}
+
+pub struct Printer {
+    pub writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+}
+
+pub struct PrinterOptions {}
+
+pub trait EmitTextWriter: SymbolWriter {
+    fn get_text(&self) -> String;
+}
 
 pub trait ModuleSpecifierResolutionHost {}
 
+pub trait SymbolTracker {}
+
 pub struct TextSpan {
-    pub start: usize,
-    pub length: usize,
+    pub start: isize,
+    pub length: isize,
 }
 
 pub struct DiagnosticCollection {

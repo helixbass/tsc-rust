@@ -1,16 +1,18 @@
 #![allow(non_upper_case_globals)]
 
+use regex::{Captures, Regex};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
     create_text_span_from_bounds, escape_leading_underscores, insert_sorted, is_member_name,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Diagnostic,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Debug_, Diagnostic,
     DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags,
-    SymbolTable, SyntaxKind, TextSpan, TypeFlags, __String,
+    EmitTextWriter, Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
+    SymbolFlags, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags,
+    __String,
 };
 
 pub fn create_symbol_table() -> SymbolTable {
@@ -51,7 +53,7 @@ fn create_diagnostic_for_node_in_source_file<TNode: NodeInterface>(
 
 pub fn create_diagnostic_for_node_from_message_chain<TNode: NodeInterface>(
     node: &TNode,
-    message_chain: &DiagnosticMessageChain,
+    message_chain: DiagnosticMessageChain,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node);
     let span = get_error_span_for_node(source_file.clone(), node);
@@ -60,18 +62,17 @@ pub fn create_diagnostic_for_node_from_message_chain<TNode: NodeInterface>(
 
 fn create_file_diagnostic_from_message_chain(
     file: Rc<SourceFile>,
-    start: usize,
-    length: usize,
-    message_chain: &DiagnosticMessageChain,
+    start: isize,
+    length: isize,
+    message_chain: DiagnosticMessageChain,
 ) -> DiagnosticWithLocation {
     // assert_diagnostic_location(&*file, start, length);
-    DiagnosticWithLocation {
-        _diagnostic: BaseDiagnostic::new(BaseDiagnosticRelatedInformation {
-            file: Some(file),
-            start,
-            length,
-        }),
-    }
+    DiagnosticWithLocation::new(BaseDiagnostic::new(BaseDiagnosticRelatedInformation::new(
+        Some(file),
+        start,
+        length,
+        message_chain,
+    )))
 }
 
 fn get_error_span_for_node<TNode: NodeInterface>(
@@ -100,6 +101,10 @@ pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode
         }
     }
     symbol.set_value_declaration(node);
+}
+
+pub fn is_keyword(token: SyntaxKind) -> bool {
+    SyntaxKind::FirstKeyword <= token && token <= SyntaxKind::LastKeyword
 }
 
 pub fn is_property_name_literal<TNode: NodeInterface>(node: &TNode) -> bool {
@@ -204,6 +209,53 @@ impl DiagnosticCollection {
     }
 }
 
+#[derive(Clone)]
+pub struct TextWriter {
+    new_line: String,
+    output: String,
+}
+
+impl TextWriter {
+    pub fn new(new_line: &str) -> Self {
+        Self {
+            new_line: new_line.to_string(),
+            output: String::new(),
+        }
+    }
+
+    fn push_output(&mut self, str: &str) {
+        self.output.push_str(str);
+    }
+
+    fn write_text(&mut self, s: &str) {
+        if !s.is_empty() {
+            self.push_output(s);
+        }
+    }
+
+    fn write(&mut self, s: &str) {
+        self.write_text(s);
+    }
+}
+
+impl EmitTextWriter for TextWriter {
+    fn get_text(&self) -> String {
+        self.output.clone()
+    }
+}
+
+impl SymbolWriter for TextWriter {
+    fn write_keyword(&mut self, text: &str) {
+        self.write(text);
+    }
+}
+
+impl SymbolTracker for TextWriter {}
+
+pub fn create_text_writer(new_line: &str) -> TextWriter {
+    TextWriter::new(new_line)
+}
+
 pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
     let type_ = node
         .maybe_as_has_type()
@@ -222,36 +274,36 @@ fn Type(flags: TypeFlags) -> BaseType {
 }
 
 #[allow(non_snake_case)]
-fn Node(kind: SyntaxKind, pos: usize, end: usize) -> BaseNode {
+fn Node(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
     BaseNode::new(kind, pos, end)
 }
 
 #[allow(non_snake_case)]
-fn Token(kind: SyntaxKind, pos: usize, end: usize) -> BaseNode {
+fn Token(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
     BaseNode::new(kind, pos, end)
 }
 
 #[allow(non_snake_case)]
-fn Identifier(kind: SyntaxKind, pos: usize, end: usize) -> BaseNode {
+fn Identifier(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
     BaseNode::new(kind, pos, end)
 }
 
 pub struct ObjectAllocator {}
 
 impl ObjectAllocator {
-    pub fn get_node_constructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
+    pub fn get_node_constructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
         Node
     }
 
-    pub fn get_token_constructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
+    pub fn get_token_constructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
         Token
     }
 
-    pub fn get_identifier_constructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
+    pub fn get_identifier_constructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
         Identifier
     }
 
-    pub fn get_source_file_constructor(&self) -> fn(SyntaxKind, usize, usize) -> BaseNode {
+    pub fn get_source_file_constructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
         Node
     }
 
@@ -268,67 +320,81 @@ lazy_static! {
     pub static ref object_allocator: ObjectAllocator = ObjectAllocator {};
 }
 
+fn format_string_from_args(text: &str, args: Vec<String>) -> String {
+    let re = Regex::new(r"\{(\d+)\}").unwrap();
+    re.replace_all(text, |captures: &Captures| {
+        let index = captures.get(1).unwrap().as_str().parse::<usize>().unwrap();
+        Debug_.check_defined(args.get(index), None)
+    })
+    .to_string()
+}
+
 fn get_locale_specific_message(message: &DiagnosticMessage) -> String {
     message.message.to_string()
 }
 
 pub fn create_detached_diagnostic(
     file_name: &str,
-    start: usize,
-    length: usize,
+    start: isize,
+    length: isize,
     message: &DiagnosticMessage,
 ) -> DiagnosticWithDetachedLocation {
-    DiagnosticWithDetachedLocation {
-        _diagnostic: BaseDiagnostic::new(BaseDiagnosticRelatedInformation {
-            file: None,
-            start,
-            length,
-        }),
-        file_name: file_name.to_string(),
-    }
+    let text = get_locale_specific_message(message);
+
+    DiagnosticWithDetachedLocation::new(
+        BaseDiagnostic::new(BaseDiagnosticRelatedInformation::new(
+            None, start, length, text,
+        )),
+        file_name.to_string(),
+    )
 }
 
 fn create_file_diagnostic(
     file: Rc<SourceFile>,
-    start: usize,
-    length: usize,
+    start: isize,
+    length: isize,
     message: &DiagnosticMessage,
 ) -> DiagnosticWithLocation {
-    DiagnosticWithLocation {
-        _diagnostic: BaseDiagnostic::new(BaseDiagnosticRelatedInformation {
-            file: Some(file),
-            start,
-            length,
-        }),
-    }
+    let text = get_locale_specific_message(message);
+
+    DiagnosticWithLocation::new(BaseDiagnostic::new(BaseDiagnosticRelatedInformation::new(
+        Some(file),
+        start,
+        length,
+        text,
+    )))
 }
 
 pub fn chain_diagnostic_messages(
     details: Option<DiagnosticMessageChain>,
     message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
 ) -> DiagnosticMessageChain {
-    let text = get_locale_specific_message(message);
+    let mut text = get_locale_specific_message(message);
 
+    if let Some(args) = args {
+        text = format_string_from_args(&text, args);
+    }
     DiagnosticMessageChain {
         message_text: text,
         next: details.map(|details| vec![details]),
     }
 }
 
-fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &mut TRange, pos: usize) -> &mut TRange {
+fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &mut TRange, pos: isize) -> &mut TRange {
     range.set_pos(pos);
     range
 }
 
-fn set_text_range_end<TRange: ReadonlyTextRange>(range: &mut TRange, end: usize) -> &mut TRange {
+fn set_text_range_end<TRange: ReadonlyTextRange>(range: &mut TRange, end: isize) -> &mut TRange {
     range.set_end(end);
     range
 }
 
 pub fn set_text_range_pos_end<TRange: ReadonlyTextRange>(
     range: &mut TRange,
-    pos: usize,
-    end: usize,
+    pos: isize,
+    end: isize,
 ) {
     set_text_range_end(set_text_range_pos(range, pos), end);
 }
