@@ -904,10 +904,28 @@ impl InterfaceDeclaration {
 #[derive(Debug)]
 #[ast_type(impl_from = false)]
 pub struct SourceFile {
-    pub _node: BaseNode,
+    _node: BaseNode,
+    _symbols_without_a_symbol_table_strong_references: RefCell<Vec<Rc<Symbol>>>,
     pub statements: NodeArray,
 
     pub file_name: String,
+}
+
+impl SourceFile {
+    pub fn new(base_node: BaseNode, statements: NodeArray, file_name: String) -> Self {
+        Self {
+            _node: base_node,
+            _symbols_without_a_symbol_table_strong_references: RefCell::new(vec![]),
+            statements,
+            file_name,
+        }
+    }
+
+    pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
+        self._symbols_without_a_symbol_table_strong_references
+            .borrow_mut()
+            .push(symbol);
+    }
 }
 
 impl From<SourceFile> for Rc<Node> {

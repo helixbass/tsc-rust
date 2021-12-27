@@ -380,6 +380,12 @@ impl BinderType {
         name: __String,
     ) -> Rc<Symbol> {
         let symbol = Rc::new(self.create_symbol(symbol_flags, name));
+        match &*self.file() {
+            Node::SourceFile(source_file) => {
+                source_file.keep_strong_reference_to_symbol(symbol.clone());
+            }
+            _ => panic!("Expected SourceFile"),
+        }
         self.add_declaration_to_symbol(symbol.clone(), node, symbol_flags);
         symbol
     }
