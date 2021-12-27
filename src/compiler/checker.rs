@@ -20,9 +20,10 @@ use crate::{
     FreshableIntrinsicType, InterfaceDeclaration, InterfaceType, IntrinsicType, KeywordTypeNode,
     LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface, NamedDeclarationInterface,
     Node, NodeInterface, Number, NumberLiteralType, NumericLiteral, ObjectFlags,
-    PrefixUnaryExpression, PrinterOptions, PropertySignature, RelationComparisonResult, SourceFile,
-    Statement, Symbol, SymbolFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type,
-    TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeReferenceNode,
+    ObjectLiteralExpression, ObjectTypeInterface, PrefixUnaryExpression, PrinterOptions,
+    PropertySignature, RelationComparisonResult, ResolvedType, SourceFile, Statement, Symbol,
+    SymbolFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker,
+    TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeReferenceNode,
     VariableLikeDeclarationInterface,
 };
 
@@ -44,6 +45,12 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     let mut type_checker = TypeChecker {
         Symbol: object_allocator.get_symbol_constructor(),
         Type: object_allocator.get_type_constructor(),
+
+        fresh_object_literal_flag: if false {
+            unimplemented!()
+        } else {
+            ObjectFlags::FreshLiteral
+        },
 
         node_builder: create_node_builder(),
 
@@ -437,6 +444,22 @@ impl TypeChecker {
         let type_ = self.create_type(TypeFlags::Object);
         let type_ = BaseObjectType::new(type_, object_flags);
         type_
+    }
+
+    fn set_structured_type_members(
+        &self,
+        type_: BaseObjectType,
+        members: SymbolTable,
+    ) -> ResolvedType {
+        let resolved = ResolvedType::new(type_, members);
+        resolved
+    }
+
+    fn create_anonymous_type(&self, symbol: Rc<Symbol>, members: SymbolTable) -> ResolvedType {
+        self.set_structured_type_members(
+            self.create_object_type(ObjectFlags::Anonymous, symbol),
+            members,
+        )
     }
 
     fn type_to_string(&self, type_: &Type) -> String {
@@ -850,6 +873,9 @@ impl TypeChecker {
                 SyntaxKind::NumberKeyword => self.number_type(),
                 _ => unimplemented!(),
             },
+            TypeNode::TypeReferenceNode(type_reference_node) => {
+                self.get_type_from_type_reference(type_reference_node)
+            }
             TypeNode::ArrayTypeNode(array_type_node) => {
                 self.get_type_from_array_or_tuple_type_node(array_type_node)
             }
@@ -1095,93 +1121,39 @@ impl TypeChecker {
         }
     }
 
-    fn check_property_declaration(&mut self, node: &PropertySignature) {
-        self.check_variable_like_declaration(node);
-    }
+    fn check_object_literal(&self, node: &ObjectLiteralExpression) -> Rc<Type> {
+        let mut properties_table = create_symbol_table();
+        let mut properties_array: Vec<Rc<Symbol>> = vec![];
 
-    fn check_property_signature(&mut self, node: &PropertySignature) {
-        if is_private_identifier(&*node.name()) {
-            self.error(
-                Some(node),
-                &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+        let object_flags = self.fresh_object_literal_flag;
+
+        for member_decl in &node.properties {
+            let member = self.get_symbol_of_node(&**member_decl).unwrap();
+            if member_decl.kind() == SyntaxKind::PropertyAssignment {
+            } else {
+                unimplemented!()
+            }
+
+            if false {
+                unimplemented!()
+            } else {
+                properties_table.insert(member.escaped_name.clone(), member.clone());
+            }
+            properties_array.push(member);
+        }
+
+        let create_object_literal_type = || {
+            let mut result = self.create_anonymous_type(node.symbol(), properties_table);
+            result.set_object_flags(
+                result.object_flags()
+                    | object_flags
+                    | ObjectFlags::ObjectLiteral
+                    | ObjectFlags::ContainsObjectOrArrayLiteral,
             );
-        }
-        self.check_property_declaration(node)
-    }
-
-    fn check_type_reference_node(&mut self, node: &TypeReferenceNode) {
-        let type_ = self.get_type_from_type_reference(node);
-    }
-
-    fn check_array_type(&mut self, node: &ArrayTypeNode) {
-        self.check_source_element(Some(&*node.element_type));
-    }
-
-    fn check_interface_declaration(&mut self, node: &InterfaceDeclaration) {
-        for_each(&node.members, |member, _| {
-            self.check_source_element(Some(&**member));
-            Option::<()>::None
-        });
-    }
-
-    fn check_source_element<TNodeRef: Borrow<Node>>(&mut self, node: Option<TNodeRef>) {
-        if let Some(node) = node {
-            let node = node.borrow();
-            self.check_source_element_worker(node);
-        }
-    }
-
-    fn check_source_element_worker(&mut self, node: &Node) {
-        match node {
-            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
-                self.check_property_signature(property_signature)
-            }
-            Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
-                self.check_type_reference_node(type_reference_node)
-            }
-            Node::TypeNode(TypeNode::KeywordTypeNode(_)) => (),
-            Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => {
-                self.check_array_type(array_type_node)
-            }
-            Node::Statement(Statement::VariableStatement(variable_statement)) => {
-                self.check_variable_statement(variable_statement)
-            }
-            Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
-                self.check_expression_statement(expression_statement)
-            }
-            Node::VariableDeclaration(variable_declaration) => {
-                self.check_variable_declaration(variable_declaration)
-            }
-            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
-                self.check_interface_declaration(interface_declaration)
-            }
-            _ => unimplemented!("{:?}", node.kind()),
+            Rc::new(result.into())
         };
-    }
 
-    fn check_source_file(&mut self, source_file: &SourceFile) {
-        self.check_source_file_worker(source_file)
-    }
-
-    fn check_source_file_worker(&mut self, node: &SourceFile) {
-        if true {
-            for_each(&node.statements, |statement, _index| {
-                self.check_source_element(Some(&**statement));
-                Option::<()>::None
-            });
-        }
-    }
-
-    pub fn get_diagnostics(&mut self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
-        self.get_diagnostics_worker(source_file)
-    }
-
-    fn get_diagnostics_worker(&mut self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
-        self.check_source_file(source_file);
-
-        let semantic_diagnostics = self.diagnostics().get_diagnostics(&source_file.file_name);
-
-        semantic_diagnostics
+        create_object_literal_type()
     }
 
     fn check_arithmetic_operand_type(
@@ -1229,27 +1201,47 @@ impl TypeChecker {
     fn check_expression_worker(&mut self, node: &Expression) -> Rc<Type> {
         match node {
             Expression::TokenExpression(token_expression) => match token_expression.kind() {
-                SyntaxKind::TrueKeyword => {
-                    return self.true_type().clone();
-                }
+                SyntaxKind::TrueKeyword => self.true_type(),
                 _ => unimplemented!(),
             },
+            Expression::ObjectLiteralExpression(object_literal_expression) => {
+                self.check_object_literal(object_literal_expression)
+            }
             Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                return self.check_prefix_unary_expression(prefix_unary_expression);
+                self.check_prefix_unary_expression(prefix_unary_expression)
             }
             // Expression::BinaryExpression(binary_expression) => {
             //     return self.check_binary_expression(binary_expression);
             // }
-            Expression::LiteralLikeNode(literal_like_node) => match literal_like_node {
-                LiteralLikeNode::NumericLiteral(numeric_literal) => {
-                    self.check_grammar_numeric_literal(numeric_literal);
-                    let type_: Rc<Type> =
-                        self.get_number_literal_type(numeric_literal.text().into());
-                    return self.get_fresh_type_of_literal_type(type_);
-                }
-            },
+            Expression::LiteralLikeNode(LiteralLikeNode::NumericLiteral(numeric_literal)) => {
+                self.check_grammar_numeric_literal(numeric_literal);
+                let type_: Rc<Type> = self.get_number_literal_type(numeric_literal.text().into());
+                self.get_fresh_type_of_literal_type(type_)
+            }
             _ => unimplemented!(),
         }
+    }
+
+    fn check_property_declaration(&mut self, node: &PropertySignature) {
+        self.check_variable_like_declaration(node);
+    }
+
+    fn check_property_signature(&mut self, node: &PropertySignature) {
+        if is_private_identifier(&*node.name()) {
+            self.error(
+                Some(node),
+                &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+            );
+        }
+        self.check_property_declaration(node)
+    }
+
+    fn check_type_reference_node(&mut self, node: &TypeReferenceNode) {
+        let type_ = self.get_type_from_type_reference(node);
+    }
+
+    fn check_array_type(&mut self, node: &ArrayTypeNode) {
+        self.check_source_element(Some(&*node.element_type));
     }
 
     fn convert_auto_to_any(&self, type_: Rc<Type>) -> Rc<Type> {
@@ -1322,6 +1314,73 @@ impl TypeChecker {
             _ => panic!("Expected Expression"),
         };
         self.check_expression(expression);
+    }
+
+    fn check_interface_declaration(&mut self, node: &InterfaceDeclaration) {
+        for_each(&node.members, |member, _| {
+            self.check_source_element(Some(&**member));
+            Option::<()>::None
+        });
+    }
+
+    fn check_source_element<TNodeRef: Borrow<Node>>(&mut self, node: Option<TNodeRef>) {
+        if let Some(node) = node {
+            let node = node.borrow();
+            self.check_source_element_worker(node);
+        }
+    }
+
+    fn check_source_element_worker(&mut self, node: &Node) {
+        match node {
+            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
+                self.check_property_signature(property_signature)
+            }
+            Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
+                self.check_type_reference_node(type_reference_node)
+            }
+            Node::TypeNode(TypeNode::KeywordTypeNode(_)) => (),
+            Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => {
+                self.check_array_type(array_type_node)
+            }
+            Node::Statement(Statement::VariableStatement(variable_statement)) => {
+                self.check_variable_statement(variable_statement)
+            }
+            Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
+                self.check_expression_statement(expression_statement)
+            }
+            Node::VariableDeclaration(variable_declaration) => {
+                self.check_variable_declaration(variable_declaration)
+            }
+            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
+                self.check_interface_declaration(interface_declaration)
+            }
+            _ => unimplemented!("{:?}", node.kind()),
+        };
+    }
+
+    fn check_source_file(&mut self, source_file: &SourceFile) {
+        self.check_source_file_worker(source_file)
+    }
+
+    fn check_source_file_worker(&mut self, node: &SourceFile) {
+        if true {
+            for_each(&node.statements, |statement, _index| {
+                self.check_source_element(Some(&**statement));
+                Option::<()>::None
+            });
+        }
+    }
+
+    pub fn get_diagnostics(&mut self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
+        self.get_diagnostics_worker(source_file)
+    }
+
+    fn get_diagnostics_worker(&mut self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
+        self.check_source_file(source_file);
+
+        let semantic_diagnostics = self.diagnostics().get_diagnostics(&source_file.file_name);
+
+        semantic_diagnostics
     }
 
     fn initialize_type_checker<TTypeCheckerHost: TypeCheckerHost>(

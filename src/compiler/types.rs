@@ -942,6 +942,7 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 pub struct TypeChecker {
     pub Symbol: fn(SymbolFlags, __String) -> Symbol,
     pub Type: fn(TypeFlags) -> BaseType,
+    pub fresh_object_literal_flag: ObjectFlags,
     pub node_builder: NodeBuilder,
     pub globals: RefCell<SymbolTable>,
     pub number_literal_types: HashMap<Number, Rc</*NumberLiteralType*/ Type>>,
@@ -1506,18 +1507,47 @@ bitflags! {
     pub struct ObjectFlags: u32 {
         const Class = 1 << 0;
         const Interface = 1 << 1;
+        const Anonymous = 1 << 4;
+        const ObjectLiteral = 1 << 7;
+        const FreshLiteral = 1 << 14;
+        const ContainsObjectOrArrayLiteral = 1 << 18;
     }
+}
+
+pub trait ObjectTypeInterface {
+    fn object_flags(&self) -> ObjectFlags;
+    fn set_object_flags(&mut self, object_flags: ObjectFlags);
 }
 
 #[derive(Clone, Debug)]
 pub enum ObjectType {
     InterfaceType(InterfaceType),
+    ResolvedType(ResolvedType),
 }
 
 impl TypeInterface for ObjectType {
     fn flags(&self) -> TypeFlags {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.flags(),
+            ObjectType::ResolvedType(resolved_type) => resolved_type.flags(),
+        }
+    }
+}
+
+impl ObjectTypeInterface for ObjectType {
+    fn object_flags(&self) -> ObjectFlags {
+        match self {
+            ObjectType::InterfaceType(interface_type) => interface_type.object_flags(),
+            ObjectType::ResolvedType(resolved_type) => resolved_type.object_flags(),
+        }
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        match self {
+            ObjectType::InterfaceType(interface_type) => {
+                interface_type.set_object_flags(object_flags)
+            }
+            ObjectType::ResolvedType(resolved_type) => resolved_type.set_object_flags(object_flags),
         }
     }
 }
@@ -1549,6 +1579,16 @@ impl TypeInterface for BaseObjectType {
     }
 }
 
+impl ObjectTypeInterface for BaseObjectType {
+    fn object_flags(&self) -> ObjectFlags {
+        self.object_flags
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        self.object_flags = object_flags;
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum InterfaceType {
     BaseInterfaceType(BaseInterfaceType),
@@ -1558,6 +1598,24 @@ impl TypeInterface for InterfaceType {
     fn flags(&self) -> TypeFlags {
         match self {
             InterfaceType::BaseInterfaceType(base_interface_type) => base_interface_type.flags(),
+        }
+    }
+}
+
+impl ObjectTypeInterface for InterfaceType {
+    fn object_flags(&self) -> ObjectFlags {
+        match self {
+            InterfaceType::BaseInterfaceType(base_interface_type) => {
+                base_interface_type.object_flags()
+            }
+        }
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        match self {
+            InterfaceType::BaseInterfaceType(base_interface_type) => {
+                base_interface_type.set_object_flags(object_flags)
+            }
         }
     }
 }
@@ -1590,6 +1648,16 @@ impl BaseInterfaceType {
 impl TypeInterface for BaseInterfaceType {
     fn flags(&self) -> TypeFlags {
         self._object_type.flags()
+    }
+}
+
+impl ObjectTypeInterface for BaseInterfaceType {
+    fn object_flags(&self) -> ObjectFlags {
+        self._object_type.object_flags()
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        self._object_type.set_object_flags(object_flags)
     }
 }
 
@@ -1674,6 +1742,49 @@ impl From<UnionType> for UnionOrIntersectionType {
 impl From<UnionType> for Type {
     fn from(union_type: UnionType) -> Self {
         Type::UnionOrIntersectionType(UnionOrIntersectionType::UnionType(union_type))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ResolvedType {
+    _object_type: BaseObjectType,
+    members: SymbolTable,
+}
+
+impl ResolvedType {
+    pub fn new(object_type: BaseObjectType, members: SymbolTable) -> Self {
+        Self {
+            _object_type: object_type,
+            members,
+        }
+    }
+}
+
+impl TypeInterface for ResolvedType {
+    fn flags(&self) -> TypeFlags {
+        self._object_type.flags()
+    }
+}
+
+impl ObjectTypeInterface for ResolvedType {
+    fn object_flags(&self) -> ObjectFlags {
+        self._object_type.object_flags()
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        self._object_type.set_object_flags(object_flags)
+    }
+}
+
+impl From<ResolvedType> for ObjectType {
+    fn from(resolved_type: ResolvedType) -> Self {
+        ObjectType::ResolvedType(resolved_type)
+    }
+}
+
+impl From<ResolvedType> for Type {
+    fn from(resolved_type: ResolvedType) -> Self {
+        Type::ObjectType(ObjectType::ResolvedType(resolved_type))
     }
 }
 
