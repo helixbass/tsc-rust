@@ -12,17 +12,18 @@ use crate::{
     create_diagnostic_for_node_from_message_chain, create_printer, create_symbol_table,
     create_text_writer, every, factory, for_each, get_effective_initializer,
     get_effective_type_annotation_node, get_first_identifier, get_synthetic_factory,
-    is_binding_element, is_private_identifier, is_property_signature, is_variable_declaration,
-    node_is_missing, object_allocator, ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType,
-    BaseLiteralType, BaseObjectType, BaseType, BaseUnionOrIntersectionType, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint,
-    EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType, InterfaceDeclaration,
-    InterfaceType, IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
-    LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
-    NumberLiteralType, NumericLiteral, ObjectFlags, PrefixUnaryExpression, PrinterOptions,
-    PropertySignature, RelationComparisonResult, SourceFile, Statement, Symbol, SymbolFlags,
-    SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost,
-    TypeElement, TypeFlags, TypeInterface, TypeReferenceNode, VariableLikeDeclarationInterface,
+    is_binding_element, is_external_or_common_js_module, is_private_identifier,
+    is_property_signature, is_variable_declaration, node_is_missing, object_allocator,
+    ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType, BaseLiteralType, BaseObjectType, BaseType,
+    BaseUnionOrIntersectionType, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression, ExpressionStatement,
+    FreshableIntrinsicType, InterfaceDeclaration, InterfaceType, IntrinsicType, KeywordTypeNode,
+    LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface, NamedDeclarationInterface,
+    Node, NodeInterface, Number, NumberLiteralType, NumericLiteral, ObjectFlags,
+    PrefixUnaryExpression, PrinterOptions, PropertySignature, RelationComparisonResult, SourceFile,
+    Statement, Symbol, SymbolFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type,
+    TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeReferenceNode,
+    VariableLikeDeclarationInterface,
 };
 
 bitflags! {
@@ -46,7 +47,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         node_builder: create_node_builder(),
 
-        globals: create_symbol_table(),
+        globals: RefCell::new(create_symbol_table()),
 
         number_literal_types: HashMap::new(),
 
@@ -172,6 +173,10 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 }
 
 impl TypeChecker {
+    fn globals(&self) -> RefMut<SymbolTable> {
+        self.globals.borrow_mut()
+    }
+
     fn unknown_symbol(&self) -> Rc<Symbol> {
         self.unknown_symbol.as_ref().unwrap().clone()
     }
@@ -252,6 +257,24 @@ impl TypeChecker {
         symbol
     }
 
+    fn merge_symbol_table(
+        &self,
+        target: &mut SymbolTable,
+        source: &SymbolTable,
+        unidirectional: Option<bool>,
+    ) {
+        let unidirectional = unidirectional.unwrap_or(false);
+        for (id, source_symbol) in source {
+            let target_symbol = target.get(id);
+            let value = if let Some(target_symbol) = target_symbol {
+                unimplemented!()
+            } else {
+                source_symbol.clone()
+            };
+            target.insert(id.clone(), value);
+        }
+    }
+
     fn is_global_source_file(&self, node: &Node) -> bool {
         node.kind() == SyntaxKind::SourceFile && true
     }
@@ -263,7 +286,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
         if meaning != SymbolFlags::None {
-            let symbol = self.get_merged_symbol(symbols.get(name).map(|rc| rc.clone()));
+            let symbol = self.get_merged_symbol(symbols.get(name).map(Clone::clone));
             if let Some(symbol) = symbol {
                 if symbol.flags().intersects(meaning) {
                     return Some(symbol);
@@ -327,7 +350,7 @@ impl TypeChecker {
             }
 
             if !exclude_globals {
-                result = lookup(self, &self.globals, name, meaning);
+                result = lookup(self, &self.globals(), name, meaning);
             }
         }
 
@@ -1308,6 +1331,15 @@ impl TypeChecker {
         for file in host.get_source_files() {
             bind_source_file(&*file);
             println!("post-binding: {:#?}", file);
+        }
+
+        for file in host.get_source_files() {
+            if !is_external_or_common_js_module(match &*file {
+                Node::SourceFile(source_file) => source_file,
+                _ => panic!("Expected SourceFile"),
+            }) {
+                self.merge_symbol_table(&mut *self.globals(), &*file.locals(), None);
+            }
         }
 
         // self.global_array_type = self.get_global_type(__String::new("Array".to_string()));

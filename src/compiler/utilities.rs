@@ -90,6 +90,10 @@ fn get_error_span_for_node<TNode: NodeInterface>(
     create_text_span_from_bounds(pos, error_node.end())
 }
 
+pub fn is_external_or_common_js_module(file: &SourceFile) -> bool {
+    false
+}
+
 pub fn get_effective_initializer<TNode: NodeInterface>(
     node: &TNode, /*HasExpressionInitializer*/
 ) -> Option<Rc<Node>> {

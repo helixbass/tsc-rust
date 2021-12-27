@@ -943,7 +943,7 @@ pub struct TypeChecker {
     pub Symbol: fn(SymbolFlags, __String) -> Symbol,
     pub Type: fn(TypeFlags) -> BaseType,
     pub node_builder: NodeBuilder,
-    pub globals: SymbolTable,
+    pub globals: RefCell<SymbolTable>,
     pub number_literal_types: HashMap<Number, Rc</*NumberLiteralType*/ Type>>,
     pub unknown_symbol: Option<Rc<Symbol>>,
     pub number_type: Option<Rc<Type>>,
