@@ -26,7 +26,7 @@ pub use compiler::program::create_program;
 pub use compiler::scanner::{create_scanner, token_to_string, Scanner};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
-    ArrayLiteralExpression, BaseBindingLikeDeclaration, BaseDiagnostic,
+    ArrayLiteralExpression, ArrayTypeNode, BaseBindingLikeDeclaration, BaseDiagnostic,
     BaseDiagnosticRelatedInformation, BaseIntrinsicType, BaseLiteralLikeNode, BaseLiteralType,
     BaseNamedDeclaration, BaseNode, BaseType, BaseUnionOrIntersectionType,
     BaseVariableLikeDeclaration, BinaryExpression, BindingLikeDeclarationInterface, CharacterCodes,

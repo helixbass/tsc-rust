@@ -41,6 +41,8 @@ pub enum SyntaxKind {
     CommaToken,
     AsteriskToken,
     PlusPlusToken,
+    ExclamationToken,
+    QuestionToken,
     ColonToken,
     EqualsToken,
     Identifier,
@@ -52,6 +54,7 @@ pub enum SyntaxKind {
     WithKeyword,
     NumberKeyword,
     OfKeyword,
+    ArrayType,
     LiteralType,
     ObjectBindingPattern,
     ArrayBindingPattern,
@@ -505,6 +508,7 @@ impl VariableDeclarationList {
 pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
     LiteralTypeNode(LiteralTypeNode),
+    ArrayTypeNode(ArrayTypeNode),
 }
 
 #[derive(Debug)]
@@ -522,6 +526,22 @@ impl KeywordTypeNode {
 impl From<BaseNode> for KeywordTypeNode {
     fn from(base_node: BaseNode) -> Self {
         KeywordTypeNode::new(base_node)
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct ArrayTypeNode {
+    _node: BaseNode,
+    pub element_type: Rc<Node /*TypeNode*/>,
+}
+
+impl ArrayTypeNode {
+    pub fn new(base_node: BaseNode, element_type: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            element_type,
+        }
     }
 }
 
@@ -743,6 +763,7 @@ pub struct TypeChecker {
     pub regular_false_type: Option<Rc<Type>>,
     pub boolean_type: Option<Rc<Type>>,
     pub number_or_big_int_type: Option<Rc<Type>>,
+    pub global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub diagnostics: RefCell<DiagnosticCollection>,
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
@@ -760,17 +781,22 @@ bitflags! {
         const EnumMember = 1 << 3;
         const Function = 1 << 4;
         const Class = 1 << 5;
+        const Interface = 1 << 6;
         const ConstEnum = 1 << 7;
         const RegularEnum = 1 << 8;
         const ValueModule = 1 << 9;
+        const TypeLiteral = 1 << 11;
         const ObjectLiteral = 1 << 12;
         const Method = 1 << 13;
         const GetAccessor = 1 << 15;
         const SetAccessor = 1 << 16;
+        const TypeParameter = 1 << 18;
+        const TypeAlias = 1 << 19;
 
         const Enum = Self::RegularEnum.bits | Self::ConstEnum.bits;
         const Variable = Self::FunctionScopedVariable.bits | Self::BlockScopedVariable.bits;
         const Value = Self::Variable.bits | Self::Property.bits | Self::EnumMember.bits | Self::ObjectLiteral.bits | Self::Function.bits | Self::Class.bits | Self::Enum.bits | Self::ValueModule.bits | Self::Method.bits | Self::GetAccessor.bits | Self::SetAccessor.bits;
+        const Type = Self::Class.bits | Self::Interface.bits | Self::Enum.bits | Self::EnumMember.bits | Self::TypeLiteral.bits | Self::TypeParameter.bits | Self::TypeAlias.bits;
     }
 }
 

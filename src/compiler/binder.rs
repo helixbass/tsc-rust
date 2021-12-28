@@ -227,34 +227,26 @@ impl BinderType {
 
     fn bind_children(&self, node: &Node) {
         match node {
-            Node::Statement(statement) => match statement {
-                Statement::ExpressionStatement(expression_statement) => {
-                    self.bind_expression_statement(expression_statement);
-                }
-                _ => {
-                    self.bind_each_child(node);
-                }
-            },
-            Node::Expression(expression) => match expression {
-                Expression::PrefixUnaryExpression(_) => {
-                    self.bind_prefix_unary_expression_flow(node);
-                }
-                Expression::BinaryExpression(_) => unimplemented!(),
-                _ => {
-                    self.bind_each_child(node);
-                }
-            },
-            Node::SourceFile(source_file) => {
-                self.bind_each_functions_first(&source_file.statements);
+            Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
+                self.bind_expression_statement(expression_statement);
             }
-            Node::VariableDeclarationList(_) => {
-                self.bind_each_child(node);
+            Node::Expression(Expression::PrefixUnaryExpression(_)) => {
+                self.bind_prefix_unary_expression_flow(node);
             }
+            Node::Expression(Expression::BinaryExpression(_)) => unimplemented!(),
             Node::VariableDeclaration(_) => {
                 self.bind_variable_declaration_flow(node);
             }
-            Node::BaseNode(_) => panic!("Didn't expect to bind BaseNode?"),
-            _ => unimplemented!(),
+            Node::SourceFile(source_file) => {
+                self.bind_each_functions_first(&source_file.statements);
+            }
+            Node::Expression(Expression::ArrayLiteralExpression(_)) => {
+                // self.set_in_assignment_pattern(save_in_assignment_pattern);
+                self.bind_each_child(node);
+            }
+            _ => {
+                self.bind_each_child(node);
+            }
         };
     }
 

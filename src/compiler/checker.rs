@@ -10,15 +10,15 @@ use crate::{
     create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_printer,
     create_text_writer, every, factory, for_each, get_effective_initializer,
     get_effective_type_annotation_node, get_synthetic_factory, is_variable_declaration,
-    object_allocator, BaseIntrinsicType, BaseLiteralType, BaseType, BaseUnionOrIntersectionType,
-    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
-    Diagnostics, EmitHint, EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType,
-    HasTypeInterface, IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
-    LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType, NumericLiteral,
-    PrefixUnaryExpression, PrinterOptions, RelationComparisonResult, SourceFile, Statement, Symbol,
-    SymbolFlags, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeFlags,
-    TypeInterface, TypeNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType,
-    VariableDeclaration, VariableStatement,
+    object_allocator, ArrayTypeNode, BaseIntrinsicType, BaseLiteralType, BaseType,
+    BaseUnionOrIntersectionType, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression, ExpressionStatement,
+    FreshableIntrinsicType, HasTypeInterface, IntrinsicType, KeywordTypeNode, LiteralLikeNode,
+    LiteralLikeNodeInterface, LiteralTypeInterface, Node, NodeInterface, Number, NumberLiteralType,
+    NumericLiteral, PrefixUnaryExpression, PrinterOptions, RelationComparisonResult, SourceFile,
+    Statement, Symbol, SymbolFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type,
+    TypeChecker, TypeCheckerHost, TypeFlags, TypeInterface, TypeNode, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration, VariableStatement, __String,
 };
 
 bitflags! {
@@ -51,6 +51,8 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         regular_false_type: None,
         boolean_type: None,
         number_or_big_int_type: None,
+
+        global_array_type: None,
 
         diagnostics: RefCell::new(create_diagnostic_collection()),
 
@@ -190,6 +192,10 @@ impl TypeChecker {
         self.number_or_big_int_type.as_ref().unwrap().clone()
     }
 
+    fn global_array_type(&self) -> Rc<Type> {
+        self.global_array_type.as_ref().unwrap().clone()
+    }
+
     fn diagnostics(&self) -> RefMut<DiagnosticCollection> {
         self.diagnostics.borrow_mut()
     }
@@ -223,6 +229,42 @@ impl TypeChecker {
     ) -> Rc<Diagnostic> {
         let diagnostic = self.error(Some(location), message);
         diagnostic
+    }
+
+    fn get_symbol(
+        &self,
+        symbols: &SymbolTable,
+        name: __String,
+        meaning: SymbolFlags,
+    ) -> Option<Rc<Symbol>> {
+        if meaning != SymbolFlags::None {
+            let symbol = self.get_merged_symbol(symbols.get(&name).map(|rc| rc.clone()));
+            if let Some(symbol) = symbol {
+                if symbol.flags().intersects(meaning) {
+                    return Some(symbol);
+                }
+            }
+        }
+        None
+    }
+
+    fn resolve_name(
+        &self,
+        location: Option<Rc<Node>>,
+        name: __String,
+        meaning: SymbolFlags,
+    ) -> Option<Rc<Symbol>> {
+        self.resolve_name_helper(location, name, meaning, TypeChecker::get_symbol)
+    }
+
+    fn resolve_name_helper(
+        &self,
+        location: Option<Rc<Node>>,
+        name: __String,
+        meaning: SymbolFlags,
+        lookup: fn(&TypeChecker, &SymbolTable, __String, SymbolFlags) -> Option<Rc<Symbol>>,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
     }
 
     fn get_merged_symbol(&self, symbol: Option<Rc<Symbol>>) -> Option<Rc<Symbol>> {
@@ -366,6 +408,55 @@ impl TypeChecker {
         type_
     }
 
+    fn get_type_of_global_symbol(&self, symbol: Option<Rc<Symbol>>) -> Rc<Type /*ObjectType*/> {
+        unimplemented!()
+    }
+
+    fn get_global_type_symbol(&self, name: __String) -> Option<Rc<Symbol>> {
+        self.get_global_symbol(name, SymbolFlags::Type)
+    }
+
+    fn get_global_symbol(&self, name: __String, meaning: SymbolFlags) -> Option<Rc<Symbol>> {
+        self.resolve_name(None, name, meaning)
+    }
+
+    fn get_global_type(&self, name: __String) -> Option<Rc<Type>> {
+        let symbol = self.get_global_type_symbol(name);
+        if true {
+            Some(self.get_type_of_global_symbol(symbol))
+        } else {
+            None
+        }
+    }
+
+    fn get_array_or_tuple_target_type(&self, node: &ArrayTypeNode) -> Rc<Type /*GenericType*/> {
+        let element_type = self.get_array_element_type_node(node);
+        if let Some(element_type) = element_type {
+            return self.global_array_type();
+        }
+        unimplemented!()
+    }
+
+    fn get_type_from_array_or_tuple_type_node(&self, node: &ArrayTypeNode) -> Rc<Type> {
+        let target = self.get_array_or_tuple_target_type(node);
+        if false {
+            unimplemented!()
+        } else if false {
+            unimplemented!()
+        } else {
+            let element_types = vec![self.get_type_from_type_node(&*node.element_type)];
+            return self.create_normalized_type_reference(target, Some(element_types));
+        }
+    }
+
+    fn create_normalized_type_reference(
+        &self,
+        target: Rc<Type /*GenericType*/>,
+        type_arguments: Option<Vec<Rc<Type>>>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     fn add_type_to_union(&self, type_set: &mut Vec<Rc<Type>>, type_: Rc<Type>) {
         type_set.push(type_);
     }
@@ -457,13 +548,27 @@ impl TypeChecker {
         type_
     }
 
+    fn get_array_element_type_node(&self, node: &ArrayTypeNode) -> Option<Rc<Node /*TypeNode*/>> {
+        Some(node.element_type.clone())
+    }
+
     fn get_type_from_type_node(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
         self.get_conditional_flow_type_of_type(self.get_type_from_type_node_worker(node), node)
     }
 
     fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
-        match node.kind() {
-            SyntaxKind::NumberKeyword => self.number_type(),
+        let node = match node {
+            Node::TypeNode(type_node) => type_node,
+            _ => panic!("Expected TypeNode"),
+        };
+        match node {
+            TypeNode::KeywordTypeNode(_) => match node.kind() {
+                SyntaxKind::NumberKeyword => self.number_type(),
+                _ => unimplemented!(),
+            },
+            TypeNode::ArrayTypeNode(array_type_node) => {
+                self.get_type_from_array_or_tuple_type_node(array_type_node)
+            }
             _ => unimplemented!(),
         }
     }
@@ -691,6 +796,10 @@ impl TypeChecker {
         }
     }
 
+    fn check_array_type(&mut self, node: &ArrayTypeNode) {
+        self.check_source_element(Some(&*node.element_type));
+    }
+
     fn check_source_element<TNodeRef: Borrow<Node>>(&mut self, node: Option<TNodeRef>) {
         if let Some(node) = node {
             let node = node.borrow();
@@ -700,20 +809,15 @@ impl TypeChecker {
 
     fn check_source_element_worker(&mut self, node: &Node) {
         match node {
-            Node::TypeNode(type_node) => match type_node {
-                TypeNode::KeywordTypeNode(_) => (),
-                _ => unimplemented!(),
-            },
-            Node::Statement(statement) => {
-                match statement {
-                    Statement::VariableStatement(variable_statement) => {
-                        return self.check_variable_statement(variable_statement);
-                    }
-                    Statement::ExpressionStatement(expression_statement) => {
-                        return self.check_expression_statement(expression_statement);
-                    }
-                    _ => unimplemented!(),
-                };
+            Node::TypeNode(TypeNode::KeywordTypeNode(_)) => (),
+            Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => {
+                return self.check_array_type(array_type_node);
+            }
+            Node::Statement(Statement::VariableStatement(variable_statement)) => {
+                return self.check_variable_statement(variable_statement);
+            }
+            Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
+                return self.check_expression_statement(expression_statement);
             }
             Node::VariableDeclaration(variable_declaration) => {
                 return self.check_variable_declaration(variable_declaration);
@@ -884,11 +988,16 @@ impl TypeChecker {
         self.check_expression(expression);
     }
 
-    fn initialize_type_checker<TTypeCheckerHost: TypeCheckerHost>(&self, host: &TTypeCheckerHost) {
+    fn initialize_type_checker<TTypeCheckerHost: TypeCheckerHost>(
+        &mut self,
+        host: &TTypeCheckerHost,
+    ) {
         for file in host.get_source_files() {
             bind_source_file(&*file);
             println!("post-binding: {:#?}", file);
         }
+
+        // self.global_array_type = self.get_global_type(__String::new("Array".to_string()));
     }
 
     fn check_grammar_numeric_literal(&self, node: &NumericLiteral) -> bool {

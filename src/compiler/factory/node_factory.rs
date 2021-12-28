@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::{
-    create_base_node_factory, escape_leading_underscores, ArrayLiteralExpression,
+    create_base_node_factory, escape_leading_underscores, ArrayLiteralExpression, ArrayTypeNode,
     BaseBindingLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
     BaseNodeFactory, BaseNodeFactoryConcrete, BaseVariableLikeDeclaration, BinaryExpression,
     EmptyStatement, Expression, ExpressionStatement, Identifier, LiteralTypeNode, Node, NodeArray,
@@ -150,6 +150,16 @@ impl NodeFactory {
         token: SyntaxKind,
     ) -> BaseNode {
         self.create_token(base_factory, token)
+    }
+
+    pub fn create_array_type_node<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        element_type: Rc<Node>,
+    ) -> ArrayTypeNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::ArrayType);
+        let node = ArrayTypeNode::new(node, element_type);
+        node
     }
 
     pub fn create_literal_type_node<TBaseNodeFactory: BaseNodeFactory, TNode: NodeInterface>(

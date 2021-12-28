@@ -59,24 +59,21 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             visit_node(&mut cb_node, variable_declaration.type_());
             return visit_node(&mut cb_node, variable_declaration.initializer());
         }
-        Node::Expression(expression) => match expression {
-            Expression::ArrayLiteralExpression(array_literal_expression) => {
-                return visit_nodes(&mut cb_node, cb_nodes, &array_literal_expression.elements);
-            }
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                return visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()));
-            }
-            _ => unimplemented!(),
-        },
-        Node::Statement(statement) => match statement {
-            Statement::VariableStatement(variable_statement) => {
-                return visit_node(
-                    &mut cb_node,
-                    Some(variable_statement.declaration_list.clone()),
-                );
-            }
-            _ => unimplemented!(),
-        },
+        Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
+            return visit_node(&mut cb_node, Some(array_type.element_type.clone()));
+        }
+        Node::Expression(Expression::ArrayLiteralExpression(array_literal_expression)) => {
+            return visit_nodes(&mut cb_node, cb_nodes, &array_literal_expression.elements);
+        }
+        Node::Expression(Expression::PrefixUnaryExpression(prefix_unary_expression)) => {
+            return visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()));
+        }
+        Node::Statement(Statement::VariableStatement(variable_statement)) => {
+            return visit_node(
+                &mut cb_node,
+                Some(variable_statement.declaration_list.clone()),
+            );
+        }
         Node::VariableDeclarationList(variable_declaration_list) => {
             return visit_nodes(cb_node, cb_nodes, &variable_declaration_list.declarations);
         }
@@ -659,6 +656,8 @@ impl ParserType {
             if self.is_list_terminator(kind) {
                 break;
             }
+
+            unimplemented!()
         }
 
         self.set_parsing_context(save_parsing_context);
@@ -735,9 +734,44 @@ impl ParserType {
         }
     }
 
+    fn is_start_of_type(&self) -> bool {
+        match self.token() {
+            _ => self.is_identifier(),
+        }
+    }
+
     fn parse_postfix_type_or_higher(&mut self) -> TypeNode {
         let pos = self.get_node_pos();
-        let type_ = self.parse_non_array_type();
+        let mut type_ = self.parse_non_array_type();
+        while !self.scanner().has_preceding_line_break() {
+            match self.token() {
+                SyntaxKind::ExclamationToken => {
+                    unimplemented!()
+                }
+                SyntaxKind::QuestionToken => {
+                    unimplemented!()
+                }
+                SyntaxKind::OpenBracketToken => {
+                    self.parse_expected(SyntaxKind::OpenBracketToken, None);
+                    if self.is_start_of_type() {
+                        unimplemented!()
+                    } else {
+                        self.parse_expected(SyntaxKind::CloseBracketToken, None);
+                        type_ = self.finish_node(
+                            self.factory
+                                .create_array_type_node(self, type_.into())
+                                .into(),
+                            pos,
+                            None,
+                        );
+                    }
+                    break;
+                }
+                _ => {
+                    return type_;
+                }
+            }
+        }
         type_
     }
 
@@ -784,6 +818,8 @@ impl ParserType {
 
     fn is_start_of_left_hand_side_expression(&self) -> bool {
         match self.token() {
+            SyntaxKind::TrueKeyword => true,
+            SyntaxKind::FalseKeyword => true,
             SyntaxKind::NumericLiteral => true,
             SyntaxKind::OpenBracketToken => true,
             _ => self.is_identifier(),
