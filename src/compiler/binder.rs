@@ -162,7 +162,7 @@ impl BinderType {
         ) {
             let mut members = symbol.maybe_members();
             if members.is_none() {
-                *members = Some(create_symbol_table());
+                *members = Some(Rc::new(RefCell::new(create_symbol_table())));
             }
         }
 
@@ -336,7 +336,7 @@ impl BinderType {
                 Some(self.declare_source_file_member(node, symbol_flags, symbol_excludes))
             }
             SyntaxKind::InterfaceDeclaration => Some(self.declare_symbol(
-                &mut *self.container().symbol().members(),
+                &mut *self.container().symbol().members().borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 symbol_flags,

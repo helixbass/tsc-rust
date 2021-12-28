@@ -47,11 +47,12 @@ pub use compiler::types::{
     NodeInterface, NumberLiteralType, NumericLiteral, ObjectFlags, ObjectLiteralExpression,
     ObjectTypeInterface, ParsedCommandLine, Path, PrefixUnaryExpression, Printer, PrinterOptions,
     Program, PropertyAssignment, PropertySignature, ReadonlyTextRange, RelationComparisonResult,
-    ResolvedType, SourceFile, Statement, StructureIsReused, Symbol, SymbolFlags, SymbolTable,
-    SymbolTracker, SymbolWriter, SyntaxKind, Ternary, TextSpan, TokenFlags, Type, TypeChecker,
-    TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeNode, TypeReferenceNode,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, __String,
+    ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Statement, StructureIsReused,
+    Symbol, SymbolFlags, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, Ternary, TextSpan,
+    TokenFlags, Type, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface,
+    TypeNode, TypeReferenceNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
+    UnionType, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, __String,
 };
 pub use compiler::utilities::{
     chain_diagnostic_messages, create_detached_diagnostic, create_diagnostic_collection,

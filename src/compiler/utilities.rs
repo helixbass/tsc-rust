@@ -286,7 +286,7 @@ fn Symbol(flags: SymbolFlags, name: __String) -> Symbol {
 
 #[allow(non_snake_case)]
 fn Type(flags: TypeFlags) -> BaseType {
-    BaseType { flags }
+    BaseType::new(flags)
 }
 
 #[allow(non_snake_case)]

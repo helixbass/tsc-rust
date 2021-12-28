@@ -1,7 +1,9 @@
+#![allow(non_upper_case_globals)]
+
 use bitflags::bitflags;
 use std::borrow::Borrow;
 use std::cell::{Ref, RefCell, RefMut};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ptr;
 use std::rc::Rc;
 
@@ -15,16 +17,16 @@ use crate::{
     is_binding_element, is_external_or_common_js_module, is_private_identifier,
     is_property_signature, is_variable_declaration, node_is_missing, object_allocator,
     ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType, BaseLiteralType, BaseObjectType, BaseType,
-    BaseUnionOrIntersectionType, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression, ExpressionStatement,
-    FreshableIntrinsicType, InterfaceDeclaration, InterfaceType, IntrinsicType, KeywordTypeNode,
-    LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface, NamedDeclarationInterface,
-    Node, NodeInterface, Number, NumberLiteralType, NumericLiteral, ObjectFlags,
-    ObjectLiteralExpression, ObjectTypeInterface, PrefixUnaryExpression, PrinterOptions,
-    PropertySignature, RelationComparisonResult, ResolvedType, SourceFile, Statement, Symbol,
-    SymbolFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker,
-    TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeReferenceNode,
-    VariableLikeDeclarationInterface,
+    BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic, DiagnosticCollection,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression,
+    ExpressionStatement, FreshableIntrinsicType, InterfaceDeclaration, InterfaceType,
+    IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
+    NumberLiteralType, NumericLiteral, ObjectFlags, ObjectLiteralExpression, ObjectTypeInterface,
+    PrefixUnaryExpression, PrinterOptions, PropertySignature, RelationComparisonResult,
+    ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Statement, Symbol, SymbolFlags,
+    SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost,
+    TypeElement, TypeFlags, TypeInterface, TypeReferenceNode, VariableLikeDeclarationInterface,
 };
 
 bitflags! {
@@ -35,6 +37,26 @@ bitflags! {
         const PropertyCheck = 1 << 2;
         const UnionIntersectionCheck = 1 << 3;
         const InPropertyCheck = 1 << 4;
+    }
+}
+
+bitflags! {
+    struct RecursionFlags: u32 {
+        const None = 0;
+        const Source = 1 << 0;
+        const Target = 1 << 1;
+
+        const Both = Self::Source.bits | Self::Target.bits;
+    }
+}
+
+bitflags! {
+    struct ExpandingFlags: u32 {
+        const None = 0;
+        const Source = 1;
+        const Target = 1 << 1;
+
+        const Both = Self::Source.bits | Self::Target.bits;
     }
 }
 
@@ -429,6 +451,10 @@ impl TypeChecker {
         self.get_merged_symbol(node.maybe_symbol())
     }
 
+    fn symbol_is_value(&self, symbol: Rc<Symbol>) -> bool {
+        symbol.flags().intersects(SymbolFlags::Value)
+    }
+
     fn create_type(&self, flags: TypeFlags) -> BaseType {
         let result = (self.Type)(flags);
         result
@@ -446,20 +472,71 @@ impl TypeChecker {
         type_
     }
 
-    fn set_structured_type_members(
-        &self,
-        type_: BaseObjectType,
-        members: SymbolTable,
-    ) -> ResolvedType {
-        let resolved = ResolvedType::new(type_, members);
-        resolved
+    fn is_reserved_member_name(&self, name: &__String) -> bool {
+        let chars = name.chars();
+        let mut current_char: Option<char> = chars.next();
+        if let Some(current_char) = current_char {
+            if current_char != CharacterCodes::underscore {
+                return false;
+            }
+        } else {
+            return false;
+        }
+        current_char = chars.next();
+        if let Some(current_char) = current_char {
+            if current_char != CharacterCodes::underscore {
+                return false;
+            }
+        } else {
+            return false;
+        }
+        current_char = chars.next();
+        if let Some(current_char) = current_char {
+            if current_char == CharacterCodes::underscore
+                || current_char == CharacterCodes::at
+                || current_char == CharacterCodes::hash
+            {
+                return false;
+            }
+        } else {
+            return false;
+        }
+        true
     }
 
-    fn create_anonymous_type(&self, symbol: Rc<Symbol>, members: SymbolTable) -> ResolvedType {
-        self.set_structured_type_members(
-            self.create_object_type(ObjectFlags::Anonymous, symbol),
-            members,
-        )
+    fn get_named_members(&self, members: &SymbolTable) -> Vec<Rc<Symbol>> {
+        members
+            .iter()
+            .filter(|(id, symbol)| self.is_named_member((*symbol).clone(), id))
+            .map(|(_, symbol)| symbol.clone())
+            .collect()
+    }
+
+    fn is_named_member(&self, member: Rc<Symbol>, escaped_name: &__String) -> bool {
+        !self.is_reserved_member_name(escaped_name) && self.symbol_is_value(member)
+    }
+
+    fn set_structured_type_members<TType: ResolvableTypeInterface + ResolvedTypeInterface>(
+        &self,
+        type_: &TType,
+        members: Rc<RefCell<SymbolTable>>,
+    ) /*-> BaseObjectType*/
+    {
+        type_.resolve(members, vec![]);
+        if true {
+            type_.set_properties(self.get_named_members(&*(*members).borrow()));
+        }
+        // type_
+    }
+
+    fn create_anonymous_type(
+        &self,
+        symbol: Rc<Symbol>,
+        members: Rc<RefCell<SymbolTable>>,
+    ) -> BaseObjectType {
+        let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);
+        self.set_structured_type_members(&type_, members);
+        type_
     }
 
     fn type_to_string(&self, type_: &Type) -> String {
@@ -608,6 +685,114 @@ impl TypeChecker {
             return Some(self.get_declared_type_of_class_or_interface(symbol));
         }
         unimplemented!()
+    }
+
+    fn resolve_declared_members(&self, type_: Rc<Type /*InterfaceType*/>) -> Rc<Type> {
+        type_
+    }
+
+    fn get_members_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<RefCell<SymbolTable>> {
+        if false {
+            unimplemented!()
+        } else {
+            symbol.members()
+        }
+    }
+
+    fn resolve_object_type_members(
+        &self,
+        type_: Rc<Type /*ObjectType*/>,
+        source: Rc<Type /*InterfaceTypeWithDeclaredMembers*/>,
+    ) {
+        let members: Rc<RefCell<SymbolTable>>;
+        if true {
+            members = if let Some(source_symbol) = source.maybe_symbol() {
+                self.get_members_of_symbol(source_symbol)
+            } else {
+                unimplemented!()
+            };
+        } else {
+            unimplemented!()
+        }
+        self.set_structured_type_members(
+            match &*type_ {
+                Type::ObjectType(object_type) => object_type,
+                _ => panic!("Expected ObjectType"),
+            },
+            members,
+        );
+    }
+
+    fn resolve_class_or_interface_members(&self, type_: Rc<Type /*InterfaceType*/>) {
+        self.resolve_object_type_members(type_, self.resolve_declared_members(type_));
+    }
+
+    fn resolve_structured_type_members(
+        &self,
+        type_: Rc<Type /*StructuredType*/>,
+    ) -> Rc<Type /*ResolvedType*/> {
+        if !type_.as_resolvable_type().is_resolved() {
+            if let Type::ObjectType(object_type) = &*type_
+            /*type_.flags().intersects(TypeFlags::Object)*/
+            {
+                if false {
+                    unimplemented!()
+                } else if object_type
+                    .object_flags()
+                    .intersects(ObjectFlags::ClassOrInterface)
+                {
+                    self.resolve_class_or_interface_members(type_);
+                } else {
+                    unimplemented!()
+                }
+            } else {
+                unimplemented!()
+            }
+        }
+        type_
+    }
+
+    fn get_properties_of_object_type(&self, type_: Rc<Type>) -> Vec<Rc<Symbol>> {
+        if type_.flags().intersects(TypeFlags::Object) {
+            return self
+                .resolve_structured_type_members(type_)
+                .as_resolved_type()
+                .properties()
+                .iter()
+                .map(|rc| rc.clone())
+                .collect();
+        }
+        unimplemented!()
+    }
+
+    fn get_properties_of_type(&self, type_: Rc<Type>) -> Vec<Rc<Symbol>> {
+        let type_ = self.get_reduced_apparent_type(type_);
+        if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
+            unimplemented!()
+        } else {
+            self.get_properties_of_object_type(type_)
+        }
+    }
+
+    fn get_apparent_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        let t = if type_.flags().intersects(TypeFlags::Instantiable) {
+            unimplemented!()
+        } else {
+            type_
+        };
+        if false {
+            unimplemented!()
+        } else {
+            t
+        }
+    }
+
+    fn get_reduced_apparent_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        self.get_reduced_type(self.get_apparent_type(self.get_reduced_type(type_)))
+    }
+
+    fn get_reduced_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        type_
     }
 
     fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
@@ -1143,7 +1328,8 @@ impl TypeChecker {
         }
 
         let create_object_literal_type = || {
-            let mut result = self.create_anonymous_type(node.symbol(), properties_table);
+            let mut result =
+                self.create_anonymous_type(node.symbol(), Rc::new(RefCell::new(properties_table)));
             result.set_object_flags(
                 result.object_flags()
                     | object_flags
@@ -1503,6 +1689,7 @@ struct CheckTypeRelatedTo<'type_checker> {
     error_node: Option<&'type_checker Node>,
     head_message: Option<DiagnosticMessage>,
     error_info: RefCell<Option<DiagnosticMessageChain>>,
+    expanding_flags: ExpandingFlags,
 }
 
 impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
@@ -1522,6 +1709,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             error_node,
             head_message,
             error_info: RefCell::new(None),
+            expanding_flags: ExpandingFlags::None,
         }
     }
 
@@ -1537,6 +1725,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         let result = self.is_related_to(
             self.source.clone(),
             self.target.clone(),
+            Some(RecursionFlags::Both),
             self.error_node.is_some(),
             self.head_message.as_ref(),
             None,
@@ -1609,11 +1798,13 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         &self,
         original_source: Rc<Type>,
         original_target: Rc<Type>,
+        recursion_flags: Option<RecursionFlags>,
         report_errors: bool,
         head_message: Option<&DiagnosticMessage>,
         intersection_state: Option<IntersectionState>,
     ) -> Ternary {
         let intersection_state = intersection_state.unwrap_or(IntersectionState::None);
+        let recursion_flags = recursion_flags.unwrap_or(RecursionFlags::Both);
 
         let source = self.type_checker.get_normalized_type(original_source);
         let target = self.type_checker.get_normalized_type(original_target);
@@ -1658,6 +1849,23 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                 intersection_state | IntersectionState::UnionIntersectionCheck,
             );
         }
+        if result == Ternary::False
+            && !(source.flags().intersects(TypeFlags::Union))
+            && (source
+                .flags()
+                .intersects(TypeFlags::StructuredOrInstantiable)
+                || source
+                    .flags()
+                    .intersects(TypeFlags::StructuredOrInstantiable))
+        {
+            result = self.recursive_type_related_to(
+                source,
+                target,
+                report_errors,
+                intersection_state,
+                recursion_flags,
+            );
+        }
 
         report_error_results(source, target, result);
 
@@ -1672,7 +1880,14 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         let target_types = target.types();
 
         for type_ in target_types {
-            let related = self.is_related_to(source.clone(), type_.clone(), false, None, None);
+            let related = self.is_related_to(
+                source.clone(),
+                type_.clone(),
+                Some(RecursionFlags::Target),
+                false,
+                None,
+                None,
+            );
             if related != Ternary::False {
                 return related;
             }
@@ -1694,6 +1909,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             let related = self.is_related_to(
                 source_type.clone(),
                 target.clone(),
+                Some(RecursionFlags::Source),
                 report_errors,
                 None,
                 Some(intersection_state),
@@ -1703,6 +1919,22 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             }
             result &= related;
         }
+        result
+    }
+
+    fn recursive_type_related_to(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        report_errors: bool,
+        intersection_state: IntersectionState,
+        recursion_flags: RecursionFlags,
+    ) -> Ternary {
+        let result = if self.expanding_flags != ExpandingFlags::Both {
+            self.structured_type_related_to(source, target, report_errors, intersection_state)
+        } else {
+            Ternary::Maybe
+        };
         result
     }
 
@@ -1761,6 +1993,83 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             unimplemented!()
         }
 
+        let result: Ternary;
+
+        if false {
+            unimplemented!()
+        } else {
+            if source
+                .flags()
+                .intersects(TypeFlags::Object | TypeFlags::Intersection)
+                && target.flags().intersects(TypeFlags::Object)
+            {
+                let report_structural_errors = report_errors && true;
+                result = self.properties_related_to(
+                    source,
+                    target,
+                    report_structural_errors,
+                    None,
+                    intersection_state,
+                );
+                if false && result != Ternary::False {
+                    unimplemented!()
+                } else if result != Ternary::False {
+                    return result;
+                }
+            }
+        }
+
         Ternary::False
+    }
+
+    fn properties_related_to(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        report_errors: bool,
+        excluded_properties: Option<HashSet<__String>>,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        let mut result = Ternary::True;
+        let require_optional_properties = false;
+        // let unmatched_property =
+        //     self.get_unmatched_property(source, target, require_optional_properties, false);
+        // if let Some(unmatched_property) = unmatched_property {
+        //     if report_errors {
+        //         self.report_unmatched_property(
+        //             source,
+        //             target,
+        //             unmatched_property,
+        //             require_optional_properties,
+        //         );
+        //     }
+        //     return Ternary::False;
+        // }
+        let properties = self.type_checker.get_properties_of_type(target);
+        for target_prop in self.exclude_properties(properties, excluded_properties) {
+            let name = &target_prop.escaped_name;
+            if true {
+                let source_prop = self.get_property_of_type(source, name);
+                if let Some(source_prop) = source_prop {
+                    if !Rc::ptr_eq(&source_prop, &target_prop) {
+                        let related = self.property_related_to(
+                            source,
+                            target,
+                            source_prop,
+                            target_prop,
+                            TypeChecker::get_non_missing_type_of_symbol,
+                            report_errors,
+                            intersection_state,
+                            true,
+                        );
+                        if related == Ternary::False {
+                            return Ternary::False;
+                        }
+                        result &= related;
+                    }
+                }
+            }
+        }
+        result
     }
 }
