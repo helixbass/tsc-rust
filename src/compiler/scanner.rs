@@ -7,11 +7,16 @@ use std::iter::FromIterator;
 
 use crate::{CharacterCodes, SyntaxKind, TokenFlags};
 
+pub fn token_is_identifier_or_keyword(token: SyntaxKind) -> bool {
+    token >= SyntaxKind::Identifier
+}
+
 lazy_static! {
     static ref text_to_keyword_obj: HashMap<String, SyntaxKind> =
         HashMap::from_iter(IntoIter::new([
             ("const".to_string(), SyntaxKind::ConstKeyword),
             ("false".to_string(), SyntaxKind::FalseKeyword),
+            ("interface".to_string(), SyntaxKind::InterfaceKeyword),
             ("number".to_string(), SyntaxKind::NumberKeyword),
             ("true".to_string(), SyntaxKind::TrueKeyword),
         ]));
@@ -204,6 +209,14 @@ impl Scanner {
                 CharacterCodes::close_bracket => {
                     self.set_pos(self.pos() + 1);
                     return self.set_token(SyntaxKind::CloseBracketToken);
+                }
+                CharacterCodes::open_brace => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::OpenBraceToken);
+                }
+                CharacterCodes::close_brace => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::CloseBraceToken);
                 }
                 _ch => {
                     let identifier_kind = self.scan_identifier(ch);

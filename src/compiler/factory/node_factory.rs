@@ -2,11 +2,13 @@ use std::rc::Rc;
 
 use crate::{
     create_base_node_factory, escape_leading_underscores, ArrayLiteralExpression, ArrayTypeNode,
-    BaseBindingLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
-    BaseNodeFactory, BaseNodeFactoryConcrete, BaseVariableLikeDeclaration, BinaryExpression,
-    EmptyStatement, Expression, ExpressionStatement, Identifier, LiteralTypeNode, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NumericLiteral, PrefixUnaryExpression,
-    SourceFile, SyntaxKind, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    BaseBindingLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
+    BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression, ExpressionStatement,
+    Identifier, InterfaceDeclaration, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, NumericLiteral, PrefixUnaryExpression,
+    PropertySignature, SourceFile, SyntaxKind, VariableDeclaration, VariableDeclarationList,
+    VariableStatement,
 };
 
 impl NodeFactory {
@@ -45,6 +47,28 @@ impl NodeFactory {
     ) -> BaseNamedDeclaration {
         let node = self.create_base_declaration(base_factory, kind);
         BaseNamedDeclaration::new(node, name)
+    }
+
+    fn create_base_generic_named_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        name: Rc<Node>,
+    ) -> BaseGenericNamedDeclaration {
+        let node = self.create_base_named_declaration(base_factory, kind, Some(name));
+        let node = BaseGenericNamedDeclaration::new(node);
+        node
+    }
+
+    fn create_base_interface_or_class_like_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        name: Rc<Node>,
+    ) -> BaseInterfaceOrClassLikeDeclaration {
+        let node = self.create_base_generic_named_declaration(base_factory, kind, name);
+        let node = BaseInterfaceOrClassLikeDeclaration::new(node);
+        node
     }
 
     fn create_base_binding_like_declaration<TBaseNodeFactory: BaseNodeFactory>(
@@ -142,6 +166,21 @@ impl NodeFactory {
         base_factory: &TBaseNodeFactory,
     ) -> BaseNode {
         self.create_token(base_factory, SyntaxKind::FalseKeyword)
+    }
+
+    pub fn create_property_signature<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Rc<Node>,
+        type_: Option<Rc<Node>>,
+    ) -> PropertySignature {
+        let node = self.create_base_named_declaration(
+            base_factory,
+            SyntaxKind::PropertySignature,
+            Some(name),
+        );
+        let node = PropertySignature::new(node, type_);
+        node
     }
 
     pub fn create_keyword_type_node<TBaseNodeFactory: BaseNodeFactory>(
@@ -276,6 +315,24 @@ impl NodeFactory {
     ) -> VariableDeclarationList {
         let node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
         let node = VariableDeclarationList::new(node, self.create_node_array(declarations));
+        node
+    }
+
+    pub fn create_interface_declaration<
+        TBaseNodeFactory: BaseNodeFactory,
+        TMembers: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Rc<Node>,
+        members: TMembers,
+    ) -> InterfaceDeclaration {
+        let node = self.create_base_interface_or_class_like_declaration(
+            base_factory,
+            SyntaxKind::InterfaceDeclaration,
+            name,
+        );
+        let node = InterfaceDeclaration::new(node, self.create_node_array(members));
         node
     }
 

@@ -10,7 +10,7 @@ use crate::{
     create_symbol_table, for_each, for_each_child, get_escaped_text_of_identifier_or_literal,
     get_name_of_declaration, is_binding_pattern, is_property_name_literal, object_allocator,
     set_parent, set_value_declaration, Expression, ExpressionStatement, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, Statement, SymbolFlags,
+    Node, NodeArray, NodeInterface, PropertySignature, Statement, SymbolFlags, TypeElement,
 };
 
 bitflags! {
@@ -22,6 +22,7 @@ bitflags! {
         const IsControlFlowContainer = 1 << 2;
 
         const HasLocals = 1 << 5;
+        const IsInterface = 1 << 6;
     }
 }
 
@@ -39,6 +40,7 @@ struct BinderType {
     file: RefCell<Option<Rc</*SourceFile*/ Node>>>,
     parent: RefCell<Option<Rc<Node>>>,
     container: RefCell<Option<Rc<Node>>>,
+    block_scope_container: RefCell<Option<Rc<Node>>>,
     Symbol: RefCell<Option<fn(SymbolFlags, __String) -> Symbol>>,
 }
 
@@ -47,6 +49,7 @@ fn create_binder() -> BinderType {
         file: RefCell::new(None),
         parent: RefCell::new(None),
         container: RefCell::new(None),
+        block_scope_container: RefCell::new(None),
         Symbol: RefCell::new(None),
     }
 }
@@ -86,6 +89,25 @@ impl BinderType {
 
     fn set_container(&self, container: Option<Rc<Node>>) {
         *self.container.borrow_mut() = container;
+    }
+
+    fn maybe_block_scope_container(&self) -> Option<Rc<Node>> {
+        self.block_scope_container
+            .borrow()
+            .as_ref()
+            .map(Clone::clone)
+    }
+
+    fn block_scope_container(&self) -> Rc<Node> {
+        self.block_scope_container
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .clone()
+    }
+
+    fn set_block_scope_container(&self, block_scope_container: Option<Rc<Node>>) {
+        *self.block_scope_container.borrow_mut() = block_scope_container;
     }
 
     #[allow(non_snake_case)]
@@ -131,6 +153,18 @@ impl BinderType {
         );
         symbol.set_declarations(declarations);
 
+        if symbol_flags.intersects(
+            SymbolFlags::Class
+                | SymbolFlags::Interface
+                | SymbolFlags::TypeLiteral
+                | SymbolFlags::ObjectLiteral,
+        ) {
+            let mut members = symbol.maybe_members();
+            if members.is_none() {
+                *members = Some(create_symbol_table());
+            }
+        }
+
         if symbol_flags.intersects(SymbolFlags::Value) {
             set_value_declaration(&*symbol, node);
         }
@@ -151,8 +185,10 @@ impl BinderType {
     fn declare_symbol<TNode: NodeInterface>(
         &self,
         symbol_table: &mut SymbolTable,
+        parent: Option<Rc<Symbol>>,
         node: &TNode, /*Declaration*/
         includes: SymbolFlags,
+        excludes: SymbolFlags,
     ) -> Rc<Symbol> {
         let name = self.get_declaration_name(node);
 
@@ -175,20 +211,25 @@ impl BinderType {
 
     fn bind_container(&self, node: &Node, container_flags: ContainerFlags) {
         let save_container = self.maybe_container();
+        let saved_block_scope_container = self.maybe_block_scope_container();
 
         if container_flags.intersects(ContainerFlags::IsContainer) {
             self.set_container(Some(node.node_wrapper()));
+            self.set_block_scope_container(Some(node.node_wrapper()));
             if container_flags.intersects(ContainerFlags::HasLocals) {
                 self.container().set_locals(create_symbol_table());
             }
         }
 
         if false {
+        } else if container_flags.intersects(ContainerFlags::IsInterface) {
+            self.bind_children(node);
         } else {
             self.bind_children(node);
         }
 
         self.set_container(save_container);
+        self.set_block_scope_container(saved_block_scope_container);
     }
 
     fn bind_each_functions_first(&self, nodes: &NodeArray) {
@@ -267,6 +308,9 @@ impl BinderType {
 
     fn get_container_flags(&self, node: &Node) -> ContainerFlags {
         match node.kind() {
+            SyntaxKind::InterfaceDeclaration => {
+                return ContainerFlags::IsContainer | ContainerFlags::IsInterface;
+            }
             SyntaxKind::SourceFile => {
                 return ContainerFlags::IsContainer
                     | ContainerFlags::IsControlFlowContainer
@@ -282,9 +326,19 @@ impl BinderType {
         &self,
         node: &TNode, /*Declaration*/
         symbol_flags: SymbolFlags,
+        symbol_excludes: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
         match self.container().kind() {
-            SyntaxKind::SourceFile => Some(self.declare_source_file_member(node, symbol_flags)),
+            SyntaxKind::SourceFile => {
+                Some(self.declare_source_file_member(node, symbol_flags, symbol_excludes))
+            }
+            SyntaxKind::InterfaceDeclaration => Some(self.declare_symbol(
+                &mut *self.container().symbol().members(),
+                Some(self.container().symbol()),
+                node,
+                symbol_flags,
+                symbol_excludes,
+            )),
             _ => unimplemented!(),
         }
     }
@@ -293,12 +347,41 @@ impl BinderType {
         &self,
         node: &TNode, /*Declaration*/
         symbol_flags: SymbolFlags,
+        symbol_excludes: SymbolFlags,
     ) -> Rc<Symbol> {
         if false {
             unimplemented!()
         } else {
-            self.declare_symbol(&mut *self.file().locals(), node, symbol_flags)
+            self.declare_symbol(
+                &mut *self.file().locals(),
+                None,
+                node,
+                symbol_flags,
+                symbol_excludes,
+            )
         }
+    }
+
+    fn bind_block_scoped_declaration<TNode: NodeInterface>(
+        &self,
+        node: &TNode, /*Declaration*/
+        symbol_flags: SymbolFlags,
+        symbol_excludes: SymbolFlags,
+    ) {
+        let block_scope_container = self.block_scope_container();
+        {
+            let mut block_scope_container_locals = block_scope_container.maybe_locals();
+            if block_scope_container_locals.is_none() {
+                *block_scope_container_locals = Some(create_symbol_table());
+            }
+        }
+        self.declare_symbol(
+            &mut *block_scope_container.locals(),
+            None,
+            node,
+            symbol_flags,
+            symbol_excludes,
+        );
     }
 
     fn bind<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef>) {
@@ -327,10 +410,32 @@ impl BinderType {
     fn bind_worker(&self, node: &Node) {
         match &*node {
             Node::VariableDeclaration(variable_declaration) => {
-                return self.bind_variable_declaration_or_binding_element(variable_declaration);
+                self.bind_variable_declaration_or_binding_element(variable_declaration)
             }
+            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
+                self.bind_property_worker(property_signature)
+            }
+            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => self
+                .bind_block_scoped_declaration(
+                    interface_declaration,
+                    SymbolFlags::Interface,
+                    SymbolFlags::InterfaceExcludes,
+                ),
             _ => (),
         }
+    }
+
+    fn bind_property_worker(&self, node: &PropertySignature) {
+        self.bind_property_or_method_or_accessor(
+            node,
+            SymbolFlags::Property
+                | if false {
+                    unimplemented!()
+                } else {
+                    SymbolFlags::None
+                },
+            SymbolFlags::PropertyExcludes,
+        )
     }
 
     fn bind_variable_declaration_or_binding_element(&self, node: &VariableDeclaration) {
@@ -340,8 +445,22 @@ impl BinderType {
                 self.declare_symbol_and_add_to_symbol_table(
                     node,
                     SymbolFlags::FunctionScopedVariable,
+                    SymbolFlags::FunctionScopedVariableExcludes,
                 );
             }
+        }
+    }
+
+    fn bind_property_or_method_or_accessor<TNode: NodeInterface>(
+        &self,
+        node: &TNode,
+        symbol_flags: SymbolFlags,
+        symbol_excludes: SymbolFlags,
+    ) {
+        if false {
+            unimplemented!()
+        } else {
+            self.declare_symbol_and_add_to_symbol_table(node, symbol_flags, symbol_excludes);
         }
     }
 }

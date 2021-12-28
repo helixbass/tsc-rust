@@ -91,6 +91,10 @@ fn get_struct_interface_impl(
                         self.#first_field_name.set_symbol(symbol);
                     }
 
+                    fn maybe_locals(&self) -> ::std::cell::RefMut<::std::option::Option<crate::SymbolTable>> {
+                        self.#first_field_name.maybe_locals()
+                    }
+
                     fn locals(&self) -> ::std::cell::RefMut<crate::SymbolTable> {
                         self.#first_field_name.locals()
                     }
@@ -241,6 +245,12 @@ fn get_enum_interface_impl(
                         }
                     }
 
+                    fn maybe_locals(&self) -> ::std::cell::RefMut<::std::option::Option<crate::SymbolTable>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_locals()),*
+                        }
+                    }
+
                     fn locals(&self) -> ::std::cell::RefMut<crate::SymbolTable> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.locals()),*
@@ -290,6 +300,23 @@ fn get_enum_interface_impl(
                     fn text(&self) -> &str {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.text()),*
+                        }
+                    }
+                }
+            }
+        }
+        "NamedDeclarationInterface" => {
+            quote! {
+                impl crate::NamedDeclarationInterface for #ast_type_name {
+                    fn name(&self) -> ::std::rc::Rc<crate::Node> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.name()),*
+                        }
+                    }
+
+                    fn set_name(&mut self, name: ::std::rc::Rc<crate::Node>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_name(name)),*
                         }
                     }
                 }

@@ -32,13 +32,16 @@ pub enum SyntaxKind {
     NumericLiteral,
     StringLiteral,
     NoSubstitutionTemplateLiteral,
+    OpenBraceToken,
     CloseBraceToken,
+    OpenParenToken,
     OpenBracketToken,
     CloseBracketToken,
     DotToken,
     DotDotDotToken,
     SemicolonToken,
     CommaToken,
+    LessThanToken,
     AsteriskToken,
     PlusPlusToken,
     ExclamationToken,
@@ -52,8 +55,10 @@ pub enum SyntaxKind {
     FalseKeyword,
     TrueKeyword,
     WithKeyword,
+    InterfaceKeyword,
     NumberKeyword,
     OfKeyword,
+    PropertySignature,
     ArrayType,
     LiteralType,
     ObjectBindingPattern,
@@ -67,6 +72,7 @@ pub enum SyntaxKind {
     VariableDeclaration,
     VariableDeclarationList,
     FunctionDeclaration,
+    InterfaceDeclaration,
     SourceFile,
 }
 
@@ -104,6 +110,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
+    fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
     fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: SymbolTable);
 }
@@ -117,6 +124,7 @@ pub enum Node {
     TypeNode(TypeNode),
     Expression(Expression),
     Statement(Statement),
+    TypeElement(TypeElement),
     SourceFile(Rc<SourceFile>),
 }
 
@@ -130,6 +138,10 @@ impl Node {
     pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
         match self {
             Node::VariableDeclaration(variable_declaration) => variable_declaration,
+            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
+                interface_declaration
+            }
+            Node::TypeElement(type_element) => type_element,
             _ => panic!("Expected named declaration"),
         }
     }
@@ -233,6 +245,10 @@ impl NodeInterface for BaseNode {
 
     fn set_symbol(&self, symbol: Rc<Symbol>) {
         *self.symbol.borrow_mut() = Some(Rc::downgrade(&symbol));
+    }
+
+    fn maybe_locals(&self) -> RefMut<Option<SymbolTable>> {
+        self.locals.borrow_mut()
     }
 
     fn locals(&self) -> RefMut<SymbolTable> {
@@ -682,6 +698,7 @@ pub enum Statement {
     EmptyStatement(EmptyStatement),
     VariableStatement(VariableStatement),
     ExpressionStatement(ExpressionStatement),
+    InterfaceDeclaration(InterfaceDeclaration),
 }
 
 #[derive(Debug)]
@@ -711,6 +728,85 @@ impl VariableStatement {
 pub struct ExpressionStatement {
     pub _node: BaseNode,
     pub expression: Rc</*Expression*/ Node>,
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
+pub enum TypeElement {
+    PropertySignature(PropertySignature),
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeElement", interfaces = "NamedDeclarationInterface")]
+pub struct PropertySignature {
+    _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
+    pub type_: Option<Rc<Node /*TypeNode*/>>,
+}
+
+impl PropertySignature {
+    pub fn new(base_named_declaration: BaseNamedDeclaration, type_: Option<Rc<Node>>) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for PropertySignature {
+    fn type_(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = Some(type_);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
+pub struct BaseGenericNamedDeclaration {
+    _named_declaration: BaseNamedDeclaration,
+}
+
+impl BaseGenericNamedDeclaration {
+    pub fn new(base_named_declaration: BaseNamedDeclaration) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
+pub struct BaseInterfaceOrClassLikeDeclaration {
+    _generic_named_declaration: BaseGenericNamedDeclaration,
+}
+
+impl BaseInterfaceOrClassLikeDeclaration {
+    pub fn new(base_generic_named_declaration: BaseGenericNamedDeclaration) -> Self {
+        Self {
+            _generic_named_declaration: base_generic_named_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement", interfaces = "NamedDeclarationInterface")]
+pub struct InterfaceDeclaration {
+    _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration, /*name: Identifier*/
+    pub members: NodeArray,                                                    /*<TypeElement>*/
+}
+
+impl InterfaceDeclaration {
+    pub fn new(
+        base_interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration,
+        members: NodeArray,
+    ) -> Self {
+        Self {
+            _interface_or_class_like_declaration: base_interface_or_class_like_declaration,
+            members,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -797,6 +893,11 @@ bitflags! {
         const Variable = Self::FunctionScopedVariable.bits | Self::BlockScopedVariable.bits;
         const Value = Self::Variable.bits | Self::Property.bits | Self::EnumMember.bits | Self::ObjectLiteral.bits | Self::Function.bits | Self::Class.bits | Self::Enum.bits | Self::ValueModule.bits | Self::Method.bits | Self::GetAccessor.bits | Self::SetAccessor.bits;
         const Type = Self::Class.bits | Self::Interface.bits | Self::Enum.bits | Self::EnumMember.bits | Self::TypeLiteral.bits | Self::TypeParameter.bits | Self::TypeAlias.bits;
+
+        const FunctionScopedVariableExcludes = Self::Value.bits & !Self::FunctionScopedVariable.bits;
+
+        const PropertyExcludes = Self::None.bits;
+        const InterfaceExcludes = Self::Type.bits & !(Self::Interface.bits | Self::Class.bits);
     }
 }
 
@@ -806,6 +907,7 @@ pub struct Symbol {
     pub escaped_name: __String,
     declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
     value_declaration: RefCell<Option<Weak<Node>>>,
+    members: RefCell<Option<SymbolTable>>,
 }
 
 impl Symbol {
@@ -815,6 +917,7 @@ impl Symbol {
             escaped_name: name,
             declarations: RefCell::new(None),
             value_declaration: RefCell::new(None),
+            members: RefCell::new(None),
         }
     }
 
@@ -840,6 +943,14 @@ impl Symbol {
 
     pub fn set_value_declaration<TNode: NodeInterface>(&self, node: &TNode) {
         *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node.node_wrapper()));
+    }
+
+    pub fn maybe_members(&self) -> RefMut<Option<SymbolTable>> {
+        self.members.borrow_mut()
+    }
+
+    pub fn members(&self) -> RefMut<SymbolTable> {
+        RefMut::map(self.members.borrow_mut(), |option| option.as_mut().unwrap())
     }
 }
 
@@ -1478,10 +1589,12 @@ impl CharacterCodes {
     pub const Z: char = 'Z';
 
     pub const asterisk: char = '*';
+    pub const close_brace: char = '}';
     pub const close_bracket: char = ']';
     pub const colon: char = ':';
     pub const comma: char = ',';
     pub const equals: char = '=';
+    pub const open_brace: char = '{';
     pub const open_bracket: char = '[';
     pub const plus: char = '+';
     pub const semicolon: char = ';';
