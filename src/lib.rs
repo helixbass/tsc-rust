@@ -67,7 +67,7 @@ pub use compiler::utilities::{
 };
 pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores, get_name_of_declaration,
-    is_binding_pattern, is_member_name,
+    has_initializer, is_binding_pattern, is_member_name,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;

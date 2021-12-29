@@ -45,3 +45,10 @@ pub fn is_binding_pattern<TNode: NodeInterface>(node: &TNode) -> bool {
 
     false
 }
+
+pub fn has_initializer<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.node_wrapper()
+        .maybe_as_has_expression_initializer()
+        .and_then(|node| node.initializer())
+        .is_some()
+}

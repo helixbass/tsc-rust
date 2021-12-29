@@ -197,6 +197,18 @@ impl Node {
             _ => panic!("Expected has expression initializer"),
         }
     }
+
+    pub fn maybe_as_has_expression_initializer(
+        &self,
+    ) -> Option<&dyn HasExpressionInitializerInterface> {
+        match self {
+            Node::VariableDeclaration(variable_declaration) => Some(variable_declaration),
+            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
+                Some(property_signature)
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug)]

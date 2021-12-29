@@ -14,21 +14,21 @@ use crate::{
     create_diagnostic_for_node_from_message_chain, create_printer, create_symbol_table,
     create_text_writer, every, factory, for_each, get_effective_initializer,
     get_effective_type_annotation_node, get_first_identifier, get_synthetic_factory,
-    has_dynamic_name, is_binding_element, is_external_or_common_js_module,
+    has_dynamic_name, has_initializer, is_binding_element, is_external_or_common_js_module,
     is_object_literal_expression, is_private_identifier, is_property_assignment,
     is_property_declaration, is_property_signature, is_variable_declaration, node_is_missing,
     object_allocator, ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType, BaseLiteralType,
     BaseObjectType, BaseType, BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic,
     DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint,
-    EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType, InterfaceDeclaration,
-    InterfaceType, IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
-    LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
-    NumberLiteralType, NumericLiteral, ObjectFlags, ObjectLiteralExpression, ObjectTypeInterface,
-    PrefixUnaryExpression, PrinterOptions, PropertyAssignment, PropertySignature,
-    RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile,
-    Statement, Symbol, SymbolFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type,
-    TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeReferenceNode,
-    VariableLikeDeclarationInterface,
+    EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType,
+    HasExpressionInitializerInterface, InterfaceDeclaration, InterfaceType, IntrinsicType,
+    KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType, NumericLiteral,
+    ObjectFlags, ObjectLiteralExpression, ObjectTypeInterface, PrefixUnaryExpression,
+    PrinterOptions, PropertyAssignment, PropertySignature, RelationComparisonResult,
+    ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Statement, Symbol, SymbolFlags,
+    SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost,
+    TypeElement, TypeFlags, TypeInterface, TypeReferenceNode, VariableLikeDeclarationInterface,
 };
 
 bitflags! {
@@ -1448,6 +1448,39 @@ impl TypeChecker {
         }
     }
 
+    fn get_contextual_type_for_variable_like_declaration(
+        &self,
+        declaration: &Node,
+    ) -> Option<Rc<Type>> {
+        let type_node = get_effective_type_annotation_node(declaration);
+        if let Some(type_node) = type_node {
+            return Some(self.get_type_from_type_node(&*type_node));
+        }
+        match declaration.kind() {
+            _ => None,
+        }
+    }
+
+    fn get_contextual_type_for_initializer_expression<TNode: NodeInterface>(
+        &self,
+        node: &TNode,
+    ) -> Option<Rc<Type>> {
+        let parent = node.parent();
+        let declaration = match &*parent {
+            Node::VariableDeclaration(variable_declaration) => variable_declaration,
+            _ => panic!("Expected VariableDeclaration"),
+        };
+        if has_initializer(declaration)
+            && Rc::ptr_eq(&node.node_wrapper(), &declaration.initializer().unwrap())
+        {
+            let result = self.get_contextual_type_for_variable_like_declaration(&*parent);
+            if result.is_some() {
+                return result;
+            }
+        }
+        None
+    }
+
     fn get_type_of_property_of_contextual_type(
         &self,
         type_: Rc<Type>,
@@ -1556,6 +1589,9 @@ impl TypeChecker {
     ) -> Option<Rc<Type>> {
         let parent = node.parent();
         match &*parent {
+            Node::VariableDeclaration(variable_declaration) => {
+                self.get_contextual_type_for_initializer_expression(node)
+            }
             Node::PropertyAssignment(property_assignment) => {
                 self.get_contextual_type_for_object_literal_element(property_assignment)
             }
@@ -1687,7 +1723,7 @@ impl TypeChecker {
             self.get_widened_literal_like_type_for_contextual_type(
                 type_,
                 self.instantiate_contextual_type(
-                    if false {
+                    if true {
                         self.get_contextual_type(node)
                     } else {
                         unimplemented!()
