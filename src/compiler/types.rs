@@ -59,11 +59,13 @@ pub enum SyntaxKind {
     NumberKeyword,
     OfKeyword,
     PropertySignature,
+    TypeReference,
     ArrayType,
     LiteralType,
     ObjectBindingPattern,
     ArrayBindingPattern,
     ArrayLiteralExpression,
+    ObjectLiteralExpression,
     PrefixUnaryExpression,
     BinaryExpression,
     EmptyStatement,
@@ -73,6 +75,7 @@ pub enum SyntaxKind {
     VariableDeclarationList,
     FunctionDeclaration,
     InterfaceDeclaration,
+    PropertyAssignment,
     SourceFile,
 }
 
@@ -87,6 +90,7 @@ bitflags! {
     pub struct NodeFlags: u32 {
         const None = 0;
         const Const = 1 << 1;
+        const DisallowInContext = 1 << 12;
         const YieldContext = 1 << 13;
         const AwaitContext = 1 << 15;
 
@@ -125,6 +129,7 @@ pub enum Node {
     Expression(Expression),
     Statement(Statement),
     TypeElement(TypeElement),
+    PropertyAssignment(PropertyAssignment),
     SourceFile(Rc<SourceFile>),
 }
 
@@ -142,6 +147,7 @@ impl Node {
                 interface_declaration
             }
             Node::TypeElement(type_element) => type_element,
+            Node::PropertyAssignment(property_assignment) => property_assignment,
             _ => panic!("Expected named declaration"),
         }
     }
@@ -524,6 +530,7 @@ impl VariableDeclarationList {
 pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
     LiteralTypeNode(LiteralTypeNode),
+    TypeReferenceNode(TypeReferenceNode),
     ArrayTypeNode(ArrayTypeNode),
 }
 
@@ -542,6 +549,22 @@ impl KeywordTypeNode {
 impl From<BaseNode> for KeywordTypeNode {
     fn from(base_node: BaseNode) -> Self {
         KeywordTypeNode::new(base_node)
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct TypeReferenceNode {
+    _node: BaseNode,
+    pub type_name: Rc<Node /*EntityName*/>,
+}
+
+impl TypeReferenceNode {
+    pub fn new(base_node: BaseNode, type_name: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_name,
+        }
     }
 }
 
@@ -586,6 +609,7 @@ pub enum Expression {
     BinaryExpression(BinaryExpression),
     LiteralLikeNode(LiteralLikeNode),
     ArrayLiteralExpression(ArrayLiteralExpression),
+    ObjectLiteralExpression(ObjectLiteralExpression),
 }
 
 impl From<BaseNode> for Expression {
@@ -693,6 +717,22 @@ impl ArrayLiteralExpression {
 }
 
 #[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct ObjectLiteralExpression {
+    _node: BaseNode,
+    pub properties: NodeArray, /*<ObjectLiteralElementLike>*/
+}
+
+impl ObjectLiteralExpression {
+    pub fn new(base_node: BaseNode, properties: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            properties,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type]
 pub enum Statement {
     EmptyStatement(EmptyStatement),
@@ -759,6 +799,26 @@ impl HasTypeInterface for PropertySignature {
 
     fn set_type(&mut self, type_: Rc<Node>) {
         self.type_ = Some(type_);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
+pub struct PropertyAssignment {
+    _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
+    pub initializer: Rc<Node /*Expression*/>,
+}
+
+// TODO: should implement HasExpressionInitializerInterface for PropertyAssignment? Its initializer
+// isn't optional - should maybe change HasExpressionInitializerInterface initializer() ->
+// maybe_initializer() and add non-optional initializer()?
+
+impl PropertyAssignment {
+    pub fn new(base_named_declaration: BaseNamedDeclaration, initializer: Rc<Node>) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+            initializer,
+        }
     }
 }
 
@@ -951,6 +1011,15 @@ impl Symbol {
 
     pub fn members(&self) -> RefMut<SymbolTable> {
         RefMut::map(self.members.borrow_mut(), |option| option.as_mut().unwrap())
+    }
+}
+
+pub struct InternalSymbolName;
+
+#[allow(non_snake_case)]
+impl InternalSymbolName {
+    pub fn Object() -> __String {
+        __String::new("__object".to_string())
     }
 }
 

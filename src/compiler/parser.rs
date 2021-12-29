@@ -14,9 +14,9 @@ use crate::{
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
     HasExpressionInitializerInterface, HasTypeInterface, Identifier, InterfaceDeclaration,
     KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, OperatorPrecedence, ReadonlyTextRange, Scanner,
-    SourceFile, Statement, Symbol, SymbolTable, SyntaxKind, TypeElement, TypeNode,
-    VariableDeclaration, VariableDeclarationList,
+    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
+    PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable,
+    SyntaxKind, TypeElement, TypeNode, VariableDeclaration, VariableDeclarationList,
 };
 
 #[derive(Eq, PartialEq)]
@@ -59,16 +59,30 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             visit_node(&mut cb_node, Some(property_signature.name()));
             visit_node(&mut cb_node, property_signature.type_())
         }
+        Node::PropertyAssignment(property_assignment) => {
+            visit_node(&mut cb_node, Some(property_assignment.name()));
+            visit_node(&mut cb_node, Some(property_assignment.initializer.clone()))
+        }
         Node::VariableDeclaration(variable_declaration) => {
             visit_node(&mut cb_node, Some(variable_declaration.name()));
             visit_node(&mut cb_node, variable_declaration.type_());
             visit_node(&mut cb_node, variable_declaration.initializer())
+        }
+        Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
+            visit_node(&mut cb_node, Some(type_reference_node.type_name.clone()))
         }
         Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
             visit_node(&mut cb_node, Some(array_type.element_type.clone()))
         }
         Node::Expression(Expression::ArrayLiteralExpression(array_literal_expression)) => {
             visit_nodes(&mut cb_node, cb_nodes, &array_literal_expression.elements)
+        }
+        Node::Expression(Expression::ObjectLiteralExpression(object_literal_expression)) => {
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes,
+                &object_literal_expression.properties,
+            )
         }
         Node::Expression(Expression::PrefixUnaryExpression(prefix_unary_expression)) => {
             visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()))
@@ -367,6 +381,10 @@ impl ParserType {
         func(self)
     }
 
+    fn allow_in_and<TReturn>(&mut self, func: fn(&mut ParserType) -> TReturn) -> TReturn {
+        self.do_outside_of_context(NodeFlags::DisallowInContext, func)
+    }
+
     fn parse_error_at_current_token(&self, message: &DiagnosticMessage) {
         self.parse_error_at(
             self.scanner().get_token_pos().try_into().unwrap(),
@@ -643,6 +661,13 @@ impl ParserType {
             ParsingContext::TypeMembers => self
                 .look_ahead(|| Some(self.is_type_member_start()))
                 .unwrap(),
+            ParsingContext::ObjectLiteralMembers => match self.token() {
+                SyntaxKind::OpenBracketToken
+                | SyntaxKind::AsteriskToken
+                | SyntaxKind::DotDotDotToken
+                | SyntaxKind::DotToken => true,
+                _ => self.is_literal_property_name(),
+            },
             ParsingContext::VariableDeclarations => {
                 self.is_binding_identifier_or_private_identifier_or_pattern()
             }
@@ -661,7 +686,9 @@ impl ParserType {
             return true;
         }
         match kind {
-            ParsingContext::TypeMembers => self.token() == SyntaxKind::CloseBraceToken,
+            ParsingContext::TypeMembers | ParsingContext::ObjectLiteralMembers => {
+                self.token() == SyntaxKind::CloseBraceToken
+            }
             ParsingContext::VariableDeclarations => self.is_variable_declarator_list_terminator(),
             ParsingContext::ArrayLiteralMembers => self.token() == SyntaxKind::CloseBracketToken,
             _ => false,
@@ -672,7 +699,9 @@ impl ParserType {
         &mut self,
         kind: ParsingContext,
         parse_element: fn(&mut ParserType) -> TItem,
+        consider_semicolon_as_delimiter: Option<bool>,
     ) -> NodeArray {
+        let consider_semicolon_as_delimiter = consider_semicolon_as_delimiter.unwrap_or(false);
         let save_parsing_context = self.parsing_context();
         self.set_parsing_context(self.parsing_context() | kind);
         let mut list: Vec<Node> = vec![];
@@ -703,6 +732,20 @@ impl ParserType {
 
         self.set_parsing_context(save_parsing_context);
         self.create_node_array(list)
+    }
+
+    fn parse_entity_name(
+        &mut self,
+        allow_reserved_words: bool,
+        diagnostic_message: Option<DiagnosticMessage>,
+    ) -> Node /*EntityName*/ {
+        let pos = self.get_node_pos();
+        let entity: Node = if allow_reserved_words {
+            self.parse_identifier_name(diagnostic_message).into()
+        } else {
+            self.parse_identifier(diagnostic_message).into()
+        };
+        entity
     }
 
     fn is_variable_declarator_list_terminator(&self) -> bool {
@@ -757,6 +800,20 @@ impl ParserType {
 
         self.next_token();
         self.finish_node(node, pos, None)
+    }
+
+    fn parse_entity_name_of_type_reference(&mut self) -> Node /*EntityName*/ {
+        self.parse_entity_name(true, Some(Diagnostics::Type_expected))
+    }
+
+    fn parse_type_reference(&mut self) -> TypeNode {
+        let pos = self.get_node_pos();
+        let name = self.parse_entity_name_of_type_reference().wrap();
+        self.finish_node(
+            self.factory.create_type_reference_node(self, name).into(),
+            pos,
+            None,
+        )
     }
 
     fn parse_type_member_semicolon(&mut self) {
@@ -833,7 +890,7 @@ impl ParserType {
             SyntaxKind::NumberKeyword => self
                 .try_parse(|| self.parse_keyword_and_no_dot())
                 .unwrap_or_else(|| unimplemented!()),
-            _ => unimplemented!(),
+            _ => self.parse_type_reference(),
         }
     }
 
@@ -1089,6 +1146,7 @@ impl ParserType {
                 return self.parse_token_node().into()
             }
             SyntaxKind::OpenBracketToken => return self.parse_array_literal_expression().into(),
+            SyntaxKind::OpenBraceToken => return self.parse_object_literal_expression().into(),
             _ => (),
         }
 
@@ -1112,10 +1170,49 @@ impl ParserType {
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayLiteralMembers,
             ParserType::parse_argument_or_array_literal_element,
+            None,
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None);
         self.finish_node(
             self.factory.create_array_literal_expression(self, elements),
+            pos,
+            None,
+        )
+    }
+
+    fn parse_object_literal_element(&mut self) -> Node {
+        let pos = self.get_node_pos();
+
+        let token_is_identifier = self.is_identifier();
+        let name = self.parse_property_name();
+
+        let node: PropertyAssignment;
+        if false {
+            unimplemented!()
+        } else {
+            self.parse_expected(SyntaxKind::ColonToken, None);
+            let initializer = self.allow_in_and(ParserType::parse_assignment_expression_or_higher);
+            node = self
+                .factory
+                .create_property_assignment(self, name.wrap(), initializer.into());
+        }
+        self.finish_node(node.into(), pos, None)
+    }
+
+    fn parse_object_literal_expression(&mut self) -> ObjectLiteralExpression {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::OpenBraceToken, None);
+        let properties = self.parse_delimited_list(
+            ParsingContext::ObjectLiteralMembers,
+            ParserType::parse_object_literal_element,
+            Some(true),
+        );
+        if !self.parse_expected(SyntaxKind::CloseBraceToken, None) {
+            unimplemented!()
+        }
+        self.finish_node(
+            self.factory
+                .create_object_literal_expression(self, properties),
             pos,
             None,
         )
@@ -1259,6 +1356,7 @@ impl ParserType {
             declarations = self.parse_delimited_list(
                 ParsingContext::VariableDeclarations,
                 ParserType::parse_variable_declaration_allow_exclamation,
+                None,
             );
         }
 
@@ -1326,6 +1424,7 @@ bitflags! {
         const SourceElements = 1 << 0;
         const TypeMembers = 1 << 4;
         const VariableDeclarations = 1 << 8;
+        const ObjectLiteralMembers = 1 << 12;
         const ArrayLiteralMembers = 1 << 15;
     }
 }

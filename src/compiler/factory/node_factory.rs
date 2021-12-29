@@ -6,9 +6,9 @@ use crate::{
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression, ExpressionStatement,
     Identifier, InterfaceDeclaration, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, NumericLiteral, PrefixUnaryExpression,
-    PropertySignature, SourceFile, SyntaxKind, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
+    PrefixUnaryExpression, PropertyAssignment, PropertySignature, SourceFile, SyntaxKind,
+    TypeReferenceNode, VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -191,6 +191,16 @@ impl NodeFactory {
         self.create_token(base_factory, token)
     }
 
+    pub fn create_type_reference_node<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_name: Rc<Node>,
+    ) -> TypeReferenceNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::TypeReference);
+        let node = TypeReferenceNode::new(node, self.as_name(type_name));
+        node
+    }
+
     pub fn create_array_type_node<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -231,6 +241,19 @@ impl NodeFactory {
         let node = self.create_base_expression(base_factory, SyntaxKind::ArrayLiteralExpression);
         let elements_array = self.create_node_array(elements);
         let node = ArrayLiteralExpression::new(node, elements_array);
+        node
+    }
+
+    pub fn create_object_literal_expression<
+        TBaseNodeFactory: BaseNodeFactory,
+        TProperties: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        properties: TProperties, /*ObjectLiteralElementLike*/
+    ) -> ObjectLiteralExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::ObjectLiteralExpression);
+        let node = ObjectLiteralExpression::new(node, self.create_node_array(properties));
         node
     }
 
@@ -336,6 +359,21 @@ impl NodeFactory {
         node
     }
 
+    pub fn create_property_assignment<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Rc<Node>,
+        initializer: Rc<Node>,
+    ) -> PropertyAssignment {
+        let node = self.create_base_named_declaration(
+            base_factory,
+            SyntaxKind::PropertyAssignment,
+            Some(name),
+        );
+        let node = PropertyAssignment::new(node, initializer);
+        node
+    }
+
     pub fn create_source_file<TBaseNodeFactory: BaseNodeFactory, TNodes: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -348,6 +386,10 @@ impl NodeFactory {
             file_name: "".to_string(),
         };
         node
+    }
+
+    fn as_name(&self, name: Rc<Node>) -> Rc<Node> {
+        name
     }
 }
 
