@@ -475,7 +475,7 @@ impl TypeChecker {
     }
 
     fn is_reserved_member_name(&self, name: &__String) -> bool {
-        let chars = name.chars();
+        let mut chars = name.chars();
         let mut current_char: Option<char> = chars.next();
         if let Some(current_char) = current_char {
             if current_char != CharacterCodes::underscore {
@@ -524,7 +524,7 @@ impl TypeChecker {
         members: Rc<RefCell<SymbolTable>>,
     ) /*-> BaseObjectType*/
     {
-        type_.resolve(members, vec![]);
+        type_.resolve(members.clone(), vec![]);
         if true {
             type_.set_properties(self.get_named_members(&*(*members).borrow()));
         }
@@ -752,7 +752,7 @@ impl TypeChecker {
     }
 
     fn resolve_class_or_interface_members(&self, type_: Rc<Type /*InterfaceType*/>) {
-        self.resolve_object_type_members(type_, self.resolve_declared_members(type_));
+        self.resolve_object_type_members(type_.clone(), self.resolve_declared_members(type_));
     }
 
     fn resolve_structured_type_members(
@@ -769,7 +769,7 @@ impl TypeChecker {
                     .object_flags()
                     .intersects(ObjectFlags::ClassOrInterface)
                 {
-                    self.resolve_class_or_interface_members(type_);
+                    self.resolve_class_or_interface_members(type_.clone());
                 } else {
                     unimplemented!()
                 }
@@ -832,7 +832,7 @@ impl TypeChecker {
                 .get(name)
                 .map(|rc| rc.clone());
             if let Some(symbol) = symbol {
-                if self.symbol_is_value(symbol) {
+                if self.symbol_is_value(symbol.clone()) {
                     return Some(symbol);
                 }
             }
@@ -1757,7 +1757,7 @@ struct CheckTypeRelatedTo<'type_checker> {
     head_message: Option<DiagnosticMessage>,
     error_info: RefCell<Option<DiagnosticMessageChain>>,
     expanding_flags: ExpandingFlags,
-    incompatible_stack: Vec<(DiagnosticMessage, Option<Vec<String>>)>,
+    incompatible_stack: RefCell<Vec<(DiagnosticMessage, Option<Vec<String>>)>>,
 }
 
 impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
@@ -1778,7 +1778,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             head_message,
             error_info: RefCell::new(None),
             expanding_flags: ExpandingFlags::None,
-            incompatible_stack: vec![],
+            incompatible_stack: RefCell::new(vec![]),
         }
     }
 
@@ -1788,6 +1788,10 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     fn set_error_info(&self, error_info: DiagnosticMessageChain) {
         *self.error_info.borrow_mut() = Some(error_info);
+    }
+
+    fn incompatible_stack(&self) -> RefMut<Vec<(DiagnosticMessage, Option<Vec<String>>)>> {
+        self.incompatible_stack.borrow_mut()
     }
 
     fn call(&self) -> bool {
@@ -1800,7 +1804,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             None,
         );
 
-        if !self.incompatible_stack.is_empty() {
+        if !self.incompatible_stack().is_empty() {
             self.report_incompatible_stack();
         } else if false {
             unimplemented!()
@@ -1817,8 +1821,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         result != Ternary::False
     }
 
-    fn report_incompatible_error(&mut self, message: DiagnosticMessage, args: Option<Vec<String>>) {
-        self.incompatible_stack.push((message, args));
+    fn report_incompatible_error(&self, message: DiagnosticMessage, args: Option<Vec<String>>) {
+        self.incompatible_stack().push((message, args));
     }
 
     fn report_incompatible_stack(&self) {
@@ -1938,8 +1942,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                     .intersects(TypeFlags::StructuredOrInstantiable))
         {
             result = self.recursive_type_related_to(
-                source,
-                target,
+                source.clone(),
+                target.clone(),
                 report_errors,
                 intersection_state,
                 recursion_flags,
@@ -2148,7 +2152,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
     ) -> Ternary {
         let related = self.is_property_symbol_type_related(
             source_prop,
-            target_prop,
+            target_prop.clone(),
             get_type_of_source_property,
             report_errors,
             intersection_state,
@@ -2188,16 +2192,16 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         //     }
         //     return Ternary::False;
         // }
-        let properties = self.type_checker.get_properties_of_type(target);
+        let properties = self.type_checker.get_properties_of_type(target.clone());
         for target_prop in self.exclude_properties(properties, excluded_properties) {
             let name = &target_prop.escaped_name;
             if true {
-                let source_prop = self.type_checker.get_property_of_type(source, name);
+                let source_prop = self.type_checker.get_property_of_type(source.clone(), name);
                 if let Some(source_prop) = source_prop {
                     if !Rc::ptr_eq(&source_prop, &target_prop) {
                         let related = self.property_related_to(
-                            source,
-                            target,
+                            source.clone(),
+                            target.clone(),
                             source_prop,
                             target_prop,
                             TypeChecker::get_non_missing_type_of_symbol,
