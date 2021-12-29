@@ -1215,12 +1215,24 @@ impl TypeInterface for Type {
             }
         }
     }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        match self {
+            Type::IntrinsicType(intrinsic_type) => intrinsic_type.set_symbol(symbol),
+            Type::LiteralType(literal_type) => literal_type.set_symbol(symbol),
+            Type::ObjectType(object_type) => object_type.set_symbol(symbol),
+            Type::UnionOrIntersectionType(union_or_intersection_type) => {
+                union_or_intersection_type.set_symbol(symbol)
+            }
+        }
+    }
 }
 
 pub trait TypeInterface {
     fn flags(&self) -> TypeFlags;
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
+    fn set_symbol(&mut self, symbol: Rc<Symbol>);
 }
 
 #[derive(Clone, Debug)]
@@ -1249,6 +1261,10 @@ impl TypeInterface for BaseType {
 
     fn symbol(&self) -> Rc<Symbol> {
         self.symbol.as_ref().unwrap().clone()
+    }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self.symbol = Some(symbol);
     }
 }
 
@@ -1288,6 +1304,17 @@ impl TypeInterface for IntrinsicType {
             IntrinsicType::BaseIntrinsicType(base_intrinsic_type) => base_intrinsic_type.symbol(),
             IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
                 freshable_intrinsic_type.symbol()
+            }
+        }
+    }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        match self {
+            IntrinsicType::BaseIntrinsicType(base_intrinsic_type) => {
+                base_intrinsic_type.set_symbol(symbol)
+            }
+            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                freshable_intrinsic_type.set_symbol(symbol)
             }
         }
     }
@@ -1338,6 +1365,10 @@ impl TypeInterface for BaseIntrinsicType {
 
     fn symbol(&self) -> Rc<Symbol> {
         self._type.symbol()
+    }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self._type.set_symbol(symbol)
     }
 }
 
@@ -1396,6 +1427,10 @@ impl TypeInterface for FreshableIntrinsicType {
     fn symbol(&self) -> Rc<Symbol> {
         self._intrinsic_type.symbol()
     }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self._intrinsic_type.set_symbol(symbol)
+    }
 }
 
 impl IntrinsicTypeInterface for FreshableIntrinsicType {
@@ -1453,6 +1488,14 @@ impl TypeInterface for LiteralType {
     fn symbol(&self) -> Rc<Symbol> {
         match self {
             LiteralType::NumberLiteralType(number_literal_type) => number_literal_type.symbol(),
+        }
+    }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        match self {
+            LiteralType::NumberLiteralType(number_literal_type) => {
+                number_literal_type.set_symbol(symbol)
+            }
         }
     }
 }
@@ -1536,6 +1579,10 @@ impl TypeInterface for BaseLiteralType {
     fn symbol(&self) -> Rc<Symbol> {
         self._type.symbol()
     }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self._type.set_symbol(symbol)
+    }
 }
 
 impl LiteralTypeInterface for BaseLiteralType {
@@ -1610,6 +1657,10 @@ impl TypeInterface for NumberLiteralType {
 
     fn symbol(&self) -> Rc<Symbol> {
         self._literal_type.symbol()
+    }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self._literal_type.set_symbol(symbol)
     }
 }
 
@@ -1702,6 +1753,13 @@ impl TypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.symbol(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.symbol(),
+        }
+    }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        match self {
+            ObjectType::InterfaceType(interface_type) => interface_type.set_symbol(symbol),
+            ObjectType::BaseObjectType(base_object_type) => base_object_type.set_symbol(symbol),
         }
     }
 }
@@ -1808,6 +1866,10 @@ impl TypeInterface for BaseObjectType {
     fn symbol(&self) -> Rc<Symbol> {
         self._type.symbol()
     }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self._type.set_symbol(symbol)
+    }
 }
 
 impl ObjectTypeInterface for BaseObjectType {
@@ -1887,6 +1949,14 @@ impl TypeInterface for InterfaceType {
     fn symbol(&self) -> Rc<Symbol> {
         match self {
             InterfaceType::BaseInterfaceType(base_interface_type) => base_interface_type.symbol(),
+        }
+    }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        match self {
+            InterfaceType::BaseInterfaceType(base_interface_type) => {
+                base_interface_type.set_symbol(symbol)
+            }
         }
     }
 }
@@ -1992,6 +2062,10 @@ impl TypeInterface for BaseInterfaceType {
     fn symbol(&self) -> Rc<Symbol> {
         self._object_type.symbol()
     }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self._object_type.set_symbol(symbol)
+    }
 }
 
 impl ObjectTypeInterface for BaseInterfaceType {
@@ -2064,6 +2138,12 @@ impl TypeInterface for UnionOrIntersectionType {
             UnionOrIntersectionType::UnionType(union_type) => union_type.symbol(),
         }
     }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        match self {
+            UnionOrIntersectionType::UnionType(union_type) => union_type.set_symbol(symbol),
+        }
+    }
 }
 
 impl UnionOrIntersectionTypeInterface for UnionOrIntersectionType {
@@ -2098,6 +2178,10 @@ impl TypeInterface for BaseUnionOrIntersectionType {
     fn symbol(&self) -> Rc<Symbol> {
         self._type.symbol()
     }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self._type.set_symbol(symbol)
+    }
 }
 
 impl UnionOrIntersectionTypeInterface for BaseUnionOrIntersectionType {
@@ -2122,6 +2206,10 @@ impl TypeInterface for UnionType {
 
     fn symbol(&self) -> Rc<Symbol> {
         self._union_or_intersection_type.symbol()
+    }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self._union_or_intersection_type.set_symbol(symbol)
     }
 }
 

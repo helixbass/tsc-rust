@@ -469,7 +469,8 @@ impl TypeChecker {
     }
 
     fn create_object_type(&self, object_flags: ObjectFlags, symbol: Rc<Symbol>) -> BaseObjectType {
-        let type_ = self.create_type(TypeFlags::Object);
+        let mut type_ = self.create_type(TypeFlags::Object);
+        type_.set_symbol(symbol);
         let type_ = BaseObjectType::new(type_, object_flags);
         type_
     }
@@ -787,7 +788,7 @@ impl TypeChecker {
                 .as_resolved_type()
                 .properties()
                 .iter()
-                .map(|rc| rc.clone())
+                .map(Clone::clone)
                 .collect();
         }
         unimplemented!()
