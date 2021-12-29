@@ -15,12 +15,12 @@ use crate::{
     create_text_writer, every, factory, for_each, get_effective_initializer,
     get_effective_type_annotation_node, get_first_identifier, get_synthetic_factory,
     is_binding_element, is_external_or_common_js_module, is_private_identifier,
-    is_property_signature, is_variable_declaration, node_is_missing, object_allocator,
-    ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType, BaseLiteralType, BaseObjectType, BaseType,
-    BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic, DiagnosticCollection,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression,
-    ExpressionStatement, FreshableIntrinsicType, InterfaceDeclaration, InterfaceType,
-    IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    is_property_declaration, is_property_signature, is_variable_declaration, node_is_missing,
+    object_allocator, ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType, BaseLiteralType,
+    BaseObjectType, BaseType, BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint,
+    EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType, InterfaceDeclaration,
+    InterfaceType, IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
     NumberLiteralType, NumericLiteral, ObjectFlags, ObjectLiteralExpression, ObjectTypeInterface,
     PrefixUnaryExpression, PrinterOptions, PropertySignature, RelationComparisonResult,
@@ -68,11 +68,13 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         Symbol: object_allocator.get_symbol_constructor(),
         Type: object_allocator.get_type_constructor(),
 
+        strict_null_checks: true,
         fresh_object_literal_flag: if false {
             unimplemented!()
         } else {
             ObjectFlags::FreshLiteral
         },
+        exact_optional_property_types: false,
 
         node_builder: create_node_builder(),
 
@@ -539,6 +541,10 @@ impl TypeChecker {
         type_
     }
 
+    fn symbol_to_string(&self, symbol: Rc<Symbol>) -> String {
+        unimplemented!()
+    }
+
     fn type_to_string(&self, type_: &Type) -> String {
         let writer = Rc::new(RefCell::new(create_text_writer("")));
         let type_node = self
@@ -580,14 +586,29 @@ impl TypeChecker {
         self.type_to_string(type_)
     }
 
-    fn add_optionality(&self, type_: Rc<Type>) -> Rc<Type> {
-        type_
+    fn add_optionality(
+        &self,
+        type_: Rc<Type>,
+        is_property: Option<bool>,
+        is_optional: Option<bool>,
+    ) -> Rc<Type> {
+        let is_property = is_property.unwrap_or(false);
+        let is_optional = is_optional.unwrap_or(true);
+        if self.strict_null_checks && is_optional {
+            self.get_optional_type(type_, Some(is_property))
+        } else {
+            type_
+        }
     }
 
     fn get_type_for_variable_like_declaration(&self, declaration: &Node) -> Option<Rc<Type>> {
+        let is_property =
+            is_property_declaration(declaration) || is_property_signature(declaration);
+        let is_optional = false;
+
         let declared_type = self.try_get_type_from_effective_type_node(declaration);
         if let Some(declared_type) = declared_type {
-            return Some(self.add_optionality(declared_type));
+            return Some(self.add_optionality(declared_type, Some(is_property), Some(is_optional)));
         }
         unimplemented!()
     }
@@ -655,6 +676,13 @@ impl TypeChecker {
             return self.get_type_of_variable_or_parameter_or_property(symbol);
         }
         unimplemented!()
+    }
+
+    fn get_non_missing_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {
+        self.remove_missing_type(
+            self.get_type_of_symbol(&*symbol),
+            symbol.flags().intersects(SymbolFlags::Optional),
+        )
     }
 
     fn get_declared_type_of_class_or_interface(
@@ -793,6 +821,27 @@ impl TypeChecker {
 
     fn get_reduced_type(&self, type_: Rc<Type>) -> Rc<Type> {
         type_
+    }
+
+    fn get_property_of_type(&self, type_: Rc<Type>, name: &__String) -> Option<Rc<Symbol>> {
+        let type_ = self.get_reduced_apparent_type(type_);
+        if type_.flags().intersects(TypeFlags::Object) {
+            let resolved = self.resolve_structured_type_members(type_);
+            let symbol = (*resolved.as_resolved_type().members())
+                .borrow()
+                .get(name)
+                .map(|rc| rc.clone());
+            if let Some(symbol) = symbol {
+                if self.symbol_is_value(symbol) {
+                    return Some(symbol);
+                }
+            }
+            unimplemented!()
+        }
+        if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
+            unimplemented!()
+        }
+        None
     }
 
     fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
@@ -1256,6 +1305,24 @@ impl TypeChecker {
         }
     }
 
+    fn get_optional_type(&self, type_: Rc<Type>, is_property: Option<bool>) -> Rc<Type> {
+        let is_property = is_property.unwrap_or(false);
+        Debug_.assert(self.strict_null_checks, None);
+        if type_.flags().intersects(TypeFlags::Undefined) {
+            type_
+        } else {
+            unimplemented!()
+        }
+    }
+
+    fn remove_missing_type(&self, type_: Rc<Type>, is_optional: bool) -> Rc<Type> {
+        if self.exact_optional_property_types && is_optional {
+            unimplemented!()
+        } else {
+            type_
+        }
+    }
+
     fn get_regular_type_of_object_literal(&self, type_: Rc<Type>) -> Rc<Type> {
         type_
     }
@@ -1690,6 +1757,7 @@ struct CheckTypeRelatedTo<'type_checker> {
     head_message: Option<DiagnosticMessage>,
     error_info: RefCell<Option<DiagnosticMessageChain>>,
     expanding_flags: ExpandingFlags,
+    incompatible_stack: Vec<(DiagnosticMessage, Option<Vec<String>>)>,
 }
 
 impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
@@ -1710,6 +1778,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             head_message,
             error_info: RefCell::new(None),
             expanding_flags: ExpandingFlags::None,
+            incompatible_stack: vec![],
         }
     }
 
@@ -1731,7 +1800,9 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             None,
         );
 
-        if false {
+        if !self.incompatible_stack.is_empty() {
+            self.report_incompatible_stack();
+        } else if false {
             unimplemented!()
         } else if self.error_info().is_some() {
             let diag = create_diagnostic_for_node_from_message_chain(
@@ -1744,6 +1815,14 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         }
 
         result != Ternary::False
+    }
+
+    fn report_incompatible_error(&mut self, message: DiagnosticMessage, args: Option<Vec<String>>) {
+        self.incompatible_stack.push((message, args));
+    }
+
+    fn report_incompatible_stack(&self) {
+        unimplemented!()
     }
 
     fn report_error(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
@@ -2022,6 +2101,70 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         Ternary::False
     }
 
+    fn exclude_properties(
+        &self,
+        properties: Vec<Rc<Symbol>>,
+        excluded_properties: Option<HashSet<__String>>,
+    ) -> Vec<Rc<Symbol>> {
+        properties
+    }
+
+    fn is_property_symbol_type_related(
+        &self,
+        source_prop: Rc<Symbol>,
+        target_prop: Rc<Symbol>,
+        get_type_of_source_property: fn(&TypeChecker, Rc<Symbol>) -> Rc<Type>,
+        report_errors: bool,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        let target_is_optional = false;
+        let effective_target = self.type_checker.add_optionality(
+            self.type_checker
+                .get_non_missing_type_of_symbol(target_prop),
+            Some(false),
+            Some(target_is_optional),
+        );
+        let effective_source = get_type_of_source_property(self.type_checker, source_prop);
+        self.is_related_to(
+            effective_source,
+            effective_target,
+            Some(RecursionFlags::Both),
+            report_errors,
+            None,
+            Some(intersection_state),
+        )
+    }
+
+    fn property_related_to(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        source_prop: Rc<Symbol>,
+        target_prop: Rc<Symbol>,
+        get_type_of_source_property: fn(&TypeChecker, Rc<Symbol>) -> Rc<Type>,
+        report_errors: bool,
+        intersection_state: IntersectionState,
+        skip_optional: bool,
+    ) -> Ternary {
+        let related = self.is_property_symbol_type_related(
+            source_prop,
+            target_prop,
+            get_type_of_source_property,
+            report_errors,
+            intersection_state,
+        );
+        if related != Ternary::False {
+            if report_errors {
+                self.report_incompatible_error(
+                    Diagnostics::Types_of_property_0_are_incompatible,
+                    Some(vec![self.type_checker.symbol_to_string(target_prop)]),
+                );
+            }
+            return Ternary::False;
+        }
+        related
+    }
+
     fn properties_related_to(
         &self,
         source: Rc<Type>,
@@ -2049,7 +2192,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         for target_prop in self.exclude_properties(properties, excluded_properties) {
             let name = &target_prop.escaped_name;
             if true {
-                let source_prop = self.get_property_of_type(source, name);
+                let source_prop = self.type_checker.get_property_of_type(source, name);
                 if let Some(source_prop) = source_prop {
                     if !Rc::ptr_eq(&source_prop, &target_prop) {
                         let related = self.property_related_to(

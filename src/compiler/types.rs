@@ -60,6 +60,7 @@ pub enum SyntaxKind {
     OfKeyword,
     QualifiedName,
     PropertySignature,
+    PropertyDeclaration,
     TypeReference,
     ArrayType,
     LiteralType,
@@ -960,7 +961,9 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 pub struct TypeChecker {
     pub Symbol: fn(SymbolFlags, __String) -> Symbol,
     pub Type: fn(TypeFlags) -> BaseType,
+    pub strict_null_checks: bool,
     pub fresh_object_literal_flag: ObjectFlags,
+    pub exact_optional_property_types: bool,
     pub node_builder: NodeBuilder,
     pub globals: RefCell<SymbolTable>,
     pub number_literal_types: HashMap<Number, Rc</*NumberLiteralType*/ Type>>,
@@ -1002,6 +1005,7 @@ bitflags! {
         const SetAccessor = 1 << 16;
         const TypeParameter = 1 << 18;
         const TypeAlias = 1 << 19;
+        const Optional = 1 << 24;
         const Transient = 1 << 25;
 
         const Enum = Self::RegularEnum.bits | Self::ConstEnum.bits;

@@ -8,6 +8,10 @@ pub fn is_property_signature<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::PropertySignature
 }
 
+pub fn is_property_declaration<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.kind() == SyntaxKind::PropertyDeclaration
+}
+
 pub fn is_binding_element<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::BindingElement
 }

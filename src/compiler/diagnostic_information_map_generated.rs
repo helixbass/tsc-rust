@@ -60,6 +60,12 @@ impl Diagnostics {
         "Type_0_is_not_assignable_to_type_1_2322",
         "Type '{0}' is not assignable to type '{1}'.",
     );
+    pub const Types_of_property_0_are_incompatible: DiagnosticMessage = diag(
+        2326,
+        DiagnosticCategory::Error,
+        "Types_of_property_0_are_incompatible_2326",
+        "Types of property '{0}' are incompatible.",
+    );
     pub const An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type:
         DiagnosticMessage = diag(
         2356,

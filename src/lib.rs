@@ -20,7 +20,8 @@ pub use compiler::factory::base_node_factory::{
 };
 pub use compiler::factory::node_factory::{create_node_factory, factory, get_synthetic_factory};
 pub use compiler::factory::node_tests::{
-    is_binding_element, is_private_identifier, is_property_signature, is_variable_declaration,
+    is_binding_element, is_private_identifier, is_property_declaration, is_property_signature,
+    is_variable_declaration,
 };
 pub use compiler::parser::{create_source_file, for_each_child};
 pub use compiler::path::{normalize_path, to_path};
