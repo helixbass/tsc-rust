@@ -14,6 +14,7 @@ pub fn token_is_identifier_or_keyword(token: SyntaxKind) -> bool {
 lazy_static! {
     static ref text_to_keyword_obj: HashMap<String, SyntaxKind> =
         HashMap::from_iter(IntoIter::new([
+            ("boolean".to_string(), SyntaxKind::BooleanKeyword),
             ("const".to_string(), SyntaxKind::ConstKeyword),
             ("false".to_string(), SyntaxKind::FalseKeyword),
             ("interface".to_string(), SyntaxKind::InterfaceKeyword),
