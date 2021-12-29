@@ -56,6 +56,7 @@ pub enum SyntaxKind {
     TrueKeyword,
     WithKeyword,
     InterfaceKeyword,
+    BooleanKeyword,
     NumberKeyword,
     OfKeyword,
     QualifiedName,

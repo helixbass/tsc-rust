@@ -1044,7 +1044,14 @@ impl TypeChecker {
     fn get_union_type_from_sorted_list(&self, types: Vec<Rc<Type>>) -> Rc<Type> {
         let mut type_: Option<Rc<Type>> = None;
         if type_.is_none() {
-            let base_type = self.create_type(TypeFlags::Union);
+            let is_boolean = types.len() == 2
+                && types[0].flags().intersects(TypeFlags::BooleanLiteral)
+                && types[1].flags().intersects(TypeFlags::BooleanLiteral);
+            let base_type = self.create_type(if is_boolean {
+                TypeFlags::Union | TypeFlags::Boolean
+            } else {
+                TypeFlags::Union
+            });
             type_ = Some(Rc::new(
                 (UnionType {
                     _union_or_intersection_type: BaseUnionOrIntersectionType {
@@ -1054,6 +1061,8 @@ impl TypeChecker {
                 })
                 .into(),
             ));
+            // TODO: also treat union type as intrinsic type with intrinsic_name = "boolean" if
+            // is_boolean - should expose maybe_intrinsic_name on UnionType or something?
         }
         type_.unwrap()
     }
@@ -1999,6 +2008,12 @@ impl NodeBuilder {
         if type_.flags().intersects(TypeFlags::Number) {
             return Into::<KeywordTypeNode>::into(
                 factory.create_keyword_type_node(&synthetic_factory, SyntaxKind::NumberKeyword),
+            )
+            .into();
+        }
+        if type_.flags().intersects(TypeFlags::Boolean) {
+            return Into::<KeywordTypeNode>::into(
+                factory.create_keyword_type_node(&synthetic_factory, SyntaxKind::BooleanKeyword),
             )
             .into();
         }
