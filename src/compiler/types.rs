@@ -971,6 +971,7 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 
 #[allow(non_snake_case)]
 pub struct TypeChecker {
+    pub _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
     pub Symbol: fn(SymbolFlags, __String) -> Symbol,
     pub Type: fn(TypeFlags) -> BaseType,
     pub strict_null_checks: bool,
@@ -1654,6 +1655,7 @@ impl NumberLiteralType {
             _ => panic!("Expected LiteralType"),
         }
         self.set_fresh_type(&fresh_type);
+        type_checker.keep_strong_reference_to_type(fresh_type);
         self.fresh_type().unwrap().upgrade().unwrap()
     }
 }

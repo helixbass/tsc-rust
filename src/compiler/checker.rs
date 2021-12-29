@@ -67,6 +67,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     produce_diagnostics: bool,
 ) -> TypeChecker {
     let mut type_checker = TypeChecker {
+        _types_needing_strong_references: RefCell::new(vec![]),
         Symbol: object_allocator.get_symbol_constructor(),
         Type: object_allocator.get_type_constructor(),
 
@@ -206,6 +207,12 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 }
 
 impl TypeChecker {
+    pub fn keep_strong_reference_to_type(&self, type_: Rc<Type>) {
+        self._types_needing_strong_references
+            .borrow_mut()
+            .push(type_);
+    }
+
     fn globals(&self) -> RefMut<SymbolTable> {
         self.globals.borrow_mut()
     }
@@ -2451,7 +2458,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             report_errors,
             intersection_state,
         );
-        if related != Ternary::False {
+        if related == Ternary::False {
             if report_errors {
                 self.report_incompatible_error(
                     Diagnostics::Types_of_property_0_are_incompatible,
