@@ -20,7 +20,8 @@ pub use compiler::factory::base_node_factory::{
 };
 pub use compiler::factory::node_factory::{create_node_factory, factory, get_synthetic_factory};
 pub use compiler::factory::node_tests::{
-    is_binding_element, is_private_identifier, is_property_declaration, is_property_signature,
+    is_binding_element, is_object_literal_expression, is_private_identifier,
+    is_property_assignment, is_property_declaration, is_property_signature,
     is_variable_declaration,
 };
 pub use compiler::parser::{create_source_file, for_each_child};
@@ -60,9 +61,9 @@ pub use compiler::utilities::{
     create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_symbol_table,
     create_text_writer, get_binary_operator_precedence, get_effective_initializer,
     get_effective_type_annotation_node, get_escaped_text_of_identifier_or_literal,
-    get_first_identifier, is_external_or_common_js_module, is_keyword, is_property_name_literal,
-    node_is_missing, object_allocator, set_parent, set_text_range_pos_end, set_value_declaration,
-    OperatorPrecedence,
+    get_first_identifier, has_dynamic_name, is_external_or_common_js_module, is_keyword,
+    is_property_name_literal, node_is_missing, object_allocator, set_parent,
+    set_text_range_pos_end, set_value_declaration, OperatorPrecedence,
 };
 pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores, get_name_of_declaration,

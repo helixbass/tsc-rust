@@ -966,7 +966,7 @@ pub struct TypeChecker {
     pub exact_optional_property_types: bool,
     pub node_builder: NodeBuilder,
     pub globals: RefCell<SymbolTable>,
-    pub number_literal_types: HashMap<Number, Rc</*NumberLiteralType*/ Type>>,
+    pub number_literal_types: RefCell<HashMap<Number, Rc</*NumberLiteralType*/ Type>>>,
     pub unknown_symbol: Option<Rc<Symbol>>,
     pub number_type: Option<Rc<Type>>,
     pub bigint_type: Option<Rc<Type>>,

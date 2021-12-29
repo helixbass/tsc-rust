@@ -14,7 +14,8 @@ use crate::{
     create_diagnostic_for_node_from_message_chain, create_printer, create_symbol_table,
     create_text_writer, every, factory, for_each, get_effective_initializer,
     get_effective_type_annotation_node, get_first_identifier, get_synthetic_factory,
-    is_binding_element, is_external_or_common_js_module, is_private_identifier,
+    has_dynamic_name, is_binding_element, is_external_or_common_js_module,
+    is_object_literal_expression, is_private_identifier, is_property_assignment,
     is_property_declaration, is_property_signature, is_variable_declaration, node_is_missing,
     object_allocator, ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType, BaseLiteralType,
     BaseObjectType, BaseType, BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic,
@@ -23,10 +24,11 @@ use crate::{
     InterfaceType, IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
     NumberLiteralType, NumericLiteral, ObjectFlags, ObjectLiteralExpression, ObjectTypeInterface,
-    PrefixUnaryExpression, PrinterOptions, PropertySignature, RelationComparisonResult,
-    ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Statement, Symbol, SymbolFlags,
-    SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost,
-    TypeElement, TypeFlags, TypeInterface, TypeReferenceNode, VariableLikeDeclarationInterface,
+    PrefixUnaryExpression, PrinterOptions, PropertyAssignment, PropertySignature,
+    RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile,
+    Statement, Symbol, SymbolFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type,
+    TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeReferenceNode,
+    VariableLikeDeclarationInterface,
 };
 
 bitflags! {
@@ -80,7 +82,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         globals: RefCell::new(create_symbol_table()),
 
-        number_literal_types: HashMap::new(),
+        number_literal_types: RefCell::new(HashMap::new()),
 
         unknown_symbol: None,
 
@@ -206,6 +208,10 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 impl TypeChecker {
     fn globals(&self) -> RefMut<SymbolTable> {
         self.globals.borrow_mut()
+    }
+
+    fn number_literal_types(&self) -> RefMut<HashMap<Number, Rc</*NumberLiteralType*/ Type>>> {
+        self.number_literal_types.borrow_mut()
     }
 
     fn unknown_symbol(&self) -> Rc<Symbol> {
@@ -660,6 +666,15 @@ impl TypeChecker {
         let type_: Rc<Type>;
         if false {
             unimplemented!()
+        } else if is_property_assignment(&*declaration) {
+            type_ = self
+                .try_get_type_from_effective_type_node(&*declaration)
+                .unwrap_or_else(|| {
+                    self.check_property_assignment(match &*declaration {
+                        Node::PropertyAssignment(property_assignment) => property_assignment,
+                        _ => panic!("Expected PropertyAssignment"),
+                    })
+                });
         } else if is_property_signature(&*declaration) || is_variable_declaration(&*declaration) {
             type_ = self.get_widened_type_for_variable_like_declaration(&*declaration);
         } else {
@@ -718,6 +733,10 @@ impl TypeChecker {
 
     fn resolve_declared_members(&self, type_: Rc<Type /*InterfaceType*/>) -> Rc<Type> {
         type_
+    }
+
+    fn has_bindable_name<TNode: NodeInterface>(&self, node: &TNode /*Declaration*/) -> bool {
+        !has_dynamic_name(node) || unimplemented!()
     }
 
     fn get_members_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<RefCell<SymbolTable>> {
@@ -1081,12 +1100,13 @@ impl TypeChecker {
         }
     }
 
-    fn get_number_literal_type(&mut self, value: Number) -> Rc<Type> {
-        if self.number_literal_types.contains_key(&value) {
-            return self.number_literal_types.get(&value).unwrap().clone();
+    fn get_number_literal_type(&self, value: Number) -> Rc<Type> {
+        let mut number_literal_types = self.number_literal_types();
+        if number_literal_types.contains_key(&value) {
+            return number_literal_types.get(&value).unwrap().clone();
         }
         let type_ = self.create_number_literal_type(TypeFlags::NumberLiteral, value, None);
-        self.number_literal_types.insert(value, type_.clone());
+        number_literal_types.insert(value, type_.clone());
         type_
     }
 
@@ -1300,10 +1320,62 @@ impl TypeChecker {
         } else if type_.flags().intersects(TypeFlags::BooleanLiteral) {
             self.boolean_type()
         } else if type_.flags().intersects(TypeFlags::Union) {
-            self.map_type(type_, |type_| self.get_base_type_of_literal_type(type_))
+            self.map_type(
+                type_,
+                |type_| Some(self.get_base_type_of_literal_type(type_)),
+                None,
+            )
+            .unwrap()
         } else {
             type_
         }
+    }
+
+    fn get_widened_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        let flags = type_.flags();
+        if flags.intersects(TypeFlags::EnumLiteral) && self.is_fresh_literal_type(type_.clone()) {
+            unimplemented!()
+        } else if flags.intersects(TypeFlags::StringLiteral)
+            && self.is_fresh_literal_type(type_.clone())
+        {
+            unimplemented!()
+        } else if flags.intersects(TypeFlags::NumberLiteral)
+            && self.is_fresh_literal_type(type_.clone())
+        {
+            self.number_type()
+        } else if flags.intersects(TypeFlags::BigIntLiteral)
+            && self.is_fresh_literal_type(type_.clone())
+        {
+            self.bigint_type()
+        } else if flags.intersects(TypeFlags::BooleanLiteral)
+            && self.is_fresh_literal_type(type_.clone())
+        {
+            self.boolean_type()
+        } else if flags.intersects(TypeFlags::Union) {
+            self.map_type(
+                type_,
+                |type_| Some(self.get_widened_literal_type(type_)),
+                None,
+            )
+            .unwrap()
+        } else {
+            type_
+        }
+    }
+
+    fn get_widened_unique_es_symbol_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        type_
+    }
+
+    fn get_widened_literal_like_type_for_contextual_type(
+        &self,
+        mut type_: Rc<Type>,
+        contextual_type: Option<Rc<Type>>,
+    ) -> Rc<Type> {
+        if !self.is_literal_of_contextual_type(type_.clone(), contextual_type) {
+            type_ = self.get_widened_unique_es_symbol_type(self.get_widened_literal_type(type_));
+        }
+        type_
     }
 
     fn get_optional_type(&self, type_: Rc<Type>, is_property: Option<bool>) -> Rc<Type> {
@@ -1351,13 +1423,15 @@ impl TypeChecker {
         }
     }
 
-    fn map_type<TMapper: FnMut(Rc<Type>) -> Rc<Type>>(
+    fn map_type<TMapper: FnMut(Rc<Type>) -> Option<Rc<Type>>>(
         &self,
         type_: Rc<Type>,
         mut mapper: TMapper,
-    ) -> Rc<Type> {
+        no_reductions: Option<bool>,
+    ) -> Option<Rc<Type>> {
+        let no_reductions = no_reductions.unwrap_or(false);
         if type_.flags().intersects(TypeFlags::Never) {
-            return type_;
+            return Some(type_);
         }
         if !type_.flags().intersects(TypeFlags::Union) {
             return mapper(type_);
@@ -1371,6 +1445,121 @@ impl TypeChecker {
             type_.as_union_or_intersection_type().types().len()
         } else {
             1
+        }
+    }
+
+    fn get_type_of_property_of_contextual_type(
+        &self,
+        type_: Rc<Type>,
+        name: &__String,
+    ) -> Option<Rc<Type>> {
+        self.map_type(
+            type_,
+            |t| {
+                if false {
+                    unimplemented!()
+                } else if t.flags().intersects(TypeFlags::StructuredType) {
+                    let prop = self.get_property_of_type(t, name);
+                    if let Some(prop) = prop {
+                        return if false {
+                            None
+                        } else {
+                            Some(self.get_type_of_symbol(&*prop))
+                        };
+                    }
+                    unimplemented!()
+                }
+                None
+            },
+            Some(true),
+        )
+    }
+
+    fn get_contextual_type_for_object_literal_element(
+        &self,
+        element: &PropertyAssignment,
+    ) -> Option<Rc<Type>> {
+        let parent = element.parent();
+        let object_literal = match &*parent {
+            Node::Expression(Expression::ObjectLiteralExpression(object_literal_expression)) => {
+                object_literal_expression
+            }
+            _ => panic!("Expected ObjectLiteralExpression"),
+        };
+        // let property_assignment_type = if is_property_assignment(element) {
+        // } else {
+        //     None
+        // };
+        // if property_assignment_type.is_some() {
+        //     return property_assignment_type;
+        // }
+        let type_ = self.get_apparent_type_of_contextual_type(object_literal);
+        if let Some(type_) = type_ {
+            if self.has_bindable_name(element) {
+                return self.get_type_of_property_of_contextual_type(
+                    type_,
+                    &self.get_symbol_of_node(element).unwrap().escaped_name,
+                );
+            }
+            unimplemented!()
+        }
+        None
+    }
+
+    fn get_apparent_type_of_contextual_type<TNode: NodeInterface>(
+        &self,
+        node: &TNode, /*Expression | MethodDeclaration*/
+    ) -> Option<Rc<Type>> {
+        let contextual_type = if false {
+            unimplemented!()
+        } else {
+            self.get_contextual_type(node)
+        };
+        let instantiated_type = self.instantiate_contextual_type(contextual_type, node);
+        if let Some(instantiated_type) = instantiated_type {
+            if true {
+                let apparent_type = self
+                    .map_type(
+                        instantiated_type,
+                        |type_| Some(self.get_apparent_type(type_)),
+                        Some(true),
+                    )
+                    .unwrap();
+                return if apparent_type.flags().intersects(TypeFlags::Union)
+                    && is_object_literal_expression(node)
+                {
+                    unimplemented!()
+                } else if false {
+                    unimplemented!()
+                } else {
+                    Some(apparent_type)
+                };
+            }
+        }
+        None
+    }
+
+    fn instantiate_contextual_type<TNode: NodeInterface>(
+        &self,
+        contextual_type: Option<Rc<Type>>,
+        node: &TNode,
+    ) -> Option<Rc<Type>> {
+        if false {
+            unimplemented!()
+        }
+        contextual_type
+    }
+
+    fn get_contextual_type<TNode: NodeInterface>(
+        &self,
+        node: &TNode, /*Expression*/
+    ) -> Option<Rc<Type>> {
+        let parent = node.parent();
+        match &*parent {
+            Node::PropertyAssignment(property_assignment) => {
+                self.get_contextual_type_for_object_literal_element(property_assignment)
+            }
+            _ => unimplemented!(),
         }
     }
 
@@ -1423,7 +1612,7 @@ impl TypeChecker {
         true
     }
 
-    fn check_prefix_unary_expression(&mut self, node: &PrefixUnaryExpression) -> Rc<Type> {
+    fn check_prefix_unary_expression(&self, node: &PrefixUnaryExpression) -> Rc<Type> {
         let operand_expression = match &*node.operand {
             Node::Expression(expression) => expression,
             _ => panic!("Expected Expression"),
@@ -1444,15 +1633,83 @@ impl TypeChecker {
         self.number_type()
     }
 
+    fn maybe_type_of_kind(&self, type_: &Type, kind: TypeFlags) -> bool {
+        if type_.flags().intersects(kind) {
+            return true;
+        }
+        if let Type::UnionOrIntersectionType(type_) = type_ {
+            for t in type_.types() {
+                if self.maybe_type_of_kind(&**t, kind) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     fn check_expression_cached(&mut self, node: &Expression) -> Rc<Type> {
         self.check_expression(node)
     }
 
-    fn check_expression(&mut self, node: &Expression) -> Rc<Type> {
+    fn is_literal_of_contextual_type(
+        &self,
+        candidate_type: Rc<Type>,
+        contextual_type: Option<Rc<Type>>,
+    ) -> bool {
+        if let Some(contextual_type) = contextual_type {
+            return contextual_type.flags().intersects(
+                TypeFlags::StringLiteral
+                    | TypeFlags::Index
+                    | TypeFlags::TemplateLiteral
+                    | TypeFlags::StringMapping,
+            ) && self.maybe_type_of_kind(&*candidate_type, TypeFlags::StringLiteral)
+                || contextual_type.flags().intersects(TypeFlags::NumberLiteral)
+                    && self.maybe_type_of_kind(&*candidate_type, TypeFlags::NumberLiteral)
+                || contextual_type.flags().intersects(TypeFlags::BigIntLiteral)
+                    && self.maybe_type_of_kind(&*candidate_type, TypeFlags::BigIntLiteral)
+                || contextual_type
+                    .flags()
+                    .intersects(TypeFlags::BooleanLiteral)
+                    && self.maybe_type_of_kind(&*candidate_type, TypeFlags::BooleanLiteral)
+                || contextual_type
+                    .flags()
+                    .intersects(TypeFlags::UniqueESSymbol)
+                    && self.maybe_type_of_kind(&*candidate_type, TypeFlags::UniqueESSymbol);
+        }
+        false
+    }
+
+    fn check_expression_for_mutable_location(&self, node: &Expression) -> Rc<Type> {
+        let type_ = self.check_expression(node);
+        if false {
+            unimplemented!()
+        } else {
+            self.get_widened_literal_like_type_for_contextual_type(
+                type_,
+                self.instantiate_contextual_type(
+                    if false {
+                        self.get_contextual_type(node)
+                    } else {
+                        unimplemented!()
+                    },
+                    node,
+                ),
+            )
+        }
+    }
+
+    fn check_property_assignment(&self, node: &PropertyAssignment) -> Rc<Type> {
+        self.check_expression_for_mutable_location(match &*node.initializer {
+            Node::Expression(expression) => expression,
+            _ => panic!("Expected Expression"),
+        })
+    }
+
+    fn check_expression(&self, node: &Expression) -> Rc<Type> {
         self.check_expression_worker(node)
     }
 
-    fn check_expression_worker(&mut self, node: &Expression) -> Rc<Type> {
+    fn check_expression_worker(&self, node: &Expression) -> Rc<Type> {
         match node {
             Expression::TokenExpression(token_expression) => match token_expression.kind() {
                 SyntaxKind::TrueKeyword => self.true_type(),

@@ -12,7 +12,7 @@ use crate::{
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     EmitTextWriter, Expression, Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile,
     Symbol, SymbolFlags, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags,
-    __String,
+    __String, get_name_of_declaration,
 };
 
 pub fn create_symbol_table() -> SymbolTable {
@@ -113,6 +113,19 @@ pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode
 
 pub fn is_keyword(token: SyntaxKind) -> bool {
     SyntaxKind::FirstKeyword <= token && token <= SyntaxKind::LastKeyword
+}
+
+pub fn has_dynamic_name<TNode: NodeInterface>(declaration: &TNode /*Declaration*/) -> bool {
+    let name = get_name_of_declaration(declaration);
+    if let Some(name) = name {
+        is_dynamic_name(&*name)
+    } else {
+        false
+    }
+}
+
+fn is_dynamic_name(name: &Node /*DeclarationName*/) -> bool {
+    false
 }
 
 pub fn is_property_name_literal<TNode: NodeInterface>(node: &TNode) -> bool {
