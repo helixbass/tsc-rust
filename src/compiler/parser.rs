@@ -219,6 +219,7 @@ struct ParserType {
     SourceFileConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     factory: NodeFactory,
     file_name: Option<String>,
+    source_text: Option<String>,
     parse_diagnostics: Option<RefCell<Vec<DiagnosticWithDetachedLocation>>>,
     current_token: RefCell<Option<SyntaxKind>>,
     parsing_context: Option<ParsingContext>,
@@ -235,6 +236,7 @@ impl ParserType {
             SourceFileConstructor: None,
             factory: create_node_factory(),
             file_name: None,
+            source_text: None,
             parse_diagnostics: None,
             current_token: RefCell::new(None),
             parsing_context: None,
@@ -300,8 +302,16 @@ impl ParserType {
         self.file_name.as_ref().unwrap()
     }
 
-    fn set_file_name(&mut self, file_name: &str) {
-        self.file_name = Some(file_name.to_string());
+    fn set_file_name(&mut self, file_name: String) {
+        self.file_name = Some(file_name);
+    }
+
+    fn source_text(&self) -> &str {
+        self.source_text.as_ref().unwrap()
+    }
+
+    fn set_source_text(&mut self, source_text: String) {
+        self.source_text = Some(source_text);
     }
 
     fn parse_diagnostics(&self) -> RefMut<Vec<DiagnosticWithDetachedLocation>> {
@@ -347,7 +357,8 @@ impl ParserType {
         self.set_TokenConstructor(object_allocator.get_token_constructor());
         self.set_SourceFileConstructor(object_allocator.get_source_file_constructor());
 
-        self.set_file_name(&normalize_path(_file_name));
+        self.set_file_name(normalize_path(_file_name));
+        self.set_source_text(_source_text.to_string());
 
         self.set_parse_diagnostics(vec![]);
         self.set_parsing_context(ParsingContext::None);
@@ -374,6 +385,7 @@ impl ParserType {
     ) -> SourceFile {
         let mut source_file = self.factory.create_source_file(self, statements);
 
+        source_file.text = self.source_text().to_string();
         source_file.file_name = file_name.to_string();
 
         source_file

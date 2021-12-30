@@ -14,6 +14,17 @@ pub fn for_each<
         .find_map(|(index, item)| callback(item, index))
 }
 
+pub fn first_defined<
+    TCollection: IntoIterator,
+    TReturn,
+    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
+>(
+    array: TCollection,
+    callback: TCallback,
+) -> Option<TReturn> {
+    for_each(array, callback)
+}
+
 pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     array: &[TItem],
     mut predicate: TCallback,

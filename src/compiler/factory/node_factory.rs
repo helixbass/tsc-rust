@@ -380,7 +380,12 @@ impl NodeFactory {
         statements: TNodes,
     ) -> SourceFile {
         let node = base_factory.create_base_source_file_node(SyntaxKind::SourceFile);
-        let node = SourceFile::new(node, self.create_node_array(statements), "".to_string());
+        let node = SourceFile::new(
+            node,
+            self.create_node_array(statements),
+            "".to_string(),
+            "".to_string(),
+        );
         node
     }
 

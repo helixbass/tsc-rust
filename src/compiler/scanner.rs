@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
-use crate::{CharacterCodes, SyntaxKind, TokenFlags};
+use crate::{position_is_synthesized, CharacterCodes, SyntaxKind, TokenFlags};
 
 pub fn token_is_identifier_or_keyword(token: SyntaxKind) -> bool {
     token >= SyntaxKind::Identifier
@@ -56,6 +56,14 @@ lazy_static! {
 
 pub fn token_to_string(t: SyntaxKind) -> Option<&'static String> {
     token_strings.get(&t)
+}
+
+pub fn skip_trivia(text: &str, pos: isize) -> isize {
+    if position_is_synthesized(pos) {
+        return pos;
+    }
+
+    pos
 }
 
 fn is_identifier_start(ch: char) -> bool {

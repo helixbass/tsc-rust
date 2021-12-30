@@ -923,15 +923,22 @@ pub struct SourceFile {
     pub statements: NodeArray,
 
     pub file_name: String,
+    pub text: String,
 }
 
 impl SourceFile {
-    pub fn new(base_node: BaseNode, statements: NodeArray, file_name: String) -> Self {
+    pub fn new(
+        base_node: BaseNode,
+        statements: NodeArray,
+        file_name: String,
+        text: String,
+    ) -> Self {
         Self {
             _node: base_node,
             _symbols_without_a_symbol_table_strong_references: RefCell::new(vec![]),
             statements,
             file_name,
+            text,
         }
     }
 
@@ -995,8 +1002,27 @@ pub struct TypeChecker {
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
 
+bitflags! {
+    pub struct SymbolFormatFlags: u32 {
+        const None = 0;
+        const WriteTypeParametersOrArguments = 1 << 0;
+        const UseOnlyExternalAliasing = 1 << 1;
+        const AllowAnyNodeKind = 1 << 2;
+        const UseAliasDefinedOutsideCurrentScope = 1 << 3;
+        const DoNotIncludeSymbolChain = 1 << 4;
+    }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum UnionReduction {
+    None,
+    Literal,
+    Subtype,
+}
+
 pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
+    fn clear(&mut self);
 }
 
 bitflags! {

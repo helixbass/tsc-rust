@@ -12,23 +12,25 @@ use crate::{
     VariableDeclaration, VariableStatement, __String, bind_source_file, chain_diagnostic_messages,
     create_diagnostic_collection, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, create_printer, create_symbol_table,
-    create_text_writer, every, factory, for_each, get_effective_initializer,
-    get_effective_type_annotation_node, get_first_identifier, get_synthetic_factory,
-    has_dynamic_name, has_initializer, is_binding_element, is_external_or_common_js_module,
+    create_text_writer, declaration_name_to_string, every, factory, first_defined, for_each,
+    get_effective_initializer, get_effective_type_annotation_node, get_first_identifier,
+    get_name_of_declaration, get_source_file_of_node, get_synthetic_factory, has_dynamic_name,
+    has_initializer, is_binding_element, is_external_or_common_js_module,
     is_object_literal_expression, is_private_identifier, is_property_assignment,
     is_property_declaration, is_property_signature, is_variable_declaration, node_is_missing,
-    object_allocator, ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType, BaseLiteralType,
-    BaseObjectType, BaseType, BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint,
-    EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType,
-    HasExpressionInitializerInterface, InterfaceDeclaration, InterfaceType, IntrinsicType,
-    KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType, NumericLiteral,
-    ObjectFlags, ObjectLiteralExpression, ObjectTypeInterface, PrefixUnaryExpression,
-    PrinterOptions, PropertyAssignment, PropertySignature, RelationComparisonResult,
-    ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Statement, Symbol, SymbolFlags,
-    SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost,
-    TypeElement, TypeFlags, TypeInterface, TypeReferenceNode, VariableLikeDeclarationInterface,
+    object_allocator, using_single_line_string_writer, ArrayTypeNode, BaseInterfaceType,
+    BaseIntrinsicType, BaseLiteralType, BaseObjectType, BaseType, BaseUnionOrIntersectionType,
+    CharacterCodes, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression, ExpressionStatement,
+    FreshableIntrinsicType, HasExpressionInitializerInterface, InterfaceDeclaration, InterfaceType,
+    IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
+    NumberLiteralType, NumericLiteral, ObjectFlags, ObjectLiteralExpression, ObjectTypeInterface,
+    PrefixUnaryExpression, PrinterOptions, PropertyAssignment, PropertySignature,
+    RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile,
+    Statement, Symbol, SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind,
+    Ternary, Type, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface,
+    TypeReferenceNode, UnionReduction, VariableLikeDeclarationInterface,
 };
 
 bitflags! {
@@ -195,13 +197,17 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         _ => panic!("Expected IntrinsicType"),
     }
     type_checker.regular_false_type = Some(regular_false_type);
-    type_checker.boolean_type = Some(type_checker.get_union_type(vec![
-        type_checker.regular_false_type(),
-        type_checker.regular_true_type(),
-    ]));
-    type_checker.number_or_big_int_type = Some(
-        type_checker.get_union_type(vec![type_checker.number_type(), type_checker.bigint_type()]),
-    );
+    type_checker.boolean_type = Some(type_checker.get_union_type(
+        vec![
+            type_checker.regular_false_type(),
+            type_checker.regular_true_type(),
+        ],
+        None,
+    ));
+    type_checker.number_or_big_int_type = Some(type_checker.get_union_type(
+        vec![type_checker.number_type(), type_checker.bigint_type()],
+        None,
+    ));
     type_checker.initialize_type_checker(host);
     type_checker
 }
@@ -555,8 +561,48 @@ impl TypeChecker {
         type_
     }
 
-    fn symbol_to_string(&self, symbol: Rc<Symbol>) -> String {
-        unimplemented!()
+    fn symbol_to_string(
+        &self,
+        symbol: Rc<Symbol>,
+        enclosing_declaration: Option<&Node>,
+        meaning: Option<SymbolFlags>,
+        flags: Option<SymbolFormatFlags>,
+        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+    ) -> String {
+        let flags = flags.unwrap_or(SymbolFormatFlags::AllowAnyNodeKind);
+        let builder = if flags.intersects(SymbolFormatFlags::AllowAnyNodeKind) {
+            NodeBuilder::symbol_to_expression
+        } else {
+            unimplemented!()
+        };
+        let symbol_to_string_worker = |writer: Rc<RefCell<dyn EmitTextWriter>>| {
+            let entity = builder(
+                &self.node_builder,
+                self,
+                symbol,
+                // meaning.unwrap() TODO: this is ! in the Typescript code but would be undefined at runtime when called from propertyRelatedTo()?
+                meaning,
+                None,
+            )
+            .unwrap();
+            let mut printer = if false {
+                unimplemented!()
+            } else {
+                create_printer(PrinterOptions {/*remove_comments: true*/})
+            };
+            let source_file = if let Some(enclosing_declaration) = enclosing_declaration {
+                Some(get_source_file_of_node(enclosing_declaration))
+            } else {
+                None
+            };
+            printer.write_node(EmitHint::Unspecified, &entity, source_file, writer);
+            // writer
+        };
+        if let Some(writer) = writer {
+            unimplemented!()
+        } else {
+            using_single_line_string_writer(symbol_to_string_worker)
+        }
     }
 
     fn type_to_string(&self, type_: &Type) -> String {
@@ -598,6 +644,33 @@ impl TypeChecker {
 
     fn get_type_name_for_error_display(&self, type_: &Type) -> String {
         self.type_to_string(type_)
+    }
+
+    fn get_name_of_symbol_as_written(
+        &self,
+        symbol: Rc<Symbol>,
+        context: Option<&NodeBuilderContext>,
+    ) -> String {
+        if let Some(declarations) = &*symbol.maybe_declarations() {
+            if !declarations.is_empty() {
+                let declaration = first_defined(declarations, |d, _| {
+                    if get_name_of_declaration(&**d).is_some() {
+                        Some(d)
+                    } else {
+                        None
+                    }
+                });
+                let name = if let Some(declaration) = declaration {
+                    get_name_of_declaration(&**declaration)
+                } else {
+                    None
+                };
+                if let Some(name) = name {
+                    return declaration_name_to_string(Some(&*name));
+                }
+            }
+        }
+        unimplemented!()
     }
 
     fn add_optionality(
@@ -1035,9 +1108,23 @@ impl TypeChecker {
         }
     }
 
-    fn get_union_type(&self, types: Vec<Rc<Type>>) -> Rc<Type> {
+    fn get_union_type(
+        &self,
+        types: Vec<Rc<Type>>,
+        union_reduction: Option<UnionReduction>,
+    ) -> Rc<Type> {
+        let union_reduction = union_reduction.unwrap_or(UnionReduction::Literal);
+        if types.is_empty() {
+            unimplemented!()
+            // return self.never_type();
+        }
+        if types.len() == 1 {
+            return types[0].clone();
+        }
         let mut type_set: Vec<Rc<Type>> = vec![];
+        // let includes =
         self.add_types_to_union(&mut type_set, /*TypeFlags::empty(), */ &types);
+        if union_reduction != UnionReduction::None {}
         self.get_union_type_from_sorted_list(type_set)
     }
 
@@ -1338,7 +1425,7 @@ impl TypeChecker {
         } else if type_.flags().intersects(TypeFlags::Union) {
             self.map_type(
                 type_,
-                |type_| Some(self.get_base_type_of_literal_type(type_)),
+                &mut |type_| Some(self.get_base_type_of_literal_type(type_)),
                 None,
             )
             .unwrap()
@@ -1370,7 +1457,7 @@ impl TypeChecker {
         } else if flags.intersects(TypeFlags::Union) {
             self.map_type(
                 type_,
-                |type_| Some(self.get_widened_literal_type(type_)),
+                &mut |type_| Some(self.get_widened_literal_type(type_)),
                 None,
             )
             .unwrap()
@@ -1442,7 +1529,7 @@ impl TypeChecker {
     fn map_type<TMapper: FnMut(Rc<Type>) -> Option<Rc<Type>>>(
         &self,
         type_: Rc<Type>,
-        mut mapper: TMapper,
+        mapper: &mut TMapper,
         no_reductions: Option<bool>,
     ) -> Option<Rc<Type>> {
         let no_reductions = no_reductions.unwrap_or(false);
@@ -1453,7 +1540,39 @@ impl TypeChecker {
             return mapper(type_);
         }
         let types = type_.as_union_or_intersection_type().types();
-        unimplemented!()
+        let mut mapped_types: Vec<Rc<Type>> = vec![];
+        let mut changed = false;
+        for t in types {
+            let mapped = if t.flags().intersects(TypeFlags::Union) {
+                self.map_type(t.clone(), mapper, Some(no_reductions))
+            } else {
+                mapper(t.clone())
+            };
+            changed = changed
+                || match mapped.as_ref() {
+                    None => true,
+                    Some(mapped) => !Rc::ptr_eq(t, mapped),
+                };
+            if let Some(mapped) = mapped {
+                mapped_types.push(mapped);
+            }
+        }
+        if changed {
+            if !mapped_types.is_empty() {
+                Some(self.get_union_type(
+                    mapped_types,
+                    Some(if no_reductions {
+                        UnionReduction::None
+                    } else {
+                        UnionReduction::Literal
+                    }),
+                ))
+            } else {
+                None
+            }
+        } else {
+            Some(type_)
+        }
     }
 
     fn get_constituent_count(&self, type_: Rc<Type>) -> usize {
@@ -1504,7 +1623,7 @@ impl TypeChecker {
     ) -> Option<Rc<Type>> {
         self.map_type(
             type_,
-            |t| {
+            &mut |t| {
                 if false {
                     unimplemented!()
                 } else if t.flags().intersects(TypeFlags::StructuredType) {
@@ -1570,7 +1689,7 @@ impl TypeChecker {
                 let apparent_type = self
                     .map_type(
                         instantiated_type,
-                        |type_| Some(self.get_apparent_type(type_)),
+                        &mut |type_| Some(self.get_apparent_type(type_)),
                         Some(true),
                     )
                     .unwrap();
@@ -1993,12 +2112,30 @@ impl NodeBuilder {
         })
     }
 
-    fn with_context<TReturn, TCallback: FnMut(&NodeBuilderContext) -> TReturn>(
+    pub fn symbol_to_expression(
+        &self,
+        type_checker: &TypeChecker,
+        symbol: Rc<Symbol>,
+        meaning: /*SymbolFlags*/ Option<SymbolFlags>,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<Expression> {
+        self.with_context(tracker, |context| {
+            self._symbol_to_expression(type_checker, symbol, context, meaning)
+        })
+    }
+
+    fn with_context<TReturn, TCallback: FnOnce(&NodeBuilderContext) -> TReturn>(
         &self,
         tracker: Option<&dyn SymbolTracker>,
-        mut cb: TCallback,
+        cb: TCallback,
     ) -> Option<TReturn> {
-        let context = NodeBuilderContext::new(tracker.unwrap());
+        let default_tracker: Option<DefaultNodeBuilderContextSymbolTracker> = if tracker.is_some() {
+            None
+        } else {
+            Some(DefaultNodeBuilderContextSymbolTracker::new())
+        };
+        let context =
+            NodeBuilderContext::new(tracker.unwrap_or_else(|| default_tracker.as_ref().unwrap()));
         let resulting_node = cb(&context);
         Some(resulting_node)
     }
@@ -2033,7 +2170,74 @@ impl NodeBuilder {
         }
         unimplemented!()
     }
+
+    fn lookup_symbol_chain(
+        &self,
+        symbol: Rc<Symbol>,
+        context: &NodeBuilderContext,
+        meaning: /*SymbolFlags*/ Option<SymbolFlags>,
+    ) -> Vec<Rc<Symbol>> {
+        self.lookup_symbol_chain_worker(symbol, context, meaning)
+    }
+
+    fn lookup_symbol_chain_worker(
+        &self,
+        symbol: Rc<Symbol>,
+        context: &NodeBuilderContext,
+        meaning: /*SymbolFlags*/ Option<SymbolFlags>,
+    ) -> Vec<Rc<Symbol>> {
+        let chain: Vec<Rc<Symbol>>;
+        if false {
+            unimplemented!()
+        } else {
+            chain = vec![symbol];
+        }
+        chain
+    }
+
+    fn _symbol_to_expression(
+        &self,
+        type_checker: &TypeChecker,
+        symbol: Rc<Symbol>,
+        context: &NodeBuilderContext,
+        meaning: /*SymbolFlags*/ Option<SymbolFlags>,
+    ) -> Expression {
+        let chain = self.lookup_symbol_chain(symbol, context, meaning);
+        let index = chain.len() - 1;
+        self.create_expression_from_symbol_chain(type_checker, context, chain, index)
+    }
+
+    fn create_expression_from_symbol_chain(
+        &self,
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
+        chain: Vec<Rc<Symbol>>,
+        index: usize,
+    ) -> Expression {
+        let symbol = (&chain)[index].clone();
+
+        let symbol_name = type_checker.get_name_of_symbol_as_written(symbol.clone(), Some(context));
+
+        if index == 0 || false {
+            let synthetic_factory = get_synthetic_factory();
+            let identifier = factory.create_identifier(&synthetic_factory, &symbol_name);
+            identifier.set_symbol(symbol);
+            return identifier.into();
+        } else {
+            unimplemented!()
+        }
+    }
 }
+
+struct DefaultNodeBuilderContextSymbolTracker {}
+
+impl DefaultNodeBuilderContextSymbolTracker {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {}
 
 enum ResolveNameNameArg {
     Node(Rc<Node>),
@@ -2171,6 +2375,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             generalized_source = self
                 .type_checker
                 .get_base_type_of_literal_type(source.clone());
+            println!("generalized_source: {:#?}", generalized_source);
             Debug_.assert(
                 !self
                     .type_checker
@@ -2477,7 +2682,13 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             if report_errors {
                 self.report_incompatible_error(
                     Diagnostics::Types_of_property_0_are_incompatible,
-                    Some(vec![self.type_checker.symbol_to_string(target_prop)]),
+                    Some(vec![self.type_checker.symbol_to_string(
+                        target_prop,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )]),
                 );
             }
             return Ternary::False;
