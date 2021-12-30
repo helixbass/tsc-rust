@@ -1,5 +1,9 @@
 use crate::{NodeInterface, SyntaxKind};
 
+pub fn is_identifier<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.kind() == SyntaxKind::Identifier
+}
+
 pub fn is_private_identifier<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::PrivateIdentifier
 }

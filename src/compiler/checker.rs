@@ -18,19 +18,19 @@ use crate::{
     has_initializer, is_binding_element, is_external_or_common_js_module,
     is_object_literal_expression, is_private_identifier, is_property_assignment,
     is_property_declaration, is_property_signature, is_variable_declaration, node_is_missing,
-    object_allocator, using_single_line_string_writer, ArrayTypeNode, BaseInterfaceType,
-    BaseIntrinsicType, BaseLiteralType, BaseObjectType, BaseType, BaseUnionOrIntersectionType,
-    CharacterCodes, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression, ExpressionStatement,
-    FreshableIntrinsicType, HasExpressionInitializerInterface, InterfaceDeclaration, InterfaceType,
-    IntrinsicType, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
-    LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
-    NumberLiteralType, NumericLiteral, ObjectFlags, ObjectLiteralExpression, ObjectTypeInterface,
-    PrefixUnaryExpression, PrinterOptions, PropertyAssignment, PropertySignature,
-    RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile,
-    Statement, Symbol, SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind,
-    Ternary, Type, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface,
-    TypeReferenceNode, UnionReduction, VariableLikeDeclarationInterface,
+    object_allocator, unescape_leading_underscores, using_single_line_string_writer, ArrayTypeNode,
+    BaseInterfaceType, BaseIntrinsicType, BaseLiteralType, BaseObjectType, BaseType,
+    BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic, DiagnosticCollection,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression,
+    ExpressionStatement, FreshableIntrinsicType, HasExpressionInitializerInterface,
+    InterfaceDeclaration, InterfaceType, IntrinsicType, KeywordTypeNode, LiteralLikeNode,
+    LiteralLikeNodeInterface, LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface,
+    Number, NumberLiteralType, NumericLiteral, ObjectFlags, ObjectLiteralExpression,
+    ObjectTypeInterface, PrefixUnaryExpression, PrinterOptions, PropertyAssignment,
+    PropertySignature, RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface,
+    SourceFile, Statement, StringLiteralType, Symbol, SymbolFlags, SymbolFormatFlags, SymbolTable,
+    SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags,
+    TypeInterface, TypeReferenceNode, UnionReduction, VariableLikeDeclarationInterface,
 };
 
 bitflags! {
@@ -85,6 +85,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         globals: RefCell::new(create_symbol_table()),
 
+        string_literal_types: RefCell::new(HashMap::new()),
         number_literal_types: RefCell::new(HashMap::new()),
 
         unknown_symbol: None,
@@ -221,6 +222,10 @@ impl TypeChecker {
 
     fn globals(&self) -> RefMut<SymbolTable> {
         self.globals.borrow_mut()
+    }
+
+    fn string_literal_types(&self) -> RefMut<HashMap<String, Rc</*NumberLiteralType*/ Type>>> {
+        self.string_literal_types.borrow_mut()
     }
 
     fn number_literal_types(&self) -> RefMut<HashMap<Number, Rc</*NumberLiteralType*/ Type>>> {
@@ -1155,7 +1160,60 @@ impl TypeChecker {
         type_.unwrap()
     }
 
+    fn get_literal_type_from_property_name(&self, name: &Node /*PropertyName*/) -> Rc<Type> {
+        if let Node::Expression(Expression::Identifier(identifier)) = name {
+            self.get_string_literal_type(&unescape_leading_underscores(&identifier.escaped_text))
+        } else {
+            unimplemented!()
+        }
+    }
+
+    fn get_literal_type_from_property(
+        &self,
+        prop: Rc<Symbol>,
+        include: TypeFlags,
+        include_non_public: Option<bool>,
+    ) -> Rc<Type> {
+        let include_non_public = include_non_public.unwrap_or(false);
+        if include_non_public || true {
+            let mut type_ = None;
+            if type_.is_none() {
+                let name = prop
+                    .maybe_value_declaration()
+                    .and_then(|value_declaration| {
+                        get_name_of_declaration(&*value_declaration.upgrade().unwrap())
+                    });
+                type_ = if false {
+                    unimplemented!()
+                } else if let Some(name) = name {
+                    Some(self.get_literal_type_from_property_name(&*name))
+                } else {
+                    unimplemented!()
+                }
+            }
+        }
+        unimplemented!()
+    }
+
     // pub fn create_literal_type(
+    pub fn create_string_literal_type(
+        &self,
+        flags: TypeFlags,
+        value: String,
+        regular_type: Option<Rc<Type>>,
+    ) -> Rc<Type> {
+        let type_ = self.create_type(flags);
+        let type_ = BaseLiteralType::new(type_);
+        let type_: Rc<Type> = Rc::new(StringLiteralType::new(type_, value).into());
+        match &*type_ {
+            Type::LiteralType(literal_type) => {
+                literal_type.set_regular_type(&regular_type.unwrap_or_else(|| type_.clone()));
+            }
+            _ => panic!("Expected LiteralType"),
+        }
+        type_
+    }
+
     pub fn create_number_literal_type(
         &self,
         flags: TypeFlags,
@@ -1202,6 +1260,17 @@ impl TypeChecker {
             }
             _ => panic!("Expected IntrinsicType or LiteralType"),
         }
+    }
+
+    fn get_string_literal_type(&self, value: &str) -> Rc<Type> {
+        let mut string_literal_types = self.string_literal_types();
+        if string_literal_types.contains_key(value) {
+            return string_literal_types.get(value).unwrap().clone();
+        }
+        let type_ =
+            self.create_string_literal_type(TypeFlags::StringLiteral, value.to_string(), None);
+        string_literal_types.insert(value.to_string(), type_.clone());
+        type_
     }
 
     fn get_number_literal_type(&self, value: Number) -> Rc<Type> {
@@ -1276,10 +1345,90 @@ impl TypeChecker {
         if self.is_type_related_to(source.clone(), target.clone(), relation) {
             return true;
         }
-        if true {
+        if error_node.is_none()
+            || !self.elaborate_error(expr, source, target, relation, head_message)
+        {
             return self.check_type_related_to(source, target, relation, error_node, head_message);
         }
         false
+    }
+
+    fn elaborate_error(
+        &self,
+        node: Option<&Expression>,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        relation: &HashMap<String, RelationComparisonResult>,
+        head_message: Option<DiagnosticMessage>,
+    ) -> bool {
+        if node.is_none() || true {
+            return false;
+        }
+        let node = node.unwrap();
+        match node {
+            Expression::ObjectLiteralExpression(object_literal_expression) => {
+                return self.elaborate_object_literal(
+                    object_literal_expression,
+                    source,
+                    target,
+                    relation,
+                );
+            }
+            _ => (),
+        }
+        false
+    }
+
+    fn generate_object_literal_elements(
+        &self,
+        node: &ObjectLiteralExpression,
+        // ) -> impl Iterator<Item = ElaborationIteratorItem> {
+    ) -> Vec<ElaborationIteratorItem> {
+        // if node.properties.is_empty() {
+        //     return vec![];
+        // }
+        node.properties
+            .iter()
+            .flat_map(|prop| {
+                let type_ = self.get_literal_type_from_property(
+                    self.get_symbol_of_node(&**prop).unwrap(),
+                    TypeFlags::StringOrNumberLiteralOrUnique,
+                    None,
+                );
+                if type_.flags().intersects(TypeFlags::Never) {
+                    return vec![];
+                }
+                match &**prop {
+                    Node::PropertyAssignment(property_assignment) => {
+                        vec![ElaborationIteratorItem {
+                            error_node: property_assignment.name(),
+                            inner_expression: Some(property_assignment.initializer.clone()),
+                            name_type: type_,
+                            error_message: if false { unimplemented!() } else { None },
+                        }]
+                    }
+                    _ => Debug_.assert_never(prop, None),
+                }
+            })
+            .collect()
+    }
+
+    fn elaborate_object_literal(
+        &self,
+        node: &ObjectLiteralExpression,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        relation: &HashMap<String, RelationComparisonResult>,
+    ) -> bool {
+        if target.flags().intersects(TypeFlags::Primitive) {
+            return false;
+        }
+        self.elaborate_elementwise(
+            self.generate_object_literal_elements(node),
+            source,
+            target,
+            relation,
+        )
     }
 
     fn is_simple_type_related_to(
@@ -2230,6 +2379,13 @@ impl NodeBuilder {
     }
 }
 
+struct ElaborationIteratorItem {
+    pub error_node: Rc<Node>,
+    pub inner_expression: Option<Rc<Node /*Expression*/>>,
+    name_type: Rc<Type>,
+    error_message: Option<DiagnosticMessage>,
+}
+
 struct DefaultNodeBuilderContextSymbolTracker {}
 
 impl DefaultNodeBuilderContextSymbolTracker {
@@ -2362,9 +2518,11 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         source: Rc<Type>,
         target: Rc<Type>,
     ) {
+        println!("source: {:#?}, target: {:#?}", source, target);
         let (source_type, target_type) = self
             .type_checker
             .get_type_names_for_error_display(&*source, &*target);
+        println!("source_type: {:#?}", source_type);
         let mut generalized_source = source.clone();
         let mut generalized_source_type = source_type;
 
@@ -2384,6 +2542,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                 Some("generalized source shouldn't be assignable"),
             );
             generalized_source_type = self.type_checker.get_type_name_for_error_display(&*source);
+            println!("generalized_source_type: {:#?}", generalized_source_type);
         }
 
         if message.is_none() {

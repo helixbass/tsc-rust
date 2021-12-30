@@ -987,6 +987,7 @@ pub struct TypeChecker {
     pub exact_optional_property_types: bool,
     pub node_builder: NodeBuilder,
     pub globals: RefCell<SymbolTable>,
+    pub string_literal_types: RefCell<HashMap<String, Rc</*StringLiteralType*/ Type>>>,
     pub number_literal_types: RefCell<HashMap<Number, Rc</*NumberLiteralType*/ Type>>>,
     pub unknown_symbol: Option<Rc<Symbol>>,
     pub number_type: Option<Rc<Type>>,
@@ -1022,6 +1023,7 @@ pub enum UnionReduction {
 
 pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
+    fn write_symbol(&mut self, text: &str, symbol: &Symbol);
     fn clear(&mut self);
 }
 
@@ -1141,6 +1143,7 @@ pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
 
 bitflags! {
     pub struct TypeFlags: u32 {
+        const String = 1 << 2;
         const Number = 1 << 3;
         const Boolean = 1 << 4;
         const Enum = 1 << 5;
@@ -1150,7 +1153,9 @@ bitflags! {
         const BooleanLiteral = 1 << 9;
         const EnumLiteral = 1 << 10;
         const BigIntLiteral = 1 << 11;
+        const ESSymbol = 1 << 12;
         const UniqueESSymbol = 1 << 13;
+        const Void = 1 << 14;
         const Undefined = 1 << 15;
         const Null = 1 << 16;
         const Never = 1 << 17;
@@ -1168,6 +1173,8 @@ bitflags! {
         const Nullable = Self::Undefined.bits | Self::Null.bits;
         const Literal = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::BigIntLiteral.bits | Self::BooleanLiteral.bits;
         const Unit = Self::Literal.bits | Self::UniqueESSymbol.bits | Self::Nullable.bits;
+        const StringOrNumberLiteralOrUnique = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::UniqueESSymbol.bits;
+        const Primitive = Self::String.bits | Self::Number.bits | Self::BigInt.bits | Self::Boolean.bits | Self::Enum.bits | Self::EnumLiteral.bits | Self::ESSymbol.bits | Self::Void.bits | Self::Undefined.bits | Self::Null.bits | Self::Literal.bits | Self::UniqueESSymbol.bits;
         const NumberLike = Self::Number.bits | Self::NumberLiteral.bits | Self::Enum.bits;
         const UnionOrIntersection =  Self::Union.bits | Self::Intersection.bits;
         const StructuredType = Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
@@ -1507,18 +1514,23 @@ pub trait LiteralTypeInterface: TypeInterface {
 
 #[derive(Clone, Debug)]
 pub enum LiteralType {
+    StringLiteralType(StringLiteralType),
     NumberLiteralType(NumberLiteralType),
 }
 
 impl TypeInterface for LiteralType {
     fn flags(&self) -> TypeFlags {
         match self {
+            LiteralType::StringLiteralType(string_literal_type) => string_literal_type.flags(),
             LiteralType::NumberLiteralType(number_literal_type) => number_literal_type.flags(),
         }
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         match self {
+            LiteralType::StringLiteralType(string_literal_type) => {
+                string_literal_type.maybe_symbol()
+            }
             LiteralType::NumberLiteralType(number_literal_type) => {
                 number_literal_type.maybe_symbol()
             }
@@ -1527,12 +1539,16 @@ impl TypeInterface for LiteralType {
 
     fn symbol(&self) -> Rc<Symbol> {
         match self {
+            LiteralType::StringLiteralType(string_literal_type) => string_literal_type.symbol(),
             LiteralType::NumberLiteralType(number_literal_type) => number_literal_type.symbol(),
         }
     }
 
     fn set_symbol(&mut self, symbol: Rc<Symbol>) {
         match self {
+            LiteralType::StringLiteralType(string_literal_type) => {
+                string_literal_type.set_symbol(symbol)
+            }
             LiteralType::NumberLiteralType(number_literal_type) => {
                 number_literal_type.set_symbol(symbol)
             }
@@ -1543,12 +1559,16 @@ impl TypeInterface for LiteralType {
 impl LiteralTypeInterface for LiteralType {
     fn fresh_type(&self) -> Option<&Weak<Type>> {
         match self {
+            LiteralType::StringLiteralType(string_literal_type) => string_literal_type.fresh_type(),
             LiteralType::NumberLiteralType(number_literal_type) => number_literal_type.fresh_type(),
         }
     }
 
     fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
         match self {
+            LiteralType::StringLiteralType(string_literal_type) => {
+                string_literal_type.set_fresh_type(fresh_type)
+            }
             LiteralType::NumberLiteralType(number_literal_type) => {
                 number_literal_type.set_fresh_type(fresh_type)
             }
@@ -1561,6 +1581,9 @@ impl LiteralTypeInterface for LiteralType {
         wrapper: &Rc<Type>,
     ) -> Rc<Type> {
         match self {
+            LiteralType::StringLiteralType(string_literal_type) => {
+                string_literal_type.get_or_initialize_fresh_type(type_checker, wrapper)
+            }
             LiteralType::NumberLiteralType(number_literal_type) => {
                 number_literal_type.get_or_initialize_fresh_type(type_checker, wrapper)
             }
@@ -1569,6 +1592,9 @@ impl LiteralTypeInterface for LiteralType {
 
     fn regular_type(&self) -> Rc<Type> {
         match self {
+            LiteralType::StringLiteralType(string_literal_type) => {
+                string_literal_type.regular_type()
+            }
             LiteralType::NumberLiteralType(number_literal_type) => {
                 number_literal_type.regular_type()
             }
@@ -1577,6 +1603,9 @@ impl LiteralTypeInterface for LiteralType {
 
     fn set_regular_type(&self, regular_type: &Rc<Type>) {
         match self {
+            LiteralType::StringLiteralType(string_literal_type) => {
+                string_literal_type.set_regular_type(regular_type)
+            }
             LiteralType::NumberLiteralType(number_literal_type) => {
                 number_literal_type.set_regular_type(regular_type)
             }
@@ -1648,6 +1677,103 @@ impl LiteralTypeInterface for BaseLiteralType {
 
     fn set_regular_type(&self, regular_type: &Rc<Type>) {
         self.regular_type.init(regular_type, false);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct StringLiteralType {
+    _literal_type: BaseLiteralType,
+    value: String,
+}
+
+impl StringLiteralType {
+    pub fn new(literal_type: BaseLiteralType, value: String) -> Self {
+        Self {
+            _literal_type: literal_type,
+            value,
+        }
+    }
+
+    fn create_fresh_type_from_self(
+        &self,
+        type_checker: &TypeChecker,
+        wrapper: &Rc<Type>,
+    ) -> Rc<Type> {
+        let fresh_type = type_checker.create_string_literal_type(
+            self.flags(),
+            self.value.clone(),
+            Some(wrapper.clone()),
+        );
+        match &*fresh_type {
+            Type::LiteralType(literal_type) => {
+                literal_type.set_fresh_type(&fresh_type);
+            }
+            _ => panic!("Expected LiteralType"),
+        }
+        self.set_fresh_type(&fresh_type);
+        type_checker.keep_strong_reference_to_type(fresh_type);
+        self.fresh_type().unwrap().upgrade().unwrap()
+    }
+}
+
+impl TypeInterface for StringLiteralType {
+    fn flags(&self) -> TypeFlags {
+        self._literal_type.flags()
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._literal_type.maybe_symbol()
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        self._literal_type.symbol()
+    }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self._literal_type.set_symbol(symbol)
+    }
+}
+
+impl LiteralTypeInterface for StringLiteralType {
+    fn fresh_type(&self) -> Option<&Weak<Type>> {
+        self._literal_type.fresh_type()
+    }
+
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+        self._literal_type.set_fresh_type(fresh_type);
+    }
+
+    fn get_or_initialize_fresh_type(
+        &self,
+        type_checker: &TypeChecker,
+        wrapper: &Rc<Type>,
+    ) -> Rc<Type> {
+        if self.fresh_type().is_none() {
+            let fresh_type = self.create_fresh_type_from_self(type_checker, wrapper);
+            self.set_fresh_type(&fresh_type);
+            return self.fresh_type().unwrap().upgrade().unwrap();
+        }
+        return self.fresh_type().unwrap().upgrade().unwrap();
+    }
+
+    fn regular_type(&self) -> Rc<Type> {
+        self._literal_type.regular_type()
+    }
+
+    fn set_regular_type(&self, regular_type: &Rc<Type>) {
+        self._literal_type.set_regular_type(regular_type);
+    }
+}
+
+impl From<StringLiteralType> for LiteralType {
+    fn from(string_literal_type: StringLiteralType) -> Self {
+        LiteralType::StringLiteralType(string_literal_type)
+    }
+}
+
+impl From<StringLiteralType> for Type {
+    fn from(string_literal_type: StringLiteralType) -> Self {
+        Type::LiteralType(LiteralType::StringLiteralType(string_literal_type))
     }
 }
 
@@ -2686,11 +2812,13 @@ pub struct NodeFactory {}
 
 pub struct Printer {
     pub writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+    pub write: fn(&Printer, &str),
 }
 
 pub struct PrinterOptions {}
 
 pub trait EmitTextWriter: SymbolWriter {
+    fn write(&mut self, s: &str);
     fn get_text(&self) -> String;
 }
 

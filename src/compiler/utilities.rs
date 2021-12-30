@@ -50,6 +50,10 @@ impl SingleLineStringWriter {
 }
 
 impl EmitTextWriter for SingleLineStringWriter {
+    fn write(&mut self, text: &str) {
+        self.write_text(text);
+    }
+
     fn get_text(&self) -> String {
         self.str.clone()
     }
@@ -58,6 +62,10 @@ impl EmitTextWriter for SingleLineStringWriter {
 impl SymbolWriter for SingleLineStringWriter {
     fn write_keyword(&mut self, text: &str) {
         self.write_text(text);
+    }
+
+    fn write_symbol(&mut self, s: &str, _: &Symbol) {
+        self.write_text(s);
     }
 
     fn clear(&mut self) {
@@ -379,16 +387,16 @@ impl TextWriter {
         }
     }
 
-    fn write(&mut self, s: &str) {
-        self.write_text(s);
-    }
-
     fn reset(&mut self) {
         self.output = String::new();
     }
 }
 
 impl EmitTextWriter for TextWriter {
+    fn write(&mut self, s: &str) {
+        self.write_text(s);
+    }
+
     fn get_text(&self) -> String {
         self.output.clone()
     }
@@ -397,6 +405,10 @@ impl EmitTextWriter for TextWriter {
 impl SymbolWriter for TextWriter {
     fn write_keyword(&mut self, text: &str) {
         self.write(text);
+    }
+
+    fn write_symbol(&mut self, s: &str, _: &Symbol) {
+        self.write(s);
     }
 
     fn clear(&mut self) {
