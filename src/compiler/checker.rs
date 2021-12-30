@@ -585,6 +585,7 @@ impl TypeChecker {
                 None,
             )
             .unwrap();
+            let entity: Rc<Node> = entity.into();
             let mut printer = if false {
                 unimplemented!()
             } else {
@@ -595,7 +596,7 @@ impl TypeChecker {
             } else {
                 None
             };
-            printer.write_node(EmitHint::Unspecified, &entity, source_file, writer);
+            printer.write_node(EmitHint::Unspecified, &*entity, source_file, writer);
             // writer
         };
         if let Some(writer) = writer {
