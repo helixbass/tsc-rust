@@ -1,3 +1,4 @@
+use std::fmt;
 use std::hash;
 
 #[derive(Clone, Copy, Debug)]
@@ -36,5 +37,11 @@ impl Eq for Number {}
 impl From<&str> for Number {
     fn from(str: &str) -> Self {
         Number::new(str.parse::<f64>().unwrap())
+    }
+}
+
+impl fmt::Display for Number {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }

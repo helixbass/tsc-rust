@@ -1683,7 +1683,7 @@ impl LiteralTypeInterface for BaseLiteralType {
 #[derive(Clone, Debug)]
 pub struct StringLiteralType {
     _literal_type: BaseLiteralType,
-    value: String,
+    pub value: String,
 }
 
 impl StringLiteralType {
@@ -1780,7 +1780,7 @@ impl From<StringLiteralType> for Type {
 #[derive(Clone, Debug)]
 pub struct NumberLiteralType {
     _literal_type: BaseLiteralType,
-    value: Number,
+    pub value: Number,
 }
 
 impl NumberLiteralType {
@@ -2544,6 +2544,7 @@ pub trait CompilerHost: ModuleResolutionHost {
     fn get_canonical_file_name(&self, file_name: &str) -> String;
 }
 
+#[derive(Clone, Debug)]
 pub struct DiagnosticMessage {
     pub key: &'static str,
     pub category: DiagnosticCategory,
@@ -2795,6 +2796,7 @@ impl From<DiagnosticWithDetachedLocation> for Diagnostic {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub enum DiagnosticCategory {
     Warning,
     Error,

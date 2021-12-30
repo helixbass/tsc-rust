@@ -12,20 +12,20 @@ use crate::{
     VariableDeclaration, VariableStatement, __String, bind_source_file, chain_diagnostic_messages,
     create_diagnostic_collection, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, create_printer, create_symbol_table,
-    create_text_writer, declaration_name_to_string, every, factory, first_defined, for_each,
-    get_effective_initializer, get_effective_type_annotation_node, get_first_identifier,
-    get_name_of_declaration, get_source_file_of_node, get_synthetic_factory, has_dynamic_name,
-    has_initializer, is_binding_element, is_external_or_common_js_module,
+    create_text_writer, declaration_name_to_string, escape_leading_underscores, every, factory,
+    first_defined, for_each, get_effective_initializer, get_effective_type_annotation_node,
+    get_first_identifier, get_name_of_declaration, get_source_file_of_node, get_synthetic_factory,
+    has_dynamic_name, has_initializer, is_binding_element, is_external_or_common_js_module,
     is_object_literal_expression, is_private_identifier, is_property_assignment,
     is_property_declaration, is_property_signature, is_variable_declaration, node_is_missing,
-    object_allocator, unescape_leading_underscores, using_single_line_string_writer, ArrayTypeNode,
-    BaseInterfaceType, BaseIntrinsicType, BaseLiteralType, BaseObjectType, BaseType,
+    object_allocator, some, unescape_leading_underscores, using_single_line_string_writer,
+    ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType, BaseLiteralType, BaseObjectType, BaseType,
     BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic, DiagnosticCollection,
     DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression,
     ExpressionStatement, FreshableIntrinsicType, HasExpressionInitializerInterface,
     InterfaceDeclaration, InterfaceType, IntrinsicType, KeywordTypeNode, LiteralLikeNode,
-    LiteralLikeNodeInterface, LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface,
-    Number, NumberLiteralType, NumericLiteral, ObjectFlags, ObjectLiteralExpression,
+    LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    NodeInterface, Number, NumberLiteralType, NumericLiteral, ObjectFlags, ObjectLiteralExpression,
     ObjectTypeInterface, PrefixUnaryExpression, PrinterOptions, PropertyAssignment,
     PropertySignature, RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface,
     SourceFile, Statement, StringLiteralType, Symbol, SymbolFlags, SymbolFormatFlags, SymbolTable,
@@ -821,8 +821,35 @@ impl TypeChecker {
         type_
     }
 
+    fn is_type_usable_as_property_name(&self, type_: Rc<Type>) -> bool {
+        type_
+            .flags()
+            .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
+    }
+
     fn has_bindable_name<TNode: NodeInterface>(&self, node: &TNode /*Declaration*/) -> bool {
         !has_dynamic_name(node) || unimplemented!()
+    }
+
+    fn get_property_name_from_type(
+        &self,
+        type_: Rc<Type /*StringLiteralType | NumberLiteralType | UniqueESSymbolType*/>,
+    ) -> __String {
+        if type_
+            .flags()
+            .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
+        {
+            return match &*type_ {
+                Type::LiteralType(LiteralType::NumberLiteralType(number_literal_type)) => {
+                    escape_leading_underscores(&number_literal_type.value.to_string())
+                }
+                Type::LiteralType(LiteralType::StringLiteralType(string_literal_type)) => {
+                    escape_leading_underscores(&string_literal_type.value)
+                }
+                _ => panic!("Expected NumberLiteralType or StringLiteralType"),
+            };
+        }
+        Debug_.fail(None)
     }
 
     fn get_members_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<RefCell<SymbolTable>> {
@@ -1180,6 +1207,7 @@ impl TypeChecker {
             if type_.is_none() {
                 let name = prop
                     .maybe_value_declaration()
+                    .as_ref()
                     .and_then(|value_declaration| {
                         get_name_of_declaration(&*value_declaration.upgrade().unwrap())
                     });
@@ -1191,8 +1219,61 @@ impl TypeChecker {
                     unimplemented!()
                 }
             }
+            if let Some(type_) = type_ {
+                if type_.flags().intersects(include) {
+                    return type_;
+                }
+            }
         }
         unimplemented!()
+    }
+
+    fn get_property_name_from_index(&self, index_type: Rc<Type>) -> Option<__String> {
+        if self.is_type_usable_as_property_name(index_type.clone()) {
+            Some(self.get_property_name_from_type(index_type))
+        } else {
+            unimplemented!()
+        }
+    }
+
+    fn get_property_type_for_index_type(
+        &self,
+        original_object_type: Rc<Type>,
+        object_type: Rc<Type>,
+        index_type: Rc<Type>,
+        full_index_type: Rc<Type>,
+    ) -> Option<Rc<Type>> {
+        let prop_name = if false {
+            unimplemented!()
+        } else {
+            self.get_property_name_from_index(index_type)
+        };
+        if let Some(prop_name) = prop_name {
+            let prop = self.get_property_of_type(object_type, &prop_name);
+            if let Some(prop) = prop {
+                let prop_type = self.get_type_of_symbol(&*prop);
+                return if false {
+                    unimplemented!()
+                } else {
+                    Some(prop_type)
+                };
+            }
+        }
+        unimplemented!()
+    }
+
+    fn get_indexed_access_type_or_undefined(
+        &self,
+        object_type: Rc<Type>,
+        index_type: Rc<Type>,
+    ) -> Option<Rc<Type>> {
+        let apparent_object_type = self.get_reduced_apparent_type(object_type.clone());
+        self.get_property_type_for_index_type(
+            object_type,
+            apparent_object_type,
+            index_type.clone(),
+            index_type.clone(),
+        )
     }
 
     // pub fn create_literal_type(
@@ -1346,7 +1427,13 @@ impl TypeChecker {
             return true;
         }
         if error_node.is_none()
-            || !self.elaborate_error(expr, source, target, relation, head_message)
+            || !self.elaborate_error(
+                expr,
+                source.clone(),
+                target.clone(),
+                relation,
+                head_message.clone(),
+            )
         {
             return self.check_type_related_to(source, target, relation, error_node, head_message);
         }
@@ -1361,7 +1448,7 @@ impl TypeChecker {
         relation: &HashMap<String, RelationComparisonResult>,
         head_message: Option<DiagnosticMessage>,
     ) -> bool {
-        if node.is_none() || true {
+        if node.is_none() || false {
             return false;
         }
         let node = node.unwrap();
@@ -1377,6 +1464,103 @@ impl TypeChecker {
             _ => (),
         }
         false
+    }
+
+    fn get_best_match_indexed_access_type_or_undefined(
+        &self,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        name_type: Rc<Type>,
+    ) -> Option<Rc<Type>> {
+        let idx = self.get_indexed_access_type_or_undefined(target, name_type);
+        if idx.is_some() {
+            return idx;
+        }
+        unimplemented!()
+    }
+
+    fn check_expression_for_mutable_location_with_contextual_type(
+        &self,
+        next: &Node, /*Expression*/
+        source_prop_type: Rc<Type>,
+    ) -> Rc<Type> {
+        self.check_expression_for_mutable_location(
+            match next {
+                Node::Expression(expression) => expression,
+                _ => panic!("Expected Expression"),
+            },
+            Some(source_prop_type),
+        )
+    }
+
+    fn elaborate_elementwise(
+        &self,
+        iterator: Vec<ElaborationIteratorItem>,
+        source: Rc<Type>,
+        target: Rc<Type>,
+        relation: &HashMap<String, RelationComparisonResult>,
+    ) -> bool {
+        let mut reported_error = false;
+        for status in iterator {
+            let ElaborationIteratorItem {
+                error_node: prop,
+                inner_expression: next,
+                name_type,
+                error_message,
+            } = status;
+            let target_prop_type = self.get_best_match_indexed_access_type_or_undefined(
+                source.clone(),
+                target.clone(),
+                name_type.clone(),
+            );
+            if target_prop_type.is_none() {
+                continue;
+            }
+            let target_prop_type = target_prop_type.unwrap();
+            if target_prop_type
+                .flags()
+                .intersects(TypeFlags::IndexedAccess)
+            {
+                continue;
+            }
+            let source_prop_type =
+                self.get_indexed_access_type_or_undefined(source.clone(), name_type);
+            if source_prop_type.is_none() {
+                continue;
+            }
+            let source_prop_type = source_prop_type.unwrap();
+            if !self.check_type_related_to(
+                source_prop_type.clone(),
+                target_prop_type.clone(),
+                relation,
+                None,
+                None,
+            ) {
+                reported_error = true;
+                if true {
+                    let specific_source = if let Some(next) = next {
+                        self.check_expression_for_mutable_location_with_contextual_type(
+                            &*next,
+                            source_prop_type,
+                        )
+                    } else {
+                        source_prop_type
+                    };
+                    if false {
+                        unimplemented!()
+                    } else {
+                        let result = self.check_type_related_to(
+                            specific_source,
+                            target_prop_type,
+                            relation,
+                            Some(&*prop),
+                            error_message,
+                        );
+                    }
+                }
+            }
+        }
+        reported_error
     }
 
     fn generate_object_literal_elements(
@@ -1978,6 +2162,18 @@ impl TypeChecker {
         contextual_type: Option<Rc<Type>>,
     ) -> bool {
         if let Some(contextual_type) = contextual_type {
+            if let Type::UnionOrIntersectionType(union_or_intersection_type) = &*contextual_type {
+                let types = union_or_intersection_type.types();
+                // return some(
+                //     types,
+                //     Some(Box::new(|t| {
+                //         self.is_literal_of_contextual_type(candidate_type, Some(t.clone()))
+                //     })),
+                // );
+                return types.iter().any(|t| {
+                    self.is_literal_of_contextual_type(candidate_type.clone(), Some(t.clone()))
+                });
+            }
             return contextual_type.flags().intersects(
                 TypeFlags::StringLiteral
                     | TypeFlags::Index
@@ -2000,7 +2196,11 @@ impl TypeChecker {
         false
     }
 
-    fn check_expression_for_mutable_location(&self, node: &Expression) -> Rc<Type> {
+    fn check_expression_for_mutable_location(
+        &self,
+        node: &Expression,
+        contextual_type: Option<Rc<Type>>,
+    ) -> Rc<Type> {
         let type_ = self.check_expression(node);
         if false {
             unimplemented!()
@@ -2008,10 +2208,10 @@ impl TypeChecker {
             self.get_widened_literal_like_type_for_contextual_type(
                 type_,
                 self.instantiate_contextual_type(
-                    if true {
+                    if contextual_type.is_none() {
                         self.get_contextual_type(node)
                     } else {
-                        unimplemented!()
+                        Some(contextual_type.unwrap())
                     },
                     node,
                 ),
@@ -2020,10 +2220,13 @@ impl TypeChecker {
     }
 
     fn check_property_assignment(&self, node: &PropertyAssignment) -> Rc<Type> {
-        self.check_expression_for_mutable_location(match &*node.initializer {
-            Node::Expression(expression) => expression,
-            _ => panic!("Expected Expression"),
-        })
+        self.check_expression_for_mutable_location(
+            match &*node.initializer {
+                Node::Expression(expression) => expression,
+                _ => panic!("Expected Expression"),
+            },
+            None,
+        )
     }
 
     fn check_expression(&self, node: &Expression) -> Rc<Type> {
@@ -2379,6 +2582,7 @@ impl NodeBuilder {
     }
 }
 
+#[derive(Debug)]
 struct ElaborationIteratorItem {
     pub error_node: Rc<Node>,
     pub inner_expression: Option<Rc<Node /*Expression*/>>,
@@ -2518,11 +2722,9 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         source: Rc<Type>,
         target: Rc<Type>,
     ) {
-        println!("source: {:#?}, target: {:#?}", source, target);
         let (source_type, target_type) = self
             .type_checker
             .get_type_names_for_error_display(&*source, &*target);
-        println!("source_type: {:#?}", source_type);
         let mut generalized_source = source.clone();
         let mut generalized_source_type = source_type;
 
@@ -2534,15 +2736,15 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             generalized_source = self
                 .type_checker
                 .get_base_type_of_literal_type(source.clone());
-            println!("generalized_source: {:#?}", generalized_source);
             Debug_.assert(
                 !self
                     .type_checker
-                    .is_type_assignable_to(generalized_source, target),
+                    .is_type_assignable_to(generalized_source.clone(), target),
                 Some("generalized source shouldn't be assignable"),
             );
-            generalized_source_type = self.type_checker.get_type_name_for_error_display(&*source);
-            println!("generalized_source_type: {:#?}", generalized_source_type);
+            generalized_source_type = self
+                .type_checker
+                .get_type_name_for_error_display(&*generalized_source);
         }
 
         if message.is_none() {
