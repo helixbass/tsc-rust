@@ -63,6 +63,7 @@ pub enum SyntaxKind {
     PropertySignature,
     PropertyDeclaration,
     TypeReference,
+    TypeLiteral,
     ArrayType,
     LiteralType,
     ObjectBindingPattern,
@@ -563,6 +564,7 @@ pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
     LiteralTypeNode(LiteralTypeNode),
     TypeReferenceNode(TypeReferenceNode),
+    TypeLiteralNode(TypeLiteralNode),
     ArrayTypeNode(ArrayTypeNode),
 }
 
@@ -596,6 +598,22 @@ impl TypeReferenceNode {
         Self {
             _node: base_node,
             type_name,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct TypeLiteralNode {
+    _node: BaseNode,
+    pub members: NodeArray, /*<TypeElement>*/
+}
+
+impl TypeLiteralNode {
+    pub fn new(base_node: BaseNode, members: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            members,
         }
     }
 }
@@ -1897,6 +1915,7 @@ bitflags! {
         const Class = 1 << 0;
         const Interface = 1 << 1;
         const Anonymous = 1 << 4;
+        const Mapped = 1 << 5;
         const ObjectLiteral = 1 << 7;
         const ObjectLiteralPatternWithComputedProperties = 1 << 9;
         const FreshLiteral = 1 << 14;
@@ -2895,7 +2914,7 @@ pub enum DiagnosticCategory {
     Message,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmitHint {
     Expression,
     Unspecified,

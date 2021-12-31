@@ -83,6 +83,20 @@ fn is_identifier_part(ch: char) -> bool {
         || ch > CharacterCodes::max_ascii_character && is_unicode_identifier_start(ch)
 }
 
+pub fn is_identifier_text(name: &str) -> bool {
+    let ch = code_point_at(name, 0);
+    if !is_identifier_start(ch) {
+        return false;
+    }
+    for ch in name.chars().skip(1) {
+        if !is_identifier_part(ch) {
+            return false;
+        }
+    }
+
+    true
+}
+
 struct ScanNumberReturn {
     type_: SyntaxKind,
     value: String,

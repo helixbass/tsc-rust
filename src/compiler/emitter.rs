@@ -4,7 +4,7 @@ use std::rc::Rc;
 use crate::{
     id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_, EmitHint,
     EmitTextWriter, Expression, Identifier, LiteralTypeNode, Node, NodeInterface, Printer,
-    PrinterOptions, SourceFile, Symbol, TypeNode,
+    PrinterOptions, SourceFile, Symbol, TypeNode, TypeReferenceNode,
 };
 
 #[derive(PartialEq, Eq)]
@@ -73,6 +73,14 @@ impl Printer {
         self.set_writer(None);
     }
 
+    fn emit(&self, node: Option<&Node>) {
+        if node.is_none() {
+            return;
+        }
+        let node = node.unwrap();
+        self.pipeline_emit(EmitHint::Unspecified, node);
+    }
+
     fn emit_expression<TNode: NodeInterface>(&self, node: &TNode /*Expression*/) {
         self.pipeline_emit(EmitHint::Expression, node);
     }
@@ -117,6 +125,9 @@ impl Printer {
                 Node::Expression(Expression::Identifier(identifier)) => {
                     return self.emit_identifier(identifier)
                 }
+                Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
+                    return self.emit_type_reference(type_reference_node)
+                }
                 Node::TypeNode(TypeNode::LiteralTypeNode(literal_type_node)) => {
                     return self.emit_literal_type(literal_type_node)
                 }
@@ -141,6 +152,10 @@ impl Printer {
         } else {
             (self.write)(self, &text_of_node);
         }
+    }
+
+    fn emit_type_reference(&self, node: &TypeReferenceNode) {
+        self.emit(Some(&*node.type_name));
     }
 
     fn emit_literal_type(&self, node: &LiteralTypeNode) {

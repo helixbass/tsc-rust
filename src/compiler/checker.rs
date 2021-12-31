@@ -16,23 +16,23 @@ use crate::{
     first_defined, first_or_undefined, for_each, get_effective_initializer,
     get_effective_type_annotation_node, get_first_identifier, get_name_of_declaration,
     get_object_flags, get_source_file_of_node, get_synthetic_factory, has_dynamic_name,
-    has_initializer, is_binding_element, is_external_or_common_js_module,
+    has_initializer, is_binding_element, is_external_or_common_js_module, is_identifier_text,
     is_object_literal_expression, is_private_identifier, is_property_assignment,
     is_property_declaration, is_property_signature, is_variable_declaration, node_is_missing,
     object_allocator, unescape_leading_underscores, using_single_line_string_writer, ArrayTypeNode,
-    BaseInterfaceType, BaseIntrinsicType, BaseLiteralType, BaseObjectType, BaseType,
-    BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic, DiagnosticCollection,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression,
-    ExpressionStatement, FreshableIntrinsicType, HasExpressionInitializerInterface,
-    InterfaceDeclaration, InterfaceType, IntrinsicType, KeywordTypeNode, LiteralLikeNode,
-    LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Number, NumberLiteralType, NumericLiteral, ObjectFlags,
-    ObjectFlagsTypeInterface, ObjectLiteralExpression, PrefixUnaryExpression, PrinterOptions,
-    PropertyAssignment, PropertySignature, RelationComparisonResult, ResolvableTypeInterface,
-    ResolvedTypeInterface, SourceFile, Statement, StringLiteralType, Symbol, SymbolFlags,
-    SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker,
-    TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeReferenceNode, UnionReduction,
-    VariableLikeDeclarationInterface,
+    BaseInterfaceType, BaseIntrinsicType, BaseLiteralType, BaseNodeFactorySynthetic,
+    BaseObjectType, BaseType, BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint,
+    EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType,
+    HasExpressionInitializerInterface, InterfaceDeclaration, InterfaceType, IntrinsicType,
+    KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType, NumericLiteral,
+    ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression, PrefixUnaryExpression,
+    PrinterOptions, PropertyAssignment, PropertySignature, RelationComparisonResult,
+    ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Statement, StringLiteralType,
+    Symbol, SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type,
+    TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeReferenceNode,
+    UnionReduction, VariableLikeDeclarationInterface,
 };
 
 bitflags! {
@@ -623,11 +623,11 @@ impl TypeChecker {
         }
     }
 
-    fn type_to_string(&self, type_: &Type) -> String {
+    fn type_to_string(&self, type_: Rc<Type>) -> String {
         let writer = Rc::new(RefCell::new(create_text_writer("")));
-        let type_node = self
-            .node_builder
-            .type_to_type_node(type_, Some(&*(*writer).borrow()));
+        let type_node =
+            self.node_builder
+                .type_to_type_node(self, type_, Some(&*(*writer).borrow()));
         let type_node: Rc<Node> = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
             Some(type_node) => type_node.into(),
@@ -646,7 +646,11 @@ impl TypeChecker {
         result
     }
 
-    fn get_type_names_for_error_display(&self, left: &Type, right: &Type) -> (String, String) {
+    fn get_type_names_for_error_display(
+        &self,
+        left: Rc<Type>,
+        right: Rc<Type>,
+    ) -> (String, String) {
         let left_str = if false {
             unimplemented!()
         } else {
@@ -660,7 +664,7 @@ impl TypeChecker {
         (left_str, right_str)
     }
 
-    fn get_type_name_for_error_display(&self, type_: &Type) -> String {
+    fn get_type_name_for_error_display(&self, type_: Rc<Type>) -> String {
         self.type_to_string(type_)
     }
 
@@ -2579,20 +2583,25 @@ fn create_node_builder() -> NodeBuilder {
     NodeBuilder::new()
 }
 
-pub struct NodeBuilder {}
+pub struct NodeBuilder {
+    synthetic_factory: BaseNodeFactorySynthetic,
+}
 
 impl NodeBuilder {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            synthetic_factory: get_synthetic_factory(),
+        }
     }
 
     pub fn type_to_type_node(
         &self,
-        type_: &Type,
+        type_checker: &TypeChecker,
+        type_: Rc<Type>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<TypeNode> {
         self.with_context(tracker, |context| {
-            self.type_to_type_node_helper(type_, context)
+            self.type_to_type_node_helper(type_checker, type_, context)
         })
     }
 
@@ -2624,35 +2633,173 @@ impl NodeBuilder {
         Some(resulting_node)
     }
 
-    pub fn type_to_type_node_helper(&self, type_: &Type, context: &NodeBuilderContext) -> TypeNode {
-        let synthetic_factory = get_synthetic_factory();
+    pub fn type_to_type_node_helper(
+        &self,
+        type_checker: &TypeChecker,
+        type_: Rc<Type>,
+        context: &NodeBuilderContext,
+    ) -> TypeNode {
         if type_.flags().intersects(TypeFlags::Number) {
             return Into::<KeywordTypeNode>::into(
-                factory.create_keyword_type_node(&synthetic_factory, SyntaxKind::NumberKeyword),
+                factory
+                    .create_keyword_type_node(&self.synthetic_factory, SyntaxKind::NumberKeyword),
             )
             .into();
         }
         if type_.flags().intersects(TypeFlags::Boolean) {
             return Into::<KeywordTypeNode>::into(
-                factory.create_keyword_type_node(&synthetic_factory, SyntaxKind::BooleanKeyword),
+                factory
+                    .create_keyword_type_node(&self.synthetic_factory, SyntaxKind::BooleanKeyword),
             )
             .into();
         }
         if type_.flags().intersects(TypeFlags::BooleanLiteral) {
             return factory
                 .create_literal_type_node(
-                    &synthetic_factory,
+                    &self.synthetic_factory,
                     &*Into::<Rc<Node>>::into(
                         if type_.as_intrinsic_type().intrinsic_name() == "true" {
-                            factory.create_true(&synthetic_factory)
+                            factory.create_true(&self.synthetic_factory)
                         } else {
-                            factory.create_false(&synthetic_factory)
+                            factory.create_false(&self.synthetic_factory)
                         },
                     ),
                 )
                 .into();
         }
+
+        let object_flags = get_object_flags(&*type_);
+
+        if type_.flags().intersects(TypeFlags::TypeParameter)
+            || object_flags.intersects(ObjectFlags::ClassOrInterface)
+        {
+            return if let Some(symbol) = type_.maybe_symbol() {
+                self.symbol_to_type_node(type_checker, symbol, context, SymbolFlags::Type)
+            } else {
+                unimplemented!()
+            };
+        }
+        if object_flags.intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped) {
+            Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
+            return self.create_anonymous_type_node(type_checker, context, type_);
+        }
+
         unimplemented!()
+    }
+
+    fn create_anonymous_type_node(
+        &self,
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
+        type_: Rc<Type /*ObjectType*/>,
+    ) -> TypeNode {
+        let symbol = type_.maybe_symbol();
+        if let Some(symbol) = symbol {
+            if false {
+                unimplemented!()
+            } else {
+                return self.visit_and_transform_type(
+                    type_checker,
+                    context,
+                    type_,
+                    NodeBuilder::create_type_node_from_object_type,
+                );
+            }
+        } else {
+            unimplemented!()
+        }
+    }
+
+    fn visit_and_transform_type(
+        &self,
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
+        type_: Rc<Type>,
+        transform: fn(&NodeBuilder, &TypeChecker, &NodeBuilderContext, Rc<Type>) -> TypeNode,
+    ) -> TypeNode {
+        let result = transform(self, type_checker, context, type_);
+        result
+    }
+
+    fn create_type_node_from_object_type(
+        &self,
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
+        type_: Rc<Type /*ObjectType*/>,
+    ) -> TypeNode {
+        let resolved = type_checker.resolve_structured_type_members(type_);
+
+        let members = self.create_type_nodes_from_resolved_type(type_checker, context, resolved);
+        let type_literal_node = factory.create_type_literal_node(&self.synthetic_factory, members);
+        type_literal_node.into()
+    }
+
+    fn create_type_nodes_from_resolved_type(
+        &self,
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
+        resolved_type: Rc<Type /*ResolvedType*/>,
+    ) -> Option<Vec<Rc<Node /*TypeElement*/>>> {
+        let mut type_elements: Vec<Rc<Node>> = vec![];
+
+        let properties = resolved_type.as_resolved_type().properties();
+
+        for property_symbol in &*properties {
+            self.add_property_to_element_list(
+                type_checker,
+                property_symbol.clone(),
+                context,
+                &mut type_elements,
+            );
+        }
+        if !type_elements.is_empty() {
+            Some(type_elements)
+        } else {
+            None
+        }
+    }
+
+    fn add_property_to_element_list(
+        &self,
+        type_checker: &TypeChecker,
+        property_symbol: Rc<Symbol>,
+        context: &NodeBuilderContext,
+        type_elements: &mut Vec<Rc<Node /*TypeElement*/>>,
+    ) {
+        let property_type = if false {
+            unimplemented!()
+        } else {
+            type_checker.get_non_missing_type_of_symbol(property_symbol.clone())
+        };
+        let property_name =
+            self.get_property_name_node_for_symbol(property_symbol.clone(), context);
+        if false {
+            unimplemented!()
+        } else {
+            let property_type_node: TypeNode;
+            if false {
+                unimplemented!()
+            } else {
+                property_type_node = if true {
+                    self.serialize_type_for_declaration(
+                        type_checker,
+                        context,
+                        property_type,
+                        property_symbol,
+                    )
+                } else {
+                    unimplemented!()
+                };
+            }
+
+            let property_signature = factory.create_property_signature(
+                &self.synthetic_factory,
+                property_name,
+                Some(property_type_node.into()),
+            );
+
+            type_elements.push(property_signature.into());
+        }
     }
 
     fn lookup_symbol_chain(
@@ -2679,6 +2826,56 @@ impl NodeBuilder {
         chain
     }
 
+    fn symbol_to_type_node(
+        &self,
+        type_checker: &TypeChecker,
+        symbol: Rc<Symbol>,
+        context: &NodeBuilderContext,
+        meaning: SymbolFlags,
+    ) -> TypeNode {
+        let chain = self.lookup_symbol_chain(symbol, context, Some(meaning));
+
+        let chain_index = chain.len() - 1;
+        let entity_name =
+            self.create_access_from_symbol_chain(type_checker, context, chain, chain_index, 0);
+        if false {
+            unimplemented!()
+        } else {
+            factory
+                .create_type_reference_node(&self.synthetic_factory, entity_name)
+                .into()
+        }
+    }
+
+    fn create_access_from_symbol_chain(
+        &self,
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
+        chain: Vec<Rc<Symbol>>,
+        index: usize,
+        stopper: usize,
+    ) -> Rc<Node> {
+        let symbol = chain[index].clone();
+
+        let mut symbol_name: Option<String>;
+        if index == 0 {
+            symbol_name =
+                Some(type_checker.get_name_of_symbol_as_written(symbol.clone(), Some(context)));
+        } else {
+            unimplemented!()
+        }
+        if symbol_name.is_none() {
+            symbol_name =
+                Some(type_checker.get_name_of_symbol_as_written(symbol.clone(), Some(context)));
+        }
+        let symbol_name = symbol_name.unwrap();
+
+        let identifier = factory.create_identifier(&self.synthetic_factory, &symbol_name);
+        identifier.set_symbol(symbol);
+
+        identifier.into()
+    }
+
     fn _symbol_to_expression(
         &self,
         type_checker: &TypeChecker,
@@ -2689,6 +2886,35 @@ impl NodeBuilder {
         let chain = self.lookup_symbol_chain(symbol, context, meaning);
         let index = chain.len() - 1;
         self.create_expression_from_symbol_chain(type_checker, context, chain, index)
+    }
+
+    fn get_property_name_node_for_symbol(
+        &self,
+        symbol: Rc<Symbol>,
+        context: &NodeBuilderContext,
+    ) -> Rc<Node> {
+        let single_quote = false;
+        let string_named = false;
+        let raw_name = unescape_leading_underscores(&symbol.escaped_name);
+        self.create_property_name_node_for_identifier_or_literal(
+            raw_name,
+            Some(string_named),
+            Some(single_quote),
+        )
+    }
+
+    fn create_property_name_node_for_identifier_or_literal(
+        &self,
+        name: String,
+        string_named: Option<bool>,
+        single_quote: Option<bool>,
+    ) -> Rc<Node> {
+        if is_identifier_text(&name) {
+            factory.create_identifier(&self.synthetic_factory, &name)
+        } else {
+            unimplemented!()
+        }
+        .into()
     }
 
     fn create_expression_from_symbol_chain(
@@ -2703,13 +2929,23 @@ impl NodeBuilder {
         let symbol_name = type_checker.get_name_of_symbol_as_written(symbol.clone(), Some(context));
 
         if index == 0 || false {
-            let synthetic_factory = get_synthetic_factory();
-            let identifier = factory.create_identifier(&synthetic_factory, &symbol_name);
+            let identifier = factory.create_identifier(&self.synthetic_factory, &symbol_name);
             identifier.set_symbol(symbol);
             return identifier.into();
         } else {
             unimplemented!()
         }
+    }
+
+    fn serialize_type_for_declaration(
+        &self,
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
+        type_: Rc<Type>,
+        symbol: Rc<Symbol>,
+    ) -> TypeNode {
+        let result = self.type_to_type_node_helper(type_checker, type_, context);
+        result
     }
 }
 
@@ -2855,7 +3091,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
     ) {
         let (source_type, target_type) = self
             .type_checker
-            .get_type_names_for_error_display(&*source, &*target);
+            .get_type_names_for_error_display(source.clone(), target.clone());
         let mut generalized_source = source.clone();
         let mut generalized_source_type = source_type;
 
@@ -2875,7 +3111,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             );
             generalized_source_type = self
                 .type_checker
-                .get_type_name_for_error_display(&*generalized_source);
+                .get_type_name_for_error_display(generalized_source);
         }
 
         if message.is_none() {
@@ -3039,7 +3275,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                             } else {
                                 self.report_error(
                                     &Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
-                                    Some(vec![self.type_checker.symbol_to_string(prop, None, None, None, None), self.type_checker.type_to_string(&*error_target)])
+                                    Some(vec![self.type_checker.symbol_to_string(prop, None, None, None, None), self.type_checker.type_to_string(error_target)])
                                 );
                             }
                         }
