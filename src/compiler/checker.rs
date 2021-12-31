@@ -1329,7 +1329,7 @@ impl TypeChecker {
                 };
             }
         }
-        unimplemented!()
+        None
     }
 
     fn get_indexed_access_type_or_undefined(
@@ -1542,11 +1542,14 @@ impl TypeChecker {
         target: Rc<Type>,
         name_type: Rc<Type>,
     ) -> Option<Rc<Type>> {
-        let idx = self.get_indexed_access_type_or_undefined(target, name_type);
+        let idx = self.get_indexed_access_type_or_undefined(target.clone(), name_type);
         if idx.is_some() {
             return idx;
         }
-        unimplemented!()
+        if target.flags().intersects(TypeFlags::Union) {
+            unimplemented!()
+        }
+        None
     }
 
     fn check_expression_for_mutable_location_with_contextual_type(
