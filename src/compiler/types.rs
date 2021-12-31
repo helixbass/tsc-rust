@@ -1143,6 +1143,7 @@ pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
 
 bitflags! {
     pub struct TypeFlags: u32 {
+        const Any = 1 << 0;
         const String = 1 << 2;
         const Number = 1 << 3;
         const Boolean = 1 << 4;
@@ -1183,6 +1184,7 @@ bitflags! {
         const InstantiablePrimitive = Self::Index.bits | Self::TemplateLiteral.bits | Self::StringMapping.bits;
         const Instantiable = Self::InstantiableNonPrimitive.bits | Self::InstantiablePrimitive.bits;
         const StructuredOrInstantiable = Self::StructuredType.bits | Self::Instantiable.bits;
+        const ObjectFlagsType = Self::Any.bits | Self::Nullable.bits | Self::Never.bits | Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
     }
 }
 
@@ -1225,6 +1227,13 @@ impl Type {
         match self {
             Type::ObjectType(object_type) => object_type,
             _ => panic!("Expected resolvable type"),
+        }
+    }
+
+    pub fn as_object_flags_type(&self) -> &dyn ObjectFlagsTypeInterface {
+        match self {
+            Type::ObjectType(object_type) => object_type,
+            _ => panic!("Expected object flags type"),
         }
     }
 }
@@ -1876,6 +1885,7 @@ impl From<NumberLiteralType> for Type {
 
 bitflags! {
     pub struct ObjectFlags: u32 {
+        const None = 0;
         const Class = 1 << 0;
         const Interface = 1 << 1;
         const Anonymous = 1 << 4;
@@ -1887,9 +1897,12 @@ bitflags! {
     }
 }
 
-pub trait ObjectTypeInterface {
+pub trait ObjectFlagsTypeInterface {
     fn object_flags(&self) -> ObjectFlags;
     fn set_object_flags(&mut self, object_flags: ObjectFlags);
+}
+
+pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
     // fn maybe_properties(&self) -> Option<&[Rc<Symbol>]>;
     // fn properties(&self) -> &[Rc<Symbol>];
     // fn set_properties(&self, properties: Vec<Rc<Symbol>>);
@@ -1931,7 +1944,7 @@ impl TypeInterface for ObjectType {
     }
 }
 
-impl ObjectTypeInterface for ObjectType {
+impl ObjectFlagsTypeInterface for ObjectType {
     fn object_flags(&self) -> ObjectFlags {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.object_flags(),
@@ -1950,6 +1963,8 @@ impl ObjectTypeInterface for ObjectType {
         }
     }
 }
+
+impl ObjectTypeInterface for ObjectType {}
 
 impl ResolvableTypeInterface for ObjectType {
     fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
@@ -2039,7 +2054,7 @@ impl TypeInterface for BaseObjectType {
     }
 }
 
-impl ObjectTypeInterface for BaseObjectType {
+impl ObjectFlagsTypeInterface for BaseObjectType {
     fn object_flags(&self) -> ObjectFlags {
         self.object_flags
     }
@@ -2048,6 +2063,8 @@ impl ObjectTypeInterface for BaseObjectType {
         self.object_flags = object_flags;
     }
 }
+
+impl ObjectTypeInterface for BaseObjectType {}
 
 pub trait ResolvableTypeInterface {
     fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>);
@@ -2128,7 +2145,7 @@ impl TypeInterface for InterfaceType {
     }
 }
 
-impl ObjectTypeInterface for InterfaceType {
+impl ObjectFlagsTypeInterface for InterfaceType {
     fn object_flags(&self) -> ObjectFlags {
         match self {
             InterfaceType::BaseInterfaceType(base_interface_type) => {
@@ -2145,6 +2162,8 @@ impl ObjectTypeInterface for InterfaceType {
         }
     }
 }
+
+impl ObjectTypeInterface for InterfaceType {}
 
 impl ResolvableTypeInterface for InterfaceType {
     fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
@@ -2235,7 +2254,7 @@ impl TypeInterface for BaseInterfaceType {
     }
 }
 
-impl ObjectTypeInterface for BaseInterfaceType {
+impl ObjectFlagsTypeInterface for BaseInterfaceType {
     fn object_flags(&self) -> ObjectFlags {
         self._object_type.object_flags()
     }
@@ -2244,6 +2263,8 @@ impl ObjectTypeInterface for BaseInterfaceType {
         self._object_type.set_object_flags(object_flags)
     }
 }
+
+impl ObjectTypeInterface for BaseInterfaceType {}
 
 impl ResolvableTypeInterface for BaseInterfaceType {
     fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {

@@ -14,23 +14,24 @@ use crate::{
     create_diagnostic_for_node_from_message_chain, create_printer, create_symbol_table,
     create_text_writer, declaration_name_to_string, escape_leading_underscores, every, factory,
     first_defined, for_each, get_effective_initializer, get_effective_type_annotation_node,
-    get_first_identifier, get_name_of_declaration, get_source_file_of_node, get_synthetic_factory,
-    has_dynamic_name, has_initializer, is_binding_element, is_external_or_common_js_module,
-    is_object_literal_expression, is_private_identifier, is_property_assignment,
-    is_property_declaration, is_property_signature, is_variable_declaration, node_is_missing,
-    object_allocator, some, unescape_leading_underscores, using_single_line_string_writer,
-    ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType, BaseLiteralType, BaseObjectType, BaseType,
-    BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic, DiagnosticCollection,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression,
-    ExpressionStatement, FreshableIntrinsicType, HasExpressionInitializerInterface,
-    InterfaceDeclaration, InterfaceType, IntrinsicType, KeywordTypeNode, LiteralLikeNode,
-    LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Number, NumberLiteralType, NumericLiteral, ObjectFlags, ObjectLiteralExpression,
-    ObjectTypeInterface, PrefixUnaryExpression, PrinterOptions, PropertyAssignment,
-    PropertySignature, RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface,
-    SourceFile, Statement, StringLiteralType, Symbol, SymbolFlags, SymbolFormatFlags, SymbolTable,
-    SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags,
-    TypeInterface, TypeReferenceNode, UnionReduction, VariableLikeDeclarationInterface,
+    get_first_identifier, get_name_of_declaration, get_object_flags, get_source_file_of_node,
+    get_synthetic_factory, has_dynamic_name, has_initializer, is_binding_element,
+    is_external_or_common_js_module, is_object_literal_expression, is_private_identifier,
+    is_property_assignment, is_property_declaration, is_property_signature,
+    is_variable_declaration, node_is_missing, object_allocator, unescape_leading_underscores,
+    using_single_line_string_writer, ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType,
+    BaseLiteralType, BaseObjectType, BaseType, BaseUnionOrIntersectionType, CharacterCodes, Debug_,
+    Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
+    EmitHint, EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType,
+    HasExpressionInitializerInterface, InterfaceDeclaration, InterfaceType, IntrinsicType,
+    KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface,
+    NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType, NumericLiteral,
+    ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression, PrefixUnaryExpression,
+    PrinterOptions, PropertyAssignment, PropertySignature, RelationComparisonResult,
+    ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Statement, StringLiteralType,
+    Symbol, SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type,
+    TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeReferenceNode,
+    UnionReduction, VariableLikeDeclarationInterface,
 };
 
 bitflags! {
@@ -1845,6 +1846,10 @@ impl TypeChecker {
         type_
     }
 
+    fn is_object_literal_type(&self, type_: Rc<Type>) -> bool {
+        get_object_flags(&*type_).intersects(ObjectFlags::ObjectLiteral)
+    }
+
     fn get_cannot_find_name_diagnostic_for_name(&self, node: &Node) -> DiagnosticMessage {
         match node {
             Node::Expression(Expression::Identifier(identifier)) => match identifier.escaped_text {
@@ -2787,18 +2792,25 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             self.report_error(&message, args);
         };
 
-        if self.type_checker.is_simple_type_related_to(
-            &*source,
-            &*target,
-            self.relation,
-            if report_errors {
-                Some(&report_error)
-            } else {
-                None
-            },
-        ) {
+        if false
+            || self.type_checker.is_simple_type_related_to(
+                &*source,
+                &*target,
+                self.relation,
+                if report_errors {
+                    Some(&report_error)
+                } else {
+                    None
+                },
+            )
+        {
             return Ternary::True;
         }
+
+        let is_performing_excess_property_checks = !intersection_state
+            .intersects(IntersectionState::Target)
+            && (self.type_checker.is_object_literal_type(source.clone())
+                && get_object_flags(&*source).intersects(ObjectFlags::FreshLiteral));
 
         let mut result = Ternary::False;
 

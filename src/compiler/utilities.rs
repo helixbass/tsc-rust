@@ -7,13 +7,14 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    create_text_span_from_bounds, escape_leading_underscores, insert_sorted, is_member_name,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitTextWriter, Expression, Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile,
-    Symbol, SymbolFlags, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags,
-    __String, get_name_of_declaration, skip_trivia,
+    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, __String,
+    create_text_span_from_bounds, escape_leading_underscores, get_name_of_declaration,
+    insert_sorted, is_member_name, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    BaseNode, BaseType, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
+    DiagnosticWithLocation, EmitTextWriter, Expression, Node, NodeInterface, ObjectFlags,
+    ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags, SymbolTable, Type,
+    TypeInterface,
 };
 
 pub fn create_symbol_table() -> SymbolTable {
@@ -438,13 +439,21 @@ pub fn get_first_identifier<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*Ide
     }
 }
 
+pub fn get_object_flags(type_: &Type) -> ObjectFlags {
+    if type_.flags().intersects(TypeFlags::ObjectFlagsType) {
+        type_.as_object_flags_type().object_flags()
+    } else {
+        ObjectFlags::None
+    }
+}
+
 #[allow(non_snake_case)]
 fn Symbol(flags: SymbolFlags, name: __String) -> Symbol {
     Symbol::new(flags, name)
 }
 
 #[allow(non_snake_case)]
-fn Type(flags: TypeFlags) -> BaseType {
+fn _Type(flags: TypeFlags) -> BaseType {
     BaseType::new(flags)
 }
 
@@ -487,7 +496,7 @@ impl ObjectAllocator {
     }
 
     pub fn get_type_constructor(&self) -> fn(TypeFlags) -> BaseType {
-        Type
+        _Type
     }
 }
 
