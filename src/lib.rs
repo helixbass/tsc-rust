@@ -9,8 +9,8 @@ pub use compiler::binder::bind_source_file;
 pub use compiler::checker::{create_type_checker, NodeBuilder};
 pub use compiler::command_line_parser::parse_command_line;
 pub use compiler::core::{
-    append_if_unique, concatenate, every, first_defined, for_each, insert_sorted,
-    last_or_undefined, some,
+    append_if_unique, concatenate, every, first_defined, first_or_undefined, for_each,
+    insert_sorted, last_or_undefined, some,
 };
 pub use compiler::core_public::SortedArray;
 pub use compiler::debug::Debug_;

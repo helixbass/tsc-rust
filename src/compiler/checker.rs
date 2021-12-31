@@ -13,25 +13,26 @@ use crate::{
     create_diagnostic_collection, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, create_printer, create_symbol_table,
     create_text_writer, declaration_name_to_string, escape_leading_underscores, every, factory,
-    first_defined, for_each, get_effective_initializer, get_effective_type_annotation_node,
-    get_first_identifier, get_name_of_declaration, get_object_flags, get_source_file_of_node,
-    get_synthetic_factory, has_dynamic_name, has_initializer, is_binding_element,
-    is_external_or_common_js_module, is_object_literal_expression, is_private_identifier,
-    is_property_assignment, is_property_declaration, is_property_signature,
-    is_variable_declaration, node_is_missing, object_allocator, unescape_leading_underscores,
-    using_single_line_string_writer, ArrayTypeNode, BaseInterfaceType, BaseIntrinsicType,
-    BaseLiteralType, BaseObjectType, BaseType, BaseUnionOrIntersectionType, CharacterCodes, Debug_,
-    Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain, Diagnostics,
-    EmitHint, EmitTextWriter, Expression, ExpressionStatement, FreshableIntrinsicType,
-    HasExpressionInitializerInterface, InterfaceDeclaration, InterfaceType, IntrinsicType,
-    KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType, NumericLiteral,
-    ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression, PrefixUnaryExpression,
-    PrinterOptions, PropertyAssignment, PropertySignature, RelationComparisonResult,
-    ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Statement, StringLiteralType,
-    Symbol, SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type,
-    TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeReferenceNode,
-    UnionReduction, VariableLikeDeclarationInterface,
+    first_defined, first_or_undefined, for_each, get_effective_initializer,
+    get_effective_type_annotation_node, get_first_identifier, get_name_of_declaration,
+    get_object_flags, get_source_file_of_node, get_synthetic_factory, has_dynamic_name,
+    has_initializer, is_binding_element, is_external_or_common_js_module,
+    is_object_literal_expression, is_private_identifier, is_property_assignment,
+    is_property_declaration, is_property_signature, is_variable_declaration, node_is_missing,
+    object_allocator, unescape_leading_underscores, using_single_line_string_writer, ArrayTypeNode,
+    BaseInterfaceType, BaseIntrinsicType, BaseLiteralType, BaseObjectType, BaseType,
+    BaseUnionOrIntersectionType, CharacterCodes, Debug_, Diagnostic, DiagnosticCollection,
+    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, EmitHint, EmitTextWriter, Expression,
+    ExpressionStatement, FreshableIntrinsicType, HasExpressionInitializerInterface,
+    InterfaceDeclaration, InterfaceType, IntrinsicType, KeywordTypeNode, LiteralLikeNode,
+    LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    NodeInterface, Number, NumberLiteralType, NumericLiteral, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectLiteralExpression, PrefixUnaryExpression, PrinterOptions,
+    PropertyAssignment, PropertySignature, RelationComparisonResult, ResolvableTypeInterface,
+    ResolvedTypeInterface, SourceFile, Statement, StringLiteralType, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind, Ternary, Type, TypeChecker,
+    TypeCheckerHost, TypeElement, TypeFlags, TypeInterface, TypeReferenceNode, UnionReduction,
+    VariableLikeDeclarationInterface,
 };
 
 bitflags! {
@@ -98,6 +99,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         false_type: None,
         regular_false_type: None,
         boolean_type: None,
+        never_type: None,
         number_or_big_int_type: None,
 
         global_array_type: None,
@@ -206,6 +208,11 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         ],
         None,
     ));
+    type_checker.never_type = Some(Rc::new(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Never, "never")
+            .into(),
+    ));
     type_checker.number_or_big_int_type = Some(type_checker.get_union_type(
         vec![type_checker.number_type(), type_checker.bigint_type()],
         None,
@@ -263,6 +270,10 @@ impl TypeChecker {
 
     fn boolean_type(&self) -> Rc<Type> {
         self.boolean_type.as_ref().unwrap().clone()
+    }
+
+    fn never_type(&self) -> Rc<Type> {
+        self.never_type.as_ref().unwrap().clone()
     }
 
     fn number_or_big_int_type(&self) -> Rc<Type> {
@@ -1205,8 +1216,7 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let union_reduction = union_reduction.unwrap_or(UnionReduction::Literal);
         if types.is_empty() {
-            unimplemented!()
-            // return self.never_type();
+            return self.never_type();
         }
         if types.len() == 1 {
             return types[0].clone();
@@ -1934,6 +1944,17 @@ impl TypeChecker {
                 }
             },
             _ => panic!("Expected Identifier"),
+        }
+    }
+
+    fn filter_type(&self, type_: Rc<Type>, f: fn(&TypeChecker, Rc<Type>) -> bool) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Union) {
+            unimplemented!()
+        }
+        if type_.flags().intersects(TypeFlags::Never) || f(self, type_.clone()) {
+            type_
+        } else {
+            self.never_type()
         }
     }
 
@@ -2992,7 +3013,36 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                     is_comparing_jsx_attributes,
                 ) {
                     if report_errors {
-                        unimplemented!()
+                        let error_target = self.type_checker.filter_type(
+                            reduced_target,
+                            TypeChecker::is_excess_property_check_target,
+                        );
+                        let error_node = match self.error_node {
+                            None => Debug_.fail(None),
+                            Some(error_node) => error_node,
+                        };
+                        if false {
+                            unimplemented!()
+                        } else {
+                            let object_literal_declaration =
+                                if let Some(symbol) = source.maybe_symbol() {
+                                    if let Some(declarations) = &*symbol.maybe_declarations() {
+                                        first_or_undefined(declarations).map(Clone::clone)
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                };
+                            if false {
+                                unimplemented!()
+                            } else {
+                                self.report_error(
+                                    &Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
+                                    Some(vec![self.type_checker.symbol_to_string(prop, None, None, None, None), self.type_checker.type_to_string(&*error_target)])
+                                );
+                            }
+                        }
                     }
                     return true;
                 }

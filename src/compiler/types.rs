@@ -997,6 +997,7 @@ pub struct TypeChecker {
     pub false_type: Option<Rc<Type>>,
     pub regular_false_type: Option<Rc<Type>>,
     pub boolean_type: Option<Rc<Type>>,
+    pub never_type: Option<Rc<Type>>,
     pub number_or_big_int_type: Option<Rc<Type>>,
     pub global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub diagnostics: RefCell<DiagnosticCollection>,
