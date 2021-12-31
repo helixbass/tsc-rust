@@ -927,6 +927,22 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    fn get_property_of_object_type(&self, type_: Rc<Type>, name: &__String) -> Option<Rc<Symbol>> {
+        if type_.flags().intersects(TypeFlags::Object) {
+            let resolved = self.resolve_structured_type_members(type_);
+            let symbol = (*resolved.as_resolved_type().members())
+                .borrow()
+                .get(name)
+                .map(Clone::clone);
+            if let Some(symbol) = symbol {
+                if self.symbol_is_value(symbol.clone()) {
+                    return Some(symbol);
+                }
+            }
+        }
+        None
+    }
+
     fn get_properties_of_type(&self, type_: Rc<Type>) -> Vec<Rc<Symbol>> {
         let type_ = self.get_reduced_apparent_type(type_);
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
@@ -964,18 +980,32 @@ impl TypeChecker {
             let symbol = (*resolved.as_resolved_type().members())
                 .borrow()
                 .get(name)
-                .map(|rc| rc.clone());
+                .map(Clone::clone);
             if let Some(symbol) = symbol {
                 if self.symbol_is_value(symbol.clone()) {
                     return Some(symbol);
                 }
             }
-            unimplemented!()
+            return /*self.get_property_of_object_type(self.global_object_type(), name)*/ None;
         }
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
             unimplemented!()
         }
         None
+    }
+
+    fn get_propagating_flags_of_types(
+        &self,
+        types: &[Rc<Type>],
+        exclude_kinds: TypeFlags,
+    ) -> ObjectFlags {
+        let mut result = ObjectFlags::None;
+        for type_ in types {
+            if !type_.flags().intersects(exclude_kinds) {
+                result |= get_object_flags(&*type_);
+            }
+        }
+        result & ObjectFlags::PropagatingFlags
     }
 
     fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
@@ -1132,14 +1162,40 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    fn add_type_to_union(&self, type_set: &mut Vec<Rc<Type>>, type_: Rc<Type>) {
-        type_set.push(type_);
+    fn add_type_to_union(
+        &self,
+        type_set: &mut Vec<Rc<Type>>,
+        mut includes: TypeFlags,
+        type_: Rc<Type>,
+    ) -> TypeFlags {
+        let flags = type_.flags();
+        if flags.intersects(TypeFlags::Union) {
+            unimplemented!()
+        }
+        if !flags.intersects(TypeFlags::Never) {
+            includes |= flags & TypeFlags::IncludesMask;
+            if flags.intersects(TypeFlags::Instantiable) {
+                includes |= TypeFlags::IncludesInstantiable;
+            }
+            if false {
+                unimplemented!()
+            } else {
+                type_set.push(type_);
+            }
+        }
+        includes
     }
 
-    fn add_types_to_union(&self, type_set: &mut Vec<Rc<Type>>, types: &[Rc<Type>]) {
+    fn add_types_to_union(
+        &self,
+        type_set: &mut Vec<Rc<Type>>,
+        mut includes: TypeFlags,
+        types: &[Rc<Type>],
+    ) -> TypeFlags {
         for type_ in types {
-            self.add_type_to_union(type_set, type_.clone());
+            includes = self.add_type_to_union(type_set, includes, type_.clone());
         }
+        includes
     }
 
     fn get_union_type(
@@ -1156,13 +1212,25 @@ impl TypeChecker {
             return types[0].clone();
         }
         let mut type_set: Vec<Rc<Type>> = vec![];
-        // let includes =
-        self.add_types_to_union(&mut type_set, /*TypeFlags::empty(), */ &types);
+        let includes = self.add_types_to_union(&mut type_set, TypeFlags::None, &types);
         if union_reduction != UnionReduction::None {}
-        self.get_union_type_from_sorted_list(type_set)
+        let object_flags = (if includes.intersects(TypeFlags::NotPrimitiveUnion) {
+            ObjectFlags::None
+        } else {
+            ObjectFlags::PrimitiveUnion
+        }) | (if includes.intersects(TypeFlags::Intersection) {
+            ObjectFlags::ContainsIntersections
+        } else {
+            ObjectFlags::None
+        });
+        self.get_union_type_from_sorted_list(type_set, object_flags)
     }
 
-    fn get_union_type_from_sorted_list(&self, types: Vec<Rc<Type>>) -> Rc<Type> {
+    fn get_union_type_from_sorted_list(
+        &self,
+        types: Vec<Rc<Type>>,
+        object_flags: ObjectFlags,
+    ) -> Rc<Type> {
         let mut type_: Option<Rc<Type>> = None;
         if type_.is_none() {
             let is_boolean = types.len() == 2
@@ -1173,13 +1241,14 @@ impl TypeChecker {
             } else {
                 TypeFlags::Union
             });
+            let object_flags_to_set =
+                object_flags | self.get_propagating_flags_of_types(&types, TypeFlags::Nullable);
             type_ = Some(Rc::new(
-                (UnionType {
-                    _union_or_intersection_type: BaseUnionOrIntersectionType {
-                        _type: base_type,
-                        types,
-                    },
-                })
+                UnionType::new(BaseUnionOrIntersectionType::new(
+                    base_type,
+                    types,
+                    object_flags_to_set,
+                ))
                 .into(),
             ));
             // TODO: also treat union type as intrinsic type with intrinsic_name = "boolean" if
@@ -2109,6 +2178,39 @@ impl TypeChecker {
         create_object_literal_type()
     }
 
+    fn is_known_property(
+        &self,
+        target_type: Rc<Type>,
+        name: &__String,
+        is_comparing_jsx_attributes: bool,
+    ) -> bool {
+        if target_type.flags().intersects(TypeFlags::Object) {
+            if self
+                .get_property_of_object_type(target_type, name)
+                .is_some()
+                || false
+            {
+                return true;
+            }
+        } else if target_type
+            .flags()
+            .intersects(TypeFlags::UnionOrIntersection)
+            && self.is_excess_property_check_target(target_type)
+        {
+            unimplemented!()
+        }
+        false
+    }
+
+    fn is_excess_property_check_target(&self, type_: Rc<Type>) -> bool {
+        (type_.flags().intersects(TypeFlags::Object)
+            && !(get_object_flags(&*type_)
+                .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)))
+            || type_.flags().intersects(TypeFlags::NonPrimitive)
+            || (type_.flags().intersects(TypeFlags::Union) && unimplemented!())
+            || (type_.flags().intersects(TypeFlags::Intersection) && unimplemented!())
+    }
+
     fn check_arithmetic_operand_type(
         &self,
         operand: /*&Node*/ &Expression,
@@ -2778,7 +2880,9 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         let recursion_flags = recursion_flags.unwrap_or(RecursionFlags::Both);
 
         let source = self.type_checker.get_normalized_type(original_source);
-        let target = self.type_checker.get_normalized_type(original_target);
+        let target = self
+            .type_checker
+            .get_normalized_type(original_target.clone());
 
         let report_error_results = |source, target, result| {
             if result == Ternary::False && report_errors {
@@ -2811,6 +2915,18 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             .intersects(IntersectionState::Target)
             && (self.type_checker.is_object_literal_type(source.clone())
                 && get_object_flags(&*source).intersects(ObjectFlags::FreshLiteral));
+        if is_performing_excess_property_checks {
+            if self.has_excess_properties(source.clone(), target.clone(), report_errors) {
+                if report_errors {
+                    self.report_relation_error(
+                        head_message,
+                        source,
+                        if false { original_target } else { target },
+                    );
+                }
+                return Ternary::False;
+            }
+        }
 
         let mut result = Ternary::False;
 
@@ -2848,6 +2964,51 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         report_error_results(source, target, result);
 
         result
+    }
+
+    fn has_excess_properties(
+        &self,
+        source: Rc<Type /*FreshObjectLiteralType*/>,
+        target: Rc<Type>,
+        report_errors: bool,
+    ) -> bool {
+        if !self
+            .type_checker
+            .is_excess_property_check_target(target.clone())
+            || false
+        {
+            return false;
+        }
+        let is_comparing_jsx_attributes = false;
+        let reduced_target = target.clone();
+        for prop in self.type_checker.get_properties_of_type(source.clone()) {
+            if self.should_check_as_excess_property(prop.clone(), source.symbol()) && true {
+                if !self.type_checker.is_known_property(
+                    reduced_target.clone(),
+                    &prop.escaped_name,
+                    is_comparing_jsx_attributes,
+                ) {
+                    if report_errors {
+                        unimplemented!()
+                    }
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn should_check_as_excess_property(&self, prop: Rc<Symbol>, container: Rc<Symbol>) -> bool {
+        if let Some(prop_value_declaration) = prop.maybe_value_declaration().as_ref() {
+            if let Some(container_value_declaration) = container.maybe_value_declaration().as_ref()
+            {
+                return Rc::ptr_eq(
+                    &prop_value_declaration.upgrade().unwrap().parent(),
+                    &container_value_declaration.upgrade().unwrap(),
+                );
+            }
+        }
+        false
     }
 
     fn type_related_to_some_type(

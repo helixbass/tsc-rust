@@ -1143,7 +1143,9 @@ pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
 
 bitflags! {
     pub struct TypeFlags: u32 {
+        const None = 0;
         const Any = 1 << 0;
+        const Unknown = 1 << 1;
         const String = 1 << 2;
         const Number = 1 << 3;
         const Boolean = 1 << 4;
@@ -1168,6 +1170,7 @@ bitflags! {
         const IndexedAccess = 1 << 23;
         const Conditional = 1 << 24;
         const Substitution = 1 << 25;
+        const NonPrimitive = 1 << 26;
         const TemplateLiteral = 1 << 27;
         const StringMapping = 1 << 28;
 
@@ -1185,6 +1188,9 @@ bitflags! {
         const Instantiable = Self::InstantiableNonPrimitive.bits | Self::InstantiablePrimitive.bits;
         const StructuredOrInstantiable = Self::StructuredType.bits | Self::Instantiable.bits;
         const ObjectFlagsType = Self::Any.bits | Self::Nullable.bits | Self::Never.bits | Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
+        const IncludesMask = Self::Any.bits | Self::Unknown.bits | Self::Primitive.bits | Self::Never.bits | Self::Object.bits | Self::Union.bits | Self::Intersection.bits | Self::NonPrimitive.bits | Self::TemplateLiteral.bits;
+        const IncludesInstantiable = Self::Substitution.bits;
+        const NotPrimitiveUnion = Self::Any.bits | Self::Unknown.bits | Self::Enum.bits | Self::Void.bits | Self::Never.bits | Self::Object.bits | Self::Intersection.bits | Self::IncludesInstantiable.bits;
     }
 }
 
@@ -1233,6 +1239,7 @@ impl Type {
     pub fn as_object_flags_type(&self) -> &dyn ObjectFlagsTypeInterface {
         match self {
             Type::ObjectType(object_type) => object_type,
+            Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
             _ => panic!("Expected object flags type"),
         }
     }
@@ -1890,10 +1897,16 @@ bitflags! {
         const Interface = 1 << 1;
         const Anonymous = 1 << 4;
         const ObjectLiteral = 1 << 7;
+        const ObjectLiteralPatternWithComputedProperties = 1 << 9;
         const FreshLiteral = 1 << 14;
+        const PrimitiveUnion = 1 << 16;
+        const ContainsWideningType = 1 << 17;
         const ContainsObjectOrArrayLiteral = 1 << 18;
+        const NonInferrableType = 1 << 19;
+        const ContainsIntersections = 1 << 25;
 
         const ClassOrInterface = Self::Class.bits | Self::Interface.bits;
+        const PropagatingFlags = Self::ContainsWideningType.bits | Self::ContainsObjectOrArrayLiteral.bits | Self::NonInferrableType.bits;
     }
 }
 
@@ -2342,6 +2355,22 @@ impl UnionOrIntersectionTypeInterface for UnionOrIntersectionType {
     }
 }
 
+impl ObjectFlagsTypeInterface for UnionOrIntersectionType {
+    fn object_flags(&self) -> ObjectFlags {
+        match self {
+            UnionOrIntersectionType::UnionType(union_type) => union_type.object_flags(),
+        }
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        match self {
+            UnionOrIntersectionType::UnionType(union_type) => {
+                union_type.set_object_flags(object_flags)
+            }
+        }
+    }
+}
+
 impl From<UnionOrIntersectionType> for Type {
     fn from(union_or_intersection_type: UnionOrIntersectionType) -> Self {
         Type::UnionOrIntersectionType(union_or_intersection_type)
@@ -2350,8 +2379,19 @@ impl From<UnionOrIntersectionType> for Type {
 
 #[derive(Clone, Debug)]
 pub struct BaseUnionOrIntersectionType {
-    pub _type: BaseType,
+    _type: BaseType,
     pub types: Vec<Rc<Type>>,
+    pub object_flags: ObjectFlags,
+}
+
+impl BaseUnionOrIntersectionType {
+    pub fn new(base_type: BaseType, types: Vec<Rc<Type>>, object_flags: ObjectFlags) -> Self {
+        Self {
+            _type: base_type,
+            types,
+            object_flags,
+        }
+    }
 }
 
 impl TypeInterface for BaseUnionOrIntersectionType {
@@ -2378,9 +2418,27 @@ impl UnionOrIntersectionTypeInterface for BaseUnionOrIntersectionType {
     }
 }
 
+impl ObjectFlagsTypeInterface for BaseUnionOrIntersectionType {
+    fn object_flags(&self) -> ObjectFlags {
+        self.object_flags
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        self.object_flags = object_flags;
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct UnionType {
-    pub _union_or_intersection_type: BaseUnionOrIntersectionType,
+    _union_or_intersection_type: BaseUnionOrIntersectionType,
+}
+
+impl UnionType {
+    pub fn new(union_or_intersection_type: BaseUnionOrIntersectionType) -> Self {
+        Self {
+            _union_or_intersection_type: union_or_intersection_type,
+        }
+    }
 }
 
 impl TypeInterface for UnionType {
@@ -2404,6 +2462,17 @@ impl TypeInterface for UnionType {
 impl UnionOrIntersectionTypeInterface for UnionType {
     fn types(&self) -> &[Rc<Type>] {
         &self._union_or_intersection_type.types
+    }
+}
+
+impl ObjectFlagsTypeInterface for UnionType {
+    fn object_flags(&self) -> ObjectFlags {
+        self._union_or_intersection_type.object_flags()
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        self._union_or_intersection_type
+            .set_object_flags(object_flags);
     }
 }
 
