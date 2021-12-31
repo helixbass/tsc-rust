@@ -3,8 +3,9 @@ use std::rc::Rc;
 
 use crate::{
     id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_, EmitHint,
-    EmitTextWriter, Expression, Identifier, LiteralTypeNode, Node, NodeInterface, Printer,
-    PrinterOptions, SourceFile, Symbol, TypeNode, TypeReferenceNode,
+    EmitTextWriter, Expression, Identifier, ListFormat, LiteralTypeNode, Node, NodeArray,
+    NodeInterface, Printer, PrinterOptions, SourceFile, Symbol, TypeLiteralNode, TypeNode,
+    TypeReferenceNode,
 };
 
 #[derive(PartialEq, Eq)]
@@ -128,6 +129,9 @@ impl Printer {
                 Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
                     return self.emit_type_reference(type_reference_node)
                 }
+                Node::TypeNode(TypeNode::TypeLiteralNode(type_literal_node)) => {
+                    return self.emit_type_literal(type_literal_node)
+                }
                 Node::TypeNode(TypeNode::LiteralTypeNode(literal_type_node)) => {
                     return self.emit_literal_type(literal_type_node)
                 }
@@ -154,6 +158,21 @@ impl Printer {
         }
     }
 
+    fn emit_type_literal(&self, node: &TypeLiteralNode) {
+        self.write_punctuation("{");
+        let flags = if true {
+            ListFormat::SingleLineTypeLiteralMembers
+        } else {
+            unimplemented!()
+        };
+        self.emit_list(
+            Some(node),
+            Some(&node.members),
+            flags | ListFormat::NoSpaceIfEmpty,
+        );
+        self.write_punctuation("}");
+    }
+
     fn emit_type_reference(&self, node: &TypeReferenceNode) {
         self.emit(Some(&*node.type_name));
     }
@@ -162,12 +181,57 @@ impl Printer {
         self.emit_expression(&*node.literal);
     }
 
+    fn emit_list<TNode: NodeInterface>(
+        &self,
+        parent_node: Option<&TNode>,
+        children: Option<&NodeArray>,
+        format: ListFormat,
+    ) {
+        self.emit_node_list(Printer::emit, parent_node, children, format, None, None);
+    }
+
+    fn emit_node_list<TNode: NodeInterface>(
+        &self,
+        emit: fn(&Printer, Option<&Node>),
+        parent_node: Option<&TNode>,
+        children: Option<&NodeArray>,
+        format: ListFormat,
+        start: Option<usize>,
+        count: Option<usize>,
+    ) {
+        let start = start.unwrap_or(0);
+        let count = count.unwrap_or_else(|| {
+            if let Some(children) = children {
+                children.len() - start
+            } else {
+                0
+            }
+        });
+        let children = children.unwrap();
+        if false {
+            unimplemented!()
+        } else {
+            if false {
+                unimplemented!()
+            } else if format.intersects(ListFormat::SpaceBetweenBraces) {
+                self.write_space();
+            }
+
+            let children_iter = children.iter();
+            for child in children_iter.take(start) {}
+        }
+    }
+
     fn write_base(&self, s: &str) {
         self.writer_().write(s);
     }
 
     fn write_symbol(&self, s: &str, sym: Rc<Symbol>) {
         self.writer_().write_symbol(s, &*sym);
+    }
+
+    fn write_punctuation(&self, s: &str) {
+        self.writer_().write_punctuation(s);
     }
 
     fn write_keyword(&self, s: &str) {

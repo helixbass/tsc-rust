@@ -354,6 +354,10 @@ impl NodeArray {
     pub fn iter(&self) -> NodeArrayIter {
         NodeArrayIter(Box::new(self._nodes.iter()))
     }
+
+    pub fn len(&self) -> usize {
+        self._nodes.len()
+    }
 }
 
 pub struct NodeArrayIter<'node_array>(
@@ -1042,6 +1046,7 @@ pub enum UnionReduction {
 
 pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
+    fn write_punctuation(&mut self, text: &str);
     fn write_symbol(&mut self, text: &str, symbol: &Symbol);
     fn clear(&mut self);
 }
@@ -2945,4 +2950,19 @@ pub struct TextSpan {
 
 pub struct DiagnosticCollection {
     pub file_diagnostics: HashMap<String, SortedArray<Rc<Diagnostic>>>,
+}
+
+bitflags! {
+    pub struct ListFormat: u32 {
+        const None = 0;
+
+        const SingleLine = 0;
+
+        const SpaceBetweenBraces = 1 << 8;
+        const SpaceBetweenSiblings = 1 << 9;
+
+        const NoSpaceIfEmpty = 1 << 19;
+
+        const SingleLineTypeLiteralMembers = Self::SingleLine.bits | Self::SpaceBetweenBraces.bits | Self::SpaceBetweenSiblings.bits;
+    }
 }

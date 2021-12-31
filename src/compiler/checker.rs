@@ -2071,7 +2071,11 @@ impl TypeChecker {
                             Some(self.get_type_of_symbol(&*prop))
                         };
                     }
-                    unimplemented!()
+                    return if let Some(found) = Option::<()>::None /*self.find_applicable_index_info(self.get_index_infos_of_structured_type(t), self.get_string_literal_type(unescape_leading_underscores(name)))*/ {
+                        unimplemented!()
+                    } else {
+                        None
+                    };
                 }
                 None
             },

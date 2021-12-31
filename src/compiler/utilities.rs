@@ -65,6 +65,10 @@ impl SymbolWriter for SingleLineStringWriter {
         self.write_text(text);
     }
 
+    fn write_punctuation(&mut self, s: &str) {
+        self.write_text(s);
+    }
+
     fn write_symbol(&mut self, s: &str, _: &Symbol) {
         self.write_text(s);
     }
@@ -406,6 +410,10 @@ impl EmitTextWriter for TextWriter {
 impl SymbolWriter for TextWriter {
     fn write_keyword(&mut self, text: &str) {
         self.write(text);
+    }
+
+    fn write_punctuation(&mut self, s: &str) {
+        self.write(s);
     }
 
     fn write_symbol(&mut self, s: &str, _: &Symbol) {
