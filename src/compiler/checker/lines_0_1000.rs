@@ -37,7 +37,7 @@ use crate::{
 };
 
 bitflags! {
-    pub(crate) struct IntersectionState: u32 {
+    pub(super) struct IntersectionState: u32 {
         const None = 0;
         const Source = 1 << 0;
         const Target = 1 << 1;
@@ -48,7 +48,7 @@ bitflags! {
 }
 
 bitflags! {
-    pub(crate) struct RecursionFlags: u32 {
+    pub(super) struct RecursionFlags: u32 {
         const None = 0;
         const Source = 1 << 0;
         const Target = 1 << 1;
@@ -58,7 +58,7 @@ bitflags! {
 }
 
 bitflags! {
-    pub(crate) struct ExpandingFlags: u32 {
+    pub(super) struct ExpandingFlags: u32 {
         const None = 0;
         const Source = 1;
         const Target = 1 << 1;
@@ -229,67 +229,67 @@ impl TypeChecker {
             .push(type_);
     }
 
-    pub(crate) fn globals(&self) -> RefMut<SymbolTable> {
+    pub(super) fn globals(&self) -> RefMut<SymbolTable> {
         self.globals.borrow_mut()
     }
 
-    pub(crate) fn string_literal_types(
+    pub(super) fn string_literal_types(
         &self,
     ) -> RefMut<HashMap<String, Rc</*NumberLiteralType*/ Type>>> {
         self.string_literal_types.borrow_mut()
     }
 
-    pub(crate) fn number_literal_types(
+    pub(super) fn number_literal_types(
         &self,
     ) -> RefMut<HashMap<Number, Rc</*NumberLiteralType*/ Type>>> {
         self.number_literal_types.borrow_mut()
     }
 
-    pub(crate) fn unknown_symbol(&self) -> Rc<Symbol> {
+    pub(super) fn unknown_symbol(&self) -> Rc<Symbol> {
         self.unknown_symbol.as_ref().unwrap().clone()
     }
 
-    pub(crate) fn number_type(&self) -> Rc<Type> {
+    pub(super) fn number_type(&self) -> Rc<Type> {
         self.number_type.as_ref().unwrap().clone()
     }
 
-    pub(crate) fn bigint_type(&self) -> Rc<Type> {
+    pub(super) fn bigint_type(&self) -> Rc<Type> {
         self.bigint_type.as_ref().unwrap().clone()
     }
 
-    pub(crate) fn true_type(&self) -> Rc<Type> {
+    pub(super) fn true_type(&self) -> Rc<Type> {
         self.true_type.as_ref().unwrap().clone()
     }
 
-    pub(crate) fn regular_true_type(&self) -> Rc<Type> {
+    pub(super) fn regular_true_type(&self) -> Rc<Type> {
         self.regular_true_type.as_ref().unwrap().clone()
     }
 
-    pub(crate) fn false_type(&self) -> Rc<Type> {
+    pub(super) fn false_type(&self) -> Rc<Type> {
         self.false_type.as_ref().unwrap().clone()
     }
 
-    pub(crate) fn regular_false_type(&self) -> Rc<Type> {
+    pub(super) fn regular_false_type(&self) -> Rc<Type> {
         self.regular_false_type.as_ref().unwrap().clone()
     }
 
-    pub(crate) fn boolean_type(&self) -> Rc<Type> {
+    pub(super) fn boolean_type(&self) -> Rc<Type> {
         self.boolean_type.as_ref().unwrap().clone()
     }
 
-    pub(crate) fn never_type(&self) -> Rc<Type> {
+    pub(super) fn never_type(&self) -> Rc<Type> {
         self.never_type.as_ref().unwrap().clone()
     }
 
-    pub(crate) fn number_or_big_int_type(&self) -> Rc<Type> {
+    pub(super) fn number_or_big_int_type(&self) -> Rc<Type> {
         self.number_or_big_int_type.as_ref().unwrap().clone()
     }
 
-    pub(crate) fn global_array_type(&self) -> Rc<Type> {
+    pub(super) fn global_array_type(&self) -> Rc<Type> {
         self.global_array_type.as_ref().unwrap().clone()
     }
 
-    pub(crate) fn diagnostics(&self) -> RefMut<DiagnosticCollection> {
+    pub(super) fn diagnostics(&self) -> RefMut<DiagnosticCollection> {
         self.diagnostics.borrow_mut()
     }
 }

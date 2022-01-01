@@ -37,7 +37,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(crate) fn type_could_have_top_level_singleton_types(&self, type_: &Type) -> bool {
+    pub(super) fn type_could_have_top_level_singleton_types(&self, type_: &Type) -> bool {
         if type_.flags().intersects(TypeFlags::Boolean) {
             return false;
         }
@@ -60,11 +60,11 @@ impl TypeChecker {
         self.is_unit_type(type_) || type_.flags().intersects(TypeFlags::TemplateLiteral)
     }
 
-    pub(crate) fn is_unit_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_unit_type(&self, type_: &Type) -> bool {
         type_.flags().intersects(TypeFlags::Unit)
     }
 
-    pub(crate) fn is_literal_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_literal_type(&self, type_: &Type) -> bool {
         if type_.flags().intersects(TypeFlags::Boolean) {
             true
         } else if type_.flags().intersects(TypeFlags::Union) {
@@ -80,7 +80,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_base_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_base_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::EnumLiteral) {
             unimplemented!()
         } else if type_.flags().intersects(TypeFlags::StringLiteral) {
@@ -103,7 +103,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_widened_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_widened_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::EnumLiteral) && self.is_fresh_literal_type(type_.clone()) {
             unimplemented!()
@@ -135,11 +135,11 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_widened_unique_es_symbol_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_widened_unique_es_symbol_type(&self, type_: Rc<Type>) -> Rc<Type> {
         type_
     }
 
-    pub(crate) fn get_widened_literal_like_type_for_contextual_type(
+    pub(super) fn get_widened_literal_like_type_for_contextual_type(
         &self,
         mut type_: Rc<Type>,
         contextual_type: Option<Rc<Type>>,
@@ -150,7 +150,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn get_optional_type(&self, type_: Rc<Type>, is_property: Option<bool>) -> Rc<Type> {
+    pub(super) fn get_optional_type(&self, type_: Rc<Type>, is_property: Option<bool>) -> Rc<Type> {
         let is_property = is_property.unwrap_or(false);
         Debug_.assert(self.strict_null_checks, None);
         if type_.flags().intersects(TypeFlags::Undefined) {
@@ -160,7 +160,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn remove_missing_type(&self, type_: Rc<Type>, is_optional: bool) -> Rc<Type> {
+    pub(super) fn remove_missing_type(&self, type_: Rc<Type>, is_optional: bool) -> Rc<Type> {
         if self.exact_optional_property_types && is_optional {
             unimplemented!()
         } else {
@@ -168,23 +168,23 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_regular_type_of_object_literal(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_regular_type_of_object_literal(&self, type_: Rc<Type>) -> Rc<Type> {
         type_
     }
 
-    pub(crate) fn get_widened_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_widened_type(&self, type_: Rc<Type>) -> Rc<Type> {
         self.get_widened_type_with_context(type_)
     }
 
-    pub(crate) fn get_widened_type_with_context(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_widened_type_with_context(&self, type_: Rc<Type>) -> Rc<Type> {
         type_
     }
 
-    pub(crate) fn is_object_literal_type(&self, type_: Rc<Type>) -> bool {
+    pub(super) fn is_object_literal_type(&self, type_: Rc<Type>) -> bool {
         get_object_flags(&*type_).intersects(ObjectFlags::ObjectLiteral)
     }
 
-    pub(crate) fn get_cannot_find_name_diagnostic_for_name(
+    pub(super) fn get_cannot_find_name_diagnostic_for_name(
         &self,
         node: &Node,
     ) -> DiagnosticMessage {
@@ -202,7 +202,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn filter_type(
+    pub(super) fn filter_type(
         &self,
         type_: Rc<Type>,
         f: fn(&TypeChecker, Rc<Type>) -> bool,
@@ -217,7 +217,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn map_type<TMapper: FnMut(Rc<Type>) -> Option<Rc<Type>>>(
+    pub(super) fn map_type<TMapper: FnMut(Rc<Type>) -> Option<Rc<Type>>>(
         &self,
         type_: Rc<Type>,
         mapper: &mut TMapper,
@@ -266,7 +266,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_constituent_count(&self, type_: Rc<Type>) -> usize {
+    pub(super) fn get_constituent_count(&self, type_: Rc<Type>) -> usize {
         if type_.flags().intersects(TypeFlags::Union) {
             type_.as_union_or_intersection_type().types().len()
         } else {

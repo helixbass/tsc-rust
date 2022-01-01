@@ -36,11 +36,11 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(crate) fn resolve_alias(&self, symbol: Rc<Symbol>) -> Rc<Symbol> {
+    pub(super) fn resolve_alias(&self, symbol: Rc<Symbol>) -> Rc<Symbol> {
         unimplemented!()
     }
 
-    pub(crate) fn resolve_entity_name(
+    pub(super) fn resolve_entity_name(
         &self,
         name: &Node, /*EntityNameOrEntityNameExpression*/
         meaning: SymbolFlags,
@@ -93,11 +93,11 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_merged_symbol(&self, symbol: Option<Rc<Symbol>>) -> Option<Rc<Symbol>> {
+    pub(super) fn get_merged_symbol(&self, symbol: Option<Rc<Symbol>>) -> Option<Rc<Symbol>> {
         symbol
     }
 
-    pub(crate) fn get_symbol_of_node<TNode: NodeInterface>(
+    pub(super) fn get_symbol_of_node<TNode: NodeInterface>(
         &self,
         node: &TNode,
     ) -> Option<Rc<Symbol>> {

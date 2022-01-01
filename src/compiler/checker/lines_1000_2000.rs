@@ -36,7 +36,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(crate) fn create_error<TNode: NodeInterface>(
+    pub(super) fn create_error<TNode: NodeInterface>(
         &self,
         location: Option<&TNode>,
         message: &DiagnosticMessage,
@@ -48,7 +48,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn error<TNode: NodeInterface>(
+    pub(super) fn error<TNode: NodeInterface>(
         &self,
         location: Option<&TNode>,
         message: &DiagnosticMessage,
@@ -58,7 +58,7 @@ impl TypeChecker {
         diagnostic
     }
 
-    pub(crate) fn error_and_maybe_suggest_await<TNode: NodeInterface>(
+    pub(super) fn error_and_maybe_suggest_await<TNode: NodeInterface>(
         &self,
         location: &TNode,
         message: &DiagnosticMessage,
@@ -67,12 +67,12 @@ impl TypeChecker {
         diagnostic
     }
 
-    pub(crate) fn create_symbol(&self, flags: SymbolFlags, name: __String) -> Symbol {
+    pub(super) fn create_symbol(&self, flags: SymbolFlags, name: __String) -> Symbol {
         let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
         symbol
     }
 
-    pub(crate) fn merge_symbol_table(
+    pub(super) fn merge_symbol_table(
         &self,
         target: &mut SymbolTable,
         source: &SymbolTable,
@@ -90,11 +90,11 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn is_global_source_file(&self, node: &Node) -> bool {
+    pub(super) fn is_global_source_file(&self, node: &Node) -> bool {
         node.kind() == SyntaxKind::SourceFile && true
     }
 
-    pub(crate) fn get_symbol(
+    pub(super) fn get_symbol(
         &self,
         symbols: &SymbolTable,
         name: &__String,
@@ -111,7 +111,7 @@ impl TypeChecker {
         None
     }
 
-    pub(crate) fn resolve_name<TLocation: NodeInterface, TNameArg: Into<ResolveNameNameArg>>(
+    pub(super) fn resolve_name<TLocation: NodeInterface, TNameArg: Into<ResolveNameNameArg>>(
         &self,
         location: Option<&TLocation>,
         name: &__String,
@@ -134,7 +134,7 @@ impl TypeChecker {
         )
     }
 
-    pub(crate) fn resolve_name_helper<
+    pub(super) fn resolve_name_helper<
         TLocation: NodeInterface,
         TNameArg: Into<ResolveNameNameArg>,
     >(
@@ -176,7 +176,7 @@ impl TypeChecker {
     }
 }
 
-pub(crate) enum ResolveNameNameArg {
+pub(super) enum ResolveNameNameArg {
     Node(Rc<Node>),
     __String(__String),
 }

@@ -36,7 +36,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(crate) fn check_arithmetic_operand_type(
+    pub(super) fn check_arithmetic_operand_type(
         &self,
         operand: /*&Node*/ &Expression,
         type_: Rc<Type>,
@@ -49,7 +49,7 @@ impl TypeChecker {
         true
     }
 
-    pub(crate) fn check_prefix_unary_expression(&self, node: &PrefixUnaryExpression) -> Rc<Type> {
+    pub(super) fn check_prefix_unary_expression(&self, node: &PrefixUnaryExpression) -> Rc<Type> {
         let operand_expression = match &*node.operand {
             Node::Expression(expression) => expression,
             _ => panic!("Expected Expression"),
@@ -66,11 +66,11 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_unary_result_type(&self, operand_type: &Type) -> Rc<Type> {
+    pub(super) fn get_unary_result_type(&self, operand_type: &Type) -> Rc<Type> {
         self.number_type()
     }
 
-    pub(crate) fn maybe_type_of_kind(&self, type_: &Type, kind: TypeFlags) -> bool {
+    pub(super) fn maybe_type_of_kind(&self, type_: &Type, kind: TypeFlags) -> bool {
         if type_.flags().intersects(kind) {
             return true;
         }
@@ -84,11 +84,11 @@ impl TypeChecker {
         false
     }
 
-    pub(crate) fn check_expression_cached(&mut self, node: &Expression) -> Rc<Type> {
+    pub(super) fn check_expression_cached(&mut self, node: &Expression) -> Rc<Type> {
         self.check_expression(node)
     }
 
-    pub(crate) fn is_literal_of_contextual_type(
+    pub(super) fn is_literal_of_contextual_type(
         &self,
         candidate_type: Rc<Type>,
         contextual_type: Option<Rc<Type>>,
@@ -128,7 +128,7 @@ impl TypeChecker {
         false
     }
 
-    pub(crate) fn check_expression_for_mutable_location(
+    pub(super) fn check_expression_for_mutable_location(
         &self,
         node: &Expression,
         contextual_type: Option<Rc<Type>>,
@@ -151,7 +151,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn check_property_assignment(&self, node: &PropertyAssignment) -> Rc<Type> {
+    pub(super) fn check_property_assignment(&self, node: &PropertyAssignment) -> Rc<Type> {
         self.check_expression_for_mutable_location(
             match &*node.initializer {
                 Node::Expression(expression) => expression,
@@ -161,11 +161,11 @@ impl TypeChecker {
         )
     }
 
-    pub(crate) fn check_expression(&self, node: &Expression) -> Rc<Type> {
+    pub(super) fn check_expression(&self, node: &Expression) -> Rc<Type> {
         self.check_expression_worker(node)
     }
 
-    pub(crate) fn check_expression_worker(&self, node: &Expression) -> Rc<Type> {
+    pub(super) fn check_expression_worker(&self, node: &Expression) -> Rc<Type> {
         match node {
             Expression::TokenExpression(token_expression) => match token_expression.kind() {
                 SyntaxKind::TrueKeyword => self.true_type(),
@@ -189,11 +189,11 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn check_property_declaration(&mut self, node: &PropertySignature) {
+    pub(super) fn check_property_declaration(&mut self, node: &PropertySignature) {
         self.check_variable_like_declaration(node);
     }
 
-    pub(crate) fn check_property_signature(&mut self, node: &PropertySignature) {
+    pub(super) fn check_property_signature(&mut self, node: &PropertySignature) {
         if is_private_identifier(&*node.name()) {
             self.error(
                 Some(node),
@@ -203,19 +203,19 @@ impl TypeChecker {
         self.check_property_declaration(node)
     }
 
-    pub(crate) fn check_type_reference_node(&mut self, node: &TypeReferenceNode) {
+    pub(super) fn check_type_reference_node(&mut self, node: &TypeReferenceNode) {
         let type_ = self.get_type_from_type_reference(node);
     }
 
-    pub(crate) fn check_array_type(&mut self, node: &ArrayTypeNode) {
+    pub(super) fn check_array_type(&mut self, node: &ArrayTypeNode) {
         self.check_source_element(Some(&*node.element_type));
     }
 
-    pub(crate) fn convert_auto_to_any(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn convert_auto_to_any(&self, type_: Rc<Type>) -> Rc<Type> {
         type_
     }
 
-    pub(crate) fn check_variable_like_declaration<TNode: VariableLikeDeclarationInterface>(
+    pub(super) fn check_variable_like_declaration<TNode: VariableLikeDeclarationInterface>(
         &mut self,
         node: &TNode,
     ) {
@@ -258,11 +258,11 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn check_variable_declaration(&mut self, node: &VariableDeclaration) {
+    pub(super) fn check_variable_declaration(&mut self, node: &VariableDeclaration) {
         self.check_variable_like_declaration(node);
     }
 
-    pub(crate) fn check_variable_statement(&mut self, node: &VariableStatement) {
+    pub(super) fn check_variable_statement(&mut self, node: &VariableStatement) {
         for_each(
             &match &*node.declaration_list {
                 Node::VariableDeclarationList(variable_declaration_list) => {
@@ -275,7 +275,7 @@ impl TypeChecker {
         );
     }
 
-    pub(crate) fn check_expression_statement(&mut self, node: &ExpressionStatement) {
+    pub(super) fn check_expression_statement(&mut self, node: &ExpressionStatement) {
         let expression = match &*node.expression {
             Node::Expression(expression) => expression,
             _ => panic!("Expected Expression"),
@@ -283,7 +283,7 @@ impl TypeChecker {
         self.check_expression(expression);
     }
 
-    pub(crate) fn check_interface_declaration(&mut self, node: &InterfaceDeclaration) {
+    pub(super) fn check_interface_declaration(&mut self, node: &InterfaceDeclaration) {
         for_each(&node.members, |member, _| {
             self.check_source_element(Some(&**member));
             Option::<()>::None

@@ -36,7 +36,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(crate) fn get_contextual_type_for_variable_like_declaration(
+    pub(super) fn get_contextual_type_for_variable_like_declaration(
         &self,
         declaration: &Node,
     ) -> Option<Rc<Type>> {
@@ -49,7 +49,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_contextual_type_for_initializer_expression<TNode: NodeInterface>(
+    pub(super) fn get_contextual_type_for_initializer_expression<TNode: NodeInterface>(
         &self,
         node: &TNode,
     ) -> Option<Rc<Type>> {
@@ -69,7 +69,7 @@ impl TypeChecker {
         None
     }
 
-    pub(crate) fn get_type_of_property_of_contextual_type(
+    pub(super) fn get_type_of_property_of_contextual_type(
         &self,
         type_: Rc<Type>,
         name: &__String,
@@ -100,7 +100,7 @@ impl TypeChecker {
         )
     }
 
-    pub(crate) fn get_contextual_type_for_object_literal_element(
+    pub(super) fn get_contextual_type_for_object_literal_element(
         &self,
         element: &PropertyAssignment,
     ) -> Option<Rc<Type>> {
@@ -131,7 +131,7 @@ impl TypeChecker {
         None
     }
 
-    pub(crate) fn get_apparent_type_of_contextual_type<TNode: NodeInterface>(
+    pub(super) fn get_apparent_type_of_contextual_type<TNode: NodeInterface>(
         &self,
         node: &TNode, /*Expression | MethodDeclaration*/
     ) -> Option<Rc<Type>> {
@@ -164,7 +164,7 @@ impl TypeChecker {
         None
     }
 
-    pub(crate) fn instantiate_contextual_type<TNode: NodeInterface>(
+    pub(super) fn instantiate_contextual_type<TNode: NodeInterface>(
         &self,
         contextual_type: Option<Rc<Type>>,
         node: &TNode,
@@ -175,7 +175,7 @@ impl TypeChecker {
         contextual_type
     }
 
-    pub(crate) fn get_contextual_type<TNode: NodeInterface>(
+    pub(super) fn get_contextual_type<TNode: NodeInterface>(
         &self,
         node: &TNode, /*Expression*/
     ) -> Option<Rc<Type>> {
@@ -191,7 +191,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn check_object_literal(&self, node: &ObjectLiteralExpression) -> Rc<Type> {
+    pub(super) fn check_object_literal(&self, node: &ObjectLiteralExpression) -> Rc<Type> {
         let mut properties_table = create_symbol_table();
         let mut properties_array: Vec<Rc<Symbol>> = vec![];
 
@@ -227,7 +227,7 @@ impl TypeChecker {
         create_object_literal_type()
     }
 
-    pub(crate) fn is_known_property(
+    pub(super) fn is_known_property(
         &self,
         target_type: Rc<Type>,
         name: &__String,
@@ -251,7 +251,7 @@ impl TypeChecker {
         false
     }
 
-    pub(crate) fn is_excess_property_check_target(&self, type_: Rc<Type>) -> bool {
+    pub(super) fn is_excess_property_check_target(&self, type_: Rc<Type>) -> bool {
         (type_.flags().intersects(TypeFlags::Object)
             && !(get_object_flags(&*type_)
                 .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)))

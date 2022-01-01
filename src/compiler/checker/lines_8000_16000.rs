@@ -37,7 +37,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(crate) fn get_name_of_symbol_as_written(
+    pub(super) fn get_name_of_symbol_as_written(
         &self,
         symbol: Rc<Symbol>,
         context: Option<&NodeBuilderContext>,
@@ -64,7 +64,7 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(crate) fn add_optionality(
+    pub(super) fn add_optionality(
         &self,
         type_: Rc<Type>,
         is_property: Option<bool>,
@@ -79,7 +79,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_type_for_variable_like_declaration(
+    pub(super) fn get_type_for_variable_like_declaration(
         &self,
         declaration: &Node,
     ) -> Option<Rc<Type>> {
@@ -94,7 +94,7 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(crate) fn get_widened_type_for_variable_like_declaration(
+    pub(super) fn get_widened_type_for_variable_like_declaration(
         &self,
         declaration: &Node,
     ) -> Rc<Type> {
@@ -104,7 +104,7 @@ impl TypeChecker {
         )
     }
 
-    pub(crate) fn widen_type_for_variable_like_declaration(
+    pub(super) fn widen_type_for_variable_like_declaration(
         &self,
         type_: Option<Rc<Type>>,
         declaration: &Node,
@@ -115,7 +115,7 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(crate) fn try_get_type_from_effective_type_node(
+    pub(super) fn try_get_type_from_effective_type_node(
         &self,
         declaration: &Node, /*Declaration*/
     ) -> Option<Rc<Type>> {
@@ -123,7 +123,7 @@ impl TypeChecker {
         type_node.map(|type_node| self.get_type_from_type_node(&*type_node))
     }
 
-    pub(crate) fn get_type_of_variable_or_parameter_or_property(
+    pub(super) fn get_type_of_variable_or_parameter_or_property(
         &self,
         symbol: &Symbol,
     ) -> Rc<Type> {
@@ -134,7 +134,7 @@ impl TypeChecker {
         // links.type.unwrap().clone()
     }
 
-    pub(crate) fn get_type_of_variable_or_parameter_or_property_worker(
+    pub(super) fn get_type_of_variable_or_parameter_or_property_worker(
         &self,
         symbol: &Symbol,
     ) -> Rc<Type> {
@@ -167,7 +167,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn get_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+    pub(super) fn get_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
         if symbol
             .flags()
             .intersects(SymbolFlags::Variable | SymbolFlags::Property)
@@ -177,14 +177,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(crate) fn get_non_missing_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {
+    pub(super) fn get_non_missing_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {
         self.remove_missing_type(
             self.get_type_of_symbol(&*symbol),
             symbol.flags().intersects(SymbolFlags::Optional),
         )
     }
 
-    pub(crate) fn get_declared_type_of_class_or_interface(
+    pub(super) fn get_declared_type_of_class_or_interface(
         &self,
         symbol: Rc<Symbol>,
     ) -> Rc<Type /*InterfaceType*/> {
@@ -199,12 +199,12 @@ impl TypeChecker {
         Rc::new(type_.into())
     }
 
-    pub(crate) fn get_declared_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {
+    pub(super) fn get_declared_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {
         self.try_get_declared_type_of_symbol(symbol)
             .unwrap_or_else(|| unimplemented!())
     }
 
-    pub(crate) fn try_get_declared_type_of_symbol(&self, symbol: Rc<Symbol>) -> Option<Rc<Type>> {
+    pub(super) fn try_get_declared_type_of_symbol(&self, symbol: Rc<Symbol>) -> Option<Rc<Type>> {
         if symbol
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
@@ -214,24 +214,24 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(crate) fn resolve_declared_members(&self, type_: Rc<Type /*InterfaceType*/>) -> Rc<Type> {
+    pub(super) fn resolve_declared_members(&self, type_: Rc<Type /*InterfaceType*/>) -> Rc<Type> {
         type_
     }
 
-    pub(crate) fn is_type_usable_as_property_name(&self, type_: Rc<Type>) -> bool {
+    pub(super) fn is_type_usable_as_property_name(&self, type_: Rc<Type>) -> bool {
         type_
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
     }
 
-    pub(crate) fn has_bindable_name<TNode: NodeInterface>(
+    pub(super) fn has_bindable_name<TNode: NodeInterface>(
         &self,
         node: &TNode, /*Declaration*/
     ) -> bool {
         !has_dynamic_name(node) || unimplemented!()
     }
 
-    pub(crate) fn get_property_name_from_type(
+    pub(super) fn get_property_name_from_type(
         &self,
         type_: Rc<Type /*StringLiteralType | NumberLiteralType | UniqueESSymbolType*/>,
     ) -> __String {
@@ -252,7 +252,7 @@ impl TypeChecker {
         Debug_.fail(None)
     }
 
-    pub(crate) fn get_members_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<RefCell<SymbolTable>> {
+    pub(super) fn get_members_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<RefCell<SymbolTable>> {
         if false {
             unimplemented!()
         } else {
@@ -260,7 +260,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn resolve_object_type_members(
+    pub(super) fn resolve_object_type_members(
         &self,
         type_: Rc<Type /*ObjectType*/>,
         source: Rc<Type /*InterfaceTypeWithDeclaredMembers*/>,
@@ -284,11 +284,11 @@ impl TypeChecker {
         );
     }
 
-    pub(crate) fn resolve_class_or_interface_members(&self, type_: Rc<Type /*InterfaceType*/>) {
+    pub(super) fn resolve_class_or_interface_members(&self, type_: Rc<Type /*InterfaceType*/>) {
         self.resolve_object_type_members(type_.clone(), self.resolve_declared_members(type_));
     }
 
-    pub(crate) fn resolve_structured_type_members(
+    pub(super) fn resolve_structured_type_members(
         &self,
         type_: Rc<Type /*StructuredType*/>,
     ) -> Rc<Type /*ResolvedType*/> {
@@ -313,7 +313,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn get_properties_of_object_type(&self, type_: Rc<Type>) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_properties_of_object_type(&self, type_: Rc<Type>) -> Vec<Rc<Symbol>> {
         if type_.flags().intersects(TypeFlags::Object) {
             return self
                 .resolve_structured_type_members(type_)
@@ -326,7 +326,7 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(crate) fn get_property_of_object_type(
+    pub(super) fn get_property_of_object_type(
         &self,
         type_: Rc<Type>,
         name: &__String,
@@ -346,7 +346,7 @@ impl TypeChecker {
         None
     }
 
-    pub(crate) fn get_properties_of_type(&self, type_: Rc<Type>) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_properties_of_type(&self, type_: Rc<Type>) -> Vec<Rc<Symbol>> {
         let type_ = self.get_reduced_apparent_type(type_);
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
             unimplemented!()
@@ -355,7 +355,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_apparent_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_apparent_type(&self, type_: Rc<Type>) -> Rc<Type> {
         let t = if type_.flags().intersects(TypeFlags::Instantiable) {
             unimplemented!()
         } else {
@@ -368,15 +368,15 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_reduced_apparent_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_reduced_apparent_type(&self, type_: Rc<Type>) -> Rc<Type> {
         self.get_reduced_type(self.get_apparent_type(self.get_reduced_type(type_)))
     }
 
-    pub(crate) fn get_reduced_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_reduced_type(&self, type_: Rc<Type>) -> Rc<Type> {
         type_
     }
 
-    pub(crate) fn get_property_of_type(
+    pub(super) fn get_property_of_type(
         &self,
         type_: Rc<Type>,
         name: &__String,
@@ -401,7 +401,7 @@ impl TypeChecker {
         None
     }
 
-    pub(crate) fn get_propagating_flags_of_types(
+    pub(super) fn get_propagating_flags_of_types(
         &self,
         types: &[Rc<Type>],
         exclude_kinds: TypeFlags,
@@ -415,7 +415,7 @@ impl TypeChecker {
         result & ObjectFlags::PropagatingFlags
     }
 
-    pub(crate) fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
+    pub(super) fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
         &self,
         node: &TNode,
         symbol: Rc<Symbol>,
@@ -428,7 +428,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_type_reference_name(
+    pub(super) fn get_type_reference_name(
         &self,
         node: &TypeReferenceNode,
     ) -> Option<Rc<Node /*EntityNameOrEntityNameExpression*/>> {
@@ -442,7 +442,7 @@ impl TypeChecker {
         None
     }
 
-    pub(crate) fn resolve_type_reference_name(
+    pub(super) fn resolve_type_reference_name(
         &self,
         type_reference: &TypeReferenceNode,
         meaning: SymbolFlags,
@@ -466,7 +466,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_type_reference_type<TNode: NodeInterface>(
+    pub(super) fn get_type_reference_type<TNode: NodeInterface>(
         &self,
         node: &TNode,
         symbol: Rc<Symbol>,
@@ -483,7 +483,7 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(crate) fn get_conditional_flow_type_of_type(
+    pub(super) fn get_conditional_flow_type_of_type(
         &self,
         type_: Rc<Type>,
         node: &Node,
@@ -491,7 +491,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn get_type_from_type_reference(&self, node: &TypeReferenceNode) -> Rc<Type> {
+    pub(super) fn get_type_from_type_reference(&self, node: &TypeReferenceNode) -> Rc<Type> {
         let mut symbol: Option<Rc<Symbol>> = None;
         let mut type_: Option<Rc<Type>> = None;
         let meaning = SymbolFlags::Type;
@@ -503,14 +503,14 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn get_type_of_global_symbol(
+    pub(super) fn get_type_of_global_symbol(
         &self,
         symbol: Option<Rc<Symbol>>,
     ) -> Rc<Type /*ObjectType*/> {
         unimplemented!()
     }
 
-    pub(crate) fn get_global_type_symbol(
+    pub(super) fn get_global_type_symbol(
         &self,
         name: &__String,
         report_errors: bool,
@@ -526,7 +526,7 @@ impl TypeChecker {
         )
     }
 
-    pub(crate) fn get_global_symbol(
+    pub(super) fn get_global_symbol(
         &self,
         name: &__String,
         meaning: SymbolFlags,
@@ -543,7 +543,7 @@ impl TypeChecker {
         )
     }
 
-    pub(crate) fn get_global_type(&self, name: &__String, report_errors: bool) -> Option<Rc<Type>> {
+    pub(super) fn get_global_type(&self, name: &__String, report_errors: bool) -> Option<Rc<Type>> {
         let symbol = self.get_global_type_symbol(name, report_errors);
         if true {
             Some(self.get_type_of_global_symbol(symbol))
@@ -552,7 +552,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_array_or_tuple_target_type(
+    pub(super) fn get_array_or_tuple_target_type(
         &self,
         node: &ArrayTypeNode,
     ) -> Rc<Type /*GenericType*/> {
@@ -563,7 +563,7 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(crate) fn get_type_from_array_or_tuple_type_node(&self, node: &ArrayTypeNode) -> Rc<Type> {
+    pub(super) fn get_type_from_array_or_tuple_type_node(&self, node: &ArrayTypeNode) -> Rc<Type> {
         let target = self.get_array_or_tuple_target_type(node);
         if false {
             unimplemented!()
@@ -575,7 +575,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn create_normalized_type_reference(
+    pub(super) fn create_normalized_type_reference(
         &self,
         target: Rc<Type /*GenericType*/>,
         type_arguments: Option<Vec<Rc<Type>>>,
@@ -583,7 +583,7 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(crate) fn add_type_to_union(
+    pub(super) fn add_type_to_union(
         &self,
         type_set: &mut Vec<Rc<Type>>,
         mut includes: TypeFlags,
@@ -607,7 +607,7 @@ impl TypeChecker {
         includes
     }
 
-    pub(crate) fn add_types_to_union(
+    pub(super) fn add_types_to_union(
         &self,
         type_set: &mut Vec<Rc<Type>>,
         mut includes: TypeFlags,
@@ -619,7 +619,7 @@ impl TypeChecker {
         includes
     }
 
-    pub(crate) fn get_union_type(
+    pub(super) fn get_union_type(
         &self,
         types: Vec<Rc<Type>>,
         union_reduction: Option<UnionReduction>,
@@ -646,7 +646,7 @@ impl TypeChecker {
         self.get_union_type_from_sorted_list(type_set, object_flags)
     }
 
-    pub(crate) fn get_union_type_from_sorted_list(
+    pub(super) fn get_union_type_from_sorted_list(
         &self,
         types: Vec<Rc<Type>>,
         object_flags: ObjectFlags,
@@ -677,7 +677,7 @@ impl TypeChecker {
         type_.unwrap()
     }
 
-    pub(crate) fn get_literal_type_from_property_name(
+    pub(super) fn get_literal_type_from_property_name(
         &self,
         name: &Node, /*PropertyName*/
     ) -> Rc<Type> {
@@ -688,7 +688,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_literal_type_from_property(
+    pub(super) fn get_literal_type_from_property(
         &self,
         prop: Rc<Symbol>,
         include: TypeFlags,
@@ -721,7 +721,7 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(crate) fn get_property_name_from_index(&self, index_type: Rc<Type>) -> Option<__String> {
+    pub(super) fn get_property_name_from_index(&self, index_type: Rc<Type>) -> Option<__String> {
         if self.is_type_usable_as_property_name(index_type.clone()) {
             Some(self.get_property_name_from_type(index_type))
         } else {
@@ -729,7 +729,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_property_type_for_index_type(
+    pub(super) fn get_property_type_for_index_type(
         &self,
         original_object_type: Rc<Type>,
         object_type: Rc<Type>,
@@ -755,7 +755,7 @@ impl TypeChecker {
         None
     }
 
-    pub(crate) fn get_indexed_access_type_or_undefined(
+    pub(super) fn get_indexed_access_type_or_undefined(
         &self,
         object_type: Rc<Type>,
         index_type: Rc<Type>,

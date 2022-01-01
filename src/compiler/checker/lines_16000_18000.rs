@@ -74,7 +74,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn get_fresh_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_fresh_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Literal) {
             match &*type_ {
                 Type::LiteralType(literal_type) => {
@@ -86,7 +86,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn is_fresh_literal_type(&self, type_: Rc<Type>) -> bool {
+    pub(super) fn is_fresh_literal_type(&self, type_: Rc<Type>) -> bool {
         if !type_.flags().intersects(TypeFlags::Literal) {
             return false;
         }
@@ -104,7 +104,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn get_string_literal_type(&self, value: &str) -> Rc<Type> {
+    pub(super) fn get_string_literal_type(&self, value: &str) -> Rc<Type> {
         let mut string_literal_types = self.string_literal_types();
         if string_literal_types.contains_key(value) {
             return string_literal_types.get(value).unwrap().clone();
@@ -115,7 +115,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn get_number_literal_type(&self, value: Number) -> Rc<Type> {
+    pub(super) fn get_number_literal_type(&self, value: Number) -> Rc<Type> {
         let mut number_literal_types = self.number_literal_types();
         if number_literal_types.contains_key(&value) {
             return number_literal_types.get(&value).unwrap().clone();
@@ -125,18 +125,18 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn get_array_element_type_node(
+    pub(super) fn get_array_element_type_node(
         &self,
         node: &ArrayTypeNode,
     ) -> Option<Rc<Node /*TypeNode*/>> {
         Some(node.element_type.clone())
     }
 
-    pub(crate) fn get_type_from_type_node(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
+    pub(super) fn get_type_from_type_node(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
         self.get_conditional_flow_type_of_type(self.get_type_from_type_node_worker(node), node)
     }
 
-    pub(crate) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
+    pub(super) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
         let node = match node {
             Node::TypeNode(type_node) => type_node,
             _ => panic!("Expected TypeNode"),
@@ -156,11 +156,11 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {
+    pub(super) fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {
         self.is_type_related_to(source, target, &self.assignable_relation)
     }
 
-    pub(crate) fn check_type_assignable_to_and_optionally_elaborate(
+    pub(super) fn check_type_assignable_to_and_optionally_elaborate(
         &self,
         source: Rc<Type>,
         target: Rc<Type>,
@@ -178,7 +178,7 @@ impl TypeChecker {
         )
     }
 
-    pub(crate) fn check_type_related_to_and_optionally_elaborate(
+    pub(super) fn check_type_related_to_and_optionally_elaborate(
         &self,
         source: Rc<Type>,
         target: Rc<Type>,
@@ -204,7 +204,7 @@ impl TypeChecker {
         false
     }
 
-    pub(crate) fn elaborate_error(
+    pub(super) fn elaborate_error(
         &self,
         node: Option<&Expression>,
         source: Rc<Type>,
@@ -230,7 +230,7 @@ impl TypeChecker {
         false
     }
 
-    pub(crate) fn get_best_match_indexed_access_type_or_undefined(
+    pub(super) fn get_best_match_indexed_access_type_or_undefined(
         &self,
         source: Rc<Type>,
         target: Rc<Type>,
@@ -246,7 +246,7 @@ impl TypeChecker {
         None
     }
 
-    pub(crate) fn check_expression_for_mutable_location_with_contextual_type(
+    pub(super) fn check_expression_for_mutable_location_with_contextual_type(
         &self,
         next: &Node, /*Expression*/
         source_prop_type: Rc<Type>,
@@ -260,7 +260,7 @@ impl TypeChecker {
         )
     }
 
-    pub(crate) fn elaborate_elementwise(
+    pub(super) fn elaborate_elementwise(
         &self,
         iterator: Vec<ElaborationIteratorItem>,
         source: Rc<Type>,
@@ -330,7 +330,7 @@ impl TypeChecker {
         reported_error
     }
 
-    pub(crate) fn generate_object_literal_elements(
+    pub(super) fn generate_object_literal_elements(
         &self,
         node: &ObjectLiteralExpression,
         // ) -> impl Iterator<Item = ElaborationIteratorItem> {
@@ -364,7 +364,7 @@ impl TypeChecker {
             .collect()
     }
 
-    pub(crate) fn elaborate_object_literal(
+    pub(super) fn elaborate_object_literal(
         &self,
         node: &ObjectLiteralExpression,
         source: Rc<Type>,
@@ -382,7 +382,7 @@ impl TypeChecker {
         )
     }
 
-    pub(crate) fn is_simple_type_related_to(
+    pub(super) fn is_simple_type_related_to(
         &self,
         source: &Type,
         target: &Type,
@@ -397,7 +397,7 @@ impl TypeChecker {
         false
     }
 
-    pub(crate) fn is_type_related_to(
+    pub(super) fn is_type_related_to(
         &self,
         mut source: Rc<Type>,
         target: Rc<Type>,
@@ -434,7 +434,7 @@ impl TypeChecker {
         false
     }
 
-    pub(crate) fn get_normalized_type(&self, mut type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_normalized_type(&self, mut type_: Rc<Type>) -> Rc<Type> {
         loop {
             let t: Rc<Type> = if self.is_fresh_literal_type(type_.clone()) {
                 match &*type_ {
@@ -458,7 +458,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn check_type_related_to(
+    pub(super) fn check_type_related_to(
         &self,
         source: Rc<Type>,
         target: Rc<Type>,
@@ -471,7 +471,7 @@ impl TypeChecker {
 }
 
 #[derive(Debug)]
-pub(crate) struct ElaborationIteratorItem {
+pub(super) struct ElaborationIteratorItem {
     pub error_node: Rc<Node>,
     pub inner_expression: Option<Rc<Node /*Expression*/>>,
     name_type: Rc<Type>,

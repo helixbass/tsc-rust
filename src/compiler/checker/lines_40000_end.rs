@@ -36,14 +36,14 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(crate) fn check_source_element<TNodeRef: Borrow<Node>>(&mut self, node: Option<TNodeRef>) {
+    pub(super) fn check_source_element<TNodeRef: Borrow<Node>>(&mut self, node: Option<TNodeRef>) {
         if let Some(node) = node {
             let node = node.borrow();
             self.check_source_element_worker(node);
         }
     }
 
-    pub(crate) fn check_source_element_worker(&mut self, node: &Node) {
+    pub(super) fn check_source_element_worker(&mut self, node: &Node) {
         match node {
             Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
                 self.check_property_signature(property_signature)
@@ -71,11 +71,11 @@ impl TypeChecker {
         };
     }
 
-    pub(crate) fn check_source_file(&mut self, source_file: &SourceFile) {
+    pub(super) fn check_source_file(&mut self, source_file: &SourceFile) {
         self.check_source_file_worker(source_file)
     }
 
-    pub(crate) fn check_source_file_worker(&mut self, node: &SourceFile) {
+    pub(super) fn check_source_file_worker(&mut self, node: &SourceFile) {
         if true {
             for_each(&node.statements, |statement, _index| {
                 self.check_source_element(Some(&**statement));
@@ -88,7 +88,7 @@ impl TypeChecker {
         self.get_diagnostics_worker(source_file)
     }
 
-    pub(crate) fn get_diagnostics_worker(
+    pub(super) fn get_diagnostics_worker(
         &mut self,
         source_file: &SourceFile,
     ) -> Vec<Rc<Diagnostic>> {
@@ -99,7 +99,7 @@ impl TypeChecker {
         semantic_diagnostics
     }
 
-    pub(crate) fn initialize_type_checker<TTypeCheckerHost: TypeCheckerHost>(
+    pub(super) fn initialize_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         &mut self,
         host: &TTypeCheckerHost,
     ) {
@@ -120,7 +120,7 @@ impl TypeChecker {
         // self.global_array_type = self.get_global_type(__String::new("Array".to_string()));
     }
 
-    pub(crate) fn check_grammar_numeric_literal(&self, node: &NumericLiteral) -> bool {
+    pub(super) fn check_grammar_numeric_literal(&self, node: &NumericLiteral) -> bool {
         false
     }
 }

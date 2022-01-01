@@ -36,16 +36,16 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(crate) fn symbol_is_value(&self, symbol: Rc<Symbol>) -> bool {
+    pub(super) fn symbol_is_value(&self, symbol: Rc<Symbol>) -> bool {
         symbol.flags().intersects(SymbolFlags::Value)
     }
 
-    pub(crate) fn create_type(&self, flags: TypeFlags) -> BaseType {
+    pub(super) fn create_type(&self, flags: TypeFlags) -> BaseType {
         let result = (self.Type)(flags);
         result
     }
 
-    pub(crate) fn create_intrinsic_type(
+    pub(super) fn create_intrinsic_type(
         &self,
         kind: TypeFlags,
         intrinsic_name: &str,
@@ -55,7 +55,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn create_object_type(
+    pub(super) fn create_object_type(
         &self,
         object_flags: ObjectFlags,
         symbol: Rc<Symbol>,
@@ -66,7 +66,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn is_reserved_member_name(&self, name: &__String) -> bool {
+    pub(super) fn is_reserved_member_name(&self, name: &__String) -> bool {
         let mut chars = name.chars();
         let mut current_char: Option<char> = chars.next();
         if let Some(current_char) = current_char {
@@ -98,7 +98,7 @@ impl TypeChecker {
         true
     }
 
-    pub(crate) fn get_named_members(&self, members: &SymbolTable) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_named_members(&self, members: &SymbolTable) -> Vec<Rc<Symbol>> {
         members
             .iter()
             .filter(|(id, symbol)| self.is_named_member((*symbol).clone(), id))
@@ -106,11 +106,11 @@ impl TypeChecker {
             .collect()
     }
 
-    pub(crate) fn is_named_member(&self, member: Rc<Symbol>, escaped_name: &__String) -> bool {
+    pub(super) fn is_named_member(&self, member: Rc<Symbol>, escaped_name: &__String) -> bool {
         !self.is_reserved_member_name(escaped_name) && self.symbol_is_value(member)
     }
 
-    pub(crate) fn set_structured_type_members<
+    pub(super) fn set_structured_type_members<
         TType: ResolvableTypeInterface + ResolvedTypeInterface,
     >(
         &self,
@@ -125,7 +125,7 @@ impl TypeChecker {
         // type_
     }
 
-    pub(crate) fn create_anonymous_type(
+    pub(super) fn create_anonymous_type(
         &self,
         symbol: Rc<Symbol>,
         members: Rc<RefCell<SymbolTable>>,
@@ -135,7 +135,7 @@ impl TypeChecker {
         type_
     }
 
-    pub(crate) fn symbol_to_string(
+    pub(super) fn symbol_to_string(
         &self,
         symbol: Rc<Symbol>,
         enclosing_declaration: Option<&Node>,
@@ -180,7 +180,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn type_to_string(&self, type_: Rc<Type>) -> String {
+    pub(super) fn type_to_string(&self, type_: Rc<Type>) -> String {
         let writer = Rc::new(RefCell::new(create_text_writer("")));
         let type_node =
             self.node_builder
@@ -203,7 +203,7 @@ impl TypeChecker {
         result
     }
 
-    pub(crate) fn get_type_names_for_error_display(
+    pub(super) fn get_type_names_for_error_display(
         &self,
         left: Rc<Type>,
         right: Rc<Type>,
@@ -221,12 +221,12 @@ impl TypeChecker {
         (left_str, right_str)
     }
 
-    pub(crate) fn get_type_name_for_error_display(&self, type_: Rc<Type>) -> String {
+    pub(super) fn get_type_name_for_error_display(&self, type_: Rc<Type>) -> String {
         self.type_to_string(type_)
     }
 }
 
-pub(crate) fn create_node_builder() -> NodeBuilder {
+pub(super) fn create_node_builder() -> NodeBuilder {
     NodeBuilder::new()
 }
 
