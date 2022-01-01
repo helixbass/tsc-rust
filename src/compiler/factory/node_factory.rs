@@ -8,8 +8,8 @@ use crate::{
     Identifier, InterfaceDeclaration, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
     PrefixUnaryExpression, PropertyAssignment, PropertySignature, SourceFile, SyntaxKind,
-    TypeLiteralNode, TypeReferenceNode, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    TypeLiteralNode, TypeParameterDeclaration, TypeReferenceNode, VariableDeclaration,
+    VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -167,6 +167,17 @@ impl NodeFactory {
         base_factory: &TBaseNodeFactory,
     ) -> BaseNode {
         self.create_token(base_factory, SyntaxKind::FalseKeyword)
+    }
+
+    pub fn create_type_parameter_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Rc<Node>,
+    ) -> TypeParameterDeclaration {
+        let node =
+            self.create_base_named_declaration(base_factory, SyntaxKind::TypeParameter, Some(name));
+        let node = TypeParameterDeclaration::new(node);
+        node
     }
 
     pub fn create_property_signature<TBaseNodeFactory: BaseNodeFactory>(

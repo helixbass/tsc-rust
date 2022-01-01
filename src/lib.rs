@@ -57,9 +57,10 @@ pub use compiler::types::{
     ResolvedTypeInterface, SourceFile, Statement, StringLiteralType, StructureIsReused, Symbol,
     SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, Ternary,
     TextSpan, TokenFlags, Type, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags,
-    TypeInterface, TypeLiteralNode, TypeNode, TypeReferenceNode, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, UnionReduction, UnionType, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, __String,
+    TypeInterface, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypeReferenceNode,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
+    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, __String,
 };
 pub use compiler::utilities::{
     chain_diagnostic_messages, create_detached_diagnostic, create_diagnostic_collection,

@@ -53,14 +53,17 @@ pub enum SyntaxKind {
     PrivateIdentifier,
     BreakKeyword,
     ConstKeyword,
+    ExtendsKeyword,
     FalseKeyword,
     TrueKeyword,
     WithKeyword,
+    ImplementsKeyword,
     InterfaceKeyword,
     BooleanKeyword,
     NumberKeyword,
     OfKeyword,
     QualifiedName,
+    TypeParameter,
     PropertySignature,
     PropertyDeclaration,
     TypeReference,
@@ -132,6 +135,7 @@ pub trait NodeInterface: ReadonlyTextRange {
 #[ast_type(impl_from = false)]
 pub enum Node {
     BaseNode(BaseNode),
+    TypeParameterDeclaration(TypeParameterDeclaration),
     VariableDeclaration(VariableDeclaration),
     VariableDeclarationList(VariableDeclarationList),
     TypeNode(TypeNode),
@@ -151,6 +155,9 @@ impl Node {
 
     pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
         match self {
+            Node::TypeParameterDeclaration(type_parameter_declaration) => {
+                type_parameter_declaration
+            }
             Node::VariableDeclaration(variable_declaration) => variable_declaration,
             Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
                 interface_declaration
@@ -530,6 +537,20 @@ impl HasTypeInterface for BaseVariableLikeDeclaration {
 }
 
 impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
+pub struct TypeParameterDeclaration {
+    _named_declaration: BaseNamedDeclaration,
+}
+
+impl TypeParameterDeclaration {
+    pub fn new(base_named_declaration: BaseNamedDeclaration) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+        }
+    }
+}
 
 #[derive(Debug)]
 #[ast_type(

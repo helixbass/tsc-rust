@@ -16,7 +16,8 @@ use crate::{
     KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
     PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable,
-    SyntaxKind, TypeElement, TypeNode, VariableDeclaration, VariableDeclarationList,
+    SyntaxKind, TypeElement, TypeNode, TypeParameterDeclaration, VariableDeclaration,
+    VariableDeclarationList,
 };
 
 #[derive(Eq, PartialEq)]
@@ -689,6 +690,7 @@ impl ParserType {
             ParsingContext::VariableDeclarations => {
                 self.is_binding_identifier_or_private_identifier_or_pattern()
             }
+            ParsingContext::TypeParameters => self.is_identifier(),
             ParsingContext::ArrayLiteralMembers => {
                 self.token() == SyntaxKind::CommaToken
                     || self.token() == SyntaxKind::DotToken
@@ -708,6 +710,13 @@ impl ParserType {
                 self.token() == SyntaxKind::CloseBraceToken
             }
             ParsingContext::VariableDeclarations => self.is_variable_declarator_list_terminator(),
+            ParsingContext::TypeParameters => {
+                self.token() == SyntaxKind::GreaterThanToken
+                    || self.token() == SyntaxKind::OpenParenToken
+                    || self.token() == SyntaxKind::OpenBraceToken
+                    || self.token() == SyntaxKind::ExtendsKeyword
+                    || self.token() == SyntaxKind::ImplementsKeyword
+            }
             ParsingContext::ArrayLiteralMembers => self.token() == SyntaxKind::CloseBracketToken,
             _ => false,
         }
@@ -750,6 +759,22 @@ impl ParserType {
 
         self.set_parsing_context(save_parsing_context);
         self.create_node_array(list)
+    }
+
+    fn parse_bracketed_list<TItem: Into<Node>>(
+        &mut self,
+        kind: ParsingContext,
+        parse_element: fn(&mut ParserType) -> TItem,
+        open: SyntaxKind,
+        close: SyntaxKind,
+    ) -> NodeArray {
+        if self.parse_expected(open, None) {
+            let result = self.parse_delimited_list(kind, parse_element, None);
+            self.parse_expected(close, None);
+            return result;
+        }
+
+        unimplemented!()
     }
 
     fn parse_entity_name(
@@ -832,6 +857,28 @@ impl ParserType {
             pos,
             None,
         )
+    }
+
+    fn parse_type_parameter(&mut self) -> TypeParameterDeclaration {
+        let pos = self.get_node_pos();
+        let name = self.parse_identifier(None);
+
+        let node = self
+            .factory
+            .create_type_parameter_declaration(self, name.into());
+        self.finish_node(node, pos, None)
+    }
+
+    fn parse_type_parameters(&mut self) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
+        if self.token() == SyntaxKind::LessThanToken {
+            return Some(self.parse_bracketed_list(
+                ParsingContext::TypeParameters,
+                ParserType::parse_type_parameter,
+                SyntaxKind::LessThanToken,
+                SyntaxKind::GreaterThanToken,
+            ));
+        }
+        None
     }
 
     fn parse_type_member_semicolon(&mut self) {
@@ -1398,6 +1445,7 @@ impl ParserType {
     fn parse_interface_declaration(&mut self, pos: isize) -> InterfaceDeclaration {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None);
         let name = self.parse_identifier(None);
+        let type_parameters = self.parse_type_parameters();
         let members = self.parse_object_type_members();
         let node = self
             .factory
@@ -1444,5 +1492,6 @@ bitflags! {
         const VariableDeclarations = 1 << 8;
         const ObjectLiteralMembers = 1 << 12;
         const ArrayLiteralMembers = 1 << 15;
+        const TypeParameters = 1 << 19;
     }
 }
