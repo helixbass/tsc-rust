@@ -1047,6 +1047,8 @@ pub enum UnionReduction {
 pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
     fn write_punctuation(&mut self, text: &str);
+    fn write_space(&mut self, text: &str);
+    fn write_property(&mut self, text: &str);
     fn write_symbol(&mut self, text: &str, symbol: &Symbol);
     fn clear(&mut self);
 }
@@ -2958,10 +2960,17 @@ bitflags! {
 
         const SingleLine = 0;
 
+        const BarDelimited = 1 << 2;
+        const AmpersandDelimited = 1 << 3;
+        const CommaDelimited = 1 << 4;
+        const AsteriskDelimited = 1 << 5;
+        const DelimitersMask = Self::BarDelimited.bits | Self::AmpersandDelimited.bits | Self::CommaDelimited.bits | Self::AsteriskDelimited.bits;
+
         const SpaceBetweenBraces = 1 << 8;
         const SpaceBetweenSiblings = 1 << 9;
 
         const NoSpaceIfEmpty = 1 << 19;
+        const SpaceAfterList = 1 << 21;
 
         const SingleLineTypeLiteralMembers = Self::SingleLine.bits | Self::SpaceBetweenBraces.bits | Self::SpaceBetweenSiblings.bits;
     }

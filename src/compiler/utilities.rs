@@ -69,6 +69,14 @@ impl SymbolWriter for SingleLineStringWriter {
         self.write_text(s);
     }
 
+    fn write_space(&mut self, s: &str) {
+        self.write_text(s);
+    }
+
+    fn write_property(&mut self, s: &str) {
+        self.write_text(s);
+    }
+
     fn write_symbol(&mut self, s: &str, _: &Symbol) {
         self.write_text(s);
     }
@@ -413,6 +421,14 @@ impl SymbolWriter for TextWriter {
     }
 
     fn write_punctuation(&mut self, s: &str) {
+        self.write(s);
+    }
+
+    fn write_space(&mut self, s: &str) {
+        self.write(s);
+    }
+
+    fn write_property(&mut self, s: &str) {
         self.write(s);
     }
 

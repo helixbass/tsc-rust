@@ -1,10 +1,12 @@
+use std::borrow::Borrow;
 use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
 
 use crate::{
     id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_, EmitHint,
-    EmitTextWriter, Expression, Identifier, ListFormat, LiteralTypeNode, Node, NodeArray,
-    NodeInterface, Printer, PrinterOptions, SourceFile, Symbol, TypeLiteralNode, TypeNode,
+    EmitTextWriter, Expression, HasTypeInterface, Identifier, ListFormat, LiteralTypeNode,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, PrinterOptions,
+    PropertySignature, SourceFile, Symbol, TypeElement, TypeLiteralNode, TypeNode,
     TypeReferenceNode,
 };
 
@@ -126,6 +128,9 @@ impl Printer {
                 Node::Expression(Expression::Identifier(identifier)) => {
                     return self.emit_identifier(identifier)
                 }
+                Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
+                    return self.emit_property_signature(property_signature)
+                }
                 Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
                     return self.emit_type_reference(type_reference_node)
                 }
@@ -158,6 +163,15 @@ impl Printer {
         }
     }
 
+    fn emit_property_signature(&self, node: &PropertySignature) {
+        self.emit_node_with_writer(Some(&*node.name()), Printer::write_property);
+        self.emit_type_annotation(node.type_());
+    }
+
+    fn emit_type_reference(&self, node: &TypeReferenceNode) {
+        self.emit(Some(&*node.type_name));
+    }
+
     fn emit_type_literal(&self, node: &TypeLiteralNode) {
         self.write_punctuation("{");
         let flags = if true {
@@ -173,12 +187,38 @@ impl Printer {
         self.write_punctuation("}");
     }
 
-    fn emit_type_reference(&self, node: &TypeReferenceNode) {
-        self.emit(Some(&*node.type_name));
-    }
-
     fn emit_literal_type(&self, node: &LiteralTypeNode) {
         self.emit_expression(&*node.literal);
+    }
+
+    fn emit_node_with_writer(&self, node: Option<&Node>, writer: fn(&Printer, &str)) {
+        if node.is_none() {
+            return;
+        }
+        let node = node.unwrap();
+        let saved_write = self.write;
+        self.write = writer;
+        self.emit(Some(node));
+        self.write = saved_write;
+    }
+
+    fn emit_type_annotation<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef /*TypeNode*/>) {
+        if let Some(node) = node {
+            let node = node.borrow();
+            self.write_punctuation(":");
+            self.write_space();
+            self.emit(Some(node));
+        }
+    }
+
+    fn write_delimiter(&self, format: ListFormat) {
+        match format & ListFormat::DelimitersMask {
+            ListFormat::None => (),
+            ListFormat::CommaDelimited => {
+                self.write_punctuation(",");
+            }
+            _ => unimplemented!(),
+        }
     }
 
     fn emit_list<TNode: NodeInterface>(
@@ -217,8 +257,34 @@ impl Printer {
                 self.write_space();
             }
 
+            let mut previous_sibling: Option<Rc<Node>> = None;
             let children_iter = children.iter();
-            for child in children_iter.take(start) {}
+            for child in children_iter.skip(start) {
+                if false {
+                    unimplemented!()
+                } else if let Some(previous_sibling) = previous_sibling.as_ref() {
+                    self.write_delimiter(format);
+                }
+
+                if false {
+                    unimplemented!()
+                } else if previous_sibling.is_some()
+                    && format.intersects(ListFormat::SpaceBetweenSiblings)
+                {
+                    self.write_space();
+                }
+
+                emit(self, Some(&**child));
+
+                previous_sibling = Some(child.clone());
+            }
+
+            if false {
+                unimplemented!()
+            } else if format.intersects(ListFormat::SpaceAfterList | ListFormat::SpaceBetweenBraces)
+            {
+                self.write_space();
+            }
         }
     }
 
@@ -236,6 +302,14 @@ impl Printer {
 
     fn write_keyword(&self, s: &str) {
         self.writer_().write_keyword(s);
+    }
+
+    fn write_space(&self) {
+        self.writer_().write_space(" ");
+    }
+
+    fn write_property(&self, s: &str) {
+        self.writer_().write_property(s);
     }
 
     fn write_token_node<TNode: NodeInterface>(&self, node: &TNode, writer: fn(&Printer, &str)) {
