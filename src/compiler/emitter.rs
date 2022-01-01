@@ -56,7 +56,7 @@ impl Printer {
     }
 
     fn print<TNode: NodeInterface>(
-        &self,
+        &mut self,
         hint: EmitHint,
         node: &TNode,
         source_file: Option<Rc<SourceFile>>,
@@ -76,7 +76,7 @@ impl Printer {
         self.set_writer(None);
     }
 
-    fn emit(&self, node: Option<&Node>) {
+    fn emit(&mut self, node: Option<&Node>) {
         if node.is_none() {
             return;
         }
@@ -84,11 +84,11 @@ impl Printer {
         self.pipeline_emit(EmitHint::Unspecified, node);
     }
 
-    fn emit_expression<TNode: NodeInterface>(&self, node: &TNode /*Expression*/) {
+    fn emit_expression<TNode: NodeInterface>(&mut self, node: &TNode /*Expression*/) {
         self.pipeline_emit(EmitHint::Expression, node);
     }
 
-    fn pipeline_emit<TNode: NodeInterface>(&self, emit_hint: EmitHint, node: &TNode) {
+    fn pipeline_emit<TNode: NodeInterface>(&mut self, emit_hint: EmitHint, node: &TNode) {
         let pipeline_phase = self.get_pipeline_phase(PipelinePhase::Notification, emit_hint, node);
         pipeline_phase(self, emit_hint, node);
     }
@@ -98,7 +98,7 @@ impl Printer {
         phase: PipelinePhase,
         emit_hint: EmitHint,
         node: &TNode,
-    ) -> fn(&Printer, EmitHint, &TNode) {
+    ) -> fn(&mut Printer, EmitHint, &TNode) {
         if phase == PipelinePhase::Notification {
             if false {
                 unimplemented!()
@@ -110,7 +110,7 @@ impl Printer {
         Debug_.assert_never(phase, None);
     }
 
-    fn pipeline_emit_with_hint<TNode: NodeInterface>(&self, hint: EmitHint, node: &TNode) {
+    fn pipeline_emit_with_hint<TNode: NodeInterface>(&mut self, hint: EmitHint, node: &TNode) {
         if false {
             unimplemented!()
         } else {
@@ -119,7 +119,7 @@ impl Printer {
     }
 
     fn pipeline_emit_with_hint_worker<TNode: NodeInterface>(
-        &self,
+        &mut self,
         mut hint: EmitHint,
         node: &TNode,
     ) {
@@ -163,16 +163,17 @@ impl Printer {
         }
     }
 
-    fn emit_property_signature(&self, node: &PropertySignature) {
+    fn emit_property_signature(&mut self, node: &PropertySignature) {
         self.emit_node_with_writer(Some(&*node.name()), Printer::write_property);
         self.emit_type_annotation(node.type_());
+        self.write_trailing_semicolon();
     }
 
-    fn emit_type_reference(&self, node: &TypeReferenceNode) {
+    fn emit_type_reference(&mut self, node: &TypeReferenceNode) {
         self.emit(Some(&*node.type_name));
     }
 
-    fn emit_type_literal(&self, node: &TypeLiteralNode) {
+    fn emit_type_literal(&mut self, node: &TypeLiteralNode) {
         self.write_punctuation("{");
         let flags = if true {
             ListFormat::SingleLineTypeLiteralMembers
@@ -187,11 +188,11 @@ impl Printer {
         self.write_punctuation("}");
     }
 
-    fn emit_literal_type(&self, node: &LiteralTypeNode) {
+    fn emit_literal_type(&mut self, node: &LiteralTypeNode) {
         self.emit_expression(&*node.literal);
     }
 
-    fn emit_node_with_writer(&self, node: Option<&Node>, writer: fn(&Printer, &str)) {
+    fn emit_node_with_writer(&mut self, node: Option<&Node>, writer: fn(&Printer, &str)) {
         if node.is_none() {
             return;
         }
@@ -202,7 +203,10 @@ impl Printer {
         self.write = saved_write;
     }
 
-    fn emit_type_annotation<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef /*TypeNode*/>) {
+    fn emit_type_annotation<TNodeRef: Borrow<Node>>(
+        &mut self,
+        node: Option<TNodeRef /*TypeNode*/>,
+    ) {
         if let Some(node) = node {
             let node = node.borrow();
             self.write_punctuation(":");
@@ -222,7 +226,7 @@ impl Printer {
     }
 
     fn emit_list<TNode: NodeInterface>(
-        &self,
+        &mut self,
         parent_node: Option<&TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
@@ -231,8 +235,8 @@ impl Printer {
     }
 
     fn emit_node_list<TNode: NodeInterface>(
-        &self,
-        emit: fn(&Printer, Option<&Node>),
+        &mut self,
+        emit: fn(&mut Printer, Option<&Node>),
         parent_node: Option<&TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
@@ -298,6 +302,10 @@ impl Printer {
 
     fn write_punctuation(&self, s: &str) {
         self.writer_().write_punctuation(s);
+    }
+
+    fn write_trailing_semicolon(&self) {
+        self.writer_().write_trailing_semicolon(";");
     }
 
     fn write_keyword(&self, s: &str) {

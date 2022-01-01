@@ -55,6 +55,10 @@ impl EmitTextWriter for SingleLineStringWriter {
         self.write_text(text);
     }
 
+    fn write_trailing_semicolon(&mut self, text: &str) {
+        self.write_text(text);
+    }
+
     fn get_text(&self) -> String {
         self.str.clone()
     }
@@ -408,6 +412,10 @@ impl TextWriter {
 impl EmitTextWriter for TextWriter {
     fn write(&mut self, s: &str) {
         self.write_text(s);
+    }
+
+    fn write_trailing_semicolon(&mut self, text: &str) {
+        self.write(text);
     }
 
     fn get_text(&self) -> String {

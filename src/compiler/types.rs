@@ -2938,6 +2938,7 @@ pub struct PrinterOptions {}
 
 pub trait EmitTextWriter: SymbolWriter {
     fn write(&mut self, s: &str);
+    fn write_trailing_semicolon(&mut self, text: &str);
     fn get_text(&self) -> String;
 }
 
