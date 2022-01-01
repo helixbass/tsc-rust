@@ -2482,10 +2482,9 @@ impl NodeBuilder {
         tracker: Option<&dyn SymbolTracker>,
         cb: TCallback,
     ) -> Option<TReturn> {
-        let default_tracker: Option<DefaultNodeBuilderContextSymbolTracker> = if tracker.is_some() {
-            None
-        } else {
-            Some(DefaultNodeBuilderContextSymbolTracker::new())
+        let default_tracker: Option<DefaultNodeBuilderContextSymbolTracker> = match tracker {
+            Some(_) => None,
+            None => Some(DefaultNodeBuilderContextSymbolTracker::new()),
         };
         let context =
             NodeBuilderContext::new(tracker.unwrap_or_else(|| default_tracker.as_ref().unwrap()));
