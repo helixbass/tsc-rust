@@ -12,12 +12,12 @@ use crate::{
     set_text_range_pos_end, token_is_identifier_or_keyword, ArrayLiteralExpression, BaseNode,
     BaseNodeFactory, BinaryExpression, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
-    HasExpressionInitializerInterface, HasTypeInterface, Identifier, InterfaceDeclaration,
-    KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
-    PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable,
-    SyntaxKind, TypeElement, TypeNode, TypeParameterDeclaration, VariableDeclaration,
-    VariableDeclarationList,
+    HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
+    InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression,
+    OperatorPrecedence, PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement,
+    Symbol, SymbolTable, SyntaxKind, TypeElement, TypeNode, TypeParameterDeclaration,
+    VariableDeclaration, VariableDeclarationList,
 };
 
 #[derive(Eq, PartialEq)]
@@ -35,27 +35,29 @@ fn visit_node<TNodeRef: Borrow<Node>, TNodeCallback: FnMut(Option<TNodeRef>)>(
 }
 
 fn visit_nodes<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: FnMut(&NodeArray)>(
-    cb_node: TNodeCallback,
-    mut cb_nodes: TNodesCallback,
-    nodes: &NodeArray,
+    cb_node: &mut TNodeCallback,
+    cb_nodes: &mut TNodesCallback,
+    nodes: Option<&NodeArray>,
 ) {
-    if true {
+    if let Some(nodes) = nodes {
         if true {
             return cb_nodes(nodes);
         }
     }
-    unimplemented!()
 }
 
 pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: FnMut(&NodeArray)>(
     node: &Node,
     mut cb_node: TNodeCallback,
-    cb_nodes: TNodesCallback,
+    mut cb_nodes: TNodesCallback,
 ) {
     if node.kind() <= SyntaxKind::LastToken {
         return;
     }
     match node {
+        Node::TypeParameterDeclaration(type_parameter_declaration) => {
+            visit_node(&mut cb_node, Some(type_parameter_declaration.name()))
+        }
         Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
             visit_node(&mut cb_node, Some(property_signature.name()));
             visit_node(&mut cb_node, property_signature.type_())
@@ -70,19 +72,28 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             visit_node(&mut cb_node, variable_declaration.initializer())
         }
         Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
-            visit_node(&mut cb_node, Some(type_reference_node.type_name.clone()))
+            visit_node(&mut cb_node, Some(type_reference_node.type_name.clone()));
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                type_reference_node.type_arguments.as_ref(),
+            )
         }
         Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
             visit_node(&mut cb_node, Some(array_type.element_type.clone()))
         }
         Node::Expression(Expression::ArrayLiteralExpression(array_literal_expression)) => {
-            visit_nodes(&mut cb_node, cb_nodes, &array_literal_expression.elements)
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                Some(&array_literal_expression.elements),
+            )
         }
         Node::Expression(Expression::ObjectLiteralExpression(object_literal_expression)) => {
             visit_nodes(
                 &mut cb_node,
-                cb_nodes,
-                &object_literal_expression.properties,
+                &mut cb_nodes,
+                Some(&object_literal_expression.properties),
             )
         }
         Node::Expression(Expression::PrefixUnaryExpression(prefix_unary_expression)) => {
@@ -92,12 +103,23 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             &mut cb_node,
             Some(variable_statement.declaration_list.clone()),
         ),
-        Node::VariableDeclarationList(variable_declaration_list) => {
-            visit_nodes(cb_node, cb_nodes, &variable_declaration_list.declarations)
-        }
+        Node::VariableDeclarationList(variable_declaration_list) => visit_nodes(
+            &mut cb_node,
+            &mut cb_nodes,
+            Some(&variable_declaration_list.declarations),
+        ),
         Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
             visit_node(&mut cb_node, Some(interface_declaration.name()));
-            visit_nodes(cb_node, cb_nodes, &interface_declaration.members)
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                interface_declaration.maybe_type_parameters(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                Some(&interface_declaration.members),
+            )
         }
         _ => unimplemented!(),
     }
