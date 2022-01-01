@@ -30,8 +30,10 @@ pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
     NumericLiteral,
+    BigIntLiteral,
     StringLiteral,
     NoSubstitutionTemplateLiteral,
+    TemplateHead,
     OpenBraceToken,
     CloseBraceToken,
     OpenParenToken,
@@ -45,6 +47,9 @@ pub enum SyntaxKind {
     GreaterThanToken,
     AsteriskToken,
     PlusPlusToken,
+    LessThanLessThanToken,
+    AmpersandToken,
+    BarToken,
     ExclamationToken,
     QuestionToken,
     ColonToken,
@@ -55,12 +60,30 @@ pub enum SyntaxKind {
     ConstKeyword,
     ExtendsKeyword,
     FalseKeyword,
+    ImportKeyword,
+    NewKeyword,
+    NullKeyword,
+    ThisKeyword,
     TrueKeyword,
+    TypeOfKeyword,
+    VoidKeyword,
     WithKeyword,
     ImplementsKeyword,
     InterfaceKeyword,
+    AssertsKeyword,
+    AnyKeyword,
     BooleanKeyword,
+    InferKeyword,
+    NeverKeyword,
     NumberKeyword,
+    ReadonlyKeyword,
+    ObjectKeyword,
+    StringKeyword,
+    SymbolKeyword,
+    UndefinedKeyword,
+    UniqueKeyword,
+    UnknownKeyword,
+    BigIntKeyword,
     OfKeyword,
     QualifiedName,
     TypeParameter,
@@ -617,13 +640,19 @@ impl From<BaseNode> for KeywordTypeNode {
 pub struct TypeReferenceNode {
     _node: BaseNode,
     pub type_name: Rc<Node /*EntityName*/>,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
 }
 
 impl TypeReferenceNode {
-    pub fn new(base_node: BaseNode, type_name: Rc<Node>) -> Self {
+    pub fn new(
+        base_node: BaseNode,
+        type_name: Rc<Node>,
+        type_arguments: Option<NodeArray>,
+    ) -> Self {
         Self {
             _node: base_node,
             type_name,
+            type_arguments,
         }
     }
 }
@@ -912,22 +941,40 @@ impl PropertyAssignment {
     }
 }
 
+pub trait HasTypeParametersInterface {
+    fn maybe_type_parameters(&self) -> Option<&NodeArray>;
+}
+
 #[derive(Debug)]
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseGenericNamedDeclaration {
     _named_declaration: BaseNamedDeclaration,
+    pub type_parameters: Option<NodeArray /*<TypeParameterDeclaration>*/>,
 }
 
 impl BaseGenericNamedDeclaration {
-    pub fn new(base_named_declaration: BaseNamedDeclaration) -> Self {
+    pub fn new(
+        base_named_declaration: BaseNamedDeclaration,
+        type_parameters: Option<NodeArray>,
+    ) -> Self {
         Self {
             _named_declaration: base_named_declaration,
+            type_parameters,
         }
     }
 }
 
+impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
+    fn maybe_type_parameters(&self) -> Option<&NodeArray> {
+        self.type_parameters.as_ref()
+    }
+}
+
 #[derive(Debug)]
-#[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
+#[ast_type(
+    impl_from = false,
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+)]
 pub struct BaseInterfaceOrClassLikeDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
 }
@@ -941,7 +988,10 @@ impl BaseInterfaceOrClassLikeDeclaration {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement", interfaces = "NamedDeclarationInterface")]
+#[ast_type(
+    ancestors = "Statement",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+)]
 pub struct InterfaceDeclaration {
     _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration, /*name: Identifier*/
     pub members: NodeArray,                                                    /*<TypeElement>*/

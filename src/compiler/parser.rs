@@ -454,6 +454,11 @@ impl ParserType {
         self.next_token_without_check()
     }
 
+    fn re_scan_less_than_token(&self) -> SyntaxKind {
+        /*current_token = */
+        self.scanner().re_scan_less_than_token()
+    }
+
     fn speculation_helper<TReturn, TCallback: FnMut() -> Option<TReturn>>(
         &self,
         callback: TCallback,
@@ -697,6 +702,9 @@ impl ParserType {
                     || self.token() == SyntaxKind::DotDotDotToken
                     || self.is_start_of_expression()
             }
+            ParsingContext::TypeArguments => {
+                self.token() == SyntaxKind::CommaToken || self.is_start_of_type()
+            }
             _ => unimplemented!(),
         }
     }
@@ -718,6 +726,7 @@ impl ParserType {
                     || self.token() == SyntaxKind::ImplementsKeyword
             }
             ParsingContext::ArrayLiteralMembers => self.token() == SyntaxKind::CloseBracketToken,
+            ParsingContext::TypeArguments => self.token() != SyntaxKind::CommaToken,
             _ => false,
         }
     }
@@ -849,11 +858,28 @@ impl ParserType {
         self.parse_entity_name(true, Some(Diagnostics::Type_expected))
     }
 
+    fn parse_type_arguments_of_type_reference(&mut self) -> Option<NodeArray /*<TypeNode>*/> {
+        if !self.scanner().has_preceding_line_break()
+            && self.re_scan_less_than_token() == SyntaxKind::LessThanToken
+        {
+            return Some(self.parse_bracketed_list(
+                ParsingContext::TypeArguments,
+                ParserType::parse_type,
+                SyntaxKind::LessThanToken,
+                SyntaxKind::GreaterThanToken,
+            ));
+        }
+        None
+    }
+
     fn parse_type_reference(&mut self) -> TypeNode {
         let pos = self.get_node_pos();
         let name = self.parse_entity_name_of_type_reference().wrap();
+        let type_arguments = self.parse_type_arguments_of_type_reference();
         self.finish_node(
-            self.factory.create_type_reference_node(self, name).into(),
+            self.factory
+                .create_type_reference_node(self, name, type_arguments)
+                .into(),
             pos,
             None,
         )
@@ -961,6 +987,42 @@ impl ParserType {
 
     fn is_start_of_type(&self) -> bool {
         match self.token() {
+            SyntaxKind::AnyKeyword
+            | SyntaxKind::UnknownKeyword
+            | SyntaxKind::StringKeyword
+            | SyntaxKind::NumberKeyword
+            | SyntaxKind::BigIntKeyword
+            | SyntaxKind::BooleanKeyword
+            | SyntaxKind::ReadonlyKeyword
+            | SyntaxKind::SymbolKeyword
+            | SyntaxKind::UniqueKeyword
+            | SyntaxKind::VoidKeyword
+            | SyntaxKind::UndefinedKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::ThisKeyword
+            | SyntaxKind::TypeOfKeyword
+            | SyntaxKind::NeverKeyword
+            | SyntaxKind::OpenBraceToken
+            | SyntaxKind::OpenBracketToken
+            | SyntaxKind::LessThanToken
+            | SyntaxKind::BarToken
+            | SyntaxKind::AmpersandToken
+            | SyntaxKind::NewKeyword
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::ObjectKeyword
+            | SyntaxKind::AsteriskToken
+            | SyntaxKind::QuestionToken
+            | SyntaxKind::ExclamationToken
+            | SyntaxKind::DotDotDotToken
+            | SyntaxKind::InferKeyword
+            | SyntaxKind::ImportKeyword
+            | SyntaxKind::AssertsKeyword
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateHead => true,
             _ => self.is_identifier(),
         }
     }
@@ -1447,9 +1509,9 @@ impl ParserType {
         let name = self.parse_identifier(None);
         let type_parameters = self.parse_type_parameters();
         let members = self.parse_object_type_members();
-        let node = self
-            .factory
-            .create_interface_declaration(self, name.into(), members);
+        let node =
+            self.factory
+                .create_interface_declaration(self, name.into(), type_parameters, members);
         self.finish_node(node, pos, None)
     }
 }
@@ -1493,5 +1555,6 @@ bitflags! {
         const ObjectLiteralMembers = 1 << 12;
         const ArrayLiteralMembers = 1 << 15;
         const TypeParameters = 1 << 19;
+        const TypeArguments = 1 << 20;
     }
 }

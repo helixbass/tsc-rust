@@ -8,10 +8,10 @@ use crate::{
     get_source_file_of_node, get_synthetic_factory, is_identifier_text,
     unescape_leading_underscores, using_single_line_string_writer, BaseIntrinsicType,
     BaseNodeFactorySynthetic, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint,
-    EmitTextWriter, Expression, KeywordTypeNode, Node, NodeInterface, ObjectFlags, PrinterOptions,
-    ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Symbol, SymbolFlags,
-    SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    EmitTextWriter, Expression, KeywordTypeNode, Node, NodeArray, NodeInterface, ObjectFlags,
+    PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Symbol,
+    SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -467,8 +467,14 @@ impl NodeBuilder {
         if false {
             unimplemented!()
         } else {
+            // let last_id = if is_identifier(entity_name) {
+            //     entity_name
+            // } else {
+            //     unimplemented!()
+            // };
+            let last_type_args: Option<NodeArray> = None;
             factory
-                .create_type_reference_node(&self.synthetic_factory, entity_name)
+                .create_type_reference_node(&self.synthetic_factory, entity_name, last_type_args)
                 .into()
         }
     }

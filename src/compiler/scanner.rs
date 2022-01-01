@@ -307,6 +307,13 @@ impl Scanner {
         None
     }
 
+    pub fn re_scan_less_than_token(&self) -> SyntaxKind {
+        if self.token() == SyntaxKind::LessThanLessThanToken {
+            unimplemented!()
+        }
+        self.token()
+    }
+
     pub fn set_text(
         &mut self,
         new_text: Option<&str>,
