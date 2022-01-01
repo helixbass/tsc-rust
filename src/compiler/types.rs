@@ -2564,7 +2564,7 @@ pub struct CharacterCodes;
 impl CharacterCodes {
     pub const max_ascii_character: char = '';
 
-    pub const lineFeed: char = '\n';
+    pub const line_feed: char = '\n';
 
     pub const space: char = ' ';
 

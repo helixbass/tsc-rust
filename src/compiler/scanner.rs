@@ -63,7 +63,27 @@ pub fn skip_trivia(text: &str, pos: isize) -> isize {
         return pos;
     }
 
-    pos
+    let mut pos = pos as usize;
+
+    loop {
+        let ch = text.chars().nth(pos);
+        if matches!(ch, None) {
+            return pos as isize;
+        }
+        let ch = ch.unwrap();
+        match ch {
+            CharacterCodes::line_feed => {
+                pos += 1;
+                continue;
+            }
+            CharacterCodes::space => {
+                pos += 1;
+                continue;
+            }
+            _ => (),
+        }
+        return pos as isize;
+    }
 }
 
 fn is_identifier_start(ch: char) -> bool {
@@ -162,7 +182,7 @@ impl Scanner {
             let ch = code_point_at(self.text(), self.pos());
 
             match ch {
-                CharacterCodes::lineFeed => {
+                CharacterCodes::line_feed => {
                     self.set_token_flags(self.token_flags() | TokenFlags::PrecedingLineBreak);
                     if self.skip_trivia {
                         self.set_pos(self.pos() + 1);
