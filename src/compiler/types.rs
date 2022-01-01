@@ -42,6 +42,7 @@ pub enum SyntaxKind {
     SemicolonToken,
     CommaToken,
     LessThanToken,
+    GreaterThanToken,
     AsteriskToken,
     PlusPlusToken,
     ExclamationToken,
@@ -2643,7 +2644,9 @@ impl CharacterCodes {
     pub const colon: char = ':';
     pub const comma: char = ',';
     pub const equals: char = '=';
+    pub const greater_than: char = '>';
     pub const hash: char = '#';
+    pub const less_than: char = '<';
     pub const open_brace: char = '{';
     pub const open_bracket: char = '[';
     pub const plus: char = '+';
