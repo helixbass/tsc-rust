@@ -42,11 +42,29 @@ impl Diagnostics {
         "Type_expected_1110",
         "Type expected.",
     );
+    pub const Cannot_find_name_0: DiagnosticMessage = diag(
+        2304,
+        DiagnosticCategory::Error,
+        "Cannot_find_name_0_2304",
+        "Cannot find name '{0}'.",
+    );
+    pub const Cannot_find_global_type_0: DiagnosticMessage = diag(
+        2318,
+        DiagnosticCategory::Error,
+        "Cannot_find_global_type_0_2318",
+        "Cannot find global type '{0}'.",
+    );
     pub const Type_0_is_not_assignable_to_type_1: DiagnosticMessage = diag(
         2322,
         DiagnosticCategory::Error,
         "Type_0_is_not_assignable_to_type_1_2322",
         "Type '{0}' is not assignable to type '{1}'.",
+    );
+    pub const Types_of_property_0_are_incompatible: DiagnosticMessage = diag(
+        2326,
+        DiagnosticCategory::Error,
+        "Types_of_property_0_are_incompatible_2326",
+        "Types of property '{0}' are incompatible.",
     );
     pub const An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type:
         DiagnosticMessage = diag(
@@ -54,5 +72,11 @@ impl Diagnostics {
         DiagnosticCategory::Error,
         "An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type_2356",
         "An arithmetic operand must be of type 'any', 'number', 'bigint' or an enum type.",
+    );
+    pub const Private_identifiers_are_not_allowed_outside_class_bodies: DiagnosticMessage = diag(
+        18016,
+        DiagnosticCategory::Error,
+        "Private_identifiers_are_not_allowed_outside_class_bodies_18016",
+        "Private identifiers are not allowed outside class bodies.",
     );
 }

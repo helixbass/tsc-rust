@@ -2,8 +2,9 @@ use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
 
 use crate::{
-    is_keyword, token_to_string, Debug_, EmitHint, EmitTextWriter, LiteralTypeNode, Node,
-    NodeInterface, Printer, PrinterOptions, SourceFile, TypeNode,
+    id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_, EmitHint,
+    EmitTextWriter, Expression, Identifier, LiteralTypeNode, Node, NodeInterface, Printer,
+    PrinterOptions, SourceFile, Symbol, TypeNode,
 };
 
 #[derive(PartialEq, Eq)]
@@ -20,7 +21,10 @@ pub fn create_printer(printer_options: PrinterOptions) -> Printer {
 
 impl Printer {
     pub fn new() -> Self {
-        Self { writer: None }
+        Self {
+            writer: None,
+            write: Printer::write_base,
+        }
     }
 
     fn maybe_writer(&self) -> Option<Rc<RefCell<dyn EmitTextWriter>>> {
@@ -103,26 +107,52 @@ impl Printer {
         }
     }
 
-    fn pipeline_emit_with_hint_worker<TNode: NodeInterface>(&self, hint: EmitHint, node: &TNode) {
+    fn pipeline_emit_with_hint_worker<TNode: NodeInterface>(
+        &self,
+        mut hint: EmitHint,
+        node: &TNode,
+    ) {
         if hint == EmitHint::Unspecified {
             match &*node.node_wrapper() {
-                Node::TypeNode(type_node) => match type_node {
-                    TypeNode::LiteralTypeNode(literal_type_node) => {
-                        return self.emit_literal_type(literal_type_node)
-                    }
-                    _ => (),
-                },
+                Node::Expression(Expression::Identifier(identifier)) => {
+                    return self.emit_identifier(identifier)
+                }
+                Node::TypeNode(TypeNode::LiteralTypeNode(literal_type_node)) => {
+                    return self.emit_literal_type(literal_type_node)
+                }
                 _ => (),
             }
+            if is_expression(node) {
+                hint = EmitHint::Expression;
+            }
         }
+        // if hint == EmitHint::Expression {
+        // }
         if is_keyword(node.kind()) {
             return self.write_token_node(node, Printer::write_keyword);
         }
         unimplemented!()
     }
 
+    fn emit_identifier(&self, node: &Identifier) {
+        let text_of_node = self.get_text_of_node(node, Some(false));
+        if let Some(symbol) = node.maybe_symbol() {
+            self.write_symbol(&text_of_node, symbol);
+        } else {
+            (self.write)(self, &text_of_node);
+        }
+    }
+
     fn emit_literal_type(&self, node: &LiteralTypeNode) {
         self.emit_expression(&*node.literal);
+    }
+
+    fn write_base(&self, s: &str) {
+        self.writer_().write(s);
+    }
+
+    fn write_symbol(&self, s: &str, sym: Rc<Symbol>) {
+        self.writer_().write_symbol(s, &*sym);
     }
 
     fn write_keyword(&self, s: &str) {
@@ -131,5 +161,19 @@ impl Printer {
 
     fn write_token_node<TNode: NodeInterface>(&self, node: &TNode, writer: fn(&Printer, &str)) {
         writer(self, token_to_string(node.kind()).unwrap());
+    }
+
+    fn get_text_of_node<TNode: NodeInterface>(
+        &self,
+        node: &TNode,
+        include_trivia: Option<bool>,
+    ) -> String {
+        if false {
+            unimplemented!()
+        } else if (is_identifier(node) || false) && true {
+            return id_text(node);
+        }
+
+        unimplemented!()
     }
 }

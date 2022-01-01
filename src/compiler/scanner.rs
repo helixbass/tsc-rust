@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
-use crate::{CharacterCodes, SyntaxKind, TokenFlags};
+use crate::{position_is_synthesized, CharacterCodes, SyntaxKind, TokenFlags};
 
 pub fn token_is_identifier_or_keyword(token: SyntaxKind) -> bool {
     token >= SyntaxKind::Identifier
@@ -14,6 +14,7 @@ pub fn token_is_identifier_or_keyword(token: SyntaxKind) -> bool {
 lazy_static! {
     static ref text_to_keyword_obj: HashMap<String, SyntaxKind> =
         HashMap::from_iter(IntoIter::new([
+            ("boolean".to_string(), SyntaxKind::BooleanKeyword),
             ("const".to_string(), SyntaxKind::ConstKeyword),
             ("false".to_string(), SyntaxKind::FalseKeyword),
             ("interface".to_string(), SyntaxKind::InterfaceKeyword),
@@ -55,6 +56,14 @@ lazy_static! {
 
 pub fn token_to_string(t: SyntaxKind) -> Option<&'static String> {
     token_strings.get(&t)
+}
+
+pub fn skip_trivia(text: &str, pos: isize) -> isize {
+    if position_is_synthesized(pos) {
+        return pos;
+    }
+
+    pos
 }
 
 fn is_identifier_start(ch: char) -> bool {

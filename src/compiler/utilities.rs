@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use regex::{Captures, Regex};
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -10,9 +11,9 @@ use crate::{
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseType, Debug_, Diagnostic,
     DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitTextWriter, Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
-    SymbolFlags, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags,
-    __String,
+    EmitTextWriter, Expression, Node, NodeInterface, ReadonlyTextRange, SortedArray, SourceFile,
+    Symbol, SymbolFlags, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags,
+    __String, get_name_of_declaration, skip_trivia,
 };
 
 pub fn create_symbol_table() -> SymbolTable {
@@ -20,7 +21,126 @@ pub fn create_symbol_table() -> SymbolTable {
     result
 }
 
-fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceFile> {
+// lazy_static! {
+//     static ref string_writer: Rc<RefCell<dyn EmitTextWriter>> = create_single_line_string_writer();
+// }
+
+fn string_writer() -> Rc<RefCell<dyn EmitTextWriter>> {
+    create_single_line_string_writer()
+}
+
+fn create_single_line_string_writer() -> Rc<RefCell<dyn EmitTextWriter>> {
+    Rc::new(RefCell::new(SingleLineStringWriter::new()))
+}
+
+struct SingleLineStringWriter {
+    str: String,
+}
+
+impl SingleLineStringWriter {
+    pub fn new() -> Self {
+        Self {
+            str: "".to_string(),
+        }
+    }
+
+    fn write_text(&mut self, text: &str) {
+        self.str.push_str(text);
+    }
+}
+
+impl EmitTextWriter for SingleLineStringWriter {
+    fn write(&mut self, text: &str) {
+        self.write_text(text);
+    }
+
+    fn get_text(&self) -> String {
+        self.str.clone()
+    }
+}
+
+impl SymbolWriter for SingleLineStringWriter {
+    fn write_keyword(&mut self, text: &str) {
+        self.write_text(text);
+    }
+
+    fn write_symbol(&mut self, s: &str, _: &Symbol) {
+        self.write_text(s);
+    }
+
+    fn clear(&mut self) {
+        self.str = "".to_string();
+    }
+}
+
+impl SymbolTracker for SingleLineStringWriter {}
+
+fn get_source_text_of_node_from_source_file<TNode: NodeInterface>(
+    source_file: Rc<SourceFile>,
+    node: &TNode,
+    include_trivia: Option<bool>,
+) -> String {
+    let include_trivia = include_trivia.unwrap_or(false);
+    get_text_of_node_from_source_text(&source_file.text, node, Some(include_trivia))
+}
+
+fn get_text_of_node_from_source_text<TNode: NodeInterface>(
+    source_text: &str,
+    node: &TNode,
+    include_trivia: Option<bool>,
+) -> String {
+    let include_trivia = include_trivia.unwrap_or(false);
+    if node_is_missing(node) {
+        return "".to_string();
+    }
+
+    let start = if include_trivia {
+        node.pos()
+    } else {
+        skip_trivia(source_text, node.pos())
+    };
+    let end = node.end();
+    if !(start >= 0 && end >= 0 && end - start >= 0) {
+        return "".to_string();
+    }
+    let start = start as usize;
+    let end = end as usize;
+    let text = source_text
+        .chars()
+        .skip(start)
+        .take(end - start)
+        .collect::<String>();
+
+    text
+}
+
+fn get_text_of_node<TNode: NodeInterface>(node: &TNode, include_trivia: Option<bool>) -> String {
+    let include_trivia = include_trivia.unwrap_or(false);
+    get_source_text_of_node_from_source_file(
+        get_source_file_of_node(node),
+        node,
+        Some(include_trivia),
+    )
+}
+
+pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWriter>>)>(
+    action: TAction,
+) -> String {
+    let string_writer = string_writer();
+    let old_string = string_writer.borrow().get_text();
+    action(string_writer.clone());
+    let mut string_writer = string_writer.borrow_mut();
+    let ret = string_writer.get_text();
+    string_writer.clear();
+    string_writer.write_keyword(&old_string);
+    ret
+}
+
+fn get_full_width<TNode: NodeInterface>(node: &TNode) -> isize {
+    node.end() - node.pos()
+}
+
+pub fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceFile> {
     if node.kind() == SyntaxKind::SourceFile {
         unimplemented!()
     }
@@ -31,6 +151,23 @@ fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceFile>
     match &*parent {
         Node::SourceFile(source_file) => source_file.clone(),
         _ => panic!("Expected SourceFile"),
+    }
+}
+
+pub fn node_is_missing<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
+}
+
+pub fn declaration_name_to_string<TNode: NodeInterface>(name: Option<&TNode>) -> String {
+    match name {
+        None => "(Missing)".to_string(),
+        Some(name) => {
+            if get_full_width(name) == 0 {
+                "(Missing)".to_string()
+            } else {
+                get_text_of_node(name, None)
+            }
+        }
     }
 }
 
@@ -86,6 +223,10 @@ fn get_error_span_for_node<TNode: NodeInterface>(
     create_text_span_from_bounds(pos, error_node.end())
 }
 
+pub fn is_external_or_common_js_module(file: &SourceFile) -> bool {
+    false
+}
+
 pub fn get_effective_initializer<TNode: NodeInterface>(
     node: &TNode, /*HasExpressionInitializer*/
 ) -> Option<Rc<Node>> {
@@ -105,6 +246,19 @@ pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode
 
 pub fn is_keyword(token: SyntaxKind) -> bool {
     SyntaxKind::FirstKeyword <= token && token <= SyntaxKind::LastKeyword
+}
+
+pub fn has_dynamic_name<TNode: NodeInterface>(declaration: &TNode /*Declaration*/) -> bool {
+    let name = get_name_of_declaration(declaration);
+    if let Some(name) = name {
+        is_dynamic_name(&*name)
+    } else {
+        false
+    }
+}
+
+fn is_dynamic_name(name: &Node /*DeclarationName*/) -> bool {
+    false
 }
 
 pub fn is_property_name_literal<TNode: NodeInterface>(node: &TNode) -> bool {
@@ -233,12 +387,16 @@ impl TextWriter {
         }
     }
 
-    fn write(&mut self, s: &str) {
-        self.write_text(s);
+    fn reset(&mut self) {
+        self.output = String::new();
     }
 }
 
 impl EmitTextWriter for TextWriter {
+    fn write(&mut self, s: &str) {
+        self.write_text(s);
+    }
+
     fn get_text(&self) -> String {
         self.output.clone()
     }
@@ -248,12 +406,21 @@ impl SymbolWriter for TextWriter {
     fn write_keyword(&mut self, text: &str) {
         self.write(text);
     }
+
+    fn write_symbol(&mut self, s: &str, _: &Symbol) {
+        self.write(s);
+    }
+
+    fn clear(&mut self) {
+        self.reset();
+    }
 }
 
 impl SymbolTracker for TextWriter {}
 
 pub fn create_text_writer(new_line: &str) -> TextWriter {
     TextWriter::new(new_line)
+    // text_writer.reset()
 }
 
 pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
@@ -263,6 +430,14 @@ pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeN
     type_
 }
 
+pub fn get_first_identifier<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*Identifier*/> {
+    let wrapper = node.node_wrapper();
+    match &*wrapper {
+        Node::Expression(Expression::Identifier(_)) => wrapper,
+        _ => unimplemented!(),
+    }
+}
+
 #[allow(non_snake_case)]
 fn Symbol(flags: SymbolFlags, name: __String) -> Symbol {
     Symbol::new(flags, name)
@@ -270,7 +445,7 @@ fn Symbol(flags: SymbolFlags, name: __String) -> Symbol {
 
 #[allow(non_snake_case)]
 fn Type(flags: TypeFlags) -> BaseType {
-    BaseType { flags }
+    BaseType::new(flags)
 }
 
 #[allow(non_snake_case)]
@@ -379,6 +554,10 @@ pub fn chain_diagnostic_messages(
         message_text: text,
         next: details.map(|details| vec![details]),
     }
+}
+
+pub fn position_is_synthesized(pos: isize) -> bool {
+    !(pos >= 0)
 }
 
 fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &mut TRange, pos: isize) -> &mut TRange {

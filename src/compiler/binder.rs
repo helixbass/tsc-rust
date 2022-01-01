@@ -162,7 +162,7 @@ impl BinderType {
         ) {
             let mut members = symbol.maybe_members();
             if members.is_none() {
-                *members = Some(create_symbol_table());
+                *members = Some(Rc::new(RefCell::new(create_symbol_table())));
             }
         }
 
@@ -336,7 +336,7 @@ impl BinderType {
                 Some(self.declare_source_file_member(node, symbol_flags, symbol_excludes))
             }
             SyntaxKind::InterfaceDeclaration => Some(self.declare_symbol(
-                &mut *self.container().symbol().members(),
+                &mut *self.container().symbol().members().borrow_mut(),
                 Some(self.container().symbol()),
                 node,
                 symbol_flags,
@@ -380,6 +380,12 @@ impl BinderType {
         name: __String,
     ) -> Rc<Symbol> {
         let symbol = Rc::new(self.create_symbol(symbol_flags, name));
+        match &*self.file() {
+            Node::SourceFile(source_file) => {
+                source_file.keep_strong_reference_to_symbol(symbol.clone());
+            }
+            _ => panic!("Expected SourceFile"),
+        }
         self.add_declaration_to_symbol(symbol.clone(), node, symbol_flags);
         symbol
     }
