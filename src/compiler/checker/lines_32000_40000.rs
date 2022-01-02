@@ -4,11 +4,12 @@ use std::rc::Rc;
 
 use crate::{
     for_each, get_effective_initializer, is_binding_element, is_private_identifier, ArrayTypeNode,
-    DiagnosticMessage, Diagnostics, Expression, ExpressionStatement, InterfaceDeclaration,
-    LiteralLikeNode, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeInterface,
-    PrefixUnaryExpression, PropertyAssignment, PropertySignature, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeReferenceNode, UnionOrIntersectionTypeInterface,
-    VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
+    DiagnosticMessage, Diagnostics, Expression, ExpressionStatement, HasTypeParametersInterface,
+    InterfaceDeclaration, LiteralLikeNode, LiteralLikeNodeInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, PrefixUnaryExpression, PropertyAssignment, PropertySignature,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameterDeclaration,
+    TypeReferenceNode, UnionOrIntersectionTypeInterface, VariableDeclaration,
+    VariableLikeDeclarationInterface, VariableStatement,
 };
 
 impl TypeChecker {
@@ -165,6 +166,8 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn check_type_parameter(&self, node: &TypeParameterDeclaration) {}
+
     pub(super) fn check_property_declaration(&mut self, node: &PropertySignature) {
         self.check_variable_like_declaration(node);
     }
@@ -259,7 +262,24 @@ impl TypeChecker {
         self.check_expression(expression);
     }
 
+    pub(super) fn check_type_parameters(
+        &self,
+        type_parameter_declarations: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
+    ) {
+        if let Some(type_parameter_declarations) = type_parameter_declarations {
+            for node in type_parameter_declarations {
+                self.check_type_parameter(match &**node {
+                    Node::TypeParameterDeclaration(type_parameter_declaration) => {
+                        type_parameter_declaration
+                    }
+                    _ => panic!("Expected TypeParameterDeclaration"),
+                });
+            }
+        }
+    }
+
     pub(super) fn check_interface_declaration(&mut self, node: &InterfaceDeclaration) {
+        self.check_type_parameters(node.maybe_type_parameters());
         for_each(&node.members, |member, _| {
             self.check_source_element(Some(&**member));
             Option::<()>::None
