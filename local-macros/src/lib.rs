@@ -37,16 +37,15 @@ impl AstTypeArgs {
 
     fn interfaces_vec(&self) -> Vec<String> {
         let mut vec = vec!["ReadonlyTextRange".to_string(), "NodeInterface".to_string()];
-        vec.append(&mut self.interfaces.as_ref().map_or_else(
-            || vec![],
-            |interfaces_str| {
-                interfaces_str
+        if let Some(interfaces_str) = self.interfaces.as_ref() {
+            vec.append(
+                &mut interfaces_str
                     .split(",")
                     .into_iter()
                     .map(|chunk| chunk.trim().to_string())
-                    .collect()
-            },
-        ));
+                    .collect(),
+            );
+        }
         vec
     }
 }

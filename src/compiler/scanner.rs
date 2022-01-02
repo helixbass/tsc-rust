@@ -3,6 +3,7 @@
 use std::array::IntoIter;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::iter::FromIterator;
 
 use crate::{position_is_synthesized, CharacterCodes, SyntaxKind, TokenFlags};
@@ -63,12 +64,12 @@ pub fn skip_trivia(text: &str, pos: isize) -> isize {
         return pos;
     }
 
-    let mut pos = pos as usize;
+    let mut pos = usize::try_from(pos).unwrap();
 
     loop {
         let ch = text.chars().nth(pos);
         if matches!(ch, None) {
-            return pos as isize;
+            return isize::try_from(pos).unwrap();
         }
         let ch = ch.unwrap();
         match ch {
@@ -82,7 +83,7 @@ pub fn skip_trivia(text: &str, pos: isize) -> isize {
             }
             _ => (),
         }
-        return pos as isize;
+        return isize::try_from(pos).unwrap();
     }
 }
 
