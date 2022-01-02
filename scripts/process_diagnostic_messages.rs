@@ -15,14 +15,14 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 enum DiagnosticCategory {
     Error,
     Message,
     Suggestion,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 struct DiagnosticMessageSpec {
     category: DiagnosticCategory,
     code: u32,
@@ -118,8 +118,13 @@ impl Diagnostics {{
             .to_str()
             .expect("Couldn't treat relative path as string") /*.replace(/\\/g, "/")*/
     );
-    for (name, DiagnosticMessageSpec { code, category }) in message_table {
-        let prop_name = convert_property_name(name);
+    let mut entries: Vec<(String, DiagnosticMessageSpec)> = message_table
+        .iter()
+        .map(|(key, value)| (key.to_string(), *value))
+        .collect();
+    entries.sort_by(|a, b| a.1.code.cmp(&b.1.code));
+    for (name, DiagnosticMessageSpec { code, category }) in entries.into_iter() {
+        let prop_name = convert_property_name(&name);
         result.push_str(&format!(
             "    pub const {}: DiagnosticMessage = diag(
         {},
@@ -131,11 +136,14 @@ impl Diagnostics {{
             prop_name,
             code,
             category,
-            create_key(&prop_name, *code),
+            create_key(&prop_name, code),
             name
         ));
     }
-    result.push_str("}");
+    result.push_str(
+        "}
+",
+    );
     result
 }
 
