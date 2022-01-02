@@ -10,7 +10,7 @@
 
 use regex::Regex;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -54,9 +54,34 @@ fn main() {
         "./diagnostic_information_map_generated.rs",
         this_file_path_rel,
     );
+    check_for_unique_codes(&diagnostic_messages);
+    write_file(
+        &input_file_path,
+        "diagnostic_information_map_generated.rs",
+        info_file_output,
+    );
 }
 
-// fn write_file(input_file_path: )
+fn write_file(input_file_path: &Path, file_name: &str, contents: String) {
+    fs::write(
+        input_file_path
+            .parent()
+            .expect("Couldn't get input file path parent")
+            .join(file_name),
+        contents,
+    )
+    .expect("Couldn't write file");
+}
+
+fn check_for_unique_codes(diagnostic_table: &HashMap<String, DiagnosticMessageSpec>) {
+    let mut all_codes: HashSet<u32> = HashSet::new();
+    for (_, DiagnosticMessageSpec { code, .. }) in diagnostic_table {
+        if all_codes.contains(&code) {
+            panic!("Diagnostic code {} appears more than once.", code);
+        }
+        all_codes.insert(*code);
+    }
+}
 
 fn build_info_file_output(
     message_table: &HashMap<String, DiagnosticMessageSpec>,
