@@ -1,0 +1,426 @@
+#![allow(non_upper_case_globals)]
+
+use std::rc::Rc;
+
+use crate::{
+    UnionType, __String, get_name_of_declaration, get_object_flags, unescape_leading_underscores,
+    ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node,
+    NodeInterface, ObjectFlags, Symbol, SymbolFlags, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeReferenceNode, UnionReduction,
+};
+
+impl TypeChecker {
+    pub(super) fn get_apparent_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        let t = if type_.flags().intersects(TypeFlags::Instantiable) {
+            unimplemented!()
+        } else {
+            type_
+        };
+        if false {
+            unimplemented!()
+        } else {
+            t
+        }
+    }
+
+    pub(super) fn get_reduced_apparent_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        self.get_reduced_type(self.get_apparent_type(self.get_reduced_type(type_)))
+    }
+
+    pub(super) fn get_reduced_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        type_
+    }
+
+    pub(super) fn get_property_of_type(
+        &self,
+        type_: Rc<Type>,
+        name: &__String,
+    ) -> Option<Rc<Symbol>> {
+        let type_ = self.get_reduced_apparent_type(type_);
+        if type_.flags().intersects(TypeFlags::Object) {
+            let resolved = self.resolve_structured_type_members(type_);
+            let symbol = (*resolved.as_resolved_type().members())
+                .borrow()
+                .get(name)
+                .map(Clone::clone);
+            if let Some(symbol) = symbol {
+                if self.symbol_is_value(symbol.clone()) {
+                    return Some(symbol);
+                }
+            }
+            return /*self.get_property_of_object_type(self.global_object_type(), name)*/ None;
+        }
+        if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
+            unimplemented!()
+        }
+        None
+    }
+
+    pub(super) fn get_propagating_flags_of_types(
+        &self,
+        types: &[Rc<Type>],
+        exclude_kinds: TypeFlags,
+    ) -> ObjectFlags {
+        let mut result = ObjectFlags::None;
+        for type_ in types {
+            if !type_.flags().intersects(exclude_kinds) {
+                result |= get_object_flags(&*type_);
+            }
+        }
+        result & ObjectFlags::PropagatingFlags
+    }
+
+    pub(super) fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
+        &self,
+        node: &TNode,
+        symbol: Rc<Symbol>,
+    ) -> Rc<Type> {
+        let type_ = self.get_declared_type_of_symbol(self.get_merged_symbol(Some(symbol)).unwrap());
+        if true {
+            type_
+        } else {
+            unimplemented!()
+        }
+    }
+
+    pub(super) fn get_type_reference_name(
+        &self,
+        node: &TypeReferenceNode,
+    ) -> Option<Rc<Node /*EntityNameOrEntityNameExpression*/>> {
+        match node.kind() {
+            SyntaxKind::TypeReference => {
+                return Some(node.type_name.clone());
+            }
+            SyntaxKind::ExpressionWithTypeArguments => unimplemented!(),
+            _ => (),
+        }
+        None
+    }
+
+    pub(super) fn resolve_type_reference_name(
+        &self,
+        type_reference: &TypeReferenceNode,
+        meaning: SymbolFlags,
+        ignore_errors: Option<bool>,
+    ) -> Rc<Symbol> {
+        let ignore_errors = ignore_errors.unwrap_or(false);
+        let name = self.get_type_reference_name(type_reference);
+        let name = match name {
+            Some(name) => name,
+            None => {
+                return self.unknown_symbol();
+            }
+        };
+        let symbol = self.resolve_entity_name(&*name, meaning, Some(ignore_errors), None);
+        if symbol.is_some() && !Rc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
+            symbol.unwrap()
+        } else if ignore_errors {
+            self.unknown_symbol()
+        } else {
+            unimplemented!()
+        }
+    }
+
+    pub(super) fn get_type_reference_type<TNode: NodeInterface>(
+        &self,
+        node: &TNode,
+        symbol: Rc<Symbol>,
+    ) -> Rc<Type> {
+        if Rc::ptr_eq(&symbol, &self.unknown_symbol()) {
+            unimplemented!()
+        }
+        if symbol
+            .flags()
+            .intersects(SymbolFlags::Class | SymbolFlags::Interface)
+        {
+            return self.get_type_from_class_or_interface_reference(node, symbol);
+        }
+        unimplemented!()
+    }
+
+    pub(super) fn get_conditional_flow_type_of_type(
+        &self,
+        type_: Rc<Type>,
+        node: &Node,
+    ) -> Rc<Type> {
+        type_
+    }
+
+    pub(super) fn get_type_from_type_reference(&self, node: &TypeReferenceNode) -> Rc<Type> {
+        let mut symbol: Option<Rc<Symbol>> = None;
+        let mut type_: Option<Rc<Type>> = None;
+        let meaning = SymbolFlags::Type;
+        if type_.is_none() {
+            symbol = Some(self.resolve_type_reference_name(node, meaning, None));
+            type_ = Some(self.get_type_reference_type(node, symbol.unwrap()));
+        }
+        let type_ = type_.unwrap();
+        type_
+    }
+
+    pub(super) fn get_type_of_global_symbol(
+        &self,
+        symbol: Option<Rc<Symbol>>,
+    ) -> Rc<Type /*ObjectType*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_global_type_symbol(
+        &self,
+        name: &__String,
+        report_errors: bool,
+    ) -> Option<Rc<Symbol>> {
+        self.get_global_symbol(
+            name,
+            SymbolFlags::Type,
+            if report_errors {
+                Some(Diagnostics::Cannot_find_global_type_0)
+            } else {
+                None
+            },
+        )
+    }
+
+    pub(super) fn get_global_symbol(
+        &self,
+        name: &__String,
+        meaning: SymbolFlags,
+        diagnostic: Option<DiagnosticMessage>,
+    ) -> Option<Rc<Symbol>> {
+        self.resolve_name(
+            Option::<&Node>::None,
+            name,
+            meaning,
+            diagnostic,
+            Some(name.clone()),
+            false,
+            None,
+        )
+    }
+
+    pub(super) fn get_global_type(&self, name: &__String, report_errors: bool) -> Option<Rc<Type>> {
+        let symbol = self.get_global_type_symbol(name, report_errors);
+        if true {
+            Some(self.get_type_of_global_symbol(symbol))
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_array_or_tuple_target_type(
+        &self,
+        node: &ArrayTypeNode,
+    ) -> Rc<Type /*GenericType*/> {
+        let element_type = self.get_array_element_type_node(node);
+        if let Some(element_type) = element_type {
+            return self.global_array_type();
+        }
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_from_array_or_tuple_type_node(&self, node: &ArrayTypeNode) -> Rc<Type> {
+        let target = self.get_array_or_tuple_target_type(node);
+        if false {
+            unimplemented!()
+        } else if false {
+            unimplemented!()
+        } else {
+            let element_types = vec![self.get_type_from_type_node(&*node.element_type)];
+            return self.create_normalized_type_reference(target, Some(element_types));
+        }
+    }
+
+    pub(super) fn create_normalized_type_reference(
+        &self,
+        target: Rc<Type /*GenericType*/>,
+        type_arguments: Option<Vec<Rc<Type>>>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn add_type_to_union(
+        &self,
+        type_set: &mut Vec<Rc<Type>>,
+        mut includes: TypeFlags,
+        type_: Rc<Type>,
+    ) -> TypeFlags {
+        let flags = type_.flags();
+        if flags.intersects(TypeFlags::Union) {
+            unimplemented!()
+        }
+        if !flags.intersects(TypeFlags::Never) {
+            includes |= flags & TypeFlags::IncludesMask;
+            if flags.intersects(TypeFlags::Instantiable) {
+                includes |= TypeFlags::IncludesInstantiable;
+            }
+            if false {
+                unimplemented!()
+            } else {
+                type_set.push(type_);
+            }
+        }
+        includes
+    }
+
+    pub(super) fn add_types_to_union(
+        &self,
+        type_set: &mut Vec<Rc<Type>>,
+        mut includes: TypeFlags,
+        types: &[Rc<Type>],
+    ) -> TypeFlags {
+        for type_ in types {
+            includes = self.add_type_to_union(type_set, includes, type_.clone());
+        }
+        includes
+    }
+
+    pub(super) fn get_union_type(
+        &self,
+        types: Vec<Rc<Type>>,
+        union_reduction: Option<UnionReduction>,
+    ) -> Rc<Type> {
+        let union_reduction = union_reduction.unwrap_or(UnionReduction::Literal);
+        if types.is_empty() {
+            return self.never_type();
+        }
+        if types.len() == 1 {
+            return types[0].clone();
+        }
+        let mut type_set: Vec<Rc<Type>> = vec![];
+        let includes = self.add_types_to_union(&mut type_set, TypeFlags::None, &types);
+        if union_reduction != UnionReduction::None {}
+        let object_flags = (if includes.intersects(TypeFlags::NotPrimitiveUnion) {
+            ObjectFlags::None
+        } else {
+            ObjectFlags::PrimitiveUnion
+        }) | (if includes.intersects(TypeFlags::Intersection) {
+            ObjectFlags::ContainsIntersections
+        } else {
+            ObjectFlags::None
+        });
+        self.get_union_type_from_sorted_list(type_set, object_flags)
+    }
+
+    pub(super) fn get_union_type_from_sorted_list(
+        &self,
+        types: Vec<Rc<Type>>,
+        object_flags: ObjectFlags,
+    ) -> Rc<Type> {
+        let mut type_: Option<Rc<Type>> = None;
+        if type_.is_none() {
+            let is_boolean = types.len() == 2
+                && types[0].flags().intersects(TypeFlags::BooleanLiteral)
+                && types[1].flags().intersects(TypeFlags::BooleanLiteral);
+            let base_type = self.create_type(if is_boolean {
+                TypeFlags::Union | TypeFlags::Boolean
+            } else {
+                TypeFlags::Union
+            });
+            let object_flags_to_set =
+                object_flags | self.get_propagating_flags_of_types(&types, TypeFlags::Nullable);
+            type_ = Some(Rc::new(
+                UnionType::new(BaseUnionOrIntersectionType::new(
+                    base_type,
+                    types,
+                    object_flags_to_set,
+                ))
+                .into(),
+            ));
+            // TODO: also treat union type as intrinsic type with intrinsic_name = "boolean" if
+            // is_boolean - should expose maybe_intrinsic_name on UnionType or something?
+        }
+        type_.unwrap()
+    }
+
+    pub(super) fn get_literal_type_from_property_name(
+        &self,
+        name: &Node, /*PropertyName*/
+    ) -> Rc<Type> {
+        if let Node::Expression(Expression::Identifier(identifier)) = name {
+            self.get_string_literal_type(&unescape_leading_underscores(&identifier.escaped_text))
+        } else {
+            unimplemented!()
+        }
+    }
+
+    pub(super) fn get_literal_type_from_property(
+        &self,
+        prop: Rc<Symbol>,
+        include: TypeFlags,
+        include_non_public: Option<bool>,
+    ) -> Rc<Type> {
+        let include_non_public = include_non_public.unwrap_or(false);
+        if include_non_public || true {
+            let mut type_ = None;
+            if type_.is_none() {
+                let name = prop
+                    .maybe_value_declaration()
+                    .as_ref()
+                    .and_then(|value_declaration| {
+                        get_name_of_declaration(&*value_declaration.upgrade().unwrap())
+                    });
+                type_ = if false {
+                    unimplemented!()
+                } else if let Some(name) = name {
+                    Some(self.get_literal_type_from_property_name(&*name))
+                } else {
+                    unimplemented!()
+                }
+            }
+            if let Some(type_) = type_ {
+                if type_.flags().intersects(include) {
+                    return type_;
+                }
+            }
+        }
+        unimplemented!()
+    }
+
+    pub(super) fn get_property_name_from_index(&self, index_type: Rc<Type>) -> Option<__String> {
+        if self.is_type_usable_as_property_name(index_type.clone()) {
+            Some(self.get_property_name_from_type(index_type))
+        } else {
+            unimplemented!()
+        }
+    }
+
+    pub(super) fn get_property_type_for_index_type(
+        &self,
+        original_object_type: Rc<Type>,
+        object_type: Rc<Type>,
+        index_type: Rc<Type>,
+        full_index_type: Rc<Type>,
+    ) -> Option<Rc<Type>> {
+        let prop_name = if false {
+            unimplemented!()
+        } else {
+            self.get_property_name_from_index(index_type)
+        };
+        if let Some(prop_name) = prop_name {
+            let prop = self.get_property_of_type(object_type, &prop_name);
+            if let Some(prop) = prop {
+                let prop_type = self.get_type_of_symbol(&*prop);
+                return if false {
+                    unimplemented!()
+                } else {
+                    Some(prop_type)
+                };
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_indexed_access_type_or_undefined(
+        &self,
+        object_type: Rc<Type>,
+        index_type: Rc<Type>,
+    ) -> Option<Rc<Type>> {
+        let apparent_object_type = self.get_reduced_apparent_type(object_type.clone());
+        self.get_property_type_for_index_type(
+            object_type,
+            apparent_object_type,
+            index_type.clone(),
+            index_type.clone(),
+        )
+    }
+}
