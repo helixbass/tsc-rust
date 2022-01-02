@@ -76,6 +76,10 @@ pub fn append_if_unique<TItem>(array: Option<Vec<TItem>>, to_add: TItem) -> Vec<
     }
 }
 
+pub fn first_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
+    array.first()
+}
+
 pub fn last_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
     array.last()
 }

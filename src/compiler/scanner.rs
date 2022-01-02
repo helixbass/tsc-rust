@@ -3,6 +3,7 @@
 use std::array::IntoIter;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::iter::FromIterator;
 
 use crate::{position_is_synthesized, CharacterCodes, SyntaxKind, TokenFlags};
@@ -63,7 +64,27 @@ pub fn skip_trivia(text: &str, pos: isize) -> isize {
         return pos;
     }
 
-    pos
+    let mut pos = usize::try_from(pos).unwrap();
+
+    loop {
+        let ch = text.chars().nth(pos);
+        if matches!(ch, None) {
+            return isize::try_from(pos).unwrap();
+        }
+        let ch = ch.unwrap();
+        match ch {
+            CharacterCodes::line_feed => {
+                pos += 1;
+                continue;
+            }
+            CharacterCodes::space => {
+                pos += 1;
+                continue;
+            }
+            _ => (),
+        }
+        return isize::try_from(pos).unwrap();
+    }
 }
 
 fn is_identifier_start(ch: char) -> bool {
@@ -81,6 +102,20 @@ fn is_identifier_part(ch: char) -> bool {
         || ch == CharacterCodes::dollar_sign
         || ch == CharacterCodes::underscore
         || ch > CharacterCodes::max_ascii_character && is_unicode_identifier_start(ch)
+}
+
+pub fn is_identifier_text(name: &str) -> bool {
+    let ch = code_point_at(name, 0);
+    if !is_identifier_start(ch) {
+        return false;
+    }
+    for ch in name.chars().skip(1) {
+        if !is_identifier_part(ch) {
+            return false;
+        }
+    }
+
+    true
 }
 
 struct ScanNumberReturn {
@@ -148,7 +183,7 @@ impl Scanner {
             let ch = code_point_at(self.text(), self.pos());
 
             match ch {
-                CharacterCodes::lineFeed => {
+                CharacterCodes::line_feed => {
                     self.set_token_flags(self.token_flags() | TokenFlags::PrecedingLineBreak);
                     if self.skip_trivia {
                         self.set_pos(self.pos() + 1);

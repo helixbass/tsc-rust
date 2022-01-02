@@ -8,7 +8,8 @@ use crate::{
     Identifier, InterfaceDeclaration, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
     PrefixUnaryExpression, PropertyAssignment, PropertySignature, SourceFile, SyntaxKind,
-    TypeReferenceNode, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    TypeLiteralNode, TypeReferenceNode, VariableDeclaration, VariableDeclarationList,
+    VariableStatement,
 };
 
 impl NodeFactory {
@@ -198,6 +199,19 @@ impl NodeFactory {
     ) -> TypeReferenceNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypeReference);
         let node = TypeReferenceNode::new(node, self.as_name(type_name));
+        node
+    }
+
+    pub fn create_type_literal_node<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        members: Option<Vec<Rc<Node>>>,
+    ) -> TypeLiteralNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::TypeLiteral);
+        let node = TypeLiteralNode::new(
+            node,
+            self.create_node_array(members.unwrap_or_else(|| vec![])),
+        );
         node
     }
 

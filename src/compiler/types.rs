@@ -63,6 +63,7 @@ pub enum SyntaxKind {
     PropertySignature,
     PropertyDeclaration,
     TypeReference,
+    TypeLiteral,
     ArrayType,
     LiteralType,
     ObjectBindingPattern,
@@ -353,6 +354,10 @@ impl NodeArray {
     pub fn iter(&self) -> NodeArrayIter {
         NodeArrayIter(Box::new(self._nodes.iter()))
     }
+
+    pub fn len(&self) -> usize {
+        self._nodes.len()
+    }
 }
 
 pub struct NodeArrayIter<'node_array>(
@@ -563,6 +568,7 @@ pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
     LiteralTypeNode(LiteralTypeNode),
     TypeReferenceNode(TypeReferenceNode),
+    TypeLiteralNode(TypeLiteralNode),
     ArrayTypeNode(ArrayTypeNode),
 }
 
@@ -596,6 +602,22 @@ impl TypeReferenceNode {
         Self {
             _node: base_node,
             type_name,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct TypeLiteralNode {
+    _node: BaseNode,
+    pub members: NodeArray, /*<TypeElement>*/
+}
+
+impl TypeLiteralNode {
+    pub fn new(base_node: BaseNode, members: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            members,
         }
     }
 }
@@ -997,6 +1019,7 @@ pub struct TypeChecker {
     pub false_type: Option<Rc<Type>>,
     pub regular_false_type: Option<Rc<Type>>,
     pub boolean_type: Option<Rc<Type>>,
+    pub never_type: Option<Rc<Type>>,
     pub number_or_big_int_type: Option<Rc<Type>>,
     pub global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub diagnostics: RefCell<DiagnosticCollection>,
@@ -1023,6 +1046,9 @@ pub enum UnionReduction {
 
 pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
+    fn write_punctuation(&mut self, text: &str);
+    fn write_space(&mut self, text: &str);
+    fn write_property(&mut self, text: &str);
     fn write_symbol(&mut self, text: &str, symbol: &Symbol);
     fn clear(&mut self);
 }
@@ -1143,6 +1169,9 @@ pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
 
 bitflags! {
     pub struct TypeFlags: u32 {
+        const None = 0;
+        const Any = 1 << 0;
+        const Unknown = 1 << 1;
         const String = 1 << 2;
         const Number = 1 << 3;
         const Boolean = 1 << 4;
@@ -1167,6 +1196,7 @@ bitflags! {
         const IndexedAccess = 1 << 23;
         const Conditional = 1 << 24;
         const Substitution = 1 << 25;
+        const NonPrimitive = 1 << 26;
         const TemplateLiteral = 1 << 27;
         const StringMapping = 1 << 28;
 
@@ -1183,6 +1213,10 @@ bitflags! {
         const InstantiablePrimitive = Self::Index.bits | Self::TemplateLiteral.bits | Self::StringMapping.bits;
         const Instantiable = Self::InstantiableNonPrimitive.bits | Self::InstantiablePrimitive.bits;
         const StructuredOrInstantiable = Self::StructuredType.bits | Self::Instantiable.bits;
+        const ObjectFlagsType = Self::Any.bits | Self::Nullable.bits | Self::Never.bits | Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
+        const IncludesMask = Self::Any.bits | Self::Unknown.bits | Self::Primitive.bits | Self::Never.bits | Self::Object.bits | Self::Union.bits | Self::Intersection.bits | Self::NonPrimitive.bits | Self::TemplateLiteral.bits;
+        const IncludesInstantiable = Self::Substitution.bits;
+        const NotPrimitiveUnion = Self::Any.bits | Self::Unknown.bits | Self::Enum.bits | Self::Void.bits | Self::Never.bits | Self::Object.bits | Self::Intersection.bits | Self::IncludesInstantiable.bits;
     }
 }
 
@@ -1225,6 +1259,14 @@ impl Type {
         match self {
             Type::ObjectType(object_type) => object_type,
             _ => panic!("Expected resolvable type"),
+        }
+    }
+
+    pub fn as_object_flags_type(&self) -> &dyn ObjectFlagsTypeInterface {
+        match self {
+            Type::ObjectType(object_type) => object_type,
+            Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
+            _ => panic!("Expected object flags type"),
         }
     }
 }
@@ -1876,20 +1918,31 @@ impl From<NumberLiteralType> for Type {
 
 bitflags! {
     pub struct ObjectFlags: u32 {
+        const None = 0;
         const Class = 1 << 0;
         const Interface = 1 << 1;
         const Anonymous = 1 << 4;
+        const Mapped = 1 << 5;
         const ObjectLiteral = 1 << 7;
+        const ObjectLiteralPatternWithComputedProperties = 1 << 9;
         const FreshLiteral = 1 << 14;
+        const PrimitiveUnion = 1 << 16;
+        const ContainsWideningType = 1 << 17;
         const ContainsObjectOrArrayLiteral = 1 << 18;
+        const NonInferrableType = 1 << 19;
+        const ContainsIntersections = 1 << 25;
 
         const ClassOrInterface = Self::Class.bits | Self::Interface.bits;
+        const PropagatingFlags = Self::ContainsWideningType.bits | Self::ContainsObjectOrArrayLiteral.bits | Self::NonInferrableType.bits;
     }
 }
 
-pub trait ObjectTypeInterface {
+pub trait ObjectFlagsTypeInterface {
     fn object_flags(&self) -> ObjectFlags;
     fn set_object_flags(&mut self, object_flags: ObjectFlags);
+}
+
+pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
     // fn maybe_properties(&self) -> Option<&[Rc<Symbol>]>;
     // fn properties(&self) -> &[Rc<Symbol>];
     // fn set_properties(&self, properties: Vec<Rc<Symbol>>);
@@ -1931,7 +1984,7 @@ impl TypeInterface for ObjectType {
     }
 }
 
-impl ObjectTypeInterface for ObjectType {
+impl ObjectFlagsTypeInterface for ObjectType {
     fn object_flags(&self) -> ObjectFlags {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.object_flags(),
@@ -1950,6 +2003,8 @@ impl ObjectTypeInterface for ObjectType {
         }
     }
 }
+
+impl ObjectTypeInterface for ObjectType {}
 
 impl ResolvableTypeInterface for ObjectType {
     fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
@@ -2039,7 +2094,7 @@ impl TypeInterface for BaseObjectType {
     }
 }
 
-impl ObjectTypeInterface for BaseObjectType {
+impl ObjectFlagsTypeInterface for BaseObjectType {
     fn object_flags(&self) -> ObjectFlags {
         self.object_flags
     }
@@ -2048,6 +2103,8 @@ impl ObjectTypeInterface for BaseObjectType {
         self.object_flags = object_flags;
     }
 }
+
+impl ObjectTypeInterface for BaseObjectType {}
 
 pub trait ResolvableTypeInterface {
     fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>);
@@ -2128,7 +2185,7 @@ impl TypeInterface for InterfaceType {
     }
 }
 
-impl ObjectTypeInterface for InterfaceType {
+impl ObjectFlagsTypeInterface for InterfaceType {
     fn object_flags(&self) -> ObjectFlags {
         match self {
             InterfaceType::BaseInterfaceType(base_interface_type) => {
@@ -2145,6 +2202,8 @@ impl ObjectTypeInterface for InterfaceType {
         }
     }
 }
+
+impl ObjectTypeInterface for InterfaceType {}
 
 impl ResolvableTypeInterface for InterfaceType {
     fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
@@ -2235,7 +2294,7 @@ impl TypeInterface for BaseInterfaceType {
     }
 }
 
-impl ObjectTypeInterface for BaseInterfaceType {
+impl ObjectFlagsTypeInterface for BaseInterfaceType {
     fn object_flags(&self) -> ObjectFlags {
         self._object_type.object_flags()
     }
@@ -2244,6 +2303,8 @@ impl ObjectTypeInterface for BaseInterfaceType {
         self._object_type.set_object_flags(object_flags)
     }
 }
+
+impl ObjectTypeInterface for BaseInterfaceType {}
 
 impl ResolvableTypeInterface for BaseInterfaceType {
     fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
@@ -2321,6 +2382,22 @@ impl UnionOrIntersectionTypeInterface for UnionOrIntersectionType {
     }
 }
 
+impl ObjectFlagsTypeInterface for UnionOrIntersectionType {
+    fn object_flags(&self) -> ObjectFlags {
+        match self {
+            UnionOrIntersectionType::UnionType(union_type) => union_type.object_flags(),
+        }
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        match self {
+            UnionOrIntersectionType::UnionType(union_type) => {
+                union_type.set_object_flags(object_flags)
+            }
+        }
+    }
+}
+
 impl From<UnionOrIntersectionType> for Type {
     fn from(union_or_intersection_type: UnionOrIntersectionType) -> Self {
         Type::UnionOrIntersectionType(union_or_intersection_type)
@@ -2329,8 +2406,19 @@ impl From<UnionOrIntersectionType> for Type {
 
 #[derive(Clone, Debug)]
 pub struct BaseUnionOrIntersectionType {
-    pub _type: BaseType,
+    _type: BaseType,
     pub types: Vec<Rc<Type>>,
+    pub object_flags: ObjectFlags,
+}
+
+impl BaseUnionOrIntersectionType {
+    pub fn new(base_type: BaseType, types: Vec<Rc<Type>>, object_flags: ObjectFlags) -> Self {
+        Self {
+            _type: base_type,
+            types,
+            object_flags,
+        }
+    }
 }
 
 impl TypeInterface for BaseUnionOrIntersectionType {
@@ -2357,9 +2445,27 @@ impl UnionOrIntersectionTypeInterface for BaseUnionOrIntersectionType {
     }
 }
 
+impl ObjectFlagsTypeInterface for BaseUnionOrIntersectionType {
+    fn object_flags(&self) -> ObjectFlags {
+        self.object_flags
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        self.object_flags = object_flags;
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct UnionType {
-    pub _union_or_intersection_type: BaseUnionOrIntersectionType,
+    _union_or_intersection_type: BaseUnionOrIntersectionType,
+}
+
+impl UnionType {
+    pub fn new(union_or_intersection_type: BaseUnionOrIntersectionType) -> Self {
+        Self {
+            _union_or_intersection_type: union_or_intersection_type,
+        }
+    }
 }
 
 impl TypeInterface for UnionType {
@@ -2383,6 +2489,17 @@ impl TypeInterface for UnionType {
 impl UnionOrIntersectionTypeInterface for UnionType {
     fn types(&self) -> &[Rc<Type>] {
         &self._union_or_intersection_type.types
+    }
+}
+
+impl ObjectFlagsTypeInterface for UnionType {
+    fn object_flags(&self) -> ObjectFlags {
+        self._union_or_intersection_type.object_flags()
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        self._union_or_intersection_type
+            .set_object_flags(object_flags);
     }
 }
 
@@ -2447,7 +2564,7 @@ pub struct CharacterCodes;
 impl CharacterCodes {
     pub const max_ascii_character: char = '';
 
-    pub const lineFeed: char = '\n';
+    pub const line_feed: char = '\n';
 
     pub const space: char = ' ';
 
@@ -2804,7 +2921,7 @@ pub enum DiagnosticCategory {
     Message,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmitHint {
     Expression,
     Unspecified,
@@ -2821,6 +2938,7 @@ pub struct PrinterOptions {}
 
 pub trait EmitTextWriter: SymbolWriter {
     fn write(&mut self, s: &str);
+    fn write_trailing_semicolon(&mut self, text: &str);
     fn get_text(&self) -> String;
 }
 
@@ -2835,4 +2953,26 @@ pub struct TextSpan {
 
 pub struct DiagnosticCollection {
     pub file_diagnostics: HashMap<String, SortedArray<Rc<Diagnostic>>>,
+}
+
+bitflags! {
+    pub struct ListFormat: u32 {
+        const None = 0;
+
+        const SingleLine = 0;
+
+        const BarDelimited = 1 << 2;
+        const AmpersandDelimited = 1 << 3;
+        const CommaDelimited = 1 << 4;
+        const AsteriskDelimited = 1 << 5;
+        const DelimitersMask = Self::BarDelimited.bits | Self::AmpersandDelimited.bits | Self::CommaDelimited.bits | Self::AsteriskDelimited.bits;
+
+        const SpaceBetweenBraces = 1 << 8;
+        const SpaceBetweenSiblings = 1 << 9;
+
+        const NoSpaceIfEmpty = 1 << 19;
+        const SpaceAfterList = 1 << 21;
+
+        const SingleLineTypeLiteralMembers = Self::SingleLine.bits | Self::SpaceBetweenBraces.bits | Self::SpaceBetweenSiblings.bits;
+    }
 }

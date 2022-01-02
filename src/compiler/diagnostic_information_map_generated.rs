@@ -66,6 +66,13 @@ impl Diagnostics {
         "Types_of_property_0_are_incompatible_2326",
         "Types of property '{0}' are incompatible.",
     );
+    pub const Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1:
+        DiagnosticMessage = diag(
+        2353,
+        DiagnosticCategory::Error,
+        "Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1_2353",
+        "Object literal may only specify known properties, and '{0}' does not exist in type '{1}'.",
+    );
     pub const An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type:
         DiagnosticMessage = diag(
         2356,
