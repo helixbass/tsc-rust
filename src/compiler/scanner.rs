@@ -242,6 +242,14 @@ impl Scanner {
                     self.set_pos(self.pos() + 1);
                     return self.set_token(SyntaxKind::SemicolonToken);
                 }
+                CharacterCodes::less_than => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::LessThanToken);
+                }
+                CharacterCodes::greater_than => {
+                    self.set_pos(self.pos() + 1);
+                    return self.set_token(SyntaxKind::GreaterThanToken);
+                }
                 CharacterCodes::equals => {
                     self.set_pos(self.pos() + 1);
                     return self.set_token(SyntaxKind::EqualsToken);
@@ -298,6 +306,13 @@ impl Scanner {
             return Some(self.get_identifier_token());
         }
         None
+    }
+
+    pub fn re_scan_less_than_token(&self) -> SyntaxKind {
+        if self.token() == SyntaxKind::LessThanLessThanToken {
+            unimplemented!()
+        }
+        self.token()
     }
 
     pub fn set_text(

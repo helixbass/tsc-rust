@@ -30,8 +30,10 @@ pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
     NumericLiteral,
+    BigIntLiteral,
     StringLiteral,
     NoSubstitutionTemplateLiteral,
+    TemplateHead,
     OpenBraceToken,
     CloseBraceToken,
     OpenParenToken,
@@ -42,8 +44,12 @@ pub enum SyntaxKind {
     SemicolonToken,
     CommaToken,
     LessThanToken,
+    GreaterThanToken,
     AsteriskToken,
     PlusPlusToken,
+    LessThanLessThanToken,
+    AmpersandToken,
+    BarToken,
     ExclamationToken,
     QuestionToken,
     ColonToken,
@@ -52,14 +58,35 @@ pub enum SyntaxKind {
     PrivateIdentifier,
     BreakKeyword,
     ConstKeyword,
+    ExtendsKeyword,
     FalseKeyword,
+    ImportKeyword,
+    NewKeyword,
+    NullKeyword,
+    ThisKeyword,
     TrueKeyword,
+    TypeOfKeyword,
+    VoidKeyword,
     WithKeyword,
+    ImplementsKeyword,
     InterfaceKeyword,
+    AssertsKeyword,
+    AnyKeyword,
     BooleanKeyword,
+    InferKeyword,
+    NeverKeyword,
     NumberKeyword,
+    ReadonlyKeyword,
+    ObjectKeyword,
+    StringKeyword,
+    SymbolKeyword,
+    UndefinedKeyword,
+    UniqueKeyword,
+    UnknownKeyword,
+    BigIntKeyword,
     OfKeyword,
     QualifiedName,
+    TypeParameter,
     PropertySignature,
     PropertyDeclaration,
     TypeReference,
@@ -131,6 +158,7 @@ pub trait NodeInterface: ReadonlyTextRange {
 #[ast_type(impl_from = false)]
 pub enum Node {
     BaseNode(BaseNode),
+    TypeParameterDeclaration(TypeParameterDeclaration),
     VariableDeclaration(VariableDeclaration),
     VariableDeclarationList(VariableDeclarationList),
     TypeNode(TypeNode),
@@ -150,6 +178,9 @@ impl Node {
 
     pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
         match self {
+            Node::TypeParameterDeclaration(type_parameter_declaration) => {
+                type_parameter_declaration
+            }
             Node::VariableDeclaration(variable_declaration) => variable_declaration,
             Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
                 interface_declaration
@@ -531,6 +562,20 @@ impl HasTypeInterface for BaseVariableLikeDeclaration {
 impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 
 #[derive(Debug)]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
+pub struct TypeParameterDeclaration {
+    _named_declaration: BaseNamedDeclaration,
+}
+
+impl TypeParameterDeclaration {
+    pub fn new(base_named_declaration: BaseNamedDeclaration) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasExpressionInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
 )]
@@ -595,13 +640,19 @@ impl From<BaseNode> for KeywordTypeNode {
 pub struct TypeReferenceNode {
     _node: BaseNode,
     pub type_name: Rc<Node /*EntityName*/>,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
 }
 
 impl TypeReferenceNode {
-    pub fn new(base_node: BaseNode, type_name: Rc<Node>) -> Self {
+    pub fn new(
+        base_node: BaseNode,
+        type_name: Rc<Node>,
+        type_arguments: Option<NodeArray>,
+    ) -> Self {
         Self {
             _node: base_node,
             type_name,
+            type_arguments,
         }
     }
 }
@@ -890,22 +941,40 @@ impl PropertyAssignment {
     }
 }
 
+pub trait HasTypeParametersInterface {
+    fn maybe_type_parameters(&self) -> Option<&NodeArray>;
+}
+
 #[derive(Debug)]
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseGenericNamedDeclaration {
     _named_declaration: BaseNamedDeclaration,
+    pub type_parameters: Option<NodeArray /*<TypeParameterDeclaration>*/>,
 }
 
 impl BaseGenericNamedDeclaration {
-    pub fn new(base_named_declaration: BaseNamedDeclaration) -> Self {
+    pub fn new(
+        base_named_declaration: BaseNamedDeclaration,
+        type_parameters: Option<NodeArray>,
+    ) -> Self {
         Self {
             _named_declaration: base_named_declaration,
+            type_parameters,
         }
     }
 }
 
+impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
+    fn maybe_type_parameters(&self) -> Option<&NodeArray> {
+        self.type_parameters.as_ref()
+    }
+}
+
 #[derive(Debug)]
-#[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
+#[ast_type(
+    impl_from = false,
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+)]
 pub struct BaseInterfaceOrClassLikeDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
 }
@@ -919,7 +988,10 @@ impl BaseInterfaceOrClassLikeDeclaration {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement", interfaces = "NamedDeclarationInterface")]
+#[ast_type(
+    ancestors = "Statement",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+)]
 pub struct InterfaceDeclaration {
     _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration, /*name: Identifier*/
     pub members: NodeArray,                                                    /*<TypeElement>*/
@@ -2643,7 +2715,9 @@ impl CharacterCodes {
     pub const colon: char = ':';
     pub const comma: char = ',';
     pub const equals: char = '=';
+    pub const greater_than: char = '>';
     pub const hash: char = '#';
+    pub const less_than: char = '<';
     pub const open_brace: char = '{';
     pub const open_bracket: char = '[';
     pub const plus: char = '+';

@@ -12,11 +12,12 @@ use crate::{
     set_text_range_pos_end, token_is_identifier_or_keyword, ArrayLiteralExpression, BaseNode,
     BaseNodeFactory, BinaryExpression, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
-    HasExpressionInitializerInterface, HasTypeInterface, Identifier, InterfaceDeclaration,
-    KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
-    PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable,
-    SyntaxKind, TypeElement, TypeNode, VariableDeclaration, VariableDeclarationList,
+    HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
+    InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression,
+    OperatorPrecedence, PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement,
+    Symbol, SymbolTable, SyntaxKind, TypeElement, TypeNode, TypeParameterDeclaration,
+    VariableDeclaration, VariableDeclarationList,
 };
 
 #[derive(Eq, PartialEq)]
@@ -34,27 +35,29 @@ fn visit_node<TNodeRef: Borrow<Node>, TNodeCallback: FnMut(Option<TNodeRef>)>(
 }
 
 fn visit_nodes<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: FnMut(&NodeArray)>(
-    cb_node: TNodeCallback,
-    mut cb_nodes: TNodesCallback,
-    nodes: &NodeArray,
+    cb_node: &mut TNodeCallback,
+    cb_nodes: &mut TNodesCallback,
+    nodes: Option<&NodeArray>,
 ) {
-    if true {
+    if let Some(nodes) = nodes {
         if true {
             return cb_nodes(nodes);
         }
     }
-    unimplemented!()
 }
 
 pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: FnMut(&NodeArray)>(
     node: &Node,
     mut cb_node: TNodeCallback,
-    cb_nodes: TNodesCallback,
+    mut cb_nodes: TNodesCallback,
 ) {
     if node.kind() <= SyntaxKind::LastToken {
         return;
     }
     match node {
+        Node::TypeParameterDeclaration(type_parameter_declaration) => {
+            visit_node(&mut cb_node, Some(type_parameter_declaration.name()))
+        }
         Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
             visit_node(&mut cb_node, Some(property_signature.name()));
             visit_node(&mut cb_node, property_signature.type_())
@@ -69,19 +72,28 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             visit_node(&mut cb_node, variable_declaration.initializer())
         }
         Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
-            visit_node(&mut cb_node, Some(type_reference_node.type_name.clone()))
+            visit_node(&mut cb_node, Some(type_reference_node.type_name.clone()));
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                type_reference_node.type_arguments.as_ref(),
+            )
         }
         Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
             visit_node(&mut cb_node, Some(array_type.element_type.clone()))
         }
         Node::Expression(Expression::ArrayLiteralExpression(array_literal_expression)) => {
-            visit_nodes(&mut cb_node, cb_nodes, &array_literal_expression.elements)
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                Some(&array_literal_expression.elements),
+            )
         }
         Node::Expression(Expression::ObjectLiteralExpression(object_literal_expression)) => {
             visit_nodes(
                 &mut cb_node,
-                cb_nodes,
-                &object_literal_expression.properties,
+                &mut cb_nodes,
+                Some(&object_literal_expression.properties),
             )
         }
         Node::Expression(Expression::PrefixUnaryExpression(prefix_unary_expression)) => {
@@ -91,12 +103,23 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             &mut cb_node,
             Some(variable_statement.declaration_list.clone()),
         ),
-        Node::VariableDeclarationList(variable_declaration_list) => {
-            visit_nodes(cb_node, cb_nodes, &variable_declaration_list.declarations)
-        }
+        Node::VariableDeclarationList(variable_declaration_list) => visit_nodes(
+            &mut cb_node,
+            &mut cb_nodes,
+            Some(&variable_declaration_list.declarations),
+        ),
         Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
             visit_node(&mut cb_node, Some(interface_declaration.name()));
-            visit_nodes(cb_node, cb_nodes, &interface_declaration.members)
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                interface_declaration.maybe_type_parameters(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                Some(&interface_declaration.members),
+            )
         }
         _ => unimplemented!(),
     }
@@ -453,6 +476,11 @@ impl ParserType {
         self.next_token_without_check()
     }
 
+    fn re_scan_less_than_token(&self) -> SyntaxKind {
+        /*current_token = */
+        self.scanner().re_scan_less_than_token()
+    }
+
     fn speculation_helper<TReturn, TCallback: FnMut() -> Option<TReturn>>(
         &self,
         callback: TCallback,
@@ -689,11 +717,15 @@ impl ParserType {
             ParsingContext::VariableDeclarations => {
                 self.is_binding_identifier_or_private_identifier_or_pattern()
             }
+            ParsingContext::TypeParameters => self.is_identifier(),
             ParsingContext::ArrayLiteralMembers => {
                 self.token() == SyntaxKind::CommaToken
                     || self.token() == SyntaxKind::DotToken
                     || self.token() == SyntaxKind::DotDotDotToken
                     || self.is_start_of_expression()
+            }
+            ParsingContext::TypeArguments => {
+                self.token() == SyntaxKind::CommaToken || self.is_start_of_type()
             }
             _ => unimplemented!(),
         }
@@ -708,7 +740,15 @@ impl ParserType {
                 self.token() == SyntaxKind::CloseBraceToken
             }
             ParsingContext::VariableDeclarations => self.is_variable_declarator_list_terminator(),
+            ParsingContext::TypeParameters => {
+                self.token() == SyntaxKind::GreaterThanToken
+                    || self.token() == SyntaxKind::OpenParenToken
+                    || self.token() == SyntaxKind::OpenBraceToken
+                    || self.token() == SyntaxKind::ExtendsKeyword
+                    || self.token() == SyntaxKind::ImplementsKeyword
+            }
             ParsingContext::ArrayLiteralMembers => self.token() == SyntaxKind::CloseBracketToken,
+            ParsingContext::TypeArguments => self.token() != SyntaxKind::CommaToken,
             _ => false,
         }
     }
@@ -750,6 +790,22 @@ impl ParserType {
 
         self.set_parsing_context(save_parsing_context);
         self.create_node_array(list)
+    }
+
+    fn parse_bracketed_list<TItem: Into<Node>>(
+        &mut self,
+        kind: ParsingContext,
+        parse_element: fn(&mut ParserType) -> TItem,
+        open: SyntaxKind,
+        close: SyntaxKind,
+    ) -> NodeArray {
+        if self.parse_expected(open, None) {
+            let result = self.parse_delimited_list(kind, parse_element, None);
+            self.parse_expected(close, None);
+            return result;
+        }
+
+        unimplemented!()
     }
 
     fn parse_entity_name(
@@ -824,14 +880,53 @@ impl ParserType {
         self.parse_entity_name(true, Some(Diagnostics::Type_expected))
     }
 
+    fn parse_type_arguments_of_type_reference(&mut self) -> Option<NodeArray /*<TypeNode>*/> {
+        if !self.scanner().has_preceding_line_break()
+            && self.re_scan_less_than_token() == SyntaxKind::LessThanToken
+        {
+            return Some(self.parse_bracketed_list(
+                ParsingContext::TypeArguments,
+                ParserType::parse_type,
+                SyntaxKind::LessThanToken,
+                SyntaxKind::GreaterThanToken,
+            ));
+        }
+        None
+    }
+
     fn parse_type_reference(&mut self) -> TypeNode {
         let pos = self.get_node_pos();
         let name = self.parse_entity_name_of_type_reference().wrap();
+        let type_arguments = self.parse_type_arguments_of_type_reference();
         self.finish_node(
-            self.factory.create_type_reference_node(self, name).into(),
+            self.factory
+                .create_type_reference_node(self, name, type_arguments)
+                .into(),
             pos,
             None,
         )
+    }
+
+    fn parse_type_parameter(&mut self) -> TypeParameterDeclaration {
+        let pos = self.get_node_pos();
+        let name = self.parse_identifier(None);
+
+        let node = self
+            .factory
+            .create_type_parameter_declaration(self, name.into());
+        self.finish_node(node, pos, None)
+    }
+
+    fn parse_type_parameters(&mut self) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
+        if self.token() == SyntaxKind::LessThanToken {
+            return Some(self.parse_bracketed_list(
+                ParsingContext::TypeParameters,
+                ParserType::parse_type_parameter,
+                SyntaxKind::LessThanToken,
+                SyntaxKind::GreaterThanToken,
+            ));
+        }
+        None
     }
 
     fn parse_type_member_semicolon(&mut self) {
@@ -914,6 +1009,42 @@ impl ParserType {
 
     fn is_start_of_type(&self) -> bool {
         match self.token() {
+            SyntaxKind::AnyKeyword
+            | SyntaxKind::UnknownKeyword
+            | SyntaxKind::StringKeyword
+            | SyntaxKind::NumberKeyword
+            | SyntaxKind::BigIntKeyword
+            | SyntaxKind::BooleanKeyword
+            | SyntaxKind::ReadonlyKeyword
+            | SyntaxKind::SymbolKeyword
+            | SyntaxKind::UniqueKeyword
+            | SyntaxKind::VoidKeyword
+            | SyntaxKind::UndefinedKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::ThisKeyword
+            | SyntaxKind::TypeOfKeyword
+            | SyntaxKind::NeverKeyword
+            | SyntaxKind::OpenBraceToken
+            | SyntaxKind::OpenBracketToken
+            | SyntaxKind::LessThanToken
+            | SyntaxKind::BarToken
+            | SyntaxKind::AmpersandToken
+            | SyntaxKind::NewKeyword
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::ObjectKeyword
+            | SyntaxKind::AsteriskToken
+            | SyntaxKind::QuestionToken
+            | SyntaxKind::ExclamationToken
+            | SyntaxKind::DotDotDotToken
+            | SyntaxKind::InferKeyword
+            | SyntaxKind::ImportKeyword
+            | SyntaxKind::AssertsKeyword
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateHead => true,
             _ => self.is_identifier(),
         }
     }
@@ -1398,10 +1529,11 @@ impl ParserType {
     fn parse_interface_declaration(&mut self, pos: isize) -> InterfaceDeclaration {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None);
         let name = self.parse_identifier(None);
+        let type_parameters = self.parse_type_parameters();
         let members = self.parse_object_type_members();
-        let node = self
-            .factory
-            .create_interface_declaration(self, name.into(), members);
+        let node =
+            self.factory
+                .create_interface_declaration(self, name.into(), type_parameters, members);
         self.finish_node(node, pos, None)
     }
 }
@@ -1444,5 +1576,7 @@ bitflags! {
         const VariableDeclarations = 1 << 8;
         const ObjectLiteralMembers = 1 << 12;
         const ArrayLiteralMembers = 1 << 15;
+        const TypeParameters = 1 << 19;
+        const TypeArguments = 1 << 20;
     }
 }

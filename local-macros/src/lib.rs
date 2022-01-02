@@ -143,6 +143,15 @@ fn get_struct_interface_impl(
                 }
             }
         }
+        "HasTypeParametersInterface" => {
+            quote! {
+                impl crate::HasTypeParametersInterface for #ast_type_name {
+                    fn maybe_type_parameters(&self) -> ::std::option::Option<&crate::NodeArray> {
+                        self.#first_field_name.maybe_type_parameters()
+                    }
+                }
+            }
+        }
         "HasExpressionInitializerInterface" => {
             quote! {
                 impl crate::HasExpressionInitializerInterface for #ast_type_name {
@@ -327,6 +336,17 @@ fn get_enum_interface_impl(
                     fn set_name(&mut self, name: ::std::rc::Rc<crate::Node>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_name(name)),*
+                        }
+                    }
+                }
+            }
+        }
+        "HasTypeParametersInterface" => {
+            quote! {
+                impl crate::HasTypeParametersInterface for #ast_type_name {
+                    fn maybe_type_parameters(&self) -> ::std::option::Option<&crate::NodeArray> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_type_parameters()),*
                         }
                     }
                 }

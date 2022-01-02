@@ -8,8 +8,8 @@ use crate::{
     Identifier, InterfaceDeclaration, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
     PrefixUnaryExpression, PropertyAssignment, PropertySignature, SourceFile, SyntaxKind,
-    TypeLiteralNode, TypeReferenceNode, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    TypeLiteralNode, TypeParameterDeclaration, TypeReferenceNode, VariableDeclaration,
+    VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -50,24 +50,33 @@ impl NodeFactory {
         BaseNamedDeclaration::new(node, name)
     }
 
-    fn create_base_generic_named_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    fn create_base_generic_named_declaration<
+        TBaseNodeFactory: BaseNodeFactory,
+        TTypeParameters: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
         name: Rc<Node>,
+        type_parameters: Option<TTypeParameters>,
     ) -> BaseGenericNamedDeclaration {
         let node = self.create_base_named_declaration(base_factory, kind, Some(name));
-        let node = BaseGenericNamedDeclaration::new(node);
+        let node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
         node
     }
 
-    fn create_base_interface_or_class_like_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    fn create_base_interface_or_class_like_declaration<
+        TBaseNodeFactory: BaseNodeFactory,
+        TTypeParameters: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
         name: Rc<Node>,
+        type_parameters: Option<TTypeParameters>,
     ) -> BaseInterfaceOrClassLikeDeclaration {
-        let node = self.create_base_generic_named_declaration(base_factory, kind, name);
+        let node =
+            self.create_base_generic_named_declaration(base_factory, kind, name, type_parameters);
         let node = BaseInterfaceOrClassLikeDeclaration::new(node);
         node
     }
@@ -169,6 +178,17 @@ impl NodeFactory {
         self.create_token(base_factory, SyntaxKind::FalseKeyword)
     }
 
+    pub fn create_type_parameter_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Rc<Node>,
+    ) -> TypeParameterDeclaration {
+        let node =
+            self.create_base_named_declaration(base_factory, SyntaxKind::TypeParameter, Some(name));
+        let node = TypeParameterDeclaration::new(node);
+        node
+    }
+
     pub fn create_property_signature<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -192,13 +212,21 @@ impl NodeFactory {
         self.create_token(base_factory, token)
     }
 
-    pub fn create_type_reference_node<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_type_reference_node<
+        TBaseNodeFactory: BaseNodeFactory,
+        TTypeArguments: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         type_name: Rc<Node>,
+        type_arguments: Option<TTypeArguments>,
     ) -> TypeReferenceNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypeReference);
-        let node = TypeReferenceNode::new(node, self.as_name(type_name));
+        let node = TypeReferenceNode::new(
+            node,
+            self.as_name(type_name),
+            type_arguments.map(|type_arguments| self.create_node_array(type_arguments)),
+        );
         node
     }
 
@@ -358,16 +386,19 @@ impl NodeFactory {
     pub fn create_interface_declaration<
         TBaseNodeFactory: BaseNodeFactory,
         TMembers: Into<NodeArrayOrVec>,
+        TTypeParameters: Into<NodeArrayOrVec>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
         name: Rc<Node>,
+        type_parameters: Option<TTypeParameters>,
         members: TMembers,
     ) -> InterfaceDeclaration {
         let node = self.create_base_interface_or_class_like_declaration(
             base_factory,
             SyntaxKind::InterfaceDeclaration,
             name,
+            type_parameters,
         );
         let node = InterfaceDeclaration::new(node, self.create_node_array(members));
         node
@@ -401,6 +432,13 @@ impl NodeFactory {
             "".to_string(),
         );
         node
+    }
+
+    fn as_node_array<TArray: Into<NodeArrayOrVec>>(
+        &self,
+        array: Option<TArray>,
+    ) -> Option<NodeArray> {
+        array.map(|array| self.create_node_array(array))
     }
 
     fn as_name(&self, name: Rc<Node>) -> Rc<Node> {
