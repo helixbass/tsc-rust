@@ -3,10 +3,11 @@
 use std::rc::Rc;
 
 use crate::{
-    UnionType, __String, get_name_of_declaration, get_object_flags, unescape_leading_underscores,
-    ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node,
-    NodeInterface, ObjectFlags, Symbol, SymbolFlags, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeReferenceNode, UnionReduction,
+    UnionType, __String, concatenate, get_name_of_declaration, get_object_flags,
+    unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
+    Diagnostics, Expression, InterfaceType, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeReference, TypeReferenceNode, UnionReduction,
 };
 
 impl TypeChecker {
@@ -70,13 +71,55 @@ impl TypeChecker {
         result & ObjectFlags::PropagatingFlags
     }
 
+    pub(super) fn create_type_reference(
+        &self,
+        target: Rc<Type /*GenericType*/>,
+        type_arguments: Option<Vec<Rc<Type>>>,
+    ) -> TypeReference {
+        let type_ = self.create_object_type(ObjectFlags::Reference, target.symbol());
+        type_.set_object_flags(
+            type_.object_flags()
+                | if let Some(type_arguments) = type_arguments.as_ref() {
+                    self.get_propagating_flags_of_types(type_arguments, TypeFlags::None)
+                } else {
+                    ObjectFlags::None
+                },
+        );
+        let type_ = TypeReference::new(type_, target, type_arguments);
+        type_
+    }
+
     pub(super) fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
         &self,
         node: &TNode,
         symbol: Rc<Symbol>,
     ) -> Rc<Type> {
-        let type_ = self.get_declared_type_of_symbol(self.get_merged_symbol(Some(symbol)).unwrap());
-        if true {
+        let type_ =
+            self.get_declared_type_of_symbol(self.get_merged_symbol(Some(symbol.clone())).unwrap());
+        let type_as_interface_type = match &*type_ {
+            Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
+                base_interface_type,
+            ))) => base_interface_type,
+            _ => panic!("Expected BaseInterfaceType"),
+        };
+        let type_parameters = type_as_interface_type.type_parameters.as_ref();
+        if let Some(type_parameters) = type_parameters {
+            let type_arguments = concatenate(
+                type_as_interface_type
+                    .outer_type_parameters
+                    .clone()
+                    .unwrap_or_else(|| vec![]),
+                self.fill_missing_type_arguments(
+                    self.type_arguments_from_type_reference_node(node),
+                    type_parameters,
+                ),
+            );
+            return Rc::new(
+                self.create_type_reference(type_, Some(type_arguments))
+                    .into(),
+            );
+        }
+        if self.check_no_type_arguments(node, symbol) {
             type_
         } else {
             unimplemented!()

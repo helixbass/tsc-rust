@@ -2070,8 +2070,9 @@ pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
 
 #[derive(Clone, Debug)]
 pub enum ObjectType {
-    InterfaceType(InterfaceType),
     BaseObjectType(BaseObjectType),
+    InterfaceType(InterfaceType),
+    TypeReference(TypeReference),
 }
 
 impl TypeInterface for ObjectType {
@@ -2079,6 +2080,7 @@ impl TypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.flags(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.flags(),
+            ObjectType::TypeReference(type_reference) => type_reference.flags(),
         }
     }
 
@@ -2086,6 +2088,7 @@ impl TypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.maybe_symbol(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.maybe_symbol(),
+            ObjectType::TypeReference(type_reference) => type_reference.maybe_symbol(),
         }
     }
 
@@ -2093,6 +2096,7 @@ impl TypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.symbol(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.symbol(),
+            ObjectType::TypeReference(type_reference) => type_reference.symbol(),
         }
     }
 
@@ -2100,6 +2104,7 @@ impl TypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.set_symbol(symbol),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.set_symbol(symbol),
+            ObjectType::TypeReference(type_reference) => type_reference.set_symbol(symbol),
         }
     }
 }
@@ -2109,6 +2114,7 @@ impl ObjectFlagsTypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.object_flags(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.object_flags(),
+            ObjectType::TypeReference(type_reference) => type_reference.object_flags(),
         }
     }
 
@@ -2119,6 +2125,9 @@ impl ObjectFlagsTypeInterface for ObjectType {
             }
             ObjectType::BaseObjectType(base_object_type) => {
                 base_object_type.set_object_flags(object_flags)
+            }
+            ObjectType::TypeReference(type_reference) => {
+                type_reference.set_object_flags(object_flags)
             }
         }
     }
@@ -2135,6 +2144,9 @@ impl ResolvableTypeInterface for ObjectType {
             ObjectType::BaseObjectType(base_object_type) => {
                 base_object_type.resolve(members, properties)
             }
+            ObjectType::TypeReference(_) => {
+                panic!("TypeReference doesn't implement ResolvableTypeInterface?")
+            }
         }
     }
 
@@ -2142,6 +2154,9 @@ impl ResolvableTypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.is_resolved(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.is_resolved(),
+            ObjectType::TypeReference(_) => {
+                panic!("TypeReference doesn't implement ResolvableTypeInterface?")
+            }
         }
     }
 }
@@ -2151,6 +2166,9 @@ impl ResolvedTypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.members(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.members(),
+            ObjectType::TypeReference(_) => {
+                panic!("TypeReference doesn't implement ResolvedTypeInterface?")
+            }
         }
     }
 
@@ -2158,6 +2176,9 @@ impl ResolvedTypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.properties(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.properties(),
+            ObjectType::TypeReference(_) => {
+                panic!("TypeReference doesn't implement ResolvedTypeInterface?")
+            }
         }
     }
 
@@ -2166,6 +2187,9 @@ impl ResolvedTypeInterface for ObjectType {
             ObjectType::InterfaceType(interface_type) => interface_type.set_properties(properties),
             ObjectType::BaseObjectType(base_object_type) => {
                 base_object_type.set_properties(properties)
+            }
+            ObjectType::TypeReference(_) => {
+                panic!("TypeReference doesn't implement ResolvedTypeInterface?")
             }
         }
     }
@@ -2467,6 +2491,69 @@ impl ResolvedTypeInterface for BaseInterfaceType {
 impl From<BaseInterfaceType> for InterfaceType {
     fn from(base_interface_type: BaseInterfaceType) -> Self {
         InterfaceType::BaseInterfaceType(base_interface_type)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TypeReference {
+    _object_type: BaseObjectType,
+    pub target: Rc<Type /*GenericType*/>,
+    pub resolved_type_arguments: Option<Vec<Rc<Type>>>,
+}
+
+impl TypeReference {
+    pub fn new(
+        object_type: BaseObjectType,
+        target: Rc<Type>,
+        resolved_type_arguments: Option<Vec<Rc<Type>>>,
+    ) -> Self {
+        Self {
+            _object_type: object_type,
+            target,
+            resolved_type_arguments,
+        }
+    }
+}
+
+impl TypeInterface for TypeReference {
+    fn flags(&self) -> TypeFlags {
+        self._object_type.flags()
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._object_type.maybe_symbol()
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        self._object_type.symbol()
+    }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self._object_type.set_symbol(symbol)
+    }
+}
+
+impl ObjectFlagsTypeInterface for TypeReference {
+    fn object_flags(&self) -> ObjectFlags {
+        self._object_type.object_flags()
+    }
+
+    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+        self._object_type.set_object_flags(object_flags)
+    }
+}
+
+impl ObjectTypeInterface for TypeReference {}
+
+impl From<TypeReference> for ObjectType {
+    fn from(type_reference: TypeReference) -> Self {
+        ObjectType::TypeReference(type_reference)
+    }
+}
+
+impl From<TypeReference> for Type {
+    fn from(type_reference: TypeReference) -> Self {
+        Type::ObjectType(ObjectType::TypeReference(type_reference))
     }
 }
 

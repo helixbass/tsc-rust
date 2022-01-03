@@ -1,8 +1,6 @@
 use std::rc::Rc;
 
-use crate::{
-    CharacterCodes, Expression, Node, NodeArray, NodeInterface, SyntaxKind, TextSpan, __String,
-};
+use crate::{CharacterCodes, Expression, Node, NodeInterface, SyntaxKind, TextSpan, __String};
 
 fn create_text_span(start: isize, length: isize) -> TextSpan {
     TextSpan { start, length }
