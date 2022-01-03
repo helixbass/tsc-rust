@@ -52,6 +52,8 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         Symbol: object_allocator.get_symbol_constructor(),
         Type: object_allocator.get_type_constructor(),
 
+        empty_symbols: Rc::new(RefCell::new(create_symbol_table())),
+
         strict_null_checks: true,
         fresh_object_literal_flag: if false {
             unimplemented!()
@@ -203,6 +205,10 @@ impl TypeChecker {
         self._types_needing_strong_references
             .borrow_mut()
             .push(type_);
+    }
+
+    pub(super) fn empty_symbols(&self) -> Rc<RefCell<SymbolTable>> {
+        self.empty_symbols.clone()
     }
 
     pub(super) fn globals(&self) -> RefMut<SymbolTable> {

@@ -1099,6 +1099,7 @@ pub struct TypeChecker {
     pub _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
     pub Symbol: fn(SymbolFlags, __String) -> Symbol,
     pub Type: fn(TypeFlags) -> BaseType,
+    pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
     pub strict_null_checks: bool,
     pub fresh_object_literal_flag: ObjectFlags,
     pub exact_optional_property_types: bool,
@@ -1180,6 +1181,7 @@ bitflags! {
 
         const PropertyExcludes = Self::None.bits;
         const InterfaceExcludes = Self::Type.bits & !(Self::Interface.bits | Self::Class.bits);
+        const TypeParameterExcludes = Self::Type.bits & !Self::TypeParameter.bits;
     }
 }
 

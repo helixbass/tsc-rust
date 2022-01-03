@@ -130,6 +130,27 @@ impl TypeChecker {
             {
                 unimplemented!()
             }
+
+            match location_unwrapped.kind() {
+                SyntaxKind::InterfaceDeclaration => {
+                    result = lookup(
+                        self,
+                        &*(*self
+                            .get_symbol_of_node(&*location_unwrapped)
+                            .unwrap()
+                            .maybe_members()
+                            .clone()
+                            .unwrap_or_else(|| self.empty_symbols()))
+                        .borrow(),
+                        name,
+                        meaning & SymbolFlags::Type,
+                    );
+                    if let Some(result) = &result {
+                        break;
+                    }
+                }
+                _ => (),
+            }
             last_location = Some(location_unwrapped.clone());
             location = location_unwrapped.maybe_parent();
         }

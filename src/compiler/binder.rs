@@ -11,7 +11,7 @@ use crate::{
     get_name_of_declaration, is_binding_pattern, is_property_name_literal, object_allocator,
     set_parent, set_value_declaration, Expression, ExpressionStatement, InternalSymbolName,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectLiteralExpression,
-    PropertySignature, Statement, SymbolFlags, TypeElement,
+    PropertySignature, Statement, SymbolFlags, TypeElement, TypeParameterDeclaration,
 };
 
 bitflags! {
@@ -437,6 +437,9 @@ impl BinderType {
 
     fn bind_worker(&self, node: &Node) {
         match &*node {
+            Node::TypeParameterDeclaration(type_parameter_declaration) => {
+                self.bind_type_parameter(type_parameter_declaration)
+            }
             Node::VariableDeclaration(variable_declaration) => {
                 self.bind_variable_declaration_or_binding_element(variable_declaration)
             }
@@ -498,6 +501,18 @@ impl BinderType {
             unimplemented!()
         } else {
             self.declare_symbol_and_add_to_symbol_table(node, symbol_flags, symbol_excludes);
+        }
+    }
+
+    fn bind_type_parameter(&self, node: &TypeParameterDeclaration) {
+        if false {
+            unimplemented!()
+        } else {
+            self.declare_symbol_and_add_to_symbol_table(
+                node,
+                SymbolFlags::TypeParameter,
+                SymbolFlags::TypeParameterExcludes,
+            );
         }
     }
 }
