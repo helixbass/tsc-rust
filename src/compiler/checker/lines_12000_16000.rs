@@ -135,6 +135,14 @@ impl TypeChecker {
         {
             return self.get_type_from_class_or_interface_reference(node, symbol);
         }
+        let res = self.try_get_declared_type_of_symbol(symbol.clone());
+        if let Some(res) = res {
+            return if self.check_no_type_arguments(node, symbol) {
+                self.get_regular_type_of_literal_type(res)
+            } else {
+                unimplemented!()
+            };
+        }
         unimplemented!()
     }
 
@@ -144,6 +152,20 @@ impl TypeChecker {
         node: &Node,
     ) -> Rc<Type> {
         type_
+    }
+
+    pub(super) fn check_no_type_arguments<TNode: NodeInterface>(
+        &self,
+        node: &TNode, /*NodeWithTypeArguments*/
+        symbol: Rc<Symbol>,
+    ) -> bool {
+        if let Some(type_arguments) = (*node.node_wrapper())
+            .as_has_type_arguments()
+            .maybe_type_arguments()
+        {
+            unimplemented!()
+        }
+        true
     }
 
     pub(super) fn get_type_from_type_reference(&self, node: &TypeReferenceNode) -> Rc<Type> {

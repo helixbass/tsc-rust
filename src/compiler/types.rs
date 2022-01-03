@@ -253,6 +253,13 @@ impl Node {
             _ => panic!("Expected has type parameters"),
         }
     }
+
+    pub fn as_has_type_arguments(&self) -> &dyn HasTypeArgumentsInterface {
+        match self {
+            Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => type_reference_node,
+            _ => panic!("Expected has type arguments"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -658,6 +665,10 @@ impl From<BaseNode> for KeywordTypeNode {
     }
 }
 
+pub trait HasTypeArgumentsInterface {
+    fn maybe_type_arguments(&self) -> Option<&NodeArray>;
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "TypeNode")]
 pub struct TypeReferenceNode {
@@ -677,6 +688,12 @@ impl TypeReferenceNode {
             type_name,
             type_arguments,
         }
+    }
+}
+
+impl HasTypeArgumentsInterface for TypeReferenceNode {
+    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
+        self.type_arguments.as_ref()
     }
 }
 

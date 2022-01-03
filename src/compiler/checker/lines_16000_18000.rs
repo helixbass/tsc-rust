@@ -9,7 +9,7 @@ use crate::{
     ArrayTypeNode, BaseLiteralType, Debug_, DiagnosticMessage, Expression, IntrinsicType,
     LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
     NumberLiteralType, ObjectLiteralExpression, RelationComparisonResult, StringLiteralType,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeNode,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeNode, UnionOrIntersectionType,
 };
 
 impl TypeChecker {
@@ -51,15 +51,22 @@ impl TypeChecker {
     }
 
     pub(super) fn get_fresh_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
-        if type_.flags().intersects(TypeFlags::Literal) {
-            match &*type_ {
-                Type::LiteralType(literal_type) => {
-                    return literal_type.get_or_initialize_fresh_type(self, &type_);
-                }
-                _ => panic!("Expected LiteralType"),
+        match &*type_ {
+            Type::LiteralType(literal_type) => {
+                return literal_type.get_or_initialize_fresh_type(self, &type_);
             }
+            _ => type_,
         }
-        type_
+    }
+
+    pub(super) fn get_regular_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        match &*type_ {
+            Type::LiteralType(literal_type) => return literal_type.regular_type(),
+            Type::UnionOrIntersectionType(UnionOrIntersectionType::UnionType(union_type)) => {
+                unimplemented!()
+            }
+            _ => type_,
+        }
     }
 
     pub(super) fn is_fresh_literal_type(&self, type_: Rc<Type>) -> bool {

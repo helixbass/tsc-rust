@@ -287,6 +287,9 @@ impl TypeChecker {
         {
             return Some(self.get_declared_type_of_class_or_interface(symbol));
         }
+        if symbol.flags().intersects(SymbolFlags::TypeParameter) {
+            return Some(self.get_declared_type_of_type_parameter(symbol));
+        }
         unimplemented!()
     }
 
