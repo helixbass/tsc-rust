@@ -3,13 +3,13 @@
 use std::rc::Rc;
 
 use crate::{
-    for_each, get_effective_initializer, is_binding_element, is_private_identifier, ArrayTypeNode,
-    DiagnosticMessage, Diagnostics, Expression, ExpressionStatement, HasTypeParametersInterface,
-    InterfaceDeclaration, LiteralLikeNode, LiteralLikeNodeInterface, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, PrefixUnaryExpression, PropertyAssignment, PropertySignature,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameterDeclaration,
-    TypeReferenceNode, UnionOrIntersectionTypeInterface, VariableDeclaration,
-    VariableLikeDeclarationInterface, VariableStatement,
+    for_each, get_effective_initializer, is_binding_element, is_private_identifier, maybe_for_each,
+    ArrayTypeNode, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
+    HasTypeParametersInterface, InterfaceDeclaration, LiteralLikeNode, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, PrefixUnaryExpression,
+    PropertyAssignment, PropertySignature, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeInterface,
+    VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
 };
 
 impl TypeChecker {
@@ -183,6 +183,10 @@ impl TypeChecker {
     }
 
     pub(super) fn check_type_reference_node(&mut self, node: &TypeReferenceNode) {
+        maybe_for_each(node.type_arguments.as_ref(), |type_argument, _| {
+            self.check_source_element(Some(&**type_argument));
+            Option::<()>::None
+        });
         let type_ = self.get_type_from_type_reference(node);
     }
 

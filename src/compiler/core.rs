@@ -14,6 +14,20 @@ pub fn for_each<
         .find_map(|(index, item)| callback(item, index))
 }
 
+pub fn maybe_for_each<
+    TCollection: IntoIterator,
+    TReturn,
+    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
+>(
+    array: Option<TCollection>,
+    mut callback: TCallback,
+) -> Option<TReturn> {
+    match array {
+        Some(array) => for_each(array, callback),
+        None => None,
+    }
+}
+
 pub fn first_defined<
     TCollection: IntoIterator,
     TReturn,
