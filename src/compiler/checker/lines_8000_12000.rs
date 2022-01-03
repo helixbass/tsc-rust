@@ -5,12 +5,13 @@ use std::rc::Rc;
 
 use super::NodeBuilderContext;
 use crate::{
-    __String, declaration_name_to_string, escape_leading_underscores, first_defined,
-    get_effective_type_annotation_node, get_name_of_declaration, has_dynamic_name,
-    is_property_assignment, is_property_declaration, is_property_signature,
-    is_variable_declaration, BaseInterfaceType, Debug_, InterfaceType, LiteralType, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolTable, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    __String, append_if_unique, concatenate, declaration_name_to_string,
+    escape_leading_underscores, first_defined, get_declaration_of_kind,
+    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
+    get_name_of_declaration, has_dynamic_name, is_property_assignment, is_property_declaration,
+    is_property_signature, is_variable_declaration, BaseInterfaceType, Debug_, InterfaceType,
+    LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -161,6 +162,75 @@ impl TypeChecker {
         )
     }
 
+    pub(super) fn append_type_parameters(
+        &self,
+        mut type_parameters: Option<Vec<Rc<Type>>>,
+        declarations: &[Rc<Node>],
+    ) -> Option<Vec<Rc<Type>>> {
+        for declaration in declarations {
+            type_parameters = Some(append_if_unique(
+                type_parameters,
+                self.get_declared_type_of_type_parameter(
+                    self.get_symbol_of_node(&**declaration).unwrap(),
+                ),
+            ));
+        }
+        type_parameters
+    }
+
+    pub(super) fn get_outer_type_parameters(
+        &self,
+        node: &Node,
+    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+        None
+    }
+
+    pub(super) fn get_outer_type_parameters_of_class_or_interface(
+        &self,
+        symbol: Rc<Symbol>,
+    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+        let declaration = if symbol.flags().intersects(SymbolFlags::Class) {
+            symbol
+                .maybe_value_declaration()
+                .as_ref()
+                .map(|weak| weak.upgrade().unwrap())
+        } else {
+            get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration)
+        };
+        Debug_.assert(
+            declaration.is_some(),
+            Some("Class was missing valueDeclaration -OR- non-class had no interface declarations"),
+        );
+        let declaration = declaration.unwrap();
+        self.get_outer_type_parameters(&*declaration)
+    }
+
+    pub(super) fn get_local_type_parameters_of_class_or_interface_or_type_alias(
+        &self,
+        symbol: Rc<Symbol>,
+    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+        let declarations = symbol.maybe_declarations();
+        if declarations.is_none() {
+            return None;
+        }
+        let declarations = declarations.as_ref().unwrap();
+        let mut result: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
+        for node in declarations {
+            if node.kind() == SyntaxKind::InterfaceDeclaration
+                || node.kind() == SyntaxKind::ClassDeclaration
+                || node.kind() == SyntaxKind::ClassExpression
+                || false
+            {
+                let declaration = node;
+                result = self.append_type_parameters(
+                    result,
+                    &get_effective_type_parameter_declarations(&*declaration),
+                );
+            }
+        }
+        result
+    }
+
     pub(super) fn get_declared_type_of_class_or_interface(
         &self,
         symbol: Rc<Symbol>,
@@ -171,9 +241,38 @@ impl TypeChecker {
             ObjectFlags::Interface
         };
 
-        let type_: InterfaceType =
-            BaseInterfaceType::new(self.create_object_type(kind, symbol)).into();
+        let mut type_ = self.create_object_type(kind, symbol.clone());
+        let outer_type_parameters =
+            self.get_outer_type_parameters_of_class_or_interface(symbol.clone());
+        let local_type_parameters =
+            self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+        let type_: InterfaceType = if outer_type_parameters.is_some()
+            || local_type_parameters.is_some()
+            || kind == ObjectFlags::Class
+            || false
+        {
+            type_.set_object_flags(type_.object_flags() | ObjectFlags::Reference);
+            BaseInterfaceType::new(
+                type_,
+                Some(concatenate(
+                    outer_type_parameters.clone().unwrap_or_else(|| vec![]),
+                    local_type_parameters.clone().unwrap_or_else(|| vec![]),
+                )),
+                outer_type_parameters,
+                local_type_parameters,
+            )
+        } else {
+            BaseInterfaceType::new(type_, None, None, None)
+        }
+        .into();
         Rc::new(type_.into())
+    }
+
+    pub(super) fn get_declared_type_of_type_parameter(
+        &self,
+        symbol: Rc<Symbol>,
+    ) -> Rc<Type /*TypeParameter*/> {
+        Rc::new(self.create_type_parameter(Some(symbol)).into())
     }
 
     pub(super) fn get_declared_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {

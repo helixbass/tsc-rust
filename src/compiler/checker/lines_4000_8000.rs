@@ -11,7 +11,7 @@ use crate::{
     EmitTextWriter, Expression, KeywordTypeNode, Node, NodeArray, NodeInterface, ObjectFlags,
     PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Symbol,
     SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    TypeFlags, TypeInterface, TypeParameter,
 };
 
 impl TypeChecker {
@@ -42,6 +42,15 @@ impl TypeChecker {
         let mut type_ = self.create_type(TypeFlags::Object);
         type_.set_symbol(symbol);
         let type_ = BaseObjectType::new(type_, object_flags);
+        type_
+    }
+
+    pub(super) fn create_type_parameter(&self, symbol: Option<Rc<Symbol>>) -> TypeParameter {
+        let mut type_ = self.create_type(TypeFlags::TypeParameter);
+        if let Some(symbol) = symbol {
+            type_.set_symbol(symbol);
+        }
+        let type_ = TypeParameter::new(type_);
         type_
     }
 

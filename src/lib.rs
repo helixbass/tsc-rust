@@ -57,16 +57,16 @@ pub use compiler::types::{
     ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Statement, StringLiteralType,
     StructureIsReused, Symbol, SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker,
     SymbolWriter, SyntaxKind, Ternary, TextSpan, TokenFlags, Type, TypeChecker, TypeCheckerHost,
-    TypeElement, TypeFlags, TypeInterface, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
-    TypeReferenceNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionReduction,
-    UnionType, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, __String,
+    TypeElement, TypeFlags, TypeInterface, TypeLiteralNode, TypeNode, TypeParameter,
+    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, UnionReduction, UnionType, VariableDeclaration,
+    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, __String,
 };
 pub use compiler::utilities::{
     chain_diagnostic_messages, create_detached_diagnostic, create_diagnostic_collection,
     create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_symbol_table,
     create_text_writer, declaration_name_to_string, get_binary_operator_precedence,
-    get_effective_initializer, get_effective_type_annotation_node,
+    get_declaration_of_kind, get_effective_initializer, get_effective_type_annotation_node,
     get_escaped_text_of_identifier_or_literal, get_first_identifier, get_object_flags,
     get_source_file_of_node, has_dynamic_name, is_external_or_common_js_module, is_keyword,
     is_property_name_literal, node_is_missing, object_allocator, position_is_synthesized,
@@ -74,9 +74,9 @@ pub use compiler::utilities::{
     OperatorPrecedence,
 };
 pub use compiler::utilities_public::{
-    create_text_span_from_bounds, escape_leading_underscores, get_name_of_declaration,
-    has_initializer, id_text, is_binding_pattern, is_expression, is_member_name,
-    unescape_leading_underscores,
+    create_text_span_from_bounds, escape_leading_underscores,
+    get_effective_type_parameter_declarations, get_name_of_declaration, has_initializer, id_text,
+    is_binding_pattern, is_expression, is_member_name, unescape_leading_underscores,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;

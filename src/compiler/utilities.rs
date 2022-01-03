@@ -17,6 +17,23 @@ use crate::{
     TypeInterface,
 };
 
+pub fn get_declaration_of_kind(
+    symbol: Rc<Symbol>,
+    kind: SyntaxKind,
+) -> Option<Rc<Node /*T extends Declaration*/>> {
+    let maybe_declarations = symbol.maybe_declarations();
+    let declarations = maybe_declarations.as_ref();
+    if let Some(declarations) = declarations {
+        for declaration in declarations {
+            if declaration.kind() == kind {
+                return Some(declaration.clone());
+            }
+        }
+    }
+
+    None
+}
+
 pub fn create_symbol_table() -> SymbolTable {
     let result = SymbolTable::new();
     result

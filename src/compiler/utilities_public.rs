@@ -1,6 +1,8 @@
 use std::rc::Rc;
 
-use crate::{CharacterCodes, Expression, Node, NodeInterface, SyntaxKind, TextSpan, __String};
+use crate::{
+    CharacterCodes, Expression, Node, NodeArray, NodeInterface, SyntaxKind, TextSpan, __String,
+};
 
 fn create_text_span(start: isize, length: isize) -> TextSpan {
     TextSpan { start, length }
@@ -57,6 +59,15 @@ fn get_non_assigned_name_of_declaration<TNode: NodeInterface>(
 
 pub fn get_name_of_declaration<TNode: NodeInterface>(declaration: &TNode) -> Option<Rc<Node>> {
     get_non_assigned_name_of_declaration(declaration)
+}
+
+pub fn get_effective_type_parameter_declarations(
+    node: &Node,
+) -> Vec<Rc<Node /*TypeParameterDeclaration*/>> {
+    if let Some(type_parameters) = node.as_has_type_parameters().maybe_type_parameters() {
+        return type_parameters.into();
+    }
+    vec![]
 }
 
 pub fn is_member_name<TNode: NodeInterface>(node: &TNode) -> bool {

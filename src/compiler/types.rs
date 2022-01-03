@@ -101,6 +101,7 @@ pub enum SyntaxKind {
     PropertyAccessExpression,
     PrefixUnaryExpression,
     BinaryExpression,
+    ClassExpression,
     ExpressionWithTypeArguments,
     EmptyStatement,
     VariableStatement,
@@ -108,6 +109,7 @@ pub enum SyntaxKind {
     VariableDeclaration,
     VariableDeclarationList,
     FunctionDeclaration,
+    ClassDeclaration,
     InterfaceDeclaration,
     PropertyAssignment,
     SourceFile,
@@ -242,6 +244,15 @@ impl Node {
             _ => None,
         }
     }
+
+    pub fn as_has_type_parameters(&self) -> &dyn HasTypeParametersInterface {
+        match self {
+            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
+                interface_declaration
+            }
+            _ => panic!("Expected has type parameters"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -372,7 +383,7 @@ pub trait HasExpressionInitializerInterface {
     fn set_initializer(&mut self, initializer: Rc<Node>);
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct NodeArray {
     _nodes: Vec<Rc<Node>>,
 }
@@ -388,6 +399,18 @@ impl NodeArray {
 
     pub fn len(&self) -> usize {
         self._nodes.len()
+    }
+}
+
+impl Default for NodeArray {
+    fn default() -> Self {
+        Self::new(vec![])
+    }
+}
+
+impl From<&NodeArray> for Vec<Rc<Node>> {
+    fn from(node_array: &NodeArray) -> Self {
+        node_array._nodes.clone()
     }
 }
 
@@ -1298,6 +1321,7 @@ pub enum Type {
     LiteralType(LiteralType),
     ObjectType(ObjectType),
     UnionOrIntersectionType(UnionOrIntersectionType),
+    TypeParameter(TypeParameter),
 }
 
 impl Type {
@@ -1352,6 +1376,7 @@ impl TypeInterface for Type {
             Type::UnionOrIntersectionType(union_or_intersection_type) => {
                 union_or_intersection_type.flags()
             }
+            Type::TypeParameter(type_parameter) => type_parameter.flags(),
         }
     }
 
@@ -1363,6 +1388,7 @@ impl TypeInterface for Type {
             Type::UnionOrIntersectionType(union_or_intersection_type) => {
                 union_or_intersection_type.maybe_symbol()
             }
+            Type::TypeParameter(type_parameter) => type_parameter.maybe_symbol(),
         }
     }
 
@@ -1374,6 +1400,7 @@ impl TypeInterface for Type {
             Type::UnionOrIntersectionType(union_or_intersection_type) => {
                 union_or_intersection_type.symbol()
             }
+            Type::TypeParameter(type_parameter) => type_parameter.symbol(),
         }
     }
 
@@ -1385,6 +1412,7 @@ impl TypeInterface for Type {
             Type::UnionOrIntersectionType(union_or_intersection_type) => {
                 union_or_intersection_type.set_symbol(symbol)
             }
+            Type::TypeParameter(type_parameter) => type_parameter.set_symbol(symbol),
         }
     }
 }
@@ -1993,6 +2021,7 @@ bitflags! {
         const None = 0;
         const Class = 1 << 0;
         const Interface = 1 << 1;
+        const Reference = 1 << 2;
         const Anonymous = 1 << 4;
         const Mapped = 1 << 5;
         const ObjectLiteral = 1 << 7;
@@ -2336,14 +2365,25 @@ pub struct BaseInterfaceType {
     _object_type: BaseObjectType,
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     properties: RefCell<Option<Vec<Rc<Symbol>>>>,
+    pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    pub local_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
 }
 
 impl BaseInterfaceType {
-    pub fn new(object_type: BaseObjectType) -> Self {
+    pub fn new(
+        object_type: BaseObjectType,
+        type_parameters: Option<Vec<Rc<Type>>>,
+        outer_type_parameters: Option<Vec<Rc<Type>>>,
+        local_type_parameters: Option<Vec<Rc<Type>>>,
+    ) -> Self {
         Self {
             _object_type: object_type,
             members: RefCell::new(None),
             properties: RefCell::new(None),
+            type_parameters,
+            outer_type_parameters,
+            local_type_parameters,
         }
     }
 }
@@ -2591,6 +2631,41 @@ pub trait ResolvedTypeInterface {
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
     fn properties(&self) -> RefMut<Vec<Rc<Symbol>>>;
     fn set_properties(&self, properties: Vec<Rc<Symbol>>);
+}
+
+#[derive(Clone, Debug)]
+pub struct TypeParameter {
+    _type: BaseType,
+}
+
+impl TypeParameter {
+    pub fn new(base_type: BaseType) -> Self {
+        Self { _type: base_type }
+    }
+}
+
+impl TypeInterface for TypeParameter {
+    fn flags(&self) -> TypeFlags {
+        self._type.flags()
+    }
+
+    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
+        self._type.maybe_symbol()
+    }
+
+    fn symbol(&self) -> Rc<Symbol> {
+        self._type.symbol()
+    }
+
+    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
+        self._type.set_symbol(symbol)
+    }
+}
+
+impl From<TypeParameter> for Type {
+    fn from(type_parameter: TypeParameter) -> Self {
+        Type::TypeParameter(type_parameter)
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
