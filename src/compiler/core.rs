@@ -20,7 +20,7 @@ pub fn maybe_for_each<
     TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
 >(
     array: Option<TCollection>,
-    mut callback: TCallback,
+    callback: TCallback,
 ) -> Option<TReturn> {
     match array {
         Some(array) => for_each(array, callback),
@@ -47,6 +47,25 @@ pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .into_iter()
         .enumerate()
         .all(|(index, value)| predicate(value, index))
+}
+
+pub fn map<
+    TCollection: IntoIterator,
+    TReturn,
+    TCallback: FnMut(TCollection::Item, usize) -> TReturn,
+>(
+    array: Option<TCollection>,
+    mut f: TCallback,
+) -> Option<Vec<TReturn>> {
+    let mut result: Option<Vec<_>> = None;
+    if let Some(array) = array {
+        let mut some_result = vec![];
+        for (i, item) in array.into_iter().enumerate() {
+            some_result.push(f(item, i));
+        }
+        result = Some(some_result);
+    }
+    result
 }
 
 pub fn some<TItem>(array: &[TItem], predicate: Option<Box<dyn FnMut(&TItem) -> bool>>) -> bool {

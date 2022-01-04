@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use crate::{
-    UnionType, __String, concatenate, get_name_of_declaration, get_object_flags,
+    UnionType, __String, concatenate, get_name_of_declaration, get_object_flags, map,
     unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
     Diagnostics, Expression, InterfaceType, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SyntaxKind, Type, TypeChecker,
@@ -57,6 +57,14 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn fill_missing_type_arguments(
+        &self,
+        type_arguments: Option<Vec<Rc<Type>>>,
+        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+    ) -> Option<Vec<Rc<Type>>> {
+        type_arguments.map(|vec| vec.clone())
+    }
+
     pub(super) fn get_propagating_flags_of_types(
         &self,
         types: &[Rc<Type>],
@@ -76,7 +84,7 @@ impl TypeChecker {
         target: Rc<Type /*GenericType*/>,
         type_arguments: Option<Vec<Rc<Type>>>,
     ) -> TypeReference {
-        let type_ = self.create_object_type(ObjectFlags::Reference, target.symbol());
+        let mut type_ = self.create_object_type(ObjectFlags::Reference, target.symbol());
         type_.set_object_flags(
             type_.object_flags()
                 | if let Some(type_arguments) = type_arguments.as_ref() {
@@ -110,9 +118,10 @@ impl TypeChecker {
                     .clone()
                     .unwrap_or_else(|| vec![]),
                 self.fill_missing_type_arguments(
-                    self.type_arguments_from_type_reference_node(node),
-                    type_parameters,
-                ),
+                    self.type_arguments_from_type_reference_node(&*node.node_wrapper()),
+                    Some(type_parameters),
+                )
+                .unwrap_or_else(|| vec![]),
             );
             return Rc::new(
                 self.create_type_reference(type_, Some(type_arguments))
@@ -221,6 +230,16 @@ impl TypeChecker {
         }
         let type_ = type_.unwrap();
         type_
+    }
+
+    pub(super) fn type_arguments_from_type_reference_node(
+        &self,
+        node: &Node,
+    ) -> Option<Vec<Rc<Type>>> {
+        map(
+            node.as_has_type_arguments().maybe_type_arguments(),
+            |type_argument, _| self.get_type_from_type_node(&**type_argument),
+        )
     }
 
     pub(super) fn get_type_of_global_symbol(
