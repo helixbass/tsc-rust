@@ -297,7 +297,7 @@ impl TypeChecker {
     pub(super) fn create_instantiated_symbol_table(
         &self,
         symbols: &[Rc<Symbol>],
-        mapper: TypeMapper,
+        mapper: &TypeMapper,
         mapping_this_only: bool,
     ) -> SymbolTable {
         let mut result = create_symbol_table();
@@ -388,12 +388,23 @@ impl TypeChecker {
                 unimplemented!()
             };
         } else {
+            let type_parameters_len_is_1 = type_parameters.len() == 1;
             let mapper = self.create_type_mapper(type_parameters, Some(type_arguments));
-            members = Rc::new(RefCell::new(self.create_instantiated_symbol_table(
-                source.declared_properties,
-                mapper,
-                type_parameters.len() == 1,
-            )));
+            members = Rc::new(RefCell::new(
+                self.create_instantiated_symbol_table(
+                    match &*source {
+                        Type::ObjectType(ObjectType::InterfaceType(
+                            InterfaceType::BaseInterfaceType(base_interface_type),
+                        )) => base_interface_type,
+                        _ => panic!("Expected BaseInterfaceType"),
+                    }
+                    .maybe_declared_properties()
+                    .as_ref()
+                    .unwrap(),
+                    &mapper,
+                    type_parameters_len_is_1,
+                ),
+            ));
         }
         self.set_structured_type_members(
             match &*type_ {

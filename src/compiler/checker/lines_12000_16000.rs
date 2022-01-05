@@ -98,7 +98,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_arguments(&self, type_: &TypeReference) -> Vec<Rc<Type>> {
-        let resolved_type_arguments = type_.resolved_type_arguments.borrow_mut();
+        let mut resolved_type_arguments = type_.resolved_type_arguments.borrow_mut();
         if resolved_type_arguments.is_none() {
             let node = type_.node.borrow();
             let type_arguments = match &*node {

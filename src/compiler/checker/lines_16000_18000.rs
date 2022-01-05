@@ -147,9 +147,9 @@ impl TypeChecker {
     ) -> TypeMapper {
         if sources.len() == 1 {
             self.make_unary_type_mapper(
-                sources[0],
+                sources[0].clone(),
                 if let Some(targets) = targets {
-                    targets[0]
+                    targets[0].clone()
                 } else {
                     self.any_type()
                 },
@@ -171,8 +171,8 @@ impl TypeChecker {
         TypeMapper::new_array(sources, targets)
     }
 
-    pub(super) fn instantiate_symbol(&self, symbol: Rc<Symbol>, mapper: TypeMapper) -> Rc<Symbol> {
-        let mut result = self.create_symbol(
+    pub(super) fn instantiate_symbol(&self, symbol: Rc<Symbol>, mapper: &TypeMapper) -> Rc<Symbol> {
+        let result = self.create_symbol(
             symbol.flags(),
             symbol.escaped_name.clone(),
             Some(
@@ -184,7 +184,7 @@ impl TypeChecker {
                             | CheckFlags::RestParameter),
             ),
         );
-        result.declarations = symbol.declarations;
+        *result.declarations.borrow_mut() = (*symbol.declarations.borrow()).clone();
         let symbol_value_declaration = symbol.value_declaration.borrow();
         if symbol_value_declaration.is_some() {
             *result.value_declaration.borrow_mut() = (*symbol_value_declaration).clone();
