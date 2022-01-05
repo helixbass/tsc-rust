@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::{
     __String, create_diagnostic_for_node, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node,
     NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
-    TypeChecker,
+    TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {

@@ -1383,6 +1383,15 @@ impl From<BaseSymbol> for Symbol {
     }
 }
 
+#[derive(Debug)]
+pub struct SymbolLinks {}
+
+impl SymbolLinks {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 bitflags! {
     pub struct CheckFlags: u32 {
         const None = 0;
@@ -1398,7 +1407,9 @@ bitflags! {
     }
 }
 
-pub trait TransientSymbolInterface: SymbolInterface {}
+pub trait TransientSymbolInterface: SymbolInterface {
+    fn symbol_links(&self) -> Rc<SymbolLinks>;
+}
 
 #[derive(Debug)]
 pub enum TransientSymbol {
@@ -1495,17 +1506,27 @@ impl SymbolInterface for TransientSymbol {
     }
 }
 
-impl TransientSymbolInterface for TransientSymbol {}
+impl TransientSymbolInterface for TransientSymbol {
+    fn symbol_links(&self) -> Rc<SymbolLinks> {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.symbol_links()
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct BaseTransientSymbol {
     _symbol: BaseSymbol,
+    _symbol_links: Rc<SymbolLinks>,
 }
 
 impl BaseTransientSymbol {
     pub fn new(base_symbol: BaseSymbol) -> Self {
         Self {
             _symbol: base_symbol,
+            _symbol_links: Rc::new(SymbolLinks::new()),
         }
     }
 }
@@ -1556,7 +1577,11 @@ impl SymbolInterface for BaseTransientSymbol {
     }
 }
 
-impl TransientSymbolInterface for BaseTransientSymbol {}
+impl TransientSymbolInterface for BaseTransientSymbol {
+    fn symbol_links(&self) -> Rc<SymbolLinks> {
+        self._symbol_links.clone()
+    }
+}
 
 pub struct InternalSymbolName;
 
