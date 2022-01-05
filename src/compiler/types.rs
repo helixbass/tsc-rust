@@ -1125,6 +1125,7 @@ pub struct TypeChecker {
     pub string_literal_types: RefCell<HashMap<String, Rc</*StringLiteralType*/ Type>>>,
     pub number_literal_types: RefCell<HashMap<Number, Rc</*NumberLiteralType*/ Type>>>,
     pub unknown_symbol: Option<Rc<Symbol>>,
+    pub any_type: Option<Rc<Type>>,
     pub number_type: Option<Rc<Type>>,
     pub bigint_type: Option<Rc<Type>>,
     pub true_type: Option<Rc<Type>>,
@@ -2391,6 +2392,24 @@ impl ResolvedTypeInterface for InterfaceType {
     }
 }
 
+impl InterfaceTypeWithDeclaredMembersInterface for InterfaceType {
+    fn maybe_declared_properties(&self) -> Ref<Option<Vec<Rc<Symbol>>>> {
+        match self {
+            InterfaceType::BaseInterfaceType(base_interface_type) => {
+                base_interface_type.maybe_declared_properties()
+            }
+        }
+    }
+
+    fn set_declared_properties(&self, declared_properties: Vec<Rc<Symbol>>) {
+        match self {
+            InterfaceType::BaseInterfaceType(base_interface_type) => {
+                base_interface_type.set_declared_properties(declared_properties)
+            }
+        }
+    }
+}
+
 impl From<InterfaceType> for ObjectType {
     fn from(interface_type: InterfaceType) -> Self {
         ObjectType::InterfaceType(interface_type)
@@ -2411,6 +2430,7 @@ pub struct BaseInterfaceType {
     pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub local_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    declared_properties: RefCell<Option<Vec<Rc<Symbol>>>>,
 }
 
 impl BaseInterfaceType {
@@ -2427,6 +2447,7 @@ impl BaseInterfaceType {
             type_parameters,
             outer_type_parameters,
             local_type_parameters,
+            declared_properties: RefCell::new(None),
         }
     }
 }
@@ -2472,6 +2493,16 @@ impl ResolvableTypeInterface for BaseInterfaceType {
     }
 }
 
+impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
+    fn maybe_declared_properties(&self) -> Ref<Option<Vec<Rc<Symbol>>>> {
+        self.declared_properties.borrow()
+    }
+
+    fn set_declared_properties(&self, declared_properties: Vec<Rc<Symbol>>) {
+        *self.declared_properties.borrow_mut() = Some(declared_properties);
+    }
+}
+
 impl ResolvedTypeInterface for BaseInterfaceType {
     fn members(&self) -> Rc<RefCell<SymbolTable>> {
         self.members.borrow().as_ref().unwrap().clone()
@@ -2494,11 +2525,17 @@ impl From<BaseInterfaceType> for InterfaceType {
     }
 }
 
+pub trait InterfaceTypeWithDeclaredMembersInterface {
+    fn maybe_declared_properties(&self) -> Ref<Option<Vec<Rc<Symbol>>>>;
+    fn set_declared_properties(&self, declared_properties: Vec<Rc<Symbol>>);
+}
+
 #[derive(Clone, Debug)]
 pub struct TypeReference {
     _object_type: BaseObjectType,
     pub target: Rc<Type /*GenericType*/>,
-    pub resolved_type_arguments: Option<Vec<Rc<Type>>>,
+    pub node: RefCell<Option<Rc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>,
+    pub resolved_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
 }
 
 impl TypeReference {
@@ -2510,7 +2547,8 @@ impl TypeReference {
         Self {
             _object_type: object_type,
             target,
-            resolved_type_arguments,
+            node: RefCell::new(None),
+            resolved_type_arguments: RefCell::new(resolved_type_arguments),
         }
     }
 }
@@ -2771,6 +2809,61 @@ impl TypeInterface for TypeParameter {
 impl From<TypeParameter> for Type {
     fn from(type_parameter: TypeParameter) -> Self {
         Type::TypeParameter(type_parameter)
+    }
+}
+
+pub enum TypeMapper {
+    Simple(TypeMapperSimple),
+    Array(TypeMapperArray),
+    Function(TypeMapperFunction),
+    Composite(TypeMapperCompositeOrMerged),
+    Merged(TypeMapperCompositeOrMerged),
+}
+
+pub struct TypeMapperSimple {
+    pub source: Rc<Type>,
+    pub target: Rc<Type>,
+}
+
+pub struct TypeMapperArray {
+    pub sources: Vec<Rc<Type>>,
+    pub targets: Option<Vec<Rc<Type>>>,
+}
+
+pub struct TypeMapperFunction {
+    pub func: fn(&TypeChecker, Rc<Type>) -> Rc<Type>,
+}
+
+pub struct TypeMapperCompositeOrMerged {
+    pub mapper1: Box<TypeMapper>,
+    pub mapper2: Box<TypeMapper>,
+}
+
+impl TypeMapper {
+    pub fn new_simple(source: Rc<Type>, target: Rc<Type>) -> Self {
+        Self::Simple(TypeMapperSimple { source, target })
+    }
+
+    pub fn new_array(sources: Vec<Rc<Type>>, targets: Option<Vec<Rc<Type>>>) -> Self {
+        Self::Array(TypeMapperArray { sources, targets })
+    }
+
+    pub fn new_function(func: fn(&TypeChecker, Rc<Type>) -> Rc<Type>) -> Self {
+        Self::Function(TypeMapperFunction { func })
+    }
+
+    pub fn new_composite(mapper1: TypeMapper, mapper2: TypeMapper) -> Self {
+        Self::Composite(TypeMapperCompositeOrMerged {
+            mapper1: Box::new(mapper1),
+            mapper2: Box::new(mapper2),
+        })
+    }
+
+    pub fn new_merged(mapper1: TypeMapper, mapper2: TypeMapper) -> Self {
+        Self::Merged(TypeMapperCompositeOrMerged {
+            mapper1: Box::new(mapper1),
+            mapper2: Box::new(mapper2),
+        })
     }
 }
 

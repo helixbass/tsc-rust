@@ -9,7 +9,8 @@ use crate::{
     ArrayTypeNode, BaseLiteralType, Debug_, DiagnosticMessage, Expression, IntrinsicType,
     LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
     NumberLiteralType, ObjectLiteralExpression, RelationComparisonResult, StringLiteralType,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeNode, UnionOrIntersectionType,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode,
+    UnionOrIntersectionType,
 };
 
 impl TypeChecker {
@@ -137,6 +138,37 @@ impl TypeChecker {
             }
             _ => unimplemented!(),
         }
+    }
+
+    pub(super) fn create_type_mapper(
+        &self,
+        sources: Vec<Rc<Type /*TypeParameter*/>>,
+        targets: Option<Vec<Rc<Type>>>,
+    ) -> TypeMapper {
+        if sources.len() == 1 {
+            self.make_unary_type_mapper(
+                sources[0],
+                if let Some(targets) = targets {
+                    targets[0]
+                } else {
+                    self.any_type()
+                },
+            )
+        } else {
+            self.make_array_type_mapper(sources, targets)
+        }
+    }
+
+    pub(super) fn make_unary_type_mapper(&self, source: Rc<Type>, target: Rc<Type>) -> TypeMapper {
+        TypeMapper::new_simple(source, target)
+    }
+
+    pub(super) fn make_array_type_mapper(
+        &self,
+        sources: Vec<Rc<Type /*TypeParameter*/>>,
+        targets: Option<Vec<Rc<Type>>>,
+    ) -> TypeMapper {
+        TypeMapper::new_array(sources, targets)
     }
 
     pub(super) fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {

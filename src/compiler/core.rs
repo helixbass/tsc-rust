@@ -1,3 +1,5 @@
+use std::ptr;
+
 use crate::SortedArray;
 
 pub fn for_each<
@@ -107,6 +109,16 @@ pub fn append_if_unique<TItem>(array: Option<Vec<TItem>>, to_add: TItem) -> Vec<
     } else {
         vec![to_add]
     }
+}
+
+pub fn range_equals<TItem>(array1: &[TItem], array2: &[TItem], mut pos: usize, end: usize) -> bool {
+    while pos < end {
+        if !ptr::eq(&array1[pos], &array2[pos]) {
+            return false;
+        }
+        pos += 1;
+    }
+    true
 }
 
 pub fn first_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {

@@ -3,8 +3,8 @@
 use std::rc::Rc;
 
 use crate::{
-    for_each, get_effective_initializer, is_binding_element, is_private_identifier, maybe_for_each,
-    ArrayTypeNode, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
+    for_each, get_effective_initializer, is_binding_element, is_private_identifier, map,
+    maybe_for_each, ArrayTypeNode, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
     HasTypeParametersInterface, InterfaceDeclaration, LiteralLikeNode, LiteralLikeNodeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, PrefixUnaryExpression,
     PropertyAssignment, PropertySignature, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -180,6 +180,21 @@ impl TypeChecker {
             );
         }
         self.check_property_declaration(node)
+    }
+
+    pub(super) fn get_effective_type_arguments(
+        &self,
+        node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+        type_parameters: &[Rc<Type /*TypeParameter*/>],
+    ) -> Vec<Rc<Type>> {
+        self.fill_missing_type_arguments(
+            map(
+                Some(node.as_has_type_arguments().maybe_type_arguments().unwrap()),
+                |type_argument, _| self.get_type_from_type_node(type_argument),
+            ),
+            Some(type_parameters),
+        )
+        .unwrap()
     }
 
     pub(super) fn check_type_reference_node(&mut self, node: &TypeReferenceNode) {

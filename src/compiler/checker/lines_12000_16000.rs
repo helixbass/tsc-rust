@@ -7,7 +7,7 @@ use crate::{
     unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
     Diagnostics, Expression, InterfaceType, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeReference, TypeReferenceNode, UnionReduction,
+    TypeFlags, TypeInterface, TypeNode, TypeReference, TypeReferenceNode, UnionReduction,
 };
 
 impl TypeChecker {
@@ -95,6 +95,51 @@ impl TypeChecker {
         );
         let type_ = TypeReference::new(type_, target, type_arguments);
         type_
+    }
+
+    pub(super) fn get_type_arguments(&self, type_: &TypeReference) -> Vec<Rc<Type>> {
+        let resolved_type_arguments = type_.resolved_type_arguments.borrow_mut();
+        if resolved_type_arguments.is_none() {
+            let node = type_.node.borrow();
+            let type_arguments = match &*node {
+                None => vec![],
+                Some(node) => match &**node {
+                    Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
+                        let target_as_base_interface_type = match &*type_.target {
+                            Type::ObjectType(ObjectType::InterfaceType(
+                                InterfaceType::BaseInterfaceType(base_interface_type),
+                            )) => base_interface_type,
+                            _ => panic!("Expected BaseInterfaceType"),
+                        };
+                        concatenate(
+                            target_as_base_interface_type
+                                .outer_type_parameters
+                                .clone()
+                                .unwrap_or_else(|| vec![]),
+                            self.get_effective_type_arguments(
+                                node,
+                                target_as_base_interface_type
+                                    .local_type_parameters
+                                    .as_ref()
+                                    .unwrap(),
+                            ),
+                        )
+                    }
+                    Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => unimplemented!(),
+                    _ => unimplemented!(),
+                },
+            };
+            if true {
+                *resolved_type_arguments = if false {
+                    unimplemented!()
+                } else {
+                    Some(type_arguments)
+                };
+            } else {
+                unimplemented!()
+            }
+        }
+        (*resolved_type_arguments).clone().unwrap()
     }
 
     pub(super) fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(

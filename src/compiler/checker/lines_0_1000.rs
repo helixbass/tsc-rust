@@ -71,6 +71,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         unknown_symbol: None,
 
+        any_type: None,
         number_type: None,
         bigint_type: None,
         true_type: None,
@@ -89,6 +90,11 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     };
     type_checker.unknown_symbol = Some(Rc::new(
         type_checker.create_symbol(SymbolFlags::Property, __String::new("unknown".to_string())),
+    ));
+    type_checker.any_type = Some(Rc::new(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Any, "any")
+            .into(),
     ));
     type_checker.number_type = Some(Rc::new(
         type_checker
@@ -229,6 +235,10 @@ impl TypeChecker {
 
     pub(super) fn unknown_symbol(&self) -> Rc<Symbol> {
         self.unknown_symbol.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn any_type(&self) -> Rc<Type> {
+        self.any_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn number_type(&self) -> Rc<Type> {

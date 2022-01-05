@@ -10,7 +10,7 @@ pub use compiler::checker::{create_type_checker, NodeBuilder};
 pub use compiler::command_line_parser::parse_command_line;
 pub use compiler::core::{
     append_if_unique, concatenate, every, first_defined, first_or_undefined, for_each,
-    insert_sorted, last_or_undefined, map, maybe_for_each, some,
+    insert_sorted, last_or_undefined, map, maybe_for_each, range_equals, some,
 };
 pub use compiler::core_public::SortedArray;
 pub use compiler::debug::Debug_;
@@ -47,21 +47,21 @@ pub use compiler::types::{
     DiagnosticWithLocation, EmitHint, EmitTextWriter, EmptyStatement, ExitStatus, Expression,
     ExpressionStatement, FreshableIntrinsicType, HasExpressionInitializerInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceDeclaration, InterfaceType, InternalSymbolName, IntrinsicType, KeywordTypeNode,
-    ListFormat, LiteralLikeNode, LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface,
-    LiteralTypeNode, ModuleResolutionHost, ModuleSpecifierResolutionHost,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, NumberLiteralType, NumericLiteral, ObjectFlags, ObjectFlagsTypeInterface,
-    ObjectLiteralExpression, ObjectType, ObjectTypeInterface, ParsedCommandLine, Path,
-    PrefixUnaryExpression, Printer, PrinterOptions, Program, PropertyAssignment, PropertySignature,
-    ReadonlyTextRange, RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface,
-    SourceFile, Statement, StringLiteralType, StructureIsReused, Symbol, SymbolFlags,
-    SymbolFormatFlags, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, Ternary, TextSpan,
-    TokenFlags, Type, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeInterface,
-    TypeLiteralNode, TypeNode, TypeParameter, TypeParameterDeclaration, TypeReference,
-    TypeReferenceNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionReduction,
-    UnionType, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, __String,
+    InterfaceDeclaration, InterfaceType, InterfaceTypeWithDeclaredMembersInterface,
+    InternalSymbolName, IntrinsicType, KeywordTypeNode, ListFormat, LiteralLikeNode,
+    LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, LiteralTypeNode,
+    ModuleResolutionHost, ModuleSpecifierResolutionHost, NamedDeclarationInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NumberLiteralType,
+    NumericLiteral, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression, ObjectType,
+    ObjectTypeInterface, ParsedCommandLine, Path, PrefixUnaryExpression, Printer, PrinterOptions,
+    Program, PropertyAssignment, PropertySignature, ReadonlyTextRange, RelationComparisonResult,
+    ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Statement, StringLiteralType,
+    StructureIsReused, Symbol, SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker,
+    SymbolWriter, SyntaxKind, Ternary, TextSpan, TokenFlags, Type, TypeChecker, TypeCheckerHost,
+    TypeElement, TypeFlags, TypeInterface, TypeLiteralNode, TypeMapper, TypeNode, TypeParameter,
+    TypeParameterDeclaration, TypeReference, TypeReferenceNode, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, UnionReduction, UnionType, VariableDeclaration,
+    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, __String,
 };
 pub use compiler::utilities::{
     chain_diagnostic_messages, create_detached_diagnostic, create_diagnostic_collection,
