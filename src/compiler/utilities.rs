@@ -10,7 +10,7 @@ use crate::{
     SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, __String,
     create_text_span_from_bounds, escape_leading_underscores, get_name_of_declaration,
     insert_sorted, is_member_name, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
-    BaseNode, BaseType, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
+    BaseNode, BaseType, CheckFlags, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
     DiagnosticWithLocation, EmitTextWriter, Expression, Node, NodeInterface, ObjectFlags,
     ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags, SymbolTable, Type,
@@ -485,6 +485,14 @@ pub fn get_first_identifier<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*Ide
     match &*wrapper {
         Node::Expression(Expression::Identifier(_)) => wrapper,
         _ => unimplemented!(),
+    }
+}
+
+pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
+    if symbol.flags().intersects(SymbolFlags::Transient) {
+        symbol.check_flags.borrow().unwrap()
+    } else {
+        CheckFlags::None
     }
 }
 

@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use crate::{
-    __String, create_diagnostic_for_node, Debug_, Diagnostic, DiagnosticMessage, Node,
+    __String, create_diagnostic_for_node, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node,
     NodeInterface, Symbol, SymbolFlags, SymbolTable, SyntaxKind, TypeChecker,
 };
 
@@ -39,8 +39,14 @@ impl TypeChecker {
         diagnostic
     }
 
-    pub(super) fn create_symbol(&self, flags: SymbolFlags, name: __String) -> Symbol {
-        let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
+    pub(super) fn create_symbol(
+        &self,
+        flags: SymbolFlags,
+        name: __String,
+        check_flags: Option<CheckFlags>,
+    ) -> Symbol {
+        let mut symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
+        *symbol.check_flags.borrow_mut() = Some(check_flags.unwrap_or(CheckFlags::None));
         symbol
     }
 

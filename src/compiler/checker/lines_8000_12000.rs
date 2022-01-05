@@ -5,14 +5,14 @@ use std::rc::Rc;
 
 use super::NodeBuilderContext;
 use crate::{
-    __String, append_if_unique, concatenate, declaration_name_to_string,
+    __String, append_if_unique, concatenate, create_symbol_table, declaration_name_to_string,
     escape_leading_underscores, first_defined, get_declaration_of_kind,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_name_of_declaration, has_dynamic_name, is_property_assignment, is_property_declaration,
     is_property_signature, is_variable_declaration, range_equals, BaseInterfaceType, Debug_,
     InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeInterface,
     ObjectFlags, ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SymbolTable,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
@@ -294,6 +294,26 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn create_instantiated_symbol_table(
+        &self,
+        symbols: &[Rc<Symbol>],
+        mapper: TypeMapper,
+        mapping_this_only: bool,
+    ) -> SymbolTable {
+        let mut result = create_symbol_table();
+        for symbol in symbols {
+            result.insert(
+                symbol.escaped_name.clone(),
+                if mapping_this_only && true {
+                    symbol.clone()
+                } else {
+                    self.instantiate_symbol(symbol.clone(), mapper)
+                },
+            );
+        }
+        result
+    }
+
     pub(super) fn resolve_declared_members(&self, type_: Rc<Type /*InterfaceType*/>) -> Rc<Type> {
         let type_as_interface_type = match &*type_ {
             Type::ObjectType(ObjectType::InterfaceType(interface_type)) => interface_type,
@@ -369,11 +389,11 @@ impl TypeChecker {
             };
         } else {
             let mapper = self.create_type_mapper(type_parameters, Some(type_arguments));
-            members = self.create_instantiated_symbol_table(
+            members = Rc::new(RefCell::new(self.create_instantiated_symbol_table(
                 source.declared_properties,
                 mapper,
                 type_parameters.len() == 1,
-            );
+            )));
         }
         self.set_structured_type_members(
             match &*type_ {

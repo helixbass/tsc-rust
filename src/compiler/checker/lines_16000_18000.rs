@@ -6,11 +6,11 @@ use std::rc::Rc;
 
 use super::CheckTypeRelatedTo;
 use crate::{
-    ArrayTypeNode, BaseLiteralType, Debug_, DiagnosticMessage, Expression, IntrinsicType,
-    LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
-    NumberLiteralType, ObjectLiteralExpression, RelationComparisonResult, StringLiteralType,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode,
-    UnionOrIntersectionType,
+    get_check_flags, ArrayTypeNode, BaseLiteralType, CheckFlags, Debug_, DiagnosticMessage,
+    Expression, IntrinsicType, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression, RelationComparisonResult,
+    StringLiteralType, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypeNode, UnionOrIntersectionType,
 };
 
 impl TypeChecker {
@@ -169,6 +169,27 @@ impl TypeChecker {
         targets: Option<Vec<Rc<Type>>>,
     ) -> TypeMapper {
         TypeMapper::new_array(sources, targets)
+    }
+
+    pub(super) fn instantiate_symbol(&self, symbol: Rc<Symbol>, mapper: TypeMapper) -> Rc<Symbol> {
+        let mut result = self.create_symbol(
+            symbol.flags(),
+            symbol.escaped_name.clone(),
+            Some(
+                CheckFlags::Instantiated
+                    | get_check_flags(&*symbol)
+                        & (CheckFlags::Readonly
+                            | CheckFlags::Late
+                            | CheckFlags::OptionalParameter
+                            | CheckFlags::RestParameter),
+            ),
+        );
+        result.declarations = symbol.declarations;
+        let symbol_value_declaration = symbol.value_declaration.borrow();
+        if symbol_value_declaration.is_some() {
+            *result.value_declaration.borrow_mut() = (*symbol_value_declaration).clone();
+        }
+        Rc::new(result)
     }
 
     pub(super) fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {

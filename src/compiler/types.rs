@@ -1207,9 +1207,10 @@ bitflags! {
 pub struct Symbol {
     pub flags: Cell<SymbolFlags>,
     pub escaped_name: __String,
-    declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
-    value_declaration: RefCell<Option<Weak<Node>>>,
+    pub declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
+    pub value_declaration: RefCell<Option<Weak<Node>>>,
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
+    pub check_flags: RefCell<Option<CheckFlags>>,
 }
 
 impl Symbol {
@@ -1220,6 +1221,7 @@ impl Symbol {
             declarations: RefCell::new(None),
             value_declaration: RefCell::new(None),
             members: RefCell::new(None),
+            check_flags: RefCell::new(None),
         }
     }
 
@@ -1253,6 +1255,21 @@ impl Symbol {
 
     pub fn members(&self) -> Rc<RefCell<SymbolTable>> {
         self.members.borrow_mut().as_ref().unwrap().clone()
+    }
+}
+
+bitflags! {
+    pub struct CheckFlags: u32 {
+        const None = 0;
+        const Instantiated = 1 << 0;
+        const SyntheticProperty = 1 << 1;
+        const SyntheticMethod = 1 << 2;
+        const Readonly = 1 << 3;
+        const Late = 1 << 12;
+        const OptionalParameter = 1 << 14;
+        const RestParameter = 1 << 15;
+
+        const Synthetic = Self::SyntheticProperty.bits | Self::SyntheticMethod.bits;
     }
 }
 
