@@ -6,13 +6,14 @@ use std::rc::Rc;
 use super::NodeBuilderContext;
 use crate::{
     __String, append_if_unique, concatenate, create_symbol_table, declaration_name_to_string,
-    escape_leading_underscores, first_defined, get_declaration_of_kind,
+    escape_leading_underscores, first_defined, get_check_flags, get_declaration_of_kind,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_name_of_declaration, has_dynamic_name, is_property_assignment, is_property_declaration,
-    is_property_signature, is_variable_declaration, range_equals, BaseInterfaceType, Debug_,
-    InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SymbolTable,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    is_property_signature, is_variable_declaration, range_equals, BaseInterfaceType, CheckFlags,
+    Debug_, InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper,
 };
 
 impl TypeChecker {
@@ -146,7 +147,15 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn get_type_of_instantiated_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+        let links = self.get_symbol_links(symbol);
+    }
+
     pub(super) fn get_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+        let check_flags = get_check_flags(symbol);
+        if check_flags.intersects(CheckFlags::Instantiated) {
+            return self.get_type_of_instantiated_symbol(symbol);
+        }
         if symbol
             .flags()
             .intersects(SymbolFlags::Variable | SymbolFlags::Property)
@@ -303,7 +312,7 @@ impl TypeChecker {
         let mut result = create_symbol_table();
         for symbol in symbols {
             result.insert(
-                symbol.escaped_name.clone(),
+                symbol.escaped_name().clone(),
                 if mapping_this_only && true {
                     symbol.clone()
                 } else {

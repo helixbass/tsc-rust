@@ -7,7 +7,8 @@ use crate::{
     __String, create_symbol_table, get_effective_type_annotation_node, get_object_flags,
     has_initializer, is_object_literal_expression, Expression, HasExpressionInitializerInterface,
     Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
-    PropertyAssignment, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    PropertyAssignment, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -98,7 +99,7 @@ impl TypeChecker {
             if self.has_bindable_name(element) {
                 return self.get_type_of_property_of_contextual_type(
                     type_,
-                    &self.get_symbol_of_node(element).unwrap().escaped_name,
+                    self.get_symbol_of_node(element).unwrap().escaped_name(),
                 );
             }
             unimplemented!()
@@ -182,7 +183,7 @@ impl TypeChecker {
             if false {
                 unimplemented!()
             } else {
-                properties_table.insert(member.escaped_name.clone(), member.clone());
+                properties_table.insert(member.escaped_name().clone(), member.clone());
             }
             properties_array.push(member);
         }

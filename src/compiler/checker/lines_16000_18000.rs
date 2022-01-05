@@ -9,8 +9,8 @@ use crate::{
     get_check_flags, ArrayTypeNode, BaseLiteralType, CheckFlags, Debug_, DiagnosticMessage,
     Expression, IntrinsicType, LiteralTypeInterface, NamedDeclarationInterface, Node,
     NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression, RelationComparisonResult,
-    StringLiteralType, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypeNode, UnionOrIntersectionType,
+    StringLiteralType, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
 };
 
 impl TypeChecker {
@@ -174,7 +174,7 @@ impl TypeChecker {
     pub(super) fn instantiate_symbol(&self, symbol: Rc<Symbol>, mapper: &TypeMapper) -> Rc<Symbol> {
         let result = self.create_symbol(
             symbol.flags(),
-            symbol.escaped_name.clone(),
+            symbol.escaped_name().clone(),
             Some(
                 CheckFlags::Instantiated
                     | get_check_flags(&*symbol)
@@ -184,10 +184,11 @@ impl TypeChecker {
                             | CheckFlags::RestParameter),
             ),
         );
-        *result.declarations.borrow_mut() = (*symbol.declarations.borrow()).clone();
-        let symbol_value_declaration = symbol.value_declaration.borrow();
-        if symbol_value_declaration.is_some() {
-            *result.value_declaration.borrow_mut() = (*symbol_value_declaration).clone();
+        if let Some(declarations) = &*symbol.maybe_declarations() {
+            result.set_declarations(declarations.clone());
+        }
+        if let Some(value_declaration) = &*symbol.maybe_value_declaration() {
+            result.set_value_declaration(value_declaration.upgrade().unwrap());
         }
         Rc::new(result)
     }

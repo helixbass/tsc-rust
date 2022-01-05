@@ -10,8 +10,8 @@ use crate::{
     BaseNodeFactorySynthetic, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint,
     EmitTextWriter, Expression, KeywordTypeNode, Node, NodeArray, NodeInterface, ObjectFlags,
     PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Symbol,
-    SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeParameter,
+    SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeParameter,
 };
 
 impl TypeChecker {
@@ -535,7 +535,7 @@ impl NodeBuilder {
     ) -> Rc<Node> {
         let single_quote = false;
         let string_named = false;
-        let raw_name = unescape_leading_underscores(&symbol.escaped_name);
+        let raw_name = unescape_leading_underscores(symbol.escaped_name());
         self.create_property_name_node_for_identifier_or_literal(
             raw_name,
             Some(string_named),

@@ -10,11 +10,11 @@ use crate::{
     SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, __String,
     create_text_span_from_bounds, escape_leading_underscores, get_name_of_declaration,
     insert_sorted, is_member_name, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
-    BaseNode, BaseType, CheckFlags, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
-    DiagnosticWithLocation, EmitTextWriter, Expression, Node, NodeInterface, ObjectFlags,
-    ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags, SymbolTable, Type,
-    TypeInterface,
+    BaseNode, BaseSymbol, BaseType, CheckFlags, Debug_, Diagnostic, DiagnosticCollection,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformationInterface,
+    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitTextWriter, Expression, Node,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, Type, TypeInterface,
 };
 
 pub fn get_declaration_of_kind(
@@ -275,7 +275,7 @@ pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode
             return;
         }
     }
-    symbol.set_value_declaration(node);
+    symbol.set_value_declaration(node.node_wrapper());
 }
 
 pub fn is_keyword(token: SyntaxKind) -> bool {
@@ -490,7 +490,7 @@ pub fn get_first_identifier<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*Ide
 
 pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
     if symbol.flags().intersects(SymbolFlags::Transient) {
-        symbol.check_flags.borrow().unwrap()
+        symbol.maybe_check_flags().unwrap()
     } else {
         CheckFlags::None
     }
@@ -506,7 +506,7 @@ pub fn get_object_flags(type_: &Type) -> ObjectFlags {
 
 #[allow(non_snake_case)]
 fn Symbol(flags: SymbolFlags, name: __String) -> Symbol {
-    Symbol::new(flags, name)
+    BaseSymbol::new(flags, name).into()
 }
 
 #[allow(non_snake_case)]

@@ -7,9 +7,10 @@ use crate::{
     maybe_for_each, ArrayTypeNode, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
     HasTypeParametersInterface, InterfaceDeclaration, LiteralLikeNode, LiteralLikeNodeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, PrefixUnaryExpression,
-    PropertyAssignment, PropertySignature, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeInterface,
-    VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
+    PropertyAssignment, PropertySignature, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeParameterDeclaration, TypeReferenceNode,
+    UnionOrIntersectionTypeInterface, VariableDeclaration, VariableLikeDeclarationInterface,
+    VariableStatement,
 };
 
 impl TypeChecker {

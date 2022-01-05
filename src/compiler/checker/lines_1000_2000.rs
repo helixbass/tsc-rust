@@ -4,7 +4,8 @@ use std::rc::Rc;
 
 use crate::{
     __String, create_diagnostic_for_node, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node,
-    NodeInterface, Symbol, SymbolFlags, SymbolTable, SyntaxKind, TypeChecker,
+    NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
+    TypeChecker,
 };
 
 impl TypeChecker {
@@ -46,7 +47,7 @@ impl TypeChecker {
         check_flags: Option<CheckFlags>,
     ) -> Symbol {
         let mut symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
-        *symbol.check_flags.borrow_mut() = Some(check_flags.unwrap_or(CheckFlags::None));
+        symbol.set_check_flags(check_flags.unwrap_or(CheckFlags::None));
         symbol
     }
 
@@ -66,6 +67,20 @@ impl TypeChecker {
             };
             target.insert(id.clone(), value);
         }
+    }
+
+    pub(super) fn get_symbol_links(&self, symbol: Rc<Symbol>) -> Rc<SymbolLinks> {
+        if let Symbol::TransientSymbol(symbol) = &*symbol {
+            return symbol.symbol_links();
+        }
+        let id = self.get_symbol_id(symbol);
+        let symbol_links_table = self.symbol_links.borrow_mut();
+        if let Some(symbol_links) = symbol_links_table.get(id) {
+            return symbol_links;
+        }
+        let symbol_links = Rc::new(SymbolLinks::new());
+        symbol_links_table.insert(id, symbol_links.clone());
+        symbol_links
     }
 
     pub(super) fn is_global_source_file(&self, node: &Node) -> bool {

@@ -1203,17 +1203,122 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
-pub struct Symbol {
-    pub flags: Cell<SymbolFlags>,
-    pub escaped_name: __String,
-    pub declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
-    pub value_declaration: RefCell<Option<Weak<Node>>>,
-    members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
-    pub check_flags: RefCell<Option<CheckFlags>>,
+pub trait SymbolInterface {
+    fn flags(&self) -> SymbolFlags;
+    fn set_flags(&self, flags: SymbolFlags);
+    fn escaped_name(&self) -> &__String;
+    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>>;
+    fn set_declarations(&self, declarations: Vec<Rc<Node>>);
+    fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>>;
+    fn set_value_declaration(&self, node: Rc<Node>);
+    fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
+    fn members(&self) -> Rc<RefCell<SymbolTable>>;
+    fn maybe_check_flags(&self) -> Option<CheckFlags>;
+    fn set_check_flags(&self, check_flags: CheckFlags);
 }
 
-impl Symbol {
+#[derive(Debug)]
+pub enum Symbol {
+    BaseSymbol(BaseSymbol),
+    TransientSymbol(TransientSymbol),
+}
+
+impl SymbolInterface for Symbol {
+    fn flags(&self) -> SymbolFlags {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.flags(),
+            Symbol::TransientSymbol(transient_symbol) => transient_symbol.flags(),
+        }
+    }
+
+    fn set_flags(&self, flags: SymbolFlags) {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.set_flags(flags),
+            Symbol::TransientSymbol(transient_symbol) => transient_symbol.set_flags(flags),
+        }
+    }
+
+    fn escaped_name(&self) -> &__String {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.escaped_name(),
+            Symbol::TransientSymbol(transient_symbol) => transient_symbol.escaped_name(),
+        }
+    }
+
+    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.maybe_declarations(),
+            Symbol::TransientSymbol(transient_symbol) => transient_symbol.maybe_declarations(),
+        }
+    }
+
+    fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.set_declarations(declarations),
+            Symbol::TransientSymbol(transient_symbol) => {
+                transient_symbol.set_declarations(declarations)
+            }
+        }
+    }
+
+    fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>> {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.maybe_value_declaration(),
+            Symbol::TransientSymbol(transient_symbol) => transient_symbol.maybe_value_declaration(),
+        }
+    }
+
+    fn set_value_declaration(&self, node: Rc<Node>) {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.set_value_declaration(node),
+            Symbol::TransientSymbol(transient_symbol) => {
+                transient_symbol.set_value_declaration(node)
+            }
+        }
+    }
+
+    fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.maybe_members(),
+            Symbol::TransientSymbol(transient_symbol) => transient_symbol.maybe_members(),
+        }
+    }
+
+    fn members(&self) -> Rc<RefCell<SymbolTable>> {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.members(),
+            Symbol::TransientSymbol(transient_symbol) => transient_symbol.members(),
+        }
+    }
+
+    fn maybe_check_flags(&self) -> Option<CheckFlags> {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.maybe_check_flags(),
+            Symbol::TransientSymbol(transient_symbol) => transient_symbol.maybe_check_flags(),
+        }
+    }
+
+    fn set_check_flags(&self, check_flags: CheckFlags) {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.set_check_flags(check_flags),
+            Symbol::TransientSymbol(transient_symbol) => {
+                transient_symbol.set_check_flags(check_flags)
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct BaseSymbol {
+    flags: Cell<SymbolFlags>,
+    escaped_name: __String,
+    declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
+    value_declaration: RefCell<Option<Weak<Node>>>,
+    members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
+    check_flags: Cell<Option<CheckFlags>>,
+}
+
+impl BaseSymbol {
     pub fn new(flags: SymbolFlags, name: __String) -> Self {
         Self {
             flags: Cell::new(flags),
@@ -1221,40 +1326,60 @@ impl Symbol {
             declarations: RefCell::new(None),
             value_declaration: RefCell::new(None),
             members: RefCell::new(None),
-            check_flags: RefCell::new(None),
+            check_flags: Cell::new(None),
         }
     }
+}
 
-    pub fn flags(&self) -> SymbolFlags {
+impl SymbolInterface for BaseSymbol {
+    fn flags(&self) -> SymbolFlags {
         self.flags.get()
     }
 
-    pub fn set_flags(&self, flags: SymbolFlags) {
+    fn set_flags(&self, flags: SymbolFlags) {
         self.flags.set(flags);
     }
 
-    pub fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+    fn escaped_name(&self) -> &__String {
+        &self.escaped_name
+    }
+
+    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
         self.declarations.borrow()
     }
 
-    pub fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
+    fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
         *self.declarations.borrow_mut() = Some(declarations);
     }
 
-    pub fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>> {
+    fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>> {
         self.value_declaration.borrow()
     }
 
-    pub fn set_value_declaration<TNode: NodeInterface>(&self, node: &TNode) {
-        *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node.node_wrapper()));
+    fn set_value_declaration(&self, node: Rc<Node>) {
+        *self.value_declaration.borrow_mut() = Some(Rc::downgrade(&node));
     }
 
-    pub fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+    fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
         self.members.borrow_mut()
     }
 
-    pub fn members(&self) -> Rc<RefCell<SymbolTable>> {
+    fn members(&self) -> Rc<RefCell<SymbolTable>> {
         self.members.borrow_mut().as_ref().unwrap().clone()
+    }
+
+    fn maybe_check_flags(&self) -> Option<CheckFlags> {
+        self.check_flags.get()
+    }
+
+    fn set_check_flags(&self, check_flags: CheckFlags) {
+        self.check_flags.set(Some(check_flags));
+    }
+}
+
+impl From<BaseSymbol> for Symbol {
+    fn from(base_symbol: BaseSymbol) -> Self {
+        Symbol::BaseSymbol(base_symbol)
     }
 }
 
@@ -1272,6 +1397,166 @@ bitflags! {
         const Synthetic = Self::SyntheticProperty.bits | Self::SyntheticMethod.bits;
     }
 }
+
+pub trait TransientSymbolInterface: SymbolInterface {}
+
+#[derive(Debug)]
+pub enum TransientSymbol {
+    BaseTransientSymbol(BaseTransientSymbol),
+}
+
+impl SymbolInterface for TransientSymbol {
+    fn flags(&self) -> SymbolFlags {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.flags()
+            }
+        }
+    }
+
+    fn set_flags(&self, flags: SymbolFlags) {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.set_flags(flags)
+            }
+        }
+    }
+
+    fn escaped_name(&self) -> &__String {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.escaped_name()
+            }
+        }
+    }
+
+    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.maybe_declarations()
+            }
+        }
+    }
+
+    fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.set_declarations(declarations)
+            }
+        }
+    }
+
+    fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>> {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.maybe_value_declaration()
+            }
+        }
+    }
+
+    fn set_value_declaration(&self, node: Rc<Node>) {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.set_value_declaration(node)
+            }
+        }
+    }
+
+    fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.maybe_members()
+            }
+        }
+    }
+
+    fn members(&self) -> Rc<RefCell<SymbolTable>> {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.members()
+            }
+        }
+    }
+
+    fn maybe_check_flags(&self) -> Option<CheckFlags> {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.maybe_check_flags()
+            }
+        }
+    }
+
+    fn set_check_flags(&self, check_flags: CheckFlags) {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.set_check_flags(check_flags)
+            }
+        }
+    }
+}
+
+impl TransientSymbolInterface for TransientSymbol {}
+
+#[derive(Debug)]
+pub struct BaseTransientSymbol {
+    _symbol: BaseSymbol,
+}
+
+impl BaseTransientSymbol {
+    pub fn new(base_symbol: BaseSymbol) -> Self {
+        Self {
+            _symbol: base_symbol,
+        }
+    }
+}
+
+impl SymbolInterface for BaseTransientSymbol {
+    fn flags(&self) -> SymbolFlags {
+        self._symbol.flags()
+    }
+
+    fn set_flags(&self, flags: SymbolFlags) {
+        self._symbol.set_flags(flags);
+    }
+
+    fn escaped_name(&self) -> &__String {
+        self._symbol.escaped_name()
+    }
+
+    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
+        self._symbol.maybe_declarations()
+    }
+
+    fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
+        self._symbol.set_declarations(declarations);
+    }
+
+    fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>> {
+        self._symbol.maybe_value_declaration()
+    }
+
+    fn set_value_declaration(&self, node: Rc<Node>) {
+        self._symbol.set_value_declaration(node);
+    }
+
+    fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+        self._symbol.maybe_members()
+    }
+
+    fn members(&self) -> Rc<RefCell<SymbolTable>> {
+        self._symbol.members()
+    }
+
+    fn maybe_check_flags(&self) -> Option<CheckFlags> {
+        self._symbol.maybe_check_flags()
+    }
+
+    fn set_check_flags(&self, check_flags: CheckFlags) {
+        self._symbol.set_check_flags(check_flags);
+    }
+}
+
+impl TransientSymbolInterface for BaseTransientSymbol {}
 
 pub struct InternalSymbolName;
 
@@ -2162,8 +2447,8 @@ impl ResolvableTypeInterface for ObjectType {
             ObjectType::BaseObjectType(base_object_type) => {
                 base_object_type.resolve(members, properties)
             }
-            ObjectType::TypeReference(_) => {
-                panic!("TypeReference doesn't implement ResolvableTypeInterface?")
+            ObjectType::TypeReference(type_reference) => {
+                type_reference.resolve(members, properties)
             }
         }
     }
@@ -2172,9 +2457,7 @@ impl ResolvableTypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.is_resolved(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.is_resolved(),
-            ObjectType::TypeReference(_) => {
-                panic!("TypeReference doesn't implement ResolvableTypeInterface?")
-            }
+            ObjectType::TypeReference(type_reference) => type_reference.is_resolved(),
         }
     }
 }
@@ -2184,9 +2467,7 @@ impl ResolvedTypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.members(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.members(),
-            ObjectType::TypeReference(_) => {
-                panic!("TypeReference doesn't implement ResolvedTypeInterface?")
-            }
+            ObjectType::TypeReference(type_reference) => type_reference.members(),
         }
     }
 
@@ -2194,9 +2475,7 @@ impl ResolvedTypeInterface for ObjectType {
         match self {
             ObjectType::InterfaceType(interface_type) => interface_type.properties(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.properties(),
-            ObjectType::TypeReference(_) => {
-                panic!("TypeReference doesn't implement ResolvedTypeInterface?")
-            }
+            ObjectType::TypeReference(type_reference) => type_reference.properties(),
         }
     }
 
@@ -2206,9 +2485,7 @@ impl ResolvedTypeInterface for ObjectType {
             ObjectType::BaseObjectType(base_object_type) => {
                 base_object_type.set_properties(properties)
             }
-            ObjectType::TypeReference(_) => {
-                panic!("TypeReference doesn't implement ResolvedTypeInterface?")
-            }
+            ObjectType::TypeReference(type_reference) => type_reference.set_properties(properties),
         }
     }
 }
@@ -2442,8 +2719,6 @@ impl From<InterfaceType> for Type {
 #[derive(Clone, Debug)]
 pub struct BaseInterfaceType {
     _object_type: BaseObjectType,
-    members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
-    properties: RefCell<Option<Vec<Rc<Symbol>>>>,
     pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub local_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
@@ -2459,8 +2734,6 @@ impl BaseInterfaceType {
     ) -> Self {
         Self {
             _object_type: object_type,
-            members: RefCell::new(None),
-            properties: RefCell::new(None),
             type_parameters,
             outer_type_parameters,
             local_type_parameters,
@@ -2501,12 +2774,25 @@ impl ObjectTypeInterface for BaseInterfaceType {}
 
 impl ResolvableTypeInterface for BaseInterfaceType {
     fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
-        *self.members.borrow_mut() = Some(members);
-        *self.properties.borrow_mut() = Some(properties);
+        self._object_type.resolve(members, properties);
     }
 
     fn is_resolved(&self) -> bool {
-        self.members.borrow().is_some()
+        self._object_type.is_resolved()
+    }
+}
+
+impl ResolvedTypeInterface for BaseInterfaceType {
+    fn members(&self) -> Rc<RefCell<SymbolTable>> {
+        self._object_type.members()
+    }
+
+    fn properties(&self) -> RefMut<Vec<Rc<Symbol>>> {
+        self._object_type.properties()
+    }
+
+    fn set_properties(&self, properties: Vec<Rc<Symbol>>) {
+        self._object_type.set_properties(properties);
     }
 }
 
@@ -2517,22 +2803,6 @@ impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
 
     fn set_declared_properties(&self, declared_properties: Vec<Rc<Symbol>>) {
         *self.declared_properties.borrow_mut() = Some(declared_properties);
-    }
-}
-
-impl ResolvedTypeInterface for BaseInterfaceType {
-    fn members(&self) -> Rc<RefCell<SymbolTable>> {
-        self.members.borrow().as_ref().unwrap().clone()
-    }
-
-    fn properties(&self) -> RefMut<Vec<Rc<Symbol>>> {
-        RefMut::map(self.properties.borrow_mut(), |option| {
-            option.as_mut().unwrap()
-        })
-    }
-
-    fn set_properties(&self, properties: Vec<Rc<Symbol>>) {
-        *self.properties.borrow_mut() = Some(properties);
     }
 }
 
@@ -2599,6 +2869,30 @@ impl ObjectFlagsTypeInterface for TypeReference {
 }
 
 impl ObjectTypeInterface for TypeReference {}
+
+impl ResolvableTypeInterface for TypeReference {
+    fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
+        self._object_type.resolve(members, properties);
+    }
+
+    fn is_resolved(&self) -> bool {
+        self._object_type.is_resolved()
+    }
+}
+
+impl ResolvedTypeInterface for TypeReference {
+    fn members(&self) -> Rc<RefCell<SymbolTable>> {
+        self._object_type.members()
+    }
+
+    fn properties(&self) -> RefMut<Vec<Rc<Symbol>>> {
+        self._object_type.properties()
+    }
+
+    fn set_properties(&self, properties: Vec<Rc<Symbol>>) {
+        self._object_type.set_properties(properties);
+    }
+}
 
 impl From<TypeReference> for ObjectType {
     fn from(type_reference: TypeReference) -> Self {
@@ -2884,7 +3178,7 @@ impl TypeMapper {
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Ternary {
     False = 0,
     Unknown = 1,

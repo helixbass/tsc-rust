@@ -11,7 +11,8 @@ use crate::{
     get_name_of_declaration, is_binding_pattern, is_property_name_literal, object_allocator,
     set_parent, set_value_declaration, Expression, ExpressionStatement, InternalSymbolName,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectLiteralExpression,
-    PropertySignature, Statement, SymbolFlags, TypeElement, TypeParameterDeclaration,
+    PropertySignature, Statement, SymbolFlags, SymbolInterface, TypeElement,
+    TypeParameterDeclaration,
 };
 
 bitflags! {

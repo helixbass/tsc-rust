@@ -6,8 +6,9 @@ use crate::{
     UnionType, __String, concatenate, get_name_of_declaration, get_object_flags, map,
     unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
     Diagnostics, Expression, InterfaceType, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeNode, TypeReference, TypeReferenceNode, UnionReduction,
+    ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
+    UnionReduction,
 };
 
 impl TypeChecker {
