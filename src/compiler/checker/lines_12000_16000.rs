@@ -280,7 +280,7 @@ impl TypeChecker {
 
     pub(super) fn type_arguments_from_type_reference_node(
         &self,
-        node: &Node,
+        node: &Node, /*NodeWithTypeArguments*/
     ) -> Option<Vec<Rc<Type>>> {
         map(
             node.as_has_type_arguments().maybe_type_arguments(),
