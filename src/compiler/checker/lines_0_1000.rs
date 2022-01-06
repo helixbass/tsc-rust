@@ -114,11 +114,15 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         assignable_relation: HashMap::new(),
     };
-    type_checker.unknown_symbol = Some(Rc::new(type_checker.create_symbol(
-        SymbolFlags::Property,
-        __String::new("unknown".to_string()),
-        None,
-    )));
+    type_checker.unknown_symbol = Some(Rc::new(
+        type_checker
+            .create_symbol(
+                SymbolFlags::Property,
+                __String::new("unknown".to_string()),
+                None,
+            )
+            .into(),
+    ));
     type_checker.any_type = Some(Rc::new(
         type_checker
             .create_intrinsic_type(TypeFlags::Any, "any")

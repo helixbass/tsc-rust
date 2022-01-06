@@ -151,6 +151,10 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn could_contain_type_variables(&self, type_: Rc<Type>) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_object_literal_type(&self, type_: Rc<Type>) -> bool {
         get_object_flags(&*type_).intersects(ObjectFlags::ObjectLiteral)
     }

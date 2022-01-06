@@ -399,6 +399,7 @@ impl TypeChecker {
         type_arguments: Vec<Rc<Type>>,
     ) {
         let members: Rc<RefCell<SymbolTable>>;
+        let mut mapper: Option<TypeMapper> = None;
         if range_equals(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.maybe_symbol() {
                 self.get_members_of_symbol(source_symbol)
@@ -407,7 +408,7 @@ impl TypeChecker {
             };
         } else {
             let type_parameters_len_is_1 = type_parameters.len() == 1;
-            let mapper = self.create_type_mapper(type_parameters, Some(type_arguments));
+            mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments)));
             members = Rc::new(RefCell::new(
                 self.create_instantiated_symbol_table(
                     match &*source {
@@ -419,7 +420,7 @@ impl TypeChecker {
                     .maybe_declared_properties()
                     .as_ref()
                     .unwrap(),
-                    &mapper,
+                    mapper.as_ref().unwrap(),
                     type_parameters_len_is_1,
                 ),
             ));

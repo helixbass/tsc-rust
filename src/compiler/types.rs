@@ -1556,6 +1556,12 @@ impl TransientSymbolInterface for TransientSymbol {
     }
 }
 
+impl From<TransientSymbol> for Symbol {
+    fn from(transient_symbol: TransientSymbol) -> Self {
+        Symbol::TransientSymbol(transient_symbol)
+    }
+}
+
 #[derive(Debug)]
 pub struct BaseTransientSymbol {
     _symbol: BaseSymbol,
@@ -1630,6 +1636,12 @@ impl TransientSymbolInterface for BaseTransientSymbol {
 
     fn check_flags(&self) -> CheckFlags {
         self.check_flags
+    }
+}
+
+impl From<BaseTransientSymbol> for TransientSymbol {
+    fn from(base_transient_symbol: BaseTransientSymbol) -> Self {
+        TransientSymbol::BaseTransientSymbol(base_transient_symbol)
     }
 }
 
@@ -3204,7 +3216,7 @@ impl From<TypeParameter> for Type {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum TypeMapper {
     Simple(TypeMapperSimple),
     Array(TypeMapperArray),
@@ -3213,19 +3225,19 @@ pub enum TypeMapper {
     Merged(TypeMapperCompositeOrMerged),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TypeMapperSimple {
     pub source: Rc<Type>,
     pub target: Rc<Type>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TypeMapperArray {
     pub sources: Vec<Rc<Type>>,
     pub targets: Option<Vec<Rc<Type>>>,
 }
 
-// #[derive(Debug)]
+#[derive(Clone)]
 pub struct TypeMapperFunction {
     pub func: fn(&TypeChecker, Rc<Type>) -> Rc<Type>,
 }
@@ -3236,7 +3248,7 @@ impl fmt::Debug for TypeMapperFunction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TypeMapperCompositeOrMerged {
     pub mapper1: Box<TypeMapper>,
     pub mapper2: Box<TypeMapper>,

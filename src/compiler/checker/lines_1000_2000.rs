@@ -7,7 +7,7 @@ use super::get_symbol_id;
 use crate::{
     __String, create_diagnostic_for_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
     DiagnosticMessage, Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
-    SymbolTable, SyntaxKind, TransientSymbolInterface, TypeChecker,
+    SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -47,7 +47,7 @@ impl TypeChecker {
         flags: SymbolFlags,
         name: __String,
         check_flags: Option<CheckFlags>,
-    ) -> Symbol {
+    ) -> TransientSymbol {
         let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
         let symbol = BaseTransientSymbol::new(symbol, check_flags.unwrap_or(CheckFlags::None));
         symbol.into()

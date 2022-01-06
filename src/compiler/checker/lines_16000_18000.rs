@@ -9,8 +9,8 @@ use crate::{
     get_check_flags, ArrayTypeNode, BaseLiteralType, CheckFlags, Debug_, DiagnosticMessage,
     Expression, IntrinsicType, LiteralTypeInterface, NamedDeclarationInterface, Node,
     NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression, RelationComparisonResult,
-    StringLiteralType, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
+    StringLiteralType, Symbol, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
 };
 
 impl TypeChecker {
@@ -208,7 +208,63 @@ impl TypeChecker {
         TypeMapper::new_array(sources, targets)
     }
 
-    pub(super) fn instantiate_symbol(&self, symbol: Rc<Symbol>, mapper: &TypeMapper) -> Rc<Symbol> {
+    pub(super) fn make_composite_type_mapper(
+        &self,
+        mapper1: TypeMapper,
+        mapper2: TypeMapper,
+    ) -> TypeMapper {
+        TypeMapper::new_composite(mapper1, mapper2)
+    }
+
+    pub(super) fn make_merged_type_mapper(
+        &self,
+        mapper1: TypeMapper,
+        mapper2: TypeMapper,
+    ) -> TypeMapper {
+        TypeMapper::new_merged(mapper1, mapper2)
+    }
+
+    pub(super) fn combine_type_mappers(
+        &self,
+        mapper1: Option<TypeMapper>,
+        mapper2: TypeMapper,
+    ) -> TypeMapper {
+        if let Some(mapper1) = mapper1 {
+            self.make_composite_type_mapper(mapper1, mapper2)
+        } else {
+            mapper2
+        }
+    }
+
+    pub(super) fn merge_type_mappers(
+        &self,
+        mapper1: Option<TypeMapper>,
+        mapper2: TypeMapper,
+    ) -> TypeMapper {
+        if let Some(mapper1) = mapper1 {
+            self.make_merged_type_mapper(mapper1, mapper2)
+        } else {
+            mapper2
+        }
+    }
+
+    pub(super) fn instantiate_symbol(
+        &self,
+        mut symbol: Rc<Symbol>,
+        mapper: &TypeMapper,
+    ) -> Rc<Symbol> {
+        let links = self.get_symbol_links(&symbol);
+        let links = links.borrow();
+        if let Some(type_) = links.type_.as_ref() {
+            if !self.could_contain_type_variables(type_.clone()) {
+                return symbol;
+            }
+        }
+        let mut mapper = (*mapper).clone();
+        if get_check_flags(&symbol).intersects(CheckFlags::Instantiated) {
+            symbol = links.target.clone().unwrap();
+            mapper = self.combine_type_mappers(links.mapper.clone(), mapper);
+        }
         let result = self.create_symbol(
             symbol.flags(),
             symbol.escaped_name().clone(),
@@ -224,10 +280,14 @@ impl TypeChecker {
         if let Some(declarations) = &*symbol.maybe_declarations() {
             result.set_declarations(declarations.clone());
         }
+        let symbol_links = result.symbol_links();
+        let mut symbol_links_ref = symbol_links.borrow_mut();
+        symbol_links_ref.target = Some(symbol.clone());
+        symbol_links_ref.mapper = Some(mapper);
         if let Some(value_declaration) = &*symbol.maybe_value_declaration() {
             result.set_value_declaration(value_declaration.upgrade().unwrap());
         }
-        Rc::new(result)
+        Rc::new(result.into())
     }
 
     pub(super) fn instantiate_type(
