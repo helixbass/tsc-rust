@@ -1,11 +1,13 @@
 #![allow(non_upper_case_globals)]
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
+use super::get_symbol_id;
 use crate::{
-    __String, create_diagnostic_for_node, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node,
-    NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, TypeChecker,
+    __String, create_diagnostic_for_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
+    DiagnosticMessage, Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
+    SymbolTable, SyntaxKind, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -46,9 +48,9 @@ impl TypeChecker {
         name: __String,
         check_flags: Option<CheckFlags>,
     ) -> Symbol {
-        let mut symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
-        symbol.set_check_flags(check_flags.unwrap_or(CheckFlags::None));
-        symbol
+        let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
+        let symbol = BaseTransientSymbol::new(symbol, check_flags.unwrap_or(CheckFlags::None));
+        symbol.into()
     }
 
     pub(super) fn merge_symbol_table(
@@ -69,16 +71,16 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_symbol_links(&self, symbol: Rc<Symbol>) -> Rc<SymbolLinks> {
-        if let Symbol::TransientSymbol(symbol) = &*symbol {
+    pub(super) fn get_symbol_links(&self, symbol: &Symbol) -> Rc<RefCell<SymbolLinks>> {
+        if let Symbol::TransientSymbol(symbol) = symbol {
             return symbol.symbol_links();
         }
-        let id = self.get_symbol_id(symbol);
+        let id = get_symbol_id(symbol);
         let symbol_links_table = self.symbol_links.borrow_mut();
-        if let Some(symbol_links) = symbol_links_table.get(id) {
-            return symbol_links;
+        if let Some(symbol_links) = symbol_links_table.get(&id) {
+            return symbol_links.clone();
         }
-        let symbol_links = Rc::new(SymbolLinks::new());
+        let symbol_links = Rc::new(RefCell::new(SymbolLinks::new()));
         symbol_links_table.insert(id, symbol_links.clone());
         symbol_links
     }

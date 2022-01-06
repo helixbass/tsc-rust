@@ -14,7 +14,7 @@ use crate::{
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitTextWriter, Expression, Node,
     NodeInterface, ObjectFlags, ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, Type, TypeInterface,
+    SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
 };
 
 pub fn get_declaration_of_kind(
@@ -489,10 +489,9 @@ pub fn get_first_identifier<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*Ide
 }
 
 pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
-    if symbol.flags().intersects(SymbolFlags::Transient) {
-        symbol.maybe_check_flags().unwrap()
-    } else {
-        CheckFlags::None
+    match symbol {
+        Symbol::TransientSymbol(transient_symbol) => transient_symbol.check_flags(),
+        _ => CheckFlags::None,
     }
 }
 
@@ -505,8 +504,8 @@ pub fn get_object_flags(type_: &Type) -> ObjectFlags {
 }
 
 #[allow(non_snake_case)]
-fn Symbol(flags: SymbolFlags, name: __String) -> Symbol {
-    BaseSymbol::new(flags, name).into()
+fn Symbol(flags: SymbolFlags, name: __String) -> BaseSymbol {
+    BaseSymbol::new(flags, name)
 }
 
 #[allow(non_snake_case)]
@@ -548,7 +547,7 @@ impl ObjectAllocator {
         Node
     }
 
-    pub fn get_symbol_constructor(&self) -> fn(SymbolFlags, __String) -> Symbol {
+    pub fn get_symbol_constructor(&self) -> fn(SymbolFlags, __String) -> BaseSymbol {
         Symbol
     }
 

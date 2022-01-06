@@ -1114,7 +1114,7 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 #[allow(non_snake_case)]
 pub struct TypeChecker {
     pub _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
-    pub Symbol: fn(SymbolFlags, __String) -> Symbol,
+    pub Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
     pub Type: fn(TypeFlags) -> BaseType,
     pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
     pub strict_null_checks: bool,
@@ -1136,6 +1136,7 @@ pub struct TypeChecker {
     pub never_type: Option<Rc<Type>>,
     pub number_or_big_int_type: Option<Rc<Type>>,
     pub global_array_type: Option<Rc<Type /*GenericType*/>>,
+    pub symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
     pub diagnostics: RefCell<DiagnosticCollection>,
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
@@ -1213,9 +1214,12 @@ pub trait SymbolInterface {
     fn set_value_declaration(&self, node: Rc<Node>);
     fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
-    fn maybe_check_flags(&self) -> Option<CheckFlags>;
-    fn set_check_flags(&self, check_flags: CheckFlags);
+    fn maybe_id(&self) -> Option<SymbolId>;
+    fn id(&self) -> SymbolId;
+    fn set_id(&self, id: SymbolId);
 }
+
+pub type SymbolId = u32;
 
 #[derive(Debug)]
 pub enum Symbol {
@@ -1291,19 +1295,24 @@ impl SymbolInterface for Symbol {
         }
     }
 
-    fn maybe_check_flags(&self) -> Option<CheckFlags> {
+    fn maybe_id(&self) -> Option<SymbolId> {
         match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.maybe_check_flags(),
-            Symbol::TransientSymbol(transient_symbol) => transient_symbol.maybe_check_flags(),
+            Symbol::BaseSymbol(base_symbol) => base_symbol.maybe_id(),
+            Symbol::TransientSymbol(transient_symbol) => transient_symbol.maybe_id(),
         }
     }
 
-    fn set_check_flags(&self, check_flags: CheckFlags) {
+    fn id(&self) -> SymbolId {
         match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.set_check_flags(check_flags),
-            Symbol::TransientSymbol(transient_symbol) => {
-                transient_symbol.set_check_flags(check_flags)
-            }
+            Symbol::BaseSymbol(base_symbol) => base_symbol.id(),
+            Symbol::TransientSymbol(transient_symbol) => transient_symbol.id(),
+        }
+    }
+
+    fn set_id(&self, id: SymbolId) {
+        match self {
+            Symbol::BaseSymbol(base_symbol) => base_symbol.set_id(id),
+            Symbol::TransientSymbol(transient_symbol) => transient_symbol.set_id(id),
         }
     }
 }
@@ -1315,7 +1324,7 @@ pub struct BaseSymbol {
     declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
     value_declaration: RefCell<Option<Weak<Node>>>,
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
-    check_flags: Cell<Option<CheckFlags>>,
+    id: Cell<Option<SymbolId>>,
 }
 
 impl BaseSymbol {
@@ -1326,7 +1335,7 @@ impl BaseSymbol {
             declarations: RefCell::new(None),
             value_declaration: RefCell::new(None),
             members: RefCell::new(None),
-            check_flags: Cell::new(None),
+            id: Cell::new(None),
         }
     }
 }
@@ -1368,12 +1377,16 @@ impl SymbolInterface for BaseSymbol {
         self.members.borrow_mut().as_ref().unwrap().clone()
     }
 
-    fn maybe_check_flags(&self) -> Option<CheckFlags> {
-        self.check_flags.get()
+    fn maybe_id(&self) -> Option<SymbolId> {
+        self.id.get()
     }
 
-    fn set_check_flags(&self, check_flags: CheckFlags) {
-        self.check_flags.set(Some(check_flags));
+    fn id(&self) -> SymbolId {
+        self.id.get().unwrap()
+    }
+
+    fn set_id(&self, id: SymbolId) {
+        self.id.set(Some(id));
     }
 }
 
@@ -1408,7 +1421,8 @@ bitflags! {
 }
 
 pub trait TransientSymbolInterface: SymbolInterface {
-    fn symbol_links(&self) -> Rc<SymbolLinks>;
+    fn symbol_links(&self) -> Rc<RefCell<SymbolLinks>>;
+    fn check_flags(&self) -> CheckFlags;
 }
 
 #[derive(Debug)]
@@ -1489,28 +1503,44 @@ impl SymbolInterface for TransientSymbol {
         }
     }
 
-    fn maybe_check_flags(&self) -> Option<CheckFlags> {
+    fn maybe_id(&self) -> Option<SymbolId> {
         match self {
             TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.maybe_check_flags()
+                base_transient_symbol.maybe_id()
             }
         }
     }
 
-    fn set_check_flags(&self, check_flags: CheckFlags) {
+    fn id(&self) -> SymbolId {
         match self {
             TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.set_check_flags(check_flags)
+                base_transient_symbol.id()
+            }
+        }
+    }
+
+    fn set_id(&self, id: SymbolId) {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.set_id(id)
             }
         }
     }
 }
 
 impl TransientSymbolInterface for TransientSymbol {
-    fn symbol_links(&self) -> Rc<SymbolLinks> {
+    fn symbol_links(&self) -> Rc<RefCell<SymbolLinks>> {
         match self {
             TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
                 base_transient_symbol.symbol_links()
+            }
+        }
+    }
+
+    fn check_flags(&self) -> CheckFlags {
+        match self {
+            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
+                base_transient_symbol.check_flags()
             }
         }
     }
@@ -1519,14 +1549,16 @@ impl TransientSymbolInterface for TransientSymbol {
 #[derive(Debug)]
 pub struct BaseTransientSymbol {
     _symbol: BaseSymbol,
-    _symbol_links: Rc<SymbolLinks>,
+    _symbol_links: Rc<RefCell<SymbolLinks>>,
+    check_flags: CheckFlags,
 }
 
 impl BaseTransientSymbol {
-    pub fn new(base_symbol: BaseSymbol) -> Self {
+    pub fn new(base_symbol: BaseSymbol, check_flags: CheckFlags) -> Self {
         Self {
             _symbol: base_symbol,
-            _symbol_links: Rc::new(SymbolLinks::new()),
+            _symbol_links: Rc::new(RefCell::new(SymbolLinks::new())),
+            check_flags,
         }
     }
 }
@@ -1568,18 +1600,32 @@ impl SymbolInterface for BaseTransientSymbol {
         self._symbol.members()
     }
 
-    fn maybe_check_flags(&self) -> Option<CheckFlags> {
-        self._symbol.maybe_check_flags()
+    fn maybe_id(&self) -> Option<SymbolId> {
+        self._symbol.maybe_id()
     }
 
-    fn set_check_flags(&self, check_flags: CheckFlags) {
-        self._symbol.set_check_flags(check_flags);
+    fn id(&self) -> SymbolId {
+        self._symbol.id()
+    }
+
+    fn set_id(&self, id: SymbolId) {
+        self._symbol.set_id(id);
     }
 }
 
 impl TransientSymbolInterface for BaseTransientSymbol {
-    fn symbol_links(&self) -> Rc<SymbolLinks> {
+    fn symbol_links(&self) -> Rc<RefCell<SymbolLinks>> {
         self._symbol_links.clone()
+    }
+
+    fn check_flags(&self) -> CheckFlags {
+        self.check_flags
+    }
+}
+
+impl From<BaseTransientSymbol> for Symbol {
+    fn from(base_transient_symbol: BaseTransientSymbol) -> Self {
+        Symbol::TransientSymbol(TransientSymbol::BaseTransientSymbol(base_transient_symbol))
     }
 }
 

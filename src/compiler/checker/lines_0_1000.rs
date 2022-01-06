@@ -9,8 +9,23 @@ use super::create_node_builder;
 use crate::{
     __String, create_diagnostic_collection, create_symbol_table, object_allocator,
     DiagnosticCollection, FreshableIntrinsicType, IntrinsicType, Number, ObjectFlags, Symbol,
-    SymbolFlags, SymbolTable, Type, TypeChecker, TypeCheckerHost, TypeFlags,
+    SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeCheckerHost,
+    TypeFlags,
 };
+
+thread_local! {
+    pub(super) static next_symbol_id: RefCell<SymbolId> = RefCell::new(1);
+}
+
+pub(super) fn get_next_symbol_id() -> SymbolId {
+    next_symbol_id.with(|_next_symbol_id| *_next_symbol_id.borrow())
+}
+
+pub(super) fn increment_next_symbol_id() {
+    next_symbol_id.with(|_next_symbol_id| {
+        *_next_symbol_id.borrow_mut() += 1;
+    });
+}
 
 bitflags! {
     pub(super) struct IntersectionState: u32 {
@@ -41,6 +56,15 @@ bitflags! {
 
         const Both = Self::Source.bits | Self::Target.bits;
     }
+}
+
+pub(super) fn get_symbol_id(symbol: &Symbol) -> SymbolId {
+    if symbol.maybe_id().is_none() {
+        symbol.set_id(get_next_symbol_id());
+        increment_next_symbol_id();
+    }
+
+    symbol.id()
 }
 
 pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
@@ -83,6 +107,8 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         number_or_big_int_type: None,
 
         global_array_type: None,
+
+        symbol_links: RefCell::new(HashMap::new()),
 
         diagnostics: RefCell::new(create_diagnostic_collection()),
 
