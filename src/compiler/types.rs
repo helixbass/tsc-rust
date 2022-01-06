@@ -3191,7 +3191,7 @@ pub trait ResolvedTypeInterface {
 #[derive(Clone, Debug)]
 pub struct TypeParameter {
     _type: BaseType,
-    pub constraint: RefCell<Option<Weak<Type>>>,
+    pub constraint: RefCell<Option<Weak<Type>>>, // TODO: is it correct that this is weak?
     pub is_this_type: Option<bool>,
 }
 
@@ -3240,7 +3240,7 @@ pub enum TypeMapper {
 
 #[derive(Clone, Debug)]
 pub struct TypeMapperSimple {
-    pub source: Rc<Type>,
+    pub source: Rc<Type>, // TODO: should all of these be weak?
     pub target: Rc<Type>,
 }
 
