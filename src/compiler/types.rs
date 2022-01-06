@@ -2921,7 +2921,7 @@ pub trait InterfaceTypeWithDeclaredMembersInterface {
 pub struct TypeReference {
     _object_type: BaseObjectType,
     pub target: Rc<Type /*GenericType*/>,
-    pub node: RefCell<Option<Rc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>,
+    pub node: RefCell<Option<Rc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>, // TODO: should be weak?
     pub resolved_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
 }
 
