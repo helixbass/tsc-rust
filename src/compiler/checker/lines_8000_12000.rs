@@ -149,6 +149,15 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_instantiated_symbol(&self, symbol: &Symbol) -> Rc<Type> {
         let links = self.get_symbol_links(symbol);
+        let mut links = links.borrow_mut();
+        if links.type_.is_none() {
+            let type_ = self.instantiate_type(
+                Some(self.get_type_of_symbol(links.target.as_ref().unwrap())),
+                links.mapper.as_ref(),
+            );
+            links.type_ = type_;
+        }
+        links.type_.clone().unwrap()
     }
 
     pub(super) fn get_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {

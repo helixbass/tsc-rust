@@ -470,6 +470,7 @@ pub fn get_synthetic_factory() -> BaseNodeFactorySynthetic {
     BaseNodeFactorySynthetic::new()
 }
 
+#[derive(Debug)]
 pub struct BaseNodeFactorySynthetic {
     base_factory: BaseNodeFactoryConcrete,
 }

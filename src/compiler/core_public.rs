@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct SortedArray<TItem> {
     _vec: Vec<TItem>,
 }

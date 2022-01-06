@@ -159,6 +159,43 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_mapped_type(&self, type_: Rc<Type>, mapper: &TypeMapper) -> Rc<Type> {
+        match mapper {
+            TypeMapper::Simple(mapper) => {
+                if Rc::ptr_eq(&type_, &mapper.source) {
+                    mapper.target.clone()
+                } else {
+                    type_
+                }
+            }
+            TypeMapper::Array(mapper) => {
+                let sources = &mapper.sources;
+                let targets = &mapper.targets;
+                for (i, source) in sources.iter().enumerate() {
+                    if Rc::ptr_eq(&type_, &source) {
+                        return if let Some(targets) = targets {
+                            targets[i].clone()
+                        } else {
+                            self.any_type()
+                        };
+                    }
+                }
+                type_
+            }
+            TypeMapper::Function(mapper) => (mapper.func)(self, type_),
+            TypeMapper::Composite(composite_or_merged_mapper)
+            | TypeMapper::Merged(composite_or_merged_mapper) => {
+                let t1 = self.get_mapped_type(type_.clone(), &composite_or_merged_mapper.mapper1);
+                if !Rc::ptr_eq(&t1, &type_) && matches!(mapper, TypeMapper::Composite(_)) {
+                    self.instantiate_type(Some(t1), Some(&composite_or_merged_mapper.mapper2))
+                        .unwrap()
+                } else {
+                    self.get_mapped_type(t1, &composite_or_merged_mapper.mapper2)
+                }
+            }
+        }
+    }
+
     pub(super) fn make_unary_type_mapper(&self, source: Rc<Type>, target: Rc<Type>) -> TypeMapper {
         TypeMapper::new_simple(source, target)
     }
@@ -191,6 +228,45 @@ impl TypeChecker {
             result.set_value_declaration(value_declaration.upgrade().unwrap());
         }
         Rc::new(result)
+    }
+
+    pub(super) fn instantiate_type(
+        &self,
+        type_: Option<Rc<Type>>,
+        mapper: Option<&TypeMapper>,
+    ) -> Option<Rc<Type>> {
+        if let Some(type_) = type_.as_ref() {
+            if let Some(mapper) = mapper {
+                return Some(self.instantiate_type_with_alias(type_.clone(), mapper, None, None));
+            }
+        }
+        type_
+    }
+
+    pub(super) fn instantiate_type_with_alias(
+        &self,
+        type_: Rc<Type>,
+        mapper: &TypeMapper,
+        alias_symbol: Option<Rc<Symbol>>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        let result =
+            self.instantiate_type_worker(type_, mapper, alias_symbol, alias_type_arguments);
+        result
+    }
+
+    pub(super) fn instantiate_type_worker(
+        &self,
+        type_: Rc<Type>,
+        mapper: &TypeMapper,
+        alias_symbol: Option<Rc<Symbol>>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        let flags = type_.flags();
+        if flags.intersects(TypeFlags::TypeParameter) {
+            return self.get_mapped_type(type_, mapper);
+        }
+        unimplemented!()
     }
 
     pub(super) fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {

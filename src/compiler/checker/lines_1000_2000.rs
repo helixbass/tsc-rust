@@ -76,7 +76,7 @@ impl TypeChecker {
             return symbol.symbol_links();
         }
         let id = get_symbol_id(symbol);
-        let symbol_links_table = self.symbol_links.borrow_mut();
+        let mut symbol_links_table = self.symbol_links.borrow_mut();
         if let Some(symbol_links) = symbol_links_table.get(&id) {
             return symbol_links.clone();
         }

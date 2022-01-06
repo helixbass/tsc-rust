@@ -13,6 +13,7 @@ pub fn create_base_node_factory() -> BaseNodeFactoryConcrete {
     BaseNodeFactoryConcrete::new()
 }
 
+#[derive(Debug)]
 #[allow(non_snake_case)]
 pub struct BaseNodeFactoryConcrete {
     SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,

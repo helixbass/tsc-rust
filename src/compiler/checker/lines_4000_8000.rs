@@ -218,6 +218,7 @@ pub(super) fn create_node_builder() -> NodeBuilder {
     NodeBuilder::new()
 }
 
+#[derive(Debug)]
 pub struct NodeBuilder {
     synthetic_factory: BaseNodeFactorySynthetic,
 }

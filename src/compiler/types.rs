@@ -4,6 +4,7 @@ use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
+use std::fmt;
 use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
@@ -1111,6 +1112,7 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     fn get_source_files(&self) -> Vec<Rc<Node>>;
 }
 
+#[derive(Debug)]
 #[allow(non_snake_case)]
 pub struct TypeChecker {
     pub _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
@@ -1397,11 +1399,19 @@ impl From<BaseSymbol> for Symbol {
 }
 
 #[derive(Debug)]
-pub struct SymbolLinks {}
+pub struct SymbolLinks {
+    pub target: Option<Rc<Symbol>>,
+    pub type_: Option<Rc<Type>>,
+    pub mapper: Option<TypeMapper>,
+}
 
 impl SymbolLinks {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            target: None,
+            type_: None,
+            mapper: None,
+        }
     }
 }
 
@@ -3194,6 +3204,7 @@ impl From<TypeParameter> for Type {
     }
 }
 
+#[derive(Debug)]
 pub enum TypeMapper {
     Simple(TypeMapperSimple),
     Array(TypeMapperArray),
@@ -3202,20 +3213,30 @@ pub enum TypeMapper {
     Merged(TypeMapperCompositeOrMerged),
 }
 
+#[derive(Debug)]
 pub struct TypeMapperSimple {
     pub source: Rc<Type>,
     pub target: Rc<Type>,
 }
 
+#[derive(Debug)]
 pub struct TypeMapperArray {
     pub sources: Vec<Rc<Type>>,
     pub targets: Option<Vec<Rc<Type>>>,
 }
 
+// #[derive(Debug)]
 pub struct TypeMapperFunction {
     pub func: fn(&TypeChecker, Rc<Type>) -> Rc<Type>,
 }
 
+impl fmt::Debug for TypeMapperFunction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("TypeMapperFunction")
+    }
+}
+
+#[derive(Debug)]
 pub struct TypeMapperCompositeOrMerged {
     pub mapper1: Box<TypeMapper>,
     pub mapper2: Box<TypeMapper>,
@@ -3681,6 +3702,7 @@ pub struct TextSpan {
     pub length: isize,
 }
 
+#[derive(Debug)]
 pub struct DiagnosticCollection {
     pub file_diagnostics: HashMap<String, SortedArray<Rc<Diagnostic>>>,
 }
