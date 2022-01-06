@@ -254,37 +254,62 @@ impl TypeChecker {
         &self,
         symbol: Rc<Symbol>,
     ) -> Rc<Type /*InterfaceType*/> {
-        let kind = if symbol.flags().intersects(SymbolFlags::Class) {
-            ObjectFlags::Class
-        } else {
-            ObjectFlags::Interface
-        };
+        let links = self.get_symbol_links(&symbol);
+        let original_links = links.clone();
+        let mut original_links_ref = original_links.borrow_mut();
+        if original_links_ref.declared_type.is_none() {
+            let kind = if symbol.flags().intersects(SymbolFlags::Class) {
+                ObjectFlags::Class
+            } else {
+                ObjectFlags::Interface
+            };
 
-        let mut type_ = self.create_object_type(kind, symbol.clone());
-        let outer_type_parameters =
-            self.get_outer_type_parameters_of_class_or_interface(symbol.clone());
-        let local_type_parameters =
-            self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
-        let type_: InterfaceType = if outer_type_parameters.is_some()
-            || local_type_parameters.is_some()
-            || kind == ObjectFlags::Class
-            || false
-        {
-            type_.set_object_flags(type_.object_flags() | ObjectFlags::Reference);
-            BaseInterfaceType::new(
-                type_,
-                Some(concatenate(
-                    outer_type_parameters.clone().unwrap_or_else(|| vec![]),
-                    local_type_parameters.clone().unwrap_or_else(|| vec![]),
-                )),
-                outer_type_parameters,
-                local_type_parameters,
-            )
-        } else {
-            BaseInterfaceType::new(type_, None, None, None)
+            let mut type_ = self.create_object_type(kind, symbol.clone());
+            let outer_type_parameters =
+                self.get_outer_type_parameters_of_class_or_interface(symbol.clone());
+            let local_type_parameters =
+                self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol.clone());
+            let type_: InterfaceType = if outer_type_parameters.is_some()
+                || local_type_parameters.is_some()
+                || kind == ObjectFlags::Class
+                || false
+            {
+                type_.set_object_flags(type_.object_flags() | ObjectFlags::Reference);
+                let mut this_type = self.create_type_parameter(Some(symbol));
+                this_type.is_this_type = Some(true);
+                BaseInterfaceType::new(
+                    type_,
+                    Some(concatenate(
+                        outer_type_parameters.clone().unwrap_or_else(|| vec![]),
+                        local_type_parameters.clone().unwrap_or_else(|| vec![]),
+                    )),
+                    outer_type_parameters,
+                    local_type_parameters,
+                    Some(Rc::new(this_type.into())),
+                )
+            } else {
+                BaseInterfaceType::new(type_, None, None, None, None)
+            }
+            .into();
+            let type_rc = Rc::new(type_.into());
+            match &*type_rc {
+                Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
+                    base_interface_type,
+                ))) => match &**base_interface_type.this_type.borrow_mut().as_ref().unwrap() {
+                    Type::TypeParameter(type_parameter) => {
+                        *type_parameter.constraint.borrow_mut() = Some(Rc::downgrade(&type_rc));
+                    }
+                    _ => panic!("Expected TypeParameter"),
+                },
+                _ => panic!("Expected BaseInterfaceType"),
+            }
+            original_links_ref.declared_type = Some(type_rc.clone());
+            if !Rc::ptr_eq(&links, &original_links) {
+                let mut links_ref = links.borrow_mut();
+                links_ref.declared_type = Some(type_rc);
+            }
         }
-        .into();
-        Rc::new(type_.into())
+        original_links_ref.declared_type.clone().unwrap()
     }
 
     pub(super) fn get_declared_type_of_type_parameter(
@@ -440,10 +465,23 @@ impl TypeChecker {
             _ => panic!("Expected TypeReference"),
         };
         let source = self.resolve_declared_members(type_as_type_reference.target.clone());
-        let type_parameters = /*concatenate(*/match &*source {
-            Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(base_interface_type))) => base_interface_type,
+        let source_as_base_interface_type = match &*source {
+            Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
+                base_interface_type,
+            ))) => base_interface_type,
             _ => panic!("Expected BaseInterfaceType"),
-        }.type_parameters.clone().unwrap()/*, [source.thisType!])*/;
+        };
+        let type_parameters = concatenate(
+            source_as_base_interface_type
+                .type_parameters
+                .clone()
+                .unwrap(),
+            vec![source_as_base_interface_type
+                .this_type
+                .borrow()
+                .clone()
+                .unwrap()],
+        );
         let type_arguments = self.get_type_arguments(type_as_type_reference);
         let padded_type_arguments = if type_arguments.len() == type_parameters.len() {
             type_arguments

@@ -1402,6 +1402,7 @@ impl From<BaseSymbol> for Symbol {
 pub struct SymbolLinks {
     pub target: Option<Rc<Symbol>>,
     pub type_: Option<Rc<Type>>,
+    pub declared_type: Option<Rc<Type>>,
     pub mapper: Option<TypeMapper>,
 }
 
@@ -1410,6 +1411,7 @@ impl SymbolLinks {
         Self {
             target: None,
             type_: None,
+            declared_type: None,
             mapper: None,
         }
     }
@@ -2815,6 +2817,7 @@ pub struct BaseInterfaceType {
     pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub local_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    pub this_type: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
     declared_properties: RefCell<Option<Vec<Rc<Symbol>>>>,
 }
 
@@ -2824,12 +2827,14 @@ impl BaseInterfaceType {
         type_parameters: Option<Vec<Rc<Type>>>,
         outer_type_parameters: Option<Vec<Rc<Type>>>,
         local_type_parameters: Option<Vec<Rc<Type>>>,
+        this_type: Option<Rc<Type>>,
     ) -> Self {
         Self {
             _object_type: object_type,
             type_parameters,
             outer_type_parameters,
             local_type_parameters,
+            this_type: RefCell::new(this_type),
             declared_properties: RefCell::new(None),
         }
     }
@@ -3184,11 +3189,17 @@ pub trait ResolvedTypeInterface {
 #[derive(Clone, Debug)]
 pub struct TypeParameter {
     _type: BaseType,
+    pub constraint: RefCell<Option<Weak<Type>>>,
+    pub is_this_type: Option<bool>,
 }
 
 impl TypeParameter {
     pub fn new(base_type: BaseType) -> Self {
-        Self { _type: base_type }
+        Self {
+            _type: base_type,
+            constraint: RefCell::new(None),
+            is_this_type: None,
+        }
     }
 }
 
