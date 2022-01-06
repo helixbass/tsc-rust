@@ -2448,6 +2448,8 @@ bitflags! {
         const ContainsWideningType = 1 << 17;
         const ContainsObjectOrArrayLiteral = 1 << 18;
         const NonInferrableType = 1 << 19;
+        const CouldContainTypeVariablesComputed = 1 << 20;
+        const CouldContainTypeVariables = 1 << 21;
         const ContainsIntersections = 1 << 25;
 
         const ClassOrInterface = Self::Class.bits | Self::Interface.bits;
@@ -2457,7 +2459,7 @@ bitflags! {
 
 pub trait ObjectFlagsTypeInterface {
     fn object_flags(&self) -> ObjectFlags;
-    fn set_object_flags(&mut self, object_flags: ObjectFlags);
+    fn set_object_flags(&self, object_flags: ObjectFlags);
 }
 
 pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
@@ -2516,7 +2518,7 @@ impl ObjectFlagsTypeInterface for ObjectType {
         }
     }
 
-    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+    fn set_object_flags(&self, object_flags: ObjectFlags) {
         match self {
             ObjectType::InterfaceType(interface_type) => {
                 interface_type.set_object_flags(object_flags)
@@ -2594,7 +2596,7 @@ impl From<ObjectType> for Type {
 #[derive(Clone, Debug)]
 pub struct BaseObjectType {
     _type: BaseType,
-    object_flags: ObjectFlags,
+    object_flags: Cell<ObjectFlags>,
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     properties: RefCell<Option<Vec<Rc<Symbol>>>>,
 }
@@ -2603,7 +2605,7 @@ impl BaseObjectType {
     pub fn new(base_type: BaseType, object_flags: ObjectFlags) -> Self {
         Self {
             _type: base_type,
-            object_flags,
+            object_flags: Cell::new(object_flags),
             members: RefCell::new(None),
             properties: RefCell::new(None),
         }
@@ -2630,11 +2632,11 @@ impl TypeInterface for BaseObjectType {
 
 impl ObjectFlagsTypeInterface for BaseObjectType {
     fn object_flags(&self) -> ObjectFlags {
-        self.object_flags
+        self.object_flags.get()
     }
 
-    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
-        self.object_flags = object_flags;
+    fn set_object_flags(&self, object_flags: ObjectFlags) {
+        self.object_flags.set(object_flags);
     }
 }
 
@@ -2728,7 +2730,7 @@ impl ObjectFlagsTypeInterface for InterfaceType {
         }
     }
 
-    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+    fn set_object_flags(&self, object_flags: ObjectFlags) {
         match self {
             InterfaceType::BaseInterfaceType(base_interface_type) => {
                 base_interface_type.set_object_flags(object_flags)
@@ -2863,7 +2865,7 @@ impl ObjectFlagsTypeInterface for BaseInterfaceType {
         self._object_type.object_flags()
     }
 
-    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+    fn set_object_flags(&self, object_flags: ObjectFlags) {
         self._object_type.set_object_flags(object_flags)
     }
 }
@@ -2961,7 +2963,7 @@ impl ObjectFlagsTypeInterface for TypeReference {
         self._object_type.object_flags()
     }
 
-    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+    fn set_object_flags(&self, object_flags: ObjectFlags) {
         self._object_type.set_object_flags(object_flags)
     }
 }
@@ -3054,7 +3056,7 @@ impl ObjectFlagsTypeInterface for UnionOrIntersectionType {
         }
     }
 
-    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+    fn set_object_flags(&self, object_flags: ObjectFlags) {
         match self {
             UnionOrIntersectionType::UnionType(union_type) => {
                 union_type.set_object_flags(object_flags)
@@ -3073,7 +3075,7 @@ impl From<UnionOrIntersectionType> for Type {
 pub struct BaseUnionOrIntersectionType {
     _type: BaseType,
     pub types: Vec<Rc<Type>>,
-    pub object_flags: ObjectFlags,
+    pub object_flags: Cell<ObjectFlags>,
 }
 
 impl BaseUnionOrIntersectionType {
@@ -3081,7 +3083,7 @@ impl BaseUnionOrIntersectionType {
         Self {
             _type: base_type,
             types,
-            object_flags,
+            object_flags: Cell::new(object_flags),
         }
     }
 }
@@ -3112,11 +3114,11 @@ impl UnionOrIntersectionTypeInterface for BaseUnionOrIntersectionType {
 
 impl ObjectFlagsTypeInterface for BaseUnionOrIntersectionType {
     fn object_flags(&self) -> ObjectFlags {
-        self.object_flags
+        self.object_flags.get()
     }
 
-    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
-        self.object_flags = object_flags;
+    fn set_object_flags(&self, object_flags: ObjectFlags) {
+        self.object_flags.set(object_flags);
     }
 }
 
@@ -3162,7 +3164,7 @@ impl ObjectFlagsTypeInterface for UnionType {
         self._union_or_intersection_type.object_flags()
     }
 
-    fn set_object_flags(&mut self, object_flags: ObjectFlags) {
+    fn set_object_flags(&self, object_flags: ObjectFlags) {
         self._union_or_intersection_type
             .set_object_flags(object_flags);
     }

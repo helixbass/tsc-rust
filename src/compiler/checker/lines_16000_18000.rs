@@ -172,7 +172,7 @@ impl TypeChecker {
                 let sources = &mapper.sources;
                 let targets = &mapper.targets;
                 for (i, source) in sources.iter().enumerate() {
-                    if Rc::ptr_eq(&type_, &source) {
+                    if Rc::ptr_eq(&type_, source) {
                         return if let Some(targets) = targets {
                             targets[i].clone()
                         } else {

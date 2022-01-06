@@ -107,11 +107,17 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
     ) -> Rc<Type> {
-        // let links = self.get_symbol_links(symbol);
-        // if links.type_.is_none() {
-        self.get_type_of_variable_or_parameter_or_property_worker(symbol)
-        // }
-        // links.type.unwrap().clone()
+        let links = self.get_symbol_links(symbol);
+        let links_type_is_none = { links.borrow().type_.is_none() };
+        if links_type_is_none {
+            let type_ = self.get_type_of_variable_or_parameter_or_property_worker(symbol);
+            let mut links_ref = links.borrow_mut();
+            if links_ref.type_.is_none() {
+                links_ref.type_ = Some(type_);
+            }
+        }
+        let links_ref = links.borrow();
+        links_ref.type_.clone().unwrap()
     }
 
     pub(super) fn get_type_of_variable_or_parameter_or_property_worker(
@@ -316,7 +322,12 @@ impl TypeChecker {
         &self,
         symbol: Rc<Symbol>,
     ) -> Rc<Type /*TypeParameter*/> {
-        Rc::new(self.create_type_parameter(Some(symbol)).into())
+        let links = self.get_symbol_links(&symbol);
+        let mut links = links.borrow_mut();
+        if links.declared_type.is_none() {
+            links.declared_type = Some(Rc::new(self.create_type_parameter(Some(symbol)).into()));
+        }
+        links.declared_type.clone().unwrap()
     }
 
     pub(super) fn get_declared_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {
