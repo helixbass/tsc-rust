@@ -167,7 +167,9 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_type_parameter(&self, node: &TypeParameterDeclaration) {}
+    pub(super) fn check_type_parameter(&self, node: &TypeParameterDeclaration) {
+        // TODO
+    }
 
     pub(super) fn check_property_declaration(&mut self, node: &PropertySignature) {
         self.check_variable_like_declaration(node);
