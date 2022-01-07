@@ -1244,6 +1244,68 @@ pub enum UnionReduction {
     Subtype,
 }
 
+bitflags! {
+    pub struct NodeBuilderFlags: u32 {
+        const None = 0;
+        const NoTruncation = 1 << 0;
+        const WriteArrayAsGenericType = 1 << 1;
+        const UseStructuralFallback = 1 << 3;
+        const WriteTypeArgumentsOfSignature = 1 << 5;
+        const UseFullyQualifiedType = 1 << 6;
+        const UseOnlyExternalAliasing = 1 << 7;
+        const SuppressAnyReturnType = 1 << 8;
+        const WriteTypeParametersInQualifiedName = 1 << 9;
+        const MultilineObjectLiterals = 1 << 10;
+        const WriteClassExpressionAsTypeLiteral = 1 << 11;
+        const UseTypeOfFunction = 1 << 12;
+        const OmitParameterModifiers = 1 << 13;
+        const UseAliasDefinedOutsideCurrentScope = 1 << 14;
+        const UseSingleQuotesForStringLiteralType = 1 << 28;
+        const NoTypeReduction = 1 << 29;
+
+        const AllowThisInObjectLiteral = 1 << 15;
+        const AllowQualifiedNameInPlaceOfIdentifier = 1 << 16;
+        const AllowAnonymousIdentifier = 1 << 17;
+        const AllowEmptyUnionOrIntersection = 1 << 18;
+        const AllowEmptyTuple = 1 << 19;
+        const AllowUniqueESSymbolType = 1 << 20;
+        const AllowEmptyIndexInfoType = 1 << 21;
+
+        const AllowNodeModulesRelativePaths = 1 << 26;
+        const DoNotIncludeSymbolChain = 1 << 27;
+
+        const InTypeAlias = 1 << 23;
+
+        const IgnoreErrors = Self::AllowThisInObjectLiteral.bits | Self::AllowQualifiedNameInPlaceOfIdentifier.bits | Self::AllowAnonymousIdentifier.bits | Self::AllowEmptyUnionOrIntersection.bits | Self::AllowEmptyTuple.bits | Self::AllowEmptyIndexInfoType.bits | Self::AllowNodeModulesRelativePaths.bits;
+    }
+}
+
+bitflags! {
+    pub struct TypeFormatFlags: u32 {
+        const None = 0;
+        const NoTruncation = 1 << 0;
+        const WriteArrayAsGenericType = 1 << 1;
+        const UseStructuralFallback = 1 << 3;
+        const WriteTypeArgumentsOfSignature = 1 << 5;
+        const UseFullyQualifiedType = 1 << 6;
+        const SuppressAnyReturnType = 1 << 8;
+        const MultilineObjectLiterals = 1 << 10;
+        const WriteClassExpressionAsTypeLiteral = 1 << 11;
+        const UseTypeOfFunction = 1 << 12;
+        const OmitParameterModifiers = 1 << 13;
+
+        const UseAliasDefinedOutsideCurrentScope = 1 << 14;
+        const UseSingleQuotesForStringLiteralType = 1 << 28;
+        const NoTypeReduction = 1 << 29;
+
+        const AllowUniqueESSymbolType = 1 << 20;
+
+        const InTypeAlias = 1 << 23;
+
+        const NodeBuilderFlagsMask = Self::NoTruncation.bits | Self::WriteArrayAsGenericType.bits | Self::UseStructuralFallback.bits | Self::WriteTypeArgumentsOfSignature.bits | Self::UseFullyQualifiedType.bits | Self::SuppressAnyReturnType.bits | Self::MultilineObjectLiterals.bits | Self::WriteClassExpressionAsTypeLiteral.bits | Self::UseTypeOfFunction.bits | Self::OmitParameterModifiers.bits | Self::UseAliasDefinedOutsideCurrentScope.bits | Self::AllowUniqueESSymbolType.bits | Self::InTypeAlias.bits | Self::UseSingleQuotesForStringLiteralType.bits | Self::NoTypeReduction.bits;
+    }
+}
+
 pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
     fn write_punctuation(&mut self, text: &str);

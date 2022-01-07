@@ -8,10 +8,11 @@ use crate::{
     get_source_file_of_node, get_synthetic_factory, is_identifier_text,
     unescape_leading_underscores, using_single_line_string_writer, BaseIntrinsicType,
     BaseNodeFactorySynthetic, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint,
-    EmitTextWriter, Expression, KeywordTypeNode, Node, NodeArray, NodeInterface, ObjectFlags,
-    PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Symbol,
-    SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeParameter,
+    EmitTextWriter, Expression, KeywordTypeNode, LiteralType, Node, NodeArray, NodeBuilderFlags,
+    NodeInterface, ObjectFlags, PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface,
+    SourceFile, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable,
+    SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypeParameter,
 };
 
 impl TypeChecker {
@@ -132,6 +133,19 @@ impl TypeChecker {
         writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
     ) -> String {
         let flags = flags.unwrap_or(SymbolFormatFlags::AllowAnyNodeKind);
+        let mut node_flags = NodeBuilderFlags::IgnoreErrors;
+        if flags.intersects(SymbolFormatFlags::UseOnlyExternalAliasing) {
+            node_flags |= NodeBuilderFlags::UseOnlyExternalAliasing;
+        }
+        if flags.intersects(SymbolFormatFlags::WriteTypeParametersOrArguments) {
+            node_flags |= NodeBuilderFlags::WriteTypeParametersInQualifiedName;
+        }
+        if flags.intersects(SymbolFormatFlags::UseAliasDefinedOutsideCurrentScope) {
+            node_flags |= NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope;
+        }
+        if flags.intersects(SymbolFormatFlags::DoNotIncludeSymbolChain) {
+            node_flags |= NodeBuilderFlags::DoNotIncludeSymbolChain;
+        }
         let builder = if flags.intersects(SymbolFormatFlags::AllowAnyNodeKind) {
             NodeBuilder::symbol_to_expression
         } else {
@@ -144,6 +158,7 @@ impl TypeChecker {
                 symbol,
                 // meaning.unwrap() TODO: this is ! in the Typescript code but would be undefined at runtime when called from propertyRelatedTo()?
                 meaning,
+                Some(node_flags),
                 None,
             )
             .unwrap();
@@ -168,11 +183,27 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn type_to_string(&self, type_: Rc<Type>) -> String {
+    pub(super) fn type_to_string(&self, type_: Rc<Type>, flags: Option<TypeFormatFlags>) -> String {
+        let flags = flags.unwrap_or(
+            TypeFormatFlags::AllowUniqueESSymbolType
+                | TypeFormatFlags::UseAliasDefinedOutsideCurrentScope,
+        );
         let writer = Rc::new(RefCell::new(create_text_writer("")));
-        let type_node =
-            self.node_builder
-                .type_to_type_node(self, type_, Some(&*(*writer).borrow()));
+        let no_truncation = false || flags.intersects(TypeFormatFlags::NoTruncation);
+        let type_node = self.node_builder.type_to_type_node(
+            self,
+            type_,
+            Some(
+                self.to_node_builder_flags(Some(flags))
+                    | NodeBuilderFlags::IgnoreErrors
+                    | if no_truncation {
+                        NodeBuilderFlags::NoTruncation
+                    } else {
+                        NodeBuilderFlags::None
+                    },
+            ),
+            Some(&*(*writer).borrow()),
+        );
         let type_node: Rc<Node> = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
             Some(type_node) => type_node.into(),
@@ -199,18 +230,23 @@ impl TypeChecker {
         let left_str = if false {
             unimplemented!()
         } else {
-            self.type_to_string(left)
+            self.type_to_string(left, None)
         };
         let right_str = if false {
             unimplemented!()
         } else {
-            self.type_to_string(right)
+            self.type_to_string(right, None)
         };
         (left_str, right_str)
     }
 
     pub(super) fn get_type_name_for_error_display(&self, type_: Rc<Type>) -> String {
-        self.type_to_string(type_)
+        self.type_to_string(type_, Some(TypeFormatFlags::UseFullyQualifiedType))
+    }
+
+    pub(super) fn to_node_builder_flags(&self, flags: Option<TypeFormatFlags>) -> NodeBuilderFlags {
+        let flags = flags.unwrap_or(TypeFormatFlags::None);
+        NodeBuilderFlags::from_bits((flags & TypeFormatFlags::NodeBuilderFlagsMask).bits()).unwrap()
     }
 }
 
@@ -234,9 +270,10 @@ impl NodeBuilder {
         &self,
         type_checker: &TypeChecker,
         type_: Rc<Type>,
+        flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<TypeNode> {
-        self.with_context(tracker, |context| {
+        self.with_context(flags, tracker, |context| {
             self.type_to_type_node_helper(type_checker, type_, context)
         })
     }
@@ -246,15 +283,17 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         symbol: Rc<Symbol>,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
+        flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Expression> {
-        self.with_context(tracker, |context| {
+        self.with_context(flags, tracker, |context| {
             self._symbol_to_expression(type_checker, symbol, context, meaning)
         })
     }
 
     fn with_context<TReturn, TCallback: FnOnce(&NodeBuilderContext) -> TReturn>(
         &self,
+        flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
         cb: TCallback,
     ) -> Option<TReturn> {
@@ -262,8 +301,10 @@ impl NodeBuilder {
             Some(_) => None,
             None => Some(DefaultNodeBuilderContextSymbolTracker::new()),
         };
-        let context =
-            NodeBuilderContext::new(tracker.unwrap_or_else(|| default_tracker.as_ref().unwrap()));
+        let context = NodeBuilderContext::new(
+            flags.unwrap_or(NodeBuilderFlags::None),
+            tracker.unwrap_or_else(|| default_tracker.as_ref().unwrap()),
+        );
         let resulting_node = cb(&context);
         Some(resulting_node)
     }
@@ -287,6 +328,30 @@ impl NodeBuilder {
                     .create_keyword_type_node(&self.synthetic_factory, SyntaxKind::BooleanKeyword),
             )
             .into();
+        }
+        if type_.flags().intersects(TypeFlags::StringLiteral) {
+            return factory
+                .create_literal_type_node(
+                    &self.synthetic_factory,
+                    factory
+                        .create_string_literal(
+                            &self.synthetic_factory,
+                            match &*type_ {
+                                Type::LiteralType(LiteralType::StringLiteralType(
+                                    string_literal_type,
+                                )) => string_literal_type.value.clone(),
+                                _ => panic!("Expected StringLiteralType"),
+                            },
+                            Some(
+                                context.flags.intersects(
+                                    NodeBuilderFlags::UseSingleQuotesForStringLiteralType,
+                                ),
+                            ),
+                            None,
+                        )
+                        .into(),
+                )
+                .into();
         }
         if type_.flags().intersects(TypeFlags::BooleanLiteral) {
             return factory
@@ -600,11 +665,12 @@ impl DefaultNodeBuilderContextSymbolTracker {
 impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {}
 
 pub struct NodeBuilderContext<'symbol_tracker> {
+    flags: NodeBuilderFlags,
     tracker: &'symbol_tracker dyn SymbolTracker,
 }
 
 impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
-    pub fn new(tracker: &'symbol_tracker dyn SymbolTracker) -> Self {
-        Self { tracker }
+    pub fn new(flags: NodeBuilderFlags, tracker: &'symbol_tracker dyn SymbolTracker) -> Self {
+        Self { flags, tracker }
     }
 }
