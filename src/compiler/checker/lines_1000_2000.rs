@@ -3,11 +3,11 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::get_symbol_id;
+use super::{get_node_id, get_symbol_id};
 use crate::{
     __String, create_diagnostic_for_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
-    DiagnosticMessage, Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
-    SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
+    DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface,
+    SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -83,6 +83,20 @@ impl TypeChecker {
         let symbol_links = Rc::new(RefCell::new(SymbolLinks::new()));
         symbol_links_table.insert(id, symbol_links.clone());
         symbol_links
+    }
+
+    pub(super) fn get_node_links<TNode: NodeInterface>(
+        &self,
+        node: &TNode,
+    ) -> Rc<RefCell<NodeLinks>> {
+        let id = get_node_id(node);
+        let mut node_links_table = self.node_links.borrow_mut();
+        if let Some(node_links) = node_links_table.get(&id) {
+            return node_links.clone();
+        }
+        let node_links = Rc::new(RefCell::new(NodeLinks::new()));
+        node_links_table.insert(id, node_links.clone());
+        node_links
     }
 
     pub(super) fn is_global_source_file(&self, node: &Node) -> bool {

@@ -8,9 +8,9 @@ use std::rc::Rc;
 use super::create_node_builder;
 use crate::{
     __String, create_diagnostic_collection, create_symbol_table, object_allocator,
-    DiagnosticCollection, FreshableIntrinsicType, IntrinsicType, Number, ObjectFlags, Symbol,
-    SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeCheckerHost,
-    TypeFlags,
+    DiagnosticCollection, FreshableIntrinsicType, IntrinsicType, Node, NodeId, NodeInterface,
+    Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type,
+    TypeChecker, TypeCheckerHost, TypeFlags,
 };
 
 thread_local! {
@@ -24,6 +24,20 @@ pub(super) fn get_next_symbol_id() -> SymbolId {
 pub(super) fn increment_next_symbol_id() {
     next_symbol_id.with(|_next_symbol_id| {
         *_next_symbol_id.borrow_mut() += 1;
+    });
+}
+
+thread_local! {
+    pub(super) static next_node_id: RefCell<NodeId> = RefCell::new(1);
+}
+
+pub(super) fn get_next_node_id() -> NodeId {
+    next_node_id.with(|_next_node_id| *_next_node_id.borrow())
+}
+
+pub(super) fn increment_next_node_id() {
+    next_node_id.with(|_next_node_id| {
+        *_next_node_id.borrow_mut() += 1;
     });
 }
 
@@ -65,6 +79,15 @@ pub(super) fn get_symbol_id(symbol: &Symbol) -> SymbolId {
     }
 
     symbol.id()
+}
+
+pub(super) fn get_node_id<TNode: NodeInterface>(node: &TNode) -> NodeId {
+    if node.maybe_id().is_none() {
+        node.set_id(get_next_node_id());
+        increment_next_node_id();
+    }
+
+    node.id()
 }
 
 pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
@@ -109,6 +132,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         global_array_type: None,
 
         symbol_links: RefCell::new(HashMap::new()),
+        node_links: RefCell::new(HashMap::new()),
 
         diagnostics: RefCell::new(create_diagnostic_collection()),
 

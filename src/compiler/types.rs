@@ -142,10 +142,15 @@ bitflags! {
     }
 }
 
+pub type NodeId = u32;
+
 pub trait NodeInterface: ReadonlyTextRange {
     fn node_wrapper(&self) -> Rc<Node>;
     fn set_node_wrapper(&self, wrapper: Rc<Node>);
     fn kind(&self) -> SyntaxKind;
+    fn maybe_id(&self) -> Option<NodeId>;
+    fn id(&self) -> NodeId;
+    fn set_id(&self, id: NodeId);
     fn maybe_parent(&self) -> Option<Rc<Node>>;
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
@@ -267,6 +272,7 @@ impl Node {
 pub struct BaseNode {
     _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
+    pub id: Cell<Option<NodeId>>,
     pub parent: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<isize>,
     pub end: Cell<isize>,
@@ -279,6 +285,7 @@ impl BaseNode {
         Self {
             _node_wrapper: RefCell::new(None),
             kind,
+            id: Cell::new(None),
             parent: RefCell::new(None),
             pos: Cell::new(pos),
             end: Cell::new(end),
@@ -304,6 +311,18 @@ impl NodeInterface for BaseNode {
 
     fn kind(&self) -> SyntaxKind {
         self.kind
+    }
+
+    fn maybe_id(&self) -> Option<NodeId> {
+        self.id.get().clone()
+    }
+
+    fn id(&self) -> NodeId {
+        self.id.get().clone().unwrap()
+    }
+
+    fn set_id(&self, id: NodeId) {
+        self.id.set(Some(id));
     }
 
     fn maybe_parent(&self) -> Option<Rc<Node>> {
@@ -1202,6 +1221,7 @@ pub struct TypeChecker {
     pub number_or_big_int_type: Option<Rc<Type>>,
     pub global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
+    pub node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
     pub diagnostics: RefCell<DiagnosticCollection>,
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
@@ -1741,6 +1761,27 @@ impl __String {
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
 pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
+
+bitflags! {
+    pub struct NodeCheckFlags: u32 {
+        const None = 0;
+    }
+}
+
+#[derive(Debug)]
+pub struct NodeLinks {
+    pub flags: NodeCheckFlags,
+    pub resolved_type: Option<Rc<Type>>,
+}
+
+impl NodeLinks {
+    pub fn new() -> Self {
+        Self {
+            flags: NodeCheckFlags::None,
+            resolved_type: None,
+        }
+    }
+}
 
 bitflags! {
     pub struct TypeFlags: u32 {

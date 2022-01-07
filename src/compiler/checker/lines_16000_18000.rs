@@ -7,10 +7,11 @@ use std::rc::Rc;
 use super::CheckTypeRelatedTo;
 use crate::{
     get_check_flags, ArrayTypeNode, BaseLiteralType, CheckFlags, Debug_, DiagnosticMessage,
-    Expression, IntrinsicType, LiteralTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression, RelationComparisonResult,
-    StringLiteralType, Symbol, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
+    Expression, IntrinsicType, LiteralTypeInterface, LiteralTypeNode, NamedDeclarationInterface,
+    Node, NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression,
+    RelationComparisonResult, StringLiteralType, Symbol, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode,
+    UnionOrIntersectionType,
 };
 
 impl TypeChecker {
@@ -109,6 +110,23 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn get_type_from_literal_type_node(&self, node: &LiteralTypeNode) -> Rc<Type> {
+        if node.literal.kind() == SyntaxKind::NullKeyword {
+            unimplemented!()
+        }
+        let links = self.get_node_links(node);
+        let mut links_ref = links.borrow_mut();
+        if links_ref.resolved_type.is_none() {
+            links_ref.resolved_type = Some(self.get_regular_type_of_literal_type(
+                self.check_expression(match &*node.literal {
+                    Node::Expression(expression) => expression,
+                    _ => panic!("Expected Expression"),
+                }),
+            ));
+        }
+        links_ref.resolved_type.clone().unwrap()
+    }
+
     pub(super) fn get_array_element_type_node(
         &self,
         node: &ArrayTypeNode,
@@ -130,6 +148,9 @@ impl TypeChecker {
                 SyntaxKind::NumberKeyword => self.number_type(),
                 _ => unimplemented!(),
             },
+            TypeNode::LiteralTypeNode(literal_type_node) => {
+                self.get_type_from_literal_type_node(literal_type_node)
+            }
             TypeNode::TypeReferenceNode(type_reference_node) => {
                 self.get_type_from_type_reference(type_reference_node)
             }

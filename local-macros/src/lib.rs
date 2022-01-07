@@ -71,6 +71,18 @@ fn get_struct_interface_impl(
                         self.#first_field_name.kind()
                     }
 
+                    fn maybe_id(&self) -> ::std::option::Option<crate::NodeId> {
+                        self.#first_field_name.maybe_id()
+                    }
+
+                    fn id(&self) -> crate::NodeId {
+                        self.#first_field_name.id()
+                    }
+
+                    fn set_id(&self, id: crate::NodeId) {
+                        self.#first_field_name.set_id(id)
+                    }
+
                     fn maybe_parent(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
                         self.#first_field_name.maybe_parent()
                     }
@@ -241,6 +253,24 @@ fn get_enum_interface_impl(
                     fn kind(&self) -> crate::SyntaxKind {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.kind()),*
+                        }
+                    }
+
+                    fn maybe_id(&self) -> ::std::option::Option<crate::NodeId> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_id()),*
+                        }
+                    }
+
+                    fn id(&self) -> crate::NodeId {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.id()),*
+                        }
+                    }
+
+                    fn set_id(&self, id: crate::NodeId) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_id(id)),*
                         }
                     }
 
