@@ -366,6 +366,6 @@ impl Printer {
     fn get_literal_text_of_node(&self, node: &LiteralLikeNode) -> String {
         let flags = GetLiteralTextFlags::None;
 
-        get_literal_text(node, &**self.current_source_file.as_ref().unwrap(), flags)
+        get_literal_text(node, self.current_source_file.clone(), flags)
     }
 }

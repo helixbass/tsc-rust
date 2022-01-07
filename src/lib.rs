@@ -23,8 +23,8 @@ pub use compiler::factory::node_factory::{
     create_node_factory, factory, get_synthetic_factory, BaseNodeFactorySynthetic,
 };
 pub use compiler::factory::node_tests::{
-    is_binding_element, is_identifier, is_object_literal_expression, is_private_identifier,
-    is_property_assignment, is_property_declaration, is_property_signature,
+    is_big_int_literal, is_binding_element, is_identifier, is_object_literal_expression,
+    is_private_identifier, is_property_assignment, is_property_declaration, is_property_signature,
     is_variable_declaration,
 };
 pub use compiler::parser::{create_source_file, for_each_child};
@@ -44,8 +44,8 @@ pub use compiler::types::{
     BinaryExpression, BindingLikeDeclarationInterface, CharacterCodes, CheckFlags, CompilerHost,
     CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
-    DiagnosticWithLocation, EmitHint, EmitTextWriter, EmptyStatement, ExitStatus, Expression,
-    ExpressionStatement, FreshableIntrinsicType, HasExpressionInitializerInterface,
+    DiagnosticWithLocation, EmitFlags, EmitHint, EmitTextWriter, EmptyStatement, ExitStatus,
+    Expression, ExpressionStatement, FreshableIntrinsicType, HasExpressionInitializerInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
     InterfaceDeclaration, InterfaceType, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, IntrinsicType, KeywordTypeNode, ListFormat, LiteralLikeNode,

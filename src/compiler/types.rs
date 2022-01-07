@@ -772,7 +772,7 @@ impl LiteralTypeNode {
 )]
 pub struct StringLiteral {
     _literal_like_node: BaseLiteralLikeNode,
-    single_quote: Option<bool>,
+    pub single_quote: Option<bool>,
 }
 
 impl StringLiteral {
@@ -3608,6 +3608,13 @@ pub trait CompilerHost: ModuleResolutionHost {
     fn get_source_file(&self, file_name: &str) -> Option<SourceFile>;
     fn get_current_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
+}
+
+bitflags! {
+    pub struct EmitFlags: u32 {
+        const None = 0;
+        const NoAsciiEscaping = 1 << 24;
+    }
 }
 
 #[derive(Clone, Debug)]

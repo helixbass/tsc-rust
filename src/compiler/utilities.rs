@@ -2,6 +2,7 @@
 
 use bitflags::bitflags;
 use regex::{Captures, Regex};
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -10,13 +11,13 @@ use std::rc::Rc;
 use crate::{
     SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, __String,
     create_text_span_from_bounds, escape_leading_underscores, get_name_of_declaration,
-    insert_sorted, is_member_name, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
-    BaseNode, BaseSymbol, BaseType, CheckFlags, Debug_, Diagnostic, DiagnosticCollection,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitTextWriter, Expression,
-    LiteralLikeNode, Node, NodeInterface, ObjectFlags, ReadonlyTextRange, SortedArray, SourceFile,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, TransientSymbolInterface, Type,
-    TypeInterface,
+    insert_sorted, is_big_int_literal, is_member_name, skip_trivia, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags,
+    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, Node,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
 };
 
 pub fn get_declaration_of_kind(
@@ -163,6 +164,10 @@ fn get_text_of_node<TNode: NodeInterface>(node: &TNode, include_trivia: Option<b
     )
 }
 
+fn get_emit_flags<TNode: NodeInterface>(node: &TNode) -> EmitFlags {
+    EmitFlags::None
+}
+
 bitflags! {
     pub struct GetLiteralTextFlags: u32 {
         const None = 0;
@@ -173,27 +178,59 @@ bitflags! {
     }
 }
 
-pub fn get_literal_text(
+pub fn get_literal_text<TSourceFileRef: Borrow<SourceFile>>(
     node: &LiteralLikeNode,
-    source_file: &SourceFile,
+    source_file: Option<TSourceFileRef>,
     flags: GetLiteralTextFlags,
 ) -> String {
     if can_use_original_text(node, flags) {
-        return get_source_text_of_node_from_source_file(source_file, node, None);
+        return get_source_text_of_node_from_source_file(source_file.unwrap().borrow(), node, None);
     }
 
-    unimplemented!()
+    match node {
+        LiteralLikeNode::StringLiteral(node) => {
+            let escape_text = if flags.intersects(GetLiteralTextFlags::JsxAttributeEscape) {
+                unimplemented!()
+            } else if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
+                || get_emit_flags(node).intersects(EmitFlags::NoAsciiEscaping)
+            {
+                unimplemented!()
+            } else {
+                escape_non_ascii_string
+            };
+            if matches!(node.single_quote, Some(true)) {
+                format!(
+                    "'{}'",
+                    escape_text(node.text(), Some(CharacterCodes::single_quote))
+                )
+            } else {
+                format!(
+                    "\"{}\"",
+                    escape_text(node.text(), Some(CharacterCodes::double_quote))
+                )
+            }
+        }
+        LiteralLikeNode::NumericLiteral(numeric_literal) => node.text().to_string(),
+    }
 }
 
 fn can_use_original_text(node: &LiteralLikeNode, flags: GetLiteralTextFlags) -> bool {
-    true
+    if node_is_synthesized(node)
+        || node.maybe_parent().is_none()
+        || flags.intersects(GetLiteralTextFlags::TerminateUnterminatedLiterals)
+            && matches!(node.is_unterminated(), Some(true))
+    {
+        return false;
+    }
+
+    !is_big_int_literal(node)
 }
 
 pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWriter>>)>(
     action: TAction,
 ) -> String {
     let string_writer = string_writer();
-    let old_string = string_writer.borrow().get_text();
+    let old_string = (*string_writer).borrow().get_text();
     action(string_writer.clone());
     let mut string_writer = string_writer.borrow_mut();
     let ret = string_writer.get_text();
@@ -345,6 +382,10 @@ pub fn get_escaped_text_of_identifier_or_literal<TNode: NodeInterface>(node: &TN
     }
 }
 
+fn node_is_synthesized<TRange: ReadonlyTextRange>(range: &TRange) -> bool {
+    position_is_synthesized(range.pos()) || position_is_synthesized(range.end())
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum OperatorPrecedence {
     Comma,
@@ -427,6 +468,15 @@ impl DiagnosticCollection {
             .map(|sorted_array| sorted_array.into())
             .unwrap_or(vec![])
     }
+}
+
+fn escape_non_ascii_string(
+    s: &str,
+    quote_char: Option<
+        char, /*CharacterCodes.doubleQuote | CharacterCodes.singleQuote | CharacterCodes.backtick*/
+    >,
+) -> String {
+    s.to_string()
 }
 
 #[derive(Clone)]
