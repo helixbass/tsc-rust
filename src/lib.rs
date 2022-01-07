@@ -72,10 +72,11 @@ pub use compiler::utilities::{
     create_text_writer, declaration_name_to_string, get_binary_operator_precedence,
     get_check_flags, get_declaration_of_kind, get_effective_initializer,
     get_effective_type_annotation_node, get_escaped_text_of_identifier_or_literal,
-    get_first_identifier, get_object_flags, get_source_file_of_node, has_dynamic_name,
-    is_external_or_common_js_module, is_keyword, is_property_name_literal, node_is_missing,
-    object_allocator, position_is_synthesized, set_parent, set_text_range_pos_end,
-    set_value_declaration, using_single_line_string_writer, OperatorPrecedence,
+    get_first_identifier, get_literal_text, get_object_flags, get_source_file_of_node,
+    has_dynamic_name, is_external_or_common_js_module, is_keyword, is_property_name_literal,
+    node_is_missing, object_allocator, position_is_synthesized, set_parent, set_text_range_pos_end,
+    set_value_declaration, using_single_line_string_writer, GetLiteralTextFlags,
+    OperatorPrecedence,
 };
 pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores,

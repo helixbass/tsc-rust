@@ -1,11 +1,12 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
     TypeNode, __String, create_printer, create_text_writer, factory, get_object_flags,
-    get_source_file_of_node, get_synthetic_factory, is_identifier_text,
+    get_source_file_of_node, get_synthetic_factory, is_expression, is_identifier_text,
     unescape_leading_underscores, using_single_line_string_writer, BaseIntrinsicType,
     BaseNodeFactorySynthetic, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint,
     EmitTextWriter, Expression, KeywordTypeNode, LiteralType, Node, NodeArray, NodeBuilderFlags,
@@ -183,7 +184,12 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn type_to_string(&self, type_: Rc<Type>, flags: Option<TypeFormatFlags>) -> String {
+    pub(super) fn type_to_string<TNodeRef: Borrow<Node>>(
+        &self,
+        type_: Rc<Type>,
+        enclosing_declaration: Option<TNodeRef>,
+        flags: Option<TypeFormatFlags>,
+    ) -> String {
         let flags = flags.unwrap_or(
             TypeFormatFlags::AllowUniqueESSymbolType
                 | TypeFormatFlags::UseAliasDefinedOutsideCurrentScope,
@@ -210,7 +216,13 @@ impl TypeChecker {
         };
         let options = PrinterOptions {};
         let mut printer = create_printer(options);
-        let source_file: Option<Rc<SourceFile>> = if false { unimplemented!() } else { None };
+        let source_file: Option<Rc<SourceFile>> =
+            if let Some(enclosing_declaration) = enclosing_declaration {
+                let enclosing_declaration = enclosing_declaration.borrow();
+                Some(get_source_file_of_node(enclosing_declaration))
+            } else {
+                None
+            };
         printer.write_node(
             EmitHint::Unspecified,
             &*type_node,
@@ -227,21 +239,50 @@ impl TypeChecker {
         left: Rc<Type>,
         right: Rc<Type>,
     ) -> (String, String) {
-        let left_str = if false {
-            unimplemented!()
+        let left_str = if let Some(symbol) = left.maybe_symbol() {
+            if self.symbol_value_declaration_is_context_sensitive(symbol.clone()) {
+                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow())
+                    .clone()
+                    .map(|weak| weak.upgrade().unwrap());
+                self.type_to_string(left, enclosing_declaration, None)
+            } else {
+                self.type_to_string(left, Option::<&Node>::None, None)
+            }
         } else {
-            self.type_to_string(left, None)
+            self.type_to_string(left, Option::<&Node>::None, None)
         };
-        let right_str = if false {
-            unimplemented!()
+        let right_str = if let Some(symbol) = right.maybe_symbol() {
+            if self.symbol_value_declaration_is_context_sensitive(symbol.clone()) {
+                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow())
+                    .clone()
+                    .map(|weak| weak.upgrade().unwrap());
+                self.type_to_string(right, enclosing_declaration, None)
+            } else {
+                self.type_to_string(right, Option::<&Node>::None, None)
+            }
         } else {
-            self.type_to_string(right, None)
+            self.type_to_string(right, Option::<&Node>::None, None)
         };
         (left_str, right_str)
     }
 
     pub(super) fn get_type_name_for_error_display(&self, type_: Rc<Type>) -> String {
-        self.type_to_string(type_, Some(TypeFormatFlags::UseFullyQualifiedType))
+        self.type_to_string(
+            type_,
+            Option::<&Node>::None,
+            Some(TypeFormatFlags::UseFullyQualifiedType),
+        )
+    }
+
+    pub(super) fn symbol_value_declaration_is_context_sensitive(&self, symbol: Rc<Symbol>) -> bool {
+        match &*symbol.maybe_value_declaration() {
+            Some(value_declaration) => {
+                let value_declaration = value_declaration.upgrade().unwrap();
+                is_expression(&*value_declaration)
+                    && !self.is_context_sensitive(&*value_declaration)
+            }
+            None => false,
+        }
     }
 
     pub(super) fn to_node_builder_flags(&self, flags: Option<TypeFormatFlags>) -> NodeBuilderFlags {

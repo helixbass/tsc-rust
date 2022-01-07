@@ -350,6 +350,15 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_context_sensitive(
+        &self,
+        node: &Node, /*Expression | MethodDeclaration | ObjectLiteralElementLike | JsxAttributeLike | JsxChild*/
+    ) -> bool {
+        // match node {
+        // }
+        false
+    }
+
     pub(super) fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {
         self.is_type_related_to(source, target, &self.assignable_relation)
     }

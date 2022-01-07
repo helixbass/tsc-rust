@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use bitflags::bitflags;
 use regex::{Captures, Regex};
 use std::cell::RefCell;
 use std::cmp::Ordering;
@@ -12,9 +13,10 @@ use crate::{
     insert_sorted, is_member_name, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
     BaseNode, BaseSymbol, BaseType, CheckFlags, Debug_, Diagnostic, DiagnosticCollection,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitTextWriter, Expression, Node,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
+    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitTextWriter, Expression,
+    LiteralLikeNode, Node, NodeInterface, ObjectFlags, ReadonlyTextRange, SortedArray, SourceFile,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, TransientSymbolInterface, Type,
+    TypeInterface,
 };
 
 pub fn get_declaration_of_kind(
@@ -94,6 +96,10 @@ impl SymbolWriter for SingleLineStringWriter {
         self.write_text(s);
     }
 
+    fn write_string_literal(&mut self, s: &str) {
+        self.write_text(s);
+    }
+
     fn write_property(&mut self, s: &str) {
         self.write_text(s);
     }
@@ -110,7 +116,7 @@ impl SymbolWriter for SingleLineStringWriter {
 impl SymbolTracker for SingleLineStringWriter {}
 
 fn get_source_text_of_node_from_source_file<TNode: NodeInterface>(
-    source_file: Rc<SourceFile>,
+    source_file: &SourceFile,
     node: &TNode,
     include_trivia: Option<bool>,
 ) -> String {
@@ -151,10 +157,36 @@ fn get_text_of_node_from_source_text<TNode: NodeInterface>(
 fn get_text_of_node<TNode: NodeInterface>(node: &TNode, include_trivia: Option<bool>) -> String {
     let include_trivia = include_trivia.unwrap_or(false);
     get_source_text_of_node_from_source_file(
-        get_source_file_of_node(node),
+        &*get_source_file_of_node(node),
         node,
         Some(include_trivia),
     )
+}
+
+bitflags! {
+    pub struct GetLiteralTextFlags: u32 {
+        const None = 0;
+        const NeverAsciiEscape = 1 << 0;
+        const JsxAttributeEscape = 1 << 1;
+        const TerminateUnterminatedLiterals = 1 << 2;
+        const AllowNumericSeparator = 1 << 3;
+    }
+}
+
+pub fn get_literal_text(
+    node: &LiteralLikeNode,
+    source_file: &SourceFile,
+    flags: GetLiteralTextFlags,
+) -> String {
+    if can_use_original_text(node, flags) {
+        return get_source_text_of_node_from_source_file(source_file, node, None);
+    }
+
+    unimplemented!()
+}
+
+fn can_use_original_text(node: &LiteralLikeNode, flags: GetLiteralTextFlags) -> bool {
+    true
 }
 
 pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWriter>>)>(
@@ -450,6 +482,10 @@ impl SymbolWriter for TextWriter {
     }
 
     fn write_space(&mut self, s: &str) {
+        self.write(s);
+    }
+
+    fn write_string_literal(&mut self, s: &str) {
         self.write(s);
     }
 

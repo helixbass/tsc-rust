@@ -3,11 +3,11 @@ use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
 
 use crate::{
-    id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_, EmitHint,
-    EmitTextWriter, Expression, HasTypeInterface, Identifier, ListFormat, LiteralTypeNode,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, PrinterOptions,
-    PropertySignature, SourceFile, Symbol, TypeElement, TypeLiteralNode, TypeNode,
-    TypeReferenceNode,
+    get_literal_text, id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_,
+    EmitHint, EmitTextWriter, Expression, GetLiteralTextFlags, HasTypeInterface, Identifier,
+    ListFormat, LiteralLikeNode, LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, Printer, PrinterOptions, PropertySignature, SourceFile, Symbol, TypeElement,
+    TypeLiteralNode, TypeNode, TypeReferenceNode,
 };
 
 #[derive(PartialEq, Eq)]
@@ -25,6 +25,7 @@ pub fn create_printer(printer_options: PrinterOptions) -> Printer {
 impl Printer {
     pub fn new() -> Self {
         Self {
+            current_source_file: None,
             writer: None,
             write: Printer::write_base,
         }
@@ -62,10 +63,14 @@ impl Printer {
         source_file: Option<Rc<SourceFile>>,
     ) {
         if let Some(source_file) = source_file {
-            unimplemented!()
+            self.set_source_file(Some(source_file));
         }
 
         self.pipeline_emit(hint, node);
+    }
+
+    fn set_source_file(&mut self, source_file: Option<Rc<SourceFile>>) {
+        self.current_source_file = source_file;
     }
 
     fn set_writer(&mut self, writer: Option<Rc<RefCell<dyn EmitTextWriter>>>) {
@@ -123,8 +128,9 @@ impl Printer {
         mut hint: EmitHint,
         node: &TNode,
     ) {
+        let node = node.node_wrapper();
         if hint == EmitHint::Unspecified {
-            match &*node.node_wrapper() {
+            match &*node {
                 Node::Expression(Expression::Identifier(identifier)) => {
                     return self.emit_identifier(identifier)
                 }
@@ -142,16 +148,31 @@ impl Printer {
                 }
                 _ => (),
             }
-            if is_expression(node) {
+            if is_expression(&*node) {
                 hint = EmitHint::Expression;
             }
         }
-        // if hint == EmitHint::Expression {
-        // }
-        if is_keyword(node.kind()) {
-            return self.write_token_node(node, Printer::write_keyword);
+        if hint == EmitHint::Expression {
+            match &*node {
+                Node::Expression(Expression::LiteralLikeNode(literal_like_node)) => {
+                    return self.emit_literal(literal_like_node, false);
+                }
+                _ => (),
+            }
         }
-        unimplemented!()
+        if is_keyword(node.kind()) {
+            return self.write_token_node(&*node, Printer::write_keyword);
+        }
+        unimplemented!();
+    }
+
+    fn emit_literal(&self, node: &LiteralLikeNode, jsx_attribute_escape: bool) {
+        let text = self.get_literal_text_of_node(node);
+        if false {
+            unimplemented!()
+        } else {
+            self.write_string_literal(&text);
+        }
     }
 
     fn emit_identifier(&self, node: &Identifier) {
@@ -296,6 +317,10 @@ impl Printer {
         self.writer_().write(s);
     }
 
+    fn write_string_literal(&self, s: &str) {
+        self.writer_().write_string_literal(s);
+    }
+
     fn write_symbol(&self, s: &str, sym: Rc<Symbol>) {
         self.writer_().write_symbol(s, &*sym);
     }
@@ -336,5 +361,11 @@ impl Printer {
         }
 
         unimplemented!()
+    }
+
+    fn get_literal_text_of_node(&self, node: &LiteralLikeNode) -> String {
+        let flags = GetLiteralTextFlags::None;
+
+        get_literal_text(node, &**self.current_source_file.as_ref().unwrap(), flags)
     }
 }

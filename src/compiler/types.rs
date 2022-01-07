@@ -1310,6 +1310,7 @@ pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
     fn write_punctuation(&mut self, text: &str);
     fn write_space(&mut self, text: &str);
+    fn write_string_literal(&mut self, text: &str);
     fn write_property(&mut self, text: &str);
     fn write_symbol(&mut self, text: &str, symbol: &Symbol);
     fn clear(&mut self);
@@ -3878,6 +3879,7 @@ pub enum EmitHint {
 pub struct NodeFactory {}
 
 pub struct Printer {
+    pub current_source_file: Option<Rc<SourceFile>>,
     pub writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
     pub write: fn(&Printer, &str),
 }
