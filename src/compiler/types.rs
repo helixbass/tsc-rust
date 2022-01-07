@@ -834,6 +834,7 @@ bitflags! {
     pub struct TokenFlags: u32 {
         const None = 0;
         const PrecedingLineBreak = 1 << 0;
+        const Unterminated = 1 << 2;
     }
 }
 
@@ -3412,10 +3413,12 @@ impl CharacterCodes {
 
     pub const asterisk: char = '*';
     pub const at: char = '@';
+    pub const backslash: char = '\\';
     pub const close_brace: char = '}';
     pub const close_bracket: char = ']';
     pub const colon: char = ':';
     pub const comma: char = ',';
+    pub const double_quote: char = '"';
     pub const equals: char = '=';
     pub const greater_than: char = '>';
     pub const hash: char = '#';
@@ -3424,6 +3427,7 @@ impl CharacterCodes {
     pub const open_bracket: char = '[';
     pub const plus: char = '+';
     pub const semicolon: char = ';';
+    pub const single_quote: char = '\'';
     pub const slash: char = '/';
 }
 

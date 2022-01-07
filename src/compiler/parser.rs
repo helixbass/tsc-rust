@@ -369,6 +369,14 @@ impl ParserType {
         self.parse_error_before_next_finished_node.set(value);
     }
 
+    fn scan_error(&self, message: &DiagnosticMessage, length: usize) {
+        self.parse_error_at_position(
+            self.scanner().get_text_pos().try_into().unwrap(),
+            length.try_into().unwrap(),
+            message,
+        );
+    }
+
     fn parse_source_file(&mut self, file_name: &str, source_text: &str) -> SourceFile {
         self.initialize_state(file_name, source_text);
         self.parse_source_file_worker()
@@ -386,7 +394,11 @@ impl ParserType {
         self.set_parse_diagnostics(vec![]);
         self.set_parsing_context(ParsingContext::None);
 
-        self.scanner_mut().set_text(Some(_source_text), None, None);
+        let scanner = self.scanner_mut();
+        scanner.set_text(Some(_source_text), None, None);
+        // scanner.set_on_error(Some(Box::new(move |message, length| {
+        //     self.scan_error(message, length)
+        // })));
     }
 
     fn parse_source_file_worker(&mut self) -> SourceFile {
@@ -462,7 +474,9 @@ impl ParserType {
     }
 
     fn next_token_without_check(&self) -> SyntaxKind {
-        let current_token = self.scanner().scan();
+        let current_token = self
+            .scanner()
+            .scan(Some(&|message, length| self.scan_error(message, length)));
         self.set_current_token(current_token);
         self.current_token()
     }

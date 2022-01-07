@@ -6,7 +6,11 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::iter::FromIterator;
 
-use crate::{position_is_synthesized, CharacterCodes, SyntaxKind, TokenFlags};
+use crate::{
+    position_is_synthesized, CharacterCodes, DiagnosticMessage, Diagnostics, SyntaxKind, TokenFlags,
+};
+
+pub type ErrorCallback<'callback> = &'callback dyn Fn(&DiagnosticMessage, usize);
 
 pub fn token_is_identifier_or_keyword(token: SyntaxKind) -> bool {
     token >= SyntaxKind::Identifier
@@ -123,8 +127,9 @@ struct ScanNumberReturn {
     value: String,
 }
 
-pub struct Scanner {
+pub struct Scanner /*<'on_error>*/ {
     skip_trivia: bool,
+    // on_error: Option<ErrorCallback<'on_error>>,
     text: Option<String>,
     pos: RefCell<Option<usize>>,
     end: Option<usize>,
@@ -171,7 +176,7 @@ impl Scanner {
         self.set_token(SyntaxKind::Identifier)
     }
 
-    pub fn scan(&self) -> SyntaxKind {
+    pub fn scan(&self, on_error: Option<ErrorCallback>) -> SyntaxKind {
         self.set_start_pos(self.pos());
         self.set_token_flags(TokenFlags::None);
 
@@ -197,6 +202,10 @@ impl Scanner {
                         self.set_pos(self.pos() + 1);
                         continue;
                     }
+                }
+                CharacterCodes::double_quote | CharacterCodes::single_quote => {
+                    self.set_token_value(self.scan_string(on_error, None));
+                    return self.set_token(SyntaxKind::StringLiteral);
                 }
                 CharacterCodes::asterisk => {
                     self.set_pos(self.pos() + 1);
@@ -231,7 +240,7 @@ impl Scanner {
                         value: token_value,
                     } = self.scan_number();
                     self.set_token(token);
-                    self.set_token_value(&token_value);
+                    self.set_token_value(token_value);
                     return token;
                 }
                 CharacterCodes::colon => {
@@ -296,8 +305,7 @@ impl Scanner {
                 self.set_pos(self.pos() + char_size(ch));
             }
             self.set_token_value(
-                &self
-                    .text()
+                self.text()
                     .chars()
                     .skip(self.token_pos())
                     .take(self.pos() - self.token_pos())
@@ -327,6 +335,10 @@ impl Scanner {
         self.set_text_pos(start.unwrap_or(0));
     }
 
+    // pub fn set_on_error(&mut self, error_callback: Option<ErrorCallback<'on_error>>) {
+    //     self.on_error = error_callback;
+    // }
+
     pub fn set_text_pos(&mut self, text_pos: usize) {
         // Debug_.assert(text_pos >= 0);
         self.set_pos(text_pos);
@@ -338,6 +350,7 @@ impl Scanner {
     fn new(skip_trivia: bool) -> Self {
         Scanner {
             skip_trivia,
+            // on_error: None,
             text: None,
             pos: RefCell::new(None),
             end: None,
@@ -357,12 +370,28 @@ impl Scanner {
         self.text = Some(text.to_string());
     }
 
+    fn text_char_at_index(&self, index: usize) -> char {
+        self.text().chars().nth(index).unwrap()
+    }
+
+    fn text_substring(&self, start: usize, end: usize) -> String {
+        self.text().chars().skip(start).take(end - start).collect()
+    }
+
     fn pos(&self) -> usize {
         self.pos.borrow().unwrap()
     }
 
     fn set_pos(&self, pos: usize) {
         *self.pos.borrow_mut() = Some(pos);
+    }
+
+    fn increment_pos(&self) {
+        self.set_pos(self.pos() + 1);
+    }
+
+    fn increment_pos_by(&self, by: usize) {
+        self.set_pos(self.pos() + by);
     }
 
     fn end(&self) -> usize {
@@ -402,8 +431,8 @@ impl Scanner {
         self.token_value.borrow().as_ref().unwrap().to_string()
     }
 
-    fn set_token_value(&self, token_value: &str) {
-        *self.token_value.borrow_mut() = Some(token_value.to_string());
+    fn set_token_value(&self, token_value: String) {
+        *self.token_value.borrow_mut() = Some(token_value);
     }
 
     fn token_flags(&self) -> TokenFlags {
@@ -416,6 +445,22 @@ impl Scanner {
 
     fn is_digit(&self, ch: char) -> bool {
         ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
+    }
+
+    fn error(
+        &self,
+        on_error: Option<ErrorCallback>,
+        message: &DiagnosticMessage,
+        err_pos: Option<usize>,
+        length: Option<usize>,
+    ) {
+        let err_pos = err_pos.unwrap_or_else(|| self.pos());
+        if let Some(on_error) = on_error {
+            let old_pos = self.pos();
+            self.set_pos(err_pos);
+            on_error(message, length.unwrap_or(0));
+            self.set_pos(old_pos);
+        }
     }
 
     fn scan_number_fragment(&self) -> String {
@@ -449,9 +494,9 @@ impl Scanner {
         let start = self.pos();
         let main_fragment = self.scan_number_fragment();
         let end = self.pos();
-        let result: String = self.text().chars().skip(start).take(end - start).collect();
+        let result: String = self.text_substring(start, end);
 
-        self.set_token_value(&result);
+        self.set_token_value(result);
         let type_ = self.check_big_int_suffix();
         ScanNumberReturn {
             type_,
@@ -459,12 +504,48 @@ impl Scanner {
         }
     }
 
+    fn scan_string(
+        &self,
+        on_error: Option<ErrorCallback>,
+        jsx_attribute_string: Option<bool>,
+    ) -> String {
+        let jsx_attribute_string = jsx_attribute_string.unwrap_or(false);
+        let quote = self.text_char_at_index(self.pos());
+        self.increment_pos();
+        let result = String::new();
+        let start = self.pos();
+        loop {
+            if self.pos() >= self.end() {
+                result.push_str(&self.text_substring(start, self.pos()));
+                self.set_token_flags(self.token_flags() | TokenFlags::Unterminated);
+                self.error(
+                    on_error,
+                    &Diagnostics::Unterminated_string_literal,
+                    None,
+                    None,
+                );
+                break;
+            }
+            let ch = self.text_char_at_index(self.pos());
+            if ch == quote {
+                result.push_str(&self.text_substring(start, self.pos()));
+                self.increment_pos();
+                break;
+            }
+            if ch == CharacterCodes::backslash && !jsx_attribute_string {
+                unimplemented!()
+            }
+            if self.is_line_break(ch) && !jsx_attribute_string {
+                unimplemented!()
+            }
+            self.increment_pos();
+        }
+        result
+    }
+
     fn check_big_int_suffix(&self) -> SyntaxKind {
         SyntaxKind::NumericLiteral
     }
-
-    // fn scan_identifier(&self, start_character: char) -> {
-    // }
 
     fn speculation_helper<TReturn, TCallback: FnMut() -> Option<TReturn>>(
         &self,
@@ -484,7 +565,7 @@ impl Scanner {
             self.set_start_pos(save_start_pos);
             self.set_token_pos(save_token_pos);
             self.set_token(save_token);
-            self.set_token_value(&save_token_value);
+            self.set_token_value(save_token_value);
             self.set_token_flags(save_token_flags);
         }
         result
