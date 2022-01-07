@@ -1347,7 +1347,9 @@ impl ParserType {
 
     fn parse_primary_expression(&mut self) -> Expression {
         match self.token() {
-            SyntaxKind::NumericLiteral => return self.parse_literal_node().into(),
+            SyntaxKind::NumericLiteral | SyntaxKind::StringLiteral => {
+                return self.parse_literal_node().into()
+            }
             SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => {
                 return self.parse_token_node().into()
             }
