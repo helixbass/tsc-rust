@@ -443,6 +443,13 @@ impl Scanner {
         *self.token_flags.borrow_mut() = Some(token_flags);
     }
 
+    fn is_line_break(&self, ch: char) -> bool {
+        ch == CharacterCodes::line_feed
+            || ch == CharacterCodes::carriage_return
+            || ch == CharacterCodes::line_separator
+            || ch == CharacterCodes::paragraph_separator
+    }
+
     fn is_digit(&self, ch: char) -> bool {
         ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
     }
@@ -512,7 +519,7 @@ impl Scanner {
         let jsx_attribute_string = jsx_attribute_string.unwrap_or(false);
         let quote = self.text_char_at_index(self.pos());
         self.increment_pos();
-        let result = String::new();
+        let mut result = String::new();
         let start = self.pos();
         loop {
             if self.pos() >= self.end() {

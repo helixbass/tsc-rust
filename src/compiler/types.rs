@@ -3340,6 +3340,9 @@ impl CharacterCodes {
     pub const max_ascii_character: char = '';
 
     pub const line_feed: char = '\n';
+    pub const carriage_return: char = '\r';
+    pub const line_separator: char = ' ';
+    pub const paragraph_separator: char = ' ';
 
     pub const space: char = ' ';
 

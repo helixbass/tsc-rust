@@ -394,7 +394,7 @@ impl ParserType {
         self.set_parse_diagnostics(vec![]);
         self.set_parsing_context(ParsingContext::None);
 
-        let scanner = self.scanner_mut();
+        let mut scanner = self.scanner_mut();
         scanner.set_text(Some(_source_text), None, None);
         // scanner.set_on_error(Some(Box::new(move |message, length| {
         //     self.scan_error(message, length)
