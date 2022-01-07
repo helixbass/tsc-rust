@@ -292,13 +292,12 @@ impl NodeBuilder {
             return factory
                 .create_literal_type_node(
                     &self.synthetic_factory,
-                    &*Into::<Rc<Node>>::into(
-                        if type_.as_intrinsic_type().intrinsic_name() == "true" {
-                            factory.create_true(&self.synthetic_factory)
-                        } else {
-                            factory.create_false(&self.synthetic_factory)
-                        },
-                    ),
+                    if type_.as_intrinsic_type().intrinsic_name() == "true" {
+                        factory.create_true(&self.synthetic_factory)
+                    } else {
+                        factory.create_false(&self.synthetic_factory)
+                    }
+                    .into(),
                 )
                 .into();
         }

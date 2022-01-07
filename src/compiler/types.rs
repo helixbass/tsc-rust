@@ -747,6 +747,25 @@ impl LiteralTypeNode {
 }
 
 #[derive(Debug)]
+#[ast_type(
+    ancestors = "LiteralLikeNode, Expression",
+    interfaces = "LiteralLikeNodeInterface"
+)]
+pub struct StringLiteral {
+    _literal_like_node: BaseLiteralLikeNode,
+    single_quote: Option<bool>,
+}
+
+impl StringLiteral {
+    pub fn new(base_literal_like_node: BaseLiteralLikeNode, single_quote: Option<bool>) -> Self {
+        Self {
+            _literal_like_node: base_literal_like_node,
+            single_quote,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type]
 pub enum Expression {
     TokenExpression(BaseNode),
@@ -810,23 +829,57 @@ impl BinaryExpression {
 #[derive(Debug)]
 #[ast_type(impl_from = false)]
 pub struct BaseLiteralLikeNode {
-    pub _node: BaseNode,
-    pub text: String,
+    _node: BaseNode,
+    text: String,
+    is_unterminated: Option<bool>,
+    has_extended_unicode_escape: Option<bool>,
+}
+
+impl BaseLiteralLikeNode {
+    pub fn new(base_node: BaseNode, text: String) -> Self {
+        Self {
+            _node: base_node,
+            text,
+            is_unterminated: None,
+            has_extended_unicode_escape: None,
+        }
+    }
 }
 
 impl LiteralLikeNodeInterface for BaseLiteralLikeNode {
     fn text(&self) -> &str {
         &self.text
     }
+
+    fn is_unterminated(&self) -> Option<bool> {
+        self.is_unterminated.clone()
+    }
+
+    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>) {
+        self.is_unterminated = is_unterminated;
+    }
+
+    fn has_extended_unicode_escape(&self) -> Option<bool> {
+        self.has_extended_unicode_escape.clone()
+    }
+
+    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>) {
+        self.has_extended_unicode_escape = has_extended_unicode_escape;
+    }
 }
 
 pub trait LiteralLikeNodeInterface {
     fn text(&self) -> &str;
+    fn is_unterminated(&self) -> Option<bool>;
+    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>);
+    fn has_extended_unicode_escape(&self) -> Option<bool>;
+    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>);
 }
 
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression", interfaces = "LiteralLikeNodeInterface")]
 pub enum LiteralLikeNode {
+    StringLiteral(StringLiteral),
     NumericLiteral(NumericLiteral),
 }
 
@@ -835,6 +888,7 @@ bitflags! {
         const None = 0;
         const PrecedingLineBreak = 1 << 0;
         const Unterminated = 1 << 2;
+        const ExtendedUnicodeEscape = 1 << 3;
     }
 }
 
@@ -844,7 +898,15 @@ bitflags! {
     interfaces = "LiteralLikeNodeInterface"
 )]
 pub struct NumericLiteral {
-    pub _literal_like_node: BaseLiteralLikeNode,
+    _literal_like_node: BaseLiteralLikeNode,
+}
+
+impl NumericLiteral {
+    pub fn new(base_literal_like_node: BaseLiteralLikeNode) -> Self {
+        Self {
+            _literal_like_node: base_literal_like_node,
+        }
+    }
 }
 
 #[derive(Debug)]

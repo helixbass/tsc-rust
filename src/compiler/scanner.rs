@@ -157,6 +157,15 @@ impl Scanner {
         self.token_value()
     }
 
+    pub fn has_extended_unicode_escape(&self) -> bool {
+        self.token_flags()
+            .intersects(TokenFlags::ExtendedUnicodeEscape)
+    }
+
+    pub fn is_unterminated(&self) -> bool {
+        self.token_flags().intersects(TokenFlags::Unterminated)
+    }
+
     pub fn has_preceding_line_break(&self) -> bool {
         self.token_flags()
             .intersects(TokenFlags::PrecedingLineBreak)

@@ -174,11 +174,11 @@ fn get_struct_interface_impl(
             quote! {
                 impl crate::HasTypeInterface for #ast_type_name {
                     fn type_(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
-                        self._variable_like_declaration.type_()
+                        self.#first_field_name.type_()
                     }
 
                     fn set_type(&mut self, type_: ::std::rc::Rc<crate::Node>) {
-                        self._variable_like_declaration.set_type(type_);
+                        self.#first_field_name.set_type(type_);
                     }
                 }
             }
@@ -192,7 +192,23 @@ fn get_struct_interface_impl(
             quote! {
                 impl crate::LiteralLikeNodeInterface for #ast_type_name {
                     fn text(&self) -> &str {
-                        self._literal_like_node.text()
+                        self.#first_field_name.text()
+                    }
+
+                    fn is_unterminated(&self) -> Option<bool> {
+                        self.#first_field_name.is_unterminated()
+                    }
+
+                    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>) {
+                        self.#first_field_name.set_is_unterminated(is_unterminated);
+                    }
+
+                    fn has_extended_unicode_escape(&self) -> Option<bool> {
+                        self.#first_field_name.has_extended_unicode_escape()
+                    }
+
+                    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>) {
+                        self.#first_field_name.set_has_extended_unicode_escape(has_extended_unicode_escape);
                     }
                 }
             }
@@ -319,6 +335,30 @@ fn get_enum_interface_impl(
                     fn text(&self) -> &str {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.text()),*
+                        }
+                    }
+
+                    fn is_unterminated(&self) -> Option<bool> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.is_unterminated()),*
+                        }
+                    }
+
+                    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_is_unterminated(is_unterminated)),*
+                        }
+                    }
+
+                    fn has_extended_unicode_escape(&self) -> Option<bool> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.has_extended_unicode_escape()),*
+                        }
+                    }
+
+                    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_has_extended_unicode_escape(has_extended_unicode_escape)),*
                         }
                     }
                 }

@@ -5,10 +5,10 @@ use crate::{
     BaseBindingLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression, ExpressionStatement,
-    Identifier, InterfaceDeclaration, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
-    PrefixUnaryExpression, PropertyAssignment, PropertySignature, SourceFile, SyntaxKind,
-    TypeLiteralNode, TypeParameterDeclaration, TypeReferenceNode, VariableDeclaration,
+    Identifier, InterfaceDeclaration, LiteralLikeNodeInterface, LiteralTypeNode, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
+    PrefixUnaryExpression, PropertyAssignment, PropertySignature, SourceFile, StringLiteral,
+    SyntaxKind, TypeLiteralNode, TypeParameterDeclaration, TypeReferenceNode, VariableDeclaration,
     VariableDeclarationList, VariableStatement,
 };
 
@@ -108,24 +108,41 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        value: &str,
+        value: String,
     ) -> BaseLiteralLikeNode {
         let node = self.create_base_token(base_factory, kind);
-        BaseLiteralLikeNode {
-            _node: node,
-            text: value.to_string(),
-        }
+        BaseLiteralLikeNode::new(node, value)
     }
 
     pub fn create_numeric_literal<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
-        value: &str,
+        value: String,
     ) -> NumericLiteral {
         let node = self.create_base_literal(base_factory, SyntaxKind::NumericLiteral, value);
-        NumericLiteral {
-            _literal_like_node: node,
-        }
+        NumericLiteral::new(node)
+    }
+
+    pub fn create_base_string_literal<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: String,
+        is_single_quote: Option<bool>,
+    ) -> StringLiteral {
+        let node = self.create_base_literal(base_factory, SyntaxKind::StringLiteral, text);
+        StringLiteral::new(node, is_single_quote)
+    }
+
+    pub fn create_string_literal<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: String,
+        is_single_quote: Option<bool>,
+        has_extended_unicode_escape: Option<bool>,
+    ) -> StringLiteral {
+        let mut node = self.create_base_string_literal(base_factory, text, is_single_quote);
+        node.set_has_extended_unicode_escape(has_extended_unicode_escape);
+        node
     }
 
     fn create_base_identifier<TBaseNodeFactory: BaseNodeFactory>(
@@ -253,13 +270,13 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_literal_type_node<TBaseNodeFactory: BaseNodeFactory, TNode: NodeInterface>(
+    pub fn create_literal_type_node<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
-        literal: &TNode,
+        literal: Rc<Node>,
     ) -> LiteralTypeNode {
         let node = self.create_token(base_factory, SyntaxKind::LiteralType);
-        let node = LiteralTypeNode::new(node, literal.node_wrapper());
+        let node = LiteralTypeNode::new(node, literal);
         node
     }
 

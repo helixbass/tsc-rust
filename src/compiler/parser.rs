@@ -13,11 +13,11 @@ use crate::{
     BaseNodeFactory, BinaryExpression, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
     HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, NamedDeclarationInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression,
-    OperatorPrecedence, PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement,
-    Symbol, SymbolTable, SyntaxKind, TypeElement, TypeNode, TypeParameterDeclaration,
-    VariableDeclaration, VariableDeclarationList,
+    InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence, PropertyAssignment,
+    ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable, SyntaxKind,
+    TypeElement, TypeNode, TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
 };
 
 #[derive(Eq, PartialEq)]
@@ -878,13 +878,32 @@ impl ParserType {
 
     fn parse_literal_like_node(&mut self, kind: SyntaxKind) -> LiteralLikeNode {
         let pos = self.get_node_pos();
-        let node: LiteralLikeNode = if kind == SyntaxKind::NumericLiteral {
+        let mut node: LiteralLikeNode = if false {
+            unimplemented!()
+        } else if kind == SyntaxKind::NumericLiteral {
             self.factory
-                .create_numeric_literal(self, &self.scanner().get_token_value())
+                .create_numeric_literal(self, self.scanner().get_token_value())
+                .into()
+        } else if kind == SyntaxKind::StringLiteral {
+            self.factory
+                .create_string_literal(
+                    self,
+                    self.scanner().get_token_value(),
+                    None,
+                    Some(self.scanner().has_extended_unicode_escape()),
+                )
                 .into()
         } else {
             Debug_.fail(None)
         };
+
+        if self.scanner().has_extended_unicode_escape() {
+            node.set_has_extended_unicode_escape(Some(true));
+        }
+
+        if self.scanner().is_unterminated() {
+            node.set_is_unterminated(Some(true));
+        }
 
         self.next_token();
         self.finish_node(node, pos, None)
@@ -1012,11 +1031,35 @@ impl ParserType {
         }
     }
 
+    fn parse_literal_type_node(&mut self, negative: Option<bool>) -> LiteralTypeNode {
+        let negative = negative.unwrap_or(false);
+        let pos = self.get_node_pos();
+        if negative {
+            self.next_token();
+        }
+        let expression: Expression = match self.token() {
+            SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword | SyntaxKind::NullKeyword => {
+                self.parse_token_node().into()
+            }
+            _ => self.parse_literal_like_node(self.token()).into(),
+        };
+        if negative {
+            unimplemented!()
+        }
+        self.finish_node(
+            self.factory
+                .create_literal_type_node(self, expression.into()),
+            pos,
+            None,
+        )
+    }
+
     fn parse_non_array_type(&mut self) -> TypeNode {
         match self.token() {
             SyntaxKind::NumberKeyword => self
                 .try_parse(|| self.parse_keyword_and_no_dot())
                 .unwrap_or_else(|| unimplemented!()),
+            SyntaxKind::StringLiteral => self.parse_literal_type_node(None).into(),
             _ => self.parse_type_reference(),
         }
     }
