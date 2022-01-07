@@ -594,7 +594,7 @@ impl TypeChecker {
     pub(super) fn is_type_related_to(
         &self,
         mut source: Rc<Type>,
-        target: Rc<Type>,
+        mut target: Rc<Type>,
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> bool {
         if self.is_fresh_literal_type(source.clone()) {
@@ -608,6 +608,21 @@ impl TypeChecker {
                 Type::LiteralType(literal_type) => literal_type.regular_type(),
                 _ => panic!("Expected IntrinsicType or LiteralType"),
             };
+        }
+        if self.is_fresh_literal_type(target.clone()) {
+            target = match &*target {
+                Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
+                    IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                        freshable_intrinsic_type.regular_type().upgrade().unwrap()
+                    }
+                    _ => panic!("Expected IntrinsicType"),
+                },
+                Type::LiteralType(literal_type) => literal_type.regular_type(),
+                _ => panic!("Expected IntrinsicType or LiteralType"),
+            };
+        }
+        if Rc::ptr_eq(&source, &target) {
+            return true;
         }
         if true {
             if self.is_simple_type_related_to(&*source, &*target, relation, None) {
