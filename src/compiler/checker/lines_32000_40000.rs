@@ -158,6 +158,10 @@ impl TypeChecker {
             // Expression::BinaryExpression(binary_expression) => {
             //     return self.check_binary_expression(binary_expression);
             // }
+            Expression::LiteralLikeNode(LiteralLikeNode::StringLiteral(string_literal)) => {
+                let type_: Rc<Type> = self.get_string_literal_type(string_literal.text());
+                self.get_fresh_type_of_literal_type(type_)
+            }
             Expression::LiteralLikeNode(LiteralLikeNode::NumericLiteral(numeric_literal)) => {
                 self.check_grammar_numeric_literal(numeric_literal);
                 let type_: Rc<Type> = self.get_number_literal_type(numeric_literal.text().into());
