@@ -82,6 +82,9 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
         Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
             visit_node(&mut cb_node, Some(array_type.element_type.clone()))
         }
+        Node::TypeNode(TypeNode::LiteralTypeNode(literal_type)) => {
+            visit_node(&mut cb_node, Some(literal_type.literal.clone()))
+        }
         Node::Expression(Expression::ArrayLiteralExpression(array_literal_expression)) => {
             visit_nodes(
                 &mut cb_node,
