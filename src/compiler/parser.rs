@@ -83,6 +83,12 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
         Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
             visit_node(&mut cb_node, Some(array_type.element_type.clone()))
         }
+        Node::TypeNode(TypeNode::UnionTypeNode(union_type)) => {
+            visit_nodes(&mut cb_node, &mut cb_nodes, Some(&union_type.types))
+        }
+        Node::TypeNode(TypeNode::IntersectionTypeNode(intersection_type)) => {
+            visit_nodes(&mut cb_node, &mut cb_nodes, Some(&intersection_type.types))
+        }
         Node::TypeNode(TypeNode::LiteralTypeNode(literal_type)) => {
             visit_node(&mut cb_node, Some(literal_type.literal.clone()))
         }
