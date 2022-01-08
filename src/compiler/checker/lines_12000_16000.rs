@@ -85,7 +85,7 @@ impl TypeChecker {
         target: Rc<Type /*GenericType*/>,
         type_arguments: Option<Vec<Rc<Type>>>,
     ) -> TypeReference {
-        let mut type_ = self.create_object_type(ObjectFlags::Reference, target.symbol());
+        let type_ = self.create_object_type(ObjectFlags::Reference, target.symbol());
         type_.set_object_flags(
             type_.object_flags()
                 | if let Some(type_arguments) = type_arguments.as_ref() {
