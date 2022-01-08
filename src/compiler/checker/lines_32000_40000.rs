@@ -2,6 +2,7 @@
 
 use std::rc::Rc;
 
+use super::CheckMode;
 use crate::{
     for_each, get_combined_node_flags, get_effective_initializer, is_binding_element,
     is_private_identifier, map, maybe_for_each, ArrayTypeNode, DiagnosticMessage, Diagnostics,
@@ -32,7 +33,7 @@ impl TypeChecker {
             Node::Expression(expression) => expression,
             _ => panic!("Expected Expression"),
         };
-        let operand_type = self.check_expression(operand_expression);
+        let operand_type = self.check_expression(operand_expression, None);
         match node.operator {
             SyntaxKind::PlusPlusToken => {
                 self.check_arithmetic_operand_type(operand_expression, operand_type.clone(), &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type);
@@ -62,8 +63,22 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_expression_cached(&self, node: &Expression) -> Rc<Type> {
-        self.check_expression(node)
+    pub(super) fn check_expression_cached(
+        &self,
+        node: &Expression,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        let mut links_ref = links.borrow_mut();
+        if links_ref.resolved_type.is_none() {
+            if let Some(check_mode) = check_mode {
+                if check_mode != CheckMode::Normal {
+                    return self.check_expression(node, Some(check_mode));
+                }
+            }
+            links_ref.resolved_type = Some(self.check_expression(node, check_mode));
+        }
+        links_ref.resolved_type.clone().unwrap()
     }
 
     pub(super) fn check_declaration_initializer(
@@ -82,7 +97,7 @@ impl TypeChecker {
                 if let Some(contextual_type) = contextual_type {
                     unimplemented!()
                 } else {
-                    self.check_expression_cached(initializer_as_expression)
+                    self.check_expression_cached(initializer_as_expression, None)
                 }
             });
         if false {
@@ -148,9 +163,10 @@ impl TypeChecker {
     pub(super) fn check_expression_for_mutable_location(
         &self,
         node: &Expression,
+        check_mode: Option<CheckMode>,
         contextual_type: Option<Rc<Type>>,
     ) -> Rc<Type> {
-        let type_ = self.check_expression(node);
+        let type_ = self.check_expression(node, check_mode);
         if false {
             unimplemented!()
         } else {
@@ -168,12 +184,17 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_property_assignment(&self, node: &PropertyAssignment) -> Rc<Type> {
+    pub(super) fn check_property_assignment(
+        &self,
+        node: &PropertyAssignment,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
         self.check_expression_for_mutable_location(
             match &*node.initializer {
                 Node::Expression(expression) => expression,
                 _ => panic!("Expected Expression"),
             },
+            check_mode,
             None,
         )
     }
@@ -189,17 +210,26 @@ impl TypeChecker {
                 | SyntaxKind::TrueKeyword
                 | SyntaxKind::FalseKeyword
         ) {
-            return Some(self.check_expression(node));
+            return Some(self.check_expression(node, None));
         }
         None
     }
 
-    pub(super) fn check_expression(&self, node: &Expression) -> Rc<Type> {
-        self.check_expression_worker(node)
+    pub(super) fn check_expression(
+        &self,
+        node: &Expression,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        self.check_expression_worker(node, check_mode)
     }
 
-    pub(super) fn check_expression_worker(&self, node: &Expression) -> Rc<Type> {
+    pub(super) fn check_expression_worker(
+        &self,
+        node: &Expression,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
         match node {
+            Expression::Identifier(identifier) => self.check_identifier(identifier, check_mode),
             Expression::TokenExpression(token_expression) => match token_expression.kind() {
                 SyntaxKind::TrueKeyword => self.true_type(),
                 _ => unimplemented!(),
@@ -311,10 +341,13 @@ impl TypeChecker {
             let initializer = get_effective_initializer(node);
             if let Some(initializer) = initializer {
                 if true {
-                    let initializer_type = self.check_expression_cached(match &*initializer {
-                        Node::Expression(expression) => expression,
-                        _ => panic!("Expected Expression"),
-                    });
+                    let initializer_type = self.check_expression_cached(
+                        match &*initializer {
+                            Node::Expression(expression) => expression,
+                            _ => panic!("Expected Expression"),
+                        },
+                        None,
+                    );
                     self.check_type_assignable_to_and_optionally_elaborate(
                         initializer_type,
                         type_,
@@ -354,7 +387,7 @@ impl TypeChecker {
             Node::Expression(expression) => expression,
             _ => panic!("Expected Expression"),
         };
-        self.check_expression(expression);
+        self.check_expression(expression, None);
     }
 
     pub(super) fn check_type_parameters(

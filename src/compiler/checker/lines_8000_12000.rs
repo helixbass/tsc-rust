@@ -166,10 +166,13 @@ impl TypeChecker {
             type_ = self
                 .try_get_type_from_effective_type_node(&*declaration)
                 .unwrap_or_else(|| {
-                    self.check_property_assignment(match &*declaration {
-                        Node::PropertyAssignment(property_assignment) => property_assignment,
-                        _ => panic!("Expected PropertyAssignment"),
-                    })
+                    self.check_property_assignment(
+                        match &*declaration {
+                            Node::PropertyAssignment(property_assignment) => property_assignment,
+                            _ => panic!("Expected PropertyAssignment"),
+                        },
+                        None,
+                    )
                 });
         } else if is_property_signature(&*declaration) || is_variable_declaration(&*declaration) {
             type_ = self.get_widened_type_for_variable_like_declaration(&*declaration);

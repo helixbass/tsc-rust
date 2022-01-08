@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::CheckTypeRelatedTo;
+use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
     get_check_flags, ArrayTypeNode, BaseLiteralType, CheckFlags, Debug_, DiagnosticMessage,
     Expression, IntrinsicType, LiteralTypeInterface, LiteralTypeNode, NamedDeclarationInterface,
@@ -117,12 +117,14 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_type.is_none() {
-            links_ref.resolved_type = Some(self.get_regular_type_of_literal_type(
-                self.check_expression(match &*node.literal {
-                    Node::Expression(expression) => expression,
-                    _ => panic!("Expected Expression"),
-                }),
-            ));
+            links_ref.resolved_type =
+                Some(self.get_regular_type_of_literal_type(self.check_expression(
+                    match &*node.literal {
+                        Node::Expression(expression) => expression,
+                        _ => panic!("Expected Expression"),
+                    },
+                    None,
+                )));
         }
         links_ref.resolved_type.clone().unwrap()
     }
@@ -462,6 +464,7 @@ impl TypeChecker {
                 Node::Expression(expression) => expression,
                 _ => panic!("Expected Expression"),
             },
+            Some(CheckMode::Contextual),
             Some(source_prop_type),
         )
     }

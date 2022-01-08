@@ -8,9 +8,9 @@ use std::rc::Rc;
 use super::create_node_builder;
 use crate::{
     __String, create_diagnostic_collection, create_symbol_table, object_allocator,
-    DiagnosticCollection, FreshableIntrinsicType, IntrinsicType, Node, NodeId, NodeInterface,
-    Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type,
-    TypeChecker, TypeCheckerHost, TypeFlags,
+    DiagnosticCollection, FreshableIntrinsicType, IntrinsicType, NodeId, NodeInterface, Number,
+    ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker,
+    TypeCheckerHost, TypeFlags,
 };
 
 thread_local! {
@@ -39,6 +39,17 @@ pub(super) fn increment_next_node_id() {
     next_node_id.with(|_next_node_id| {
         *_next_node_id.borrow_mut() += 1;
     });
+}
+
+bitflags! {
+    pub(super) struct CheckMode: u32 {
+        const Normal = 0;
+        const Contextual = 1 << 0;
+        const Inferential = 1 << 1;
+        const SkipContextSensitive = 1 << 2;
+        const SkipGenericFunctions = 1 << 3;
+        const IsForSignatureHelp = 1 << 4;
+    }
 }
 
 bitflags! {
