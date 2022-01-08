@@ -1,21 +1,25 @@
+#![allow(non_upper_case_globals)]
+
 use std::rc::Rc;
 
 use crate::{
-    create_base_node_factory, escape_leading_underscores, ArrayLiteralExpression, ArrayTypeNode,
-    BaseBindingLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
-    BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
-    BaseVariableLikeDeclaration, BinaryExpression, EmptyStatement, Expression, ExpressionStatement,
-    Identifier, InterfaceDeclaration, LiteralLikeNodeInterface, LiteralTypeNode, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
+    create_base_node_factory, escape_leading_underscores, is_omitted_expression, last_or_undefined,
+    ArrayLiteralExpression, ArrayTypeNode, BaseBindingLikeDeclaration, BaseGenericNamedDeclaration,
+    BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
+    BaseNodeFactory, BaseNodeFactoryConcrete, BaseVariableLikeDeclaration, BinaryExpression,
+    EmptyStatement, Expression, ExpressionStatement, Identifier, InterfaceDeclaration,
+    IntersectionTypeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NumericLiteral, ObjectLiteralExpression,
     PrefixUnaryExpression, PropertyAssignment, PropertySignature, SourceFile, StringLiteral,
-    SyntaxKind, TypeLiteralNode, TypeParameterDeclaration, TypeReferenceNode, VariableDeclaration,
-    VariableDeclarationList, VariableStatement,
+    SyntaxKind, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypeReferenceNode,
+    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
     pub fn create_node_array<TElements: Into<NodeArrayOrVec>>(
         &self,
         elements: TElements,
+        has_trailing_comma: Option<bool>,
     ) -> NodeArray {
         match elements.into() {
             NodeArrayOrVec::NodeArray(node_array) => node_array,
@@ -242,7 +246,7 @@ impl NodeFactory {
         let node = TypeReferenceNode::new(
             node,
             self.as_name(type_name),
-            type_arguments.map(|type_arguments| self.create_node_array(type_arguments)),
+            type_arguments.map(|type_arguments| self.create_node_array(type_arguments, None)),
         );
         node
     }
@@ -255,7 +259,7 @@ impl NodeFactory {
         let node = self.create_base_node(base_factory, SyntaxKind::TypeLiteral);
         let node = TypeLiteralNode::new(
             node,
-            self.create_node_array(members.unwrap_or_else(|| vec![])),
+            self.create_node_array(members.unwrap_or_else(|| vec![]), None),
         );
         node
     }
@@ -268,6 +272,40 @@ impl NodeFactory {
         let node = self.create_base_node(base_factory, SyntaxKind::ArrayType);
         let node = ArrayTypeNode::new(node, element_type);
         node
+    }
+
+    pub fn create_union_or_intersection_type_node<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind, /*SyntaxKind.UnionType | SyntaxKind.IntersectionType*/
+        types: NodeArray, /*<TypeNode>*/
+    ) -> TypeNode {
+        let node = self.create_base_node(base_factory, kind);
+        match kind {
+            SyntaxKind::UnionType => UnionTypeNode::new(node, types).into(),
+            SyntaxKind::IntersectionType => IntersectionTypeNode::new(node, types).into(),
+            _ => panic!("Expected UnionType or IntersectionType"),
+        }
+    }
+
+    pub fn create_union_type_node<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        types: NodeArray, /*<TypeNode>*/
+    ) -> TypeNode {
+        self.create_union_or_intersection_type_node(base_factory, SyntaxKind::UnionType, types)
+    }
+
+    pub fn create_intersection_type_node<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        types: NodeArray, /*<TypeNode>*/
+    ) -> TypeNode {
+        self.create_union_or_intersection_type_node(
+            base_factory,
+            SyntaxKind::IntersectionType,
+            types,
+        )
     }
 
     pub fn create_literal_type_node<TBaseNodeFactory: BaseNodeFactory>(
@@ -298,7 +336,24 @@ impl NodeFactory {
         elements: TElements, /*Expression*/
     ) -> ArrayLiteralExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ArrayLiteralExpression);
-        let elements_array = self.create_node_array(elements);
+        let elements_as_node_array = match elements.into() {
+            NodeArrayOrVec::NodeArray(node_array) => node_array,
+            NodeArrayOrVec::Vec(elements) => NodeArray::new(elements),
+        };
+        let has_trailing_comma = {
+            let last_element =
+                last_or_undefined(Into::<&[Rc<Node>]>::into(&elements_as_node_array));
+            if let Some(last_element) = last_element {
+                if is_omitted_expression(&**last_element) {
+                    Some(true)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+        let elements_array = self.create_node_array(elements_as_node_array, has_trailing_comma);
         let node = ArrayLiteralExpression::new(node, elements_array);
         node
     }
@@ -312,7 +367,7 @@ impl NodeFactory {
         properties: TProperties, /*ObjectLiteralElementLike*/
     ) -> ObjectLiteralExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ObjectLiteralExpression);
-        let node = ObjectLiteralExpression::new(node, self.create_node_array(properties));
+        let node = ObjectLiteralExpression::new(node, self.create_node_array(properties, None));
         node
     }
 
@@ -396,7 +451,7 @@ impl NodeFactory {
         flags: Option<NodeFlags>,
     ) -> VariableDeclarationList {
         let node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
-        let node = VariableDeclarationList::new(node, self.create_node_array(declarations));
+        let node = VariableDeclarationList::new(node, self.create_node_array(declarations, None));
         node
     }
 
@@ -417,7 +472,7 @@ impl NodeFactory {
             name,
             type_parameters,
         );
-        let node = InterfaceDeclaration::new(node, self.create_node_array(members));
+        let node = InterfaceDeclaration::new(node, self.create_node_array(members, None));
         node
     }
 
@@ -444,7 +499,7 @@ impl NodeFactory {
         let node = base_factory.create_base_source_file_node(SyntaxKind::SourceFile);
         let node = SourceFile::new(
             node,
-            self.create_node_array(statements),
+            self.create_node_array(statements, None),
             "".to_string(),
             "".to_string(),
         );
@@ -455,7 +510,7 @@ impl NodeFactory {
         &self,
         array: Option<TArray>,
     ) -> Option<NodeArray> {
-        array.map(|array| self.create_node_array(array))
+        array.map(|array| self.create_node_array(array, None))
     }
 
     fn as_name(&self, name: Rc<Node>) -> Rc<Node> {
