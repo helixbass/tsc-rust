@@ -86,8 +86,10 @@ pub enum SyntaxKind {
     UnknownKeyword,
     BigIntKeyword,
     OfKeyword,
+
     QualifiedName,
     TypeParameter,
+    Parameter,
     PropertySignature,
     PropertyDeclaration,
     TypeReference,
@@ -115,7 +117,11 @@ pub enum SyntaxKind {
     FunctionDeclaration,
     ClassDeclaration,
     InterfaceDeclaration,
+
     PropertyAssignment,
+
+    EnumMember,
+
     SourceFile,
 }
 
@@ -151,6 +157,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn node_wrapper(&self) -> Rc<Node>;
     fn set_node_wrapper(&self, wrapper: Rc<Node>);
     fn kind(&self) -> SyntaxKind;
+    fn flags(&self) -> NodeFlags;
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
     fn set_id(&self, id: NodeId);
@@ -285,6 +292,7 @@ impl Node {
 pub struct BaseNode {
     _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
+    pub flags: NodeFlags,
     pub id: Cell<Option<NodeId>>,
     pub parent: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<isize>,
@@ -294,10 +302,11 @@ pub struct BaseNode {
 }
 
 impl BaseNode {
-    pub fn new(kind: SyntaxKind, pos: isize, end: isize) -> Self {
+    pub fn new(kind: SyntaxKind, flags: NodeFlags, pos: isize, end: isize) -> Self {
         Self {
             _node_wrapper: RefCell::new(None),
             kind,
+            flags,
             id: Cell::new(None),
             parent: RefCell::new(None),
             pos: Cell::new(pos),
@@ -324,6 +333,10 @@ impl NodeInterface for BaseNode {
 
     fn kind(&self) -> SyntaxKind {
         self.kind
+    }
+
+    fn flags(&self) -> NodeFlags {
+        self.flags
     }
 
     fn maybe_id(&self) -> Option<NodeId> {
@@ -419,7 +432,7 @@ pub trait HasTypeInterface {
 }
 
 pub trait HasExpressionInitializerInterface {
-    fn initializer(&self) -> Option<Rc<Node>>;
+    fn maybe_initializer(&self) -> Option<Rc<Node>>;
     fn set_initializer(&mut self, initializer: Rc<Node>);
 }
 
@@ -580,7 +593,7 @@ impl BaseBindingLikeDeclaration {
 }
 
 impl HasExpressionInitializerInterface for BaseBindingLikeDeclaration {
-    fn initializer(&self) -> Option<Rc<Node>> {
+    fn maybe_initializer(&self) -> Option<Rc<Node>> {
         self.initializer.as_ref().map(Clone::clone)
     }
 
@@ -1100,7 +1113,7 @@ impl HasTypeInterface for PropertySignature {
 }
 
 impl HasExpressionInitializerInterface for PropertySignature {
-    fn initializer(&self) -> Option<Rc<Node>> {
+    fn maybe_initializer(&self) -> Option<Rc<Node>> {
         None
     }
 

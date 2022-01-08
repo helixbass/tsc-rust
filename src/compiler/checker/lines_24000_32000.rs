@@ -35,7 +35,10 @@ impl TypeChecker {
             _ => panic!("Expected VariableDeclaration"),
         };
         if has_initializer(declaration)
-            && Rc::ptr_eq(&node.node_wrapper(), &declaration.initializer().unwrap())
+            && Rc::ptr_eq(
+                &node.node_wrapper(),
+                &declaration.maybe_initializer().unwrap(),
+            )
         {
             let result = self.get_contextual_type_for_variable_like_declaration(&*parent);
             if result.is_some() {

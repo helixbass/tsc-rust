@@ -3,14 +3,14 @@
 use std::rc::Rc;
 
 use crate::{
-    for_each, get_effective_initializer, is_binding_element, is_private_identifier, map,
-    maybe_for_each, ArrayTypeNode, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
-    HasTypeParametersInterface, InterfaceDeclaration, LiteralLikeNode, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, PrefixUnaryExpression,
-    PropertyAssignment, PropertySignature, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeParameterDeclaration, TypeReferenceNode,
-    UnionOrIntersectionTypeInterface, VariableDeclaration, VariableLikeDeclarationInterface,
-    VariableStatement,
+    for_each, get_combined_node_flags, get_effective_initializer, is_binding_element,
+    is_private_identifier, map, maybe_for_each, ArrayTypeNode, DiagnosticMessage, Diagnostics,
+    Expression, ExpressionStatement, HasTypeParametersInterface, InterfaceDeclaration,
+    LiteralLikeNode, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, PrefixUnaryExpression, PropertyAssignment, PropertySignature,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeInterface,
+    VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
 };
 
 impl TypeChecker {
@@ -62,8 +62,47 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_expression_cached(&mut self, node: &Expression) -> Rc<Type> {
+    pub(super) fn check_expression_cached(&self, node: &Expression) -> Rc<Type> {
         self.check_expression(node)
+    }
+
+    pub(super) fn check_declaration_initializer(
+        &self,
+        declaration: &Node, /*HasExpressionInitializer*/
+        contextual_type: Option<Rc<Type>>,
+    ) -> Rc<Type> {
+        let initializer = get_effective_initializer(declaration).unwrap();
+        let initializer_as_expression = match &*initializer {
+            Node::Expression(expression) => expression,
+            _ => panic!("Expected Expression"),
+        };
+        let type_ = self
+            .get_quick_type_of_expression(initializer_as_expression)
+            .unwrap_or_else(|| {
+                if let Some(contextual_type) = contextual_type {
+                    unimplemented!()
+                } else {
+                    self.check_expression_cached(initializer_as_expression)
+                }
+            });
+        if false {
+            unimplemented!()
+        } else {
+            type_
+        }
+    }
+
+    pub(super) fn widen_type_inferred_from_initializer(
+        &self,
+        declaration: &Node, /*HasExpressionInitializer*/
+        type_: Rc<Type>,
+    ) -> Rc<Type> {
+        let widened = if get_combined_node_flags(declaration).intersects(NodeFlags::Const) {
+            type_
+        } else {
+            self.get_widened_literal_type(type_)
+        };
+        widened
     }
 
     pub(super) fn is_literal_of_contextual_type(
@@ -137,6 +176,22 @@ impl TypeChecker {
             },
             None,
         )
+    }
+
+    pub(super) fn get_quick_type_of_expression(&self, node: &Expression) -> Option<Rc<Type>> {
+        let expr = node;
+        if false {
+            unimplemented!()
+        } else if matches!(
+            node.kind(),
+            SyntaxKind::NumericLiteral
+                | SyntaxKind::StringLiteral
+                | SyntaxKind::TrueKeyword
+                | SyntaxKind::FalseKeyword
+        ) {
+            return Some(self.check_expression(node));
+        }
+        None
     }
 
     pub(super) fn check_expression(&self, node: &Expression) -> Rc<Type> {

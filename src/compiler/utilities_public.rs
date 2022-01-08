@@ -1,6 +1,8 @@
 use std::rc::Rc;
 
-use crate::{CharacterCodes, Expression, Node, NodeInterface, SyntaxKind, TextSpan, __String};
+use crate::{
+    CharacterCodes, Expression, Node, NodeFlags, NodeInterface, SyntaxKind, TextSpan, __String,
+};
 
 fn create_text_span(start: isize, length: isize) -> TextSpan {
     TextSpan { start, length }
@@ -8,6 +10,33 @@ fn create_text_span(start: isize, length: isize) -> TextSpan {
 
 pub fn create_text_span_from_bounds(start: isize, end: isize) -> TextSpan {
     create_text_span(start, end - start)
+}
+
+fn get_combined_flags<TNode: NodeInterface, TCallback: FnMut(&Node) -> NodeFlags>(
+    node: &TNode,
+    mut get_flags: TCallback,
+) -> NodeFlags {
+    let mut node = Some(node.node_wrapper());
+    let mut flags = get_flags(node.as_ref().unwrap());
+    if node.as_ref().unwrap().kind() == SyntaxKind::VariableDeclaration {
+        node = node.as_ref().unwrap().maybe_parent();
+    }
+    if let Some(node_present) = node.as_ref() {
+        if node_present.kind() == SyntaxKind::VariableDeclarationList {
+            flags |= get_flags(&node_present);
+            node = node_present.maybe_parent();
+        }
+    }
+    if let Some(node) = node {
+        if node.kind() == SyntaxKind::VariableStatement {
+            flags |= get_flags(&*node);
+        }
+    }
+    flags
+}
+
+pub fn get_combined_node_flags<TNode: NodeInterface>(node: &TNode) -> NodeFlags {
+    get_combined_flags(node, |n| n.flags())
 }
 
 pub fn escape_leading_underscores(identifier: &str) -> __String {
@@ -117,6 +146,19 @@ fn is_expression_kind(kind: SyntaxKind) -> bool {
 pub fn has_initializer<TNode: NodeInterface>(node: &TNode) -> bool {
     node.node_wrapper()
         .maybe_as_has_expression_initializer()
-        .and_then(|node| node.initializer())
+        .and_then(|node| node.maybe_initializer())
         .is_some()
+}
+
+pub fn has_only_expression_initializer<TNode: NodeInterface>(node: &TNode) -> bool {
+    match node.kind() {
+        SyntaxKind::VariableDeclaration
+        | SyntaxKind::Parameter
+        | SyntaxKind::BindingElement
+        | SyntaxKind::PropertySignature
+        | SyntaxKind::PropertyDeclaration
+        | SyntaxKind::PropertyAssignment
+        | SyntaxKind::EnumMember => true,
+        _ => false,
+    }
 }

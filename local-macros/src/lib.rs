@@ -71,6 +71,10 @@ fn get_struct_interface_impl(
                         self.#first_field_name.kind()
                     }
 
+                    fn flags(&self) -> crate::NodeFlags {
+                        self.#first_field_name.flags()
+                    }
+
                     fn maybe_id(&self) -> ::std::option::Option<crate::NodeId> {
                         self.#first_field_name.maybe_id()
                     }
@@ -167,8 +171,8 @@ fn get_struct_interface_impl(
         "HasExpressionInitializerInterface" => {
             quote! {
                 impl crate::HasExpressionInitializerInterface for #ast_type_name {
-                    fn initializer(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
-                        self.#first_field_name.initializer()
+                    fn maybe_initializer(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self.#first_field_name.maybe_initializer()
                     }
 
                     fn set_initializer(&mut self, initializer: ::std::rc::Rc<crate::Node>) {
@@ -253,6 +257,12 @@ fn get_enum_interface_impl(
                     fn kind(&self) -> crate::SyntaxKind {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.kind()),*
+                        }
+                    }
+
+                    fn flags(&self) -> crate::NodeFlags {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.flags()),*
                         }
                     }
 

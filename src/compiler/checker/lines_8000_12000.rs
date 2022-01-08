@@ -8,12 +8,12 @@ use crate::{
     __String, append_if_unique, concatenate, create_symbol_table, declaration_name_to_string,
     escape_leading_underscores, first_defined, get_check_flags, get_declaration_of_kind,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
-    get_name_of_declaration, has_dynamic_name, is_property_assignment, is_property_declaration,
-    is_property_signature, is_variable_declaration, range_equals, BaseInterfaceType, CheckFlags,
-    Debug_, InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper,
+    get_name_of_declaration, has_dynamic_name, has_only_expression_initializer,
+    is_property_assignment, is_property_declaration, is_property_signature,
+    is_variable_declaration, range_equals, BaseInterfaceType, CheckFlags, Debug_, InterfaceType,
+    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
 };
 
 impl TypeChecker {
@@ -88,17 +88,27 @@ impl TypeChecker {
         if let Some(declared_type) = declared_type {
             return Some(self.add_optionality(declared_type, Some(is_property), Some(is_optional)));
         }
-        unimplemented!()
+
+        if has_only_expression_initializer(declaration)
+            && declaration
+                .as_has_expression_initializer()
+                .maybe_initializer()
+                .is_some()
+        {
+            let type_ = self.check_declaration_initializer(declaration, None);
+            let type_ = self.widen_type_inferred_from_initializer(declaration, type_);
+            return Some(self.add_optionality(type_, Some(is_property), Some(is_optional)));
+        }
+
+        None
     }
 
     pub(super) fn get_widened_type_for_variable_like_declaration(
         &self,
         declaration: &Node,
     ) -> Rc<Type> {
-        self.widen_type_for_variable_like_declaration(
-            self.get_type_for_variable_like_declaration(declaration),
-            declaration,
-        )
+        let type_ = self.get_type_for_variable_like_declaration(declaration);
+        self.widen_type_for_variable_like_declaration(type_, declaration)
     }
 
     pub(super) fn widen_type_for_variable_like_declaration(

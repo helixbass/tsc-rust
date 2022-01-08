@@ -16,8 +16,8 @@ use crate::{
     Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
+    NodeFlags, NodeInterface, ObjectFlags, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
 };
 
 pub fn get_declaration_of_kind(
@@ -335,7 +335,7 @@ pub fn get_effective_initializer<TNode: NodeInterface>(
 ) -> Option<Rc<Node>> {
     node.node_wrapper()
         .as_has_expression_initializer()
-        .initializer()
+        .maybe_initializer()
 }
 
 pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode) {
@@ -601,17 +601,17 @@ fn _Type(flags: TypeFlags) -> BaseType {
 
 #[allow(non_snake_case)]
 fn Node(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, pos, end)
+    BaseNode::new(kind, NodeFlags::None, pos, end)
 }
 
 #[allow(non_snake_case)]
 fn Token(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, pos, end)
+    BaseNode::new(kind, NodeFlags::None, pos, end)
 }
 
 #[allow(non_snake_case)]
 fn Identifier(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, pos, end)
+    BaseNode::new(kind, NodeFlags::None, pos, end)
 }
 
 pub struct ObjectAllocator {}

@@ -79,9 +79,10 @@ pub use compiler::utilities::{
     OperatorPrecedence,
 };
 pub use compiler::utilities_public::{
-    create_text_span_from_bounds, escape_leading_underscores,
-    get_effective_type_parameter_declarations, get_name_of_declaration, has_initializer, id_text,
-    is_binding_pattern, is_expression, is_member_name, unescape_leading_underscores,
+    create_text_span_from_bounds, escape_leading_underscores, get_combined_node_flags,
+    get_effective_type_parameter_declarations, get_name_of_declaration, has_initializer,
+    has_only_expression_initializer, id_text, is_binding_pattern, is_expression, is_member_name,
+    unescape_leading_underscores,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;
