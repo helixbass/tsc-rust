@@ -29,6 +29,9 @@ impl TypeChecker {
             Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => {
                 self.check_array_type(array_type_node)
             }
+            Node::TypeNode(TypeNode::UnionTypeNode(_)) => {
+                self.check_union_or_intersection_type(&*node)
+            }
             Node::Statement(Statement::VariableStatement(variable_statement)) => {
                 self.check_variable_statement(variable_statement)
             }

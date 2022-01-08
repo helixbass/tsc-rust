@@ -269,6 +269,16 @@ impl Node {
             _ => panic!("Expected has type arguments"),
         }
     }
+
+    pub fn as_union_or_intersection_type_node(&self) -> &dyn UnionOrIntersectionTypeNodeInterface {
+        match self {
+            Node::TypeNode(TypeNode::UnionTypeNode(union_type_node)) => union_type_node,
+            Node::TypeNode(TypeNode::IntersectionTypeNode(intersection_type_node)) => {
+                intersection_type_node
+            }
+            _ => panic!("Expected union or intersection type"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -760,6 +770,10 @@ impl ArrayTypeNode {
     }
 }
 
+pub trait UnionOrIntersectionTypeNodeInterface {
+    fn types(&self) -> &NodeArray;
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "TypeNode")]
 pub struct UnionTypeNode {
@@ -776,6 +790,12 @@ impl UnionTypeNode {
     }
 }
 
+impl UnionOrIntersectionTypeNodeInterface for UnionTypeNode {
+    fn types(&self) -> &NodeArray {
+        &self.types
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "TypeNode")]
 pub struct IntersectionTypeNode {
@@ -789,6 +809,12 @@ impl IntersectionTypeNode {
             _node: base_node,
             types,
         }
+    }
+}
+
+impl UnionOrIntersectionTypeNodeInterface for IntersectionTypeNode {
+    fn types(&self) -> &NodeArray {
+        &self.types
     }
 }
 

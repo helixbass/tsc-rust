@@ -8,7 +8,7 @@ use crate::{
     Diagnostics, Expression, InterfaceType, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
-    UnionReduction,
+    UnionReduction, UnionTypeNode,
 };
 
 impl TypeChecker {
@@ -460,6 +460,24 @@ impl TypeChecker {
             // is_boolean - should expose maybe_intrinsic_name on UnionType or something?
         }
         type_.unwrap()
+    }
+
+    pub(super) fn get_type_from_union_type_node(&self, node: &UnionTypeNode) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        let mut links_ref = links.borrow_mut();
+        if links_ref.resolved_type.is_none() {
+            // let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            links_ref.resolved_type = Some(
+                self.get_union_type(
+                    map(Some(&node.types), |type_, _| {
+                        self.get_type_from_type_node(type_)
+                    })
+                    .unwrap(),
+                    Some(UnionReduction::Literal),
+                ),
+            );
+        }
+        links_ref.resolved_type.clone().unwrap()
     }
 
     pub(super) fn get_literal_type_from_property_name(

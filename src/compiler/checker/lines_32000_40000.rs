@@ -216,6 +216,20 @@ impl TypeChecker {
         self.check_source_element(Some(&*node.element_type));
     }
 
+    pub(super) fn check_union_or_intersection_type(
+        &mut self,
+        node: &Node, /*UnionOrIntersectionTypeNode*/
+    ) {
+        for_each(
+            node.as_union_or_intersection_type_node().types(),
+            |type_, _| {
+                self.check_source_element(Some(&**type_));
+                Option::<()>::None
+            },
+        );
+        self.get_type_from_type_node(node);
+    }
+
     pub(super) fn convert_auto_to_any(&self, type_: Rc<Type>) -> Rc<Type> {
         type_
     }
