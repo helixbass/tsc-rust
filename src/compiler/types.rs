@@ -4104,5 +4104,7 @@ bitflags! {
         const SpaceAfterList = 1 << 21;
 
         const SingleLineTypeLiteralMembers = Self::SingleLine.bits | Self::SpaceBetweenBraces.bits | Self::SpaceBetweenSiblings.bits;
+
+        const UnionTypeConstituents = Self::BarDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
     }
 }

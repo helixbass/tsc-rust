@@ -7,7 +7,7 @@ use crate::{
     EmitHint, EmitTextWriter, Expression, GetLiteralTextFlags, HasTypeInterface, Identifier,
     ListFormat, LiteralLikeNode, LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, Printer, PrinterOptions, PropertySignature, SourceFile, Symbol, TypeElement,
-    TypeLiteralNode, TypeNode, TypeReferenceNode,
+    TypeLiteralNode, TypeNode, TypeReferenceNode, UnionTypeNode,
 };
 
 #[derive(PartialEq, Eq)]
@@ -143,6 +143,9 @@ impl Printer {
                 Node::TypeNode(TypeNode::TypeLiteralNode(type_literal_node)) => {
                     return self.emit_type_literal(type_literal_node)
                 }
+                Node::TypeNode(TypeNode::UnionTypeNode(union_type_node)) => {
+                    return self.emit_union_type(union_type_node)
+                }
                 Node::TypeNode(TypeNode::LiteralTypeNode(literal_type_node)) => {
                     return self.emit_literal_type(literal_type_node)
                 }
@@ -209,6 +212,14 @@ impl Printer {
         self.write_punctuation("}");
     }
 
+    fn emit_union_type(&mut self, node: &UnionTypeNode) {
+        self.emit_list(
+            Some(node),
+            Some(&node.types),
+            ListFormat::UnionTypeConstituents,
+        );
+    }
+
     fn emit_literal_type(&mut self, node: &LiteralTypeNode) {
         self.emit_expression(&*node.literal);
     }
@@ -241,6 +252,10 @@ impl Printer {
             ListFormat::None => (),
             ListFormat::CommaDelimited => {
                 self.write_punctuation(",");
+            }
+            ListFormat::BarDelimited => {
+                self.write_space();
+                self.write_punctuation("|");
             }
             _ => unimplemented!(),
         }
