@@ -3583,6 +3583,7 @@ impl CharacterCodes {
     pub const asterisk: char = '*';
     pub const at: char = '@';
     pub const backslash: char = '\\';
+    pub const bar: char = '|';
     pub const close_brace: char = '}';
     pub const close_bracket: char = ']';
     pub const colon: char = ':';

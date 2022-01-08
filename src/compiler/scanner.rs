@@ -200,7 +200,7 @@ impl Scanner {
                 CharacterCodes::line_feed => {
                     self.set_token_flags(self.token_flags() | TokenFlags::PrecedingLineBreak);
                     if self.skip_trivia {
-                        self.set_pos(self.pos() + 1);
+                        self.increment_pos();
                         continue;
                     } else {
                         unimplemented!()
@@ -208,7 +208,7 @@ impl Scanner {
                 }
                 CharacterCodes::space => {
                     if self.skip_trivia {
-                        self.set_pos(self.pos() + 1);
+                        self.increment_pos();
                         continue;
                     }
                 }
@@ -217,13 +217,13 @@ impl Scanner {
                     return self.set_token(SyntaxKind::StringLiteral);
                 }
                 CharacterCodes::asterisk => {
-                    self.set_pos(self.pos() + 1);
+                    self.increment_pos();
                     return self.set_token(SyntaxKind::AsteriskToken);
                 }
                 CharacterCodes::plus => {
                     if let Some(next_char) = self.text().chars().nth(self.pos() + 1) {
                         if next_char == CharacterCodes::plus {
-                            self.set_pos(self.pos() + 2);
+                            self.increment_pos_by(2);
                             return self.set_token(SyntaxKind::PlusPlusToken);
                         }
                         unimplemented!();
@@ -231,7 +231,7 @@ impl Scanner {
                     unimplemented!();
                 }
                 CharacterCodes::comma => {
-                    self.set_pos(self.pos() + 1);
+                    self.increment_pos();
                     return self.set_token(SyntaxKind::CommaToken);
                 }
                 CharacterCodes::_0
@@ -253,36 +253,40 @@ impl Scanner {
                     return token;
                 }
                 CharacterCodes::colon => {
-                    self.set_pos(self.pos() + 1);
+                    self.increment_pos();
                     return self.set_token(SyntaxKind::ColonToken);
                 }
                 CharacterCodes::semicolon => {
-                    self.set_pos(self.pos() + 1);
+                    self.increment_pos();
                     return self.set_token(SyntaxKind::SemicolonToken);
                 }
                 CharacterCodes::less_than => {
-                    self.set_pos(self.pos() + 1);
+                    self.increment_pos();
                     return self.set_token(SyntaxKind::LessThanToken);
                 }
                 CharacterCodes::greater_than => {
-                    self.set_pos(self.pos() + 1);
+                    self.increment_pos();
                     return self.set_token(SyntaxKind::GreaterThanToken);
                 }
                 CharacterCodes::equals => {
-                    self.set_pos(self.pos() + 1);
+                    self.increment_pos();
                     return self.set_token(SyntaxKind::EqualsToken);
                 }
                 CharacterCodes::open_bracket => {
-                    self.set_pos(self.pos() + 1);
+                    self.increment_pos();
                     return self.set_token(SyntaxKind::OpenBracketToken);
                 }
                 CharacterCodes::close_bracket => {
-                    self.set_pos(self.pos() + 1);
+                    self.increment_pos();
                     return self.set_token(SyntaxKind::CloseBracketToken);
                 }
                 CharacterCodes::open_brace => {
-                    self.set_pos(self.pos() + 1);
+                    self.increment_pos();
                     return self.set_token(SyntaxKind::OpenBraceToken);
+                }
+                CharacterCodes::bar => {
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::BarToken);
                 }
                 CharacterCodes::close_brace => {
                     self.set_pos(self.pos() + 1);
