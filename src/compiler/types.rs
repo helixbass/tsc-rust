@@ -48,6 +48,7 @@ pub enum SyntaxKind {
     GreaterThanToken,
     AsteriskToken,
     PlusPlusToken,
+    MinusMinusToken,
     LessThanLessThanToken,
     AmpersandToken,
     BarToken,
@@ -104,6 +105,7 @@ pub enum SyntaxKind {
     ArrayLiteralExpression,
     ObjectLiteralExpression,
     PropertyAccessExpression,
+    ParenthesizedExpression,
     PrefixUnaryExpression,
     BinaryExpression,
     ClassExpression,
@@ -1419,6 +1421,7 @@ bitflags! {
         const SetAccessor = 1 << 16;
         const TypeParameter = 1 << 18;
         const TypeAlias = 1 << 19;
+        const ExportValue = 1 << 20;
         const Optional = 1 << 24;
         const Transient = 1 << 25;
 
@@ -1918,6 +1921,7 @@ bitflags! {
 pub struct NodeLinks {
     pub flags: NodeCheckFlags,
     pub resolved_type: Option<Rc<Type>>,
+    pub resolved_symbol: Option<Rc<Symbol>>,
 }
 
 impl NodeLinks {
@@ -1925,6 +1929,7 @@ impl NodeLinks {
         Self {
             flags: NodeCheckFlags::None,
             resolved_type: None,
+            resolved_symbol: None,
         }
     }
 }

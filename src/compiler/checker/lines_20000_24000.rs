@@ -3,8 +3,9 @@
 use std::rc::Rc;
 
 use crate::{
-    every, for_each, get_object_flags, Debug_, DiagnosticMessage, Diagnostics, Expression, Node,
-    ObjectFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    every, for_each, get_object_flags, is_write_only_access, node_is_missing, Debug_,
+    DiagnosticMessage, Diagnostics, Expression, Identifier, Node, NodeInterface, ObjectFlags,
+    Symbol, SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -192,6 +193,28 @@ impl TypeChecker {
             },
             _ => panic!("Expected Identifier"),
         }
+    }
+
+    pub(super) fn get_resolved_symbol(&self, node: &Identifier) -> Rc<Symbol> {
+        let links = self.get_node_links(node);
+        let mut links_ref = links.borrow_mut();
+        if links_ref.resolved_symbol.is_none() {
+            links_ref.resolved_symbol = Some(if !node_is_missing(node) {
+                self.resolve_name(
+                    Some(node),
+                    &node.escaped_text,
+                    SymbolFlags::Value | SymbolFlags::ExportValue,
+                    Some(self.get_cannot_find_name_diagnostic_for_name(&*node.node_wrapper())),
+                    Some(node.node_wrapper()),
+                    !is_write_only_access(node),
+                    Some(false),
+                )
+                .unwrap_or_else(|| self.unknown_symbol())
+            } else {
+                self.unknown_symbol()
+            });
+        }
+        links_ref.resolved_symbol.clone().unwrap()
     }
 
     pub(super) fn filter_type(

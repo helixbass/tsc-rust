@@ -17,6 +17,21 @@ use crate::{
 };
 
 impl TypeChecker {
+    pub(super) fn get_export_symbol_of_value_symbol_if_exported(
+        &self,
+        symbol: Option<Rc<Symbol>>,
+    ) -> Option<Rc<Symbol>> {
+        self.get_merged_symbol(if let Some(symbol) = symbol {
+            if symbol.flags().intersects(SymbolFlags::ExportValue) {
+                unimplemented!()
+            } else {
+                Some(symbol)
+            }
+        } else {
+            symbol
+        })
+    }
+
     pub(super) fn symbol_is_value(&self, symbol: Rc<Symbol>) -> bool {
         symbol.flags().intersects(SymbolFlags::Value)
     }
