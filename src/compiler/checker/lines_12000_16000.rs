@@ -7,7 +7,7 @@ use crate::{
     unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
     Diagnostics, Expression, InterfaceType, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
+    TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
     UnionReduction, UnionTypeNode,
 };
 
@@ -366,6 +366,17 @@ impl TypeChecker {
         type_arguments: Option<Vec<Rc<Type>>>,
     ) -> Rc<Type> {
         unimplemented!()
+    }
+
+    pub(super) fn get_type_id(&self, type_: Rc<Type>) -> TypeId {
+        type_.id()
+    }
+
+    pub(super) fn contains_type(&self, types: &[Rc<Type>], type_: Rc<Type>) -> bool {
+        /*binary_search(...)*/
+        types
+            .iter()
+            .any(|t| self.get_type_id(t.clone()) == self.get_type_id(type_.clone()))
     }
 
     pub(super) fn add_type_to_union(

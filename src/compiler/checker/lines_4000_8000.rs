@@ -22,7 +22,9 @@ impl TypeChecker {
     }
 
     pub(super) fn create_type(&self, flags: TypeFlags) -> BaseType {
-        let result = (self.Type)(flags);
+        let mut result = (self.Type)(flags);
+        self.increment_type_count();
+        result.id = Some(self.type_count());
         result
     }
 

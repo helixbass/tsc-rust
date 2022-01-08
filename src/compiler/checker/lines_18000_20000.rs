@@ -321,8 +321,17 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         &self,
         source: Rc<Type>,
         target: &UnionOrIntersectionType,
+        report_errors: bool,
     ) -> Ternary {
         let target_types = target.types();
+        if target.flags().intersects(TypeFlags::Union) {
+            if self
+                .type_checker
+                .contains_type(target_types, source.clone())
+            {
+                return Ternary::True;
+            }
+        }
 
         for type_ in target_types {
             let related = self.is_related_to(
@@ -426,13 +435,17 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             }
             if target.flags().intersects(TypeFlags::Union) {
                 return self.type_related_to_some_type(
-                    self.type_checker.get_regular_type_of_object_literal(source),
+                    self.type_checker
+                        .get_regular_type_of_object_literal(source.clone()),
                     match &*target {
                         Type::UnionOrIntersectionType(union_or_intersection_type) => {
                             union_or_intersection_type
                         }
                         _ => panic!("Expected UnionOrIntersectionType"),
                     },
+                    report_errors
+                        && !(source.flags().intersects(TypeFlags::Primitive))
+                        && !(target.flags().intersects(TypeFlags::Primitive)),
                 );
             }
             unimplemented!()

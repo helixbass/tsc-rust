@@ -1269,6 +1269,7 @@ pub struct TypeChecker {
     pub _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
     pub Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
     pub Type: fn(TypeFlags) -> BaseType,
+    pub(crate) type_count: Cell<u32>,
     pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
     pub strict_null_checks: bool,
     pub fresh_object_literal_flag: ObjectFlags,
@@ -1968,6 +1969,8 @@ bitflags! {
     }
 }
 
+pub type TypeId = u32;
+
 #[derive(Clone, Debug)]
 pub enum Type {
     IntrinsicType(IntrinsicType),
@@ -2033,6 +2036,18 @@ impl TypeInterface for Type {
         }
     }
 
+    fn id(&self) -> TypeId {
+        match self {
+            Type::IntrinsicType(intrinsic_type) => intrinsic_type.id(),
+            Type::LiteralType(literal_type) => literal_type.id(),
+            Type::ObjectType(object_type) => object_type.id(),
+            Type::UnionOrIntersectionType(union_or_intersection_type) => {
+                union_or_intersection_type.id()
+            }
+            Type::TypeParameter(type_parameter) => type_parameter.id(),
+        }
+    }
+
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         match self {
             Type::IntrinsicType(intrinsic_type) => intrinsic_type.maybe_symbol(),
@@ -2072,6 +2087,7 @@ impl TypeInterface for Type {
 
 pub trait TypeInterface {
     fn flags(&self) -> TypeFlags;
+    fn id(&self) -> TypeId;
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&mut self, symbol: Rc<Symbol>);
@@ -2080,6 +2096,7 @@ pub trait TypeInterface {
 #[derive(Clone, Debug)]
 pub struct BaseType {
     pub flags: TypeFlags,
+    pub id: Option<TypeId>,
     symbol: Option<Rc<Symbol>>,
 }
 
@@ -2087,6 +2104,7 @@ impl BaseType {
     pub fn new(flags: TypeFlags) -> Self {
         Self {
             flags,
+            id: None,
             symbol: None,
         }
     }
@@ -2095,6 +2113,10 @@ impl BaseType {
 impl TypeInterface for BaseType {
     fn flags(&self) -> TypeFlags {
         self.flags
+    }
+
+    fn id(&self) -> TypeId {
+        self.id.unwrap()
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
@@ -2126,6 +2148,15 @@ impl TypeInterface for IntrinsicType {
             IntrinsicType::BaseIntrinsicType(base_intrinsic_type) => base_intrinsic_type.flags(),
             IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
                 freshable_intrinsic_type.flags()
+            }
+        }
+    }
+
+    fn id(&self) -> TypeId {
+        match self {
+            IntrinsicType::BaseIntrinsicType(base_intrinsic_type) => base_intrinsic_type.id(),
+            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                freshable_intrinsic_type.id()
             }
         }
     }
@@ -2201,6 +2232,10 @@ impl TypeInterface for BaseIntrinsicType {
         self._type.flags()
     }
 
+    fn id(&self) -> TypeId {
+        self._type.id()
+    }
+
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         self._type.maybe_symbol()
     }
@@ -2262,6 +2297,10 @@ impl TypeInterface for FreshableIntrinsicType {
         self._intrinsic_type.flags()
     }
 
+    fn id(&self) -> TypeId {
+        self._intrinsic_type.id()
+    }
+
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         self._intrinsic_type.maybe_symbol()
     }
@@ -2318,6 +2357,13 @@ impl TypeInterface for LiteralType {
         match self {
             LiteralType::StringLiteralType(string_literal_type) => string_literal_type.flags(),
             LiteralType::NumberLiteralType(number_literal_type) => number_literal_type.flags(),
+        }
+    }
+
+    fn id(&self) -> TypeId {
+        match self {
+            LiteralType::StringLiteralType(string_literal_type) => string_literal_type.id(),
+            LiteralType::NumberLiteralType(number_literal_type) => number_literal_type.id(),
         }
     }
 
@@ -2436,6 +2482,10 @@ impl TypeInterface for BaseLiteralType {
         self._type.flags()
     }
 
+    fn id(&self) -> TypeId {
+        self._type.id()
+    }
+
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         self._type.maybe_symbol()
     }
@@ -2514,6 +2564,10 @@ impl StringLiteralType {
 impl TypeInterface for StringLiteralType {
     fn flags(&self) -> TypeFlags {
         self._literal_type.flags()
+    }
+
+    fn id(&self) -> TypeId {
+        self._literal_type.id()
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
@@ -2611,6 +2665,10 @@ impl NumberLiteralType {
 impl TypeInterface for NumberLiteralType {
     fn flags(&self) -> TypeFlags {
         self._literal_type.flags()
+    }
+
+    fn id(&self) -> TypeId {
+        self._literal_type.id()
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
@@ -2717,6 +2775,14 @@ impl TypeInterface for ObjectType {
             ObjectType::InterfaceType(interface_type) => interface_type.flags(),
             ObjectType::BaseObjectType(base_object_type) => base_object_type.flags(),
             ObjectType::TypeReference(type_reference) => type_reference.flags(),
+        }
+    }
+
+    fn id(&self) -> TypeId {
+        match self {
+            ObjectType::InterfaceType(interface_type) => interface_type.id(),
+            ObjectType::BaseObjectType(base_object_type) => base_object_type.id(),
+            ObjectType::TypeReference(type_reference) => type_reference.id(),
         }
     }
 
@@ -2853,6 +2919,10 @@ impl TypeInterface for BaseObjectType {
         self._type.flags()
     }
 
+    fn id(&self) -> TypeId {
+        self._type.id()
+    }
+
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         self._type.maybe_symbol()
     }
@@ -2931,6 +3001,12 @@ impl TypeInterface for InterfaceType {
     fn flags(&self) -> TypeFlags {
         match self {
             InterfaceType::BaseInterfaceType(base_interface_type) => base_interface_type.flags(),
+        }
+    }
+
+    fn id(&self) -> TypeId {
+        match self {
+            InterfaceType::BaseInterfaceType(base_interface_type) => base_interface_type.id(),
         }
     }
 
@@ -3083,6 +3159,10 @@ impl TypeInterface for BaseInterfaceType {
         self._object_type.flags()
     }
 
+    fn id(&self) -> TypeId {
+        self._object_type.id()
+    }
+
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         self._object_type.maybe_symbol()
     }
@@ -3181,6 +3261,10 @@ impl TypeInterface for TypeReference {
         self._object_type.flags()
     }
 
+    fn id(&self) -> TypeId {
+        self._object_type.id()
+    }
+
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         self._object_type.maybe_symbol()
     }
@@ -3258,6 +3342,12 @@ impl TypeInterface for UnionOrIntersectionType {
         }
     }
 
+    fn id(&self) -> TypeId {
+        match self {
+            UnionOrIntersectionType::UnionType(union_type) => union_type.id(),
+        }
+    }
+
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         match self {
             UnionOrIntersectionType::UnionType(union_type) => union_type.maybe_symbol(),
@@ -3329,6 +3419,10 @@ impl TypeInterface for BaseUnionOrIntersectionType {
         self._type.flags()
     }
 
+    fn id(&self) -> TypeId {
+        self._type.id()
+    }
+
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         self._type.maybe_symbol()
     }
@@ -3374,6 +3468,10 @@ impl UnionType {
 impl TypeInterface for UnionType {
     fn flags(&self) -> TypeFlags {
         self._union_or_intersection_type.flags()
+    }
+
+    fn id(&self) -> TypeId {
+        self._union_or_intersection_type.id()
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
@@ -3444,6 +3542,10 @@ impl TypeParameter {
 impl TypeInterface for TypeParameter {
     fn flags(&self) -> TypeFlags {
         self._type.flags()
+    }
+
+    fn id(&self) -> TypeId {
+        self._type.id()
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {

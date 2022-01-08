@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -98,6 +98,8 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         _types_needing_strong_references: RefCell::new(vec![]),
         Symbol: object_allocator.get_symbol_constructor(),
         Type: object_allocator.get_type_constructor(),
+
+        type_count: Cell::new(0),
 
         empty_symbols: Rc::new(RefCell::new(create_symbol_table())),
 
@@ -267,6 +269,14 @@ impl TypeChecker {
         self._types_needing_strong_references
             .borrow_mut()
             .push(type_);
+    }
+
+    pub(super) fn type_count(&self) -> u32 {
+        self.type_count.get()
+    }
+
+    pub(super) fn increment_type_count(&self) {
+        self.type_count.set(self.type_count.get() + 1);
     }
 
     pub(super) fn empty_symbols(&self) -> Rc<RefCell<SymbolTable>> {
