@@ -1026,3 +1026,336 @@ pub fn type_type(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
     .into()
 }
+
+#[derive(Debug, FromMeta)]
+struct SymbolTypeArgs {
+    #[darling(default)]
+    ancestors: Option<String>,
+    #[darling(default)]
+    impl_from: Option<bool>,
+    #[darling(default)]
+    interfaces: Option<String>,
+}
+
+impl SymbolTypeArgs {
+    fn ancestors_vec(&self) -> Vec<String> {
+        let mut vec = self.ancestors.as_ref().map_or_else(
+            || vec![],
+            |ancestors_str| {
+                ancestors_str
+                    .split(",")
+                    .into_iter()
+                    .map(|chunk| chunk.trim().to_string())
+                    .collect()
+            },
+        );
+        vec.push("Symbol".to_string());
+        vec
+    }
+
+    fn should_impl_from(&self) -> bool {
+        self.impl_from.unwrap_or(true)
+    }
+
+    fn interfaces_vec(&self) -> Vec<String> {
+        let mut vec = vec!["SymbolInterface".to_string()];
+        if let Some(interfaces_str) = self.interfaces.as_ref() {
+            vec.append(
+                &mut interfaces_str
+                    .split(",")
+                    .into_iter()
+                    .map(|chunk| chunk.trim().to_string())
+                    .collect(),
+            );
+        }
+        vec
+    }
+}
+
+fn get_symbol_struct_interface_impl(
+    interface_name: &str,
+    first_field_name: &Ident,
+    symbol_type_name: &Ident,
+) -> TokenStream2 {
+    match interface_name {
+        "SymbolInterface" => {
+            quote! {
+                impl crate::SymbolInterface for #symbol_type_name {
+                    fn symbol_wrapper(&self) -> ::std::rc::Rc<crate::Symbol> {
+                        self.#first_field_name.symbol_wrapper()
+                    }
+
+                    fn set_symbol_wrapper(&self, wrapper: ::std::rc::Rc<crate::Symbol>) {
+                        self.#first_field_name.set_symbol_wrapper(wrapper)
+                    }
+
+                    fn flags(&self) -> crate::SymbolFlags {
+                        self.#first_field_name.flags()
+                    }
+
+                    fn set_flags(&self, flags: crate::SymbolFlags) {
+                        self.#first_field_name.set_flags(flags)
+                    }
+
+                    fn escaped_name(&self) -> &crate::__String {
+                        self.#first_field_name.escaped_name()
+                    }
+
+                    fn maybe_declarations(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>>> {
+                        self.#first_field_name.maybe_declarations()
+                    }
+
+                    fn set_declarations(&self, declarations: ::std::vec::Vec<::std::rc::Rc<crate::Node>>) {
+                        self.#first_field_name.set_declarations(declarations)
+                    }
+
+                    fn maybe_value_declaration(&self) -> ::std::cell::Ref<::std::option::Option<::std::rc::Weak<crate::Node>>> {
+                        self.#first_field_name.maybe_value_declaration()
+                    }
+
+                    fn set_value_declaration(&self, node: ::std::rc::Rc<crate::Node>) {
+                        self.#first_field_name.set_value_declaration(node)
+                    }
+
+                    fn maybe_members(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        self.#first_field_name.maybe_members()
+                    }
+
+                    fn members(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
+                        self.#first_field_name.members()
+                    }
+
+                    fn maybe_id(&self) -> ::std::option::Option<crate::SymbolId> {
+                        self.#first_field_name.maybe_id()
+                    }
+
+                    fn id(&self) -> crate::SymbolId {
+                        self.#first_field_name.id()
+                    }
+
+                    fn set_id(&self, id: crate::SymbolId) {
+                        self.#first_field_name.set_id(id)
+                    }
+                }
+            }
+        }
+        _ => panic!("Unknown interface: {}", interface_name),
+    }
+}
+
+fn get_symbol_enum_interface_impl(
+    interface_name: &str,
+    variant_names: &[&Ident],
+    symbol_type_name: &Ident,
+) -> TokenStream2 {
+    match interface_name {
+        "SymbolInterface" => {
+            quote! {
+                impl crate::SymbolInterface for #symbol_type_name {
+                    fn symbol_wrapper(&self) -> ::std::rc::Rc<crate::Symbol> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.symbol_wrapper()),*
+                        }
+                    }
+
+                    fn set_symbol_wrapper(&self, wrapper: ::std::rc::Rc<crate::Symbol>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_symbol_wrapper(wrapper)),*
+                        }
+                    }
+
+                    fn flags(&self) -> crate::SymbolFlags {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.flags()),*
+                        }
+                    }
+
+                    fn set_flags(&self, flags: crate::SymbolFlags) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_flags(flags)),*
+                        }
+                    }
+
+                    fn escaped_name(&self) -> &crate::__String {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.escaped_name()),*
+                        }
+                    }
+
+                    fn maybe_declarations(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_declarations()),*
+                        }
+                    }
+
+                    fn set_declarations(&self, declarations: ::std::vec::Vec<::std::rc::Rc<crate::Node>>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_declarations(declarations)),*
+                        }
+                    }
+
+                    fn maybe_value_declaration(&self) -> ::std::cell::Ref<::std::option::Option<::std::rc::Weak<crate::Node>>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_value_declaration()),*
+                        }
+                    }
+
+                    fn set_value_declaration(&self, node: ::std::rc::Rc<crate::Node>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_value_declaration(node)),*
+                        }
+                    }
+
+                    fn maybe_members(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_members()),*
+                        }
+                    }
+
+                    fn members(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.members()),*
+                        }
+                    }
+
+                    fn maybe_id(&self) -> ::std::option::Option<crate::SymbolId> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_id()),*
+                        }
+                    }
+
+                    fn id(&self) -> crate::SymbolId {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.id()),*
+                        }
+                    }
+
+                    fn set_id(&self, id: crate::SymbolId) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_id(id)),*
+                        }
+                    }
+                }
+            }
+        }
+        _ => panic!("Unknown interface: {}", interface_name),
+    }
+}
+
+#[proc_macro_attribute]
+pub fn symbol_type(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let item_for_parsing = item.clone();
+    let DeriveInput {
+        ident: symbol_type_name,
+        data,
+        ..
+    } = parse_macro_input!(item_for_parsing);
+
+    let attr_args = parse_macro_input!(attr as AttributeArgs);
+    let args = match SymbolTypeArgs::from_list(&attr_args) {
+        Ok(args) => args,
+        Err(error) => {
+            return TokenStream::from(error.write_errors());
+        }
+    };
+
+    let symbol_interface_implementation = match data {
+        Struct(struct_) => {
+            let first_field_name = match struct_.fields {
+                Fields::Named(FieldsNamed { named, .. }) => named
+                    .iter()
+                    .nth(0)
+                    .expect("Expected at least one struct field")
+                    .ident
+                    .clone()
+                    .expect("Expected ident"),
+                _ => panic!("Expected named fields"),
+            };
+
+            let mut interface_impls: TokenStream2 = quote! {};
+            for interface in args.interfaces_vec() {
+                let interface_impl = get_symbol_struct_interface_impl(
+                    &interface,
+                    &first_field_name,
+                    &symbol_type_name,
+                );
+                interface_impls = quote! {
+                    #interface_impls
+
+                    #interface_impl
+                };
+            }
+
+            interface_impls
+        }
+        Enum(DataEnum { variants, .. }) => {
+            let variant_names = variants
+                .iter()
+                .map(|variant| &variant.ident)
+                .collect::<Vec<_>>();
+
+            let mut interface_impls: TokenStream2 = quote! {};
+            for interface in args.interfaces_vec() {
+                let interface_impl =
+                    get_symbol_enum_interface_impl(&interface, &variant_names, &symbol_type_name);
+                interface_impls = quote! {
+                    #interface_impls
+
+                    #interface_impl
+                };
+            }
+
+            interface_impls
+        }
+        _ => panic!("Expected struct or enum"),
+    };
+
+    let into_implementations = if args.should_impl_from() {
+        let mut construct_variant = quote! {
+            concrete
+        };
+        let mut previous_variant_name = symbol_type_name.clone();
+        let mut into_implementations = quote! {};
+        for ancestor in args.ancestors_vec() {
+            let ancestor_ident = Ident::new(&ancestor, previous_variant_name.span());
+            construct_variant = quote! {
+                crate::#ancestor_ident::#previous_variant_name(#construct_variant)
+            };
+            into_implementations = quote! {
+                #into_implementations
+
+                impl ::std::convert::From<#symbol_type_name> for crate::#ancestor_ident {
+                    fn from(concrete: #symbol_type_name) -> Self {
+                        #construct_variant
+                    }
+                }
+            };
+            previous_variant_name = ancestor_ident;
+        }
+
+        quote! {
+            #into_implementations
+
+            impl ::std::convert::From<#symbol_type_name> for ::std::rc::Rc<crate::Symbol> {
+                fn from(concrete: #symbol_type_name) -> Self {
+                    let rc = ::std::rc::Rc::new(#construct_variant);
+                    crate::SymbolInterface::set_symbol_wrapper(&*rc, rc.clone());
+                    rc
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    let item_as_proc_macro2_token_stream = proc_macro2::TokenStream::from(item);
+
+    quote! {
+        #item_as_proc_macro2_token_stream
+
+        #symbol_interface_implementation
+
+        #into_implementations
+    }
+    .into()
+}
