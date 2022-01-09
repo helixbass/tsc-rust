@@ -142,13 +142,13 @@ impl BinderType {
 
     fn add_declaration_to_symbol<TNode: NodeInterface>(
         &self,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
         node: &TNode, /*Declaration*/
         symbol_flags: SymbolFlags,
     ) {
         symbol.set_flags(symbol.flags() | symbol_flags);
 
-        node.set_symbol(symbol.clone());
+        node.set_symbol(symbol.symbol_wrapper());
         let declarations = append_if_unique(
             symbol.maybe_declarations().as_ref().map(|vec| vec.clone()),
             node.node_wrapper(),
@@ -168,7 +168,7 @@ impl BinderType {
         }
 
         if symbol_flags.intersects(SymbolFlags::Value) {
-            set_value_declaration(&*symbol, node);
+            set_value_declaration(symbol, node);
         }
     }
 
@@ -184,10 +184,10 @@ impl BinderType {
         unimplemented!()
     }
 
-    fn declare_symbol<TNode: NodeInterface>(
+    fn declare_symbol<TSymbolRef: Borrow<Symbol>, TNode: NodeInterface>(
         &self,
         symbol_table: &mut SymbolTable,
-        parent: Option<Rc<Symbol>>,
+        parent: Option<TSymbolRef>,
         node: &TNode, /*Declaration*/
         includes: SymbolFlags,
         excludes: SymbolFlags,
@@ -206,7 +206,7 @@ impl BinderType {
         }
         let symbol = symbol.unwrap();
 
-        self.add_declaration_to_symbol(symbol.clone(), node, includes);
+        self.add_declaration_to_symbol(&symbol, node, includes);
 
         symbol
     }
@@ -358,7 +358,7 @@ impl BinderType {
         } else {
             self.declare_symbol(
                 &mut *self.file().locals(),
-                None,
+                Option::<&Symbol>::None,
                 node,
                 symbol_flags,
                 symbol_excludes,
@@ -387,7 +387,7 @@ impl BinderType {
             }
             _ => panic!("Expected SourceFile"),
         }
-        self.add_declaration_to_symbol(symbol.clone(), node, symbol_flags);
+        self.add_declaration_to_symbol(&symbol, node, symbol_flags);
         symbol
     }
 
@@ -406,7 +406,7 @@ impl BinderType {
         }
         self.declare_symbol(
             &mut *block_scope_container.locals(),
-            None,
+            Option::<&Symbol>::None,
             node,
             symbol_flags,
             symbol_excludes,
