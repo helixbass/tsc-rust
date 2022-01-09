@@ -2111,23 +2111,10 @@ pub trait IntrinsicTypeInterface: TypeInterface {
 }
 
 #[derive(Clone, Debug)]
-#[type_type]
+#[type_type(interfaces = "IntrinsicTypeInterface")]
 pub enum IntrinsicType {
     BaseIntrinsicType(BaseIntrinsicType),
     FreshableIntrinsicType(FreshableIntrinsicType),
-}
-
-impl IntrinsicTypeInterface for IntrinsicType {
-    fn intrinsic_name(&self) -> &str {
-        match self {
-            IntrinsicType::BaseIntrinsicType(base_intrinsic_type) => {
-                base_intrinsic_type.intrinsic_name()
-            }
-            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                freshable_intrinsic_type.intrinsic_name()
-            }
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -2153,7 +2140,7 @@ impl IntrinsicTypeInterface for BaseIntrinsicType {
 }
 
 #[derive(Clone, Debug)]
-#[type_type(ancestors = "IntrinsicType")]
+#[type_type(ancestors = "IntrinsicType", interfaces = "IntrinsicTypeInterface")]
 pub struct FreshableIntrinsicType {
     _intrinsic_type: BaseIntrinsicType,
     pub fresh_type: WeakSelf<Type>,
@@ -2178,12 +2165,6 @@ impl FreshableIntrinsicType {
     }
 }
 
-impl IntrinsicTypeInterface for FreshableIntrinsicType {
-    fn intrinsic_name(&self) -> &str {
-        self._intrinsic_type.intrinsic_name()
-    }
-}
-
 pub trait LiteralTypeInterface: TypeInterface {
     fn fresh_type(&self) -> Option<&Weak<Type>>;
     fn set_fresh_type(&self, fresh_type: &Rc<Type>);
@@ -2197,67 +2178,10 @@ pub trait LiteralTypeInterface: TypeInterface {
 }
 
 #[derive(Clone, Debug)]
-#[type_type]
+#[type_type(interfaces = "LiteralTypeInterface")]
 pub enum LiteralType {
     StringLiteralType(StringLiteralType),
     NumberLiteralType(NumberLiteralType),
-}
-
-impl LiteralTypeInterface for LiteralType {
-    fn fresh_type(&self) -> Option<&Weak<Type>> {
-        match self {
-            LiteralType::StringLiteralType(string_literal_type) => string_literal_type.fresh_type(),
-            LiteralType::NumberLiteralType(number_literal_type) => number_literal_type.fresh_type(),
-        }
-    }
-
-    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
-        match self {
-            LiteralType::StringLiteralType(string_literal_type) => {
-                string_literal_type.set_fresh_type(fresh_type)
-            }
-            LiteralType::NumberLiteralType(number_literal_type) => {
-                number_literal_type.set_fresh_type(fresh_type)
-            }
-        }
-    }
-
-    fn get_or_initialize_fresh_type(
-        &self,
-        type_checker: &TypeChecker,
-        wrapper: &Rc<Type>,
-    ) -> Rc<Type> {
-        match self {
-            LiteralType::StringLiteralType(string_literal_type) => {
-                string_literal_type.get_or_initialize_fresh_type(type_checker, wrapper)
-            }
-            LiteralType::NumberLiteralType(number_literal_type) => {
-                number_literal_type.get_or_initialize_fresh_type(type_checker, wrapper)
-            }
-        }
-    }
-
-    fn regular_type(&self) -> Rc<Type> {
-        match self {
-            LiteralType::StringLiteralType(string_literal_type) => {
-                string_literal_type.regular_type()
-            }
-            LiteralType::NumberLiteralType(number_literal_type) => {
-                number_literal_type.regular_type()
-            }
-        }
-    }
-
-    fn set_regular_type(&self, regular_type: &Rc<Type>) {
-        match self {
-            LiteralType::StringLiteralType(string_literal_type) => {
-                string_literal_type.set_regular_type(regular_type)
-            }
-            LiteralType::NumberLiteralType(number_literal_type) => {
-                number_literal_type.set_regular_type(regular_type)
-            }
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -2305,7 +2229,7 @@ impl LiteralTypeInterface for BaseLiteralType {
 }
 
 #[derive(Clone, Debug)]
-#[type_type(ancestors = "LiteralType")]
+#[type_type(ancestors = "LiteralType", interfaces = "LiteralTypeInterface")]
 pub struct StringLiteralType {
     _literal_type: BaseLiteralType,
     pub value: String,
@@ -2341,39 +2265,8 @@ impl StringLiteralType {
     }
 }
 
-impl LiteralTypeInterface for StringLiteralType {
-    fn fresh_type(&self) -> Option<&Weak<Type>> {
-        self._literal_type.fresh_type()
-    }
-
-    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
-        self._literal_type.set_fresh_type(fresh_type);
-    }
-
-    fn get_or_initialize_fresh_type(
-        &self,
-        type_checker: &TypeChecker,
-        wrapper: &Rc<Type>,
-    ) -> Rc<Type> {
-        if self.fresh_type().is_none() {
-            let fresh_type = self.create_fresh_type_from_self(type_checker, wrapper);
-            self.set_fresh_type(&fresh_type);
-            return self.fresh_type().unwrap().upgrade().unwrap();
-        }
-        return self.fresh_type().unwrap().upgrade().unwrap();
-    }
-
-    fn regular_type(&self) -> Rc<Type> {
-        self._literal_type.regular_type()
-    }
-
-    fn set_regular_type(&self, regular_type: &Rc<Type>) {
-        self._literal_type.set_regular_type(regular_type);
-    }
-}
-
 #[derive(Clone, Debug)]
-#[type_type(ancestors = "LiteralType")]
+#[type_type(ancestors = "LiteralType", interfaces = "LiteralTypeInterface")]
 pub struct NumberLiteralType {
     _literal_type: BaseLiteralType,
     pub value: Number,
@@ -2406,37 +2299,6 @@ impl NumberLiteralType {
         self.set_fresh_type(&fresh_type);
         type_checker.keep_strong_reference_to_type(fresh_type);
         self.fresh_type().unwrap().upgrade().unwrap()
-    }
-}
-
-impl LiteralTypeInterface for NumberLiteralType {
-    fn fresh_type(&self) -> Option<&Weak<Type>> {
-        self._literal_type.fresh_type()
-    }
-
-    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
-        self._literal_type.set_fresh_type(fresh_type);
-    }
-
-    fn get_or_initialize_fresh_type(
-        &self,
-        type_checker: &TypeChecker,
-        wrapper: &Rc<Type>,
-    ) -> Rc<Type> {
-        if self.fresh_type().is_none() {
-            let fresh_type = self.create_fresh_type_from_self(type_checker, wrapper);
-            self.set_fresh_type(&fresh_type);
-            return self.fresh_type().unwrap().upgrade().unwrap();
-        }
-        return self.fresh_type().unwrap().upgrade().unwrap();
-    }
-
-    fn regular_type(&self) -> Rc<Type> {
-        self._literal_type.regular_type()
-    }
-
-    fn set_regular_type(&self, regular_type: &Rc<Type>) {
-        self._literal_type.set_regular_type(regular_type);
     }
 }
 
@@ -2476,89 +2338,13 @@ pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
 }
 
 #[derive(Clone, Debug)]
-#[type_type]
+#[type_type(
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+)]
 pub enum ObjectType {
     BaseObjectType(BaseObjectType),
     InterfaceType(InterfaceType),
     TypeReference(TypeReference),
-}
-
-impl ObjectFlagsTypeInterface for ObjectType {
-    fn object_flags(&self) -> ObjectFlags {
-        match self {
-            ObjectType::InterfaceType(interface_type) => interface_type.object_flags(),
-            ObjectType::BaseObjectType(base_object_type) => base_object_type.object_flags(),
-            ObjectType::TypeReference(type_reference) => type_reference.object_flags(),
-        }
-    }
-
-    fn set_object_flags(&self, object_flags: ObjectFlags) {
-        match self {
-            ObjectType::InterfaceType(interface_type) => {
-                interface_type.set_object_flags(object_flags)
-            }
-            ObjectType::BaseObjectType(base_object_type) => {
-                base_object_type.set_object_flags(object_flags)
-            }
-            ObjectType::TypeReference(type_reference) => {
-                type_reference.set_object_flags(object_flags)
-            }
-        }
-    }
-}
-
-impl ObjectTypeInterface for ObjectType {}
-
-impl ResolvableTypeInterface for ObjectType {
-    fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
-        match self {
-            ObjectType::InterfaceType(interface_type) => {
-                interface_type.resolve(members, properties)
-            }
-            ObjectType::BaseObjectType(base_object_type) => {
-                base_object_type.resolve(members, properties)
-            }
-            ObjectType::TypeReference(type_reference) => {
-                type_reference.resolve(members, properties)
-            }
-        }
-    }
-
-    fn is_resolved(&self) -> bool {
-        match self {
-            ObjectType::InterfaceType(interface_type) => interface_type.is_resolved(),
-            ObjectType::BaseObjectType(base_object_type) => base_object_type.is_resolved(),
-            ObjectType::TypeReference(type_reference) => type_reference.is_resolved(),
-        }
-    }
-}
-
-impl ResolvedTypeInterface for ObjectType {
-    fn members(&self) -> Rc<RefCell<SymbolTable>> {
-        match self {
-            ObjectType::InterfaceType(interface_type) => interface_type.members(),
-            ObjectType::BaseObjectType(base_object_type) => base_object_type.members(),
-            ObjectType::TypeReference(type_reference) => type_reference.members(),
-        }
-    }
-
-    fn properties(&self) -> RefMut<Vec<Rc<Symbol>>> {
-        match self {
-            ObjectType::InterfaceType(interface_type) => interface_type.properties(),
-            ObjectType::BaseObjectType(base_object_type) => base_object_type.properties(),
-            ObjectType::TypeReference(type_reference) => type_reference.properties(),
-        }
-    }
-
-    fn set_properties(&self, properties: Vec<Rc<Symbol>>) {
-        match self {
-            ObjectType::InterfaceType(interface_type) => interface_type.set_properties(properties),
-            ObjectType::BaseObjectType(base_object_type) => {
-                base_object_type.set_properties(properties)
-            }
-            ObjectType::TypeReference(type_reference) => type_reference.set_properties(properties),
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -2626,71 +2412,12 @@ impl ResolvedTypeInterface for BaseObjectType {
 }
 
 #[derive(Clone, Debug)]
-#[type_type(ancestors = "ObjectType")]
+#[type_type(
+    ancestors = "ObjectType",
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+)]
 pub enum InterfaceType {
     BaseInterfaceType(BaseInterfaceType),
-}
-
-impl ObjectFlagsTypeInterface for InterfaceType {
-    fn object_flags(&self) -> ObjectFlags {
-        match self {
-            InterfaceType::BaseInterfaceType(base_interface_type) => {
-                base_interface_type.object_flags()
-            }
-        }
-    }
-
-    fn set_object_flags(&self, object_flags: ObjectFlags) {
-        match self {
-            InterfaceType::BaseInterfaceType(base_interface_type) => {
-                base_interface_type.set_object_flags(object_flags)
-            }
-        }
-    }
-}
-
-impl ObjectTypeInterface for InterfaceType {}
-
-impl ResolvableTypeInterface for InterfaceType {
-    fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
-        match self {
-            InterfaceType::BaseInterfaceType(base_interface_type) => {
-                base_interface_type.resolve(members, properties)
-            }
-        }
-    }
-
-    fn is_resolved(&self) -> bool {
-        match self {
-            InterfaceType::BaseInterfaceType(base_interface_type) => {
-                base_interface_type.is_resolved()
-            }
-        }
-    }
-}
-
-impl ResolvedTypeInterface for InterfaceType {
-    fn members(&self) -> Rc<RefCell<SymbolTable>> {
-        match self {
-            InterfaceType::BaseInterfaceType(base_interface_type) => base_interface_type.members(),
-        }
-    }
-
-    fn properties(&self) -> RefMut<Vec<Rc<Symbol>>> {
-        match self {
-            InterfaceType::BaseInterfaceType(base_interface_type) => {
-                base_interface_type.properties()
-            }
-        }
-    }
-
-    fn set_properties(&self, properties: Vec<Rc<Symbol>>) {
-        match self {
-            InterfaceType::BaseInterfaceType(base_interface_type) => {
-                base_interface_type.set_properties(properties)
-            }
-        }
-    }
 }
 
 impl InterfaceTypeWithDeclaredMembersInterface for InterfaceType {
@@ -2712,7 +2439,10 @@ impl InterfaceTypeWithDeclaredMembersInterface for InterfaceType {
 }
 
 #[derive(Clone, Debug)]
-#[type_type(ancestors = "InterfaceType, ObjectType")]
+#[type_type(
+    ancestors = "InterfaceType, ObjectType",
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+)]
 pub struct BaseInterfaceType {
     _object_type: BaseObjectType,
     pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
@@ -2741,42 +2471,6 @@ impl BaseInterfaceType {
     }
 }
 
-impl ObjectFlagsTypeInterface for BaseInterfaceType {
-    fn object_flags(&self) -> ObjectFlags {
-        self._object_type.object_flags()
-    }
-
-    fn set_object_flags(&self, object_flags: ObjectFlags) {
-        self._object_type.set_object_flags(object_flags)
-    }
-}
-
-impl ObjectTypeInterface for BaseInterfaceType {}
-
-impl ResolvableTypeInterface for BaseInterfaceType {
-    fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
-        self._object_type.resolve(members, properties);
-    }
-
-    fn is_resolved(&self) -> bool {
-        self._object_type.is_resolved()
-    }
-}
-
-impl ResolvedTypeInterface for BaseInterfaceType {
-    fn members(&self) -> Rc<RefCell<SymbolTable>> {
-        self._object_type.members()
-    }
-
-    fn properties(&self) -> RefMut<Vec<Rc<Symbol>>> {
-        self._object_type.properties()
-    }
-
-    fn set_properties(&self, properties: Vec<Rc<Symbol>>) {
-        self._object_type.set_properties(properties);
-    }
-}
-
 impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
     fn maybe_declared_properties(&self) -> Ref<Option<Vec<Rc<Symbol>>>> {
         self.declared_properties.borrow()
@@ -2793,7 +2487,10 @@ pub trait InterfaceTypeWithDeclaredMembersInterface {
 }
 
 #[derive(Clone, Debug)]
-#[type_type(ancestors = "ObjectType")]
+#[type_type(
+    ancestors = "ObjectType",
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+)]
 pub struct TypeReference {
     _object_type: BaseObjectType,
     pub target: Rc<Type /*GenericType*/>,
@@ -2816,74 +2513,14 @@ impl TypeReference {
     }
 }
 
-impl ObjectFlagsTypeInterface for TypeReference {
-    fn object_flags(&self) -> ObjectFlags {
-        self._object_type.object_flags()
-    }
-
-    fn set_object_flags(&self, object_flags: ObjectFlags) {
-        self._object_type.set_object_flags(object_flags)
-    }
-}
-
-impl ObjectTypeInterface for TypeReference {}
-
-impl ResolvableTypeInterface for TypeReference {
-    fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
-        self._object_type.resolve(members, properties);
-    }
-
-    fn is_resolved(&self) -> bool {
-        self._object_type.is_resolved()
-    }
-}
-
-impl ResolvedTypeInterface for TypeReference {
-    fn members(&self) -> Rc<RefCell<SymbolTable>> {
-        self._object_type.members()
-    }
-
-    fn properties(&self) -> RefMut<Vec<Rc<Symbol>>> {
-        self._object_type.properties()
-    }
-
-    fn set_properties(&self, properties: Vec<Rc<Symbol>>) {
-        self._object_type.set_properties(properties);
-    }
-}
-
 pub trait UnionOrIntersectionTypeInterface: TypeInterface {
     fn types(&self) -> &[Rc<Type>];
 }
 
 #[derive(Clone, Debug)]
-#[type_type]
+#[type_type(interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface")]
 pub enum UnionOrIntersectionType {
     UnionType(UnionType),
-}
-
-impl UnionOrIntersectionTypeInterface for UnionOrIntersectionType {
-    fn types(&self) -> &[Rc<Type>] {
-        match self {
-            UnionOrIntersectionType::UnionType(union_type) => union_type.types(),
-        }
-    }
-}
-
-impl ObjectFlagsTypeInterface for UnionOrIntersectionType {
-    fn object_flags(&self) -> ObjectFlags {
-        match self {
-            UnionOrIntersectionType::UnionType(union_type) => union_type.object_flags(),
-        }
-    }
-
-    fn set_object_flags(&self, object_flags: ObjectFlags) {
-        match self {
-            UnionOrIntersectionType::UnionType(union_type) => {
-                union_type.set_object_flags(object_flags)
-            }
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -2921,7 +2558,10 @@ impl ObjectFlagsTypeInterface for BaseUnionOrIntersectionType {
 }
 
 #[derive(Clone, Debug)]
-#[type_type(ancestors = "UnionOrIntersectionType")]
+#[type_type(
+    ancestors = "UnionOrIntersectionType",
+    interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface"
+)]
 pub struct UnionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,
 }
@@ -2931,23 +2571,6 @@ impl UnionType {
         Self {
             _union_or_intersection_type: union_or_intersection_type,
         }
-    }
-}
-
-impl UnionOrIntersectionTypeInterface for UnionType {
-    fn types(&self) -> &[Rc<Type>] {
-        &self._union_or_intersection_type.types
-    }
-}
-
-impl ObjectFlagsTypeInterface for UnionType {
-    fn object_flags(&self) -> ObjectFlags {
-        self._union_or_intersection_type.object_flags()
-    }
-
-    fn set_object_flags(&self, object_flags: ObjectFlags) {
-        self._union_or_intersection_type
-            .set_object_flags(object_flags);
     }
 }
 

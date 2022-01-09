@@ -635,6 +635,101 @@ fn get_type_struct_interface_impl(
                 }
             }
         }
+        "IntrinsicTypeInterface" => {
+            quote! {
+                impl crate::IntrinsicTypeInterface for #type_type_name {
+                    fn intrinsic_name(&self) -> &str {
+                        self.#first_field_name.intrinsic_name()
+                    }
+                }
+            }
+        }
+        "LiteralTypeInterface" => {
+            quote! {
+                impl crate::LiteralTypeInterface for #type_type_name {
+                    fn fresh_type(&self) -> ::std::option::Option<&::std::rc::Weak<crate::Type>> {
+                        self.#first_field_name.fresh_type()
+                    }
+
+                    fn set_fresh_type(&self, fresh_type: &::std::rc::Rc<crate::Type>) {
+                        self.#first_field_name.set_fresh_type(fresh_type)
+                    }
+
+                    fn get_or_initialize_fresh_type(
+                        &self,
+                        type_checker: &crate::TypeChecker,
+                        wrapper: &::std::rc::Rc<crate::Type>,
+                    ) -> Rc<Type> {
+                        self.#first_field_name.get_or_initialize_fresh_type(type_checker, wrapper)
+                    }
+
+                    fn regular_type(&self) -> ::std::rc::Rc<crate::Type> {
+                        self.#first_field_name.regular_type()
+                    }
+
+                    fn set_regular_type(&self, regular_type: &::std::rc::Rc<crate::Type>) {
+                        self.#first_field_name.set_regular_type(regular_type)
+                    }
+                }
+            }
+        }
+        "ObjectFlagsTypeInterface" => {
+            quote! {
+                impl crate::ObjectFlagsTypeInterface for #type_type_name {
+                    fn object_flags(&self) -> crate::ObjectFlags {
+                        self.#first_field_name.object_flags()
+                    }
+
+                    fn set_object_flags(&self, object_flags: crate::ObjectFlags) {
+                        self.#first_field_name.set_object_flags(object_flags)
+                    }
+                }
+            }
+        }
+        "ObjectTypeInterface" => {
+            quote! {
+                impl crate::ObjectTypeInterface for #type_type_name {}
+            }
+        }
+        "ResolvableTypeInterface" => {
+            quote! {
+                impl crate::ResolvableTypeInterface for #type_type_name {
+                    fn resolve(&self, members: ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>) {
+                        self.#first_field_name.resolve(members, properties)
+                    }
+
+                    fn is_resolved(&self) -> bool {
+                        self.#first_field_name.is_resolved()
+                    }
+                }
+            }
+        }
+        "ResolvedTypeInterface" => {
+            quote! {
+                impl crate::ResolvedTypeInterface for #type_type_name {
+                    fn members(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
+                        self.#first_field_name.members()
+                    }
+
+                    fn properties(&self) -> ::std::cell::RefMut<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>> {
+                        self.#first_field_name.properties()
+                    }
+
+                    fn set_properties(&self, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>) {
+                        self.#first_field_name.set_properties(properties)
+                    }
+                }
+            }
+        }
+        "UnionOrIntersectionTypeInterface" => {
+            quote! {
+                impl crate::UnionOrIntersectionTypeInterface for #type_type_name {
+                    fn types(&self) -> &[::std::rc::Rc<crate::Type>] {
+                        self.#first_field_name.types()
+                    }
+                }
+            }
+        }
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
@@ -687,6 +782,129 @@ fn get_type_enum_interface_impl(
                     fn set_symbol(&mut self, symbol: ::std::rc::Rc<crate::Symbol>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
+                        }
+                    }
+                }
+            }
+        }
+        "IntrinsicTypeInterface" => {
+            quote! {
+                impl crate::IntrinsicTypeInterface for #type_type_name {
+                    fn intrinsic_name(&self) -> &str {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.intrinsic_name()),*
+                        }
+                    }
+                }
+            }
+        }
+        "LiteralTypeInterface" => {
+            quote! {
+                impl crate::LiteralTypeInterface for #type_type_name {
+                    fn fresh_type(&self) -> ::std::option::Option<&::std::rc::Weak<crate::Type>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.fresh_type()),*
+                        }
+                    }
+
+                    fn set_fresh_type(&self, fresh_type: &::std::rc::Rc<crate::Type>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_fresh_type(fresh_type)),*
+                        }
+                    }
+
+                    fn get_or_initialize_fresh_type(
+                        &self,
+                        type_checker: &crate::TypeChecker,
+                        wrapper: &::std::rc::Rc<crate::Type>,
+                    ) -> Rc<Type> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.get_or_initialize_fresh_type(type_checker, wrapper)),*
+                        }
+                    }
+
+                    fn regular_type(&self) -> ::std::rc::Rc<crate::Type> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.regular_type()),*
+                        }
+                    }
+
+                    fn set_regular_type(&self, regular_type: &::std::rc::Rc<crate::Type>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_regular_type(regular_type)),*
+                        }
+                    }
+                }
+            }
+        }
+        "ObjectFlagsTypeInterface" => {
+            quote! {
+                impl crate::ObjectFlagsTypeInterface for #type_type_name {
+                    fn object_flags(&self) -> crate::ObjectFlags {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.object_flags()),*
+                        }
+                    }
+
+                    fn set_object_flags(&self, object_flags: crate::ObjectFlags) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_object_flags(object_flags)),*
+                        }
+                    }
+                }
+            }
+        }
+        "ObjectTypeInterface" => {
+            quote! {
+                impl crate::ObjectTypeInterface for #type_type_name {}
+            }
+        }
+        "ResolvableTypeInterface" => {
+            quote! {
+                impl crate::ResolvableTypeInterface for #type_type_name {
+                    fn resolve(&self, members: ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties)),*
+                        }
+                    }
+
+                    fn is_resolved(&self) -> bool {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.is_resolved()),*
+                        }
+                    }
+                }
+            }
+        }
+        "ResolvedTypeInterface" => {
+            quote! {
+                impl crate::ResolvedTypeInterface for #type_type_name {
+                    fn members(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.members()),*
+                        }
+                    }
+
+                    fn properties(&self) -> ::std::cell::RefMut<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.properties()),*
+                        }
+                    }
+
+                    fn set_properties(&self, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_properties(properties)),*
+                        }
+                    }
+                }
+            }
+        }
+        "UnionOrIntersectionTypeInterface" => {
+            quote! {
+                impl crate::UnionOrIntersectionTypeInterface for #type_type_name {
+                    fn types(&self) -> &[::std::rc::Rc<crate::Type>] {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.types()),*
                         }
                     }
                 }
