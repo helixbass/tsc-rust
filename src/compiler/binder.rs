@@ -199,7 +199,7 @@ impl BinderType {
             None => unimplemented!(),
             Some(name) => {
                 if true {
-                    symbol = Some(Rc::new(self.create_symbol(SymbolFlags::None, name.clone())));
+                    symbol = Some(self.create_symbol(SymbolFlags::None, name.clone()).wrap());
                     symbol_table.insert(name, symbol.as_ref().unwrap().clone());
                 }
             }
@@ -380,7 +380,7 @@ impl BinderType {
         symbol_flags: SymbolFlags,
         name: __String,
     ) -> Rc<Symbol> {
-        let symbol = Rc::new(self.create_symbol(symbol_flags, name));
+        let symbol = self.create_symbol(symbol_flags, name).wrap();
         match &*self.file() {
             Node::SourceFile(source_file) => {
                 source_file.keep_strong_reference_to_symbol(symbol.clone());

@@ -324,7 +324,7 @@ impl TypeChecker {
         if let Some(value_declaration) = &*symbol.maybe_value_declaration() {
             result.set_value_declaration(value_declaration.upgrade().unwrap());
         }
-        Rc::new(result.into())
+        result.into()
     }
 
     pub(super) fn instantiate_type<TTypeRef: Borrow<Type>>(

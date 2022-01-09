@@ -1464,6 +1464,14 @@ pub enum Symbol {
     TransientSymbol(TransientSymbol),
 }
 
+impl Symbol {
+    pub fn wrap(self) -> Rc<Symbol> {
+        let rc = Rc::new(self);
+        rc.set_symbol_wrapper(rc.clone());
+        rc
+    }
+}
+
 #[derive(Debug)]
 pub struct BaseSymbol {
     _symbol_wrapper: RefCell<Option<Weak<Symbol>>>,
