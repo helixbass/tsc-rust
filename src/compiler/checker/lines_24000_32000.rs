@@ -218,7 +218,7 @@ impl TypeChecker {
                     | ObjectFlags::ObjectLiteral
                     | ObjectFlags::ContainsObjectOrArrayLiteral,
             );
-            Rc::new(result.into())
+            result.into()
         };
 
         create_object_literal_type()

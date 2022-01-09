@@ -165,10 +165,9 @@ impl TypeChecker {
                 )
                 .unwrap_or_else(|| vec![]),
             );
-            return Rc::new(
-                self.create_type_reference(&type_, Some(type_arguments))
-                    .into(),
-            );
+            return self
+                .create_type_reference(&type_, Some(type_arguments))
+                .into();
         }
         if self.check_no_type_arguments(node, symbol) {
             type_
@@ -451,14 +450,14 @@ impl TypeChecker {
             });
             let object_flags_to_set =
                 object_flags | self.get_propagating_flags_of_types(&types, TypeFlags::Nullable);
-            type_ = Some(Rc::new(
+            type_ = Some(
                 UnionType::new(BaseUnionOrIntersectionType::new(
                     base_type,
                     types,
                     object_flags_to_set,
                 ))
                 .into(),
-            ));
+            );
             // TODO: also treat union type as intrinsic type with intrinsic_name = "boolean" if
             // is_boolean - should expose maybe_intrinsic_name on UnionType or something?
         }

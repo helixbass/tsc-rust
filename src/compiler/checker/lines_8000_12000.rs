@@ -326,13 +326,13 @@ impl TypeChecker {
                     )),
                     outer_type_parameters,
                     local_type_parameters,
-                    Some(Rc::new(this_type.into())),
+                    Some(this_type.into()),
                 )
             } else {
                 BaseInterfaceType::new(type_, None, None, None, None)
             }
             .into();
-            let type_rc = Rc::new(type_.into());
+            let type_rc: Rc<Type> = type_.into();
             match &*type_rc {
                 Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
                     base_interface_type,
@@ -360,7 +360,7 @@ impl TypeChecker {
         let links = self.get_symbol_links(&symbol);
         let mut links = links.borrow_mut();
         if links.declared_type.is_none() {
-            links.declared_type = Some(Rc::new(self.create_type_parameter(Some(symbol)).into()));
+            links.declared_type = Some(self.create_type_parameter(Some(symbol)).into());
         }
         links.declared_type.clone().unwrap()
     }

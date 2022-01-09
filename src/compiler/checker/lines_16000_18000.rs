@@ -25,7 +25,7 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
-        let type_: Rc<Type> = Rc::new(StringLiteralType::new(type_, value).into());
+        let type_: Rc<Type> = StringLiteralType::new(type_, value).into();
         match &*type_ {
             Type::LiteralType(literal_type) => {
                 literal_type.set_regular_type(&if let Some(regular_type) = regular_type {
@@ -47,7 +47,7 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
-        let type_: Rc<Type> = Rc::new(NumberLiteralType::new(type_, value).into());
+        let type_: Rc<Type> = NumberLiteralType::new(type_, value).into();
         match &*type_ {
             Type::LiteralType(literal_type) => {
                 literal_type.set_regular_type(&if let Some(regular_type) = regular_type {
