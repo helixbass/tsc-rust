@@ -50,7 +50,7 @@ impl AstTypeArgs {
     }
 }
 
-fn get_struct_interface_impl(
+fn get_ast_struct_interface_impl(
     interface_name: &str,
     first_field_name: &Ident,
     ast_type_name: &Ident,
@@ -233,7 +233,7 @@ fn get_struct_interface_impl(
     }
 }
 
-fn get_enum_interface_impl(
+fn get_ast_enum_interface_impl(
     interface_name: &str,
     variant_names: &[&Ident],
     ast_type_name: &Ident,
@@ -469,7 +469,7 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
             let mut interface_impls: TokenStream2 = quote! {};
             for interface in args.interfaces_vec() {
                 let interface_impl =
-                    get_struct_interface_impl(&interface, &first_field_name, &ast_type_name);
+                    get_ast_struct_interface_impl(&interface, &first_field_name, &ast_type_name);
                 interface_impls = quote! {
                     #interface_impls
 
@@ -488,7 +488,7 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
             let mut interface_impls: TokenStream2 = quote! {};
             for interface in args.interfaces_vec() {
                 let interface_impl =
-                    get_enum_interface_impl(&interface, &variant_names, &ast_type_name);
+                    get_ast_enum_interface_impl(&interface, &variant_names, &ast_type_name);
                 interface_impls = quote! {
                     #interface_impls
 
@@ -545,6 +545,266 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
         #item_as_proc_macro2_token_stream
 
         #node_interface_and_readonly_text_range_implementation
+
+        #into_implementations
+    }
+    .into()
+}
+
+#[derive(Debug, FromMeta)]
+struct TypeTypeArgs {
+    #[darling(default)]
+    ancestors: Option<String>,
+    #[darling(default)]
+    impl_from: Option<bool>,
+    #[darling(default)]
+    interfaces: Option<String>,
+}
+
+impl TypeTypeArgs {
+    fn ancestors_vec(&self) -> Vec<String> {
+        let mut vec = self.ancestors.as_ref().map_or_else(
+            || vec![],
+            |ancestors_str| {
+                ancestors_str
+                    .split(",")
+                    .into_iter()
+                    .map(|chunk| chunk.trim().to_string())
+                    .collect()
+            },
+        );
+        vec.push("Type".to_string());
+        vec
+    }
+
+    fn should_impl_from(&self) -> bool {
+        self.impl_from.unwrap_or(true)
+    }
+
+    fn interfaces_vec(&self) -> Vec<String> {
+        let mut vec = vec!["TypeInterface".to_string()];
+        if let Some(interfaces_str) = self.interfaces.as_ref() {
+            vec.append(
+                &mut interfaces_str
+                    .split(",")
+                    .into_iter()
+                    .map(|chunk| chunk.trim().to_string())
+                    .collect(),
+            );
+        }
+        vec
+    }
+}
+
+fn get_type_struct_interface_impl(
+    interface_name: &str,
+    first_field_name: &Ident,
+    type_type_name: &Ident,
+) -> TokenStream2 {
+    match interface_name {
+        "TypeInterface" => {
+            quote! {
+                impl crate::TypeInterface for #type_type_name {
+                    fn type_wrapper(&self) -> ::std::rc::Rc<crate::Type> {
+                        self.#first_field_name.type_wrapper()
+                    }
+
+                    fn set_type_wrapper(&self, wrapper: ::std::rc::Rc<crate::Type>) {
+                        self.#first_field_name.set_type_wrapper(wrapper)
+                    }
+
+                    fn flags(&self) -> crate::TypeFlags {
+                        self.#first_field_name.flags()
+                    }
+
+                    fn id(&self) -> crate::TypeId {
+                        self.#first_field_name.id()
+                    }
+
+                    fn maybe_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        self.#first_field_name.maybe_symbol()
+                    }
+
+                    fn symbol(&self) -> ::std::rc::Rc<crate::Symbol> {
+                        self.#first_field_name.symbol()
+                    }
+
+                    fn set_symbol(&mut self, symbol: ::std::rc::Rc<crate::Symbol>) {
+                        self.#first_field_name.set_symbol(symbol)
+                    }
+                }
+            }
+        }
+        _ => panic!("Unknown interface: {}", interface_name),
+    }
+}
+
+fn get_type_enum_interface_impl(
+    interface_name: &str,
+    variant_names: &[&Ident],
+    type_type_name: &Ident,
+) -> TokenStream2 {
+    match interface_name {
+        "TypeInterface" => {
+            quote! {
+                impl crate::TypeInterface for #type_type_name {
+                    fn type_wrapper(&self) -> ::std::rc::Rc<crate::Type> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.type_wrapper()),*
+                        }
+                    }
+
+                    fn set_type_wrapper(&self, wrapper: ::std::rc::Rc<crate::Type>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_type_wrapper(wrapper)),*
+                        }
+                    }
+
+                    fn flags(&self) -> crate::TypeFlags {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.flags()),*
+                        }
+                    }
+
+                    fn id(&self) -> crate::TypeId {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.id()),*
+                        }
+                    }
+
+                    fn maybe_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_symbol()),*
+                        }
+                    }
+
+                    fn symbol(&self) -> ::std::rc::Rc<crate::Symbol> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.symbol()),*
+                        }
+                    }
+
+                    fn set_symbol(&mut self, symbol: ::std::rc::Rc<crate::Symbol>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
+                        }
+                    }
+                }
+            }
+        }
+        _ => panic!("Unknown interface: {}", interface_name),
+    }
+}
+
+#[proc_macro_attribute]
+pub fn type_type(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let item_for_parsing = item.clone();
+    let DeriveInput {
+        ident: type_type_name,
+        data,
+        ..
+    } = parse_macro_input!(item_for_parsing);
+
+    let attr_args = parse_macro_input!(attr as AttributeArgs);
+    let args = match TypeTypeArgs::from_list(&attr_args) {
+        Ok(args) => args,
+        Err(error) => {
+            return TokenStream::from(error.write_errors());
+        }
+    };
+
+    let type_interface_implementation = match data {
+        Struct(struct_) => {
+            let first_field_name = match struct_.fields {
+                Fields::Named(FieldsNamed { named, .. }) => named
+                    .iter()
+                    .nth(0)
+                    .expect("Expected at least one struct field")
+                    .ident
+                    .clone()
+                    .expect("Expected ident"),
+                _ => panic!("Expected named fields"),
+            };
+
+            let mut interface_impls: TokenStream2 = quote! {};
+            for interface in args.interfaces_vec() {
+                let interface_impl =
+                    get_type_struct_interface_impl(&interface, &first_field_name, &type_type_name);
+                interface_impls = quote! {
+                    #interface_impls
+
+                    #interface_impl
+                };
+            }
+
+            interface_impls
+        }
+        Enum(DataEnum { variants, .. }) => {
+            let variant_names = variants
+                .iter()
+                .map(|variant| &variant.ident)
+                .collect::<Vec<_>>();
+
+            let mut interface_impls: TokenStream2 = quote! {};
+            for interface in args.interfaces_vec() {
+                let interface_impl =
+                    get_type_enum_interface_impl(&interface, &variant_names, &type_type_name);
+                interface_impls = quote! {
+                    #interface_impls
+
+                    #interface_impl
+                };
+            }
+
+            interface_impls
+        }
+        _ => panic!("Expected struct or enum"),
+    };
+
+    let into_implementations = if args.should_impl_from() {
+        let mut construct_variant = quote! {
+            concrete
+        };
+        let mut previous_variant_name = type_type_name.clone();
+        let mut into_implementations = quote! {};
+        for ancestor in args.ancestors_vec() {
+            let ancestor_ident = Ident::new(&ancestor, previous_variant_name.span());
+            construct_variant = quote! {
+                crate::#ancestor_ident::#previous_variant_name(#construct_variant)
+            };
+            into_implementations = quote! {
+                #into_implementations
+
+                impl ::std::convert::From<#type_type_name> for crate::#ancestor_ident {
+                    fn from(concrete: #type_type_name) -> Self {
+                        #construct_variant
+                    }
+                }
+            };
+            previous_variant_name = ancestor_ident;
+        }
+
+        quote! {
+            #into_implementations
+
+            impl ::std::convert::From<#type_type_name> for ::std::rc::Rc<crate::Type> {
+                fn from(concrete: #type_type_name) -> Self {
+                    let rc = ::std::rc::Rc::new(#construct_variant);
+                    crate::TypeInterface::set_type_wrapper(&*rc, rc.clone());
+                    rc
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    let item_as_proc_macro2_token_stream = proc_macro2::TokenStream::from(item);
+
+    quote! {
+        #item_as_proc_macro2_token_stream
+
+        #type_interface_implementation
 
         #into_implementations
     }
