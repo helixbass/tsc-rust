@@ -1598,27 +1598,9 @@ pub trait TransientSymbolInterface: SymbolInterface {
 }
 
 #[derive(Debug)]
-#[symbol_type]
+#[symbol_type(interfaces = "TransientSymbolInterface")]
 pub enum TransientSymbol {
     BaseTransientSymbol(BaseTransientSymbol),
-}
-
-impl TransientSymbolInterface for TransientSymbol {
-    fn symbol_links(&self) -> Rc<RefCell<SymbolLinks>> {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.symbol_links()
-            }
-        }
-    }
-
-    fn check_flags(&self) -> CheckFlags {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.check_flags()
-            }
-        }
-    }
 }
 
 #[derive(Debug)]

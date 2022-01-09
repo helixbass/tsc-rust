@@ -1139,6 +1139,19 @@ fn get_symbol_struct_interface_impl(
                 }
             }
         }
+        "TransientSymbolInterface" => {
+            quote! {
+                impl crate::TransientSymbolInterface for #symbol_type_name {
+                    fn symbol_links(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolLinks>> {
+                        self.#first_field_name.symbol_links()
+                    }
+
+                    fn check_flags(&self) -> crate::CheckFlags {
+                        self.#first_field_name.check_flags()
+                    }
+                }
+            }
+        }
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
@@ -1233,6 +1246,23 @@ fn get_symbol_enum_interface_impl(
                     fn set_id(&self, id: crate::SymbolId) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_id(id)),*
+                        }
+                    }
+                }
+            }
+        }
+        "TransientSymbolInterface" => {
+            quote! {
+                impl crate::TransientSymbolInterface for #symbol_type_name {
+                    fn symbol_links(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolLinks>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.symbol_links()),*
+                        }
+                    }
+
+                    fn check_flags(&self) -> crate::CheckFlags {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.check_flags()),*
                         }
                     }
                 }
