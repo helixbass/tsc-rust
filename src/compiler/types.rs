@@ -2168,11 +2168,7 @@ impl FreshableIntrinsicType {
 pub trait LiteralTypeInterface: TypeInterface {
     fn fresh_type(&self) -> Option<&Weak<Type>>;
     fn set_fresh_type(&self, fresh_type: &Rc<Type>);
-    fn get_or_initialize_fresh_type(
-        &self,
-        type_checker: &TypeChecker,
-        wrapper: &Rc<Type>,
-    ) -> Rc<Type>;
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type>;
     fn regular_type(&self) -> Rc<Type>;
     fn set_regular_type(&self, regular_type: &Rc<Type>);
 }
@@ -2211,11 +2207,7 @@ impl LiteralTypeInterface for BaseLiteralType {
         self.fresh_type.init(fresh_type, false);
     }
 
-    fn get_or_initialize_fresh_type(
-        &self,
-        type_checker: &TypeChecker,
-        wrapper: &Rc<Type>,
-    ) -> Rc<Type> {
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type> {
         panic!("Shouldn't call get_or_initialize_fresh_type() on base BaseLiteralType");
     }
 
@@ -2229,7 +2221,7 @@ impl LiteralTypeInterface for BaseLiteralType {
 }
 
 #[derive(Clone, Debug)]
-#[type_type(ancestors = "LiteralType", interfaces = "LiteralTypeInterface")]
+#[type_type(ancestors = "LiteralType")]
 pub struct StringLiteralType {
     _literal_type: BaseLiteralType,
     pub value: String,
@@ -2243,15 +2235,11 @@ impl StringLiteralType {
         }
     }
 
-    fn create_fresh_type_from_self(
-        &self,
-        type_checker: &TypeChecker,
-        wrapper: &Rc<Type>,
-    ) -> Rc<Type> {
+    fn create_fresh_type_from_self(&self, type_checker: &TypeChecker) -> Rc<Type> {
         let fresh_type = type_checker.create_string_literal_type(
             self.flags(),
             self.value.clone(),
-            Some(wrapper.clone()),
+            Some(self.type_wrapper()),
         );
         match &*fresh_type {
             Type::LiteralType(literal_type) => {
@@ -2265,8 +2253,35 @@ impl StringLiteralType {
     }
 }
 
+impl LiteralTypeInterface for StringLiteralType {
+    fn fresh_type(&self) -> Option<&Weak<Type>> {
+        self._literal_type.fresh_type()
+    }
+
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+        self._literal_type.set_fresh_type(fresh_type);
+    }
+
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type> {
+        if self.fresh_type().is_none() {
+            let fresh_type = self.create_fresh_type_from_self(type_checker);
+            self.set_fresh_type(&fresh_type);
+            return self.fresh_type().unwrap().upgrade().unwrap();
+        }
+        return self.fresh_type().unwrap().upgrade().unwrap();
+    }
+
+    fn regular_type(&self) -> Rc<Type> {
+        self._literal_type.regular_type()
+    }
+
+    fn set_regular_type(&self, regular_type: &Rc<Type>) {
+        self._literal_type.set_regular_type(regular_type);
+    }
+}
+
 #[derive(Clone, Debug)]
-#[type_type(ancestors = "LiteralType", interfaces = "LiteralTypeInterface")]
+#[type_type(ancestors = "LiteralType")]
 pub struct NumberLiteralType {
     _literal_type: BaseLiteralType,
     pub value: Number,
@@ -2280,15 +2295,11 @@ impl NumberLiteralType {
         }
     }
 
-    fn create_fresh_type_from_self(
-        &self,
-        type_checker: &TypeChecker,
-        wrapper: &Rc<Type>,
-    ) -> Rc<Type> {
+    fn create_fresh_type_from_self(&self, type_checker: &TypeChecker) -> Rc<Type> {
         let fresh_type = type_checker.create_number_literal_type(
             self.flags(),
             self.value,
-            Some(wrapper.clone()),
+            Some(self.type_wrapper()),
         );
         match &*fresh_type {
             Type::LiteralType(literal_type) => {
@@ -2299,6 +2310,33 @@ impl NumberLiteralType {
         self.set_fresh_type(&fresh_type);
         type_checker.keep_strong_reference_to_type(fresh_type);
         self.fresh_type().unwrap().upgrade().unwrap()
+    }
+}
+
+impl LiteralTypeInterface for NumberLiteralType {
+    fn fresh_type(&self) -> Option<&Weak<Type>> {
+        self._literal_type.fresh_type()
+    }
+
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+        self._literal_type.set_fresh_type(fresh_type);
+    }
+
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type> {
+        if self.fresh_type().is_none() {
+            let fresh_type = self.create_fresh_type_from_self(type_checker);
+            self.set_fresh_type(&fresh_type);
+            return self.fresh_type().unwrap().upgrade().unwrap();
+        }
+        return self.fresh_type().unwrap().upgrade().unwrap();
+    }
+
+    fn regular_type(&self) -> Rc<Type> {
+        self._literal_type.regular_type()
+    }
+
+    fn set_regular_type(&self, regular_type: &Rc<Type>) {
+        self._literal_type.set_regular_type(regular_type);
     }
 }
 
@@ -2621,7 +2659,7 @@ pub struct TypeMapperArray {
 
 #[derive(Clone)]
 pub struct TypeMapperFunction {
-    pub func: fn(&TypeChecker, Rc<Type>) -> Rc<Type>,
+    pub func: fn(&TypeChecker, &Type) -> Rc<Type>,
 }
 
 impl fmt::Debug for TypeMapperFunction {
@@ -2645,7 +2683,7 @@ impl TypeMapper {
         Self::Array(TypeMapperArray { sources, targets })
     }
 
-    pub fn new_function(func: fn(&TypeChecker, Rc<Type>) -> Rc<Type>) -> Self {
+    pub fn new_function(func: fn(&TypeChecker, &Type) -> Rc<Type>) -> Self {
         Self::Function(TypeMapperFunction { func })
     }
 

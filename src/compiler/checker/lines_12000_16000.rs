@@ -12,11 +12,11 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_apparent_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_apparent_type(&self, type_: &Type) -> Rc<Type> {
         let t = if type_.flags().intersects(TypeFlags::Instantiable) {
             unimplemented!()
         } else {
-            type_
+            type_.type_wrapper()
         };
         if false {
             unimplemented!()
@@ -25,22 +25,18 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_reduced_apparent_type(&self, type_: Rc<Type>) -> Rc<Type> {
-        self.get_reduced_type(self.get_apparent_type(self.get_reduced_type(type_)))
+    pub(super) fn get_reduced_apparent_type(&self, type_: &Type) -> Rc<Type> {
+        self.get_reduced_type(&self.get_apparent_type(&self.get_reduced_type(type_)))
     }
 
-    pub(super) fn get_reduced_type(&self, type_: Rc<Type>) -> Rc<Type> {
-        type_
+    pub(super) fn get_reduced_type(&self, type_: &Type) -> Rc<Type> {
+        type_.type_wrapper()
     }
 
-    pub(super) fn get_property_of_type(
-        &self,
-        type_: Rc<Type>,
-        name: &__String,
-    ) -> Option<Rc<Symbol>> {
+    pub(super) fn get_property_of_type(&self, type_: &Type, name: &__String) -> Option<Rc<Symbol>> {
         let type_ = self.get_reduced_apparent_type(type_);
         if type_.flags().intersects(TypeFlags::Object) {
-            let resolved = self.resolve_structured_type_members(type_);
+            let resolved = self.resolve_structured_type_members(&type_);
             let symbol = (*resolved.as_resolved_type().members())
                 .borrow()
                 .get(name)
@@ -82,7 +78,7 @@ impl TypeChecker {
 
     pub(super) fn create_type_reference(
         &self,
-        target: Rc<Type /*GenericType*/>,
+        target: &Type, /*GenericType*/
         type_arguments: Option<Vec<Rc<Type>>>,
     ) -> TypeReference {
         let type_ = self.create_object_type(ObjectFlags::Reference, target.symbol());
@@ -94,7 +90,7 @@ impl TypeChecker {
                     ObjectFlags::None
                 },
         );
-        let type_ = TypeReference::new(type_, target, type_arguments);
+        let type_ = TypeReference::new(type_, target.type_wrapper(), type_arguments);
         type_
     }
 
@@ -170,7 +166,7 @@ impl TypeChecker {
                 .unwrap_or_else(|| vec![]),
             );
             return Rc::new(
-                self.create_type_reference(type_, Some(type_arguments))
+                self.create_type_reference(&type_, Some(type_arguments))
                     .into(),
             );
         }
@@ -236,7 +232,7 @@ impl TypeChecker {
         let res = self.try_get_declared_type_of_symbol(symbol.clone());
         if let Some(res) = res {
             return if self.check_no_type_arguments(node, symbol) {
-                self.get_regular_type_of_literal_type(res)
+                self.get_regular_type_of_literal_type(&res)
             } else {
                 unimplemented!()
             };
@@ -244,12 +240,8 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn get_conditional_flow_type_of_type(
-        &self,
-        type_: Rc<Type>,
-        node: &Node,
-    ) -> Rc<Type> {
-        type_
+    pub(super) fn get_conditional_flow_type_of_type(&self, type_: &Type, node: &Node) -> Rc<Type> {
+        type_.type_wrapper()
     }
 
     pub(super) fn check_no_type_arguments<TNode: NodeInterface>(
@@ -356,34 +348,34 @@ impl TypeChecker {
             unimplemented!()
         } else {
             let element_types = vec![self.get_type_from_type_node(&*node.element_type)];
-            return self.create_normalized_type_reference(target, Some(element_types));
+            return self.create_normalized_type_reference(&target, Some(element_types));
         }
     }
 
     pub(super) fn create_normalized_type_reference(
         &self,
-        target: Rc<Type /*GenericType*/>,
+        target: &Type, /*GenericType*/
         type_arguments: Option<Vec<Rc<Type>>>,
     ) -> Rc<Type> {
         unimplemented!()
     }
 
-    pub(super) fn get_type_id(&self, type_: Rc<Type>) -> TypeId {
+    pub(super) fn get_type_id(&self, type_: &Type) -> TypeId {
         type_.id()
     }
 
-    pub(super) fn contains_type(&self, types: &[Rc<Type>], type_: Rc<Type>) -> bool {
+    pub(super) fn contains_type(&self, types: &[Rc<Type>], type_: &Type) -> bool {
         /*binary_search(...)*/
         types
             .iter()
-            .any(|t| self.get_type_id(t.clone()) == self.get_type_id(type_.clone()))
+            .any(|t| self.get_type_id(&t) == self.get_type_id(type_))
     }
 
     pub(super) fn add_type_to_union(
         &self,
         type_set: &mut Vec<Rc<Type>>,
         mut includes: TypeFlags,
-        type_: Rc<Type>,
+        type_: &Type,
     ) -> TypeFlags {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::Union) {
@@ -397,7 +389,7 @@ impl TypeChecker {
             if false {
                 unimplemented!()
             } else {
-                type_set.push(type_);
+                type_set.push(type_.type_wrapper());
             }
         }
         includes
@@ -410,7 +402,7 @@ impl TypeChecker {
         types: &[Rc<Type>],
     ) -> TypeFlags {
         for type_ in types {
-            includes = self.add_type_to_union(type_set, includes, type_.clone());
+            includes = self.add_type_to_union(type_set, includes, &type_);
         }
         includes
     }
@@ -535,8 +527,8 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn get_property_name_from_index(&self, index_type: Rc<Type>) -> Option<__String> {
-        if self.is_type_usable_as_property_name(index_type.clone()) {
+    pub(super) fn get_property_name_from_index(&self, index_type: &Type) -> Option<__String> {
+        if self.is_type_usable_as_property_name(index_type) {
             Some(self.get_property_name_from_type(index_type))
         } else {
             unimplemented!()
@@ -545,10 +537,10 @@ impl TypeChecker {
 
     pub(super) fn get_property_type_for_index_type(
         &self,
-        original_object_type: Rc<Type>,
-        object_type: Rc<Type>,
-        index_type: Rc<Type>,
-        full_index_type: Rc<Type>,
+        original_object_type: &Type,
+        object_type: &Type,
+        index_type: &Type,
+        full_index_type: &Type,
     ) -> Option<Rc<Type>> {
         let prop_name = if false {
             unimplemented!()
@@ -571,15 +563,15 @@ impl TypeChecker {
 
     pub(super) fn get_indexed_access_type_or_undefined(
         &self,
-        object_type: Rc<Type>,
-        index_type: Rc<Type>,
+        object_type: &Type,
+        index_type: &Type,
     ) -> Option<Rc<Type>> {
-        let apparent_object_type = self.get_reduced_apparent_type(object_type.clone());
+        let apparent_object_type = self.get_reduced_apparent_type(object_type);
         self.get_property_type_for_index_type(
             object_type,
-            apparent_object_type,
-            index_type.clone(),
-            index_type.clone(),
+            &apparent_object_type,
+            index_type,
+            index_type,
         )
     }
 }

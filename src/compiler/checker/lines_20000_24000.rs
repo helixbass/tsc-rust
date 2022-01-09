@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
@@ -52,7 +53,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_base_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_base_type_of_literal_type(&self, type_: &Type) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::EnumLiteral) {
             unimplemented!()
         } else if type_.flags().intersects(TypeFlags::StringLiteral) {
@@ -71,29 +72,21 @@ impl TypeChecker {
             )
             .unwrap()
         } else {
-            type_
+            type_.type_wrapper()
         }
     }
 
-    pub(super) fn get_widened_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_widened_literal_type(&self, type_: &Type) -> Rc<Type> {
         let flags = type_.flags();
-        if flags.intersects(TypeFlags::EnumLiteral) && self.is_fresh_literal_type(type_.clone()) {
+        if flags.intersects(TypeFlags::EnumLiteral) && self.is_fresh_literal_type(type_) {
             unimplemented!()
-        } else if flags.intersects(TypeFlags::StringLiteral)
-            && self.is_fresh_literal_type(type_.clone())
-        {
+        } else if flags.intersects(TypeFlags::StringLiteral) && self.is_fresh_literal_type(type_) {
             unimplemented!()
-        } else if flags.intersects(TypeFlags::NumberLiteral)
-            && self.is_fresh_literal_type(type_.clone())
-        {
+        } else if flags.intersects(TypeFlags::NumberLiteral) && self.is_fresh_literal_type(type_) {
             self.number_type()
-        } else if flags.intersects(TypeFlags::BigIntLiteral)
-            && self.is_fresh_literal_type(type_.clone())
-        {
+        } else if flags.intersects(TypeFlags::BigIntLiteral) && self.is_fresh_literal_type(type_) {
             self.bigint_type()
-        } else if flags.intersects(TypeFlags::BooleanLiteral)
-            && self.is_fresh_literal_type(type_.clone())
-        {
+        } else if flags.intersects(TypeFlags::BooleanLiteral) && self.is_fresh_literal_type(type_) {
             self.boolean_type()
         } else if flags.intersects(TypeFlags::Union) {
             self.map_type(
@@ -103,56 +96,57 @@ impl TypeChecker {
             )
             .unwrap()
         } else {
-            type_
+            type_.type_wrapper()
         }
     }
 
-    pub(super) fn get_widened_unique_es_symbol_type(&self, type_: Rc<Type>) -> Rc<Type> {
-        type_
+    pub(super) fn get_widened_unique_es_symbol_type(&self, type_: &Type) -> Rc<Type> {
+        type_.type_wrapper()
     }
 
-    pub(super) fn get_widened_literal_like_type_for_contextual_type(
+    pub(super) fn get_widened_literal_like_type_for_contextual_type<TTypeRef: Borrow<Type>>(
         &self,
-        mut type_: Rc<Type>,
-        contextual_type: Option<Rc<Type>>,
+        type_: &Type,
+        contextual_type: Option<TTypeRef>,
     ) -> Rc<Type> {
-        if !self.is_literal_of_contextual_type(type_.clone(), contextual_type) {
-            type_ = self.get_widened_unique_es_symbol_type(self.get_widened_literal_type(type_));
+        let mut type_ = type_.type_wrapper();
+        if !self.is_literal_of_contextual_type(&type_, contextual_type) {
+            type_ = self.get_widened_unique_es_symbol_type(&self.get_widened_literal_type(&type_));
         }
         type_
     }
 
-    pub(super) fn get_optional_type(&self, type_: Rc<Type>, is_property: Option<bool>) -> Rc<Type> {
+    pub(super) fn get_optional_type(&self, type_: &Type, is_property: Option<bool>) -> Rc<Type> {
         let is_property = is_property.unwrap_or(false);
         Debug_.assert(self.strict_null_checks, None);
         if type_.flags().intersects(TypeFlags::Undefined) {
-            type_
+            type_.type_wrapper()
         } else {
             unimplemented!()
         }
     }
 
-    pub(super) fn remove_missing_type(&self, type_: Rc<Type>, is_optional: bool) -> Rc<Type> {
+    pub(super) fn remove_missing_type(&self, type_: &Type, is_optional: bool) -> Rc<Type> {
         if self.exact_optional_property_types && is_optional {
             unimplemented!()
         } else {
-            type_
+            type_.type_wrapper()
         }
     }
 
-    pub(super) fn get_regular_type_of_object_literal(&self, type_: Rc<Type>) -> Rc<Type> {
-        type_
+    pub(super) fn get_regular_type_of_object_literal(&self, type_: &Type) -> Rc<Type> {
+        type_.type_wrapper()
     }
 
-    pub(super) fn get_widened_type(&self, type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_widened_type(&self, type_: &Type) -> Rc<Type> {
         self.get_widened_type_with_context(type_)
     }
 
-    pub(super) fn get_widened_type_with_context(&self, type_: Rc<Type>) -> Rc<Type> {
-        type_
+    pub(super) fn get_widened_type_with_context(&self, type_: &Type) -> Rc<Type> {
+        type_.type_wrapper()
     }
 
-    pub(super) fn could_contain_type_variables(&self, type_: Rc<Type>) -> bool {
+    pub(super) fn could_contain_type_variables(&self, type_: &Type) -> bool {
         let object_flags = get_object_flags(&type_);
         if object_flags.intersects(ObjectFlags::CouldContainTypeVariablesComputed) {
             return object_flags.intersects(ObjectFlags::CouldContainTypeVariables);
@@ -173,8 +167,8 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn is_object_literal_type(&self, type_: Rc<Type>) -> bool {
-        get_object_flags(&*type_).intersects(ObjectFlags::ObjectLiteral)
+    pub(super) fn is_object_literal_type(&self, type_: &Type) -> bool {
+        get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral)
     }
 
     pub(super) fn get_cannot_find_name_diagnostic_for_name(
@@ -217,30 +211,26 @@ impl TypeChecker {
         links_ref.resolved_symbol.clone().unwrap()
     }
 
-    pub(super) fn filter_type(
-        &self,
-        type_: Rc<Type>,
-        f: fn(&TypeChecker, Rc<Type>) -> bool,
-    ) -> Rc<Type> {
+    pub(super) fn filter_type(&self, type_: &Type, f: fn(&TypeChecker, &Type) -> bool) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Union) {
             unimplemented!()
         }
-        if type_.flags().intersects(TypeFlags::Never) || f(self, type_.clone()) {
-            type_
+        if type_.flags().intersects(TypeFlags::Never) || f(self, type_) {
+            type_.type_wrapper()
         } else {
             self.never_type()
         }
     }
 
-    pub(super) fn map_type<TMapper: FnMut(Rc<Type>) -> Option<Rc<Type>>>(
+    pub(super) fn map_type<TMapper: FnMut(&Type) -> Option<Rc<Type>>>(
         &self,
-        type_: Rc<Type>,
+        type_: &Type,
         mapper: &mut TMapper,
         no_reductions: Option<bool>,
     ) -> Option<Rc<Type>> {
         let no_reductions = no_reductions.unwrap_or(false);
         if type_.flags().intersects(TypeFlags::Never) {
-            return Some(type_);
+            return Some(type_.type_wrapper());
         }
         if !type_.flags().intersects(TypeFlags::Union) {
             return mapper(type_);
@@ -250,9 +240,9 @@ impl TypeChecker {
         let mut changed = false;
         for t in types {
             let mapped = if t.flags().intersects(TypeFlags::Union) {
-                self.map_type(t.clone(), mapper, Some(no_reductions))
+                self.map_type(&t, mapper, Some(no_reductions))
             } else {
-                mapper(t.clone())
+                mapper(&t)
             };
             changed = changed
                 || match mapped.as_ref() {
@@ -277,11 +267,11 @@ impl TypeChecker {
                 None
             }
         } else {
-            Some(type_)
+            Some(type_.type_wrapper())
         }
     }
 
-    pub(super) fn get_constituent_count(&self, type_: Rc<Type>) -> usize {
+    pub(super) fn get_constituent_count(&self, type_: &Type) -> usize {
         if type_.flags().intersects(TypeFlags::Union) {
             type_.as_union_or_intersection_type().types().len()
         } else {

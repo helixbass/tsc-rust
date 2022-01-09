@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -67,7 +68,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_property_of_contextual_type(
         &self,
-        type_: Rc<Type>,
+        type_: &Type,
         name: &__String,
     ) -> Option<Rc<Type>> {
         self.map_type(
@@ -118,7 +119,7 @@ impl TypeChecker {
         if let Some(type_) = type_ {
             if self.has_bindable_name(element) {
                 return self.get_type_of_property_of_contextual_type(
-                    type_,
+                    &type_,
                     self.get_symbol_of_node(element).unwrap().escaped_name(),
                 );
             }
@@ -141,7 +142,7 @@ impl TypeChecker {
             if true {
                 let apparent_type = self
                     .map_type(
-                        instantiated_type,
+                        &instantiated_type,
                         &mut |type_| Some(self.get_apparent_type(type_)),
                         Some(true),
                     )
@@ -160,15 +161,15 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn instantiate_contextual_type<TNode: NodeInterface>(
+    pub(super) fn instantiate_contextual_type<TTypeRef: Borrow<Type>, TNode: NodeInterface>(
         &self,
-        contextual_type: Option<Rc<Type>>,
+        contextual_type: Option<TTypeRef>,
         node: &TNode,
     ) -> Option<Rc<Type>> {
         if false {
             unimplemented!()
         }
-        contextual_type
+        contextual_type.map(|contextual_type| contextual_type.borrow().type_wrapper())
     }
 
     pub(super) fn get_contextual_type<TNode: NodeInterface>(
@@ -225,7 +226,7 @@ impl TypeChecker {
 
     pub(super) fn is_known_property(
         &self,
-        target_type: Rc<Type>,
+        target_type: &Type,
         name: &__String,
         is_comparing_jsx_attributes: bool,
     ) -> bool {
@@ -247,9 +248,9 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn is_excess_property_check_target(&self, type_: Rc<Type>) -> bool {
+    pub(super) fn is_excess_property_check_target(&self, type_: &Type) -> bool {
         (type_.flags().intersects(TypeFlags::Object)
-            && !(get_object_flags(&*type_)
+            && !(get_object_flags(type_)
                 .intersects(ObjectFlags::ObjectLiteralPatternWithComputedProperties)))
             || type_.flags().intersects(TypeFlags::NonPrimitive)
             || (type_.flags().intersects(TypeFlags::Union) && unimplemented!())

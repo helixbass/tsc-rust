@@ -15,8 +15,8 @@ use crate::{
 
 pub(super) struct CheckTypeRelatedTo<'type_checker> {
     type_checker: &'type_checker TypeChecker,
-    source: Rc<Type>,
-    target: Rc<Type>,
+    source: &'type_checker Type,
+    target: &'type_checker Type,
     relation: &'type_checker HashMap<String, RelationComparisonResult>,
     error_node: Option<&'type_checker Node>,
     head_message: Option<DiagnosticMessage>,
@@ -28,8 +28,8 @@ pub(super) struct CheckTypeRelatedTo<'type_checker> {
 impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
     pub(super) fn new(
         type_checker: &'type_checker TypeChecker,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &'type_checker Type,
+        target: &'type_checker Type,
         relation: &'type_checker HashMap<String, RelationComparisonResult>,
         error_node: Option<&'type_checker Node>,
         head_message: Option<DiagnosticMessage>,
@@ -61,8 +61,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     pub(super) fn call(&self) -> bool {
         let result = self.is_related_to(
-            self.source.clone(),
-            self.target.clone(),
+            self.source,
+            self.target,
             Some(RecursionFlags::Both),
             self.error_node.is_some(),
             self.head_message.as_ref(),
@@ -103,32 +103,30 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
     fn report_relation_error(
         &self,
         mut message: Option<&DiagnosticMessage>,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
     ) {
         let (source_type, target_type) = self
             .type_checker
-            .get_type_names_for_error_display(source.clone(), target.clone());
-        let mut generalized_source = source.clone();
+            .get_type_names_for_error_display(source, target);
+        let mut generalized_source = source.type_wrapper();
         let mut generalized_source_type = source_type;
 
-        if self.type_checker.is_literal_type(&*source)
+        if self.type_checker.is_literal_type(source)
             && !self
                 .type_checker
-                .type_could_have_top_level_singleton_types(&*target)
+                .type_could_have_top_level_singleton_types(target)
         {
-            generalized_source = self
-                .type_checker
-                .get_base_type_of_literal_type(source.clone());
+            generalized_source = self.type_checker.get_base_type_of_literal_type(source);
             Debug_.assert(
                 !self
                     .type_checker
-                    .is_type_assignable_to(generalized_source.clone(), target),
+                    .is_type_assignable_to(&generalized_source, target),
                 Some("generalized source shouldn't be assignable"),
             );
             generalized_source_type = self
                 .type_checker
-                .get_type_name_for_error_display(generalized_source);
+                .get_type_name_for_error_display(&generalized_source);
         }
 
         if message.is_none() {
@@ -146,20 +144,20 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     fn is_related_to(
         &self,
-        original_source: Rc<Type>,
-        original_target: Rc<Type>,
+        original_source: &Type,
+        original_target: &Type,
         recursion_flags: Option<RecursionFlags>,
         report_errors: bool,
         head_message: Option<&DiagnosticMessage>,
         intersection_state: Option<IntersectionState>,
     ) -> Ternary {
+        let original_source = original_source.type_wrapper();
+        let original_target = original_target.type_wrapper();
         let intersection_state = intersection_state.unwrap_or(IntersectionState::None);
         let recursion_flags = recursion_flags.unwrap_or(RecursionFlags::Both);
 
-        let source = self.type_checker.get_normalized_type(original_source);
-        let target = self
-            .type_checker
-            .get_normalized_type(original_target.clone());
+        let source = self.type_checker.get_normalized_type(&original_source);
+        let target = self.type_checker.get_normalized_type(&original_target);
 
         let report_error_results = |source, target, result| {
             if result == Ternary::False && report_errors {
@@ -190,15 +188,15 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
         let is_performing_excess_property_checks = !intersection_state
             .intersects(IntersectionState::Target)
-            && (self.type_checker.is_object_literal_type(source.clone())
-                && get_object_flags(&*source).intersects(ObjectFlags::FreshLiteral));
+            && (self.type_checker.is_object_literal_type(&source)
+                && get_object_flags(&source).intersects(ObjectFlags::FreshLiteral));
         if is_performing_excess_property_checks {
-            if self.has_excess_properties(source.clone(), target.clone(), report_errors) {
+            if self.has_excess_properties(&source, &target, report_errors) {
                 if report_errors {
                     self.report_relation_error(
                         head_message,
-                        source,
-                        if false { original_target } else { target },
+                        &source,
+                        if false { &original_target } else { &target },
                     );
                 }
                 return Ternary::False;
@@ -209,13 +207,13 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
         if (source.flags().intersects(TypeFlags::Union)
             || target.flags().intersects(TypeFlags::Union))
-            && self.type_checker.get_constituent_count(source.clone())
-                * self.type_checker.get_constituent_count(target.clone())
+            && self.type_checker.get_constituent_count(&source)
+                * self.type_checker.get_constituent_count(&target)
                 < 4
         {
             result = self.structured_type_related_to(
-                source.clone(),
-                target.clone(),
+                &source,
+                &target,
                 report_errors,
                 intersection_state | IntersectionState::UnionIntersectionCheck,
             );
@@ -230,38 +228,34 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                     .intersects(TypeFlags::StructuredOrInstantiable))
         {
             result = self.recursive_type_related_to(
-                source.clone(),
-                target.clone(),
+                &source,
+                &target,
                 report_errors,
                 intersection_state,
                 recursion_flags,
             );
         }
 
-        report_error_results(source, target, result);
+        report_error_results(&source, &target, result);
 
         result
     }
 
     fn has_excess_properties(
         &self,
-        source: Rc<Type /*FreshObjectLiteralType*/>,
-        target: Rc<Type>,
+        source: &Type, /*FreshObjectLiteralType*/
+        target: &Type,
         report_errors: bool,
     ) -> bool {
-        if !self
-            .type_checker
-            .is_excess_property_check_target(target.clone())
-            || false
-        {
+        if !self.type_checker.is_excess_property_check_target(target) || false {
             return false;
         }
         let is_comparing_jsx_attributes = false;
-        let reduced_target = target.clone();
-        for prop in self.type_checker.get_properties_of_type(source.clone()) {
+        let reduced_target = target;
+        for prop in self.type_checker.get_properties_of_type(source) {
             if self.should_check_as_excess_property(prop.clone(), source.symbol()) && true {
                 if !self.type_checker.is_known_property(
-                    reduced_target.clone(),
+                    reduced_target,
                     prop.escaped_name(),
                     is_comparing_jsx_attributes,
                 ) {
@@ -292,7 +286,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                             } else {
                                 self.report_error(
                                     &Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
-                                    Some(vec![self.type_checker.symbol_to_string(prop, None, None, None, None), self.type_checker.type_to_string(error_target, Option::<&Node>::None, None)])
+                                    Some(vec![self.type_checker.symbol_to_string(prop, None, None, None, None), self.type_checker.type_to_string(&error_target, Option::<&Node>::None, None)])
                                 );
                             }
                         }
@@ -319,24 +313,21 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     fn type_related_to_some_type(
         &self,
-        source: Rc<Type>,
+        source: &Type,
         target: &UnionOrIntersectionType,
         report_errors: bool,
     ) -> Ternary {
         let target_types = target.types();
         if target.flags().intersects(TypeFlags::Union) {
-            if self
-                .type_checker
-                .contains_type(target_types, source.clone())
-            {
+            if self.type_checker.contains_type(target_types, source) {
                 return Ternary::True;
             }
         }
 
         for type_ in target_types {
             let related = self.is_related_to(
-                source.clone(),
-                type_.clone(),
+                source,
+                &type_,
                 Some(RecursionFlags::Target),
                 false,
                 None,
@@ -353,7 +344,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
     fn each_type_related_to_type(
         &self,
         source: &UnionOrIntersectionType,
-        target: Rc<Type>,
+        target: &Type,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
@@ -361,8 +352,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         let source_types = source.types();
         for source_type in source_types {
             let related = self.is_related_to(
-                source_type.clone(),
-                target.clone(),
+                &source_type,
+                target,
                 Some(RecursionFlags::Source),
                 report_errors,
                 None,
@@ -378,8 +369,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     fn recursive_type_related_to(
         &self,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         report_errors: bool,
         intersection_state: IntersectionState,
         recursion_flags: RecursionFlags,
@@ -394,8 +385,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     fn structured_type_related_to(
         &self,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
@@ -410,8 +401,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     fn structured_type_related_to_worker(
         &self,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
@@ -421,7 +412,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                     unimplemented!()
                 } else {
                     self.each_type_related_to_type(
-                        match &*source {
+                        match source {
                             Type::UnionOrIntersectionType(union_or_intersection_type) => {
                                 union_or_intersection_type
                             }
@@ -435,9 +426,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             }
             if target.flags().intersects(TypeFlags::Union) {
                 return self.type_related_to_some_type(
-                    self.type_checker
-                        .get_regular_type_of_object_literal(source.clone()),
-                    match &*target {
+                    &self.type_checker.get_regular_type_of_object_literal(source),
+                    match target {
                         Type::UnionOrIntersectionType(union_or_intersection_type) => {
                             union_or_intersection_type
                         }
@@ -498,15 +488,16 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
     ) -> Ternary {
         let target_is_optional = false;
         let effective_target = self.type_checker.add_optionality(
-            self.type_checker
+            &self
+                .type_checker
                 .get_non_missing_type_of_symbol(target_prop),
             Some(false),
             Some(target_is_optional),
         );
         let effective_source = get_type_of_source_property(self.type_checker, source_prop);
         self.is_related_to(
-            effective_source,
-            effective_target,
+            &effective_source,
+            &effective_target,
             Some(RecursionFlags::Both),
             report_errors,
             None,
@@ -516,8 +507,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     fn property_related_to(
         &self,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         source_prop: Rc<Symbol>,
         target_prop: Rc<Symbol>,
         get_type_of_source_property: fn(&TypeChecker, Rc<Symbol>) -> Rc<Type>,
@@ -552,8 +543,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     fn properties_related_to(
         &self,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         report_errors: bool,
         excluded_properties: Option<HashSet<__String>>,
         intersection_state: IntersectionState,
@@ -573,16 +564,16 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         //     }
         //     return Ternary::False;
         // }
-        let properties = self.type_checker.get_properties_of_type(target.clone());
+        let properties = self.type_checker.get_properties_of_type(target);
         for target_prop in self.exclude_properties(properties, excluded_properties) {
             let name = target_prop.escaped_name();
             if true {
-                let source_prop = self.type_checker.get_property_of_type(source.clone(), name);
+                let source_prop = self.type_checker.get_property_of_type(source, name);
                 if let Some(source_prop) = source_prop {
                     if !Rc::ptr_eq(&source_prop, &target_prop) {
                         let related = self.property_related_to(
-                            source.clone(),
-                            target.clone(),
+                            source,
+                            target,
                             source_prop,
                             target_prop,
                             TypeChecker::get_non_missing_type_of_symbol,

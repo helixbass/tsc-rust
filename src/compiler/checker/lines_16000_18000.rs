@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -16,74 +17,82 @@ use crate::{
 
 impl TypeChecker {
     // pub fn create_literal_type(
-    pub fn create_string_literal_type(
+    pub fn create_string_literal_type<TTypeRef: Borrow<Type>>(
         &self,
         flags: TypeFlags,
         value: String,
-        regular_type: Option<Rc<Type>>,
+        regular_type: Option<TTypeRef>,
     ) -> Rc<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = Rc::new(StringLiteralType::new(type_, value).into());
         match &*type_ {
             Type::LiteralType(literal_type) => {
-                literal_type.set_regular_type(&regular_type.unwrap_or_else(|| type_.clone()));
+                literal_type.set_regular_type(&if let Some(regular_type) = regular_type {
+                    regular_type.borrow().type_wrapper()
+                } else {
+                    type_.clone()
+                });
             }
             _ => panic!("Expected LiteralType"),
         }
         type_
     }
 
-    pub fn create_number_literal_type(
+    pub fn create_number_literal_type<TTypeRef: Borrow<Type>>(
         &self,
         flags: TypeFlags,
         value: Number,
-        regular_type: Option<Rc<Type>>,
+        regular_type: Option<TTypeRef>,
     ) -> Rc<Type> {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = Rc::new(NumberLiteralType::new(type_, value).into());
         match &*type_ {
             Type::LiteralType(literal_type) => {
-                literal_type.set_regular_type(&regular_type.unwrap_or_else(|| type_.clone()));
+                literal_type.set_regular_type(&if let Some(regular_type) = regular_type {
+                    regular_type.borrow().type_wrapper()
+                } else {
+                    type_.clone()
+                });
             }
             _ => panic!("Expected LiteralType"),
         }
         type_
     }
 
-    pub(super) fn get_fresh_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
-        match &*type_ {
+    pub(super) fn get_fresh_type_of_literal_type(&self, type_: &Type) -> Rc<Type> {
+        match type_ {
             Type::LiteralType(literal_type) => {
-                return literal_type.get_or_initialize_fresh_type(self, &type_);
+                return literal_type.get_or_initialize_fresh_type(self);
             }
-            _ => type_,
+            _ => type_.type_wrapper(),
         }
     }
 
-    pub(super) fn get_regular_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
-        match &*type_ {
+    pub(super) fn get_regular_type_of_literal_type(&self, type_: &Type) -> Rc<Type> {
+        match type_ {
             Type::LiteralType(literal_type) => return literal_type.regular_type(),
             Type::UnionOrIntersectionType(UnionOrIntersectionType::UnionType(union_type)) => {
                 unimplemented!()
             }
-            _ => type_,
+            _ => type_.type_wrapper(),
         }
     }
 
-    pub(super) fn is_fresh_literal_type(&self, type_: Rc<Type>) -> bool {
+    pub(super) fn is_fresh_literal_type(&self, type_: &Type) -> bool {
         if !type_.flags().intersects(TypeFlags::Literal) {
             return false;
         }
-        match &*type_ {
+        match type_ {
             Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
                 IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                    ptr::eq(&*type_, freshable_intrinsic_type.fresh_type().as_ptr())
+                    ptr::eq(type_, freshable_intrinsic_type.fresh_type().as_ptr())
                 }
                 _ => panic!("Expected FreshableIntrinsicType"),
             },
             Type::LiteralType(literal_type) => {
-                ptr::eq(&*type_, literal_type.fresh_type().unwrap().as_ptr())
+                ptr::eq(type_, literal_type.fresh_type().unwrap().as_ptr())
             }
             _ => panic!("Expected IntrinsicType or LiteralType"),
         }
@@ -94,8 +103,11 @@ impl TypeChecker {
         if string_literal_types.contains_key(value) {
             return string_literal_types.get(value).unwrap().clone();
         }
-        let type_ =
-            self.create_string_literal_type(TypeFlags::StringLiteral, value.to_string(), None);
+        let type_ = self.create_string_literal_type(
+            TypeFlags::StringLiteral,
+            value.to_string(),
+            Option::<&Type>::None,
+        );
         string_literal_types.insert(value.to_string(), type_.clone());
         type_
     }
@@ -105,7 +117,8 @@ impl TypeChecker {
         if number_literal_types.contains_key(&value) {
             return number_literal_types.get(&value).unwrap().clone();
         }
-        let type_ = self.create_number_literal_type(TypeFlags::NumberLiteral, value, None);
+        let type_ =
+            self.create_number_literal_type(TypeFlags::NumberLiteral, value, Option::<&Type>::None);
         number_literal_types.insert(value, type_.clone());
         type_
     }
@@ -117,14 +130,15 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_type.is_none() {
-            links_ref.resolved_type =
-                Some(self.get_regular_type_of_literal_type(self.check_expression(
+            links_ref.resolved_type = Some(self.get_regular_type_of_literal_type(
+                &self.check_expression(
                     match &*node.literal {
                         Node::Expression(expression) => expression,
                         _ => panic!("Expected Expression"),
                     },
                     None,
-                )));
+                ),
+            ));
         }
         links_ref.resolved_type.clone().unwrap()
     }
@@ -137,7 +151,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_from_type_node(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
-        self.get_conditional_flow_type_of_type(self.get_type_from_type_node_worker(node), node)
+        self.get_conditional_flow_type_of_type(&self.get_type_from_type_node_worker(node), node)
     }
 
     pub(super) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
@@ -173,8 +187,8 @@ impl TypeChecker {
     ) -> TypeMapper {
         if sources.len() == 1 {
             self.make_unary_type_mapper(
-                sources[0].clone(),
-                if let Some(targets) = targets {
+                &sources[0],
+                &*if let Some(targets) = targets {
                     targets[0].clone()
                 } else {
                     self.any_type()
@@ -185,20 +199,20 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_mapped_type(&self, type_: Rc<Type>, mapper: &TypeMapper) -> Rc<Type> {
+    pub(super) fn get_mapped_type(&self, type_: &Type, mapper: &TypeMapper) -> Rc<Type> {
         match mapper {
             TypeMapper::Simple(mapper) => {
-                if Rc::ptr_eq(&type_, &mapper.source) {
+                if ptr::eq(type_, Rc::as_ptr(&mapper.source)) {
                     mapper.target.clone()
                 } else {
-                    type_
+                    type_.type_wrapper()
                 }
             }
             TypeMapper::Array(mapper) => {
                 let sources = &mapper.sources;
                 let targets = &mapper.targets;
                 for (i, source) in sources.iter().enumerate() {
-                    if Rc::ptr_eq(&type_, source) {
+                    if ptr::eq(type_, Rc::as_ptr(&source)) {
                         return if let Some(targets) = targets {
                             targets[i].clone()
                         } else {
@@ -206,24 +220,24 @@ impl TypeChecker {
                         };
                     }
                 }
-                type_
+                type_.type_wrapper()
             }
             TypeMapper::Function(mapper) => (mapper.func)(self, type_),
             TypeMapper::Composite(composite_or_merged_mapper)
             | TypeMapper::Merged(composite_or_merged_mapper) => {
-                let t1 = self.get_mapped_type(type_.clone(), &composite_or_merged_mapper.mapper1);
-                if !Rc::ptr_eq(&t1, &type_) && matches!(mapper, TypeMapper::Composite(_)) {
+                let t1 = self.get_mapped_type(type_, &composite_or_merged_mapper.mapper1);
+                if !ptr::eq(Rc::as_ptr(&t1), type_) && matches!(mapper, TypeMapper::Composite(_)) {
                     self.instantiate_type(Some(t1), Some(&composite_or_merged_mapper.mapper2))
                         .unwrap()
                 } else {
-                    self.get_mapped_type(t1, &composite_or_merged_mapper.mapper2)
+                    self.get_mapped_type(&t1, &composite_or_merged_mapper.mapper2)
                 }
             }
         }
     }
 
-    pub(super) fn make_unary_type_mapper(&self, source: Rc<Type>, target: Rc<Type>) -> TypeMapper {
-        TypeMapper::new_simple(source, target)
+    pub(super) fn make_unary_type_mapper(&self, source: &Type, target: &Type) -> TypeMapper {
+        TypeMapper::new_simple(source.type_wrapper(), target.type_wrapper())
     }
 
     pub(super) fn make_array_type_mapper(
@@ -280,9 +294,9 @@ impl TypeChecker {
         mapper: &TypeMapper,
     ) -> Rc<Symbol> {
         let links = self.get_symbol_links(&symbol);
-        let links = links.borrow();
+        let links = (*links).borrow();
         if let Some(type_) = links.type_.as_ref() {
-            if !self.could_contain_type_variables(type_.clone()) {
+            if !self.could_contain_type_variables(&type_) {
                 return symbol;
             }
         }
@@ -316,22 +330,22 @@ impl TypeChecker {
         Rc::new(result.into())
     }
 
-    pub(super) fn instantiate_type(
+    pub(super) fn instantiate_type<TTypeRef: Borrow<Type>>(
         &self,
-        type_: Option<Rc<Type>>,
+        type_: Option<TTypeRef>,
         mapper: Option<&TypeMapper>,
     ) -> Option<Rc<Type>> {
         if let Some(type_) = type_.as_ref() {
             if let Some(mapper) = mapper {
-                return Some(self.instantiate_type_with_alias(type_.clone(), mapper, None, None));
+                return Some(self.instantiate_type_with_alias(type_.borrow(), mapper, None, None));
             }
         }
-        type_
+        type_.map(|type_| type_.borrow().type_wrapper())
     }
 
     pub(super) fn instantiate_type_with_alias(
         &self,
-        type_: Rc<Type>,
+        type_: &Type,
         mapper: &TypeMapper,
         alias_symbol: Option<Rc<Symbol>>,
         alias_type_arguments: Option<&[Rc<Type>]>,
@@ -343,7 +357,7 @@ impl TypeChecker {
 
     pub(super) fn instantiate_type_worker(
         &self,
-        type_: Rc<Type>,
+        type_: &Type,
         mapper: &TypeMapper,
         alias_symbol: Option<Rc<Symbol>>,
         alias_type_arguments: Option<&[Rc<Type>]>,
@@ -364,14 +378,14 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {
+    pub(super) fn is_type_assignable_to(&self, source: &Type, target: &Type) -> bool {
         self.is_type_related_to(source, target, &self.assignable_relation)
     }
 
     pub(super) fn check_type_assignable_to_and_optionally_elaborate(
         &self,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         error_node: Option<&Node>,
         expr: Option<&Expression>,
         head_message: Option<DiagnosticMessage>,
@@ -388,24 +402,18 @@ impl TypeChecker {
 
     pub(super) fn check_type_related_to_and_optionally_elaborate(
         &self,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
         error_node: Option<&Node>,
         expr: Option<&Expression>,
         head_message: Option<DiagnosticMessage>,
     ) -> bool {
-        if self.is_type_related_to(source.clone(), target.clone(), relation) {
+        if self.is_type_related_to(source, target, relation) {
             return true;
         }
         if error_node.is_none()
-            || !self.elaborate_error(
-                expr,
-                source.clone(),
-                target.clone(),
-                relation,
-                head_message.clone(),
-            )
+            || !self.elaborate_error(expr, source, target, relation, head_message.clone())
         {
             return self.check_type_related_to(source, target, relation, error_node, head_message);
         }
@@ -415,8 +423,8 @@ impl TypeChecker {
     pub(super) fn elaborate_error(
         &self,
         node: Option<&Expression>,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
         head_message: Option<DiagnosticMessage>,
     ) -> bool {
@@ -440,11 +448,11 @@ impl TypeChecker {
 
     pub(super) fn get_best_match_indexed_access_type_or_undefined(
         &self,
-        source: Rc<Type>,
-        target: Rc<Type>,
-        name_type: Rc<Type>,
+        source: &Type,
+        target: &Type,
+        name_type: &Type,
     ) -> Option<Rc<Type>> {
-        let idx = self.get_indexed_access_type_or_undefined(target.clone(), name_type);
+        let idx = self.get_indexed_access_type_or_undefined(target, name_type);
         if idx.is_some() {
             return idx;
         }
@@ -457,7 +465,7 @@ impl TypeChecker {
     pub(super) fn check_expression_for_mutable_location_with_contextual_type(
         &self,
         next: &Node, /*Expression*/
-        source_prop_type: Rc<Type>,
+        source_prop_type: &Type,
     ) -> Rc<Type> {
         self.check_expression_for_mutable_location(
             match next {
@@ -472,8 +480,8 @@ impl TypeChecker {
     pub(super) fn elaborate_elementwise(
         &self,
         iterator: Vec<ElaborationIteratorItem>,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> bool {
         let mut reported_error = false;
@@ -484,11 +492,8 @@ impl TypeChecker {
                 name_type,
                 error_message,
             } = status;
-            let target_prop_type = self.get_best_match_indexed_access_type_or_undefined(
-                source.clone(),
-                target.clone(),
-                name_type.clone(),
-            );
+            let target_prop_type =
+                self.get_best_match_indexed_access_type_or_undefined(source, target, &name_type);
             if target_prop_type.is_none() {
                 continue;
             }
@@ -499,15 +504,14 @@ impl TypeChecker {
             {
                 continue;
             }
-            let source_prop_type =
-                self.get_indexed_access_type_or_undefined(source.clone(), name_type);
+            let source_prop_type = self.get_indexed_access_type_or_undefined(source, &name_type);
             if source_prop_type.is_none() {
                 continue;
             }
             let source_prop_type = source_prop_type.unwrap();
             if !self.check_type_related_to(
-                source_prop_type.clone(),
-                target_prop_type.clone(),
+                &source_prop_type,
+                &target_prop_type,
                 relation,
                 None,
                 None,
@@ -517,7 +521,7 @@ impl TypeChecker {
                     let specific_source = if let Some(next) = next {
                         self.check_expression_for_mutable_location_with_contextual_type(
                             &*next,
-                            source_prop_type,
+                            &source_prop_type,
                         )
                     } else {
                         source_prop_type
@@ -526,8 +530,8 @@ impl TypeChecker {
                         unimplemented!()
                     } else {
                         let result = self.check_type_related_to(
-                            specific_source,
-                            target_prop_type,
+                            &specific_source,
+                            &target_prop_type,
                             relation,
                             Some(&*prop),
                             error_message,
@@ -576,8 +580,8 @@ impl TypeChecker {
     pub(super) fn elaborate_object_literal(
         &self,
         node: &ObjectLiteralExpression,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> bool {
         if target.flags().intersects(TypeFlags::Primitive) {
@@ -608,11 +612,12 @@ impl TypeChecker {
 
     pub(super) fn is_type_related_to(
         &self,
-        mut source: Rc<Type>,
-        mut target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> bool {
-        if self.is_fresh_literal_type(source.clone()) {
+        let mut source = source.type_wrapper();
+        if self.is_fresh_literal_type(&source) {
             source = match &*source {
                 Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
                     IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
@@ -624,7 +629,8 @@ impl TypeChecker {
                 _ => panic!("Expected IntrinsicType or LiteralType"),
             };
         }
-        if self.is_fresh_literal_type(target.clone()) {
+        let mut target = target.type_wrapper();
+        if self.is_fresh_literal_type(&target) {
             target = match &*target {
                 Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
                     IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
@@ -640,7 +646,7 @@ impl TypeChecker {
             return true;
         }
         if true {
-            if self.is_simple_type_related_to(&*source, &*target, relation, None) {
+            if self.is_simple_type_related_to(&source, &target, relation, None) {
                 return true;
             }
         } else {
@@ -653,14 +659,15 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::StructuredOrInstantiable)
         {
-            return self.check_type_related_to(source, target, relation, None, None);
+            return self.check_type_related_to(&source, &target, relation, None, None);
         }
         false
     }
 
-    pub(super) fn get_normalized_type(&self, mut type_: Rc<Type>) -> Rc<Type> {
+    pub(super) fn get_normalized_type(&self, type_: &Type) -> Rc<Type> {
+        let mut type_ = type_.type_wrapper();
         loop {
-            let t: Rc<Type> = if self.is_fresh_literal_type(type_.clone()) {
+            let t: Rc<Type> = if self.is_fresh_literal_type(&type_) {
                 match &*type_ {
                     Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
                         IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
@@ -672,7 +679,7 @@ impl TypeChecker {
                     _ => panic!("Expected IntrinsicType or LiteralType"),
                 }
             } else {
-                type_.clone()
+                type_.type_wrapper()
             };
             if Rc::ptr_eq(&t, &type_) {
                 break;
@@ -684,8 +691,8 @@ impl TypeChecker {
 
     pub(super) fn check_type_related_to(
         &self,
-        source: Rc<Type>,
-        target: Rc<Type>,
+        source: &Type,
+        target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
         error_node: Option<&Node>,
         head_message: Option<DiagnosticMessage>,
