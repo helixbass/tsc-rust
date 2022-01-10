@@ -38,6 +38,7 @@ pub enum SyntaxKind {
     OpenBraceToken,
     CloseBraceToken,
     OpenParenToken,
+    CloseParenToken,
     OpenBracketToken,
     CloseBracketToken,
     DotToken,
@@ -60,8 +61,10 @@ pub enum SyntaxKind {
     PrivateIdentifier,
     BreakKeyword,
     ConstKeyword,
+    ElseKeyword,
     ExtendsKeyword,
     FalseKeyword,
+    IfKeyword,
     ImportKeyword,
     NewKeyword,
     NullKeyword,
@@ -111,9 +114,11 @@ pub enum SyntaxKind {
     ClassExpression,
     OmittedExpression,
     ExpressionWithTypeArguments,
+    Block,
     EmptyStatement,
     VariableStatement,
     ExpressionStatement,
+    IfStatement,
     VariableDeclaration,
     VariableDeclarationList,
     FunctionDeclaration,
@@ -441,11 +446,15 @@ pub trait HasExpressionInitializerInterface {
 #[derive(Clone, Debug)]
 pub struct NodeArray {
     _nodes: Vec<Rc<Node>>,
+    pub is_missing_list: bool,
 }
 
 impl NodeArray {
     pub fn new(nodes: Vec<Rc<Node>>) -> Self {
-        NodeArray { _nodes: nodes }
+        NodeArray {
+            _nodes: nodes,
+            is_missing_list: false,
+        }
     }
 
     pub fn iter(&self) -> NodeArrayIter {
@@ -1048,8 +1057,10 @@ impl ObjectLiteralExpression {
 #[ast_type]
 pub enum Statement {
     EmptyStatement(EmptyStatement),
+    Block(Block),
     VariableStatement(VariableStatement),
     ExpressionStatement(ExpressionStatement),
+    IfStatement(IfStatement),
     InterfaceDeclaration(InterfaceDeclaration),
 }
 
@@ -1057,6 +1068,24 @@ pub enum Statement {
 #[ast_type(ancestors = "Statement")]
 pub struct EmptyStatement {
     pub _node: BaseNode,
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct Block {
+    _node: BaseNode,
+    pub statements: NodeArray, /*<Statement>*/
+    pub(crate) multi_line: Option<bool>,
+}
+
+impl Block {
+    pub fn new(base_node: BaseNode, statements: NodeArray, multi_line: Option<bool>) -> Self {
+        Self {
+            _node: base_node,
+            statements,
+            multi_line,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1078,8 +1107,42 @@ impl VariableStatement {
 #[derive(Debug)]
 #[ast_type(ancestors = "Statement")]
 pub struct ExpressionStatement {
-    pub _node: BaseNode,
+    _node: BaseNode,
     pub expression: Rc</*Expression*/ Node>,
+}
+
+impl ExpressionStatement {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct IfStatement {
+    _node: BaseNode,
+    pub expression: Rc</*Expression*/ Node>,
+    pub then_statement: Rc</*Statement*/ Node>,
+    pub else_statement: Option<Rc</*Statement*/ Node>>,
+}
+
+impl IfStatement {
+    pub fn new(
+        base_node: BaseNode,
+        expression: Rc<Node>,
+        then_statement: Rc<Node>,
+        else_statement: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            then_statement,
+            else_statement,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -2582,6 +2645,7 @@ impl CharacterCodes {
     pub const bar: char = '|';
     pub const close_brace: char = '}';
     pub const close_bracket: char = ']';
+    pub const close_paren: char = ')';
     pub const colon: char = ':';
     pub const comma: char = ',';
     pub const double_quote: char = '"';
@@ -2591,6 +2655,7 @@ impl CharacterCodes {
     pub const less_than: char = '<';
     pub const open_brace: char = '{';
     pub const open_bracket: char = '[';
+    pub const open_paren: char = '(';
     pub const plus: char = '+';
     pub const semicolon: char = ';';
     pub const single_quote: char = '\'';

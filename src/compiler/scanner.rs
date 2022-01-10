@@ -22,6 +22,7 @@ lazy_static! {
             ("boolean".to_string(), SyntaxKind::BooleanKeyword),
             ("const".to_string(), SyntaxKind::ConstKeyword),
             ("false".to_string(), SyntaxKind::FalseKeyword),
+            ("if".to_string(), SyntaxKind::IfKeyword),
             ("interface".to_string(), SyntaxKind::InterfaceKeyword),
             ("number".to_string(), SyntaxKind::NumberKeyword),
             ("true".to_string(), SyntaxKind::TrueKeyword),
@@ -153,6 +154,10 @@ impl Scanner {
         self.token_pos()
     }
 
+    pub fn get_token_text(&self) -> String {
+        self.text_substring(self.token_pos(), self.pos())
+    }
+
     pub fn get_token_value(&self) -> String {
         self.token_value()
     }
@@ -215,6 +220,14 @@ impl Scanner {
                 CharacterCodes::double_quote | CharacterCodes::single_quote => {
                     self.set_token_value(self.scan_string(on_error, None));
                     return self.set_token(SyntaxKind::StringLiteral);
+                }
+                CharacterCodes::open_paren => {
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::OpenParenToken);
+                }
+                CharacterCodes::close_paren => {
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::CloseParenToken);
                 }
                 CharacterCodes::asterisk => {
                     self.increment_pos();

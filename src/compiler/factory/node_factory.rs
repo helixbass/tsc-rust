@@ -6,13 +6,14 @@ use crate::{
     create_base_node_factory, escape_leading_underscores, is_omitted_expression, last_or_undefined,
     ArrayLiteralExpression, ArrayTypeNode, BaseBindingLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
-    BaseNodeFactory, BaseNodeFactoryConcrete, BaseVariableLikeDeclaration, BinaryExpression,
-    EmptyStatement, Expression, ExpressionStatement, Identifier, InterfaceDeclaration,
+    BaseNodeFactory, BaseNodeFactoryConcrete, BaseVariableLikeDeclaration, BinaryExpression, Block,
+    EmptyStatement, Expression, ExpressionStatement, Identifier, IfStatement, InterfaceDeclaration,
     IntersectionTypeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node, NodeArray,
     NodeArrayOrVec, NodeFactory, NodeFlags, NumericLiteral, ObjectLiteralExpression,
-    PrefixUnaryExpression, PropertyAssignment, PropertySignature, SourceFile, StringLiteral,
-    SyntaxKind, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypeReferenceNode,
-    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    PrefixUnaryExpression, PropertyAssignment, PropertySignature, SourceFile, Statement,
+    StringLiteral, SyntaxKind, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
+    TypeReferenceNode, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
+    VariableStatement,
 };
 
 impl NodeFactory {
@@ -407,6 +408,17 @@ impl NodeFactory {
         node
     }
 
+    pub fn create_block<TBaseNodeFactory: BaseNodeFactory, TStatements: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        statements: TStatements, /*Statement*/
+        multi_line: Option<bool>,
+    ) -> Block {
+        let node = self.create_base_node(base_factory, SyntaxKind::Block);
+        let node = Block::new(node, self.create_node_array(statements, None), multi_line);
+        node
+    }
+
     pub fn create_variable_statement<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -431,10 +443,28 @@ impl NodeFactory {
         base_factory: &TBaseNodeFactory,
         expression: Expression,
     ) -> ExpressionStatement {
-        ExpressionStatement {
-            _node: self.create_base_node(base_factory, SyntaxKind::ExpressionStatement),
-            expression: expression.into(),
-        }
+        ExpressionStatement::new(
+            self.create_base_node(base_factory, SyntaxKind::ExpressionStatement),
+            expression.into(),
+        )
+    }
+
+    pub fn create_if_statement<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Expression,
+        then_statement: Statement,
+        else_statement: Option<Statement>,
+    ) -> IfStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::IfStatement);
+        let node = IfStatement::new(
+            node,
+            expression.into(),
+            self.as_embedded_statement(Some(then_statement.into()))
+                .unwrap(),
+            self.as_embedded_statement(else_statement.map(|else_statement| else_statement.into())),
+        );
+        node
     }
 
     pub fn create_variable_declaration<TBaseNodeFactory: BaseNodeFactory>(
@@ -528,6 +558,14 @@ impl NodeFactory {
 
     fn as_name(&self, name: Rc<Node>) -> Rc<Node> {
         name
+    }
+
+    fn as_embedded_statement(&self, statement: Option<Rc<Node>>) -> Option<Rc<Node>> {
+        if false {
+            unimplemented!()
+        } else {
+            statement
+        }
     }
 }
 

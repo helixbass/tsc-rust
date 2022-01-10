@@ -747,8 +747,15 @@ pub fn create_detached_diagnostic(
     start: isize,
     length: isize,
     message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
 ) -> DiagnosticWithDetachedLocation {
-    let text = get_locale_specific_message(message);
+    let mut text = get_locale_specific_message(message);
+
+    if let Some(args) = args {
+        if !args.is_empty() {
+            text = format_string_from_args(&text, args);
+        }
+    }
 
     DiagnosticWithDetachedLocation::new(
         BaseDiagnostic::new(BaseDiagnosticRelatedInformation::new(
