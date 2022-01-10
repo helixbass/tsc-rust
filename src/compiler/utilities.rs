@@ -278,18 +278,20 @@ pub fn declaration_name_to_string<TNode: NodeInterface>(name: Option<&TNode>) ->
 pub fn create_diagnostic_for_node<TNode: NodeInterface>(
     node: &TNode,
     message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node);
-    create_diagnostic_for_node_in_source_file(source_file, node, message)
+    create_diagnostic_for_node_in_source_file(source_file, node, message, args)
 }
 
 fn create_diagnostic_for_node_in_source_file<TNode: NodeInterface>(
     source_file: Rc<SourceFile>,
     node: &TNode,
     message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
     let span = get_error_span_for_node(source_file.clone(), node);
-    create_file_diagnostic(source_file, span.start, span.length, message)
+    create_file_diagnostic(source_file, span.start, span.length, message, args)
 }
 
 pub fn create_diagnostic_for_node_from_message_chain<TNode: NodeInterface>(
@@ -761,8 +763,15 @@ fn create_file_diagnostic(
     start: isize,
     length: isize,
     message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
-    let text = get_locale_specific_message(message);
+    let mut text = get_locale_specific_message(message);
+
+    if let Some(args) = args {
+        if !args.is_empty() {
+            text = format_string_from_args(&text, args);
+        }
+    }
 
     DiagnosticWithLocation::new(BaseDiagnostic::new(BaseDiagnosticRelatedInformation::new(
         Some(file),

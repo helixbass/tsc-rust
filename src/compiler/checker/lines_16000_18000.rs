@@ -609,6 +609,13 @@ impl TypeChecker {
         if s.intersects(TypeFlags::NumberLike) && t.intersects(TypeFlags::Number) {
             return true;
         }
+        if ptr::eq(relation, &self.assignable_relation)
+            || ptr::eq(relation, &self.comparable_relation)
+        {
+            if s.intersects(TypeFlags::Any) {
+                return true;
+            }
+        }
         false
     }
 

@@ -3,12 +3,21 @@
 use std::borrow::Borrow;
 use std::rc::Rc;
 
+use super::ResolveNameNameArg;
 use crate::{
-    get_first_identifier, node_is_missing, Debug_, Expression, Node, NodeInterface, Symbol,
-    SymbolFlags, SymbolInterface, TypeChecker,
+    declaration_name_to_string, get_first_identifier, node_is_missing,
+    unescape_leading_underscores, Debug_, Expression, Node, NodeInterface, Symbol, SymbolFlags,
+    SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
+    pub(super) fn diagnostic_name(&self, name_arg: ResolveNameNameArg) -> String {
+        match name_arg {
+            ResolveNameNameArg::__String(__string) => unescape_leading_underscores(&__string),
+            ResolveNameNameArg::Node(node) => declaration_name_to_string(Some(&*node)),
+        }
+    }
+
     pub(super) fn resolve_alias(&self, symbol: &Symbol) -> Rc<Symbol> {
         unimplemented!()
     }

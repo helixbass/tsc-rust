@@ -132,6 +132,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         unknown_symbol: None,
 
         any_type: None,
+        error_type: None,
         number_type: None,
         bigint_type: None,
         true_type: None,
@@ -150,6 +151,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         diagnostics: RefCell::new(create_diagnostic_collection()),
 
         assignable_relation: HashMap::new(),
+        comparable_relation: HashMap::new(),
     };
     type_checker.unknown_symbol = Some(
         type_checker
@@ -163,6 +165,11 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     type_checker.any_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Any, "any")
+            .into(),
+    );
+    type_checker.error_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Any, "error")
             .into(),
     );
     type_checker.number_type = Some(
@@ -308,6 +315,10 @@ impl TypeChecker {
 
     pub(super) fn any_type(&self) -> Rc<Type> {
         self.any_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn error_type(&self) -> Rc<Type> {
+        self.error_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn number_type(&self) -> Rc<Type> {
