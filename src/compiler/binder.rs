@@ -8,8 +8,9 @@ use std::rc::Rc;
 use crate::{
     Symbol, SymbolTable, SyntaxKind, VariableDeclaration, __String, append_if_unique,
     create_symbol_table, for_each, for_each_child, get_escaped_text_of_identifier_or_literal,
-    get_name_of_declaration, is_binding_pattern, is_property_name_literal, object_allocator,
-    set_parent, set_value_declaration, BaseSymbol, Expression, ExpressionStatement,
+    get_name_of_declaration, is_binding_pattern, is_class_static_block_declaration,
+    is_function_like, is_property_name_literal, object_allocator, set_parent,
+    set_value_declaration, BaseSymbol, Expression, ExpressionStatement, IfStatement,
     InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
     ObjectLiteralExpression, PropertySignature, Statement, SymbolFlags, SymbolInterface,
     TypeElement, TypeParameterDeclaration,
@@ -20,6 +21,8 @@ bitflags! {
         const None = 0;
 
         const IsContainer = 1 << 0;
+
+        const IsBlockScopedContainer = 1 << 1;
 
         const IsControlFlowContainer = 1 << 2;
 
@@ -219,8 +222,11 @@ impl BinderType {
             self.set_container(Some(node.node_wrapper()));
             self.set_block_scope_container(Some(node.node_wrapper()));
             if container_flags.intersects(ContainerFlags::HasLocals) {
-                self.container().set_locals(create_symbol_table());
+                self.container().set_locals(Some(create_symbol_table()));
             }
+        } else if container_flags.intersects(ContainerFlags::IsBlockScopedContainer) {
+            self.set_block_scope_container(Some(node.node_wrapper()));
+            self.block_scope_container().set_locals(None);
         }
 
         if false {
@@ -270,6 +276,9 @@ impl BinderType {
 
     fn bind_children(&self, node: &Node) {
         match node {
+            Node::Statement(Statement::IfStatement(if_statement)) => {
+                self.bind_if_statement(if_statement);
+            }
             Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
                 self.bind_expression_statement(expression_statement);
             }
@@ -283,6 +292,9 @@ impl BinderType {
             Node::SourceFile(source_file) => {
                 self.bind_each_functions_first(&source_file.statements);
             }
+            Node::Statement(Statement::Block(block)) => {
+                self.bind_each_functions_first(&block.statements);
+            }
             Node::Expression(Expression::ArrayLiteralExpression(_))
             | Node::Expression(Expression::ObjectLiteralExpression(_))
             | Node::PropertyAssignment(_) => {
@@ -293,6 +305,24 @@ impl BinderType {
                 self.bind_each_child(node);
             }
         };
+    }
+
+    fn do_with_conditional_branches<TArgument>(
+        &self,
+        action: fn(&BinderType, TArgument),
+        value: TArgument,
+    ) {
+        action(self, value);
+    }
+
+    fn bind_condition<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef>) {
+        self.do_with_conditional_branches(BinderType::bind, node);
+    }
+
+    fn bind_if_statement(&self, node: &IfStatement) {
+        self.bind_condition(Some(node.expression.clone()));
+        self.bind(Some(&*node.then_statement));
+        self.bind(node.else_statement.clone());
     }
 
     fn bind_expression_statement(&self, node: &ExpressionStatement) {
@@ -319,6 +349,15 @@ impl BinderType {
                 return ContainerFlags::IsContainer
                     | ContainerFlags::IsControlFlowContainer
                     | ContainerFlags::HasLocals;
+            }
+            SyntaxKind::Block => {
+                return if is_function_like(node.maybe_parent())
+                    || is_class_static_block_declaration(&*node.parent())
+                {
+                    ContainerFlags::None
+                } else {
+                    ContainerFlags::IsBlockScopedContainer
+                };
             }
             _ => (),
         }

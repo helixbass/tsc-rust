@@ -234,7 +234,7 @@ impl NodeInterface for MissingNode {
         }
     }
 
-    fn set_locals(&self, locals: SymbolTable) {
+    fn set_locals(&self, locals: Option<SymbolTable>) {
         match self {
             MissingNode::Identifier(identifier) => identifier.set_locals(locals),
         }

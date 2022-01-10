@@ -96,7 +96,18 @@ pub enum SyntaxKind {
     Parameter,
     PropertySignature,
     PropertyDeclaration,
+    MethodSignature,
+    MethodDeclaration,
+    ClassStaticBlockDeclaration,
+    Constructor,
+    GetAccessor,
+    SetAccessor,
+    CallSignature,
+    ConstructSignature,
+    IndexSignature,
     TypeReference,
+    FunctionType,
+    ConstructorType,
     TypeLiteral,
     ArrayType,
     UnionType,
@@ -109,6 +120,8 @@ pub enum SyntaxKind {
     ObjectLiteralExpression,
     PropertyAccessExpression,
     ParenthesizedExpression,
+    FunctionExpression,
+    ArrowFunction,
     PrefixUnaryExpression,
     BinaryExpression,
     ClassExpression,
@@ -130,6 +143,9 @@ pub enum SyntaxKind {
     EnumMember,
 
     SourceFile,
+
+    JSDocFunctionType,
+    JSDocSignature,
 }
 
 impl SyntaxKind {
@@ -176,7 +192,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_symbol(&self, symbol: Rc<Symbol>);
     fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
     fn locals(&self) -> RefMut<SymbolTable>;
-    fn set_locals(&self, locals: SymbolTable);
+    fn set_locals(&self, locals: Option<SymbolTable>);
 }
 
 #[derive(Debug)]
@@ -396,8 +412,8 @@ impl NodeInterface for BaseNode {
         RefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
     }
 
-    fn set_locals(&self, locals: SymbolTable) {
-        *self.locals.borrow_mut() = Some(locals);
+    fn set_locals(&self, locals: Option<SymbolTable>) {
+        *self.locals.borrow_mut() = locals;
     }
 }
 

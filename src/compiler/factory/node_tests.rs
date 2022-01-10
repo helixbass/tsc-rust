@@ -20,6 +20,10 @@ pub fn is_property_declaration<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::PropertyDeclaration
 }
 
+pub fn is_class_static_block_declaration<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.kind() == SyntaxKind::ClassStaticBlockDeclaration
+}
+
 pub fn is_binding_element<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::BindingElement
 }

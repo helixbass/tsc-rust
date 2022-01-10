@@ -23,9 +23,10 @@ pub use compiler::factory::node_factory::{
     create_node_factory, factory, get_synthetic_factory, BaseNodeFactorySynthetic,
 };
 pub use compiler::factory::node_tests::{
-    is_big_int_literal, is_binding_element, is_identifier, is_object_literal_expression,
-    is_omitted_expression, is_private_identifier, is_property_assignment, is_property_declaration,
-    is_property_signature, is_variable_declaration,
+    is_big_int_literal, is_binding_element, is_class_static_block_declaration, is_identifier,
+    is_object_literal_expression, is_omitted_expression, is_private_identifier,
+    is_property_assignment, is_property_declaration, is_property_signature,
+    is_variable_declaration,
 };
 pub use compiler::parser::{create_source_file, for_each_child};
 pub use compiler::path::{normalize_path, to_path};
@@ -82,8 +83,8 @@ pub use compiler::utilities::{
 pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores, get_combined_node_flags,
     get_effective_type_parameter_declarations, get_name_of_declaration, has_initializer,
-    has_only_expression_initializer, id_text, is_binding_pattern, is_expression, is_member_name,
-    unescape_leading_underscores,
+    has_only_expression_initializer, id_text, is_binding_pattern, is_expression, is_function_like,
+    is_member_name, unescape_leading_underscores,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;
