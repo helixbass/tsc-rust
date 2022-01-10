@@ -21,6 +21,7 @@ lazy_static! {
         HashMap::from_iter(IntoIter::new([
             ("boolean".to_string(), SyntaxKind::BooleanKeyword),
             ("const".to_string(), SyntaxKind::ConstKeyword),
+            ("else".to_string(), SyntaxKind::ElseKeyword),
             ("false".to_string(), SyntaxKind::FalseKeyword),
             ("if".to_string(), SyntaxKind::IfKeyword),
             ("interface".to_string(), SyntaxKind::InterfaceKeyword),
