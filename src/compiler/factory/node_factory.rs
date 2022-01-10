@@ -493,7 +493,9 @@ impl NodeFactory {
         declarations: TDeclarations,
         flags: Option<NodeFlags>,
     ) -> VariableDeclarationList {
-        let node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
+        let flags = flags.unwrap_or(NodeFlags::None);
+        let mut node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
+        node.flags |= flags & NodeFlags::BlockScoped;
         let node = VariableDeclarationList::new(node, self.create_node_array(declarations, None));
         node
     }

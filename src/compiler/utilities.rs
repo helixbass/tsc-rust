@@ -10,15 +10,15 @@ use std::rc::Rc;
 
 use crate::{
     SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, __String,
-    create_text_span_from_bounds, escape_leading_underscores, get_name_of_declaration,
-    insert_sorted, is_big_int_literal, is_member_name, skip_trivia, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags,
-    Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, ReadonlyTextRange, SortedArray,
-    SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable, TransientSymbolInterface, Type,
-    TypeInterface,
+    create_text_span_from_bounds, escape_leading_underscores, get_combined_node_flags,
+    get_name_of_declaration, insert_sorted, is_big_int_literal, is_member_name, skip_trivia,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
+    CharacterCodes, CheckFlags, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
+    DiagnosticWithLocation, EmitFlags, EmitTextWriter, Expression, LiteralLikeNode,
+    LiteralLikeNodeInterface, Node, NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression,
+    ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    TransientSymbolInterface, Type, TypeInterface,
 };
 
 pub fn get_declaration_of_kind(
@@ -227,6 +227,21 @@ fn can_use_original_text(node: &LiteralLikeNode, flags: GetLiteralTextFlags) -> 
     !is_big_int_literal(node)
 }
 
+pub fn is_block_or_catch_scoped<TNode: NodeInterface>(
+    declaration: &TNode, /*Declaration*/
+) -> bool {
+    get_combined_node_flags(declaration).intersects(NodeFlags::BlockScoped)
+        || is_catch_clause_variable_declaration_or_binding_element(declaration)
+}
+
+fn is_catch_clause_variable_declaration_or_binding_element<TNode: NodeInterface>(
+    declaration: &TNode, /*Declaration*/
+) -> bool {
+    let node = get_root_declaration(declaration);
+    node.kind() == SyntaxKind::VariableDeclaration
+        && node.parent().kind() == SyntaxKind::CatchClause
+}
+
 pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWriter>>)>(
     action: TAction,
 ) -> String {
@@ -403,6 +418,14 @@ pub fn get_escaped_text_of_identifier_or_literal<TNode: NodeInterface>(node: &TN
     } else {
         escape_leading_underscores(node.node_wrapper().as_literal_like_node().text())
     }
+}
+
+fn get_root_declaration<TNode: NodeInterface>(node: &TNode) -> Rc<Node> {
+    let mut node = node.node_wrapper();
+    while node.kind() == SyntaxKind::BindingElement {
+        node = node.parent().parent();
+    }
+    node
 }
 
 fn node_is_synthesized<TRange: ReadonlyTextRange>(range: &TRange) -> bool {

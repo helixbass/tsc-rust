@@ -139,6 +139,8 @@ pub enum SyntaxKind {
     InterfaceDeclaration,
     ModuleBlock,
 
+    CatchClause,
+
     PropertyAssignment,
 
     EnumMember,
@@ -159,10 +161,13 @@ impl SyntaxKind {
 bitflags! {
     pub struct NodeFlags: u32 {
         const None = 0;
+        const Let = 1 << 0;
         const Const = 1 << 1;
         const DisallowInContext = 1 << 12;
         const YieldContext = 1 << 13;
         const AwaitContext = 1 << 15;
+
+        const BlockScoped = Self::Let.bits | Self::Const.bits;
 
         const TypeExcludesFlags = Self::YieldContext.bits | Self::AwaitContext.bits;
     }
@@ -1513,6 +1518,8 @@ bitflags! {
         const Type = Self::Class.bits | Self::Interface.bits | Self::Enum.bits | Self::EnumMember.bits | Self::TypeLiteral.bits | Self::TypeParameter.bits | Self::TypeAlias.bits;
 
         const FunctionScopedVariableExcludes = Self::Value.bits & !Self::FunctionScopedVariable.bits;
+
+        const BlockScopedVariableExcludes = Self::Value.bits;
 
         const PropertyExcludes = Self::None.bits;
         const InterfaceExcludes = Self::Type.bits & !(Self::Interface.bits | Self::Class.bits);
