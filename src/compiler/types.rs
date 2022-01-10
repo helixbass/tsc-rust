@@ -137,6 +137,7 @@ pub enum SyntaxKind {
     FunctionDeclaration,
     ClassDeclaration,
     InterfaceDeclaration,
+    ModuleBlock,
 
     PropertyAssignment,
 

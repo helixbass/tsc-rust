@@ -6,13 +6,14 @@ use std::rc::Rc;
 use super::CheckMode;
 use crate::{
     for_each, get_combined_node_flags, get_effective_initializer, is_binding_element,
-    is_private_identifier, map, maybe_for_each, ArrayTypeNode, DiagnosticMessage, Diagnostics,
-    Expression, ExpressionStatement, HasTypeParametersInterface, IfStatement, InterfaceDeclaration,
-    LiteralLikeNode, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, PrefixUnaryExpression, PropertyAssignment, PropertySignature,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeInterface,
-    VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
+    is_function_or_module_block, is_private_identifier, map, maybe_for_each, ArrayTypeNode, Block,
+    DiagnosticMessage, Diagnostics, Expression, ExpressionStatement, HasTypeParametersInterface,
+    IfStatement, InterfaceDeclaration, LiteralLikeNode, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PrefixUnaryExpression,
+    PropertyAssignment, PropertySignature, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeParameterDeclaration, TypeReferenceNode,
+    UnionOrIntersectionTypeInterface, VariableDeclaration, VariableLikeDeclarationInterface,
+    VariableStatement,
 };
 
 impl TypeChecker {
@@ -316,6 +317,20 @@ impl TypeChecker {
             },
         );
         self.get_type_from_type_node(node);
+    }
+
+    pub(super) fn check_block(&mut self, node: &Block) {
+        if is_function_or_module_block(node) {
+            for_each(&node.statements, |statement, _| {
+                self.check_source_element(Some(statement.clone()));
+                Option::<()>::None
+            });
+        } else {
+            for_each(&node.statements, |statement, _| {
+                self.check_source_element(Some(statement.clone()));
+                Option::<()>::None
+            });
+        }
     }
 
     pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Rc<Type> {

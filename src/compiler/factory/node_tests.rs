@@ -36,10 +36,22 @@ pub fn is_omitted_expression<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::OmittedExpression
 }
 
+pub fn is_block<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.kind() == SyntaxKind::Block
+}
+
 pub fn is_variable_declaration<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::VariableDeclaration
 }
 
+pub fn is_module_block<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.kind() == SyntaxKind::ModuleBlock
+}
+
 pub fn is_property_assignment<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::PropertyAssignment
+}
+
+pub fn is_source_file<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.kind() == SyntaxKind::SourceFile
 }
