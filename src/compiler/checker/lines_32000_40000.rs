@@ -7,7 +7,7 @@ use super::CheckMode;
 use crate::{
     for_each, get_combined_node_flags, get_effective_initializer, is_binding_element,
     is_private_identifier, map, maybe_for_each, ArrayTypeNode, DiagnosticMessage, Diagnostics,
-    Expression, ExpressionStatement, HasTypeParametersInterface, InterfaceDeclaration,
+    Expression, ExpressionStatement, HasTypeParametersInterface, IfStatement, InterfaceDeclaration,
     LiteralLikeNode, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
     NodeFlags, NodeInterface, PrefixUnaryExpression, PropertyAssignment, PropertySignature,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -391,6 +391,51 @@ impl TypeChecker {
             _ => panic!("Expected Expression"),
         };
         self.check_expression(expression, None);
+    }
+
+    pub(super) fn check_if_statement(&mut self, node: &IfStatement) {
+        let type_ = self.check_truthiness_expression(
+            match &*node.expression {
+                Node::Expression(expression) => expression,
+                _ => panic!("Expected expression"),
+            },
+            None,
+        );
+        self.check_source_element(Some(&*node.then_statement));
+
+        if node.then_statement.kind() == SyntaxKind::EmptyStatement {
+            self.error(
+                Some(&*node.then_statement),
+                &Diagnostics::The_body_of_an_if_statement_cannot_be_the_empty_statement,
+                None,
+            );
+        }
+
+        self.check_source_element(node.else_statement.clone());
+    }
+
+    pub(super) fn check_truthiness_of_type<TNode: NodeInterface>(
+        &self,
+        type_: &Type,
+        node: &TNode,
+    ) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Void) {
+            self.error(
+                Some(node.node_wrapper()),
+                &Diagnostics::An_expression_of_type_void_cannot_be_tested_for_truthiness,
+                None,
+            );
+        }
+
+        type_.type_wrapper()
+    }
+
+    pub(super) fn check_truthiness_expression(
+        &self,
+        node: &Expression,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        self.check_truthiness_of_type(&self.check_expression(node, check_mode), node)
     }
 
     pub(super) fn check_type_parameters(
