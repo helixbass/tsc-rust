@@ -167,10 +167,20 @@ impl TypeChecker {
         let error_location = location.clone();
 
         while let Some(location_unwrapped) = location {
-            if location_unwrapped.maybe_locals().is_some()
-                && !self.is_global_source_file(&*location_unwrapped)
-            {
-                unimplemented!()
+            let location_maybe_locals = location_unwrapped.maybe_locals();
+            if let Some(location_locals) = &*location_maybe_locals {
+                if !self.is_global_source_file(&*location_unwrapped) {
+                    result = lookup(self, location_locals, name, meaning);
+                    if let Some(result_unwrapped) = result.as_ref() {
+                        let mut use_result = true;
+
+                        if use_result {
+                            break;
+                        } else {
+                            result = None;
+                        }
+                    }
+                }
             }
 
             match location_unwrapped.kind() {
