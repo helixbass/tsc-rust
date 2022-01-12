@@ -1,8 +1,7 @@
-use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ptr;
 
-use crate::{Comparer, Comparison, SortedArray};
+use crate::{Comparison, SortedArray};
 
 pub fn for_each<
     TCollection: IntoIterator,
@@ -146,16 +145,16 @@ pub fn last_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
     array.last()
 }
 
-fn binary_search<
+pub fn binary_search<
     TKey,
     TItem,
-    // TKeySelector: Fn(&'array_or_item TItem, Option<usize>) -> TKey,
+    TKeySelector: Fn(&TItem, Option<usize>) -> &TKey,
     // TComparer: Comparer<TKey>,
 >(
     array: &[TItem],
     value: &TItem,
-    key_selector: fn(&TItem, Option<usize>) -> &TKey,
-    // key_selector: TKeySelector,
+    // key_selector: fn(&TItem, Option<usize>) -> &TKey,
+    key_selector: TKeySelector,
     // key_comparer: TComparer,
     // key_comparer: Comparer<&'array TKey>,
     // key_comparer: Comparer<&TKey, &TKey>,
@@ -169,6 +168,27 @@ fn binary_search<
         array,
         // key_selector(value, None),
         value,
+        key_selector,
+        key_comparer,
+        offset,
+    )
+}
+
+pub fn binary_search_copy_key<
+    TKey: Copy,
+    TItem,
+    TKeySelector: Fn(&TItem, Option<usize>) -> TKey,
+    // TComparer: Comparer<TKey>,
+>(
+    array: &[TItem],
+    value: &TItem,
+    key_selector: TKeySelector,
+    key_comparer: fn(TKey, TKey) -> Comparison,
+    offset: Option<usize>,
+) -> isize {
+    binary_search_key_copy_key(
+        array,
+        key_selector(value, None),
         key_selector,
         key_comparer,
         offset,
@@ -219,6 +239,45 @@ fn binary_search_key<
     }
 
     let low: isize = low.try_into().unwrap();
+    !low
+}
+
+fn binary_search_key_copy_key<
+    TItem,
+    TKey: Copy,
+    TKeySelector: Fn(&TItem, Option<usize>) -> TKey,
+>(
+    array: &[TItem],
+    key: TKey,
+    key_selector: TKeySelector,
+    key_comparer: fn(TKey, TKey) -> Comparison,
+    offset: Option<usize>,
+) -> isize {
+    if array.is_empty()
+    /* !some(array)*/
+    {
+        return -1;
+    }
+
+    let mut low: isize = offset.unwrap_or(0).try_into().unwrap();
+    let mut high: isize = (array.len() - 1).try_into().unwrap();
+    while low <= high {
+        let middle: usize = (low + ((high - low) >> 1)).try_into().unwrap();
+        let mid_key = key_selector(&array[middle], Some(middle));
+        let middle: isize = middle.try_into().unwrap();
+        match key_comparer(mid_key, key) {
+            Comparison::LessThan => {
+                low = middle + 1;
+            }
+            Comparison::EqualTo => {
+                return middle;
+            }
+            Comparison::GreaterThan => {
+                high = middle - 1;
+            }
+        }
+    }
+
     !low
 }
 

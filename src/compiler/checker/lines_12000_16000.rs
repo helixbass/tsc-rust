@@ -1,16 +1,17 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::convert::{TryFrom, TryInto};
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    UnionType, __String, concatenate, get_name_of_declaration, get_object_flags, map,
-    unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
-    Diagnostics, Expression, InterfaceType, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
-    UnionReduction, UnionTypeNode,
+    UnionType, __String, binary_search_copy_key, compare_values, concatenate,
+    get_name_of_declaration, get_object_flags, map, unescape_leading_underscores, ArrayTypeNode,
+    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, InterfaceType, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode,
+    TypeReference, TypeReferenceNode, UnionReduction, UnionTypeNode,
 };
 
 impl TypeChecker {
@@ -399,7 +400,21 @@ impl TypeChecker {
             if false {
                 unimplemented!()
             } else {
-                type_set.push(type_.type_wrapper());
+                let len = type_set.len();
+                let index: isize = if len > 0 && type_.id() > type_set[len - 1].id() {
+                    !isize::try_from(len).unwrap()
+                } else {
+                    binary_search_copy_key(
+                        type_set,
+                        &type_.type_wrapper(),
+                        |type_, _| Some(self.get_type_id(type_)),
+                        compare_values,
+                        None,
+                    )
+                };
+                if index < 0 {
+                    type_set.insert(usize::try_from(!index).unwrap(), type_.type_wrapper());
+                }
             }
         }
         includes

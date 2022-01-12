@@ -319,10 +319,6 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         target: &UnionOrIntersectionType,
         report_errors: bool,
     ) -> Ternary {
-        panic!(
-            "type_related_to_some_type source: {:#?}, target: {:#?}",
-            source, target
-        );
         let target_types = target.types();
         if target.flags().intersects(TypeFlags::Union) {
             if self.type_checker.contains_type(target_types, source) {
