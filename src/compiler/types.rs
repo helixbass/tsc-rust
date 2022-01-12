@@ -54,6 +54,7 @@ pub enum SyntaxKind {
     CommaToken,
     LessThanToken,
     GreaterThanToken,
+    MinusToken,
     AsteriskToken,
     PlusPlusToken,
     MinusMinusToken,
