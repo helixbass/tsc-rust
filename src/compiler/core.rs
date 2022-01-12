@@ -187,7 +187,7 @@ fn binary_search_key<
     key_selector: TKeySelector,
     // key_comparer: TComparer,
     // key_comparer: Comparer<&TKey>,
-    key_comparer: fn(&TKey, b: &TKey) -> Comparison,
+    key_comparer: fn(&TKey, &TKey) -> Comparison,
     offset: Option<usize>,
 ) -> isize
 // where
