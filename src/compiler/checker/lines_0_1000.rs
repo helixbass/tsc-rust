@@ -128,6 +128,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         string_literal_types: RefCell::new(HashMap::new()),
         number_literal_types: RefCell::new(HashMap::new()),
+        big_int_literal_types: RefCell::new(HashMap::new()),
 
         unknown_symbol: None,
 
@@ -307,6 +308,12 @@ impl TypeChecker {
         &self,
     ) -> RefMut<HashMap<Number, Rc</*NumberLiteralType*/ Type>>> {
         self.number_literal_types.borrow_mut()
+    }
+
+    pub(super) fn big_int_literal_types(
+        &self,
+    ) -> RefMut<HashMap<String, Rc</*BigIntLiteralType*/ Type>>> {
+        self.big_int_literal_types.borrow_mut()
     }
 
     pub(super) fn unknown_symbol(&self) -> Rc<Symbol> {

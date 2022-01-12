@@ -7,12 +7,12 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
-    get_check_flags, ArrayTypeNode, BaseLiteralType, CheckFlags, Debug_, DiagnosticMessage,
-    Expression, IntrinsicType, LiteralTypeInterface, LiteralTypeNode, NamedDeclarationInterface,
-    Node, NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression,
-    RelationComparisonResult, StringLiteralType, Symbol, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode,
-    UnionOrIntersectionType,
+    get_check_flags, pseudo_big_int_to_string, ArrayTypeNode, BaseLiteralType, BigIntLiteralType,
+    CheckFlags, Debug_, DiagnosticMessage, Expression, IntrinsicType, LiteralTypeInterface,
+    LiteralTypeNode, NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType,
+    ObjectLiteralExpression, PseudoBigInt, RelationComparisonResult, StringLiteralType, Symbol,
+    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
 };
 
 impl TypeChecker {
@@ -48,6 +48,28 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = NumberLiteralType::new(type_, value).into();
+        match &*type_ {
+            Type::LiteralType(literal_type) => {
+                literal_type.set_regular_type(&if let Some(regular_type) = regular_type {
+                    regular_type.borrow().type_wrapper()
+                } else {
+                    type_.clone()
+                });
+            }
+            _ => panic!("Expected LiteralType"),
+        }
+        type_
+    }
+
+    pub fn create_big_int_literal_type<TTypeRef: Borrow<Type>>(
+        &self,
+        flags: TypeFlags,
+        value: PseudoBigInt,
+        regular_type: Option<TTypeRef>,
+    ) -> Rc<Type> {
+        let type_ = self.create_type(flags);
+        let type_ = BaseLiteralType::new(type_);
+        let type_: Rc<Type> = BigIntLiteralType::new(type_, value).into();
         match &*type_ {
             Type::LiteralType(literal_type) => {
                 literal_type.set_regular_type(&if let Some(regular_type) = regular_type {
@@ -123,6 +145,21 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn get_big_int_literal_type(&self, value: PseudoBigInt) -> Rc<Type> {
+        let key = pseudo_big_int_to_string(&value);
+        let mut big_int_literal_types = self.big_int_literal_types();
+        if big_int_literal_types.contains_key(&key) {
+            return big_int_literal_types.get(&key).unwrap().clone();
+        }
+        let type_ = self.create_big_int_literal_type(
+            TypeFlags::BigIntLiteral,
+            value,
+            Option::<&Type>::None,
+        );
+        big_int_literal_types.insert(key, type_.clone());
+        type_
+    }
+
     pub(super) fn get_type_from_literal_type_node(&self, node: &LiteralTypeNode) -> Rc<Type> {
         if node.literal.kind() == SyntaxKind::NullKeyword {
             unimplemented!()
@@ -162,6 +199,7 @@ impl TypeChecker {
         match node {
             TypeNode::KeywordTypeNode(_) => match node.kind() {
                 SyntaxKind::NumberKeyword => self.number_type(),
+                SyntaxKind::BigIntKeyword => self.bigint_type(),
                 SyntaxKind::BooleanKeyword => self.boolean_type(),
                 _ => unimplemented!(),
             },

@@ -8,8 +8,8 @@ use std::rc::Rc;
 
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
-    get_binary_operator_precedence, last_or_undefined, normalize_path, object_allocator,
-    set_text_range_pos_end, token_is_identifier_or_keyword, token_to_string,
+    get_binary_operator_precedence, is_literal_kind, last_or_undefined, normalize_path,
+    object_allocator, set_text_range_pos_end, token_is_identifier_or_keyword, token_to_string,
     ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block, Debug_,
     DiagnosticMessage, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
     Diagnostics, Expression, HasExpressionInitializerInterface, HasTypeInterface,
@@ -968,7 +968,11 @@ impl ParserType {
             unimplemented!()
         } else if kind == SyntaxKind::NumericLiteral {
             self.factory
-                .create_numeric_literal(self, self.scanner().get_token_value())
+                .create_numeric_literal(
+                    self,
+                    self.scanner().get_token_value(),
+                    Some(self.scanner().get_numeric_literal_flags()),
+                )
                 .into()
         } else if kind == SyntaxKind::StringLiteral {
             self.factory
@@ -979,6 +983,9 @@ impl ParserType {
                     Some(self.scanner().has_extended_unicode_escape()),
                 )
                 .into()
+        } else if is_literal_kind(kind) {
+            self.factory
+                .create_literal_like_node(self, kind, self.scanner().get_token_value())
         } else {
             Debug_.fail(None)
         };
@@ -1142,9 +1149,10 @@ impl ParserType {
 
     fn parse_non_array_type(&mut self) -> TypeNode {
         match self.token() {
-            SyntaxKind::NumberKeyword | SyntaxKind::BooleanKeyword => self
-                .try_parse(|| self.parse_keyword_and_no_dot())
-                .unwrap_or_else(|| unimplemented!()),
+            SyntaxKind::NumberKeyword | SyntaxKind::BigIntKeyword | SyntaxKind::BooleanKeyword => {
+                self.try_parse(|| self.parse_keyword_and_no_dot())
+                    .unwrap_or_else(|| unimplemented!())
+            }
             SyntaxKind::StringLiteral => self.parse_literal_type_node(None).into(),
             _ => self.parse_type_reference(),
         }
@@ -1318,10 +1326,11 @@ impl ParserType {
 
     fn is_start_of_left_hand_side_expression(&self) -> bool {
         match self.token() {
-            SyntaxKind::TrueKeyword => true,
-            SyntaxKind::FalseKeyword => true,
-            SyntaxKind::NumericLiteral => true,
-            SyntaxKind::OpenBracketToken => true,
+            SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::OpenBracketToken => true,
             _ => self.is_identifier(),
         }
     }
@@ -1481,7 +1490,7 @@ impl ParserType {
 
     fn parse_primary_expression(&mut self) -> Expression {
         match self.token() {
-            SyntaxKind::NumericLiteral | SyntaxKind::StringLiteral => {
+            SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral | SyntaxKind::StringLiteral => {
                 return self.parse_literal_node().into()
             }
             SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => {

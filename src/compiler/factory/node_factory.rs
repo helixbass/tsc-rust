@@ -4,16 +4,17 @@ use std::rc::Rc;
 
 use crate::{
     create_base_node_factory, escape_leading_underscores, is_omitted_expression, last_or_undefined,
-    ArrayLiteralExpression, ArrayTypeNode, BaseBindingLikeDeclaration, BaseGenericNamedDeclaration,
-    BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
-    BaseNodeFactory, BaseNodeFactoryConcrete, BaseVariableLikeDeclaration, BinaryExpression, Block,
-    EmptyStatement, Expression, ExpressionStatement, Identifier, IfStatement, InterfaceDeclaration,
-    IntersectionTypeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NumericLiteral, ObjectLiteralExpression,
-    PrefixUnaryExpression, PropertyAssignment, PropertySignature, SourceFile, Statement,
-    StringLiteral, SyntaxKind, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
-    TypeReferenceNode, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    pseudo_big_int_to_string, ArrayLiteralExpression, ArrayTypeNode, BaseBindingLikeDeclaration,
+    BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode,
+    BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block, EmptyStatement,
+    Expression, ExpressionStatement, Identifier, IfStatement, InterfaceDeclaration,
+    IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NumericLiteral, ObjectLiteralExpression,
+    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, SourceFile,
+    Statement, StringLiteral, SyntaxKind, TokenFlags, TypeLiteralNode, TypeNode,
+    TypeParameterDeclaration, TypeReferenceNode, UnionTypeNode, VariableDeclaration,
+    VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -123,9 +124,33 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
         value: String,
+        numeric_literal_flags: Option<TokenFlags>,
     ) -> NumericLiteral {
+        let numeric_literal_flags = numeric_literal_flags.unwrap_or(TokenFlags::None);
         let node = self.create_base_literal(base_factory, SyntaxKind::NumericLiteral, value);
         NumericLiteral::new(node)
+    }
+
+    pub fn create_big_int_literal<
+        TBaseNodeFactory: BaseNodeFactory,
+        TPseudoBigIntOrString: Into<PseudoBigIntOrString>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        value: TPseudoBigIntOrString,
+    ) -> BigIntLiteral {
+        let value = value.into();
+        let node = self.create_base_literal(
+            base_factory,
+            SyntaxKind::BigIntLiteral,
+            match value {
+                PseudoBigIntOrString::PseudoBigInt(pseudo_big_int) => {
+                    format!("{}n", pseudo_big_int_to_string(&pseudo_big_int))
+                }
+                PseudoBigIntOrString::String(string) => string,
+            },
+        );
+        BigIntLiteral::new(node)
     }
 
     pub fn create_base_string_literal<TBaseNodeFactory: BaseNodeFactory>(
@@ -148,6 +173,24 @@ impl NodeFactory {
         let mut node = self.create_base_string_literal(base_factory, text, is_single_quote);
         node.set_has_extended_unicode_escape(has_extended_unicode_escape);
         node
+    }
+
+    pub fn create_literal_like_node<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind, /*LiteralToken["kind"] | SyntaxKind.JsxTextAllWhiteSpaces*/
+        text: String,
+    ) -> LiteralLikeNode {
+        match kind {
+            SyntaxKind::NumericLiteral => self
+                .create_numeric_literal(base_factory, text, Some(TokenFlags::None))
+                .into(),
+            SyntaxKind::BigIntLiteral => self.create_big_int_literal(base_factory, text).into(),
+            SyntaxKind::StringLiteral => self
+                .create_string_literal(base_factory, text, None, None)
+                .into(),
+            _ => panic!("Unexpected kind"),
+        }
     }
 
     fn create_base_identifier<TBaseNodeFactory: BaseNodeFactory>(
@@ -628,4 +671,21 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
 
 lazy_static! {
     pub static ref factory: NodeFactory = create_node_factory();
+}
+
+pub enum PseudoBigIntOrString {
+    PseudoBigInt(PseudoBigInt),
+    String(String),
+}
+
+impl From<PseudoBigInt> for PseudoBigIntOrString {
+    fn from(pseudo_big_int: PseudoBigInt) -> Self {
+        PseudoBigIntOrString::PseudoBigInt(pseudo_big_int)
+    }
+}
+
+impl From<String> for PseudoBigIntOrString {
+    fn from(string: String) -> Self {
+        PseudoBigIntOrString::String(string)
+    }
 }

@@ -164,6 +164,8 @@ impl SyntaxKind {
     pub const FirstKeyword: SyntaxKind = SyntaxKind::BreakKeyword;
     pub const LastKeyword: SyntaxKind = SyntaxKind::OfKeyword;
     pub const LastToken: SyntaxKind = SyntaxKind::LastKeyword;
+    pub const FirstLiteralToken: SyntaxKind = SyntaxKind::NumericLiteral;
+    pub const LastLiteralToken: SyntaxKind = SyntaxKind::NoSubstitutionTemplateLiteral;
 }
 
 bitflags! {
@@ -1023,6 +1025,7 @@ pub trait LiteralLikeNodeInterface {
 pub enum LiteralLikeNode {
     StringLiteral(StringLiteral),
     NumericLiteral(NumericLiteral),
+    BigIntLiteral(BigIntLiteral),
 }
 
 bitflags! {
@@ -1031,6 +1034,15 @@ bitflags! {
         const PrecedingLineBreak = 1 << 0;
         const Unterminated = 1 << 2;
         const ExtendedUnicodeEscape = 1 << 3;
+        const Scientific = 1 << 4;
+        const Octal = 1 << 5;
+        const HexSpecifier = 1 << 6;
+        const BinarySpecifier = 1 << 7;
+        const OctalSpecifier = 1 << 8;
+        const ContainsSeparator = 1 << 9;
+
+        const BinaryOrOctalSpecifier = Self::BinarySpecifier.bits | Self::OctalSpecifier.bits;
+        const NumericLiteralFlags = Self::Scientific.bits | Self::Octal.bits | Self::HexSpecifier.bits | Self::BinaryOrOctalSpecifier.bits | Self::ContainsSeparator.bits;
     }
 }
 
@@ -1044,6 +1056,23 @@ pub struct NumericLiteral {
 }
 
 impl NumericLiteral {
+    pub fn new(base_literal_like_node: BaseLiteralLikeNode) -> Self {
+        Self {
+            _literal_like_node: base_literal_like_node,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "LiteralLikeNode, Expression",
+    interfaces = "LiteralLikeNodeInterface"
+)]
+pub struct BigIntLiteral {
+    _literal_like_node: BaseLiteralLikeNode,
+}
+
+impl BigIntLiteral {
     pub fn new(base_literal_like_node: BaseLiteralLikeNode) -> Self {
         Self {
             _literal_like_node: base_literal_like_node,
@@ -1388,6 +1417,7 @@ pub struct TypeChecker {
     pub globals: RefCell<SymbolTable>,
     pub string_literal_types: RefCell<HashMap<String, Rc</*StringLiteralType*/ Type>>>,
     pub number_literal_types: RefCell<HashMap<Number, Rc</*NumberLiteralType*/ Type>>>,
+    pub big_int_literal_types: RefCell<HashMap<String, Rc</*BigIntLiteralType*/ Type>>>,
     pub unknown_symbol: Option<Rc<Symbol>>,
     pub any_type: Option<Rc<Type>>,
     pub error_type: Option<Rc<Type>>,
@@ -2031,6 +2061,7 @@ pub trait LiteralTypeInterface: TypeInterface {
 pub enum LiteralType {
     StringLiteralType(StringLiteralType),
     NumberLiteralType(NumberLiteralType),
+    BigIntLiteralType(BigIntLiteralType),
 }
 
 #[derive(Clone, Debug)]
@@ -2167,6 +2198,66 @@ impl NumberLiteralType {
 }
 
 impl LiteralTypeInterface for NumberLiteralType {
+    fn fresh_type(&self) -> Option<&Weak<Type>> {
+        self._literal_type.fresh_type()
+    }
+
+    fn set_fresh_type(&self, fresh_type: &Rc<Type>) {
+        self._literal_type.set_fresh_type(fresh_type);
+    }
+
+    fn get_or_initialize_fresh_type(&self, type_checker: &TypeChecker) -> Rc<Type> {
+        if self.fresh_type().is_none() {
+            let fresh_type = self.create_fresh_type_from_self(type_checker);
+            self.set_fresh_type(&fresh_type);
+            return self.fresh_type().unwrap().upgrade().unwrap();
+        }
+        return self.fresh_type().unwrap().upgrade().unwrap();
+    }
+
+    fn regular_type(&self) -> Rc<Type> {
+        self._literal_type.regular_type()
+    }
+
+    fn set_regular_type(&self, regular_type: &Rc<Type>) {
+        self._literal_type.set_regular_type(regular_type);
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type(ancestors = "LiteralType")]
+pub struct BigIntLiteralType {
+    _literal_type: BaseLiteralType,
+    pub value: PseudoBigInt,
+}
+
+impl BigIntLiteralType {
+    pub fn new(literal_type: BaseLiteralType, value: PseudoBigInt) -> Self {
+        Self {
+            _literal_type: literal_type,
+            value,
+        }
+    }
+
+    fn create_fresh_type_from_self(&self, type_checker: &TypeChecker) -> Rc<Type> {
+        let fresh_type = type_checker.create_big_int_literal_type(
+            self.flags(),
+            self.value.clone(),
+            Some(self.type_wrapper()),
+        );
+        match &*fresh_type {
+            Type::LiteralType(literal_type) => {
+                literal_type.set_fresh_type(&fresh_type);
+            }
+            _ => panic!("Expected LiteralType"),
+        }
+        self.set_fresh_type(&fresh_type);
+        type_checker.keep_strong_reference_to_type(fresh_type);
+        self.fresh_type().unwrap().upgrade().unwrap()
+    }
+}
+
+impl LiteralTypeInterface for BigIntLiteralType {
     fn fresh_type(&self) -> Option<&Weak<Type>> {
         self._literal_type.fresh_type()
     }
@@ -3189,5 +3280,20 @@ bitflags! {
         const SingleLineTypeLiteralMembers = Self::SingleLine.bits | Self::SpaceBetweenBraces.bits | Self::SpaceBetweenSiblings.bits;
 
         const UnionTypeConstituents = Self::BarDelimited.bits | Self::SpaceBetweenSiblings.bits | Self::SingleLine.bits;
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct PseudoBigInt {
+    pub negative: bool,
+    pub base_10_value: String,
+}
+
+impl PseudoBigInt {
+    pub fn new(negative: bool, base_10_value: String) -> Self {
+        Self {
+            negative,
+            base_10_value,
+        }
     }
 }

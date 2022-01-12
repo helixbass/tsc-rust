@@ -385,6 +385,13 @@ impl NodeBuilder {
             )
             .into();
         }
+        if type_.flags().intersects(TypeFlags::BigInt) {
+            return Into::<KeywordTypeNode>::into(
+                factory
+                    .create_keyword_type_node(&self.synthetic_factory, SyntaxKind::BigIntKeyword),
+            )
+            .into();
+        }
         if type_.flags().intersects(TypeFlags::Boolean) {
             return Into::<KeywordTypeNode>::into(
                 factory
@@ -437,15 +444,40 @@ impl NodeBuilder {
                                     .create_numeric_literal(
                                         &self.synthetic_factory,
                                         (-value).to_string(),
+                                        None,
                                     )
                                     .into(),
                             )
                             .into()
                     } else {
                         factory
-                            .create_numeric_literal(&self.synthetic_factory, value.to_string())
+                            .create_numeric_literal(
+                                &self.synthetic_factory,
+                                value.to_string(),
+                                None,
+                            )
                             .into()
                     },
+                )
+                .into();
+        }
+        if type_.flags().intersects(TypeFlags::BigIntLiteral) {
+            return factory
+                .create_literal_type_node(
+                    &self.synthetic_factory,
+                    factory
+                        .create_big_int_literal(
+                            &self.synthetic_factory,
+                            match type_ {
+                                Type::LiteralType(LiteralType::BigIntLiteralType(
+                                    big_int_literal_type,
+                                )) => big_int_literal_type,
+                                _ => panic!("Expected BigIntLiteralType"),
+                            }
+                            .value
+                            .clone(),
+                        )
+                        .into(),
                 )
                 .into();
         }

@@ -19,9 +19,9 @@ use crate::{
     DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, ReadonlyTextRange, SortedArray,
-    SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable, TransientSymbolInterface, Type,
-    TypeInterface,
+    NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange,
+    SortedArray, SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    TransientSymbolInterface, Type, TypeInterface,
 };
 
 pub fn get_declaration_of_kind(
@@ -214,7 +214,9 @@ pub fn get_literal_text<TSourceFileRef: Borrow<SourceFile>>(
                 )
             }
         }
-        LiteralLikeNode::NumericLiteral(numeric_literal) => node.text().to_string(),
+        LiteralLikeNode::NumericLiteral(_) | LiteralLikeNode::BigIntLiteral(_) => {
+            node.text().to_string()
+        }
     }
 }
 
@@ -989,6 +991,24 @@ fn compare_message_text(t1: &DiagnosticMessageText, t2: &DiagnosticMessageText) 
 
 pub fn position_is_synthesized(pos: isize) -> bool {
     !(pos >= 0)
+}
+
+pub fn parse_pseudo_big_int(string_value: &str) -> String {
+    string_value.to_string()
+}
+
+pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
+    let negative = pseudo_big_int.negative;
+    let base_10_value = &pseudo_big_int.base_10_value;
+    format!(
+        "{}{}",
+        if negative && base_10_value != "0" {
+            "-"
+        } else {
+            ""
+        },
+        base_10_value
+    )
 }
 
 fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &mut TRange, pos: isize) -> &mut TRange {
