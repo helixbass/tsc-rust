@@ -853,8 +853,6 @@ fn compare_diagnostics<TDiagnosticRelatedInformation: DiagnosticRelatedInformati
     d1: &TDiagnosticRelatedInformation,
     d2: &TDiagnosticRelatedInformation,
 ) -> Comparison {
-    let d1 = d1.borrow();
-    let d2 = d2.borrow();
     let mut compared = compare_diagnostics_skip_related_information(d1, d2);
     if compared != Comparison::EqualTo {
         return compared;
