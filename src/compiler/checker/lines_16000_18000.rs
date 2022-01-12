@@ -162,6 +162,7 @@ impl TypeChecker {
         match node {
             TypeNode::KeywordTypeNode(_) => match node.kind() {
                 SyntaxKind::NumberKeyword => self.number_type(),
+                SyntaxKind::BooleanKeyword => self.boolean_type(),
                 _ => unimplemented!(),
             },
             TypeNode::LiteralTypeNode(literal_type_node) => {

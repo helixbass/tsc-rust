@@ -9,10 +9,11 @@ pub use compiler::binder::bind_source_file;
 pub use compiler::checker::{create_type_checker, NodeBuilder};
 pub use compiler::command_line_parser::parse_command_line;
 pub use compiler::core::{
-    append_if_unique, concatenate, every, first_defined, first_or_undefined, for_each,
-    insert_sorted, last_or_undefined, map, maybe_for_each, range_equals, some,
+    append_if_unique, compare_strings_case_sensitive, compare_values, concatenate, every,
+    first_defined, first_or_undefined, for_each, insert_sorted, last_or_undefined, map,
+    maybe_for_each, range_equals, some,
 };
-pub use compiler::core_public::SortedArray;
+pub use compiler::core_public::{Comparer, Comparison, SortedArray};
 pub use compiler::debug::Debug_;
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::emitter::create_printer;
@@ -44,7 +45,8 @@ pub use compiler::types::{
     BaseTransientSymbol, BaseType, BaseUnionOrIntersectionType, BaseVariableLikeDeclaration,
     BinaryExpression, BindingLikeDeclarationInterface, Block, CharacterCodes, CheckFlags,
     CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticCollection,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformationInterface,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitHint, EmitTextWriter,
     EmptyStatement, ExitStatus, Expression, ExpressionStatement, FreshableIntrinsicType,
     HasExpressionInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,

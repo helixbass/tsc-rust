@@ -1142,7 +1142,7 @@ impl ParserType {
 
     fn parse_non_array_type(&mut self) -> TypeNode {
         match self.token() {
-            SyntaxKind::NumberKeyword => self
+            SyntaxKind::NumberKeyword | SyntaxKind::BooleanKeyword => self
                 .try_parse(|| self.parse_keyword_and_no_dot())
                 .unwrap_or_else(|| unimplemented!()),
             SyntaxKind::StringLiteral => self.parse_literal_type_node(None).into(),

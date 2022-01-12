@@ -380,7 +380,16 @@ impl TypeChecker {
     ) -> TypeFlags {
         let flags = type_.flags();
         if flags.intersects(TypeFlags::Union) {
-            unimplemented!()
+            return self.add_types_to_union(
+                type_set,
+                includes
+                    | if self.is_named_union_type(type_) {
+                        TypeFlags::Union
+                    } else {
+                        TypeFlags::None
+                    },
+                type_.as_union_or_intersection_type().types(),
+            );
         }
         if !flags.intersects(TypeFlags::Never) {
             includes |= flags & TypeFlags::IncludesMask;
@@ -406,6 +415,10 @@ impl TypeChecker {
             includes = self.add_type_to_union(type_set, includes, &type_);
         }
         includes
+    }
+
+    pub(super) fn is_named_union_type(&self, type_: &Type) -> bool {
+        false
     }
 
     pub(super) fn get_union_type(

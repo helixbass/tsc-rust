@@ -11,11 +11,18 @@ use std::rc::{Rc, Weak};
 use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
 use local_macros::{ast_type, symbol_type, type_type};
 
+#[derive(Debug)]
 pub struct Path(String);
 
 impl Path {
     pub fn new(string: String) -> Self {
         Self(string)
+    }
+}
+
+impl ToString for Path {
+    fn to_string(&self) -> String {
+        self.0.clone()
     }
 }
 
@@ -1309,6 +1316,7 @@ pub struct SourceFile {
     pub statements: NodeArray,
 
     pub file_name: String,
+    pub path: Option<Path>,
     pub text: String,
 }
 
@@ -1324,6 +1332,7 @@ impl SourceFile {
             _symbols_without_a_symbol_table_strong_references: RefCell::new(vec![]),
             statements,
             file_name,
+            path: None,
             text,
         }
     }
@@ -2714,31 +2723,57 @@ pub struct DiagnosticMessage {
 #[derive(Clone, Debug)]
 pub struct DiagnosticMessageChain {
     pub message_text: String,
+    pub code: u32,
     pub next: Option<Vec<DiagnosticMessageChain>>,
 }
 
-#[derive(Debug)]
+impl DiagnosticMessageChain {
+    pub fn new(message_text: String, code: u32, next: Option<Vec<DiagnosticMessageChain>>) -> Self {
+        Self {
+            message_text,
+            code,
+            next,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum Diagnostic {
     DiagnosticWithLocation(DiagnosticWithLocation),
     DiagnosticWithDetachedLocation(DiagnosticWithDetachedLocation),
 }
 
-pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {}
+pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
+    fn maybe_related_information(&self) -> Option<&[DiagnosticRelatedInformation]>;
+}
 
 #[derive(Clone, Debug)]
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
+    related_information: Option<Vec<DiagnosticRelatedInformation>>,
 }
 
 impl BaseDiagnostic {
-    pub fn new(diagnostic_related_information: BaseDiagnosticRelatedInformation) -> Self {
+    pub fn new(
+        diagnostic_related_information: BaseDiagnosticRelatedInformation,
+        related_information: Option<Vec<DiagnosticRelatedInformation>>,
+    ) -> Self {
         Self {
             _diagnostic_related_information: diagnostic_related_information,
+            related_information,
         }
     }
 }
 
 impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
+    fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
+        panic!("Shouldn't call maybe_as_diagnostic() on BaseDiagnostic")
+    }
+
+    fn code(&self) -> u32 {
+        self._diagnostic_related_information.code()
+    }
+
     fn file(&self) -> Option<Rc<SourceFile>> {
         self._diagnostic_related_information.file()
     }
@@ -2756,7 +2791,29 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
     }
 }
 
+impl DiagnosticInterface for BaseDiagnostic {
+    fn maybe_related_information(&self) -> Option<&[DiagnosticRelatedInformation]> {
+        self.related_information
+            .map(|related_information| related_information.as_ref())
+    }
+}
+
 impl DiagnosticRelatedInformationInterface for Diagnostic {
+    fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
+        Some(self)
+    }
+
+    fn code(&self) -> u32 {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
+                diagnostic_with_location.code()
+            }
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
+                diagnostic_with_detached_location.code()
+            }
+        }
+    }
+
     fn file(&self) -> Option<Rc<SourceFile>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
@@ -2802,7 +2859,18 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
     }
 }
 
-impl DiagnosticInterface for Diagnostic {}
+impl DiagnosticInterface for Diagnostic {
+    fn maybe_related_information(&self) -> Option<&[DiagnosticRelatedInformation]> {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
+                diagnostic_with_location.maybe_related_information()
+            }
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
+                diagnostic_with_detached_location.maybe_related_information()
+            }
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum DiagnosticMessageText {
@@ -2823,6 +2891,8 @@ impl From<DiagnosticMessageChain> for DiagnosticMessageText {
 }
 
 pub trait DiagnosticRelatedInformationInterface {
+    fn maybe_as_diagnostic(&self) -> Option<&Diagnostic>;
+    fn code(&self) -> u32;
     fn file(&self) -> Option<Rc<SourceFile>>;
     fn start(&self) -> isize;
     fn length(&self) -> isize;
@@ -2830,7 +2900,72 @@ pub trait DiagnosticRelatedInformationInterface {
 }
 
 #[derive(Clone, Debug)]
+pub enum DiagnosticRelatedInformation {
+    BaseDiagnosticRelatedInformation(BaseDiagnosticRelatedInformation),
+    Diagnostic(Diagnostic),
+}
+
+impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
+    fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.maybe_as_diagnostic(),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => {
+                diagnostic.maybe_as_diagnostic()
+            }
+        }
+    }
+
+    fn code(&self) -> u32 {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.code(),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.code(),
+        }
+    }
+
+    fn file(&self) -> Option<Rc<SourceFile>> {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.file(),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.file(),
+        }
+    }
+
+    fn start(&self) -> isize {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.start(),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.start(),
+        }
+    }
+
+    fn length(&self) -> isize {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.length(),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.length(),
+        }
+    }
+
+    fn message_text(&self) -> &DiagnosticMessageText {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.message_text(),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.message_text(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct BaseDiagnosticRelatedInformation {
+    code: u32,
     file: Option<Rc<SourceFile>>,
     start: isize,
     length: isize,
@@ -2839,12 +2974,14 @@ pub struct BaseDiagnosticRelatedInformation {
 
 impl BaseDiagnosticRelatedInformation {
     pub fn new<TDiagnosticMessageText: Into<DiagnosticMessageText>>(
+        code: u32,
         file: Option<Rc<SourceFile>>,
         start: isize,
         length: isize,
         message_text: TDiagnosticMessageText,
     ) -> Self {
         Self {
+            code,
             file,
             start,
             length,
@@ -2854,6 +2991,14 @@ impl BaseDiagnosticRelatedInformation {
 }
 
 impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation {
+    fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
+        None
+    }
+
+    fn code(&self) -> u32 {
+        self.code
+    }
+
     fn file(&self) -> Option<Rc<SourceFile>> {
         self.file.clone()
     }
@@ -2889,6 +3034,14 @@ impl DiagnosticWithLocation {
 }
 
 impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
+    fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
+        panic!("Shouldn't call maybe_as_diagnostic() on DiagnosticWithLocation")
+    }
+
+    fn code(&self) -> u32 {
+        self._diagnostic.code()
+    }
+
     fn file(&self) -> Option<Rc<SourceFile>> {
         self._diagnostic.file()
     }
@@ -2906,7 +3059,11 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
     }
 }
 
-impl DiagnosticInterface for DiagnosticWithLocation {}
+impl DiagnosticInterface for DiagnosticWithLocation {
+    fn maybe_related_information(&self) -> Option<&[DiagnosticRelatedInformation]> {
+        self._diagnostic.maybe_related_information()
+    }
+}
 
 impl From<DiagnosticWithLocation> for Diagnostic {
     fn from(diagnostic_with_location: DiagnosticWithLocation) -> Self {
@@ -2914,7 +3071,7 @@ impl From<DiagnosticWithLocation> for Diagnostic {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DiagnosticWithDetachedLocation {
     _diagnostic: BaseDiagnostic,
     file_name: String,
@@ -2930,6 +3087,14 @@ impl DiagnosticWithDetachedLocation {
 }
 
 impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
+    fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
+        panic!("Shouldn't call maybe_as_diagnostic() on DiagnosticWithDetachedLocation")
+    }
+
+    fn code(&self) -> u32 {
+        self._diagnostic.code()
+    }
+
     fn file(&self) -> Option<Rc<SourceFile>> {
         self._diagnostic.file()
     }
@@ -2947,7 +3112,11 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
     }
 }
 
-impl DiagnosticInterface for DiagnosticWithDetachedLocation {}
+impl DiagnosticInterface for DiagnosticWithDetachedLocation {
+    fn maybe_related_information(&self) -> Option<&[DiagnosticRelatedInformation]> {
+        self._diagnostic.maybe_related_information()
+    }
+}
 
 impl From<DiagnosticWithDetachedLocation> for Diagnostic {
     fn from(diagnostic_with_detached_location: DiagnosticWithDetachedLocation) -> Self {
