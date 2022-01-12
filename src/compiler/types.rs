@@ -1856,6 +1856,7 @@ bitflags! {
         const StringOrNumberLiteralOrUnique = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::UniqueESSymbol.bits;
         const Primitive = Self::String.bits | Self::Number.bits | Self::BigInt.bits | Self::Boolean.bits | Self::Enum.bits | Self::EnumLiteral.bits | Self::ESSymbol.bits | Self::Void.bits | Self::Undefined.bits | Self::Null.bits | Self::Literal.bits | Self::UniqueESSymbol.bits;
         const NumberLike = Self::Number.bits | Self::NumberLiteral.bits | Self::Enum.bits;
+        const BigIntLike = Self::BigInt.bits | Self::BigIntLiteral.bits;
         const UnionOrIntersection =  Self::Union.bits | Self::Intersection.bits;
         const StructuredType = Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
         const TypeVariable = Self::TypeParameter.bits | Self::IndexedAccess.bits;
