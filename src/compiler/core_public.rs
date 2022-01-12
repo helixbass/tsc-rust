@@ -43,7 +43,13 @@ impl<TItem> Deref for SortedArray<TItem> {
     }
 }
 
-pub type Comparer<TValue> = fn(a: TValue, b: TValue) -> Comparison;
+pub type Comparer<TFirstValue, TSecondValue> = fn(a: TFirstValue, b: TSecondValue) -> Comparison;
+// pub trait Comparer<TValue>: Fn(TValue, TValue) -> Comparison + 'static {}
+
+// impl<TComparer: 'static, TValue> Comparer<TValue> for TComparer where
+//     TComparer: Fn(TValue, TValue) -> Comparison
+// {
+// }
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Comparison {

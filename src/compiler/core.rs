@@ -87,17 +87,23 @@ pub fn concatenate<TItem>(mut array1: Vec<TItem>, mut array2: Vec<TItem>) -> Vec
     array1
 }
 
-pub fn insert_sorted<'array_or_item, TItem>(
-    array: &'array_or_item mut SortedArray<TItem>,
+fn identity_key_selector<TItem>(item: TItem, _: Option<usize>) -> TItem {
+    item
+}
+
+pub fn insert_sorted<TItem /*, TComparer: Comparer<&'array_or_item TItem>*/>(
+    array: &mut SortedArray<TItem>,
     insert: TItem,
-    compare: Comparer<&'array_or_item TItem>,
+    // compare: Comparer<&'array_or_item TItem>,
+    // compare: Comparer<&TItem, &TItem>,
+    compare: fn(&TItem, &TItem) -> Comparison,
 ) {
     if array.is_empty() {
         array.push(insert);
         return;
     }
 
-    // let insert_index = binary_search(array, &insert, identity, compare, None);
+    // let insert_index = binary_search(array, &insert, identity_key_selector, compare, None);
     let insert_index = binary_search(array, &insert, |item, _| item, compare, None);
     if insert_index < 0 {
         array.insert((!insert_index).try_into().unwrap(), insert);
@@ -141,21 +147,28 @@ pub fn last_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
 }
 
 fn binary_search<
-    'array_or_item,
-    TKey: 'array_or_item,
+    TKey,
     TItem,
-    TKeySelector: Fn(&'array_or_item TItem, Option<usize>) -> TKey,
+    // TKeySelector: Fn(&'array_or_item TItem, Option<usize>) -> TKey,
+    // TComparer: Comparer<TKey>,
 >(
-    array: &'array_or_item [TItem],
-    value: &'array_or_item TItem,
-    // key_selector: fn(&TItem) -> TKey,
-    key_selector: TKeySelector,
-    key_comparer: Comparer<TKey>,
+    array: &[TItem],
+    value: &TItem,
+    key_selector: fn(&TItem, Option<usize>) -> &TKey,
+    // key_selector: TKeySelector,
+    // key_comparer: TComparer,
+    // key_comparer: Comparer<&'array TKey>,
+    // key_comparer: Comparer<&TKey, &TKey>,
+    key_comparer: fn(&TKey, &TKey) -> Comparison,
     offset: Option<usize>,
-) -> isize {
+) -> isize
+// where
+//     for<'key> &'key TKey: Clone,
+{
     binary_search_key(
         array,
-        key_selector(value, None),
+        // key_selector(value, None),
+        value,
         key_selector,
         key_comparer,
         offset,
@@ -163,17 +176,24 @@ fn binary_search<
 }
 
 fn binary_search_key<
-    'array_or_item,
     TItem,
-    TKey: 'array_or_item,
-    TKeySelector: Fn(&'array_or_item TItem, Option<usize>) -> TKey,
+    TKey,
+    TKeySelector: Fn(&TItem, Option<usize>) -> &TKey,
+    // TComparer: Comparer<TKey>,
 >(
-    array: &'array_or_item [TItem],
-    key: TKey,
+    array: &[TItem],
+    item: &TItem,
+    // key: &TSearchedKey,
     key_selector: TKeySelector,
-    key_comparer: Comparer<TKey>,
+    // key_comparer: TComparer,
+    // key_comparer: Comparer<&TKey>,
+    key_comparer: fn(&TKey, b: &TKey) -> Comparison,
     offset: Option<usize>,
-) -> isize {
+) -> isize
+// where
+//     for<'key> &'key TKey: Clone,
+{
+    let key = key_selector(item, None);
     if array.is_empty()
     /* !some(array)*/
     {
@@ -181,7 +201,7 @@ fn binary_search_key<
     }
 
     let mut low = offset.unwrap_or(0);
-    let high = array.len() - 1;
+    let mut high = array.len() - 1;
     while low <= high {
         let middle = low + ((high - low) >> 1);
         let mid_key = key_selector(&array[middle], Some(middle));

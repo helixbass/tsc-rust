@@ -2793,8 +2793,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
 
 impl DiagnosticInterface for BaseDiagnostic {
     fn maybe_related_information(&self) -> Option<&[DiagnosticRelatedInformation]> {
-        self.related_information
-            .map(|related_information| related_information.as_ref())
+        self.related_information.as_deref()
     }
 }
 

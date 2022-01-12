@@ -495,7 +495,13 @@ impl DiagnosticCollection {
             .file_diagnostics
             .get_mut(&diagnostic.file().unwrap().file_name)
         {
-            insert_sorted(diagnostics, diagnostic, compare_diagnostics);
+            insert_sorted(
+                diagnostics,
+                diagnostic,
+                |rc_diagnostic_a: &Rc<Diagnostic>, rc_diagnostic_b: &Rc<Diagnostic>| {
+                    compare_diagnostics(&**rc_diagnostic_a, &**rc_diagnostic_b)
+                },
+            );
             return;
         }
         let diagnostics: SortedArray<Rc<Diagnostic>> = SortedArray::new(vec![]);
@@ -507,7 +513,13 @@ impl DiagnosticCollection {
             .file_diagnostics
             .get_mut(&diagnostic.file().unwrap().file_name)
             .unwrap();
-        insert_sorted(diagnostics, diagnostic, compare_diagnostics);
+        insert_sorted(
+            diagnostics,
+            diagnostic,
+            |rc_diagnostic_a: &Rc<Diagnostic>, rc_diagnostic_b: &Rc<Diagnostic>| {
+                compare_diagnostics(&**rc_diagnostic_a, &**rc_diagnostic_b)
+            },
+        );
     }
 
     pub fn get_diagnostics(&self, file_name: &str) -> Vec<Rc<Diagnostic>> {
@@ -832,15 +844,12 @@ fn get_diagnostic_file_path<
 ) -> Option<String> {
     diagnostic
         .file()
-        .and_then(|file| file.path.map(|path| path.to_string()))
+        .and_then(|file| file.path.as_ref().map(|path| path.to_string()))
 }
 
-fn compare_diagnostics<
-    TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface,
-    TDiagnosticRelatedInformationRef: Borrow<TDiagnosticRelatedInformation>,
->(
-    d1: TDiagnosticRelatedInformationRef,
-    d2: TDiagnosticRelatedInformationRef,
+fn compare_diagnostics<TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface>(
+    d1: &TDiagnosticRelatedInformation,
+    d2: &TDiagnosticRelatedInformation,
 ) -> Comparison {
     let d1 = d1.borrow();
     let d2 = d2.borrow();
@@ -939,8 +948,14 @@ fn compare_message_text(t1: &DiagnosticMessageText, t2: &DiagnosticMessageText) 
     if matches!(t2, DiagnosticMessageText::String(_)) {
         return Comparison::GreaterThan;
     }
-    let DiagnosticMessageText::DiagnosticMessageChain(t1) = t1;
-    let DiagnosticMessageText::DiagnosticMessageChain(t2) = t2;
+    let t1 = match t1 {
+        DiagnosticMessageText::DiagnosticMessageChain(t1) => t1,
+        _ => panic!("Expected DiagnosticMessageChain"),
+    };
+    let t2 = match t2 {
+        DiagnosticMessageText::DiagnosticMessageChain(t2) => t2,
+        _ => panic!("Expected DiagnosticMessageChain"),
+    };
     let mut res = compare_strings_case_sensitive(Some(&t1.message_text), Some(&t2.message_text));
     if res != Comparison::EqualTo {
         return res;
@@ -954,11 +969,11 @@ fn compare_message_text(t1: &DiagnosticMessageText, t2: &DiagnosticMessageText) 
     if t2.next.is_none() {
         return Comparison::GreaterThan;
     }
-    let t1_next = t1.next.unwrap();
-    let t2_next = t2.next.unwrap();
+    let t1_next = t1.next.as_ref().unwrap();
+    let t2_next = t2.next.as_ref().unwrap();
     let len = cmp::min(t1_next.len(), t2_next.len());
     for i in 0..len {
-        res = compare_message_text(&t1_next[i].into(), &t2_next[i].into());
+        res = compare_message_text(&t1_next[i].clone().into(), &t2_next[i].clone().into());
         if res != Comparison::EqualTo {
             return res;
         }

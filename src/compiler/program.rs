@@ -234,7 +234,7 @@ fn find_source_file_worker(
 
     let file = helper_context.host.get_source_file(file_name);
 
-    file.map(|file| {
+    file.map(|mut file| {
         file.file_name = file_name.to_string();
         file.path = Some(_path);
         let file: Rc<Node> = file.into();
