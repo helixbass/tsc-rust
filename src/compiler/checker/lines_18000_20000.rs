@@ -219,6 +219,16 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                 report_errors,
                 intersection_state | IntersectionState::UnionIntersectionCheck,
             );
+        } else if source.flags().intersects(TypeFlags::UnionOrIntersection)
+            || target.flags().intersects(TypeFlags::UnionOrIntersection)
+        {
+            result = self.recursive_type_related_to(
+                &source,
+                &target,
+                report_errors,
+                intersection_state | IntersectionState::UnionIntersectionCheck,
+                recursion_flags,
+            );
         }
         if result == Ternary::False
             && !(source.flags().intersects(TypeFlags::Union))
