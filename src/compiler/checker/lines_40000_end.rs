@@ -48,6 +48,9 @@ impl TypeChecker {
             Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
                 self.check_interface_declaration(interface_declaration)
             }
+            Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
+                self.check_type_alias_declaration(type_alias_declaration)
+            }
             _ => unimplemented!("{:?}", node.kind()),
         };
     }

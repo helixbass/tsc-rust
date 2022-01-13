@@ -11,9 +11,9 @@ use crate::{
     HasTypeParametersInterface, IfStatement, InterfaceDeclaration, LiteralLikeNode,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameterDeclaration,
-    TypeReferenceNode, UnionOrIntersectionTypeInterface, VariableDeclaration,
-    VariableLikeDeclarationInterface, VariableStatement,
+    SyntaxKind, Type, TypeAliasDeclaration, TypeChecker, TypeFlags, TypeInterface,
+    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeInterface,
+    VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
 };
 
 impl TypeChecker {
@@ -450,5 +450,14 @@ impl TypeChecker {
             self.check_source_element(Some(&**member));
             Option::<()>::None
         });
+    }
+
+    pub(super) fn check_type_alias_declaration(&mut self, node: &TypeAliasDeclaration) {
+        self.check_type_parameters(node.maybe_type_parameters());
+        if false {
+            unimplemented!()
+        } else {
+            self.check_source_element(Some(&*node.type_));
+        }
     }
 }
