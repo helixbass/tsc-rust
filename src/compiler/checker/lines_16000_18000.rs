@@ -212,11 +212,7 @@ impl TypeChecker {
         if sources.len() == 1 {
             self.make_unary_type_mapper(
                 &sources[0],
-                &*if let Some(targets) = targets {
-                    targets[0].clone()
-                } else {
-                    self.any_type()
-                },
+                &*targets.map_or_else(|| self.any_type(), |targets| targets[0].clone()),
             )
         } else {
             self.make_array_type_mapper(sources, targets)
@@ -236,7 +232,7 @@ impl TypeChecker {
                 let sources = &mapper.sources;
                 let targets = &mapper.targets;
                 for (i, source) in sources.iter().enumerate() {
-                    if ptr::eq(type_, Rc::as_ptr(&source)) {
+                    if ptr::eq(type_, Rc::as_ptr(source)) {
                         return if let Some(targets) = targets {
                             targets[i].clone()
                         } else {
