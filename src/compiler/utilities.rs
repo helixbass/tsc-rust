@@ -23,6 +23,7 @@ use crate::{
     SortedArray, SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
     TransientSymbolInterface, Type, TypeInterface,
 };
+use local_macros::enum_unwrapped;
 
 pub fn get_declaration_of_kind(
     symbol: &Symbol,
@@ -272,10 +273,7 @@ pub fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceF
     while parent.kind() != SyntaxKind::SourceFile {
         parent = parent.parent();
     }
-    match &*parent {
-        Node::SourceFile(source_file) => source_file.clone(),
-        _ => panic!("Expected SourceFile"),
-    }
+    enum_unwrapped!(&*parent, [Node, SourceFile]).clone()
 }
 
 pub fn node_is_missing<TNode: NodeInterface>(node: &TNode) -> bool {
@@ -948,14 +946,8 @@ fn compare_message_text(t1: &DiagnosticMessageText, t2: &DiagnosticMessageText) 
     if matches!(t2, DiagnosticMessageText::String(_)) {
         return Comparison::GreaterThan;
     }
-    let t1 = match t1 {
-        DiagnosticMessageText::DiagnosticMessageChain(t1) => t1,
-        _ => panic!("Expected DiagnosticMessageChain"),
-    };
-    let t2 = match t2 {
-        DiagnosticMessageText::DiagnosticMessageChain(t2) => t2,
-        _ => panic!("Expected DiagnosticMessageChain"),
-    };
+    let t1 = enum_unwrapped!(t1, [DiagnosticMessageText, DiagnosticMessageChain]);
+    let t2 = enum_unwrapped!(t2, [DiagnosticMessageText, DiagnosticMessageChain]);
     let mut res = compare_strings_case_sensitive(Some(&t1.message_text), Some(&t2.message_text));
     if res != Comparison::EqualTo {
         return res;
