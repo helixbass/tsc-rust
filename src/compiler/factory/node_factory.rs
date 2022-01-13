@@ -400,15 +400,13 @@ impl NodeFactory {
         let has_trailing_comma = {
             let last_element =
                 last_or_undefined(Into::<&[Rc<Node>]>::into(&elements_as_node_array));
-            if let Some(last_element) = last_element {
+            last_element.and_then(|last_element| {
                 if is_omitted_expression(&**last_element) {
                     Some(true)
                 } else {
                     None
                 }
-            } else {
-                None
-            }
+            })
         };
         let elements_array = self.create_node_array(elements_as_node_array, has_trailing_comma);
         let node = ArrayLiteralExpression::new(node, elements_array);
