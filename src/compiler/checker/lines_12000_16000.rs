@@ -357,10 +357,13 @@ impl TypeChecker {
     }
 
     pub(super) fn contains_type(&self, types: &[Rc<Type>], type_: &Type) -> bool {
-        /*binary_search(...)*/
-        types
-            .iter()
-            .any(|t| self.get_type_id(&t) == self.get_type_id(type_))
+        binary_search_copy_key(
+            types,
+            &type_.type_wrapper(),
+            |t, _| Some(self.get_type_id(t)),
+            compare_values,
+            None,
+        ) >= 0
     }
 
     pub(super) fn add_type_to_union(
