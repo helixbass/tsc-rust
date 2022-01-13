@@ -15,7 +15,6 @@ use crate::{
     TypeReferenceNode, UnionOrIntersectionTypeInterface, VariableDeclaration,
     VariableLikeDeclarationInterface, VariableStatement,
 };
-use local_macros::{enum_unwrapped, node_unwrapped};
 
 impl TypeChecker {
     pub(super) fn check_arithmetic_operand_type(

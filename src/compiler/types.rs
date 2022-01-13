@@ -9,7 +9,9 @@ use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
 use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
-use local_macros::{ast_type, enum_unwrapped, node_unwrapped, symbol_type, type_type};
+use local_macros::{
+    ast_type, enum_unwrapped, node_unwrapped, symbol_type, type_type, type_unwrapped,
+};
 
 #[derive(Debug)]
 pub struct Path(String);
@@ -1929,6 +1931,10 @@ impl Type {
             Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
             _ => panic!("Expected object flags type"),
         }
+    }
+
+    pub fn as_base_interface_type(&self) -> &BaseInterfaceType {
+        type_unwrapped!(self, BaseInterfaceType)
     }
 }
 

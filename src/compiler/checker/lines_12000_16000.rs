@@ -106,10 +106,7 @@ impl TypeChecker {
                 None => vec![],
                 Some(node) => match &**node {
                     Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
-                        let target_as_base_interface_type = enum_unwrapped!(
-                            &*type_.target,
-                            [Type, ObjectType, InterfaceType, BaseInterfaceType]
-                        );
+                        let target_as_base_interface_type = type_.target.as_base_interface_type();
                         concatenate(
                             target_as_base_interface_type
                                 .outer_type_parameters
