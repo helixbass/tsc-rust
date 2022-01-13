@@ -1938,7 +1938,11 @@ impl Type {
     }
 
     pub fn as_base_interface_type(&self) -> &BaseInterfaceType {
-        type_unwrapped!(self, BaseInterfaceType)
+        enum_unwrapped!(self, [Type, ObjectType, InterfaceType, BaseInterfaceType])
+    }
+
+    pub fn as_type_parameter(&self) -> &TypeParameter {
+        enum_unwrapped!(self, [Type, TypeParameter])
     }
 }
 

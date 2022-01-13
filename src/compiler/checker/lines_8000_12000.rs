@@ -357,19 +357,15 @@ impl TypeChecker {
             .into();
             let type_rc: Rc<Type> = type_.into();
             if need_to_set_constraint {
-                *enum_unwrapped!(
-                    &**enum_unwrapped!(
-                        &*type_rc,
-                        [Type, ObjectType, InterfaceType, BaseInterfaceType]
-                    )
+                *type_rc
+                    .as_base_interface_type()
                     .this_type
                     .borrow_mut()
                     .as_ref()
-                    .unwrap(),
-                    [Type, TypeParameter]
-                )
-                .constraint
-                .borrow_mut() = Some(Rc::downgrade(&type_rc));
+                    .unwrap()
+                    .as_type_parameter()
+                    .constraint
+                    .borrow_mut() = Some(Rc::downgrade(&type_rc));
             }
             original_links_ref.declared_type = Some(type_rc.clone());
             if !Rc::ptr_eq(&links, &original_links) {
