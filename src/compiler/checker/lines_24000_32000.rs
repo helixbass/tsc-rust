@@ -12,6 +12,7 @@ use crate::{
     ObjectLiteralExpression, PropertyAssignment, Symbol, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeInterface,
 };
+use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn check_identifier(
@@ -51,10 +52,7 @@ impl TypeChecker {
         node: &TNode,
     ) -> Option<Rc<Type>> {
         let parent = node.parent();
-        let declaration = match &*parent {
-            Node::VariableDeclaration(variable_declaration) => variable_declaration,
-            _ => panic!("Expected VariableDeclaration"),
-        };
+        let declaration = enum_unwrapped!(&*parent, [Node, VariableDeclaration]);
         if has_initializer(declaration)
             && Rc::ptr_eq(
                 &node.node_wrapper(),
@@ -105,12 +103,7 @@ impl TypeChecker {
         element: &PropertyAssignment,
     ) -> Option<Rc<Type>> {
         let parent = element.parent();
-        let object_literal = match &*parent {
-            Node::Expression(Expression::ObjectLiteralExpression(object_literal_expression)) => {
-                object_literal_expression
-            }
-            _ => panic!("Expected ObjectLiteralExpression"),
-        };
+        let object_literal = enum_unwrapped!(&*parent, [Node, Expression, ObjectLiteralExpression]);
         // let property_assignment_type = if is_property_assignment(element) {
         // } else {
         //     None
