@@ -9,7 +9,7 @@ use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
 use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
-use local_macros::{ast_type, symbol_type, type_type};
+use local_macros::{ast_type, enum_unwrapped, symbol_type, type_type};
 
 #[derive(Debug)]
 pub struct Path(String);
@@ -250,20 +250,14 @@ impl Node {
 
     pub fn as_member_name(&self) -> &dyn MemberNameInterface {
         match self {
-            Node::Expression(expression) => match expression {
-                Expression::Identifier(identifier) => identifier,
-                _ => panic!("Expected member name"),
-            },
+            Node::Expression(Expression::Identifier(identifier)) => identifier,
             _ => panic!("Expected member name"),
         }
     }
 
     pub fn as_literal_like_node(&self) -> &dyn LiteralLikeNodeInterface {
         match self {
-            Node::Expression(expression) => match expression {
-                Expression::LiteralLikeNode(literal_like_node) => literal_like_node,
-                _ => panic!("Expected literal like node"),
-            },
+            Node::Expression(Expression::LiteralLikeNode(literal_like_node)) => literal_like_node,
             _ => panic!("Expected literal like node"),
         }
     }
@@ -2126,12 +2120,7 @@ impl StringLiteralType {
             self.value.clone(),
             Some(self.type_wrapper()),
         );
-        match &*fresh_type {
-            Type::LiteralType(literal_type) => {
-                literal_type.set_fresh_type(&fresh_type);
-            }
-            _ => panic!("Expected LiteralType"),
-        }
+        enum_unwrapped!(&*fresh_type, [Type, LiteralType]).set_fresh_type(&fresh_type);
         self.set_fresh_type(&fresh_type);
         type_checker.keep_strong_reference_to_type(fresh_type);
         self.fresh_type().unwrap().upgrade().unwrap()
@@ -2186,12 +2175,7 @@ impl NumberLiteralType {
             self.value,
             Some(self.type_wrapper()),
         );
-        match &*fresh_type {
-            Type::LiteralType(literal_type) => {
-                literal_type.set_fresh_type(&fresh_type);
-            }
-            _ => panic!("Expected LiteralType"),
-        }
+        enum_unwrapped!(&*fresh_type, [Type, LiteralType]).set_fresh_type(&fresh_type);
         self.set_fresh_type(&fresh_type);
         type_checker.keep_strong_reference_to_type(fresh_type);
         self.fresh_type().unwrap().upgrade().unwrap()
@@ -2246,12 +2230,7 @@ impl BigIntLiteralType {
             self.value.clone(),
             Some(self.type_wrapper()),
         );
-        match &*fresh_type {
-            Type::LiteralType(literal_type) => {
-                literal_type.set_fresh_type(&fresh_type);
-            }
-            _ => panic!("Expected LiteralType"),
-        }
+        enum_unwrapped!(&*fresh_type, [Type, LiteralType]).set_fresh_type(&fresh_type);
         self.set_fresh_type(&fresh_type);
         type_checker.keep_strong_reference_to_type(fresh_type);
         self.fresh_type().unwrap().upgrade().unwrap()
