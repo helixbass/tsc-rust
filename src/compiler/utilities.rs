@@ -273,7 +273,7 @@ pub fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceF
     while parent.kind() != SyntaxKind::SourceFile {
         parent = parent.parent();
     }
-    enum_unwrapped!(&*parent, [Node, SourceFile]).clone()
+    parent.as_source_file().clone()
 }
 
 pub fn node_is_missing<TNode: NodeInterface>(node: &TNode) -> bool {
