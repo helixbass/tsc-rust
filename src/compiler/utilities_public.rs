@@ -5,6 +5,7 @@ use crate::{
     CharacterCodes, Expression, Node, NodeFlags, NodeInterface, SyntaxKind, TextSpan, __String,
     is_block, is_module_block, is_source_file,
 };
+use local_macros::enum_unwrapped;
 
 fn create_text_span(start: isize, length: isize) -> TextSpan {
     TextSpan { start, length }
@@ -72,10 +73,10 @@ pub fn id_text<TNode: NodeInterface>(
     identifier_or_private_name: &TNode, /*Identifier | PrivateIdentifier*/
 ) -> String {
     unescape_leading_underscores(
-        &match &*identifier_or_private_name.node_wrapper() {
-            Node::Expression(Expression::Identifier(identifier)) => identifier,
-            _ => panic!("Expected Identifier"),
-        }
+        &enum_unwrapped!(
+            &*identifier_or_private_name.node_wrapper(),
+            [Node, Expression, Identifier]
+        )
         .escaped_text,
     )
 }
