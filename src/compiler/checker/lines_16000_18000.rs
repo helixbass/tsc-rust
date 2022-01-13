@@ -350,17 +350,15 @@ impl TypeChecker {
         type_: Option<TTypeRef>,
         mapper: Option<&TypeMapper>,
     ) -> Option<Rc<Type>> {
-        if let Some(type_) = type_.as_ref() {
-            if let Some(mapper) = mapper {
-                return Some(self.instantiate_type_with_alias(
-                    type_.borrow(),
-                    mapper,
-                    Option::<&Symbol>::None,
-                    None,
-                ));
-            }
+        match (type_.as_ref(), mapper) {
+            (Some(type_), Some(mapper)) => Some(self.instantiate_type_with_alias(
+                type_.borrow(),
+                mapper,
+                Option::<&Symbol>::None,
+                None,
+            )),
+            _ => type_.map(|type_| type_.borrow().type_wrapper()),
         }
-        type_.map(|type_| type_.borrow().type_wrapper())
     }
 
     pub(super) fn instantiate_type_with_alias<TSymbolRef: Borrow<Symbol>>(
