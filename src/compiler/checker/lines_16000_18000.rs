@@ -157,6 +157,9 @@ impl TypeChecker {
             TypeNode::ArrayTypeNode(array_type_node) => {
                 self.get_type_from_array_or_tuple_type_node(array_type_node)
             }
+            TypeNode::UnionTypeNode(union_type_node) => {
+                self.get_type_from_union_type_node(union_type_node)
+            }
             _ => unimplemented!(),
         }
     }

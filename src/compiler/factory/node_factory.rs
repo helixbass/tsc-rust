@@ -274,13 +274,20 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_union_or_intersection_type_node<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_union_or_intersection_type_node<
+        TBaseNodeFactory: BaseNodeFactory,
+        TElements: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind, /*SyntaxKind.UnionType | SyntaxKind.IntersectionType*/
-        types: NodeArray, /*<TypeNode>*/
+        types: TElements, /*<TypeNode>*/
     ) -> TypeNode {
         let node = self.create_base_node(base_factory, kind);
+        let types = match types.into() {
+            NodeArrayOrVec::NodeArray(node_array) => node_array,
+            NodeArrayOrVec::Vec(types) => NodeArray::new(types),
+        };
         match kind {
             SyntaxKind::UnionType => UnionTypeNode::new(node, types).into(),
             SyntaxKind::IntersectionType => IntersectionTypeNode::new(node, types).into(),
@@ -288,18 +295,24 @@ impl NodeFactory {
         }
     }
 
-    pub fn create_union_type_node<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_union_type_node<
+        TBaseNodeFactory: BaseNodeFactory,
+        TElements: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
-        types: NodeArray, /*<TypeNode>*/
+        types: TElements, /*<TypeNode>*/
     ) -> TypeNode {
         self.create_union_or_intersection_type_node(base_factory, SyntaxKind::UnionType, types)
     }
 
-    pub fn create_intersection_type_node<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_intersection_type_node<
+        TBaseNodeFactory: BaseNodeFactory,
+        TElements: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
-        types: NodeArray, /*<TypeNode>*/
+        types: TElements, /*<TypeNode>*/
     ) -> TypeNode {
         self.create_union_or_intersection_type_node(
             base_factory,

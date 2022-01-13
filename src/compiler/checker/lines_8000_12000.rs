@@ -17,6 +17,23 @@ use crate::{
 };
 
 impl TypeChecker {
+    pub(super) fn format_union_types(&self, types: &[Rc<Type>]) -> Vec<Rc<Type>> {
+        let mut result: Vec<Rc<Type>> = vec![];
+        let mut flags: TypeFlags = TypeFlags::None;
+        for (i, t) in types.iter().enumerate() {
+            flags |= t.flags();
+            if !t.flags().intersects(TypeFlags::Nullable) {
+                if t.flags()
+                    .intersects(TypeFlags::BooleanLiteral | TypeFlags::EnumLiteral)
+                {
+                    unimplemented!()
+                }
+                result.push(t.clone());
+            }
+        }
+        result /*|| types*/
+    }
+
     pub(super) fn get_name_of_symbol_as_written(
         &self,
         symbol: Rc<Symbol>,
@@ -270,7 +287,7 @@ impl TypeChecker {
                 ObjectFlags::Interface
             };
 
-            let mut type_ = self.create_object_type(kind, symbol.clone());
+            let type_ = self.create_object_type(kind, symbol.clone());
             let outer_type_parameters =
                 self.get_outer_type_parameters_of_class_or_interface(symbol.clone());
             let local_type_parameters =

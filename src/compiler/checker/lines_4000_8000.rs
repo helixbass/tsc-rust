@@ -22,7 +22,9 @@ impl TypeChecker {
     }
 
     pub(super) fn create_type(&self, flags: TypeFlags) -> BaseType {
-        let result = (self.Type)(flags);
+        let mut result = (self.Type)(flags);
+        self.increment_type_count();
+        result.id = Some(self.type_count());
         result
     }
 
@@ -419,6 +421,34 @@ impl NodeBuilder {
                 unimplemented!()
             };
         }
+        if type_
+            .flags()
+            .intersects(TypeFlags::Union | TypeFlags::Intersection)
+        {
+            let types = {
+                let types = type_.as_union_or_intersection_type().types();
+                if type_.flags().intersects(TypeFlags::Union) {
+                    type_checker.format_union_types(types)
+                } else {
+                    types.to_vec()
+                }
+            };
+            if types.len() == 1 {
+                return self.type_to_type_node_helper(type_checker, types[0].clone(), context);
+            }
+            let type_nodes =
+                self.map_to_type_nodes(type_checker, Some(&types), context, Some(true));
+            if let Some(type_nodes) = type_nodes {
+                if !type_nodes.is_empty() {
+                    return if type_.flags().intersects(TypeFlags::Union) {
+                        factory.create_union_type_node(&self.synthetic_factory, type_nodes)
+                    } else {
+                        factory.create_intersection_type_node(&self.synthetic_factory, type_nodes)
+                    };
+                }
+            }
+            unimplemented!()
+        }
         if object_flags.intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped) {
             Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
             return self.create_anonymous_type_node(type_checker, context, type_);
@@ -540,6 +570,35 @@ impl NodeBuilder {
 
             type_elements.push(property_signature.into());
         }
+    }
+
+    fn map_to_type_nodes(
+        &self,
+        type_checker: &TypeChecker,
+        types: Option<&[Rc<Type>]>,
+        context: &NodeBuilderContext,
+        is_bare_list: Option<bool>,
+    ) -> Option<Vec<Rc<Node /*TypeNode*/>>> {
+        if let Some(types) = types {
+            if !types.is_empty()
+            /*some(types)*/
+            {
+                let may_have_name_collisions = !context
+                    .flags
+                    .intersects(NodeBuilderFlags::UseFullyQualifiedType);
+                let mut result: Vec<Rc<Node>> = vec![];
+                let mut i: usize = 0;
+                for type_ in types {
+                    i += 1;
+                    let type_node =
+                        self.type_to_type_node_helper(type_checker, type_.clone(), context);
+                    result.push(type_node.into());
+                }
+
+                return Some(result);
+            }
+        }
+        None
     }
 
     fn lookup_symbol_chain(

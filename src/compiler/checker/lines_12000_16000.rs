@@ -7,8 +7,8 @@ use crate::{
     unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
     Diagnostics, Expression, InterfaceType, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
-    UnionReduction,
+    TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
+    UnionReduction, UnionTypeNode,
 };
 
 impl TypeChecker {
@@ -85,7 +85,7 @@ impl TypeChecker {
         target: Rc<Type /*GenericType*/>,
         type_arguments: Option<Vec<Rc<Type>>>,
     ) -> TypeReference {
-        let mut type_ = self.create_object_type(ObjectFlags::Reference, target.symbol());
+        let type_ = self.create_object_type(ObjectFlags::Reference, target.symbol());
         type_.set_object_flags(
             type_.object_flags()
                 | if let Some(type_arguments) = type_arguments.as_ref() {
@@ -368,6 +368,17 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_type_id(&self, type_: Rc<Type>) -> TypeId {
+        type_.id()
+    }
+
+    pub(super) fn contains_type(&self, types: &[Rc<Type>], type_: Rc<Type>) -> bool {
+        /*binary_search(...)*/
+        types
+            .iter()
+            .any(|t| self.get_type_id(t.clone()) == self.get_type_id(type_.clone()))
+    }
+
     pub(super) fn add_type_to_union(
         &self,
         type_set: &mut Vec<Rc<Type>>,
@@ -460,6 +471,24 @@ impl TypeChecker {
             // is_boolean - should expose maybe_intrinsic_name on UnionType or something?
         }
         type_.unwrap()
+    }
+
+    pub(super) fn get_type_from_union_type_node(&self, node: &UnionTypeNode) -> Rc<Type> {
+        let links = self.get_node_links(node);
+        let mut links_ref = links.borrow_mut();
+        if links_ref.resolved_type.is_none() {
+            // let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            links_ref.resolved_type = Some(
+                self.get_union_type(
+                    map(Some(&node.types), |type_, _| {
+                        self.get_type_from_type_node(type_)
+                    })
+                    .unwrap(),
+                    Some(UnionReduction::Literal),
+                ),
+            );
+        }
+        links_ref.resolved_type.clone().unwrap()
     }
 
     pub(super) fn get_literal_type_from_property_name(
