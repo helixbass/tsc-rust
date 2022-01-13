@@ -379,7 +379,7 @@ impl TypeChecker {
                     } else {
                         TypeFlags::None
                     },
-                type_.as_union_or_intersection_type().types(),
+                type_.as_union_or_intersection_type_interface().types(),
             );
         }
         if !flags.intersects(TypeFlags::Never) {

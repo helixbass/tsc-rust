@@ -342,6 +342,18 @@ impl Node {
     pub fn as_source_file(&self) -> &Rc<SourceFile> {
         enum_unwrapped!(self, [Node, SourceFile])
     }
+
+    pub fn as_variable_declaration(&self) -> &VariableDeclaration {
+        enum_unwrapped!(self, [Node, VariableDeclaration])
+    }
+
+    pub fn as_object_literal_expression(&self) -> &ObjectLiteralExpression {
+        enum_unwrapped!(self, [Node, Expression, ObjectLiteralExpression])
+    }
+
+    pub fn as_identifier(&self) -> &Identifier {
+        enum_unwrapped!(self, [Node, Expression, Identifier])
+    }
 }
 
 #[derive(Debug)]
@@ -1908,7 +1920,7 @@ impl Type {
         }
     }
 
-    pub fn as_union_or_intersection_type(&self) -> &dyn UnionOrIntersectionTypeInterface {
+    pub fn as_union_or_intersection_type_interface(&self) -> &dyn UnionOrIntersectionTypeInterface {
         match self {
             Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
             _ => panic!("Expected union or intersection type"),
@@ -1960,6 +1972,22 @@ impl Type {
 
     pub fn as_type_reference(&self) -> &TypeReference {
         enum_unwrapped!(self, [Type, ObjectType, TypeReference])
+    }
+
+    pub fn as_string_literal_type(&self) -> &StringLiteralType {
+        enum_unwrapped!(self, [Type, LiteralType, StringLiteralType])
+    }
+
+    pub fn as_number_literal_type(&self) -> &NumberLiteralType {
+        enum_unwrapped!(self, [Type, LiteralType, NumberLiteralType])
+    }
+
+    pub fn as_big_int_literal_type(&self) -> &BigIntLiteralType {
+        enum_unwrapped!(self, [Type, LiteralType, BigIntLiteralType])
+    }
+
+    pub fn as_union_or_intersection_type(&self) -> &UnionOrIntersectionType {
+        enum_unwrapped!(self, [Type, UnionOrIntersectionType])
     }
 }
 

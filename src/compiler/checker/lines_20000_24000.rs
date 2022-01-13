@@ -8,7 +8,6 @@ use crate::{
     DiagnosticMessage, Diagnostics, Expression, Identifier, Node, NodeInterface, ObjectFlags,
     Symbol, SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn type_could_have_top_level_singleton_types(&self, type_: &Type) -> bool {
@@ -17,13 +16,16 @@ impl TypeChecker {
         }
 
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-            return for_each(type_.as_union_or_intersection_type().types(), |type_, _| {
-                if self.type_could_have_top_level_singleton_types(type_) {
-                    Some(())
-                } else {
-                    None
-                }
-            })
+            return for_each(
+                type_.as_union_or_intersection_type_interface().types(),
+                |type_, _| {
+                    if self.type_could_have_top_level_singleton_types(type_) {
+                        Some(())
+                    } else {
+                        None
+                    }
+                },
+            )
             .is_some();
         }
 
@@ -45,9 +47,10 @@ impl TypeChecker {
             if type_.flags().intersects(TypeFlags::EnumLiteral) {
                 true
             } else {
-                every(type_.as_union_or_intersection_type().types(), |type_, _| {
-                    self.is_unit_type(&**type_)
-                })
+                every(
+                    type_.as_union_or_intersection_type_interface().types(),
+                    |type_, _| self.is_unit_type(&**type_),
+                )
             }
         } else {
             self.is_unit_type(type_)
@@ -176,7 +179,7 @@ impl TypeChecker {
         &self,
         node: &Node,
     ) -> DiagnosticMessage {
-        match enum_unwrapped!(node, [Node, Expression, Identifier]).escaped_text {
+        match node.as_identifier().escaped_text {
             _ => {
                 if false {
                     unimplemented!()
@@ -233,7 +236,7 @@ impl TypeChecker {
         if !type_.flags().intersects(TypeFlags::Union) {
             return mapper(type_);
         }
-        let types = type_.as_union_or_intersection_type().types();
+        let types = type_.as_union_or_intersection_type_interface().types();
         let mut mapped_types: Vec<Rc<Type>> = vec![];
         let mut changed = false;
         for t in types {
@@ -271,7 +274,10 @@ impl TypeChecker {
 
     pub(super) fn get_constituent_count(&self, type_: &Type) -> usize {
         if type_.flags().intersects(TypeFlags::Union) {
-            type_.as_union_or_intersection_type().types().len()
+            type_
+                .as_union_or_intersection_type_interface()
+                .types()
+                .len()
         } else {
             1
         }
