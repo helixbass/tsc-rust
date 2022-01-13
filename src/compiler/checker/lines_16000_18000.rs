@@ -26,16 +26,13 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = StringLiteralType::new(type_, value).into();
-        match &*type_ {
-            Type::LiteralType(literal_type) => {
-                literal_type.set_regular_type(&if let Some(regular_type) = regular_type {
-                    regular_type.borrow().type_wrapper()
-                } else {
-                    type_.clone()
-                });
-            }
-            _ => panic!("Expected LiteralType"),
-        }
+        enum_unwrapped!(&*type_, [Type, LiteralType]).set_regular_type(
+            &if let Some(regular_type) = regular_type {
+                regular_type.borrow().type_wrapper()
+            } else {
+                type_.clone()
+            },
+        );
         type_
     }
 
