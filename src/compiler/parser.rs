@@ -70,7 +70,7 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
         Node::VariableDeclaration(variable_declaration) => {
             visit_node(&mut cb_node, Some(variable_declaration.name()));
             visit_node(&mut cb_node, variable_declaration.type_());
-            visit_node(&mut cb_node, variable_declaration.initializer())
+            visit_node(&mut cb_node, variable_declaration.maybe_initializer())
         }
         Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
             visit_node(&mut cb_node, Some(type_reference_node.type_name.clone()));
@@ -159,6 +159,12 @@ impl NodeInterface for MissingNode {
     fn kind(&self) -> SyntaxKind {
         match self {
             MissingNode::Identifier(identifier) => identifier.kind(),
+        }
+    }
+
+    fn flags(&self) -> NodeFlags {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.flags(),
         }
     }
 

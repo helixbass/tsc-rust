@@ -16,8 +16,9 @@ use crate::{
     Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage, DiagnosticMessageChain,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeInterface, ObjectFlags, ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
+    NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, ReadonlyTextRange, SortedArray,
+    SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable, TransientSymbolInterface, Type,
+    TypeInterface,
 };
 
 pub fn get_declaration_of_kind(
@@ -335,7 +336,7 @@ pub fn get_effective_initializer<TNode: NodeInterface>(
 ) -> Option<Rc<Node>> {
     node.node_wrapper()
         .as_has_expression_initializer()
-        .initializer()
+        .maybe_initializer()
 }
 
 pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode) {
@@ -345,6 +346,26 @@ pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode
         }
     }
     symbol.set_value_declaration(node.node_wrapper());
+}
+
+fn walk_up<TNode: NodeInterface>(node: &TNode, kind: SyntaxKind) -> Option<Rc<Node>> {
+    let mut node = Some(node.node_wrapper());
+    loop {
+        if let Some(node_present) = node.as_ref() {
+            if node_present.kind() == kind {
+                node = node_present.maybe_parent();
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    node
+}
+
+fn walk_up_parenthesized_expressions<TNode: NodeInterface>(node: &TNode) -> Option<Rc<Node>> {
+    walk_up(node, SyntaxKind::ParenthesizedExpression)
 }
 
 pub fn is_keyword(token: SyntaxKind) -> bool {
@@ -581,6 +602,66 @@ pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
     }
 }
 
+pub fn is_write_only_access<TNode: NodeInterface>(node: &TNode) -> bool {
+    access_kind(node) == AccessKind::Write
+}
+
+fn is_write_access<TNode: NodeInterface>(node: &TNode) -> bool {
+    access_kind(node) != AccessKind::Read
+}
+
+#[derive(PartialEq, Eq)]
+enum AccessKind {
+    Read,
+    Write,
+    ReadWrite,
+}
+
+fn access_kind<TNode: NodeInterface>(node: &TNode) -> AccessKind {
+    let parent = node.maybe_parent();
+    if parent.is_none() {
+        return AccessKind::Read;
+    }
+    let parent = parent.unwrap();
+
+    let write_or_read_write = || {
+        if let Some(grandparent) = parent.maybe_parent() {
+            if walk_up_parenthesized_expressions(&*grandparent)
+                .unwrap()
+                .kind()
+                == SyntaxKind::ExpressionStatement
+            {
+                return AccessKind::Write;
+            }
+        }
+        AccessKind::ReadWrite
+    };
+
+    match &*parent {
+        /*ParenthesizedExpression*/
+        /*PostfixUnaryExpression*/
+        Node::Expression(Expression::PrefixUnaryExpression(PrefixUnaryExpression {
+            operator,
+            ..
+        })) => {
+            if matches!(
+                operator,
+                SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+            ) {
+                write_or_read_write()
+            } else {
+                AccessKind::Read
+            }
+        }
+        Node::Expression(Expression::BinaryExpression(_)) => unimplemented!(),
+        /*PropertyAccessExpression*/
+        /*PropertyAssignment*/
+        /*ShorthandPropertyAssignment*/
+        Node::Expression(Expression::ArrayLiteralExpression(_)) => access_kind(&*parent),
+        _ => AccessKind::Read,
+    }
+}
+
 pub fn get_object_flags(type_: &Type) -> ObjectFlags {
     if type_.flags().intersects(TypeFlags::ObjectFlagsType) {
         type_.as_object_flags_type().object_flags()
@@ -601,17 +682,17 @@ fn _Type(flags: TypeFlags) -> BaseType {
 
 #[allow(non_snake_case)]
 fn Node(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, pos, end)
+    BaseNode::new(kind, NodeFlags::None, pos, end)
 }
 
 #[allow(non_snake_case)]
 fn Token(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, pos, end)
+    BaseNode::new(kind, NodeFlags::None, pos, end)
 }
 
 #[allow(non_snake_case)]
 fn Identifier(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, pos, end)
+    BaseNode::new(kind, NodeFlags::None, pos, end)
 }
 
 pub struct ObjectAllocator {}

@@ -3,15 +3,32 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use super::CheckMode;
 use crate::{
     __String, create_symbol_table, get_effective_type_annotation_node, get_object_flags,
     has_initializer, is_object_literal_expression, Expression, HasExpressionInitializerInterface,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
-    PropertyAssignment, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    Identifier, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    ObjectLiteralExpression, PropertyAssignment, Symbol, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
+    pub(super) fn check_identifier(
+        &self,
+        node: &Identifier,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        let symbol = self.get_resolved_symbol(node);
+
+        let local_or_export_symbol = self
+            .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
+            .unwrap();
+
+        let type_ = self.get_type_of_symbol(&*local_or_export_symbol);
+
+        type_
+    }
+
     pub(super) fn get_contextual_type_for_variable_like_declaration(
         &self,
         declaration: &Node,
@@ -35,7 +52,10 @@ impl TypeChecker {
             _ => panic!("Expected VariableDeclaration"),
         };
         if has_initializer(declaration)
-            && Rc::ptr_eq(&node.node_wrapper(), &declaration.initializer().unwrap())
+            && Rc::ptr_eq(
+                &node.node_wrapper(),
+                &declaration.maybe_initializer().unwrap(),
+            )
         {
             let result = self.get_contextual_type_for_variable_like_declaration(&*parent);
             if result.is_some() {

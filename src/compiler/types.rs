@@ -48,6 +48,7 @@ pub enum SyntaxKind {
     GreaterThanToken,
     AsteriskToken,
     PlusPlusToken,
+    MinusMinusToken,
     LessThanLessThanToken,
     AmpersandToken,
     BarToken,
@@ -86,8 +87,10 @@ pub enum SyntaxKind {
     UnknownKeyword,
     BigIntKeyword,
     OfKeyword,
+
     QualifiedName,
     TypeParameter,
+    Parameter,
     PropertySignature,
     PropertyDeclaration,
     TypeReference,
@@ -102,6 +105,7 @@ pub enum SyntaxKind {
     ArrayLiteralExpression,
     ObjectLiteralExpression,
     PropertyAccessExpression,
+    ParenthesizedExpression,
     PrefixUnaryExpression,
     BinaryExpression,
     ClassExpression,
@@ -115,7 +119,11 @@ pub enum SyntaxKind {
     FunctionDeclaration,
     ClassDeclaration,
     InterfaceDeclaration,
+
     PropertyAssignment,
+
+    EnumMember,
+
     SourceFile,
 }
 
@@ -151,6 +159,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn node_wrapper(&self) -> Rc<Node>;
     fn set_node_wrapper(&self, wrapper: Rc<Node>);
     fn kind(&self) -> SyntaxKind;
+    fn flags(&self) -> NodeFlags;
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
     fn set_id(&self, id: NodeId);
@@ -285,6 +294,7 @@ impl Node {
 pub struct BaseNode {
     _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
+    pub flags: NodeFlags,
     pub id: Cell<Option<NodeId>>,
     pub parent: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<isize>,
@@ -294,10 +304,11 @@ pub struct BaseNode {
 }
 
 impl BaseNode {
-    pub fn new(kind: SyntaxKind, pos: isize, end: isize) -> Self {
+    pub fn new(kind: SyntaxKind, flags: NodeFlags, pos: isize, end: isize) -> Self {
         Self {
             _node_wrapper: RefCell::new(None),
             kind,
+            flags,
             id: Cell::new(None),
             parent: RefCell::new(None),
             pos: Cell::new(pos),
@@ -324,6 +335,10 @@ impl NodeInterface for BaseNode {
 
     fn kind(&self) -> SyntaxKind {
         self.kind
+    }
+
+    fn flags(&self) -> NodeFlags {
+        self.flags
     }
 
     fn maybe_id(&self) -> Option<NodeId> {
@@ -419,7 +434,7 @@ pub trait HasTypeInterface {
 }
 
 pub trait HasExpressionInitializerInterface {
-    fn initializer(&self) -> Option<Rc<Node>>;
+    fn maybe_initializer(&self) -> Option<Rc<Node>>;
     fn set_initializer(&mut self, initializer: Rc<Node>);
 }
 
@@ -580,7 +595,7 @@ impl BaseBindingLikeDeclaration {
 }
 
 impl HasExpressionInitializerInterface for BaseBindingLikeDeclaration {
-    fn initializer(&self) -> Option<Rc<Node>> {
+    fn maybe_initializer(&self) -> Option<Rc<Node>> {
         self.initializer.as_ref().map(Clone::clone)
     }
 
@@ -1100,7 +1115,7 @@ impl HasTypeInterface for PropertySignature {
 }
 
 impl HasExpressionInitializerInterface for PropertySignature {
-    fn initializer(&self) -> Option<Rc<Node>> {
+    fn maybe_initializer(&self) -> Option<Rc<Node>> {
         None
     }
 
@@ -1406,6 +1421,7 @@ bitflags! {
         const SetAccessor = 1 << 16;
         const TypeParameter = 1 << 18;
         const TypeAlias = 1 << 19;
+        const ExportValue = 1 << 20;
         const Optional = 1 << 24;
         const Transient = 1 << 25;
 
@@ -1905,6 +1921,7 @@ bitflags! {
 pub struct NodeLinks {
     pub flags: NodeCheckFlags,
     pub resolved_type: Option<Rc<Type>>,
+    pub resolved_symbol: Option<Rc<Symbol>>,
 }
 
 impl NodeLinks {
@@ -1912,6 +1929,7 @@ impl NodeLinks {
         Self {
             flags: NodeCheckFlags::None,
             resolved_type: None,
+            resolved_symbol: None,
         }
     }
 }
