@@ -12,6 +12,7 @@ use crate::{
     NodeInterface, ObjectFlags, RelationComparisonResult, Symbol, SymbolInterface, Ternary, Type,
     TypeChecker, TypeFlags, TypeInterface,
 };
+use local_macros::enum_unwrapped;
 
 pub(super) struct CheckTypeRelatedTo<'type_checker> {
     type_checker: &'type_checker TypeChecker,
@@ -424,12 +425,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                     unimplemented!()
                 } else {
                     self.each_type_related_to_type(
-                        match source {
-                            Type::UnionOrIntersectionType(union_or_intersection_type) => {
-                                union_or_intersection_type
-                            }
-                            _ => panic!("Expected UnionOrIntersectionType"),
-                        },
+                        enum_unwrapped!(source, [Type, UnionOrIntersectionType]),
                         target,
                         report_errors,
                         intersection_state & !IntersectionState::UnionIntersectionCheck,
@@ -439,12 +435,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             if target.flags().intersects(TypeFlags::Union) {
                 return self.type_related_to_some_type(
                     &self.type_checker.get_regular_type_of_object_literal(source),
-                    match target {
-                        Type::UnionOrIntersectionType(union_or_intersection_type) => {
-                            union_or_intersection_type
-                        }
-                        _ => panic!("Expected UnionOrIntersectionType"),
-                    },
+                    enum_unwrapped!(target, [Type, UnionOrIntersectionType]),
                     report_errors
                         && !(source.flags().intersects(TypeFlags::Primitive))
                         && !(target.flags().intersects(TypeFlags::Primitive)),
