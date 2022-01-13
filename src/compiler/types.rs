@@ -333,6 +333,10 @@ impl Node {
     pub fn as_type_parameter_declaration(&self) -> &TypeParameterDeclaration {
         node_unwrapped!(self, TypeParameterDeclaration)
     }
+
+    pub fn as_property_assignment(&self) -> &PropertyAssignment {
+        node_unwrapped!(self, PropertyAssignment)
+    }
 }
 
 #[derive(Debug)]

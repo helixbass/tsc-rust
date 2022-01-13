@@ -1474,6 +1474,7 @@ fn get_node_enum_unwrapped_call(argument: &Expr, variant_name: &Ident) -> TokenS
             ("Expression".to_string(), vec![]),
             ("VariableDeclarationList".to_string(), vec![]),
             ("TypeParameterDeclaration".to_string(), vec![]),
+            ("PropertyAssignment".to_string(), vec![]),
         ]));
 
     let mut ancestors = vec!["Node"];

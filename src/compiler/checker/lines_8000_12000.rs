@@ -198,10 +198,7 @@ impl TypeChecker {
             type_ = self
                 .try_get_type_from_effective_type_node(&*declaration)
                 .unwrap_or_else(|| {
-                    self.check_property_assignment(
-                        enum_unwrapped!(&*declaration, [Node, PropertyAssignment]),
-                        None,
-                    )
+                    self.check_property_assignment(declaration.as_property_assignment(), None)
                 });
         } else if is_property_signature(&*declaration) || is_variable_declaration(&*declaration) {
             type_ = self.get_widened_type_for_variable_like_declaration(&*declaration);
