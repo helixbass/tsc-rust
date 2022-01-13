@@ -132,6 +132,15 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
                 Some(&interface_declaration.members),
             )
         }
+        Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
+            visit_node(&mut cb_node, Some(type_alias_declaration.name()));
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                type_alias_declaration.maybe_type_parameters(),
+            );
+            visit_node(&mut cb_node, Some(type_alias_declaration.type_.clone()))
+        }
         _ => unimplemented!(),
     }
 }

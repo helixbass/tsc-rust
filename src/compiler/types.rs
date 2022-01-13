@@ -244,6 +244,9 @@ impl Node {
             Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
                 interface_declaration
             }
+            Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
+                type_alias_declaration
+            }
             Node::TypeElement(type_element) => type_element,
             Node::PropertyAssignment(property_assignment) => property_assignment,
             _ => panic!("Expected named declaration"),
@@ -300,6 +303,9 @@ impl Node {
         match self {
             Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
                 interface_declaration
+            }
+            Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
+                type_alias_declaration
             }
             _ => panic!("Expected has type parameters"),
         }
@@ -1379,7 +1385,7 @@ impl InterfaceDeclaration {
 )]
 pub struct TypeAliasDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration, /*name: Identifier*/
-    type_: Rc<Node /*TypeNode*/>,
+    pub type_: Rc<Node /*TypeNode*/>,
 }
 
 impl TypeAliasDeclaration {
@@ -1620,6 +1626,7 @@ bitflags! {
         const PropertyExcludes = Self::None.bits;
         const InterfaceExcludes = Self::Type.bits & !(Self::Interface.bits | Self::Class.bits);
         const TypeParameterExcludes = Self::Type.bits & !Self::TypeParameter.bits;
+        const TypeAliasExcludes = Self::Type.bits;
     }
 }
 
