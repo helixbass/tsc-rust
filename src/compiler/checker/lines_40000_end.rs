@@ -24,7 +24,8 @@ impl TypeChecker {
             Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
                 self.check_type_reference_node(type_reference_node)
             }
-            Node::TypeNode(TypeNode::KeywordTypeNode(_)) => (),
+            Node::TypeNode(TypeNode::KeywordTypeNode(_))
+            | Node::TypeNode(TypeNode::LiteralTypeNode(_)) => (),
             Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => {
                 self.check_array_type(array_type_node)
             }

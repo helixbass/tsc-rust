@@ -1,5 +1,9 @@
 use crate::{NodeInterface, SyntaxKind};
 
+pub fn is_big_int_literal<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.kind() == SyntaxKind::BigIntLiteral
+}
+
 pub fn is_identifier<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::Identifier
 }

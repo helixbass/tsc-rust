@@ -7,10 +7,11 @@ use std::rc::Rc;
 use super::CheckTypeRelatedTo;
 use crate::{
     get_check_flags, ArrayTypeNode, BaseLiteralType, CheckFlags, Debug_, DiagnosticMessage,
-    Expression, IntrinsicType, LiteralTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression, RelationComparisonResult,
-    StringLiteralType, Symbol, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
+    Expression, IntrinsicType, LiteralTypeInterface, LiteralTypeNode, NamedDeclarationInterface,
+    Node, NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression,
+    RelationComparisonResult, StringLiteralType, Symbol, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode,
+    UnionOrIntersectionType,
 };
 
 impl TypeChecker {
@@ -109,6 +110,23 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn get_type_from_literal_type_node(&self, node: &LiteralTypeNode) -> Rc<Type> {
+        if node.literal.kind() == SyntaxKind::NullKeyword {
+            unimplemented!()
+        }
+        let links = self.get_node_links(node);
+        let mut links_ref = links.borrow_mut();
+        if links_ref.resolved_type.is_none() {
+            links_ref.resolved_type = Some(self.get_regular_type_of_literal_type(
+                self.check_expression(match &*node.literal {
+                    Node::Expression(expression) => expression,
+                    _ => panic!("Expected Expression"),
+                }),
+            ));
+        }
+        links_ref.resolved_type.clone().unwrap()
+    }
+
     pub(super) fn get_array_element_type_node(
         &self,
         node: &ArrayTypeNode,
@@ -130,6 +148,9 @@ impl TypeChecker {
                 SyntaxKind::NumberKeyword => self.number_type(),
                 _ => unimplemented!(),
             },
+            TypeNode::LiteralTypeNode(literal_type_node) => {
+                self.get_type_from_literal_type_node(literal_type_node)
+            }
             TypeNode::TypeReferenceNode(type_reference_node) => {
                 self.get_type_from_type_reference(type_reference_node)
             }
@@ -327,6 +348,15 @@ impl TypeChecker {
             return self.get_mapped_type(type_, mapper);
         }
         unimplemented!()
+    }
+
+    pub(super) fn is_context_sensitive(
+        &self,
+        node: &Node, /*Expression | MethodDeclaration | ObjectLiteralElementLike | JsxAttributeLike | JsxChild*/
+    ) -> bool {
+        // match node {
+        // }
+        false
     }
 
     pub(super) fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {
@@ -573,7 +603,7 @@ impl TypeChecker {
     pub(super) fn is_type_related_to(
         &self,
         mut source: Rc<Type>,
-        target: Rc<Type>,
+        mut target: Rc<Type>,
         relation: &HashMap<String, RelationComparisonResult>,
     ) -> bool {
         if self.is_fresh_literal_type(source.clone()) {
@@ -587,6 +617,21 @@ impl TypeChecker {
                 Type::LiteralType(literal_type) => literal_type.regular_type(),
                 _ => panic!("Expected IntrinsicType or LiteralType"),
             };
+        }
+        if self.is_fresh_literal_type(target.clone()) {
+            target = match &*target {
+                Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
+                    IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
+                        freshable_intrinsic_type.regular_type().upgrade().unwrap()
+                    }
+                    _ => panic!("Expected IntrinsicType"),
+                },
+                Type::LiteralType(literal_type) => literal_type.regular_type(),
+                _ => panic!("Expected IntrinsicType or LiteralType"),
+            };
+        }
+        if Rc::ptr_eq(&source, &target) {
+            return true;
         }
         if true {
             if self.is_simple_type_related_to(&*source, &*target, relation, None) {

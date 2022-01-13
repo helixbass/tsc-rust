@@ -142,10 +142,15 @@ bitflags! {
     }
 }
 
+pub type NodeId = u32;
+
 pub trait NodeInterface: ReadonlyTextRange {
     fn node_wrapper(&self) -> Rc<Node>;
     fn set_node_wrapper(&self, wrapper: Rc<Node>);
     fn kind(&self) -> SyntaxKind;
+    fn maybe_id(&self) -> Option<NodeId>;
+    fn id(&self) -> NodeId;
+    fn set_id(&self, id: NodeId);
     fn maybe_parent(&self) -> Option<Rc<Node>>;
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
@@ -267,6 +272,7 @@ impl Node {
 pub struct BaseNode {
     _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
+    pub id: Cell<Option<NodeId>>,
     pub parent: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<isize>,
     pub end: Cell<isize>,
@@ -279,6 +285,7 @@ impl BaseNode {
         Self {
             _node_wrapper: RefCell::new(None),
             kind,
+            id: Cell::new(None),
             parent: RefCell::new(None),
             pos: Cell::new(pos),
             end: Cell::new(end),
@@ -304,6 +311,18 @@ impl NodeInterface for BaseNode {
 
     fn kind(&self) -> SyntaxKind {
         self.kind
+    }
+
+    fn maybe_id(&self) -> Option<NodeId> {
+        self.id.get().clone()
+    }
+
+    fn id(&self) -> NodeId {
+        self.id.get().clone().unwrap()
+    }
+
+    fn set_id(&self, id: NodeId) {
+        self.id.set(Some(id));
     }
 
     fn maybe_parent(&self) -> Option<Rc<Node>> {
@@ -753,7 +772,7 @@ impl LiteralTypeNode {
 )]
 pub struct StringLiteral {
     _literal_like_node: BaseLiteralLikeNode,
-    single_quote: Option<bool>,
+    pub single_quote: Option<bool>,
 }
 
 impl StringLiteral {
@@ -1202,6 +1221,7 @@ pub struct TypeChecker {
     pub number_or_big_int_type: Option<Rc<Type>>,
     pub global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
+    pub node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
     pub diagnostics: RefCell<DiagnosticCollection>,
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
 }
@@ -1224,10 +1244,73 @@ pub enum UnionReduction {
     Subtype,
 }
 
+bitflags! {
+    pub struct NodeBuilderFlags: u32 {
+        const None = 0;
+        const NoTruncation = 1 << 0;
+        const WriteArrayAsGenericType = 1 << 1;
+        const UseStructuralFallback = 1 << 3;
+        const WriteTypeArgumentsOfSignature = 1 << 5;
+        const UseFullyQualifiedType = 1 << 6;
+        const UseOnlyExternalAliasing = 1 << 7;
+        const SuppressAnyReturnType = 1 << 8;
+        const WriteTypeParametersInQualifiedName = 1 << 9;
+        const MultilineObjectLiterals = 1 << 10;
+        const WriteClassExpressionAsTypeLiteral = 1 << 11;
+        const UseTypeOfFunction = 1 << 12;
+        const OmitParameterModifiers = 1 << 13;
+        const UseAliasDefinedOutsideCurrentScope = 1 << 14;
+        const UseSingleQuotesForStringLiteralType = 1 << 28;
+        const NoTypeReduction = 1 << 29;
+
+        const AllowThisInObjectLiteral = 1 << 15;
+        const AllowQualifiedNameInPlaceOfIdentifier = 1 << 16;
+        const AllowAnonymousIdentifier = 1 << 17;
+        const AllowEmptyUnionOrIntersection = 1 << 18;
+        const AllowEmptyTuple = 1 << 19;
+        const AllowUniqueESSymbolType = 1 << 20;
+        const AllowEmptyIndexInfoType = 1 << 21;
+
+        const AllowNodeModulesRelativePaths = 1 << 26;
+        const DoNotIncludeSymbolChain = 1 << 27;
+
+        const InTypeAlias = 1 << 23;
+
+        const IgnoreErrors = Self::AllowThisInObjectLiteral.bits | Self::AllowQualifiedNameInPlaceOfIdentifier.bits | Self::AllowAnonymousIdentifier.bits | Self::AllowEmptyUnionOrIntersection.bits | Self::AllowEmptyTuple.bits | Self::AllowEmptyIndexInfoType.bits | Self::AllowNodeModulesRelativePaths.bits;
+    }
+}
+
+bitflags! {
+    pub struct TypeFormatFlags: u32 {
+        const None = 0;
+        const NoTruncation = 1 << 0;
+        const WriteArrayAsGenericType = 1 << 1;
+        const UseStructuralFallback = 1 << 3;
+        const WriteTypeArgumentsOfSignature = 1 << 5;
+        const UseFullyQualifiedType = 1 << 6;
+        const SuppressAnyReturnType = 1 << 8;
+        const MultilineObjectLiterals = 1 << 10;
+        const WriteClassExpressionAsTypeLiteral = 1 << 11;
+        const UseTypeOfFunction = 1 << 12;
+        const OmitParameterModifiers = 1 << 13;
+
+        const UseAliasDefinedOutsideCurrentScope = 1 << 14;
+        const UseSingleQuotesForStringLiteralType = 1 << 28;
+        const NoTypeReduction = 1 << 29;
+
+        const AllowUniqueESSymbolType = 1 << 20;
+
+        const InTypeAlias = 1 << 23;
+
+        const NodeBuilderFlagsMask = Self::NoTruncation.bits | Self::WriteArrayAsGenericType.bits | Self::UseStructuralFallback.bits | Self::WriteTypeArgumentsOfSignature.bits | Self::UseFullyQualifiedType.bits | Self::SuppressAnyReturnType.bits | Self::MultilineObjectLiterals.bits | Self::WriteClassExpressionAsTypeLiteral.bits | Self::UseTypeOfFunction.bits | Self::OmitParameterModifiers.bits | Self::UseAliasDefinedOutsideCurrentScope.bits | Self::AllowUniqueESSymbolType.bits | Self::InTypeAlias.bits | Self::UseSingleQuotesForStringLiteralType.bits | Self::NoTypeReduction.bits;
+    }
+}
+
 pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
     fn write_punctuation(&mut self, text: &str);
     fn write_space(&mut self, text: &str);
+    fn write_string_literal(&mut self, text: &str);
     fn write_property(&mut self, text: &str);
     fn write_symbol(&mut self, text: &str, symbol: &Symbol);
     fn clear(&mut self);
@@ -1741,6 +1824,27 @@ impl __String {
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
 pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
+
+bitflags! {
+    pub struct NodeCheckFlags: u32 {
+        const None = 0;
+    }
+}
+
+#[derive(Debug)]
+pub struct NodeLinks {
+    pub flags: NodeCheckFlags,
+    pub resolved_type: Option<Rc<Type>>,
+}
+
+impl NodeLinks {
+    pub fn new() -> Self {
+        Self {
+            flags: NodeCheckFlags::None,
+            resolved_type: None,
+        }
+    }
+}
 
 bitflags! {
     pub struct TypeFlags: u32 {
@@ -3506,6 +3610,13 @@ pub trait CompilerHost: ModuleResolutionHost {
     fn get_canonical_file_name(&self, file_name: &str) -> String;
 }
 
+bitflags! {
+    pub struct EmitFlags: u32 {
+        const None = 0;
+        const NoAsciiEscaping = 1 << 24;
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct DiagnosticMessage {
     pub key: &'static str,
@@ -3775,6 +3886,7 @@ pub enum EmitHint {
 pub struct NodeFactory {}
 
 pub struct Printer {
+    pub current_source_file: Option<Rc<SourceFile>>,
     pub writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
     pub write: fn(&Printer, &str),
 }

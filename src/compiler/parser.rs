@@ -15,9 +15,10 @@ use crate::{
     HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
     InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence, PropertyAssignment,
-    ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable, SyntaxKind,
-    TypeElement, TypeNode, TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
+    NodeFlags, NodeId, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
+    PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable,
+    SyntaxKind, TypeElement, TypeNode, TypeParameterDeclaration, VariableDeclaration,
+    VariableDeclarationList,
 };
 
 #[derive(Eq, PartialEq)]
@@ -152,6 +153,24 @@ impl NodeInterface for MissingNode {
     fn kind(&self) -> SyntaxKind {
         match self {
             MissingNode::Identifier(identifier) => identifier.kind(),
+        }
+    }
+
+    fn maybe_id(&self) -> Option<NodeId> {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.maybe_id(),
+        }
+    }
+
+    fn id(&self) -> NodeId {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.id(),
+        }
+    }
+
+    fn set_id(&self, id: NodeId) {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.set_id(id),
         }
     }
 
