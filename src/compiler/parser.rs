@@ -20,6 +20,7 @@ use crate::{
     Symbol, SymbolTable, SyntaxKind, TypeElement, TypeNode, TypeParameterDeclaration,
     VariableDeclaration, VariableDeclarationList,
 };
+use local_macros::enum_unwrapped;
 
 #[derive(Eq, PartialEq)]
 enum SpeculationKind {
@@ -139,7 +140,7 @@ pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
     Parser().parse_source_file(file_name, source_text)
 }
 
-enum MissingNode {
+pub enum MissingNode {
     Identifier(Identifier),
 }
 
@@ -747,14 +748,14 @@ impl ParserType {
 
         let default_message = Diagnostics::Identifier_expected;
 
-        match self.create_missing_node(
-            SyntaxKind::Identifier,
-            diagnostic_message.unwrap_or(default_message),
-            Some(vec![msg_arg]),
-        ) {
-            MissingNode::Identifier(identifier) => identifier,
-            _ => panic!("Expected identifier"),
-        }
+        enum_unwrapped!(
+            self.create_missing_node(
+                SyntaxKind::Identifier,
+                diagnostic_message.unwrap_or(default_message),
+                Some(vec![msg_arg]),
+            ),
+            [MissingNode, Identifier]
+        )
     }
 
     fn parse_binding_identifier(&mut self) -> Identifier {

@@ -29,7 +29,7 @@ pub use compiler::factory::node_tests::{
     is_private_identifier, is_property_assignment, is_property_declaration, is_property_signature,
     is_source_file, is_variable_declaration,
 };
-pub use compiler::parser::{create_source_file, for_each_child};
+pub use compiler::parser::{create_source_file, for_each_child, MissingNode};
 pub use compiler::path::{normalize_path, to_path};
 pub use compiler::program::create_program;
 pub use compiler::scanner::{
