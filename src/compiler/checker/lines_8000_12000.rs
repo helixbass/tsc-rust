@@ -17,7 +17,6 @@ use crate::{
     SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn format_union_types(&self, types: &[Rc<Type>]) -> Vec<Rc<Type>> {
@@ -430,7 +429,7 @@ impl TypeChecker {
     }
 
     pub(super) fn resolve_declared_members(&self, type_: &Type /*InterfaceType*/) -> Rc<Type> {
-        let type_as_interface_type = enum_unwrapped!(type_, [Type, ObjectType, InterfaceType]);
+        let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_declared_properties().is_none() {
             let symbol = type_.symbol();
             let members = self.get_members_of_symbol(&symbol);
@@ -505,7 +504,8 @@ impl TypeChecker {
             mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments)));
             members = Rc::new(RefCell::new(
                 self.create_instantiated_symbol_table(
-                    enum_unwrapped!(source, [Type, ObjectType, InterfaceType, BaseInterfaceType])
+                    source
+                        .as_base_interface_type()
                         .maybe_declared_properties()
                         .as_ref()
                         .unwrap(),
@@ -514,16 +514,13 @@ impl TypeChecker {
                 ),
             ));
         }
-        self.set_structured_type_members(enum_unwrapped!(type_, [Type, ObjectType]), members);
+        self.set_structured_type_members(type_.as_object_type(), members);
     }
 
     pub(super) fn resolve_type_reference_members(&self, type_: &Type /*TypeReference*/) {
-        let type_as_type_reference = enum_unwrapped!(type_, [Type, ObjectType, TypeReference]);
+        let type_as_type_reference = type_.as_type_reference();
         let source = self.resolve_declared_members(&type_as_type_reference.target);
-        let source_as_base_interface_type = enum_unwrapped!(
-            &*source,
-            [Type, ObjectType, InterfaceType, BaseInterfaceType]
-        );
+        let source_as_base_interface_type = source.as_base_interface_type();
         let type_parameters = concatenate(
             source_as_base_interface_type
                 .type_parameters

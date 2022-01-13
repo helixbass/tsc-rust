@@ -1944,6 +1944,18 @@ impl Type {
     pub fn as_type_parameter(&self) -> &TypeParameter {
         enum_unwrapped!(self, [Type, TypeParameter])
     }
+
+    pub fn as_interface_type(&self) -> &InterfaceType {
+        enum_unwrapped!(self, [Type, ObjectType, InterfaceType])
+    }
+
+    pub fn as_object_type(&self) -> &ObjectType {
+        enum_unwrapped!(self, [Type, ObjectType])
+    }
+
+    pub fn as_type_reference(&self) -> &TypeReference {
+        enum_unwrapped!(self, [Type, ObjectType, TypeReference])
+    }
 }
 
 pub trait TypeInterface {
