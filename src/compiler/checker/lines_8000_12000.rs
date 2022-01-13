@@ -302,6 +302,7 @@ impl TypeChecker {
                 || node.kind() == SyntaxKind::ClassDeclaration
                 || node.kind() == SyntaxKind::ClassExpression
                 || false
+                || is_type_alias(&**node)
             {
                 let declaration = node;
                 result = self.append_type_parameters(
@@ -389,13 +390,29 @@ impl TypeChecker {
                         declarations
                             .iter()
                             .find(|declaration| is_type_alias(&***declaration))
+                            .map(|rc| rc.clone())
                     }),
                 None,
             );
-            // links.declared_type = Some(
-            //     self.create_type_parameter(Some(symbol.symbol_wrapper()))
-            //         .into(),
-            // );
+            let type_node = if false {
+                unimplemented!()
+            } else {
+                Some(declaration.as_type_alias_declaration().type_.clone())
+            };
+            let type_ = type_node.map_or_else(
+                || self.error_type(),
+                |type_node| self.get_type_from_type_node(&type_node),
+            );
+            if true {
+                let type_parameters =
+                    self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+                if let Some(type_parameters) = type_parameters {
+                    unimplemented!()
+                }
+            } else {
+                unimplemented!()
+            }
+            links.declared_type = Some(type_);
         }
         links.declared_type.clone().unwrap()
     }
