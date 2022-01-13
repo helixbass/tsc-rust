@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::{
     get_first_identifier, node_is_missing, Debug_, Expression, Node, NodeInterface, Symbol,
-    SymbolFlags, TypeChecker,
+    SymbolFlags, SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {

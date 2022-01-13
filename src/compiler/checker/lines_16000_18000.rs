@@ -6,10 +6,11 @@ use std::rc::Rc;
 
 use super::CheckTypeRelatedTo;
 use crate::{
-    ArrayTypeNode, BaseLiteralType, Debug_, DiagnosticMessage, Expression, IntrinsicType,
-    LiteralTypeInterface, NamedDeclarationInterface, Node, NodeInterface, Number,
-    NumberLiteralType, ObjectLiteralExpression, RelationComparisonResult, StringLiteralType,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeNode,
+    get_check_flags, ArrayTypeNode, BaseLiteralType, CheckFlags, Debug_, DiagnosticMessage,
+    Expression, IntrinsicType, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression, RelationComparisonResult,
+    StringLiteralType, Symbol, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
 };
 
 impl TypeChecker {
@@ -51,15 +52,22 @@ impl TypeChecker {
     }
 
     pub(super) fn get_fresh_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
-        if type_.flags().intersects(TypeFlags::Literal) {
-            match &*type_ {
-                Type::LiteralType(literal_type) => {
-                    return literal_type.get_or_initialize_fresh_type(self, &type_);
-                }
-                _ => panic!("Expected LiteralType"),
+        match &*type_ {
+            Type::LiteralType(literal_type) => {
+                return literal_type.get_or_initialize_fresh_type(self, &type_);
             }
+            _ => type_,
         }
-        type_
+    }
+
+    pub(super) fn get_regular_type_of_literal_type(&self, type_: Rc<Type>) -> Rc<Type> {
+        match &*type_ {
+            Type::LiteralType(literal_type) => return literal_type.regular_type(),
+            Type::UnionOrIntersectionType(UnionOrIntersectionType::UnionType(union_type)) => {
+                unimplemented!()
+            }
+            _ => type_,
+        }
     }
 
     pub(super) fn is_fresh_literal_type(&self, type_: Rc<Type>) -> bool {
@@ -130,6 +138,195 @@ impl TypeChecker {
             }
             _ => unimplemented!(),
         }
+    }
+
+    pub(super) fn create_type_mapper(
+        &self,
+        sources: Vec<Rc<Type /*TypeParameter*/>>,
+        targets: Option<Vec<Rc<Type>>>,
+    ) -> TypeMapper {
+        if sources.len() == 1 {
+            self.make_unary_type_mapper(
+                sources[0].clone(),
+                if let Some(targets) = targets {
+                    targets[0].clone()
+                } else {
+                    self.any_type()
+                },
+            )
+        } else {
+            self.make_array_type_mapper(sources, targets)
+        }
+    }
+
+    pub(super) fn get_mapped_type(&self, type_: Rc<Type>, mapper: &TypeMapper) -> Rc<Type> {
+        match mapper {
+            TypeMapper::Simple(mapper) => {
+                if Rc::ptr_eq(&type_, &mapper.source) {
+                    mapper.target.clone()
+                } else {
+                    type_
+                }
+            }
+            TypeMapper::Array(mapper) => {
+                let sources = &mapper.sources;
+                let targets = &mapper.targets;
+                for (i, source) in sources.iter().enumerate() {
+                    if Rc::ptr_eq(&type_, source) {
+                        return if let Some(targets) = targets {
+                            targets[i].clone()
+                        } else {
+                            self.any_type()
+                        };
+                    }
+                }
+                type_
+            }
+            TypeMapper::Function(mapper) => (mapper.func)(self, type_),
+            TypeMapper::Composite(composite_or_merged_mapper)
+            | TypeMapper::Merged(composite_or_merged_mapper) => {
+                let t1 = self.get_mapped_type(type_.clone(), &composite_or_merged_mapper.mapper1);
+                if !Rc::ptr_eq(&t1, &type_) && matches!(mapper, TypeMapper::Composite(_)) {
+                    self.instantiate_type(Some(t1), Some(&composite_or_merged_mapper.mapper2))
+                        .unwrap()
+                } else {
+                    self.get_mapped_type(t1, &composite_or_merged_mapper.mapper2)
+                }
+            }
+        }
+    }
+
+    pub(super) fn make_unary_type_mapper(&self, source: Rc<Type>, target: Rc<Type>) -> TypeMapper {
+        TypeMapper::new_simple(source, target)
+    }
+
+    pub(super) fn make_array_type_mapper(
+        &self,
+        sources: Vec<Rc<Type /*TypeParameter*/>>,
+        targets: Option<Vec<Rc<Type>>>,
+    ) -> TypeMapper {
+        TypeMapper::new_array(sources, targets)
+    }
+
+    pub(super) fn make_composite_type_mapper(
+        &self,
+        mapper1: TypeMapper,
+        mapper2: TypeMapper,
+    ) -> TypeMapper {
+        TypeMapper::new_composite(mapper1, mapper2)
+    }
+
+    pub(super) fn make_merged_type_mapper(
+        &self,
+        mapper1: TypeMapper,
+        mapper2: TypeMapper,
+    ) -> TypeMapper {
+        TypeMapper::new_merged(mapper1, mapper2)
+    }
+
+    pub(super) fn combine_type_mappers(
+        &self,
+        mapper1: Option<TypeMapper>,
+        mapper2: TypeMapper,
+    ) -> TypeMapper {
+        if let Some(mapper1) = mapper1 {
+            self.make_composite_type_mapper(mapper1, mapper2)
+        } else {
+            mapper2
+        }
+    }
+
+    pub(super) fn merge_type_mappers(
+        &self,
+        mapper1: Option<TypeMapper>,
+        mapper2: TypeMapper,
+    ) -> TypeMapper {
+        if let Some(mapper1) = mapper1 {
+            self.make_merged_type_mapper(mapper1, mapper2)
+        } else {
+            mapper2
+        }
+    }
+
+    pub(super) fn instantiate_symbol(
+        &self,
+        mut symbol: Rc<Symbol>,
+        mapper: &TypeMapper,
+    ) -> Rc<Symbol> {
+        let links = self.get_symbol_links(&symbol);
+        let links = links.borrow();
+        if let Some(type_) = links.type_.as_ref() {
+            if !self.could_contain_type_variables(type_.clone()) {
+                return symbol;
+            }
+        }
+        let mut mapper = (*mapper).clone();
+        if get_check_flags(&symbol).intersects(CheckFlags::Instantiated) {
+            symbol = links.target.clone().unwrap();
+            mapper = self.combine_type_mappers(links.mapper.clone(), mapper);
+        }
+        let result = self.create_symbol(
+            symbol.flags(),
+            symbol.escaped_name().clone(),
+            Some(
+                CheckFlags::Instantiated
+                    | get_check_flags(&*symbol)
+                        & (CheckFlags::Readonly
+                            | CheckFlags::Late
+                            | CheckFlags::OptionalParameter
+                            | CheckFlags::RestParameter),
+            ),
+        );
+        if let Some(declarations) = &*symbol.maybe_declarations() {
+            result.set_declarations(declarations.clone());
+        }
+        let symbol_links = result.symbol_links();
+        let mut symbol_links_ref = symbol_links.borrow_mut();
+        symbol_links_ref.target = Some(symbol.clone());
+        symbol_links_ref.mapper = Some(mapper);
+        if let Some(value_declaration) = &*symbol.maybe_value_declaration() {
+            result.set_value_declaration(value_declaration.upgrade().unwrap());
+        }
+        Rc::new(result.into())
+    }
+
+    pub(super) fn instantiate_type(
+        &self,
+        type_: Option<Rc<Type>>,
+        mapper: Option<&TypeMapper>,
+    ) -> Option<Rc<Type>> {
+        if let Some(type_) = type_.as_ref() {
+            if let Some(mapper) = mapper {
+                return Some(self.instantiate_type_with_alias(type_.clone(), mapper, None, None));
+            }
+        }
+        type_
+    }
+
+    pub(super) fn instantiate_type_with_alias(
+        &self,
+        type_: Rc<Type>,
+        mapper: &TypeMapper,
+        alias_symbol: Option<Rc<Symbol>>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        let result =
+            self.instantiate_type_worker(type_, mapper, alias_symbol, alias_type_arguments);
+        result
+    }
+
+    pub(super) fn instantiate_type_worker(
+        &self,
+        type_: Rc<Type>,
+        mapper: &TypeMapper,
+        alias_symbol: Option<Rc<Symbol>>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        let flags = type_.flags();
+        if flags.intersects(TypeFlags::TypeParameter) {
+            return self.get_mapped_type(type_, mapper);
+        }
+        unimplemented!()
     }
 
     pub(super) fn is_type_assignable_to(&self, source: Rc<Type>, target: Rc<Type>) -> bool {

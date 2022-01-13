@@ -5,12 +5,15 @@ use std::rc::Rc;
 
 use super::NodeBuilderContext;
 use crate::{
-    __String, declaration_name_to_string, escape_leading_underscores, first_defined,
-    get_effective_type_annotation_node, get_name_of_declaration, has_dynamic_name,
-    is_property_assignment, is_property_declaration, is_property_signature,
-    is_variable_declaration, BaseInterfaceType, Debug_, InterfaceType, LiteralType, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolTable, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    __String, append_if_unique, concatenate, create_symbol_table, declaration_name_to_string,
+    escape_leading_underscores, first_defined, get_check_flags, get_declaration_of_kind,
+    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
+    get_name_of_declaration, has_dynamic_name, is_property_assignment, is_property_declaration,
+    is_property_signature, is_variable_declaration, range_equals, BaseInterfaceType, CheckFlags,
+    Debug_, InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper,
 };
 
 impl TypeChecker {
@@ -104,11 +107,17 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
     ) -> Rc<Type> {
-        // let links = self.get_symbol_links(symbol);
-        // if links.type_.is_none() {
-        self.get_type_of_variable_or_parameter_or_property_worker(symbol)
-        // }
-        // links.type.unwrap().clone()
+        let links = self.get_symbol_links(symbol);
+        let links_type_is_none = { links.borrow().type_.is_none() };
+        if links_type_is_none {
+            let type_ = self.get_type_of_variable_or_parameter_or_property_worker(symbol);
+            let mut links_ref = links.borrow_mut();
+            if links_ref.type_.is_none() {
+                links_ref.type_ = Some(type_);
+            }
+        }
+        let links_ref = links.borrow();
+        links_ref.type_.clone().unwrap()
     }
 
     pub(super) fn get_type_of_variable_or_parameter_or_property_worker(
@@ -144,7 +153,24 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn get_type_of_instantiated_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+        let links = self.get_symbol_links(symbol);
+        let mut links = links.borrow_mut();
+        if links.type_.is_none() {
+            let type_ = self.instantiate_type(
+                Some(self.get_type_of_symbol(links.target.as_ref().unwrap())),
+                links.mapper.as_ref(),
+            );
+            links.type_ = type_;
+        }
+        links.type_.clone().unwrap()
+    }
+
     pub(super) fn get_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
+        let check_flags = get_check_flags(symbol);
+        if check_flags.intersects(CheckFlags::Instantiated) {
+            return self.get_type_of_instantiated_symbol(symbol);
+        }
         if symbol
             .flags()
             .intersects(SymbolFlags::Variable | SymbolFlags::Property)
@@ -161,19 +187,147 @@ impl TypeChecker {
         )
     }
 
+    pub(super) fn append_type_parameters(
+        &self,
+        mut type_parameters: Option<Vec<Rc<Type>>>,
+        declarations: &[Rc<Node>],
+    ) -> Option<Vec<Rc<Type>>> {
+        for declaration in declarations {
+            type_parameters = Some(append_if_unique(
+                type_parameters,
+                self.get_declared_type_of_type_parameter(
+                    self.get_symbol_of_node(&**declaration).unwrap(),
+                ),
+            ));
+        }
+        type_parameters
+    }
+
+    pub(super) fn get_outer_type_parameters(
+        &self,
+        node: &Node,
+    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+        None
+    }
+
+    pub(super) fn get_outer_type_parameters_of_class_or_interface(
+        &self,
+        symbol: Rc<Symbol>,
+    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+        let declaration = if symbol.flags().intersects(SymbolFlags::Class) {
+            symbol
+                .maybe_value_declaration()
+                .as_ref()
+                .map(|weak| weak.upgrade().unwrap())
+        } else {
+            get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration)
+        };
+        Debug_.assert(
+            declaration.is_some(),
+            Some("Class was missing valueDeclaration -OR- non-class had no interface declarations"),
+        );
+        let declaration = declaration.unwrap();
+        self.get_outer_type_parameters(&*declaration)
+    }
+
+    pub(super) fn get_local_type_parameters_of_class_or_interface_or_type_alias(
+        &self,
+        symbol: Rc<Symbol>,
+    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+        let declarations = symbol.maybe_declarations();
+        if declarations.is_none() {
+            return None;
+        }
+        let declarations = declarations.as_ref().unwrap();
+        let mut result: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
+        for node in declarations {
+            if node.kind() == SyntaxKind::InterfaceDeclaration
+                || node.kind() == SyntaxKind::ClassDeclaration
+                || node.kind() == SyntaxKind::ClassExpression
+                || false
+            {
+                let declaration = node;
+                result = self.append_type_parameters(
+                    result,
+                    &get_effective_type_parameter_declarations(&*declaration),
+                );
+            }
+        }
+        result
+    }
+
     pub(super) fn get_declared_type_of_class_or_interface(
         &self,
         symbol: Rc<Symbol>,
     ) -> Rc<Type /*InterfaceType*/> {
-        let kind = if symbol.flags().intersects(SymbolFlags::Class) {
-            ObjectFlags::Class
-        } else {
-            ObjectFlags::Interface
-        };
+        let links = self.get_symbol_links(&symbol);
+        let original_links = links.clone();
+        let mut original_links_ref = original_links.borrow_mut();
+        if original_links_ref.declared_type.is_none() {
+            let kind = if symbol.flags().intersects(SymbolFlags::Class) {
+                ObjectFlags::Class
+            } else {
+                ObjectFlags::Interface
+            };
 
-        let type_: InterfaceType =
-            BaseInterfaceType::new(self.create_object_type(kind, symbol)).into();
-        Rc::new(type_.into())
+            let mut type_ = self.create_object_type(kind, symbol.clone());
+            let outer_type_parameters =
+                self.get_outer_type_parameters_of_class_or_interface(symbol.clone());
+            let local_type_parameters =
+                self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol.clone());
+            let type_: InterfaceType = if outer_type_parameters.is_some()
+                || local_type_parameters.is_some()
+                || kind == ObjectFlags::Class
+                || false
+            {
+                type_.set_object_flags(type_.object_flags() | ObjectFlags::Reference);
+                let mut this_type = self.create_type_parameter(Some(symbol));
+                this_type.is_this_type = Some(true);
+                BaseInterfaceType::new(
+                    type_,
+                    Some(concatenate(
+                        outer_type_parameters.clone().unwrap_or_else(|| vec![]),
+                        local_type_parameters.clone().unwrap_or_else(|| vec![]),
+                    )),
+                    outer_type_parameters,
+                    local_type_parameters,
+                    Some(Rc::new(this_type.into())),
+                )
+            } else {
+                BaseInterfaceType::new(type_, None, None, None, None)
+            }
+            .into();
+            let type_rc = Rc::new(type_.into());
+            match &*type_rc {
+                Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
+                    base_interface_type,
+                ))) => match &**base_interface_type.this_type.borrow_mut().as_ref().unwrap() {
+                    Type::TypeParameter(type_parameter) => {
+                        *type_parameter.constraint.borrow_mut() = Some(Rc::downgrade(&type_rc));
+                    }
+                    _ => panic!("Expected TypeParameter"),
+                },
+                _ => panic!("Expected BaseInterfaceType"),
+            }
+            original_links_ref.declared_type = Some(type_rc.clone());
+            if !Rc::ptr_eq(&links, &original_links) {
+                let mut links_ref = links.borrow_mut();
+                links_ref.declared_type = Some(type_rc);
+            }
+        }
+        original_links_ref.declared_type.clone().unwrap()
+    }
+
+    pub(super) fn get_declared_type_of_type_parameter(
+        &self,
+        symbol: Rc<Symbol>,
+    ) -> Rc<Type /*TypeParameter*/> {
+        let links = self.get_symbol_links(&symbol);
+        let mut links = links.borrow_mut();
+        if links.declared_type.is_none() {
+            links.declared_type = Some(Rc::new(self.create_type_parameter(Some(symbol)).into()));
+        }
+        links.declared_type.clone().unwrap()
     }
 
     pub(super) fn get_declared_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {
@@ -188,10 +342,43 @@ impl TypeChecker {
         {
             return Some(self.get_declared_type_of_class_or_interface(symbol));
         }
+        if symbol.flags().intersects(SymbolFlags::TypeParameter) {
+            return Some(self.get_declared_type_of_type_parameter(symbol));
+        }
         unimplemented!()
     }
 
+    pub(super) fn create_instantiated_symbol_table(
+        &self,
+        symbols: &[Rc<Symbol>],
+        mapper: &TypeMapper,
+        mapping_this_only: bool,
+    ) -> SymbolTable {
+        let mut result = create_symbol_table();
+        for symbol in symbols {
+            result.insert(
+                symbol.escaped_name().clone(),
+                if mapping_this_only && true {
+                    symbol.clone()
+                } else {
+                    self.instantiate_symbol(symbol.clone(), mapper)
+                },
+            );
+        }
+        result
+    }
+
     pub(super) fn resolve_declared_members(&self, type_: Rc<Type /*InterfaceType*/>) -> Rc<Type> {
+        let type_as_interface_type = match &*type_ {
+            Type::ObjectType(ObjectType::InterfaceType(interface_type)) => interface_type,
+            _ => panic!("Expected InterfaceType"),
+        };
+        if type_as_interface_type.maybe_declared_properties().is_none() {
+            let symbol = type_.symbol();
+            let members = self.get_members_of_symbol(symbol);
+            type_as_interface_type
+                .set_declared_properties(self.get_named_members(&*members.borrow()));
+        }
         type_
     }
 
@@ -233,7 +420,10 @@ impl TypeChecker {
         if false {
             unimplemented!()
         } else {
-            symbol.members()
+            symbol
+                .maybe_members()
+                .clone()
+                .unwrap_or_else(|| unimplemented!())
         }
     }
 
@@ -241,16 +431,35 @@ impl TypeChecker {
         &self,
         type_: Rc<Type /*ObjectType*/>,
         source: Rc<Type /*InterfaceTypeWithDeclaredMembers*/>,
+        type_parameters: Vec<Rc<Type /*TypeParameter*/>>,
+        type_arguments: Vec<Rc<Type>>,
     ) {
         let members: Rc<RefCell<SymbolTable>>;
-        if true {
+        let mut mapper: Option<TypeMapper> = None;
+        if range_equals(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.maybe_symbol() {
                 self.get_members_of_symbol(source_symbol)
             } else {
                 unimplemented!()
             };
         } else {
-            unimplemented!()
+            let type_parameters_len_is_1 = type_parameters.len() == 1;
+            mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments)));
+            members = Rc::new(RefCell::new(
+                self.create_instantiated_symbol_table(
+                    match &*source {
+                        Type::ObjectType(ObjectType::InterfaceType(
+                            InterfaceType::BaseInterfaceType(base_interface_type),
+                        )) => base_interface_type,
+                        _ => panic!("Expected BaseInterfaceType"),
+                    }
+                    .maybe_declared_properties()
+                    .as_ref()
+                    .unwrap(),
+                    mapper.as_ref().unwrap(),
+                    type_parameters_len_is_1,
+                ),
+            ));
         }
         self.set_structured_type_members(
             match &*type_ {
@@ -261,8 +470,45 @@ impl TypeChecker {
         );
     }
 
+    pub(super) fn resolve_type_reference_members(&self, type_: Rc<Type /*TypeReference*/>) {
+        let type_as_type_reference = match &*type_ {
+            Type::ObjectType(ObjectType::TypeReference(type_reference)) => type_reference,
+            _ => panic!("Expected TypeReference"),
+        };
+        let source = self.resolve_declared_members(type_as_type_reference.target.clone());
+        let source_as_base_interface_type = match &*source {
+            Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
+                base_interface_type,
+            ))) => base_interface_type,
+            _ => panic!("Expected BaseInterfaceType"),
+        };
+        let type_parameters = concatenate(
+            source_as_base_interface_type
+                .type_parameters
+                .clone()
+                .unwrap(),
+            vec![source_as_base_interface_type
+                .this_type
+                .borrow()
+                .clone()
+                .unwrap()],
+        );
+        let type_arguments = self.get_type_arguments(type_as_type_reference);
+        let padded_type_arguments = if type_arguments.len() == type_parameters.len() {
+            type_arguments
+        } else {
+            concatenate(type_arguments, vec![type_.clone()])
+        };
+        self.resolve_object_type_members(type_, source, type_parameters, padded_type_arguments);
+    }
+
     pub(super) fn resolve_class_or_interface_members(&self, type_: Rc<Type /*InterfaceType*/>) {
-        self.resolve_object_type_members(type_.clone(), self.resolve_declared_members(type_));
+        self.resolve_object_type_members(
+            type_.clone(),
+            self.resolve_declared_members(type_),
+            vec![],
+            vec![],
+        );
     }
 
     pub(super) fn resolve_structured_type_members(
@@ -273,8 +519,11 @@ impl TypeChecker {
             if let Type::ObjectType(object_type) = &*type_
             /*type_.flags().intersects(TypeFlags::Object)*/
             {
-                if false {
-                    unimplemented!()
+                if object_type
+                    .object_flags()
+                    .intersects(ObjectFlags::Reference)
+                {
+                    self.resolve_type_reference_members(type_.clone());
                 } else if object_type
                     .object_flags()
                     .intersects(ObjectFlags::ClassOrInterface)

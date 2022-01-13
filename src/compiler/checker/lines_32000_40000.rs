@@ -3,12 +3,14 @@
 use std::rc::Rc;
 
 use crate::{
-    for_each, get_effective_initializer, is_binding_element, is_private_identifier, ArrayTypeNode,
-    DiagnosticMessage, Diagnostics, Expression, ExpressionStatement, InterfaceDeclaration,
-    LiteralLikeNode, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeInterface,
-    PrefixUnaryExpression, PropertyAssignment, PropertySignature, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeReferenceNode, UnionOrIntersectionTypeInterface,
-    VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
+    for_each, get_effective_initializer, is_binding_element, is_private_identifier, map,
+    maybe_for_each, ArrayTypeNode, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
+    HasTypeParametersInterface, InterfaceDeclaration, LiteralLikeNode, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, PrefixUnaryExpression,
+    PropertyAssignment, PropertySignature, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeParameterDeclaration, TypeReferenceNode,
+    UnionOrIntersectionTypeInterface, VariableDeclaration, VariableLikeDeclarationInterface,
+    VariableStatement,
 };
 
 impl TypeChecker {
@@ -165,6 +167,10 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn check_type_parameter(&self, node: &TypeParameterDeclaration) {
+        // TODO
+    }
+
     pub(super) fn check_property_declaration(&mut self, node: &PropertySignature) {
         self.check_variable_like_declaration(node);
     }
@@ -179,7 +185,26 @@ impl TypeChecker {
         self.check_property_declaration(node)
     }
 
+    pub(super) fn get_effective_type_arguments(
+        &self,
+        node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+        type_parameters: &[Rc<Type /*TypeParameter*/>],
+    ) -> Vec<Rc<Type>> {
+        self.fill_missing_type_arguments(
+            map(
+                Some(node.as_has_type_arguments().maybe_type_arguments().unwrap()),
+                |type_argument, _| self.get_type_from_type_node(type_argument),
+            ),
+            Some(type_parameters),
+        )
+        .unwrap()
+    }
+
     pub(super) fn check_type_reference_node(&mut self, node: &TypeReferenceNode) {
+        maybe_for_each(node.type_arguments.as_ref(), |type_argument, _| {
+            self.check_source_element(Some(&**type_argument));
+            Option::<()>::None
+        });
         let type_ = self.get_type_from_type_reference(node);
     }
 
@@ -259,7 +284,24 @@ impl TypeChecker {
         self.check_expression(expression);
     }
 
+    pub(super) fn check_type_parameters(
+        &self,
+        type_parameter_declarations: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
+    ) {
+        if let Some(type_parameter_declarations) = type_parameter_declarations {
+            for node in type_parameter_declarations {
+                self.check_type_parameter(match &**node {
+                    Node::TypeParameterDeclaration(type_parameter_declaration) => {
+                        type_parameter_declaration
+                    }
+                    _ => panic!("Expected TypeParameterDeclaration"),
+                });
+            }
+        }
+    }
+
     pub(super) fn check_interface_declaration(&mut self, node: &InterfaceDeclaration) {
+        self.check_type_parameters(node.maybe_type_parameters());
         for_each(&node.members, |member, _| {
             self.check_source_element(Some(&**member));
             Option::<()>::None

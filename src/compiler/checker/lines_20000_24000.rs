@@ -151,6 +151,27 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn could_contain_type_variables(&self, type_: Rc<Type>) -> bool {
+        let object_flags = get_object_flags(&type_);
+        if object_flags.intersects(ObjectFlags::CouldContainTypeVariablesComputed) {
+            return object_flags.intersects(ObjectFlags::CouldContainTypeVariables);
+        }
+        let result = type_.flags().intersects(TypeFlags::Instantiable) || unimplemented!();
+        if type_.flags().intersects(TypeFlags::ObjectFlagsType) {
+            let type_as_has_object_flags = type_.as_object_flags_type();
+            type_as_has_object_flags.set_object_flags(
+                type_as_has_object_flags.object_flags()
+                    | ObjectFlags::CouldContainTypeVariablesComputed
+                    | if result {
+                        ObjectFlags::CouldContainTypeVariables
+                    } else {
+                        ObjectFlags::None
+                    },
+            );
+        }
+        result
+    }
+
     pub(super) fn is_object_literal_type(&self, type_: Rc<Type>) -> bool {
         get_object_flags(&*type_).intersects(ObjectFlags::ObjectLiteral)
     }

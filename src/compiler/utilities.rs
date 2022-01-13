@@ -10,12 +10,29 @@ use crate::{
     SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, __String,
     create_text_span_from_bounds, escape_leading_underscores, get_name_of_declaration,
     insert_sorted, is_member_name, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
-    BaseNode, BaseType, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
-    DiagnosticWithLocation, EmitTextWriter, Expression, Node, NodeInterface, ObjectFlags,
-    ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags, SymbolTable, Type,
-    TypeInterface,
+    BaseNode, BaseSymbol, BaseType, CheckFlags, Debug_, Diagnostic, DiagnosticCollection,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformationInterface,
+    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitTextWriter, Expression, Node,
+    NodeInterface, ObjectFlags, ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
 };
+
+pub fn get_declaration_of_kind(
+    symbol: Rc<Symbol>,
+    kind: SyntaxKind,
+) -> Option<Rc<Node /*T extends Declaration*/>> {
+    let maybe_declarations = symbol.maybe_declarations();
+    let declarations = maybe_declarations.as_ref();
+    if let Some(declarations) = declarations {
+        for declaration in declarations {
+            if declaration.kind() == kind {
+                return Some(declaration.clone());
+            }
+        }
+    }
+
+    None
+}
 
 pub fn create_symbol_table() -> SymbolTable {
     let result = SymbolTable::new();
@@ -258,7 +275,7 @@ pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode
             return;
         }
     }
-    symbol.set_value_declaration(node);
+    symbol.set_value_declaration(node.node_wrapper());
 }
 
 pub fn is_keyword(token: SyntaxKind) -> bool {
@@ -471,6 +488,13 @@ pub fn get_first_identifier<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*Ide
     }
 }
 
+pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
+    match symbol {
+        Symbol::TransientSymbol(transient_symbol) => transient_symbol.check_flags(),
+        _ => CheckFlags::None,
+    }
+}
+
 pub fn get_object_flags(type_: &Type) -> ObjectFlags {
     if type_.flags().intersects(TypeFlags::ObjectFlagsType) {
         type_.as_object_flags_type().object_flags()
@@ -480,8 +504,8 @@ pub fn get_object_flags(type_: &Type) -> ObjectFlags {
 }
 
 #[allow(non_snake_case)]
-fn Symbol(flags: SymbolFlags, name: __String) -> Symbol {
-    Symbol::new(flags, name)
+fn Symbol(flags: SymbolFlags, name: __String) -> BaseSymbol {
+    BaseSymbol::new(flags, name)
 }
 
 #[allow(non_snake_case)]
@@ -523,7 +547,7 @@ impl ObjectAllocator {
         Node
     }
 
-    pub fn get_symbol_constructor(&self) -> fn(SymbolFlags, __String) -> Symbol {
+    pub fn get_symbol_constructor(&self) -> fn(SymbolFlags, __String) -> BaseSymbol {
         Symbol
     }
 

@@ -9,7 +9,8 @@ use crate::{
     UnionOrIntersectionType, UnionOrIntersectionTypeInterface, __String, chain_diagnostic_messages,
     create_diagnostic_for_node_from_message_chain, first_or_undefined, get_object_flags, Debug_,
     DiagnosticMessage, DiagnosticMessageChain, Diagnostics, Node, NodeInterface, ObjectFlags,
-    RelationComparisonResult, Symbol, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    RelationComparisonResult, Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 pub(super) struct CheckTypeRelatedTo<'type_checker> {
@@ -261,7 +262,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             if self.should_check_as_excess_property(prop.clone(), source.symbol()) && true {
                 if !self.type_checker.is_known_property(
                     reduced_target.clone(),
-                    &prop.escaped_name,
+                    prop.escaped_name(),
                     is_comparing_jsx_attributes,
                 ) {
                     if report_errors {
@@ -561,7 +562,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         // }
         let properties = self.type_checker.get_properties_of_type(target.clone());
         for target_prop in self.exclude_properties(properties, excluded_properties) {
-            let name = &target_prop.escaped_name;
+            let name = target_prop.escaped_name();
             if true {
                 let source_prop = self.type_checker.get_property_of_type(source.clone(), name);
                 if let Some(source_prop) = source_prop {

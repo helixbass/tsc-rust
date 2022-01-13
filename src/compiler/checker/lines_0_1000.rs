@@ -9,8 +9,23 @@ use super::create_node_builder;
 use crate::{
     __String, create_diagnostic_collection, create_symbol_table, object_allocator,
     DiagnosticCollection, FreshableIntrinsicType, IntrinsicType, Number, ObjectFlags, Symbol,
-    SymbolFlags, SymbolTable, Type, TypeChecker, TypeCheckerHost, TypeFlags,
+    SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeCheckerHost,
+    TypeFlags,
 };
+
+thread_local! {
+    pub(super) static next_symbol_id: RefCell<SymbolId> = RefCell::new(1);
+}
+
+pub(super) fn get_next_symbol_id() -> SymbolId {
+    next_symbol_id.with(|_next_symbol_id| *_next_symbol_id.borrow())
+}
+
+pub(super) fn increment_next_symbol_id() {
+    next_symbol_id.with(|_next_symbol_id| {
+        *_next_symbol_id.borrow_mut() += 1;
+    });
+}
 
 bitflags! {
     pub(super) struct IntersectionState: u32 {
@@ -43,6 +58,15 @@ bitflags! {
     }
 }
 
+pub(super) fn get_symbol_id(symbol: &Symbol) -> SymbolId {
+    if symbol.maybe_id().is_none() {
+        symbol.set_id(get_next_symbol_id());
+        increment_next_symbol_id();
+    }
+
+    symbol.id()
+}
+
 pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     host: &TTypeCheckerHost,
     produce_diagnostics: bool,
@@ -51,6 +75,8 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         _types_needing_strong_references: RefCell::new(vec![]),
         Symbol: object_allocator.get_symbol_constructor(),
         Type: object_allocator.get_type_constructor(),
+
+        empty_symbols: Rc::new(RefCell::new(create_symbol_table())),
 
         strict_null_checks: true,
         fresh_object_literal_flag: if false {
@@ -69,6 +95,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         unknown_symbol: None,
 
+        any_type: None,
         number_type: None,
         bigint_type: None,
         true_type: None,
@@ -81,12 +108,25 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         global_array_type: None,
 
+        symbol_links: RefCell::new(HashMap::new()),
+
         diagnostics: RefCell::new(create_diagnostic_collection()),
 
         assignable_relation: HashMap::new(),
     };
     type_checker.unknown_symbol = Some(Rc::new(
-        type_checker.create_symbol(SymbolFlags::Property, __String::new("unknown".to_string())),
+        type_checker
+            .create_symbol(
+                SymbolFlags::Property,
+                __String::new("unknown".to_string()),
+                None,
+            )
+            .into(),
+    ));
+    type_checker.any_type = Some(Rc::new(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Any, "any")
+            .into(),
     ));
     type_checker.number_type = Some(Rc::new(
         type_checker
@@ -205,6 +245,10 @@ impl TypeChecker {
             .push(type_);
     }
 
+    pub(super) fn empty_symbols(&self) -> Rc<RefCell<SymbolTable>> {
+        self.empty_symbols.clone()
+    }
+
     pub(super) fn globals(&self) -> RefMut<SymbolTable> {
         self.globals.borrow_mut()
     }
@@ -223,6 +267,10 @@ impl TypeChecker {
 
     pub(super) fn unknown_symbol(&self) -> Rc<Symbol> {
         self.unknown_symbol.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn any_type(&self) -> Rc<Type> {
+        self.any_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn number_type(&self) -> Rc<Type> {

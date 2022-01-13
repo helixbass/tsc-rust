@@ -10,8 +10,8 @@ use crate::{
     BaseNodeFactorySynthetic, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint,
     EmitTextWriter, Expression, KeywordTypeNode, Node, NodeArray, NodeInterface, ObjectFlags,
     PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Symbol,
-    SymbolFlags, SymbolFormatFlags, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface,
+    SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeParameter,
 };
 
 impl TypeChecker {
@@ -42,6 +42,15 @@ impl TypeChecker {
         let mut type_ = self.create_type(TypeFlags::Object);
         type_.set_symbol(symbol);
         let type_ = BaseObjectType::new(type_, object_flags);
+        type_
+    }
+
+    pub(super) fn create_type_parameter(&self, symbol: Option<Rc<Symbol>>) -> TypeParameter {
+        let mut type_ = self.create_type(TypeFlags::TypeParameter);
+        if let Some(symbol) = symbol {
+            type_.set_symbol(symbol);
+        }
+        let type_ = TypeParameter::new(type_);
         type_
     }
 
@@ -209,6 +218,7 @@ pub(super) fn create_node_builder() -> NodeBuilder {
     NodeBuilder::new()
 }
 
+#[derive(Debug)]
 pub struct NodeBuilder {
     synthetic_factory: BaseNodeFactorySynthetic,
 }
@@ -526,7 +536,7 @@ impl NodeBuilder {
     ) -> Rc<Node> {
         let single_quote = false;
         let string_named = false;
-        let raw_name = unescape_leading_underscores(&symbol.escaped_name);
+        let raw_name = unescape_leading_underscores(symbol.escaped_name());
         self.create_property_name_node_for_identifier_or_literal(
             raw_name,
             Some(string_named),

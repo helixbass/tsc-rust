@@ -3,10 +3,12 @@
 use std::rc::Rc;
 
 use crate::{
-    UnionType, __String, get_name_of_declaration, get_object_flags, unescape_leading_underscores,
-    ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node,
-    NodeInterface, ObjectFlags, Symbol, SymbolFlags, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeReferenceNode, UnionReduction,
+    UnionType, __String, concatenate, get_name_of_declaration, get_object_flags, map,
+    unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
+    Diagnostics, Expression, InterfaceType, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -56,6 +58,14 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn fill_missing_type_arguments(
+        &self,
+        type_arguments: Option<Vec<Rc<Type>>>,
+        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+    ) -> Option<Vec<Rc<Type>>> {
+        type_arguments.map(|vec| vec.clone())
+    }
+
     pub(super) fn get_propagating_flags_of_types(
         &self,
         types: &[Rc<Type>],
@@ -70,13 +80,101 @@ impl TypeChecker {
         result & ObjectFlags::PropagatingFlags
     }
 
+    pub(super) fn create_type_reference(
+        &self,
+        target: Rc<Type /*GenericType*/>,
+        type_arguments: Option<Vec<Rc<Type>>>,
+    ) -> TypeReference {
+        let mut type_ = self.create_object_type(ObjectFlags::Reference, target.symbol());
+        type_.set_object_flags(
+            type_.object_flags()
+                | if let Some(type_arguments) = type_arguments.as_ref() {
+                    self.get_propagating_flags_of_types(type_arguments, TypeFlags::None)
+                } else {
+                    ObjectFlags::None
+                },
+        );
+        let type_ = TypeReference::new(type_, target, type_arguments);
+        type_
+    }
+
+    pub(super) fn get_type_arguments(&self, type_: &TypeReference) -> Vec<Rc<Type>> {
+        let mut resolved_type_arguments = type_.resolved_type_arguments.borrow_mut();
+        if resolved_type_arguments.is_none() {
+            let node = type_.node.borrow();
+            let type_arguments = match &*node {
+                None => vec![],
+                Some(node) => match &**node {
+                    Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
+                        let target_as_base_interface_type = match &*type_.target {
+                            Type::ObjectType(ObjectType::InterfaceType(
+                                InterfaceType::BaseInterfaceType(base_interface_type),
+                            )) => base_interface_type,
+                            _ => panic!("Expected BaseInterfaceType"),
+                        };
+                        concatenate(
+                            target_as_base_interface_type
+                                .outer_type_parameters
+                                .clone()
+                                .unwrap_or_else(|| vec![]),
+                            self.get_effective_type_arguments(
+                                node,
+                                target_as_base_interface_type
+                                    .local_type_parameters
+                                    .as_ref()
+                                    .unwrap(),
+                            ),
+                        )
+                    }
+                    Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => unimplemented!(),
+                    _ => unimplemented!(),
+                },
+            };
+            if true {
+                *resolved_type_arguments = if false {
+                    unimplemented!()
+                } else {
+                    Some(type_arguments)
+                };
+            } else {
+                unimplemented!()
+            }
+        }
+        (*resolved_type_arguments).clone().unwrap()
+    }
+
     pub(super) fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
         &self,
         node: &TNode,
         symbol: Rc<Symbol>,
     ) -> Rc<Type> {
-        let type_ = self.get_declared_type_of_symbol(self.get_merged_symbol(Some(symbol)).unwrap());
-        if true {
+        let type_ =
+            self.get_declared_type_of_symbol(self.get_merged_symbol(Some(symbol.clone())).unwrap());
+        let type_as_interface_type = match &*type_ {
+            Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
+                base_interface_type,
+            ))) => base_interface_type,
+            _ => panic!("Expected BaseInterfaceType"),
+        };
+        let type_parameters = type_as_interface_type.type_parameters.as_ref();
+        if let Some(type_parameters) = type_parameters {
+            let type_arguments = concatenate(
+                type_as_interface_type
+                    .outer_type_parameters
+                    .clone()
+                    .unwrap_or_else(|| vec![]),
+                self.fill_missing_type_arguments(
+                    self.type_arguments_from_type_reference_node(&*node.node_wrapper()),
+                    Some(type_parameters),
+                )
+                .unwrap_or_else(|| vec![]),
+            );
+            return Rc::new(
+                self.create_type_reference(type_, Some(type_arguments))
+                    .into(),
+            );
+        }
+        if self.check_no_type_arguments(node, symbol) {
             type_
         } else {
             unimplemented!()
@@ -135,6 +233,14 @@ impl TypeChecker {
         {
             return self.get_type_from_class_or_interface_reference(node, symbol);
         }
+        let res = self.try_get_declared_type_of_symbol(symbol.clone());
+        if let Some(res) = res {
+            return if self.check_no_type_arguments(node, symbol) {
+                self.get_regular_type_of_literal_type(res)
+            } else {
+                unimplemented!()
+            };
+        }
         unimplemented!()
     }
 
@@ -144,6 +250,20 @@ impl TypeChecker {
         node: &Node,
     ) -> Rc<Type> {
         type_
+    }
+
+    pub(super) fn check_no_type_arguments<TNode: NodeInterface>(
+        &self,
+        node: &TNode, /*NodeWithTypeArguments*/
+        symbol: Rc<Symbol>,
+    ) -> bool {
+        if let Some(type_arguments) = (*node.node_wrapper())
+            .as_has_type_arguments()
+            .maybe_type_arguments()
+        {
+            unimplemented!()
+        }
+        true
     }
 
     pub(super) fn get_type_from_type_reference(&self, node: &TypeReferenceNode) -> Rc<Type> {
@@ -156,6 +276,16 @@ impl TypeChecker {
         }
         let type_ = type_.unwrap();
         type_
+    }
+
+    pub(super) fn type_arguments_from_type_reference_node(
+        &self,
+        node: &Node, /*NodeWithTypeArguments*/
+    ) -> Option<Vec<Rc<Type>>> {
+        map(
+            node.as_has_type_arguments().maybe_type_arguments(),
+            |type_argument, _| self.get_type_from_type_node(&**type_argument),
+        )
     }
 
     pub(super) fn get_type_of_global_symbol(

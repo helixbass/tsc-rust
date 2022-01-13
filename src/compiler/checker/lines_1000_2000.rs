@@ -1,10 +1,13 @@
 #![allow(non_upper_case_globals)]
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
+use super::get_symbol_id;
 use crate::{
-    __String, create_diagnostic_for_node, Debug_, Diagnostic, DiagnosticMessage, Node,
-    NodeInterface, Symbol, SymbolFlags, SymbolTable, SyntaxKind, TypeChecker,
+    __String, create_diagnostic_for_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
+    DiagnosticMessage, Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
+    SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -39,9 +42,15 @@ impl TypeChecker {
         diagnostic
     }
 
-    pub(super) fn create_symbol(&self, flags: SymbolFlags, name: __String) -> Symbol {
+    pub(super) fn create_symbol(
+        &self,
+        flags: SymbolFlags,
+        name: __String,
+        check_flags: Option<CheckFlags>,
+    ) -> TransientSymbol {
         let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
-        symbol
+        let symbol = BaseTransientSymbol::new(symbol, check_flags.unwrap_or(CheckFlags::None));
+        symbol.into()
     }
 
     pub(super) fn merge_symbol_table(
@@ -60,6 +69,20 @@ impl TypeChecker {
             };
             target.insert(id.clone(), value);
         }
+    }
+
+    pub(super) fn get_symbol_links(&self, symbol: &Symbol) -> Rc<RefCell<SymbolLinks>> {
+        if let Symbol::TransientSymbol(symbol) = symbol {
+            return symbol.symbol_links();
+        }
+        let id = get_symbol_id(symbol);
+        let mut symbol_links_table = self.symbol_links.borrow_mut();
+        if let Some(symbol_links) = symbol_links_table.get(&id) {
+            return symbol_links.clone();
+        }
+        let symbol_links = Rc::new(RefCell::new(SymbolLinks::new()));
+        symbol_links_table.insert(id, symbol_links.clone());
+        symbol_links
     }
 
     pub(super) fn is_global_source_file(&self, node: &Node) -> bool {
@@ -129,6 +152,27 @@ impl TypeChecker {
                 && !self.is_global_source_file(&*location_unwrapped)
             {
                 unimplemented!()
+            }
+
+            match location_unwrapped.kind() {
+                SyntaxKind::InterfaceDeclaration => {
+                    result = lookup(
+                        self,
+                        &*(*self
+                            .get_symbol_of_node(&*location_unwrapped)
+                            .unwrap()
+                            .maybe_members()
+                            .clone()
+                            .unwrap_or_else(|| self.empty_symbols()))
+                        .borrow(),
+                        name,
+                        meaning & SymbolFlags::Type,
+                    );
+                    if let Some(result) = &result {
+                        break;
+                    }
+                }
+                _ => (),
             }
             last_location = Some(location_unwrapped.clone());
             location = location_unwrapped.maybe_parent();
