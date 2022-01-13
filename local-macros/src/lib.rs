@@ -1461,7 +1461,7 @@ pub fn enum_unwrapped(input: TokenStream) -> TokenStream {
     let enum_match = get_enum_unwrapped_match(&argument, &ancestors);
 
     quote! {
-        (#enum_match)
+        #enum_match
     }
     .into()
 }
