@@ -327,6 +327,10 @@ impl Node {
     pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
         node_unwrapped!(self, VariableDeclarationList)
     }
+
+    pub fn as_type_parameter_declaration(&self) -> &TypeParameterDeclaration {
+        node_unwrapped!(self, TypeParameterDeclaration)
+    }
 }
 
 #[derive(Debug)]

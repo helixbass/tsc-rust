@@ -1473,6 +1473,7 @@ fn get_node_enum_unwrapped_call(argument: &Expr, variant_name: &Ident) -> TokenS
         HashMap::from_iter(IntoIter::new([
             ("Expression".to_string(), vec![]),
             ("VariableDeclarationList".to_string(), vec![]),
+            ("TypeParameterDeclaration".to_string(), vec![]),
         ]));
 
     let mut ancestors = vec!["Node"];

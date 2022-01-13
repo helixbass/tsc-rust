@@ -391,15 +391,12 @@ impl TypeChecker {
     }
 
     pub(super) fn check_expression_statement(&mut self, node: &ExpressionStatement) {
-        let expression = enum_unwrapped!(&*node.expression, [Node, Expression]);
+        let expression = node.expression.as_expression();
         self.check_expression(expression, None);
     }
 
     pub(super) fn check_if_statement(&mut self, node: &IfStatement) {
-        let type_ = self.check_truthiness_expression(
-            enum_unwrapped!(&*node.expression, [Node, Expression]),
-            None,
-        );
+        let type_ = self.check_truthiness_expression(node.expression.as_expression(), None);
         self.check_source_element(Some(&*node.then_statement));
 
         if node.then_statement.kind() == SyntaxKind::EmptyStatement {
@@ -443,10 +440,7 @@ impl TypeChecker {
     ) {
         if let Some(type_parameter_declarations) = type_parameter_declarations {
             for node in type_parameter_declarations {
-                self.check_type_parameter(enum_unwrapped!(
-                    &**node,
-                    [Node, TypeParameterDeclaration]
-                ));
+                self.check_type_parameter(node.as_type_parameter_declaration());
             }
         }
     }
