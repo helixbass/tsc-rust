@@ -323,19 +323,24 @@ impl Node {
     }
 
     pub fn as_expression(&self) -> &Expression {
-        node_unwrapped!(self, Expression)
+        // node_unwrapped!(self, Expression)
+        enum_unwrapped!(self, [Node, Expression])
     }
 
     pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
-        node_unwrapped!(self, VariableDeclarationList)
+        enum_unwrapped!(self, [Node, VariableDeclarationList])
     }
 
     pub fn as_type_parameter_declaration(&self) -> &TypeParameterDeclaration {
-        node_unwrapped!(self, TypeParameterDeclaration)
+        enum_unwrapped!(self, [Node, TypeParameterDeclaration])
     }
 
     pub fn as_property_assignment(&self) -> &PropertyAssignment {
-        node_unwrapped!(self, PropertyAssignment)
+        enum_unwrapped!(self, [Node, PropertyAssignment])
+    }
+
+    pub fn as_source_file(&self) -> &Rc<SourceFile> {
+        enum_unwrapped!(self, [Node, SourceFile])
     }
 }
 
