@@ -15,7 +15,7 @@ use crate::{
     TypeReferenceNode, UnionOrIntersectionTypeInterface, VariableDeclaration,
     VariableLikeDeclarationInterface, VariableStatement,
 };
-use local_macros::enum_unwrapped;
+use local_macros::{enum_unwrapped, node_unwrapped};
 
 impl TypeChecker {
     pub(super) fn check_arithmetic_operand_type(
@@ -32,7 +32,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_prefix_unary_expression(&self, node: &PrefixUnaryExpression) -> Rc<Type> {
-        let operand_expression = enum_unwrapped!(&*node.operand, [Node, Expression]);
+        let operand_expression = node_unwrapped!(&*node.operand, Expression);
         let operand_type = self.check_expression(operand_expression, None);
         match node.operator {
             SyntaxKind::PlusPlusToken => {
