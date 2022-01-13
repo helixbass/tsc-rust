@@ -27,7 +27,7 @@ pub use compiler::factory::node_tests::{
     is_big_int_literal, is_binding_element, is_block, is_class_static_block_declaration,
     is_identifier, is_module_block, is_object_literal_expression, is_omitted_expression,
     is_private_identifier, is_property_assignment, is_property_declaration, is_property_signature,
-    is_source_file, is_variable_declaration,
+    is_source_file, is_type_alias_declaration, is_variable_declaration,
 };
 pub use compiler::parser::{create_source_file, for_each_child, MissingNode};
 pub use compiler::path::{normalize_path, to_path};
@@ -79,9 +79,9 @@ pub use compiler::utilities::{
     get_effective_type_annotation_node, get_escaped_text_of_identifier_or_literal,
     get_first_identifier, get_literal_text, get_object_flags, get_source_file_of_node,
     has_dynamic_name, is_block_or_catch_scoped, is_external_or_common_js_module, is_keyword,
-    is_property_name_literal, is_write_only_access, node_is_missing, object_allocator,
-    parse_pseudo_big_int, position_is_synthesized, pseudo_big_int_to_string, set_parent,
-    set_text_range_pos_end, set_value_declaration, using_single_line_string_writer,
+    is_property_name_literal, is_type_alias, is_write_only_access, node_is_missing,
+    object_allocator, parse_pseudo_big_int, position_is_synthesized, pseudo_big_int_to_string,
+    set_parent, set_text_range_pos_end, set_value_declaration, using_single_line_string_writer,
     GetLiteralTextFlags, OperatorPrecedence,
 };
 pub use compiler::utilities_public::{

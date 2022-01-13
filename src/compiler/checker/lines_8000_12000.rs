@@ -10,11 +10,11 @@ use crate::{
     escape_leading_underscores, first_defined, get_check_flags, get_declaration_of_kind,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_name_of_declaration, has_dynamic_name, has_only_expression_initializer,
-    is_property_assignment, is_property_declaration, is_property_signature,
+    is_property_assignment, is_property_declaration, is_property_signature, is_type_alias,
     is_variable_declaration, range_equals, BaseInterfaceType, CheckFlags, Debug_, InterfaceType,
     InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionType,
+    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface,
 };
 
@@ -377,6 +377,29 @@ impl TypeChecker {
         original_links_ref.declared_type.clone().unwrap()
     }
 
+    pub(super) fn get_declared_type_of_type_alias(&self, symbol: &Symbol) -> Rc<Type> {
+        let links = self.get_symbol_links(symbol);
+        let mut links = links.borrow_mut();
+        if links.declared_type.is_none() {
+            let declaration = Debug_.check_defined(
+                symbol
+                    .maybe_declarations()
+                    .as_ref()
+                    .and_then(|declarations| {
+                        declarations
+                            .iter()
+                            .find(|declaration| is_type_alias(&***declaration))
+                    }),
+                None,
+            );
+            // links.declared_type = Some(
+            //     self.create_type_parameter(Some(symbol.symbol_wrapper()))
+            //         .into(),
+            // );
+        }
+        links.declared_type.clone().unwrap()
+    }
+
     pub(super) fn get_declared_type_of_type_parameter(
         &self,
         symbol: &Symbol,
@@ -403,6 +426,9 @@ impl TypeChecker {
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {
             return Some(self.get_declared_type_of_class_or_interface(symbol));
+        }
+        if symbol.flags().intersects(SymbolFlags::TypeAlias) {
+            return Some(self.get_declared_type_of_type_alias(symbol));
         }
         if symbol.flags().intersects(SymbolFlags::TypeParameter) {
             return Some(self.get_declared_type_of_type_parameter(symbol));

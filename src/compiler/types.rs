@@ -159,6 +159,9 @@ pub enum SyntaxKind {
 
     JSDocFunctionType,
     JSDocSignature,
+    JSDocCallbackTag,
+    JSDocEnumTag,
+    JSDocTypedefTag,
 }
 
 impl SyntaxKind {
