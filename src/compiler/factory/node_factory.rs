@@ -12,8 +12,8 @@ use crate::{
     IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NumericLiteral, ObjectLiteralExpression,
     PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, SourceFile,
-    Statement, StringLiteral, SyntaxKind, TokenFlags, TypeLiteralNode, TypeNode,
-    TypeParameterDeclaration, TypeReferenceNode, UnionTypeNode, VariableDeclaration,
+    Statement, StringLiteral, SyntaxKind, TokenFlags, TypeAliasDeclaration, TypeLiteralNode,
+    TypeNode, TypeParameterDeclaration, TypeReferenceNode, UnionTypeNode, VariableDeclaration,
     VariableDeclarationList, VariableStatement,
 };
 
@@ -559,6 +559,26 @@ impl NodeFactory {
             type_parameters,
         );
         let node = InterfaceDeclaration::new(node, self.create_node_array(members, None));
+        node
+    }
+
+    pub fn create_type_alias_declaration<
+        TBaseNodeFactory: BaseNodeFactory,
+        TTypeParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Rc<Node>,
+        type_parameters: Option<TTypeParameters>,
+        type_: Rc<Node>,
+    ) -> TypeAliasDeclaration {
+        let node = self.create_base_generic_named_declaration(
+            base_factory,
+            SyntaxKind::TypeAliasDeclaration,
+            name,
+            type_parameters,
+        );
+        let node = TypeAliasDeclaration::new(node, type_);
         node
     }
 

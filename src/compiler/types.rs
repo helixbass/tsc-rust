@@ -93,6 +93,7 @@ pub enum SyntaxKind {
     ObjectKeyword,
     StringKeyword,
     SymbolKeyword,
+    TypeKeyword,
     UndefinedKeyword,
     UniqueKeyword,
     UnknownKeyword,
@@ -145,6 +146,7 @@ pub enum SyntaxKind {
     FunctionDeclaration,
     ClassDeclaration,
     InterfaceDeclaration,
+    TypeAliasDeclaration,
     ModuleBlock,
 
     CatchClause,
@@ -1152,6 +1154,7 @@ pub enum Statement {
     ExpressionStatement(ExpressionStatement),
     IfStatement(IfStatement),
     InterfaceDeclaration(InterfaceDeclaration),
+    TypeAliasDeclaration(TypeAliasDeclaration),
 }
 
 #[derive(Debug)]
@@ -1365,6 +1368,28 @@ impl InterfaceDeclaration {
         Self {
             _interface_or_class_like_declaration: base_interface_or_class_like_declaration,
             members,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "Statement",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+)]
+pub struct TypeAliasDeclaration {
+    _generic_named_declaration: BaseGenericNamedDeclaration, /*name: Identifier*/
+    type_: Rc<Node /*TypeNode*/>,
+}
+
+impl TypeAliasDeclaration {
+    pub fn new(
+        base_generic_named_declaration: BaseGenericNamedDeclaration,
+        type_: Rc<Node>,
+    ) -> Self {
+        Self {
+            _generic_named_declaration: base_generic_named_declaration,
+            type_,
         }
     }
 }
