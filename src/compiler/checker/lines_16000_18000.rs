@@ -14,6 +14,7 @@ use crate::{
     SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
     TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
 };
+use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     // pub fn create_literal_type(
