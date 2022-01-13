@@ -24,8 +24,8 @@ pub use compiler::factory::node_factory::{
 };
 pub use compiler::factory::node_tests::{
     is_big_int_literal, is_binding_element, is_identifier, is_object_literal_expression,
-    is_private_identifier, is_property_assignment, is_property_declaration, is_property_signature,
-    is_variable_declaration,
+    is_omitted_expression, is_private_identifier, is_property_assignment, is_property_declaration,
+    is_property_signature, is_variable_declaration,
 };
 pub use compiler::parser::{create_source_file, for_each_child};
 pub use compiler::path::{normalize_path, to_path};
@@ -48,8 +48,8 @@ pub use compiler::types::{
     Expression, ExpressionStatement, FreshableIntrinsicType, HasExpressionInitializerInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
     InterfaceDeclaration, InterfaceType, InterfaceTypeWithDeclaredMembersInterface,
-    InternalSymbolName, IntrinsicType, KeywordTypeNode, ListFormat, LiteralLikeNode,
-    LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, LiteralTypeNode,
+    InternalSymbolName, IntersectionTypeNode, IntrinsicType, KeywordTypeNode, ListFormat,
+    LiteralLikeNode, LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, LiteralTypeNode,
     ModuleResolutionHost, ModuleSpecifierResolutionHost, NamedDeclarationInterface, Node,
     NodeArray, NodeArrayOrVec, NodeBuilderFlags, NodeCheckFlags, NodeFactory, NodeFlags, NodeId,
     NodeInterface, NodeLinks, NumberLiteralType, NumericLiteral, ObjectFlags,
@@ -63,8 +63,8 @@ pub use compiler::types::{
     TypeCheckerHost, TypeElement, TypeFlags, TypeFormatFlags, TypeInterface, TypeLiteralNode,
     TypeMapper, TypeNode, TypeParameter, TypeParameterDeclaration, TypeReference,
     TypeReferenceNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionReduction,
-    UnionType, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, __String,
+    UnionType, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
+    VariableLikeDeclarationInterface, VariableStatement, __String,
 };
 pub use compiler::utilities::{
     chain_diagnostic_messages, create_detached_diagnostic, create_diagnostic_collection,

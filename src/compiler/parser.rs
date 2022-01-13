@@ -83,6 +83,12 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
         Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
             visit_node(&mut cb_node, Some(array_type.element_type.clone()))
         }
+        Node::TypeNode(TypeNode::UnionTypeNode(union_type)) => {
+            visit_nodes(&mut cb_node, &mut cb_nodes, Some(&union_type.types))
+        }
+        Node::TypeNode(TypeNode::IntersectionTypeNode(intersection_type)) => {
+            visit_nodes(&mut cb_node, &mut cb_nodes, Some(&intersection_type.types))
+        }
         Node::TypeNode(TypeNode::LiteralTypeNode(literal_type)) => {
             visit_node(&mut cb_node, Some(literal_type.literal.clone()))
         }
@@ -638,13 +644,26 @@ impl ParserType {
         self.try_parse_semicolon() || self.parse_expected(SyntaxKind::SemicolonToken, None)
     }
 
-    fn create_node_array(&self, elements: Vec<Node>) -> NodeArray {
-        self.factory.create_node_array(
+    fn create_node_array(
+        &self,
+        elements: Vec<Node>,
+        pos: isize,
+        end: Option<isize>,
+        has_trailing_comma: Option<bool>,
+    ) -> NodeArray {
+        let array = self.factory.create_node_array(
             elements
                 .into_iter()
                 .map(Node::wrap)
                 .collect::<Vec<Rc<Node>>>(),
-        )
+            has_trailing_comma,
+        );
+        // set_text_range_pos_end(
+        //     array,
+        //     pos,
+        //     end.unwrap_or_else(|| self.scanner().get_start_pos()),
+        // );
+        array
     }
 
     fn finish_node<TParsedNode: NodeInterface>(
@@ -801,15 +820,18 @@ impl ParserType {
         let mut list: Vec<Node> = vec![];
         let list_pos = self.get_node_pos();
 
+        let mut comma_start: isize = -1;
         loop {
             if self.is_list_element(kind) {
                 let start_pos = self.scanner().get_start_pos();
                 list.push(self.parse_list_element(kind, parse_element).into());
+                comma_start = self.scanner().get_token_pos().try_into().unwrap();
 
                 if self.parse_optional(SyntaxKind::CommaToken) {
                     continue;
                 }
 
+                comma_start = -1;
                 if self.is_list_terminator(kind) {
                     break;
                 }
@@ -825,7 +847,7 @@ impl ParserType {
         }
 
         self.set_parsing_context(save_parsing_context);
-        self.create_node_array(list)
+        self.create_node_array(list, list_pos, None, Some(comma_start >= 0))
     }
 
     fn parse_bracketed_list<TItem: Into<Node>>(
@@ -872,6 +894,7 @@ impl ParserType {
         parse_element: fn(&mut ParserType) -> TItem,
     ) -> NodeArray {
         let mut list = vec![];
+        let list_pos = self.get_node_pos();
 
         while !self.is_list_terminator(kind) {
             if self.is_list_element(kind) {
@@ -883,7 +906,7 @@ impl ParserType {
             unimplemented!()
         }
 
-        self.create_node_array(list)
+        self.create_node_array(list, list_pos, None, None)
     }
 
     fn parse_list_element<TItem: Into<Node>>(
@@ -1171,19 +1194,67 @@ impl ParserType {
         self.parse_postfix_type_or_higher()
     }
 
-    fn parse_union_or_intersection_type(
+    fn parse_function_or_constructor_type_to_error(
+        &self,
+        is_in_union_type: bool,
+    ) -> Option<TypeNode> {
+        None
+    }
+
+    fn parse_union_or_intersection_type<TReturn: Into<TypeNode>>(
         &mut self,
+        operator: SyntaxKind, /*SyntaxKind.BarToken | SyntaxKind.AmpersandToken*/
         parse_constituent_type: fn(&mut ParserType) -> TypeNode,
+        create_type_node: fn(&NodeFactory, &ParserType, NodeArray) -> TReturn,
     ) -> TypeNode {
-        parse_constituent_type(self)
+        let pos = self.get_node_pos();
+        let is_union_type = operator == SyntaxKind::BarToken;
+        let has_leading_operator = self.parse_optional(operator);
+        let mut type_: Option<TypeNode> = Some(if has_leading_operator {
+            self.parse_function_or_constructor_type_to_error(is_union_type)
+                .unwrap_or_else(|| parse_constituent_type(self))
+        } else {
+            parse_constituent_type(self)
+        });
+        if self.token() == operator || has_leading_operator {
+            let mut types: Vec<Node> = vec![type_.take().unwrap().into()];
+            while self.parse_optional(operator) {
+                types.push(
+                    self.parse_function_or_constructor_type_to_error(is_union_type)
+                        .unwrap_or_else(|| parse_constituent_type(self))
+                        .into(),
+                );
+            }
+            type_ = Some(
+                self.finish_node(
+                    create_type_node(
+                        &self.factory,
+                        self,
+                        self.create_node_array(types, pos, None, None),
+                    )
+                    .into(),
+                    pos,
+                    None,
+                ),
+            );
+        }
+        type_.unwrap()
     }
 
     fn parse_intersection_type_or_higher(&mut self) -> TypeNode {
-        self.parse_union_or_intersection_type(ParserType::parse_type_operator_or_higher)
+        self.parse_union_or_intersection_type(
+            SyntaxKind::AmpersandToken,
+            ParserType::parse_type_operator_or_higher,
+            NodeFactory::create_intersection_type_node,
+        )
     }
 
     fn parse_union_type_or_higher(&mut self) -> TypeNode {
-        self.parse_union_or_intersection_type(ParserType::parse_intersection_type_or_higher)
+        self.parse_union_or_intersection_type(
+            SyntaxKind::BarToken,
+            ParserType::parse_intersection_type_or_higher,
+            NodeFactory::create_union_type_node,
+        )
     }
 
     fn parse_type(&mut self) -> TypeNode {

@@ -28,6 +28,10 @@ pub fn is_object_literal_expression<TNode: NodeInterface>(node: &TNode) -> bool 
     node.kind() == SyntaxKind::ObjectLiteralExpression
 }
 
+pub fn is_omitted_expression<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.kind() == SyntaxKind::OmittedExpression
+}
+
 pub fn is_variable_declaration<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::VariableDeclaration
 }

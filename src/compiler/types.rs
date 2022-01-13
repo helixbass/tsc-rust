@@ -93,6 +93,8 @@ pub enum SyntaxKind {
     TypeReference,
     TypeLiteral,
     ArrayType,
+    UnionType,
+    IntersectionType,
     LiteralType,
     ObjectBindingPattern,
     ArrayBindingPattern,
@@ -103,6 +105,7 @@ pub enum SyntaxKind {
     PrefixUnaryExpression,
     BinaryExpression,
     ClassExpression,
+    OmittedExpression,
     ExpressionWithTypeArguments,
     EmptyStatement,
     VariableStatement,
@@ -441,6 +444,12 @@ impl From<&NodeArray> for Vec<Rc<Node>> {
     }
 }
 
+impl<'node_array> From<&'node_array NodeArray> for &'node_array [Rc<Node>] {
+    fn from(node_array: &'node_array NodeArray) -> Self {
+        &node_array._nodes
+    }
+}
+
 pub struct NodeArrayIter<'node_array>(
     Box<dyn Iterator<Item = &'node_array Rc<Node>> + 'node_array>,
 );
@@ -661,6 +670,8 @@ impl VariableDeclarationList {
 #[ast_type]
 pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
+    UnionTypeNode(UnionTypeNode),
+    IntersectionTypeNode(IntersectionTypeNode),
     LiteralTypeNode(LiteralTypeNode),
     TypeReferenceNode(TypeReferenceNode),
     TypeLiteralNode(TypeLiteralNode),
@@ -745,6 +756,38 @@ impl ArrayTypeNode {
         Self {
             _node: base_node,
             element_type,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct UnionTypeNode {
+    _node: BaseNode,
+    pub types: NodeArray, /*<TypeNode>*/
+}
+
+impl UnionTypeNode {
+    pub fn new(base_node: BaseNode, types: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            types,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct IntersectionTypeNode {
+    _node: BaseNode,
+    pub types: NodeArray, /*<TypeNode>*/
+}
+
+impl IntersectionTypeNode {
+    pub fn new(base_node: BaseNode, types: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            types,
         }
     }
 }
@@ -3583,6 +3626,7 @@ impl CharacterCodes {
     pub const asterisk: char = '*';
     pub const at: char = '@';
     pub const backslash: char = '\\';
+    pub const bar: char = '|';
     pub const close_brace: char = '}';
     pub const close_bracket: char = ']';
     pub const colon: char = ':';
