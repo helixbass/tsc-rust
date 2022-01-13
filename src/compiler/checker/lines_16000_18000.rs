@@ -46,16 +46,13 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = NumberLiteralType::new(type_, value).into();
-        match &*type_ {
-            Type::LiteralType(literal_type) => {
-                literal_type.set_regular_type(&if let Some(regular_type) = regular_type {
-                    regular_type.borrow().type_wrapper()
-                } else {
-                    type_.clone()
-                });
-            }
-            _ => panic!("Expected LiteralType"),
-        }
+        enum_unwrapped!(&*type_, [Type, LiteralType]).set_regular_type(
+            &if let Some(regular_type) = regular_type {
+                regular_type.borrow().type_wrapper()
+            } else {
+                type_.clone()
+            },
+        );
         type_
     }
 
@@ -68,16 +65,13 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = BigIntLiteralType::new(type_, value).into();
-        match &*type_ {
-            Type::LiteralType(literal_type) => {
-                literal_type.set_regular_type(&if let Some(regular_type) = regular_type {
-                    regular_type.borrow().type_wrapper()
-                } else {
-                    type_.clone()
-                });
-            }
-            _ => panic!("Expected LiteralType"),
-        }
+        enum_unwrapped!(&*type_, [Type, LiteralType]).set_regular_type(
+            &if let Some(regular_type) = regular_type {
+                regular_type.borrow().type_wrapper()
+            } else {
+                type_.clone()
+            },
+        );
         type_
     }
 
@@ -104,13 +98,15 @@ impl TypeChecker {
         if !type_.flags().intersects(TypeFlags::Literal) {
             return false;
         }
+        // TODO: should this be using eg a Type.as_has_fresh_type() "unwrapper-helper" instead?
+        // (same question in is_type_related_to() and get_normalized_type() below)
         match type_ {
-            Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
-                IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                    ptr::eq(type_, freshable_intrinsic_type.fresh_type().as_ptr())
-                }
-                _ => panic!("Expected FreshableIntrinsicType"),
-            },
+            Type::IntrinsicType(intrinsic_type) => ptr::eq(
+                type_,
+                enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
+                    .fresh_type()
+                    .as_ptr(),
+            ),
             Type::LiteralType(literal_type) => {
                 ptr::eq(type_, literal_type.fresh_type().unwrap().as_ptr())
             }
@@ -166,13 +162,7 @@ impl TypeChecker {
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_type.is_none() {
             links_ref.resolved_type = Some(self.get_regular_type_of_literal_type(
-                &self.check_expression(
-                    match &*node.literal {
-                        Node::Expression(expression) => expression,
-                        _ => panic!("Expected Expression"),
-                    },
-                    None,
-                ),
+                &self.check_expression(enum_unwrapped!(&*node.literal, [Node, Expression]), None),
             ));
         }
         links_ref.resolved_type.clone().unwrap()
@@ -190,10 +180,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
-        let node = match node {
-            Node::TypeNode(type_node) => type_node,
-            _ => panic!("Expected TypeNode"),
-        };
+        let node = enum_unwrapped!(node, [Node, TypeNode]);
         match node {
             TypeNode::KeywordTypeNode(_) => match node.kind() {
                 SyntaxKind::NumberKeyword => self.number_type(),
@@ -507,10 +494,7 @@ impl TypeChecker {
         source_prop_type: &Type,
     ) -> Rc<Type> {
         self.check_expression_for_mutable_location(
-            match next {
-                Node::Expression(expression) => expression,
-                _ => panic!("Expected Expression"),
-            },
+            enum_unwrapped!(next, [Node, Expression]),
             Some(CheckMode::Contextual),
             Some(source_prop_type),
         )
@@ -668,12 +652,12 @@ impl TypeChecker {
         let mut source = source.type_wrapper();
         if self.is_fresh_literal_type(&source) {
             source = match &*source {
-                Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
-                    IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                        freshable_intrinsic_type.regular_type().upgrade().unwrap()
-                    }
-                    _ => panic!("Expected IntrinsicType"),
-                },
+                Type::IntrinsicType(intrinsic_type) => {
+                    enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
+                        .regular_type()
+                        .upgrade()
+                        .unwrap()
+                }
                 Type::LiteralType(literal_type) => literal_type.regular_type(),
                 _ => panic!("Expected IntrinsicType or LiteralType"),
             };
@@ -681,12 +665,12 @@ impl TypeChecker {
         let mut target = target.type_wrapper();
         if self.is_fresh_literal_type(&target) {
             target = match &*target {
-                Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
-                    IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                        freshable_intrinsic_type.regular_type().upgrade().unwrap()
-                    }
-                    _ => panic!("Expected IntrinsicType"),
-                },
+                Type::IntrinsicType(intrinsic_type) => {
+                    enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
+                        .regular_type()
+                        .upgrade()
+                        .unwrap()
+                }
                 Type::LiteralType(literal_type) => literal_type.regular_type(),
                 _ => panic!("Expected IntrinsicType or LiteralType"),
             };
@@ -718,12 +702,12 @@ impl TypeChecker {
         loop {
             let t: Rc<Type> = if self.is_fresh_literal_type(&type_) {
                 match &*type_ {
-                    Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
-                        IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                            freshable_intrinsic_type.regular_type().upgrade().unwrap()
-                        }
-                        _ => panic!("Expected FreshableIntrinsicType"),
-                    },
+                    Type::IntrinsicType(intrinsic_type) => {
+                        enum_unwrapped!(intrinsic_type, [IntrinsicType, FreshableIntrinsicType])
+                            .regular_type()
+                            .upgrade()
+                            .unwrap()
+                    }
                     Type::LiteralType(literal_type) => literal_type.regular_type(),
                     _ => panic!("Expected IntrinsicType or LiteralType"),
                 }
