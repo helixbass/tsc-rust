@@ -233,11 +233,9 @@ impl TypeChecker {
                 let targets = &mapper.targets;
                 for (i, source) in sources.iter().enumerate() {
                     if ptr::eq(type_, Rc::as_ptr(source)) {
-                        return if let Some(targets) = targets {
-                            targets[i].clone()
-                        } else {
-                            self.any_type()
-                        };
+                        return targets
+                            .as_ref()
+                            .map_or_else(|| self.any_type(), |targets| targets[i].clone());
                     }
                 }
                 type_.type_wrapper()
