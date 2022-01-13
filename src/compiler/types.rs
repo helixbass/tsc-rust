@@ -9,7 +9,7 @@ use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
 use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
-use local_macros::{ast_type, enum_unwrapped, symbol_type, type_type};
+use local_macros::{ast_type, enum_unwrapped, node_unwrapped, symbol_type, type_type};
 
 #[derive(Debug)]
 pub struct Path(String);
@@ -318,6 +318,10 @@ impl Node {
             }
             _ => panic!("Expected union or intersection type"),
         }
+    }
+
+    pub fn as_expression(&self) -> &Expression {
+        node_unwrapped!(self, Expression)
     }
 }
 

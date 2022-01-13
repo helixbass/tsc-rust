@@ -32,7 +32,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_prefix_unary_expression(&self, node: &PrefixUnaryExpression) -> Rc<Type> {
-        let operand_expression = node_unwrapped!(&*node.operand, Expression);
+        let operand_expression = node.operand.as_expression();
         let operand_type = self.check_expression(operand_expression, None);
         match node.operator {
             SyntaxKind::PlusPlusToken => {
