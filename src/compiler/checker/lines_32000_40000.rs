@@ -87,7 +87,7 @@ impl TypeChecker {
         contextual_type: Option<TTypeRef>,
     ) -> Rc<Type> {
         let initializer = get_effective_initializer(declaration).unwrap();
-        let initializer_as_expression = enum_unwrapped!(&*initializer, [Node, Expression]);
+        let initializer_as_expression = initializer.as_expression();
         let type_ = self
             .get_quick_type_of_expression(initializer_as_expression)
             .unwrap_or_else(|| {
@@ -188,7 +188,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         self.check_expression_for_mutable_location(
-            enum_unwrapped!(&*node.initializer, [Node, Expression]),
+            node.initializer.as_expression(),
             check_mode,
             Option::<&Type>::None,
         )
@@ -360,15 +360,13 @@ impl TypeChecker {
             let initializer = get_effective_initializer(node);
             if let Some(initializer) = initializer {
                 if true {
-                    let initializer_type = self.check_expression_cached(
-                        enum_unwrapped!(&*initializer, [Node, Expression]),
-                        None,
-                    );
+                    let initializer_type =
+                        self.check_expression_cached(initializer.as_expression(), None);
                     self.check_type_assignable_to_and_optionally_elaborate(
                         &initializer_type,
                         &type_,
                         Some(&*wrapper),
-                        Some(enum_unwrapped!(&*initializer, [Node, Expression])),
+                        Some(initializer.as_expression()),
                         None,
                     );
                 }
@@ -384,7 +382,10 @@ impl TypeChecker {
 
     pub(super) fn check_variable_statement(&mut self, node: &VariableStatement) {
         for_each(
-            &enum_unwrapped!(&*node.declaration_list, [Node, VariableDeclarationList]).declarations,
+            &node
+                .declaration_list
+                .as_variable_declaration_list()
+                .declarations,
             |declaration, _| Some(self.check_source_element(Some(&**declaration))),
         );
     }

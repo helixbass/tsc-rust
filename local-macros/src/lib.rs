@@ -1469,16 +1469,16 @@ pub fn enum_unwrapped(input: TokenStream) -> TokenStream {
 }
 
 fn get_node_enum_unwrapped_call(argument: &Expr, variant_name: &Ident) -> TokenStream2 {
-    let known_node_variant_names: HashMap<String, Vec<&'static str>> = HashMap::from_iter(
-        IntoIter::new([("Expression".to_string(), vec!["Expression"])]),
-    );
+    let known_node_variant_names: HashMap<String, Vec<&'static str>> =
+        HashMap::from_iter(IntoIter::new([
+            ("Expression".to_string(), vec![]),
+            ("VariableDeclarationList".to_string(), vec![]),
+        ]));
 
     let mut ancestors = vec!["Node"];
-    ancestors.extend_from_slice(
-        known_node_variant_names
-            .get(&variant_name.to_string())
-            .unwrap(),
-    );
+    let variant_name_string = variant_name.to_string();
+    ancestors.extend_from_slice(known_node_variant_names.get(&variant_name_string).unwrap());
+    ancestors.push(&variant_name_string);
     let ancestors = ancestors
         .into_iter()
         .map(|ancestor_str| Ident::new(ancestor_str, variant_name.span()));

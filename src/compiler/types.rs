@@ -323,6 +323,10 @@ impl Node {
     pub fn as_expression(&self) -> &Expression {
         node_unwrapped!(self, Expression)
     }
+
+    pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
+        node_unwrapped!(self, VariableDeclarationList)
+    }
 }
 
 #[derive(Debug)]
