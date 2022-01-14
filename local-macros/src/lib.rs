@@ -119,7 +119,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.locals()
                     }
 
-                    fn set_locals(&self, locals: crate::SymbolTable) {
+                    fn set_locals(&self, locals: ::std::option::Option<crate::SymbolTable>) {
                         self.#first_field_name.set_locals(locals)
                     }
                 }
@@ -332,7 +332,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_locals(&self, locals: crate::SymbolTable) {
+                    fn set_locals(&self, locals: ::std::option::Option<crate::SymbolTable>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_locals(locals)),*
                         }

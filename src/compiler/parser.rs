@@ -9,16 +9,16 @@ use std::rc::Rc;
 use crate::{
     create_detached_diagnostic, create_node_factory, create_scanner,
     get_binary_operator_precedence, last_or_undefined, normalize_path, object_allocator,
-    set_text_range_pos_end, token_is_identifier_or_keyword, ArrayLiteralExpression, BaseNode,
-    BaseNodeFactory, BinaryExpression, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, Diagnostics, Expression,
-    HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
-    LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeId, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
-    PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable,
-    SyntaxKind, TypeElement, TypeNode, TypeParameterDeclaration, VariableDeclaration,
-    VariableDeclarationList,
+    set_text_range_pos_end, token_is_identifier_or_keyword, token_to_string,
+    ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block, Debug_,
+    DiagnosticMessage, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
+    Diagnostics, Expression, HasExpressionInitializerInterface, HasTypeInterface,
+    HasTypeParametersInterface, Identifier, InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode,
+    LiteralLikeNodeInterface, LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NodeId, NodeInterface, ObjectLiteralExpression,
+    OperatorPrecedence, PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement,
+    Symbol, SymbolTable, SyntaxKind, TypeElement, TypeNode, TypeParameterDeclaration,
+    VariableDeclaration, VariableDeclarationList,
 };
 
 #[derive(Eq, PartialEq)]
@@ -234,7 +234,7 @@ impl NodeInterface for MissingNode {
         }
     }
 
-    fn set_locals(&self, locals: SymbolTable) {
+    fn set_locals(&self, locals: Option<SymbolTable>) {
         match self {
             MissingNode::Identifier(identifier) => identifier.set_locals(locals),
         }
@@ -408,6 +408,7 @@ impl ParserType {
             self.scanner().get_text_pos().try_into().unwrap(),
             length.try_into().unwrap(),
             message,
+            None,
         );
     }
 
@@ -472,22 +473,29 @@ impl ParserType {
         self.do_outside_of_context(NodeFlags::DisallowInContext, func)
     }
 
-    fn parse_error_at_current_token(&self, message: &DiagnosticMessage) {
+    fn parse_error_at_current_token(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
         self.parse_error_at(
             self.scanner().get_token_pos().try_into().unwrap(),
             self.scanner().get_text_pos().try_into().unwrap(),
             message,
+            args,
         );
     }
 
-    fn parse_error_at_position(&self, start: isize, length: isize, message: &DiagnosticMessage) {
+    fn parse_error_at_position(
+        &self,
+        start: isize,
+        length: isize,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) {
         {
             let mut parse_diagnostics = self.parse_diagnostics();
             let last_error = last_or_undefined(&*parse_diagnostics);
             if last_error.map_or(true, |last_error| last_error.start() != start) {
                 let file_name = self.file_name().to_string();
                 parse_diagnostics.push(create_detached_diagnostic(
-                    &file_name, start, length, message,
+                    &file_name, start, length, message, args,
                 ));
             }
         }
@@ -495,8 +503,14 @@ impl ParserType {
         self.set_parse_error_before_next_finished_node(true);
     }
 
-    fn parse_error_at(&self, start: isize, end: isize, message: &DiagnosticMessage) {
-        self.parse_error_at_position(start, end - start, message);
+    fn parse_error_at(
+        &self,
+        start: isize,
+        end: isize,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) {
+        self.parse_error_at_position(start, end - start, message, args);
     }
 
     fn get_node_pos(&self) -> isize {
@@ -589,7 +603,12 @@ impl ParserType {
         self.token() > SyntaxKind::LastReservedWord
     }
 
-    fn parse_expected(&mut self, kind: SyntaxKind, should_advance: Option<bool>) -> bool {
+    fn parse_expected(
+        &mut self,
+        kind: SyntaxKind,
+        diagnostic_message: Option<&DiagnosticMessage>,
+        should_advance: Option<bool>,
+    ) -> bool {
         let should_advance = should_advance.unwrap_or(true);
         if self.token() == kind {
             if should_advance {
@@ -598,9 +617,13 @@ impl ParserType {
             return true;
         }
 
-        if false {
+        if let Some(diagnostic_message) = diagnostic_message {
+            self.parse_error_at_current_token(diagnostic_message, None);
         } else {
-            self.parse_error_at_current_token(&Diagnostics::_0_expected);
+            self.parse_error_at_current_token(
+                &Diagnostics::_0_expected,
+                token_to_string(kind).map(|string| vec![string.to_string()]),
+            );
         }
         false
     }
@@ -647,7 +670,7 @@ impl ParserType {
     }
 
     fn parse_semicolon(&mut self) -> bool {
-        self.try_parse_semicolon() || self.parse_expected(SyntaxKind::SemicolonToken, None)
+        self.try_parse_semicolon() || self.parse_expected(SyntaxKind::SemicolonToken, None, None)
     }
 
     fn create_node_array(
@@ -695,8 +718,9 @@ impl ParserType {
         &mut self,
         kind: SyntaxKind,
         diagnostic_message: DiagnosticMessage,
+        args: Option<Vec<String>>,
     ) -> MissingNode {
-        self.parse_error_at_current_token(&diagnostic_message);
+        self.parse_error_at_current_token(&diagnostic_message, args);
 
         let pos = self.get_node_pos();
         let result = MissingNode::Identifier(self.factory.create_identifier(self, ""));
@@ -719,11 +743,14 @@ impl ParserType {
             return self.finish_node(self.factory.create_identifier(self, &text), pos, None);
         }
 
+        let msg_arg = self.scanner().get_token_text();
+
         let default_message = Diagnostics::Identifier_expected;
 
         match self.create_missing_node(
             SyntaxKind::Identifier,
             diagnostic_message.unwrap_or(default_message),
+            Some(vec![msg_arg]),
         ) {
             MissingNode::Identifier(identifier) => identifier,
             _ => panic!("Expected identifier"),
@@ -764,7 +791,9 @@ impl ParserType {
 
     fn is_list_element(&mut self, kind: ParsingContext) -> bool {
         match kind {
-            ParsingContext::SourceElements => self.is_start_of_statement(),
+            ParsingContext::SourceElements | ParsingContext::BlockStatements => {
+                self.is_start_of_statement()
+            }
             ParsingContext::TypeMembers => self
                 .look_ahead(|| Some(self.is_type_member_start()))
                 .unwrap(),
@@ -797,9 +826,9 @@ impl ParserType {
             return true;
         }
         match kind {
-            ParsingContext::TypeMembers | ParsingContext::ObjectLiteralMembers => {
-                self.token() == SyntaxKind::CloseBraceToken
-            }
+            ParsingContext::BlockStatements
+            | ParsingContext::TypeMembers
+            | ParsingContext::ObjectLiteralMembers => self.token() == SyntaxKind::CloseBraceToken,
             ParsingContext::VariableDeclarations => self.is_variable_declarator_list_terminator(),
             ParsingContext::TypeParameters => {
                 self.token() == SyntaxKind::GreaterThanToken
@@ -856,6 +885,12 @@ impl ParserType {
         self.create_node_array(list, list_pos, None, Some(comma_start >= 0))
     }
 
+    fn create_missing_list(&self) -> NodeArray {
+        let mut list = self.create_node_array(vec![], self.get_node_pos(), None, None);
+        list.is_missing_list = true;
+        list
+    }
+
     fn parse_bracketed_list<TItem: Into<Node>>(
         &mut self,
         kind: ParsingContext,
@@ -863,13 +898,13 @@ impl ParserType {
         open: SyntaxKind,
         close: SyntaxKind,
     ) -> NodeArray {
-        if self.parse_expected(open, None) {
+        if self.parse_expected(open, None, None) {
             let result = self.parse_delimited_list(kind, parse_element, None);
-            self.parse_expected(close, None);
+            self.parse_expected(close, None, None);
             return result;
         }
 
-        unimplemented!()
+        self.create_missing_list()
     }
 
     fn parse_entity_name(
@@ -1063,11 +1098,11 @@ impl ParserType {
 
     fn parse_object_type_members(&mut self) -> NodeArray /*<TypeElement>*/ {
         let members: NodeArray;
-        if self.parse_expected(SyntaxKind::OpenBraceToken, None) {
+        if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
             members = self.parse_list(ParsingContext::TypeMembers, ParserType::parse_type_member);
-            self.parse_expected(SyntaxKind::CloseBraceToken, None);
+            self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
         } else {
-            unimplemented!()
+            members = self.create_missing_list();
         }
 
         members
@@ -1169,11 +1204,11 @@ impl ParserType {
                     unimplemented!()
                 }
                 SyntaxKind::OpenBracketToken => {
-                    self.parse_expected(SyntaxKind::OpenBracketToken, None);
+                    self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
                     if self.is_start_of_type() {
                         unimplemented!()
                     } else {
-                        self.parse_expected(SyntaxKind::CloseBracketToken, None);
+                        self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
                         type_ = self.finish_node(
                             self.factory
                                 .create_array_type_node(self, type_.into())
@@ -1473,13 +1508,13 @@ impl ParserType {
 
     fn parse_array_literal_expression(&mut self) -> ArrayLiteralExpression {
         let pos = self.get_node_pos();
-        self.parse_expected(SyntaxKind::OpenBracketToken, None);
+        self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayLiteralMembers,
             ParserType::parse_argument_or_array_literal_element,
             None,
         );
-        self.parse_expected(SyntaxKind::CloseBracketToken, None);
+        self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
             self.factory.create_array_literal_expression(self, elements),
             pos,
@@ -1497,7 +1532,7 @@ impl ParserType {
         if false {
             unimplemented!()
         } else {
-            self.parse_expected(SyntaxKind::ColonToken, None);
+            self.parse_expected(SyntaxKind::ColonToken, None, None);
             let initializer = self.allow_in_and(ParserType::parse_assignment_expression_or_higher);
             node = self
                 .factory
@@ -1508,13 +1543,13 @@ impl ParserType {
 
     fn parse_object_literal_expression(&mut self) -> ObjectLiteralExpression {
         let pos = self.get_node_pos();
-        self.parse_expected(SyntaxKind::OpenBraceToken, None);
+        self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
         let properties = self.parse_delimited_list(
             ParsingContext::ObjectLiteralMembers,
             ParserType::parse_object_literal_element,
             Some(true),
         );
-        if !self.parse_expected(SyntaxKind::CloseBraceToken, None) {
+        if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
             unimplemented!()
         }
         self.finish_node(
@@ -1541,10 +1576,64 @@ impl ParserType {
         self.finish_node(node, pos, None)
     }
 
+    fn parse_block(
+        &mut self,
+        ignore_missing_open_brace: bool,
+        diagnostic_message: Option<&DiagnosticMessage>,
+    ) -> Block {
+        let pos = self.get_node_pos();
+        let open_brace_position = self.scanner().get_token_pos();
+        if self.parse_expected(SyntaxKind::OpenBraceToken, diagnostic_message, None)
+            || ignore_missing_open_brace
+        {
+            let multi_line = self.scanner().has_preceding_line_break();
+            let statements =
+                self.parse_list(ParsingContext::BlockStatements, ParserType::parse_statement);
+            if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
+                unimplemented!()
+            }
+            let result = self.finish_node(
+                self.factory
+                    .create_block(self, statements, Some(multi_line)),
+                pos,
+                None,
+            );
+            if self.token() == SyntaxKind::EqualsToken {
+                unimplemented!()
+            }
+
+            return result;
+        } else {
+            let statements = self.create_missing_list();
+            self.finish_node(self.factory.create_block(self, statements, None), pos, None)
+        }
+    }
+
     fn parse_empty_statement(&mut self) -> Statement {
         let pos = self.get_node_pos();
-        self.parse_expected(SyntaxKind::SemicolonToken, None);
+        self.parse_expected(SyntaxKind::SemicolonToken, None, None);
         self.finish_node(self.factory.create_empty_statement(self).into(), pos, None)
+    }
+
+    fn parse_if_statement(&mut self) -> Statement {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::IfKeyword, None, None);
+        self.parse_expected(SyntaxKind::OpenParenToken, None, None);
+        let expression = self.allow_in_and(ParserType::parse_expression);
+        self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+        let then_statement = self.parse_statement();
+        let else_statement = if self.parse_optional(SyntaxKind::ElseKeyword) {
+            Some(self.parse_statement())
+        } else {
+            None
+        };
+        self.finish_node(
+            self.factory
+                .create_if_statement(self, expression, then_statement, else_statement)
+                .into(),
+            pos,
+            None,
+        )
     }
 
     fn is_declaration(&self) -> bool {
@@ -1567,7 +1656,7 @@ impl ParserType {
 
     fn is_start_of_statement(&mut self) -> bool {
         match self.token() {
-            SyntaxKind::SemicolonToken => true,
+            SyntaxKind::SemicolonToken | SyntaxKind::IfKeyword => true,
             SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
             SyntaxKind::InterfaceKeyword => true,
             _ => self.is_start_of_expression(),
@@ -1577,6 +1666,8 @@ impl ParserType {
     fn parse_statement(&mut self) -> Statement {
         match self.token() {
             SyntaxKind::SemicolonToken => return self.parse_empty_statement(),
+            SyntaxKind::OpenBraceToken => return self.parse_block(false, None).into(),
+            SyntaxKind::IfKeyword => return self.parse_if_statement(),
             SyntaxKind::ConstKeyword => {
                 if self.is_start_of_declaration() {
                     return self.parse_declaration();
@@ -1685,7 +1776,7 @@ impl ParserType {
     }
 
     fn parse_interface_declaration(&mut self, pos: isize) -> InterfaceDeclaration {
-        self.parse_expected(SyntaxKind::InterfaceKeyword, None);
+        self.parse_expected(SyntaxKind::InterfaceKeyword, None, None);
         let name = self.parse_identifier(None);
         let type_parameters = self.parse_type_parameters();
         let members = self.parse_object_type_members();
@@ -1730,6 +1821,7 @@ bitflags! {
     pub struct ParsingContext: u32 {
         const None = 0;
         const SourceElements = 1 << 0;
+        const BlockStatements = 1 << 1;
         const TypeMembers = 1 << 4;
         const VariableDeclarations = 1 << 8;
         const ObjectLiteralMembers = 1 << 12;

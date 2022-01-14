@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
@@ -103,6 +104,37 @@ pub fn is_member_name<TNode: NodeInterface>(node: &TNode) -> bool {
 
 fn skip_partially_emitted_expressions<TNode: NodeInterface>(node: &TNode) -> Rc<Node> {
     node.node_wrapper()
+}
+
+pub fn is_function_like<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
+    node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
+}
+
+fn is_function_like_declaration_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::FunctionDeclaration
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::Constructor
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+    )
+}
+
+fn is_function_like_kind(kind: SyntaxKind) -> bool {
+    match kind {
+        SyntaxKind::MethodSignature
+        | SyntaxKind::CallSignature
+        | SyntaxKind::JSDocSignature
+        | SyntaxKind::ConstructSignature
+        | SyntaxKind::IndexSignature
+        | SyntaxKind::FunctionType
+        | SyntaxKind::JSDocFunctionType
+        | SyntaxKind::ConstructorType => true,
+        _ => is_function_like_declaration_kind(kind),
+    }
 }
 
 pub fn is_binding_pattern<TNode: NodeInterface>(node: &TNode) -> bool {
