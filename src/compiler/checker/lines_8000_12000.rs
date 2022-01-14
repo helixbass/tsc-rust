@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -63,7 +64,7 @@ impl TypeChecker {
 
     pub(super) fn add_optionality(
         &self,
-        type_: Rc<Type>,
+        type_: &Type,
         is_property: Option<bool>,
         is_optional: Option<bool>,
     ) -> Rc<Type> {
@@ -72,7 +73,7 @@ impl TypeChecker {
         if self.strict_null_checks && is_optional {
             self.get_optional_type(type_, Some(is_property))
         } else {
-            type_
+            type_.type_wrapper()
         }
     }
 
@@ -86,7 +87,11 @@ impl TypeChecker {
 
         let declared_type = self.try_get_type_from_effective_type_node(declaration);
         if let Some(declared_type) = declared_type {
-            return Some(self.add_optionality(declared_type, Some(is_property), Some(is_optional)));
+            return Some(self.add_optionality(
+                &declared_type,
+                Some(is_property),
+                Some(is_optional),
+            ));
         }
 
         if has_only_expression_initializer(declaration)
@@ -95,9 +100,9 @@ impl TypeChecker {
                 .maybe_initializer()
                 .is_some()
         {
-            let type_ = self.check_declaration_initializer(declaration, None);
-            let type_ = self.widen_type_inferred_from_initializer(declaration, type_);
-            return Some(self.add_optionality(type_, Some(is_property), Some(is_optional)));
+            let type_ = self.check_declaration_initializer(declaration, Option::<&Type>::None);
+            let type_ = self.widen_type_inferred_from_initializer(declaration, &type_);
+            return Some(self.add_optionality(&type_, Some(is_property), Some(is_optional)));
         }
 
         None
@@ -111,13 +116,13 @@ impl TypeChecker {
         self.widen_type_for_variable_like_declaration(type_, declaration)
     }
 
-    pub(super) fn widen_type_for_variable_like_declaration(
+    pub(super) fn widen_type_for_variable_like_declaration<TTypeRef: Borrow<Type>>(
         &self,
-        type_: Option<Rc<Type>>,
+        type_: Option<TTypeRef>,
         declaration: &Node,
     ) -> Rc<Type> {
         if let Some(type_) = type_ {
-            return self.get_widened_type(type_);
+            return self.get_widened_type(type_.borrow());
         }
         unimplemented!()
     }
@@ -135,7 +140,7 @@ impl TypeChecker {
         symbol: &Symbol,
     ) -> Rc<Type> {
         let links = self.get_symbol_links(symbol);
-        let links_type_is_none = { links.borrow().type_.is_none() };
+        let links_type_is_none = { (*links).borrow().type_.is_none() };
         if links_type_is_none {
             let type_ = self.get_type_of_variable_or_parameter_or_property_worker(symbol);
             let mut links_ref = links.borrow_mut();
@@ -143,7 +148,7 @@ impl TypeChecker {
                 links_ref.type_ = Some(type_);
             }
         }
-        let links_ref = links.borrow();
+        let links_ref = (*links).borrow();
         links_ref.type_.clone().unwrap()
     }
 
@@ -212,7 +217,7 @@ impl TypeChecker {
 
     pub(super) fn get_non_missing_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {
         self.remove_missing_type(
-            self.get_type_of_symbol(&*symbol),
+            &self.get_type_of_symbol(&*symbol),
             symbol.flags().intersects(SymbolFlags::Optional),
         )
     }
@@ -321,13 +326,13 @@ impl TypeChecker {
                     )),
                     outer_type_parameters,
                     local_type_parameters,
-                    Some(Rc::new(this_type.into())),
+                    Some(this_type.into()),
                 )
             } else {
                 BaseInterfaceType::new(type_, None, None, None, None)
             }
             .into();
-            let type_rc = Rc::new(type_.into());
+            let type_rc: Rc<Type> = type_.into();
             match &*type_rc {
                 Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
                     base_interface_type,
@@ -355,7 +360,7 @@ impl TypeChecker {
         let links = self.get_symbol_links(&symbol);
         let mut links = links.borrow_mut();
         if links.declared_type.is_none() {
-            links.declared_type = Some(Rc::new(self.create_type_parameter(Some(symbol)).into()));
+            links.declared_type = Some(self.create_type_parameter(Some(symbol)).into());
         }
         links.declared_type.clone().unwrap()
     }
@@ -398,8 +403,8 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn resolve_declared_members(&self, type_: Rc<Type /*InterfaceType*/>) -> Rc<Type> {
-        let type_as_interface_type = match &*type_ {
+    pub(super) fn resolve_declared_members(&self, type_: &Type /*InterfaceType*/) -> Rc<Type> {
+        let type_as_interface_type = match type_ {
             Type::ObjectType(ObjectType::InterfaceType(interface_type)) => interface_type,
             _ => panic!("Expected InterfaceType"),
         };
@@ -407,12 +412,12 @@ impl TypeChecker {
             let symbol = type_.symbol();
             let members = self.get_members_of_symbol(symbol);
             type_as_interface_type
-                .set_declared_properties(self.get_named_members(&*members.borrow()));
+                .set_declared_properties(self.get_named_members(&*(*members).borrow()));
         }
-        type_
+        type_.type_wrapper()
     }
 
-    pub(super) fn is_type_usable_as_property_name(&self, type_: Rc<Type>) -> bool {
+    pub(super) fn is_type_usable_as_property_name(&self, type_: &Type) -> bool {
         type_
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
@@ -427,13 +432,13 @@ impl TypeChecker {
 
     pub(super) fn get_property_name_from_type(
         &self,
-        type_: Rc<Type /*StringLiteralType | NumberLiteralType | UniqueESSymbolType*/>,
+        type_: &Type, /*StringLiteralType | NumberLiteralType | UniqueESSymbolType*/
     ) -> __String {
         if type_
             .flags()
             .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
         {
-            return match &*type_ {
+            return match type_ {
                 Type::LiteralType(LiteralType::NumberLiteralType(number_literal_type)) => {
                     escape_leading_underscores(&number_literal_type.value.to_string())
                 }
@@ -459,8 +464,8 @@ impl TypeChecker {
 
     pub(super) fn resolve_object_type_members(
         &self,
-        type_: Rc<Type /*ObjectType*/>,
-        source: Rc<Type /*InterfaceTypeWithDeclaredMembers*/>,
+        type_: &Type,  /*ObjectType*/
+        source: &Type, /*InterfaceTypeWithDeclaredMembers*/
         type_parameters: Vec<Rc<Type /*TypeParameter*/>>,
         type_arguments: Vec<Rc<Type>>,
     ) {
@@ -477,7 +482,7 @@ impl TypeChecker {
             mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments)));
             members = Rc::new(RefCell::new(
                 self.create_instantiated_symbol_table(
-                    match &*source {
+                    match source {
                         Type::ObjectType(ObjectType::InterfaceType(
                             InterfaceType::BaseInterfaceType(base_interface_type),
                         )) => base_interface_type,
@@ -492,7 +497,7 @@ impl TypeChecker {
             ));
         }
         self.set_structured_type_members(
-            match &*type_ {
+            match type_ {
                 Type::ObjectType(object_type) => object_type,
                 _ => panic!("Expected ObjectType"),
             },
@@ -500,12 +505,12 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn resolve_type_reference_members(&self, type_: Rc<Type /*TypeReference*/>) {
-        let type_as_type_reference = match &*type_ {
+    pub(super) fn resolve_type_reference_members(&self, type_: &Type /*TypeReference*/) {
+        let type_as_type_reference = match type_ {
             Type::ObjectType(ObjectType::TypeReference(type_reference)) => type_reference,
             _ => panic!("Expected TypeReference"),
         };
-        let source = self.resolve_declared_members(type_as_type_reference.target.clone());
+        let source = self.resolve_declared_members(&type_as_type_reference.target);
         let source_as_base_interface_type = match &*source {
             Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
                 base_interface_type,
@@ -527,15 +532,15 @@ impl TypeChecker {
         let padded_type_arguments = if type_arguments.len() == type_parameters.len() {
             type_arguments
         } else {
-            concatenate(type_arguments, vec![type_.clone()])
+            concatenate(type_arguments, vec![type_.type_wrapper()])
         };
-        self.resolve_object_type_members(type_, source, type_parameters, padded_type_arguments);
+        self.resolve_object_type_members(type_, &source, type_parameters, padded_type_arguments);
     }
 
-    pub(super) fn resolve_class_or_interface_members(&self, type_: Rc<Type /*InterfaceType*/>) {
+    pub(super) fn resolve_class_or_interface_members(&self, type_: &Type /*InterfaceType*/) {
         self.resolve_object_type_members(
-            type_.clone(),
-            self.resolve_declared_members(type_),
+            type_,
+            &self.resolve_declared_members(type_),
             vec![],
             vec![],
         );
@@ -543,7 +548,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_structured_type_members(
         &self,
-        type_: Rc<Type /*StructuredType*/>,
+        type_: &Type, /*StructuredType*/
     ) -> Rc<Type /*ResolvedType*/> {
         if !type_.as_resolvable_type().is_resolved() {
             if let Type::ObjectType(object_type) = &*type_
@@ -553,12 +558,12 @@ impl TypeChecker {
                     .object_flags()
                     .intersects(ObjectFlags::Reference)
                 {
-                    self.resolve_type_reference_members(type_.clone());
+                    self.resolve_type_reference_members(type_);
                 } else if object_type
                     .object_flags()
                     .intersects(ObjectFlags::ClassOrInterface)
                 {
-                    self.resolve_class_or_interface_members(type_.clone());
+                    self.resolve_class_or_interface_members(type_);
                 } else {
                     unimplemented!()
                 }
@@ -566,10 +571,10 @@ impl TypeChecker {
                 unimplemented!()
             }
         }
-        type_
+        type_.type_wrapper()
     }
 
-    pub(super) fn get_properties_of_object_type(&self, type_: Rc<Type>) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_properties_of_object_type(&self, type_: &Type) -> Vec<Rc<Symbol>> {
         if type_.flags().intersects(TypeFlags::Object) {
             return self
                 .resolve_structured_type_members(type_)
@@ -584,7 +589,7 @@ impl TypeChecker {
 
     pub(super) fn get_property_of_object_type(
         &self,
-        type_: Rc<Type>,
+        type_: &Type,
         name: &__String,
     ) -> Option<Rc<Symbol>> {
         if type_.flags().intersects(TypeFlags::Object) {
@@ -602,12 +607,12 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_properties_of_type(&self, type_: Rc<Type>) -> Vec<Rc<Symbol>> {
+    pub(super) fn get_properties_of_type(&self, type_: &Type) -> Vec<Rc<Symbol>> {
         let type_ = self.get_reduced_apparent_type(type_);
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
             unimplemented!()
         } else {
-            self.get_properties_of_object_type(type_)
+            self.get_properties_of_object_type(&type_)
         }
     }
 }

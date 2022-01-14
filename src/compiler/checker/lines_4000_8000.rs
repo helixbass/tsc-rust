@@ -203,7 +203,7 @@ impl TypeChecker {
 
     pub(super) fn type_to_string<TNodeRef: Borrow<Node>>(
         &self,
-        type_: Rc<Type>,
+        type_: &Type,
         enclosing_declaration: Option<TNodeRef>,
         flags: Option<TypeFormatFlags>,
     ) -> String {
@@ -253,8 +253,8 @@ impl TypeChecker {
 
     pub(super) fn get_type_names_for_error_display(
         &self,
-        left: Rc<Type>,
-        right: Rc<Type>,
+        left: &Type,
+        right: &Type,
     ) -> (String, String) {
         let left_str = if let Some(symbol) = left.maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(symbol.clone()) {
@@ -283,7 +283,7 @@ impl TypeChecker {
         (left_str, right_str)
     }
 
-    pub(super) fn get_type_name_for_error_display(&self, type_: Rc<Type>) -> String {
+    pub(super) fn get_type_name_for_error_display(&self, type_: &Type) -> String {
         self.type_to_string(
             type_,
             Option::<&Node>::None,
@@ -327,7 +327,7 @@ impl NodeBuilder {
     pub fn type_to_type_node(
         &self,
         type_checker: &TypeChecker,
-        type_: Rc<Type>,
+        type_: &Type,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<TypeNode> {
@@ -370,7 +370,7 @@ impl NodeBuilder {
     pub fn type_to_type_node_helper(
         &self,
         type_checker: &TypeChecker,
-        type_: Rc<Type>,
+        type_: &Type,
         context: &NodeBuilderContext,
     ) -> TypeNode {
         if type_.flags().intersects(TypeFlags::Number) {
@@ -394,7 +394,7 @@ impl NodeBuilder {
                     factory
                         .create_string_literal(
                             &self.synthetic_factory,
-                            match &*type_ {
+                            match type_ {
                                 Type::LiteralType(LiteralType::StringLiteralType(
                                     string_literal_type,
                                 )) => string_literal_type.value.clone(),
@@ -449,7 +449,7 @@ impl NodeBuilder {
                 }
             };
             if types.len() == 1 {
-                return self.type_to_type_node_helper(type_checker, types[0].clone(), context);
+                return self.type_to_type_node_helper(type_checker, &types[0], context);
             }
             let type_nodes =
                 self.map_to_type_nodes(type_checker, Some(&types), context, Some(true));
@@ -476,7 +476,7 @@ impl NodeBuilder {
         &self,
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
-        type_: Rc<Type /*ObjectType*/>,
+        type_: &Type, /*ObjectType*/
     ) -> TypeNode {
         let symbol = type_.maybe_symbol();
         if let Some(symbol) = symbol {
@@ -499,8 +499,8 @@ impl NodeBuilder {
         &self,
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
-        type_: Rc<Type>,
-        transform: fn(&NodeBuilder, &TypeChecker, &NodeBuilderContext, Rc<Type>) -> TypeNode,
+        type_: &Type,
+        transform: fn(&NodeBuilder, &TypeChecker, &NodeBuilderContext, &Type) -> TypeNode,
     ) -> TypeNode {
         let result = transform(self, type_checker, context, type_);
         result
@@ -510,11 +510,11 @@ impl NodeBuilder {
         &self,
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
-        type_: Rc<Type /*ObjectType*/>,
+        type_: &Type, /*ObjectType*/
     ) -> TypeNode {
         let resolved = type_checker.resolve_structured_type_members(type_);
 
-        let members = self.create_type_nodes_from_resolved_type(type_checker, context, resolved);
+        let members = self.create_type_nodes_from_resolved_type(type_checker, context, &resolved);
         let type_literal_node = factory.create_type_literal_node(&self.synthetic_factory, members);
         type_literal_node.into()
     }
@@ -523,7 +523,7 @@ impl NodeBuilder {
         &self,
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
-        resolved_type: Rc<Type /*ResolvedType*/>,
+        resolved_type: &Type, /*ResolvedType*/
     ) -> Option<Vec<Rc<Node /*TypeElement*/>>> {
         let mut type_elements: Vec<Rc<Node>> = vec![];
 
@@ -569,7 +569,7 @@ impl NodeBuilder {
                     self.serialize_type_for_declaration(
                         type_checker,
                         context,
-                        property_type,
+                        &property_type,
                         property_symbol,
                     )
                 } else {
@@ -605,8 +605,7 @@ impl NodeBuilder {
                 let mut i: usize = 0;
                 for type_ in types {
                     i += 1;
-                    let type_node =
-                        self.type_to_type_node_helper(type_checker, type_.clone(), context);
+                    let type_node = self.type_to_type_node_helper(type_checker, &type_, context);
                     result.push(type_node.into());
                 }
 
@@ -761,7 +760,7 @@ impl NodeBuilder {
         &self,
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
-        type_: Rc<Type>,
+        type_: &Type,
         symbol: Rc<Symbol>,
     ) -> TypeNode {
         let result = self.type_to_type_node_helper(type_checker, type_, context);

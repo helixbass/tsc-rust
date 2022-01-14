@@ -658,9 +658,8 @@ fn get_type_struct_interface_impl(
                     fn get_or_initialize_fresh_type(
                         &self,
                         type_checker: &crate::TypeChecker,
-                        wrapper: &::std::rc::Rc<crate::Type>,
                     ) -> Rc<Type> {
-                        self.#first_field_name.get_or_initialize_fresh_type(type_checker, wrapper)
+                        self.#first_field_name.get_or_initialize_fresh_type(type_checker)
                     }
 
                     fn regular_type(&self) -> ::std::rc::Rc<crate::Type> {
@@ -816,10 +815,9 @@ fn get_type_enum_interface_impl(
                     fn get_or_initialize_fresh_type(
                         &self,
                         type_checker: &crate::TypeChecker,
-                        wrapper: &::std::rc::Rc<crate::Type>,
                     ) -> Rc<Type> {
                         match self {
-                            #(#type_type_name::#variant_names(nested) => nested.get_or_initialize_fresh_type(type_checker, wrapper)),*
+                            #(#type_type_name::#variant_names(nested) => nested.get_or_initialize_fresh_type(type_checker)),*
                         }
                     }
 

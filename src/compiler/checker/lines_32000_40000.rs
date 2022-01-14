@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::rc::Rc;
 
 use super::CheckMode;
@@ -18,10 +19,10 @@ impl TypeChecker {
     pub(super) fn check_arithmetic_operand_type(
         &self,
         operand: /*&Node*/ &Expression,
-        type_: Rc<Type>,
+        type_: &Type,
         diagnostic: &DiagnosticMessage,
     ) -> bool {
-        if !self.is_type_assignable_to(type_, self.number_or_big_int_type()) {
+        if !self.is_type_assignable_to(type_, &self.number_or_big_int_type()) {
             self.error_and_maybe_suggest_await(operand, diagnostic);
             return false;
         }
@@ -36,7 +37,7 @@ impl TypeChecker {
         let operand_type = self.check_expression(operand_expression, None);
         match node.operator {
             SyntaxKind::PlusPlusToken => {
-                self.check_arithmetic_operand_type(operand_expression, operand_type.clone(), &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type);
+                self.check_arithmetic_operand_type(operand_expression, &operand_type, &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type);
                 return self.get_unary_result_type(&operand_type);
             }
             _ => {
@@ -81,10 +82,10 @@ impl TypeChecker {
         links_ref.resolved_type.clone().unwrap()
     }
 
-    pub(super) fn check_declaration_initializer(
+    pub(super) fn check_declaration_initializer<TTypeRef: Borrow<Type>>(
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
-        contextual_type: Option<Rc<Type>>,
+        contextual_type: Option<TTypeRef>,
     ) -> Rc<Type> {
         let initializer = get_effective_initializer(declaration).unwrap();
         let initializer_as_expression = match &*initializer {
@@ -110,23 +111,24 @@ impl TypeChecker {
     pub(super) fn widen_type_inferred_from_initializer(
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
-        type_: Rc<Type>,
+        type_: &Type,
     ) -> Rc<Type> {
         let widened = if get_combined_node_flags(declaration).intersects(NodeFlags::Const) {
-            type_
+            type_.type_wrapper()
         } else {
             self.get_widened_literal_type(type_)
         };
         widened
     }
 
-    pub(super) fn is_literal_of_contextual_type(
+    pub(super) fn is_literal_of_contextual_type<TTypeRef: Borrow<Type>>(
         &self,
-        candidate_type: Rc<Type>,
-        contextual_type: Option<Rc<Type>>,
+        candidate_type: &Type,
+        contextual_type: Option<TTypeRef>,
     ) -> bool {
         if let Some(contextual_type) = contextual_type {
-            if let Type::UnionOrIntersectionType(union_or_intersection_type) = &*contextual_type {
+            let contextual_type = contextual_type.borrow();
+            if let Type::UnionOrIntersectionType(union_or_intersection_type) = contextual_type {
                 let types = union_or_intersection_type.types();
                 // return some(
                 //     types,
@@ -134,9 +136,9 @@ impl TypeChecker {
                 //         self.is_literal_of_contextual_type(candidate_type, Some(t.clone()))
                 //     })),
                 // );
-                return types.iter().any(|t| {
-                    self.is_literal_of_contextual_type(candidate_type.clone(), Some(t.clone()))
-                });
+                return types
+                    .iter()
+                    .any(|t| self.is_literal_of_contextual_type(candidate_type, Some(&**t)));
             }
             return contextual_type.flags().intersects(
                 TypeFlags::StringLiteral
@@ -160,23 +162,23 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_expression_for_mutable_location(
+    pub(super) fn check_expression_for_mutable_location<TTypeRef: Borrow<Type>>(
         &self,
         node: &Expression,
         check_mode: Option<CheckMode>,
-        contextual_type: Option<Rc<Type>>,
+        contextual_type: Option<TTypeRef>,
     ) -> Rc<Type> {
         let type_ = self.check_expression(node, check_mode);
         if false {
             unimplemented!()
         } else {
             self.get_widened_literal_like_type_for_contextual_type(
-                type_,
+                &type_,
                 self.instantiate_contextual_type(
                     if contextual_type.is_none() {
                         self.get_contextual_type(node)
                     } else {
-                        Some(contextual_type.unwrap())
+                        Some(contextual_type.unwrap().borrow().type_wrapper())
                     },
                     node,
                 ),
@@ -195,7 +197,7 @@ impl TypeChecker {
                 _ => panic!("Expected Expression"),
             },
             check_mode,
-            None,
+            Option::<&Type>::None,
         )
     }
 
@@ -245,12 +247,12 @@ impl TypeChecker {
             // }
             Expression::LiteralLikeNode(LiteralLikeNode::StringLiteral(string_literal)) => {
                 let type_: Rc<Type> = self.get_string_literal_type(string_literal.text());
-                self.get_fresh_type_of_literal_type(type_)
+                self.get_fresh_type_of_literal_type(&type_)
             }
             Expression::LiteralLikeNode(LiteralLikeNode::NumericLiteral(numeric_literal)) => {
                 self.check_grammar_numeric_literal(numeric_literal);
                 let type_: Rc<Type> = self.get_number_literal_type(numeric_literal.text().into());
-                self.get_fresh_type_of_literal_type(type_)
+                self.get_fresh_type_of_literal_type(&type_)
             }
             _ => unimplemented!(),
         }
@@ -315,8 +317,8 @@ impl TypeChecker {
         self.get_type_from_type_node(node);
     }
 
-    pub(super) fn convert_auto_to_any(&self, type_: Rc<Type>) -> Rc<Type> {
-        type_
+    pub(super) fn convert_auto_to_any(&self, type_: &Type) -> Rc<Type> {
+        type_.type_wrapper()
     }
 
     pub(super) fn check_variable_like_declaration<TNode: VariableLikeDeclarationInterface>(
@@ -329,7 +331,7 @@ impl TypeChecker {
 
         let symbol = self.get_symbol_of_node(node).unwrap();
 
-        let type_ = self.convert_auto_to_any(self.get_type_of_symbol(&*symbol));
+        let type_ = self.convert_auto_to_any(&self.get_type_of_symbol(&*symbol));
         let value_declaration = symbol.maybe_value_declaration();
         let wrapper = node.node_wrapper();
         if value_declaration.is_some()
@@ -349,8 +351,8 @@ impl TypeChecker {
                         None,
                     );
                     self.check_type_assignable_to_and_optionally_elaborate(
-                        initializer_type,
-                        type_,
+                        &initializer_type,
+                        &type_,
                         Some(&*wrapper),
                         Some(match &*initializer {
                             Node::Expression(expression) => expression,
