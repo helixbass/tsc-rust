@@ -81,6 +81,14 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.flags()
                     }
 
+                    fn set_flags(&self, flags: crate::NodeFlags) {
+                        self.#first_field_name.set_flags(flags)
+                    }
+
+                    fn set_decorators(&self, decorators: ::std::option::Option<crate::NodeArray>) {
+                        self.#first_field_name.set_decorators(decorators)
+                    }
+
                     fn maybe_id(&self) -> ::std::option::Option<crate::NodeId> {
                         self.#first_field_name.maybe_id()
                     }
@@ -269,6 +277,18 @@ fn get_ast_enum_interface_impl(
                     fn flags(&self) -> crate::NodeFlags {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.flags()),*
+                        }
+                    }
+
+                    fn set_flags(&self, flags: crate::NodeFlags) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_flags(flags)),*
+                        }
+                    }
+
+                    fn set_decorators(&self, decorators: ::std::option::Option<crate::NodeArray>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_decorators(decorators)),*
                         }
                     }
 

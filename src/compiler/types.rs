@@ -201,6 +201,7 @@ bitflags! {
         const DisallowInContext = 1 << 12;
         const YieldContext = 1 << 13;
         const AwaitContext = 1 << 15;
+        const Ambient = 1 << 23;
 
         const BlockScoped = Self::Let.bits | Self::Const.bits;
 
@@ -222,6 +223,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_node_wrapper(&self, wrapper: Rc<Node>);
     fn kind(&self) -> SyntaxKind;
     fn flags(&self) -> NodeFlags;
+    fn set_flags(&self, flags: NodeFlags);
+    fn set_decorators(&self, decorators: Option<NodeArray>);
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
     fn set_id(&self, id: NodeId);
@@ -398,7 +401,9 @@ impl Node {
 pub struct BaseNode {
     _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
-    pub flags: NodeFlags,
+    flags: Cell<NodeFlags>,
+    pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
+    pub modifiers: Option<ModifiersArray>,
     pub id: Cell<Option<NodeId>>,
     pub parent: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<isize>,
@@ -412,7 +417,9 @@ impl BaseNode {
         Self {
             _node_wrapper: RefCell::new(None),
             kind,
-            flags,
+            flags: Cell::new(flags),
+            decorators: RefCell::new(None),
+            modifiers: None,
             id: Cell::new(None),
             parent: RefCell::new(None),
             pos: Cell::new(pos),
@@ -442,7 +449,15 @@ impl NodeInterface for BaseNode {
     }
 
     fn flags(&self) -> NodeFlags {
-        self.flags
+        self.flags.get()
+    }
+
+    fn set_flags(&self, flags: NodeFlags) {
+        self.flags.set(flags);
+    }
+
+    fn set_decorators(&self, decorators: Option<NodeArray>) {
+        *self.decorators.borrow_mut() = decorators;
     }
 
     fn maybe_id(&self) -> Option<NodeId> {
@@ -650,6 +665,8 @@ impl MemberNameInterface for Identifier {
         self.escaped_text.clone()
     }
 }
+
+pub type ModifiersArray = NodeArray; /*<Modifier>*/
 
 pub trait MemberNameInterface: NodeInterface {
     fn escaped_text(&self) -> __String;

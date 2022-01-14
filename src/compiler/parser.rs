@@ -179,6 +179,18 @@ impl NodeInterface for MissingNode {
         }
     }
 
+    fn set_flags(&self, flags: NodeFlags) {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.set_flags(flags),
+        }
+    }
+
+    fn set_decorators(&self, decorators: Option<NodeArray>) {
+        match self {
+            MissingNode::Identifier(identifier) => identifier.set_decorators(decorators),
+        }
+    }
+
     fn maybe_id(&self) -> Option<NodeId> {
         match self {
             MissingNode::Identifier(identifier) => identifier.maybe_id(),
@@ -290,7 +302,7 @@ struct ParserType {
     source_text: Option<String>,
     parse_diagnostics: Option<RefCell<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     current_token: RefCell<Option<SyntaxKind>>,
-    parsing_context: Option<ParsingContext>,
+    parsing_context: Cell<Option<ParsingContext>>,
     parse_error_before_next_finished_node: Cell<bool>,
 }
 
@@ -307,7 +319,7 @@ impl ParserType {
             source_text: None,
             parse_diagnostics: None,
             current_token: RefCell::new(None),
-            parsing_context: None,
+            parsing_context: Cell::new(None),
             parse_error_before_next_finished_node: Cell::new(false),
         }
     }
@@ -399,11 +411,11 @@ impl ParserType {
     }
 
     fn parsing_context(&self) -> ParsingContext {
-        self.parsing_context.unwrap()
+        self.parsing_context.get().unwrap()
     }
 
-    fn set_parsing_context(&mut self, parsing_context: ParsingContext) {
-        self.parsing_context = Some(parsing_context);
+    fn set_parsing_context(&self, parsing_context: ParsingContext) {
+        self.parsing_context.set(Some(parsing_context));
     }
 
     fn parse_error_before_next_finished_node(&self) -> bool {
@@ -447,7 +459,7 @@ impl ParserType {
         // })));
     }
 
-    fn parse_source_file_worker(&mut self) -> Rc<SourceFile> {
+    fn parse_source_file_worker(&self) -> Rc<SourceFile> {
         self.next_token();
 
         let statements =
@@ -478,14 +490,22 @@ impl ParserType {
     }
 
     fn do_outside_of_context<TReturn>(
-        &mut self,
+        &self,
         context: NodeFlags,
-        func: fn(&mut ParserType) -> TReturn,
+        func: fn(&ParserType) -> TReturn,
     ) -> TReturn {
         func(self)
     }
 
-    fn allow_in_and<TReturn>(&mut self, func: fn(&mut ParserType) -> TReturn) -> TReturn {
+    fn do_inside_of_context<TReturn, TFunc: FnOnce() -> TReturn>(
+        &self,
+        context: NodeFlags,
+        func: TFunc,
+    ) -> TReturn {
+        func()
+    }
+
+    fn allow_in_and<TReturn>(&self, func: fn(&ParserType) -> TReturn) -> TReturn {
         self.do_outside_of_context(NodeFlags::DisallowInContext, func)
     }
 
@@ -545,7 +565,7 @@ impl ParserType {
         self.current_token()
     }
 
-    fn next_token_and<TReturn>(&mut self, func: fn(&mut ParserType) -> TReturn) -> TReturn {
+    fn next_token_and<TReturn>(&self, func: fn(&ParserType) -> TReturn) -> TReturn {
         self.next_token();
         func(self)
     }
@@ -620,7 +640,7 @@ impl ParserType {
     }
 
     fn parse_expected(
-        &mut self,
+        &self,
         kind: SyntaxKind,
         diagnostic_message: Option<&DiagnosticMessage>,
         should_advance: Option<bool>,
@@ -673,7 +693,7 @@ impl ParserType {
             || self.scanner().has_preceding_line_break()
     }
 
-    fn try_parse_semicolon(&mut self) -> bool {
+    fn try_parse_semicolon(&self) -> bool {
         if !self.can_parse_semicolon() {
             return false;
         }
@@ -685,7 +705,7 @@ impl ParserType {
         true
     }
 
-    fn parse_semicolon(&mut self) -> bool {
+    fn parse_semicolon(&self) -> bool {
         self.try_parse_semicolon() || self.parse_expected(SyntaxKind::SemicolonToken, None, None)
     }
 
@@ -731,7 +751,7 @@ impl ParserType {
     }
 
     fn create_missing_node(
-        &mut self,
+        &self,
         kind: SyntaxKind,
         diagnostic_message: DiagnosticMessage,
         args: Option<Vec<String>>,
@@ -748,7 +768,7 @@ impl ParserType {
     }
 
     fn create_identifier(
-        &mut self,
+        &self,
         is_identifier: bool,
         diagnostic_message: Option<DiagnosticMessage>,
     ) -> Identifier {
@@ -773,18 +793,15 @@ impl ParserType {
         )
     }
 
-    fn parse_binding_identifier(&mut self) -> Identifier {
+    fn parse_binding_identifier(&self) -> Identifier {
         self.create_identifier(self.is_binding_identifier(), None)
     }
 
-    fn parse_identifier(&mut self, diagnostic_message: Option<DiagnosticMessage>) -> Identifier {
+    fn parse_identifier(&self, diagnostic_message: Option<DiagnosticMessage>) -> Identifier {
         self.create_identifier(self.is_identifier(), diagnostic_message)
     }
 
-    fn parse_identifier_name(
-        &mut self,
-        diagnostic_message: Option<DiagnosticMessage>,
-    ) -> Identifier {
+    fn parse_identifier_name(&self, diagnostic_message: Option<DiagnosticMessage>) -> Identifier {
         self.create_identifier(
             token_is_identifier_or_keyword(self.token()),
             diagnostic_message,
@@ -797,11 +814,11 @@ impl ParserType {
             || self.token() == SyntaxKind::NumericLiteral
     }
 
-    fn parse_property_name_worker(&mut self) -> Node /*PropertyName*/ {
+    fn parse_property_name_worker(&self) -> Node /*PropertyName*/ {
         self.parse_identifier_name(None).into()
     }
 
-    fn parse_property_name(&mut self) -> Node /*PropertyName*/ {
+    fn parse_property_name(&self) -> Node /*PropertyName*/ {
         self.parse_property_name_worker()
     }
 
@@ -881,7 +898,7 @@ impl ParserType {
                     .unwrap()
     }
 
-    fn is_list_element(&mut self, kind: ParsingContext) -> bool {
+    fn is_list_element(&self, kind: ParsingContext) -> bool {
         match kind {
             ParsingContext::SourceElements | ParsingContext::BlockStatements => {
                 self.is_start_of_statement()
@@ -936,9 +953,9 @@ impl ParserType {
     }
 
     fn parse_delimited_list<TItem: Into<Node>>(
-        &mut self,
+        &self,
         kind: ParsingContext,
-        parse_element: fn(&mut ParserType) -> TItem,
+        parse_element: fn(&ParserType) -> TItem,
         consider_semicolon_as_delimiter: Option<bool>,
     ) -> NodeArray {
         let consider_semicolon_as_delimiter = consider_semicolon_as_delimiter.unwrap_or(false);
@@ -984,9 +1001,9 @@ impl ParserType {
     }
 
     fn parse_bracketed_list<TItem: Into<Node>>(
-        &mut self,
+        &self,
         kind: ParsingContext,
-        parse_element: fn(&mut ParserType) -> TItem,
+        parse_element: fn(&ParserType) -> TItem,
         open: SyntaxKind,
         close: SyntaxKind,
     ) -> NodeArray {
@@ -1000,7 +1017,7 @@ impl ParserType {
     }
 
     fn parse_entity_name(
-        &mut self,
+        &self,
         allow_reserved_words: bool,
         diagnostic_message: Option<DiagnosticMessage>,
     ) -> Node /*EntityName*/ {
@@ -1022,9 +1039,9 @@ impl ParserType {
     }
 
     fn parse_list<TItem: Into<Node>>(
-        &mut self,
+        &self,
         kind: ParsingContext,
-        parse_element: fn(&mut ParserType) -> TItem,
+        parse_element: fn(&ParserType) -> TItem,
     ) -> NodeArray {
         let mut list = vec![];
         let list_pos = self.get_node_pos();
@@ -1043,18 +1060,18 @@ impl ParserType {
     }
 
     fn parse_list_element<TItem: Into<Node>>(
-        &mut self,
+        &self,
         _parsing_context: ParsingContext,
-        parse_element: fn(&mut ParserType) -> TItem,
+        parse_element: fn(&ParserType) -> TItem,
     ) -> TItem {
         parse_element(self)
     }
 
-    fn parse_literal_node(&mut self) -> LiteralLikeNode {
+    fn parse_literal_node(&self) -> LiteralLikeNode {
         self.parse_literal_like_node(self.token())
     }
 
-    fn parse_literal_like_node(&mut self, kind: SyntaxKind) -> LiteralLikeNode {
+    fn parse_literal_like_node(&self, kind: SyntaxKind) -> LiteralLikeNode {
         let pos = self.get_node_pos();
         let mut node: LiteralLikeNode = if false {
             unimplemented!()
@@ -1094,11 +1111,11 @@ impl ParserType {
         self.finish_node(node, pos, None)
     }
 
-    fn parse_entity_name_of_type_reference(&mut self) -> Node /*EntityName*/ {
+    fn parse_entity_name_of_type_reference(&self) -> Node /*EntityName*/ {
         self.parse_entity_name(true, Some(Diagnostics::Type_expected))
     }
 
-    fn parse_type_arguments_of_type_reference(&mut self) -> Option<NodeArray /*<TypeNode>*/> {
+    fn parse_type_arguments_of_type_reference(&self) -> Option<NodeArray /*<TypeNode>*/> {
         if !self.scanner().has_preceding_line_break()
             && self.re_scan_less_than_token() == SyntaxKind::LessThanToken
         {
@@ -1112,7 +1129,7 @@ impl ParserType {
         None
     }
 
-    fn parse_type_reference(&mut self) -> TypeNode {
+    fn parse_type_reference(&self) -> TypeNode {
         let pos = self.get_node_pos();
         let name = self.parse_entity_name_of_type_reference().wrap();
         let type_arguments = self.parse_type_arguments_of_type_reference();
@@ -1125,7 +1142,7 @@ impl ParserType {
         )
     }
 
-    fn parse_type_parameter(&mut self) -> TypeParameterDeclaration {
+    fn parse_type_parameter(&self) -> TypeParameterDeclaration {
         let pos = self.get_node_pos();
         let name = self.parse_identifier(None);
 
@@ -1135,7 +1152,7 @@ impl ParserType {
         self.finish_node(node, pos, None)
     }
 
-    fn parse_type_parameters(&mut self) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
+    fn parse_type_parameters(&self) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
         if self.token() == SyntaxKind::LessThanToken {
             return Some(self.parse_bracketed_list(
                 ParsingContext::TypeParameters,
@@ -1147,7 +1164,7 @@ impl ParserType {
         None
     }
 
-    fn parse_type_member_semicolon(&mut self) {
+    fn parse_type_member_semicolon(&self) {
         if self.parse_optional(SyntaxKind::CommaToken) {
             return;
         }
@@ -1155,7 +1172,11 @@ impl ParserType {
         self.parse_semicolon();
     }
 
-    fn parse_property_or_method_signature(&mut self, pos: isize) -> TypeElement {
+    fn parse_property_or_method_signature(
+        &self,
+        pos: isize,
+        modifiers: Option<NodeArray>,
+    ) -> TypeElement {
         let name = self.parse_property_name();
         let node: TypeElement;
         if false {
@@ -1164,7 +1185,7 @@ impl ParserType {
             let type_ = self.parse_type_annotation();
             node = self
                 .factory
-                .create_property_signature(self, name.wrap(), type_.map(Into::into))
+                .create_property_signature(self, modifiers, name.wrap(), type_.map(Into::into))
                 .into();
         }
         self.parse_type_member_semicolon();
@@ -1190,12 +1211,14 @@ impl ParserType {
         false
     }
 
-    fn parse_type_member(&mut self) -> TypeElement {
+    fn parse_type_member(&self) -> TypeElement {
         let pos = self.get_node_pos();
-        self.parse_property_or_method_signature(pos)
+        let modifiers = self.parse_modifiers(None, None);
+
+        self.parse_property_or_method_signature(pos, modifiers)
     }
 
-    fn parse_object_type_members(&mut self) -> NodeArray /*<TypeElement>*/ {
+    fn parse_object_type_members(&self) -> NodeArray /*<TypeElement>*/ {
         let members: NodeArray;
         if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
             members = self.parse_list(ParsingContext::TypeMembers, ParserType::parse_type_member);
@@ -1216,7 +1239,7 @@ impl ParserType {
         }
     }
 
-    fn parse_literal_type_node(&mut self, negative: Option<bool>) -> LiteralTypeNode {
+    fn parse_literal_type_node(&self, negative: Option<bool>) -> LiteralTypeNode {
         let negative = negative.unwrap_or(false);
         let pos = self.get_node_pos();
         if negative {
@@ -1239,7 +1262,7 @@ impl ParserType {
         )
     }
 
-    fn parse_non_array_type(&mut self) -> TypeNode {
+    fn parse_non_array_type(&self) -> TypeNode {
         match self.token() {
             SyntaxKind::NumberKeyword | SyntaxKind::BigIntKeyword | SyntaxKind::BooleanKeyword => {
                 self.try_parse(|| self.parse_keyword_and_no_dot())
@@ -1292,7 +1315,7 @@ impl ParserType {
         }
     }
 
-    fn parse_postfix_type_or_higher(&mut self) -> TypeNode {
+    fn parse_postfix_type_or_higher(&self) -> TypeNode {
         let pos = self.get_node_pos();
         let mut type_ = self.parse_non_array_type();
         while !self.scanner().has_preceding_line_break() {
@@ -1327,7 +1350,7 @@ impl ParserType {
         type_
     }
 
-    fn parse_type_operator_or_higher(&mut self) -> TypeNode {
+    fn parse_type_operator_or_higher(&self) -> TypeNode {
         // let operator = self.token();
         // match operator {
 
@@ -1343,9 +1366,9 @@ impl ParserType {
     }
 
     fn parse_union_or_intersection_type<TReturn: Into<TypeNode>>(
-        &mut self,
+        &self,
         operator: SyntaxKind, /*SyntaxKind.BarToken | SyntaxKind.AmpersandToken*/
-        parse_constituent_type: fn(&mut ParserType) -> TypeNode,
+        parse_constituent_type: fn(&ParserType) -> TypeNode,
         create_type_node: fn(&NodeFactory, &ParserType, NodeArray) -> TReturn,
     ) -> TypeNode {
         let pos = self.get_node_pos();
@@ -1382,7 +1405,7 @@ impl ParserType {
         type_.unwrap()
     }
 
-    fn parse_intersection_type_or_higher(&mut self) -> TypeNode {
+    fn parse_intersection_type_or_higher(&self) -> TypeNode {
         self.parse_union_or_intersection_type(
             SyntaxKind::AmpersandToken,
             ParserType::parse_type_operator_or_higher,
@@ -1390,7 +1413,7 @@ impl ParserType {
         )
     }
 
-    fn parse_union_type_or_higher(&mut self) -> TypeNode {
+    fn parse_union_type_or_higher(&self) -> TypeNode {
         self.parse_union_or_intersection_type(
             SyntaxKind::BarToken,
             ParserType::parse_intersection_type_or_higher,
@@ -1398,17 +1421,17 @@ impl ParserType {
         )
     }
 
-    fn parse_type(&mut self) -> TypeNode {
+    fn parse_type(&self) -> TypeNode {
         self.do_outside_of_context(NodeFlags::TypeExcludesFlags, ParserType::parse_type_worker)
     }
 
-    fn parse_type_worker(&mut self) -> TypeNode {
+    fn parse_type_worker(&self) -> TypeNode {
         let pos = self.get_node_pos();
         let type_ = self.parse_union_type_or_higher();
         type_
     }
 
-    fn parse_type_annotation(&mut self) -> Option<TypeNode> {
+    fn parse_type_annotation(&self) -> Option<TypeNode> {
         if self.parse_optional(SyntaxKind::ColonToken) {
             Some(self.parse_type())
         } else {
@@ -1444,13 +1467,13 @@ impl ParserType {
         }
     }
 
-    fn parse_expression(&mut self) -> Expression {
+    fn parse_expression(&self) -> Expression {
         let expr = self.parse_assignment_expression_or_higher();
 
         expr
     }
 
-    fn parse_initializer(&mut self) -> Option<Expression> {
+    fn parse_initializer(&self) -> Option<Expression> {
         if self.parse_optional(SyntaxKind::EqualsToken) {
             Some(self.parse_assignment_expression_or_higher())
         } else {
@@ -1458,7 +1481,7 @@ impl ParserType {
         }
     }
 
-    fn parse_assignment_expression_or_higher(&mut self) -> Expression {
+    fn parse_assignment_expression_or_higher(&self) -> Expression {
         let expr = self.parse_binary_expression_or_higher(OperatorPrecedence::Lowest);
 
         self.parse_conditional_expression_rest(expr)
@@ -1473,14 +1496,14 @@ impl ParserType {
         left_operand
     }
 
-    fn parse_binary_expression_or_higher(&mut self, precedence: OperatorPrecedence) -> Expression {
+    fn parse_binary_expression_or_higher(&self, precedence: OperatorPrecedence) -> Expression {
         let pos = self.get_node_pos();
         let left_operand = self.parse_unary_expression_or_higher();
         self.parse_binary_expression_rest(precedence, left_operand, pos)
     }
 
     fn parse_binary_expression_rest(
-        &mut self,
+        &self,
         precedence: OperatorPrecedence,
         mut left_operand: Expression,
         pos: isize,
@@ -1509,7 +1532,7 @@ impl ParserType {
     }
 
     fn make_binary_expression<TNode: Into<Node>>(
-        &mut self,
+        &self,
         left: Expression,
         operator_token: TNode,
         right: Expression,
@@ -1523,7 +1546,7 @@ impl ParserType {
         )
     }
 
-    fn parse_unary_expression_or_higher(&mut self) -> Expression {
+    fn parse_unary_expression_or_higher(&self) -> Expression {
         if self.is_update_expression() {
             let update_expression = self.parse_update_expression();
             return update_expression;
@@ -1538,7 +1561,7 @@ impl ParserType {
         }
     }
 
-    fn parse_update_expression(&mut self) -> Expression {
+    fn parse_update_expression(&self) -> Expression {
         if self.token() == SyntaxKind::PlusPlusToken {
             let pos = self.get_node_pos();
             let operator = self.token();
@@ -1559,13 +1582,13 @@ impl ParserType {
         expression
     }
 
-    fn parse_left_hand_side_expression_or_higher(&mut self) -> Expression {
+    fn parse_left_hand_side_expression_or_higher(&self) -> Expression {
         let expression = self.parse_member_expression_or_higher();
 
         self.parse_call_expression_rest(expression)
     }
 
-    fn parse_member_expression_or_higher(&mut self) -> Expression {
+    fn parse_member_expression_or_higher(&self) -> Expression {
         let expression = self.parse_primary_expression();
         self.parse_member_expression_rest(expression)
     }
@@ -1580,7 +1603,7 @@ impl ParserType {
         expression
     }
 
-    fn parse_primary_expression(&mut self) -> Expression {
+    fn parse_primary_expression(&self) -> Expression {
         match self.token() {
             SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral | SyntaxKind::StringLiteral => {
                 return self.parse_literal_node().into()
@@ -1597,7 +1620,7 @@ impl ParserType {
             .into()
     }
 
-    fn parse_argument_or_array_literal_element(&mut self) -> Expression {
+    fn parse_argument_or_array_literal_element(&self) -> Expression {
         if false {
             unimplemented!()
         } else if false {
@@ -1607,7 +1630,7 @@ impl ParserType {
         }
     }
 
-    fn parse_array_literal_expression(&mut self) -> ArrayLiteralExpression {
+    fn parse_array_literal_expression(&self) -> ArrayLiteralExpression {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
         let elements = self.parse_delimited_list(
@@ -1623,7 +1646,7 @@ impl ParserType {
         )
     }
 
-    fn parse_object_literal_element(&mut self) -> Node {
+    fn parse_object_literal_element(&self) -> Node {
         let pos = self.get_node_pos();
 
         let token_is_identifier = self.is_identifier();
@@ -1642,7 +1665,7 @@ impl ParserType {
         self.finish_node(node.into(), pos, None)
     }
 
-    fn parse_object_literal_expression(&mut self) -> ObjectLiteralExpression {
+    fn parse_object_literal_expression(&self) -> ObjectLiteralExpression {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
         let properties = self.parse_delimited_list(
@@ -1661,7 +1684,7 @@ impl ParserType {
         )
     }
 
-    fn parse_expression_or_labeled_statement(&mut self) -> Statement {
+    fn parse_expression_or_labeled_statement(&self) -> Statement {
         let pos = self.get_node_pos();
         let expression = self.parse_expression();
         let node: Statement = if false {
@@ -1678,7 +1701,7 @@ impl ParserType {
     }
 
     fn parse_block(
-        &mut self,
+        &self,
         ignore_missing_open_brace: bool,
         diagnostic_message: Option<&DiagnosticMessage>,
     ) -> Block {
@@ -1710,13 +1733,13 @@ impl ParserType {
         }
     }
 
-    fn parse_empty_statement(&mut self) -> Statement {
+    fn parse_empty_statement(&self) -> Statement {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::SemicolonToken, None, None);
         self.finish_node(self.factory.create_empty_statement(self).into(), pos, None)
     }
 
-    fn parse_if_statement(&mut self) -> Statement {
+    fn parse_if_statement(&self) -> Statement {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::IfKeyword, None, None);
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
@@ -1768,11 +1791,11 @@ impl ParserType {
         }
     }
 
-    fn is_start_of_declaration(&mut self) -> bool {
+    fn is_start_of_declaration(&self) -> bool {
         self.look_ahead(|| Some(self.is_declaration())).unwrap()
     }
 
-    fn is_start_of_statement(&mut self) -> bool {
+    fn is_start_of_statement(&self) -> bool {
         match self.token() {
             SyntaxKind::SemicolonToken | SyntaxKind::VarKeyword | SyntaxKind::IfKeyword => true,
             SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
@@ -1783,10 +1806,12 @@ impl ParserType {
         }
     }
 
-    fn parse_statement(&mut self) -> Statement {
+    fn parse_statement(&self) -> Statement {
         match self.token() {
             SyntaxKind::SemicolonToken => return self.parse_empty_statement(),
-            SyntaxKind::VarKeyword => return self.parse_variable_statement(self.get_node_pos()),
+            SyntaxKind::VarKeyword => {
+                return self.parse_variable_statement(self.get_node_pos(), None, None)
+            }
             SyntaxKind::OpenBraceToken => return self.parse_block(false, None).into(),
             SyntaxKind::IfKeyword => return self.parse_if_statement(),
             SyntaxKind::ConstKeyword => {
@@ -1808,7 +1833,7 @@ impl ParserType {
         modifier.kind() == SyntaxKind::DeclareKeyword
     }
 
-    fn parse_declaration(&mut self) -> Statement {
+    fn parse_declaration(&self) -> Statement {
         let is_ambient = some(
             self.look_ahead(|| {
                 self.parse_decorators();
@@ -1821,20 +1846,46 @@ impl ParserType {
             }),
             Some(|modifier: &Rc<Node>| self.is_declare_modifier(&**modifier)),
         );
+        if is_ambient {
+            let node = self.try_reuse_ambient_declaration();
+            if let Some(node) = node {
+                return node;
+            }
+        }
 
         let pos = self.get_node_pos();
-        if false {
-            unimplemented!()
+        let decorators = self.parse_decorators();
+        let modifiers = self.parse_modifiers(None, None);
+        if is_ambient {
+            for m in modifiers.as_ref().unwrap() {
+                m.set_flags(m.flags() | NodeFlags::Ambient);
+            }
+            self.do_inside_of_context(NodeFlags::Ambient, move || {
+                self.parse_declaration_worker(pos, decorators, modifiers)
+            })
         } else {
-            self.parse_declaration_worker(pos)
+            self.parse_declaration_worker(pos, decorators, modifiers)
         }
     }
 
-    fn parse_declaration_worker(&mut self, pos: isize) -> Statement {
+    fn try_reuse_ambient_declaration(&self) -> Option<Statement> {
+        None
+    }
+
+    fn parse_declaration_worker(
+        &self,
+        pos: isize,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> Statement {
         match self.token() {
-            SyntaxKind::ConstKeyword => self.parse_variable_statement(pos),
-            SyntaxKind::InterfaceKeyword => self.parse_interface_declaration(pos).into(),
-            SyntaxKind::TypeKeyword => self.parse_type_alias_declaration(pos).into(),
+            SyntaxKind::ConstKeyword => self.parse_variable_statement(pos, decorators, modifiers),
+            SyntaxKind::InterfaceKeyword => self
+                .parse_interface_declaration(pos, decorators, modifiers)
+                .into(),
+            SyntaxKind::TypeKeyword => self
+                .parse_type_alias_declaration(pos, decorators, modifiers)
+                .into(),
             _ => unimplemented!(),
         }
     }
@@ -1843,19 +1894,19 @@ impl ParserType {
         self.is_binding_identifier()
     }
 
-    fn parse_identifier_or_pattern(&mut self) -> Rc<Node> {
+    fn parse_identifier_or_pattern(&self) -> Rc<Node> {
         self.parse_binding_identifier().into()
     }
 
-    fn parse_variable_declaration_no_exclamation(&mut self) -> VariableDeclaration {
+    fn parse_variable_declaration_no_exclamation(&self) -> VariableDeclaration {
         self.parse_variable_declaration(false)
     }
 
-    fn parse_variable_declaration_allow_exclamation(&mut self) -> VariableDeclaration {
+    fn parse_variable_declaration_allow_exclamation(&self) -> VariableDeclaration {
         self.parse_variable_declaration(true)
     }
 
-    fn parse_variable_declaration(&mut self, allow_exclamation: bool) -> VariableDeclaration {
+    fn parse_variable_declaration(&self, allow_exclamation: bool) -> VariableDeclaration {
         let pos = self.get_node_pos();
         let name = self.parse_identifier_or_pattern();
         let type_ = self.parse_type_annotation();
@@ -1873,7 +1924,7 @@ impl ParserType {
         self.finish_node(node, pos, None)
     }
 
-    fn parse_variable_declaration_list(&mut self) -> VariableDeclarationList {
+    fn parse_variable_declaration_list(&self) -> VariableDeclarationList {
         let pos = self.get_node_pos();
 
         let mut flags = NodeFlags::None;
@@ -1906,12 +1957,18 @@ impl ParserType {
         )
     }
 
-    fn parse_variable_statement(&mut self, pos: isize) -> Statement {
+    fn parse_variable_statement(
+        &self,
+        pos: isize,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> Statement {
         let declaration_list = self.parse_variable_declaration_list();
         self.parse_semicolon();
-        let node = self
+        let mut node = self
             .factory
-            .create_variable_statement(self, declaration_list);
+            .create_variable_statement(self, modifiers, declaration_list);
+        node.set_decorators(decorators);
         self.finish_node(node.into(), pos, None)
     }
 
@@ -2007,18 +2064,33 @@ impl ParserType {
         list.map(|list| self.create_node_array(list, pos, None, None))
     }
 
-    fn parse_interface_declaration(&mut self, pos: isize) -> InterfaceDeclaration {
+    fn parse_interface_declaration(
+        &self,
+        pos: isize,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> InterfaceDeclaration {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None, None);
         let name = self.parse_identifier(None);
         let type_parameters = self.parse_type_parameters();
         let members = self.parse_object_type_members();
-        let node =
-            self.factory
-                .create_interface_declaration(self, name.into(), type_parameters, members);
+        let node = self.factory.create_interface_declaration(
+            self,
+            decorators,
+            modifiers,
+            name.into(),
+            type_parameters,
+            members,
+        );
         self.finish_node(node, pos, None)
     }
 
-    fn parse_type_alias_declaration(&mut self, pos: isize) -> TypeAliasDeclaration {
+    fn parse_type_alias_declaration(
+        &self,
+        pos: isize,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> TypeAliasDeclaration {
         self.parse_expected(SyntaxKind::TypeKeyword, None, None);
         let name = self.parse_identifier(None);
         let type_parameters = self.parse_type_parameters();
@@ -2031,6 +2103,8 @@ impl ParserType {
         self.parse_semicolon();
         let node = self.factory.create_type_alias_declaration(
             self,
+            decorators,
+            modifiers,
             name.into(),
             type_parameters,
             type_.into(),

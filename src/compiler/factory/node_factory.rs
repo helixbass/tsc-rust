@@ -10,11 +10,11 @@ use crate::{
     BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block, EmptyStatement,
     Expression, ExpressionStatement, Identifier, IfStatement, InterfaceDeclaration,
     IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NumericLiteral, ObjectLiteralExpression,
-    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, SourceFile,
-    Statement, StringLiteral, SyntaxKind, TokenFlags, TypeAliasDeclaration, TypeLiteralNode,
-    TypeNode, TypeParameterDeclaration, TypeReferenceNode, UnionTypeNode, VariableDeclaration,
-    VariableDeclarationList, VariableStatement,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NumericLiteral,
+    ObjectLiteralExpression, PrefixUnaryExpression, PropertyAssignment, PropertySignature,
+    PseudoBigInt, SourceFile, Statement, StringLiteral, SyntaxKind, TokenFlags,
+    TypeAliasDeclaration, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypeReferenceNode,
+    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -41,8 +41,12 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
     ) -> BaseNode {
-        let node = self.create_base_node(base_factory, kind);
+        let mut node = self.create_base_node(base_factory, kind);
+        node.set_decorators(self.as_node_array(decorators));
+        node.modifiers = self.as_node_array(modifiers);
         node
     }
 
@@ -50,9 +54,11 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
         name: Option<Rc<Node>>,
     ) -> BaseNamedDeclaration {
-        let node = self.create_base_declaration(base_factory, kind);
+        let node = self.create_base_declaration(base_factory, kind, decorators, modifiers);
         BaseNamedDeclaration::new(node, name)
     }
 
@@ -63,10 +69,18 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
         name: Rc<Node>,
         type_parameters: Option<TTypeParameters>,
     ) -> BaseGenericNamedDeclaration {
-        let node = self.create_base_named_declaration(base_factory, kind, Some(name));
+        let node = self.create_base_named_declaration(
+            base_factory,
+            kind,
+            decorators,
+            modifiers,
+            Some(name),
+        );
         let node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
         node
     }
@@ -78,11 +92,19 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
         name: Rc<Node>,
         type_parameters: Option<TTypeParameters>,
     ) -> BaseInterfaceOrClassLikeDeclaration {
-        let node =
-            self.create_base_generic_named_declaration(base_factory, kind, name, type_parameters);
+        let node = self.create_base_generic_named_declaration(
+            base_factory,
+            kind,
+            decorators,
+            modifiers,
+            name,
+            type_parameters,
+        );
         let node = BaseInterfaceOrClassLikeDeclaration::new(node);
         node
     }
@@ -91,10 +113,13 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
         name: Option<Rc<Node>>,
         initializer: Option<Rc<Node>>,
     ) -> BaseBindingLikeDeclaration {
-        let node = self.create_base_named_declaration(base_factory, kind, name);
+        let node =
+            self.create_base_named_declaration(base_factory, kind, decorators, modifiers, name);
         BaseBindingLikeDeclaration::new(node, initializer)
     }
 
@@ -102,11 +127,20 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
         name: Option<Rc<Node>>,
         type_: Option<Rc<Node>>,
         initializer: Option<Rc<Node>>,
     ) -> BaseVariableLikeDeclaration {
-        let node = self.create_base_binding_like_declaration(base_factory, kind, name, initializer);
+        let node = self.create_base_binding_like_declaration(
+            base_factory,
+            kind,
+            decorators,
+            modifiers,
+            name,
+            initializer,
+        );
         BaseVariableLikeDeclaration::new(node, type_)
     }
 
@@ -248,8 +282,13 @@ impl NodeFactory {
         base_factory: &TBaseNodeFactory,
         name: Rc<Node>,
     ) -> TypeParameterDeclaration {
-        let node =
-            self.create_base_named_declaration(base_factory, SyntaxKind::TypeParameter, Some(name));
+        let node = self.create_base_named_declaration(
+            base_factory,
+            SyntaxKind::TypeParameter,
+            None,
+            None,
+            Some(name),
+        );
         let node = TypeParameterDeclaration::new(node);
         node
     }
@@ -257,12 +296,15 @@ impl NodeFactory {
     pub fn create_property_signature<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
+        modifiers: Option<NodeArray>,
         name: Rc<Node>,
         type_: Option<Rc<Node>>,
     ) -> PropertySignature {
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::PropertySignature,
+            None,
+            modifiers,
             Some(name),
         );
         let node = PropertySignature::new(node, type_);
@@ -463,9 +505,15 @@ impl NodeFactory {
     pub fn create_variable_statement<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
+        modifiers: Option<NodeArray>,
         declaration_list: VariableDeclarationList,
     ) -> VariableStatement {
-        let node = self.create_base_declaration(base_factory, SyntaxKind::VariableStatement);
+        let node = self.create_base_declaration(
+            base_factory,
+            SyntaxKind::VariableStatement,
+            None,
+            modifiers,
+        );
         let node = VariableStatement::new(node, declaration_list.into());
         node
     }
@@ -518,6 +566,8 @@ impl NodeFactory {
         let node = self.create_base_variable_like_declaration(
             base_factory,
             SyntaxKind::VariableDeclaration,
+            None,
+            None,
             name,
             type_,
             initializer,
@@ -536,7 +586,7 @@ impl NodeFactory {
     ) -> VariableDeclarationList {
         let flags = flags.unwrap_or(NodeFlags::None);
         let mut node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
-        node.flags |= flags & NodeFlags::BlockScoped;
+        node.set_flags(node.flags() & NodeFlags::BlockScoped);
         let node = VariableDeclarationList::new(node, self.create_node_array(declarations, None));
         node
     }
@@ -548,6 +598,8 @@ impl NodeFactory {
     >(
         &self,
         base_factory: &TBaseNodeFactory,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
         name: Rc<Node>,
         type_parameters: Option<TTypeParameters>,
         members: TMembers,
@@ -555,6 +607,8 @@ impl NodeFactory {
         let node = self.create_base_interface_or_class_like_declaration(
             base_factory,
             SyntaxKind::InterfaceDeclaration,
+            decorators,
+            modifiers,
             name,
             type_parameters,
         );
@@ -568,6 +622,8 @@ impl NodeFactory {
     >(
         &self,
         base_factory: &TBaseNodeFactory,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
         name: Rc<Node>,
         type_parameters: Option<TTypeParameters>,
         type_: Rc<Node>,
@@ -575,6 +631,8 @@ impl NodeFactory {
         let node = self.create_base_generic_named_declaration(
             base_factory,
             SyntaxKind::TypeAliasDeclaration,
+            decorators,
+            modifiers,
             name,
             type_parameters,
         );
@@ -591,6 +649,8 @@ impl NodeFactory {
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::PropertyAssignment,
+            None,
+            None,
             Some(name),
         );
         let node = PropertyAssignment::new(node, initializer);
