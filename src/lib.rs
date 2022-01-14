@@ -9,9 +9,10 @@ pub use compiler::binder::bind_source_file;
 pub use compiler::checker::{create_type_checker, NodeBuilder};
 pub use compiler::command_line_parser::parse_command_line;
 pub use compiler::core::{
-    append_if_unique, binary_search, binary_search_copy_key, compare_strings_case_sensitive,
-    compare_values, concatenate, every, first_defined, first_or_undefined, for_each, insert_sorted,
-    last_or_undefined, map, maybe_for_each, range_equals, some,
+    add_range, append_if_unique, binary_search, binary_search_copy_key,
+    compare_strings_case_sensitive, compare_values, concatenate, every, first_defined,
+    first_or_undefined, for_each, insert_sorted, last_or_undefined, map, maybe_for_each,
+    range_equals, some, sort_and_deduplicate,
 };
 pub use compiler::core_public::{Comparer, Comparison, SortedArray};
 pub use compiler::debug::Debug_;
@@ -72,8 +73,8 @@ pub use compiler::types::{
     VariableStatement, __String,
 };
 pub use compiler::utilities::{
-    attach_file_to_diagnostics, chain_diagnostic_messages, create_detached_diagnostic,
-    create_diagnostic_collection, create_diagnostic_for_node,
+    attach_file_to_diagnostics, chain_diagnostic_messages, compare_diagnostics,
+    create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, create_symbol_table, create_text_writer,
     declaration_name_to_string, get_binary_operator_precedence, get_check_flags,
     get_declaration_of_kind, get_effective_initializer, get_effective_type_annotation_node,
@@ -89,7 +90,8 @@ pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores, get_combined_node_flags,
     get_effective_type_parameter_declarations, get_name_of_declaration, has_initializer,
     has_only_expression_initializer, id_text, is_binding_pattern, is_expression, is_function_like,
-    is_function_or_module_block, is_literal_kind, is_member_name, unescape_leading_underscores,
+    is_function_or_module_block, is_literal_kind, is_member_name, sort_and_deduplicate_diagnostics,
+    unescape_leading_underscores,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;

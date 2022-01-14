@@ -1,7 +1,8 @@
-use std::convert::TryInto;
+use std::cmp::Ordering;
+use std::convert::{TryFrom, TryInto};
 use std::ptr;
 
-use crate::{Comparison, SortedArray};
+use crate::{Comparison, Debug_, SortedArray};
 
 pub fn for_each<
     TCollection: IntoIterator,
@@ -90,6 +91,47 @@ fn identity_key_selector<TItem>(item: TItem, _: Option<usize>) -> TItem {
     item
 }
 
+enum ComparerOrEqualityComparer<'closure, TItem> {
+    Comparer(&'closure dyn Fn(&TItem, &TItem) -> Comparison),
+    EqualityComparer(&'closure dyn Fn(&TItem, &TItem) -> bool),
+}
+
+fn deduplicate_sorted<TItem: Clone>(
+    array: &SortedArray<TItem>,
+    comparer: ComparerOrEqualityComparer<TItem>,
+) -> SortedArray<TItem> {
+    if array.is_empty() {
+        return SortedArray::new(vec![]);
+    }
+
+    let mut last = &array[0];
+    let mut deduplicated = vec![last.clone()];
+    for next in array.iter().skip(1) {
+        match comparer {
+            ComparerOrEqualityComparer::Comparer(comparer) => match comparer(next, last) {
+                Comparison::EqualTo => {
+                    continue;
+                }
+                Comparison::LessThan => Debug_.fail(Some("Array is unsorted.")),
+                Comparison::GreaterThan => (),
+            },
+            ComparerOrEqualityComparer::EqualityComparer(equality_comparer) => {
+                match equality_comparer(next, last) {
+                    true => {
+                        continue;
+                    }
+                    false => (),
+                }
+            }
+        }
+
+        last = next;
+        deduplicated.push(next.clone());
+    }
+
+    SortedArray::new(deduplicated)
+}
+
 pub fn insert_sorted<TItem /*, TComparer: Comparer<&'array_or_item TItem>*/>(
     array: &mut SortedArray<TItem>,
     insert: TItem,
@@ -109,6 +151,26 @@ pub fn insert_sorted<TItem /*, TComparer: Comparer<&'array_or_item TItem>*/>(
     }
 }
 
+pub fn sort_and_deduplicate<
+    TItem: Clone,
+    TComparer: Fn(&TItem, &TItem) -> Comparison,
+    TEqualityComparer: Fn(&TItem, &TItem) -> bool,
+>(
+    array: &[TItem],
+    comparer: /*Option<*/ &TComparer, /*>*/
+    equality_comparer: Option<&TEqualityComparer>,
+) -> SortedArray<TItem> {
+    deduplicate_sorted(
+        &sort(array, comparer),
+        match equality_comparer {
+            Some(equality_comparer) => {
+                ComparerOrEqualityComparer::EqualityComparer(equality_comparer)
+            }
+            None => ComparerOrEqualityComparer::Comparer(comparer),
+        },
+    )
+}
+
 fn push_if_unique<TItem>(array: &mut Vec<TItem>, to_add: TItem) -> bool {
     if false {
         unimplemented!()
@@ -125,6 +187,79 @@ pub fn append_if_unique<TItem>(array: Option<Vec<TItem>>, to_add: TItem) -> Vec<
     } else {
         vec![to_add]
     }
+}
+
+fn to_offset<TItem>(array: &[TItem], offset: isize) -> usize {
+    if offset < 0 {
+        (isize::try_from(array.len()).unwrap() + offset)
+            .try_into()
+            .unwrap()
+    } else {
+        offset.try_into().unwrap()
+    }
+}
+
+pub fn add_range<TItem: Clone>(
+    to: /*Option<*/ &mut Vec<TItem>, /*>*/
+    from: Option<&[TItem]>,
+    start: Option<isize>,
+    end: Option<isize>,
+) /*-> Option<Vec<TItem>>*/
+{
+    if from.is_none() {
+        return /*to*/;
+    }
+    let from = from.unwrap();
+    if from.is_empty() {
+        return /*to*/;
+    }
+    // if to.is_none()
+    let start: usize = match start {
+        None => 0,
+        Some(start) => to_offset(from, start),
+    };
+    let end: usize = match end {
+        None => from.len(),
+        Some(end) => to_offset(from, end),
+    };
+    let mut i = start;
+    while i < end && i < from.len() {
+        // if from[i] !== undefined
+        to.push(from[i].clone());
+        i += 1;
+    }
+    // to
+}
+
+fn comparison_to_ordering(comparison: Comparison) -> Ordering {
+    match comparison {
+        Comparison::EqualTo => Ordering::Equal,
+        Comparison::LessThan => Ordering::Less,
+        Comparison::GreaterThan => Ordering::Greater,
+    }
+}
+
+// fn comparer_to_orderer<
+//     'comparer,
+//     TItem: Clone,
+//     TComparer: Fn(&TItem, &TItem) -> Comparison + 'comparer,
+// >(
+//     comparer: TComparer,
+// ) -> impl Fn(&TItem, &TItem) -> Ordering + 'comparer {
+//     |a, b| comparison_to_ordering(comparer(a, b))
+// }
+
+fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+    array: &[TItem],
+    comparer: TComparer,
+) -> SortedArray<TItem> {
+    SortedArray::new(if array.len() == 0 {
+        vec![]
+    } else {
+        let mut array: Vec<TItem> = array.to_vec();
+        array.sort_by(|a, b| comparison_to_ordering(comparer(a, b)));
+        array
+    })
 }
 
 pub fn range_equals<TItem>(array1: &[TItem], array2: &[TItem], mut pos: usize, end: usize) -> bool {

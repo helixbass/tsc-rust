@@ -2,9 +2,20 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    CharacterCodes, Node, NodeFlags, NodeInterface, SyntaxKind, TextSpan, __String, is_block,
-    is_module_block, is_source_file,
+    CharacterCodes, Node, NodeFlags, NodeInterface, SyntaxKind, TextSpan, __String,
+    compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
+    Diagnostic, SortedArray,
 };
+
+pub fn sort_and_deduplicate_diagnostics(
+    diagnostics: &[Rc<Diagnostic>],
+) -> SortedArray<Rc<Diagnostic>> {
+    sort_and_deduplicate(
+        diagnostics,
+        &|a, b| compare_diagnostics(&**a, &**b),
+        Option::<&fn(&Rc<Diagnostic>, &Rc<Diagnostic>) -> bool>::None,
+    )
+}
 
 fn create_text_span(start: isize, length: isize) -> TextSpan {
     TextSpan { start, length }
@@ -25,7 +36,7 @@ fn get_combined_flags<TNode: NodeInterface, TCallback: FnMut(&Node) -> NodeFlags
     }
     if let Some(node_present) = node.as_ref() {
         if node_present.kind() == SyntaxKind::VariableDeclarationList {
-            flags |= get_flags(&node_present);
+            flags |= get_flags(node_present);
             node = node_present.maybe_parent();
         }
     }

@@ -930,7 +930,7 @@ fn get_diagnostic_file_path<
         .and_then(|file| file.maybe_path().as_ref().map(|path| path.to_string()))
 }
 
-fn compare_diagnostics<TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface>(
+pub fn compare_diagnostics<TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface>(
     d1: &TDiagnosticRelatedInformation,
     d2: &TDiagnosticRelatedInformation,
 ) -> Comparison {

@@ -1,15 +1,37 @@
 use std::rc::Rc;
 
-use crate::{Diagnostic, ExitStatus, Program};
+use crate::{
+    add_range, sort_and_deduplicate_diagnostics, Diagnostic, ExitStatus, Program, SortedArray,
+};
 
 struct EmitFilesAndReportErrorsReturn {
-    diagnostics: Vec<Rc<Diagnostic>>,
+    diagnostics: SortedArray<Rc<Diagnostic>>,
 }
 
 fn emit_files_and_report_errors<TProgram: Program>(
     mut program: TProgram,
 ) -> EmitFilesAndReportErrorsReturn {
-    let diagnostics = program.get_semantic_diagnostics();
+    let mut all_diagnostics: Vec<Rc<Diagnostic>> = vec![];
+    let config_file_parsing_diagnostics_length = all_diagnostics.len();
+    add_range(
+        &mut all_diagnostics,
+        Some(&program.get_syntactic_diagnostics()),
+        None,
+        None,
+    );
+
+    if all_diagnostics.len() == config_file_parsing_diagnostics_length {
+        if true {
+            add_range(
+                &mut all_diagnostics,
+                Some(&program.get_semantic_diagnostics()),
+                None,
+                None,
+            );
+        }
+    }
+
+    let diagnostics = sort_and_deduplicate_diagnostics(&all_diagnostics);
 
     EmitFilesAndReportErrorsReturn { diagnostics }
 }
