@@ -181,7 +181,7 @@ impl Printer {
     fn emit_identifier(&self, node: &Identifier) {
         let text_of_node = self.get_text_of_node(node, Some(false));
         if let Some(symbol) = node.maybe_symbol() {
-            self.write_symbol(&text_of_node, symbol);
+            self.write_symbol(&text_of_node, &symbol);
         } else {
             (self.write)(self, &text_of_node);
         }
@@ -336,8 +336,8 @@ impl Printer {
         self.writer_().write_string_literal(s);
     }
 
-    fn write_symbol(&self, s: &str, sym: Rc<Symbol>) {
-        self.writer_().write_symbol(s, &*sym);
+    fn write_symbol(&self, s: &str, sym: &Symbol) {
+        self.writer_().write_symbol(s, sym);
     }
 
     fn write_punctuation(&self, s: &str) {

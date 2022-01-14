@@ -1,5 +1,7 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
 use crate::{
@@ -42,7 +44,7 @@ impl TypeChecker {
                 .get(name)
                 .map(Clone::clone);
             if let Some(symbol) = symbol {
-                if self.symbol_is_value(symbol.clone()) {
+                if self.symbol_is_value(&symbol) {
                     return Some(symbol);
                 }
             }
@@ -81,7 +83,7 @@ impl TypeChecker {
         target: &Type, /*GenericType*/
         type_arguments: Option<Vec<Rc<Type>>>,
     ) -> TypeReference {
-        let type_ = self.create_object_type(ObjectFlags::Reference, target.symbol());
+        let type_ = self.create_object_type(ObjectFlags::Reference, &target.symbol());
         type_.set_object_flags(
             type_.object_flags()
                 | if let Some(type_arguments) = type_arguments.as_ref() {
@@ -142,10 +144,10 @@ impl TypeChecker {
     pub(super) fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
         &self,
         node: &TNode,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
     ) -> Rc<Type> {
         let type_ =
-            self.get_declared_type_of_symbol(self.get_merged_symbol(Some(symbol.clone())).unwrap());
+            self.get_declared_type_of_symbol(&self.get_merged_symbol(Some(symbol)).unwrap());
         let type_as_interface_type = match &*type_ {
             Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
                 base_interface_type,
@@ -217,9 +219,9 @@ impl TypeChecker {
     pub(super) fn get_type_reference_type<TNode: NodeInterface>(
         &self,
         node: &TNode,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
     ) -> Rc<Type> {
-        if Rc::ptr_eq(&symbol, &self.unknown_symbol()) {
+        if ptr::eq(symbol, Rc::as_ptr(&self.unknown_symbol())) {
             unimplemented!()
         }
         if symbol
@@ -228,7 +230,7 @@ impl TypeChecker {
         {
             return self.get_type_from_class_or_interface_reference(node, symbol);
         }
-        let res = self.try_get_declared_type_of_symbol(symbol.clone());
+        let res = self.try_get_declared_type_of_symbol(symbol);
         if let Some(res) = res {
             return if self.check_no_type_arguments(node, symbol) {
                 self.get_regular_type_of_literal_type(&res)
@@ -246,7 +248,7 @@ impl TypeChecker {
     pub(super) fn check_no_type_arguments<TNode: NodeInterface>(
         &self,
         node: &TNode, /*NodeWithTypeArguments*/
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
     ) -> bool {
         if let Some(type_arguments) = (*node.node_wrapper())
             .as_has_type_arguments()
@@ -263,7 +265,7 @@ impl TypeChecker {
         let meaning = SymbolFlags::Type;
         if type_.is_none() {
             symbol = Some(self.resolve_type_reference_name(node, meaning, None));
-            type_ = Some(self.get_type_reference_type(node, symbol.unwrap()));
+            type_ = Some(self.get_type_reference_type(node, &symbol.unwrap()));
         }
         let type_ = type_.unwrap();
         type_
@@ -279,9 +281,9 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_type_of_global_symbol(
+    pub(super) fn get_type_of_global_symbol<TSymbolRef: Borrow<Symbol>>(
         &self,
-        symbol: Option<Rc<Symbol>>,
+        symbol: Option<TSymbolRef>,
     ) -> Rc<Type /*ObjectType*/> {
         unimplemented!()
     }
@@ -495,7 +497,7 @@ impl TypeChecker {
 
     pub(super) fn get_literal_type_from_property(
         &self,
-        prop: Rc<Symbol>,
+        prop: &Symbol,
         include: TypeFlags,
         include_non_public: Option<bool>,
     ) -> Rc<Type> {

@@ -253,7 +253,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         let is_comparing_jsx_attributes = false;
         let reduced_target = target;
         for prop in self.type_checker.get_properties_of_type(source) {
-            if self.should_check_as_excess_property(prop.clone(), source.symbol()) && true {
+            if self.should_check_as_excess_property(&prop, &source.symbol()) && true {
                 if !self.type_checker.is_known_property(
                     reduced_target,
                     prop.escaped_name(),
@@ -286,7 +286,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                             } else {
                                 self.report_error(
                                     &Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
-                                    Some(vec![self.type_checker.symbol_to_string(prop, None, None, None, None), self.type_checker.type_to_string(&error_target, Option::<&Node>::None, None)])
+                                    Some(vec![self.type_checker.symbol_to_string(&prop, None, None, None, None), self.type_checker.type_to_string(&error_target, Option::<&Node>::None, None)])
                                 );
                             }
                         }
@@ -298,7 +298,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         false
     }
 
-    fn should_check_as_excess_property(&self, prop: Rc<Symbol>, container: Rc<Symbol>) -> bool {
+    fn should_check_as_excess_property(&self, prop: &Symbol, container: &Symbol) -> bool {
         if let Some(prop_value_declaration) = prop.maybe_value_declaration().as_ref() {
             if let Some(container_value_declaration) = container.maybe_value_declaration().as_ref()
             {
@@ -480,9 +480,9 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
 
     fn is_property_symbol_type_related(
         &self,
-        source_prop: Rc<Symbol>,
-        target_prop: Rc<Symbol>,
-        get_type_of_source_property: fn(&TypeChecker, Rc<Symbol>) -> Rc<Type>,
+        source_prop: &Symbol,
+        target_prop: &Symbol,
+        get_type_of_source_property: fn(&TypeChecker, &Symbol) -> Rc<Type>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
@@ -509,16 +509,16 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         &self,
         source: &Type,
         target: &Type,
-        source_prop: Rc<Symbol>,
-        target_prop: Rc<Symbol>,
-        get_type_of_source_property: fn(&TypeChecker, Rc<Symbol>) -> Rc<Type>,
+        source_prop: &Symbol,
+        target_prop: &Symbol,
+        get_type_of_source_property: fn(&TypeChecker, &Symbol) -> Rc<Type>,
         report_errors: bool,
         intersection_state: IntersectionState,
         skip_optional: bool,
     ) -> Ternary {
         let related = self.is_property_symbol_type_related(
             source_prop,
-            target_prop.clone(),
+            target_prop,
             get_type_of_source_property,
             report_errors,
             intersection_state,
@@ -574,8 +574,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                         let related = self.property_related_to(
                             source,
                             target,
-                            source_prop,
-                            target_prop,
+                            &source_prop,
+                            &target_prop,
                             TypeChecker::get_non_missing_type_of_symbol,
                             report_errors,
                             intersection_state,

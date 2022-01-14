@@ -288,11 +288,8 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn instantiate_symbol(
-        &self,
-        mut symbol: Rc<Symbol>,
-        mapper: &TypeMapper,
-    ) -> Rc<Symbol> {
+    pub(super) fn instantiate_symbol(&self, symbol: &Symbol, mapper: &TypeMapper) -> Rc<Symbol> {
+        let mut symbol = symbol.symbol_wrapper();
         let links = self.get_symbol_links(&symbol);
         let links = (*links).borrow();
         if let Some(type_) = links.type_.as_ref() {
@@ -327,7 +324,7 @@ impl TypeChecker {
         if let Some(value_declaration) = &*symbol.maybe_value_declaration() {
             result.set_value_declaration(value_declaration.upgrade().unwrap());
         }
-        Rc::new(result.into())
+        result.into()
     }
 
     pub(super) fn instantiate_type<TTypeRef: Borrow<Type>>(
@@ -337,17 +334,22 @@ impl TypeChecker {
     ) -> Option<Rc<Type>> {
         if let Some(type_) = type_.as_ref() {
             if let Some(mapper) = mapper {
-                return Some(self.instantiate_type_with_alias(type_.borrow(), mapper, None, None));
+                return Some(self.instantiate_type_with_alias(
+                    type_.borrow(),
+                    mapper,
+                    Option::<&Symbol>::None,
+                    None,
+                ));
             }
         }
         type_.map(|type_| type_.borrow().type_wrapper())
     }
 
-    pub(super) fn instantiate_type_with_alias(
+    pub(super) fn instantiate_type_with_alias<TSymbolRef: Borrow<Symbol>>(
         &self,
         type_: &Type,
         mapper: &TypeMapper,
-        alias_symbol: Option<Rc<Symbol>>,
+        alias_symbol: Option<TSymbolRef>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
         let result =
@@ -355,11 +357,11 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn instantiate_type_worker(
+    pub(super) fn instantiate_type_worker<TSymbolRef: Borrow<Symbol>>(
         &self,
         type_: &Type,
         mapper: &TypeMapper,
-        alias_symbol: Option<Rc<Symbol>>,
+        alias_symbol: Option<TSymbolRef>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
         let flags = type_.flags();
@@ -555,7 +557,7 @@ impl TypeChecker {
             .iter()
             .flat_map(|prop| {
                 let type_ = self.get_literal_type_from_property(
-                    self.get_symbol_of_node(&**prop).unwrap(),
+                    &self.get_symbol_of_node(&**prop).unwrap(),
                     TypeFlags::StringOrNumberLiteralOrUnique,
                     None,
                 );

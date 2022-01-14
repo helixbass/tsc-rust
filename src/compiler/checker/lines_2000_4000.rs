@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn resolve_alias(&self, symbol: Rc<Symbol>) -> Rc<Symbol> {
+    pub(super) fn resolve_alias(&self, symbol: &Symbol) -> Rc<Symbol> {
         unimplemented!()
     }
 
@@ -61,12 +62,15 @@ impl TypeChecker {
         if symbol.flags().intersects(meaning) || dont_resolve_alias {
             Some(symbol)
         } else {
-            Some(self.resolve_alias(symbol))
+            Some(self.resolve_alias(&symbol))
         }
     }
 
-    pub(super) fn get_merged_symbol(&self, symbol: Option<Rc<Symbol>>) -> Option<Rc<Symbol>> {
-        symbol
+    pub(super) fn get_merged_symbol<TSymbolRef: Borrow<Symbol>>(
+        &self,
+        symbol: Option<TSymbolRef>,
+    ) -> Option<Rc<Symbol>> {
+        symbol.map(|symbol| symbol.borrow().symbol_wrapper())
     }
 
     pub(super) fn get_symbol_of_node<TNode: NodeInterface>(

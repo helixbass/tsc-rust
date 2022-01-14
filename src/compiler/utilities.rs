@@ -22,7 +22,7 @@ use crate::{
 };
 
 pub fn get_declaration_of_kind(
-    symbol: Rc<Symbol>,
+    symbol: &Symbol,
     kind: SyntaxKind,
 ) -> Option<Rc<Node /*T extends Declaration*/>> {
     let maybe_declarations = symbol.maybe_declarations();

@@ -37,7 +37,7 @@ impl TypeChecker {
 
     pub(super) fn get_name_of_symbol_as_written(
         &self,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
         context: Option<&NodeBuilderContext>,
     ) -> String {
         if let Some(declarations) = &*symbol.maybe_declarations() {
@@ -215,9 +215,9 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn get_non_missing_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {
+    pub(super) fn get_non_missing_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
         self.remove_missing_type(
-            &self.get_type_of_symbol(&*symbol),
+            &self.get_type_of_symbol(symbol),
             symbol.flags().intersects(SymbolFlags::Optional),
         )
     }
@@ -231,7 +231,7 @@ impl TypeChecker {
             type_parameters = Some(append_if_unique(
                 type_parameters,
                 self.get_declared_type_of_type_parameter(
-                    self.get_symbol_of_node(&**declaration).unwrap(),
+                    &self.get_symbol_of_node(&**declaration).unwrap(),
                 ),
             ));
         }
@@ -247,7 +247,7 @@ impl TypeChecker {
 
     pub(super) fn get_outer_type_parameters_of_class_or_interface(
         &self,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
     ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
         let declaration = if symbol.flags().intersects(SymbolFlags::Class) {
             symbol
@@ -267,7 +267,7 @@ impl TypeChecker {
 
     pub(super) fn get_local_type_parameters_of_class_or_interface_or_type_alias(
         &self,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
     ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
         let declarations = symbol.maybe_declarations();
         if declarations.is_none() {
@@ -293,9 +293,9 @@ impl TypeChecker {
 
     pub(super) fn get_declared_type_of_class_or_interface(
         &self,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
     ) -> Rc<Type /*InterfaceType*/> {
-        let links = self.get_symbol_links(&symbol);
+        let links = self.get_symbol_links(symbol);
         let original_links = links.clone();
         let mut original_links_ref = original_links.borrow_mut();
         if original_links_ref.declared_type.is_none() {
@@ -305,18 +305,18 @@ impl TypeChecker {
                 ObjectFlags::Interface
             };
 
-            let type_ = self.create_object_type(kind, symbol.clone());
+            let type_ = self.create_object_type(kind, symbol);
             let outer_type_parameters =
-                self.get_outer_type_parameters_of_class_or_interface(symbol.clone());
+                self.get_outer_type_parameters_of_class_or_interface(symbol);
             let local_type_parameters =
-                self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol.clone());
+                self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
             let type_: InterfaceType = if outer_type_parameters.is_some()
                 || local_type_parameters.is_some()
                 || kind == ObjectFlags::Class
                 || false
             {
                 type_.set_object_flags(type_.object_flags() | ObjectFlags::Reference);
-                let mut this_type = self.create_type_parameter(Some(symbol));
+                let mut this_type = self.create_type_parameter(Some(symbol.symbol_wrapper()));
                 this_type.is_this_type = Some(true);
                 BaseInterfaceType::new(
                     type_,
@@ -355,22 +355,25 @@ impl TypeChecker {
 
     pub(super) fn get_declared_type_of_type_parameter(
         &self,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
     ) -> Rc<Type /*TypeParameter*/> {
-        let links = self.get_symbol_links(&symbol);
+        let links = self.get_symbol_links(symbol);
         let mut links = links.borrow_mut();
         if links.declared_type.is_none() {
-            links.declared_type = Some(self.create_type_parameter(Some(symbol)).into());
+            links.declared_type = Some(
+                self.create_type_parameter(Some(symbol.symbol_wrapper()))
+                    .into(),
+            );
         }
         links.declared_type.clone().unwrap()
     }
 
-    pub(super) fn get_declared_type_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<Type> {
+    pub(super) fn get_declared_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
         self.try_get_declared_type_of_symbol(symbol)
             .unwrap_or_else(|| unimplemented!())
     }
 
-    pub(super) fn try_get_declared_type_of_symbol(&self, symbol: Rc<Symbol>) -> Option<Rc<Type>> {
+    pub(super) fn try_get_declared_type_of_symbol(&self, symbol: &Symbol) -> Option<Rc<Type>> {
         if symbol
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
@@ -396,7 +399,7 @@ impl TypeChecker {
                 if mapping_this_only && true {
                     symbol.clone()
                 } else {
-                    self.instantiate_symbol(symbol.clone(), mapper)
+                    self.instantiate_symbol(&symbol, mapper)
                 },
             );
         }
@@ -410,7 +413,7 @@ impl TypeChecker {
         };
         if type_as_interface_type.maybe_declared_properties().is_none() {
             let symbol = type_.symbol();
-            let members = self.get_members_of_symbol(symbol);
+            let members = self.get_members_of_symbol(&symbol);
             type_as_interface_type
                 .set_declared_properties(self.get_named_members(&*(*members).borrow()));
         }
@@ -451,7 +454,7 @@ impl TypeChecker {
         Debug_.fail(None)
     }
 
-    pub(super) fn get_members_of_symbol(&self, symbol: Rc<Symbol>) -> Rc<RefCell<SymbolTable>> {
+    pub(super) fn get_members_of_symbol(&self, symbol: &Symbol) -> Rc<RefCell<SymbolTable>> {
         if false {
             unimplemented!()
         } else {
@@ -473,7 +476,7 @@ impl TypeChecker {
         let mut mapper: Option<TypeMapper> = None;
         if range_equals(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.maybe_symbol() {
-                self.get_members_of_symbol(source_symbol)
+                self.get_members_of_symbol(&source_symbol)
             } else {
                 unimplemented!()
             };
@@ -599,7 +602,7 @@ impl TypeChecker {
                 .get(name)
                 .map(Clone::clone);
             if let Some(symbol) = symbol {
-                if self.symbol_is_value(symbol.clone()) {
+                if self.symbol_is_value(&symbol) {
                     return Some(symbol);
                 }
             }

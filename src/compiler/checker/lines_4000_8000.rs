@@ -17,22 +17,23 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn get_export_symbol_of_value_symbol_if_exported(
+    pub(super) fn get_export_symbol_of_value_symbol_if_exported<TSymbolRef: Borrow<Symbol>>(
         &self,
-        symbol: Option<Rc<Symbol>>,
+        symbol: Option<TSymbolRef>,
     ) -> Option<Rc<Symbol>> {
         self.get_merged_symbol(if let Some(symbol) = symbol {
+            let symbol = symbol.borrow();
             if symbol.flags().intersects(SymbolFlags::ExportValue) {
                 unimplemented!()
             } else {
-                Some(symbol)
+                Some(symbol.symbol_wrapper())
             }
         } else {
-            symbol
+            None
         })
     }
 
-    pub(super) fn symbol_is_value(&self, symbol: Rc<Symbol>) -> bool {
+    pub(super) fn symbol_is_value(&self, symbol: &Symbol) -> bool {
         symbol.flags().intersects(SymbolFlags::Value)
     }
 
@@ -56,18 +57,22 @@ impl TypeChecker {
     pub(super) fn create_object_type(
         &self,
         object_flags: ObjectFlags,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
     ) -> BaseObjectType {
         let mut type_ = self.create_type(TypeFlags::Object);
-        type_.set_symbol(symbol);
+        type_.set_symbol(symbol.symbol_wrapper());
         let type_ = BaseObjectType::new(type_, object_flags);
         type_
     }
 
-    pub(super) fn create_type_parameter(&self, symbol: Option<Rc<Symbol>>) -> TypeParameter {
+    pub(super) fn create_type_parameter<TSymbolRef: Borrow<Symbol>>(
+        &self,
+        symbol: Option<TSymbolRef>,
+    ) -> TypeParameter {
         let mut type_ = self.create_type(TypeFlags::TypeParameter);
         if let Some(symbol) = symbol {
-            type_.set_symbol(symbol);
+            let symbol = symbol.borrow();
+            type_.set_symbol(symbol.symbol_wrapper());
         }
         let type_ = TypeParameter::new(type_);
         type_
@@ -108,12 +113,12 @@ impl TypeChecker {
     pub(super) fn get_named_members(&self, members: &SymbolTable) -> Vec<Rc<Symbol>> {
         members
             .iter()
-            .filter(|(id, symbol)| self.is_named_member((*symbol).clone(), id))
+            .filter(|(id, symbol)| self.is_named_member(&symbol, id))
             .map(|(_, symbol)| symbol.clone())
             .collect()
     }
 
-    pub(super) fn is_named_member(&self, member: Rc<Symbol>, escaped_name: &__String) -> bool {
+    pub(super) fn is_named_member(&self, member: &Symbol, escaped_name: &__String) -> bool {
         !self.is_reserved_member_name(escaped_name) && self.symbol_is_value(member)
     }
 
@@ -134,7 +139,7 @@ impl TypeChecker {
 
     pub(super) fn create_anonymous_type(
         &self,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
         members: Rc<RefCell<SymbolTable>>,
     ) -> BaseObjectType {
         let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);
@@ -144,7 +149,7 @@ impl TypeChecker {
 
     pub(super) fn symbol_to_string(
         &self,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
         enclosing_declaration: Option<&Node>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
@@ -257,7 +262,7 @@ impl TypeChecker {
         right: &Type,
     ) -> (String, String) {
         let left_str = if let Some(symbol) = left.maybe_symbol() {
-            if self.symbol_value_declaration_is_context_sensitive(symbol.clone()) {
+            if self.symbol_value_declaration_is_context_sensitive(&symbol) {
                 let enclosing_declaration = (*symbol.maybe_value_declaration().borrow())
                     .clone()
                     .map(|weak| weak.upgrade().unwrap());
@@ -269,7 +274,7 @@ impl TypeChecker {
             self.type_to_string(left, Option::<&Node>::None, None)
         };
         let right_str = if let Some(symbol) = right.maybe_symbol() {
-            if self.symbol_value_declaration_is_context_sensitive(symbol.clone()) {
+            if self.symbol_value_declaration_is_context_sensitive(&symbol) {
                 let enclosing_declaration = (*symbol.maybe_value_declaration().borrow())
                     .clone()
                     .map(|weak| weak.upgrade().unwrap());
@@ -291,7 +296,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn symbol_value_declaration_is_context_sensitive(&self, symbol: Rc<Symbol>) -> bool {
+    pub(super) fn symbol_value_declaration_is_context_sensitive(&self, symbol: &Symbol) -> bool {
         match &*symbol.maybe_value_declaration() {
             Some(value_declaration) => {
                 let value_declaration = value_declaration.upgrade().unwrap();
@@ -339,7 +344,7 @@ impl NodeBuilder {
     pub fn symbol_to_expression(
         &self,
         type_checker: &TypeChecker,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
@@ -431,7 +436,7 @@ impl NodeBuilder {
             || object_flags.intersects(ObjectFlags::ClassOrInterface)
         {
             return if let Some(symbol) = type_.maybe_symbol() {
-                self.symbol_to_type_node(type_checker, symbol, context, SymbolFlags::Type)
+                self.symbol_to_type_node(type_checker, &symbol, context, SymbolFlags::Type)
             } else {
                 unimplemented!()
             };
@@ -532,7 +537,7 @@ impl NodeBuilder {
         for property_symbol in &*properties {
             self.add_property_to_element_list(
                 type_checker,
-                property_symbol.clone(),
+                &property_symbol,
                 context,
                 &mut type_elements,
             );
@@ -547,17 +552,16 @@ impl NodeBuilder {
     fn add_property_to_element_list(
         &self,
         type_checker: &TypeChecker,
-        property_symbol: Rc<Symbol>,
+        property_symbol: &Symbol,
         context: &NodeBuilderContext,
         type_elements: &mut Vec<Rc<Node /*TypeElement*/>>,
     ) {
         let property_type = if false {
             unimplemented!()
         } else {
-            type_checker.get_non_missing_type_of_symbol(property_symbol.clone())
+            type_checker.get_non_missing_type_of_symbol(property_symbol)
         };
-        let property_name =
-            self.get_property_name_node_for_symbol(property_symbol.clone(), context);
+        let property_name = self.get_property_name_node_for_symbol(property_symbol, context);
         if false {
             unimplemented!()
         } else {
@@ -617,7 +621,7 @@ impl NodeBuilder {
 
     fn lookup_symbol_chain(
         &self,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
     ) -> Vec<Rc<Symbol>> {
@@ -626,7 +630,7 @@ impl NodeBuilder {
 
     fn lookup_symbol_chain_worker(
         &self,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
     ) -> Vec<Rc<Symbol>> {
@@ -634,7 +638,7 @@ impl NodeBuilder {
         if false {
             unimplemented!()
         } else {
-            chain = vec![symbol];
+            chain = vec![symbol.symbol_wrapper()];
         }
         chain
     }
@@ -642,7 +646,7 @@ impl NodeBuilder {
     fn symbol_to_type_node(
         &self,
         type_checker: &TypeChecker,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: SymbolFlags,
     ) -> TypeNode {
@@ -678,14 +682,12 @@ impl NodeBuilder {
 
         let mut symbol_name: Option<String>;
         if index == 0 {
-            symbol_name =
-                Some(type_checker.get_name_of_symbol_as_written(symbol.clone(), Some(context)));
+            symbol_name = Some(type_checker.get_name_of_symbol_as_written(&symbol, Some(context)));
         } else {
             unimplemented!()
         }
         if symbol_name.is_none() {
-            symbol_name =
-                Some(type_checker.get_name_of_symbol_as_written(symbol.clone(), Some(context)));
+            symbol_name = Some(type_checker.get_name_of_symbol_as_written(&symbol, Some(context)));
         }
         let symbol_name = symbol_name.unwrap();
 
@@ -698,7 +700,7 @@ impl NodeBuilder {
     fn _symbol_to_expression(
         &self,
         type_checker: &TypeChecker,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
     ) -> Expression {
@@ -709,7 +711,7 @@ impl NodeBuilder {
 
     fn get_property_name_node_for_symbol(
         &self,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
         context: &NodeBuilderContext,
     ) -> Rc<Node> {
         let single_quote = false;
@@ -743,13 +745,13 @@ impl NodeBuilder {
         chain: Vec<Rc<Symbol>>,
         index: usize,
     ) -> Expression {
-        let symbol = (&chain)[index].clone();
+        let symbol = &*(&chain)[index];
 
-        let symbol_name = type_checker.get_name_of_symbol_as_written(symbol.clone(), Some(context));
+        let symbol_name = type_checker.get_name_of_symbol_as_written(symbol, Some(context));
 
         if index == 0 || false {
             let identifier = factory.create_identifier(&self.synthetic_factory, &symbol_name);
-            identifier.set_symbol(symbol);
+            identifier.set_symbol(symbol.symbol_wrapper());
             return identifier.into();
         } else {
             unimplemented!()
@@ -761,7 +763,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type,
-        symbol: Rc<Symbol>,
+        symbol: &Symbol,
     ) -> TypeNode {
         let result = self.type_to_type_node_helper(type_checker, type_, context);
         result

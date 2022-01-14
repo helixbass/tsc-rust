@@ -211,7 +211,7 @@ impl TypeChecker {
 
         let create_object_literal_type = || {
             let result =
-                self.create_anonymous_type(node.symbol(), Rc::new(RefCell::new(properties_table)));
+                self.create_anonymous_type(&node.symbol(), Rc::new(RefCell::new(properties_table)));
             result.set_object_flags(
                 result.object_flags()
                     | object_flags
