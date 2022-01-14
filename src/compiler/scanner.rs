@@ -22,6 +22,7 @@ lazy_static! {
             ("bigint".to_string(), SyntaxKind::BigIntKeyword),
             ("boolean".to_string(), SyntaxKind::BooleanKeyword),
             ("const".to_string(), SyntaxKind::ConstKeyword),
+            ("declare".to_string(), SyntaxKind::DeclareKeyword),
             ("else".to_string(), SyntaxKind::ElseKeyword),
             ("false".to_string(), SyntaxKind::FalseKeyword),
             ("if".to_string(), SyntaxKind::IfKeyword),

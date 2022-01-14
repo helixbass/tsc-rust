@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::BitAndAssign;
+use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
@@ -65,14 +66,20 @@ pub enum SyntaxKind {
     ExclamationToken,
     QuestionToken,
     ColonToken,
+    AtToken,
     EqualsToken,
     Identifier,
     PrivateIdentifier,
     BreakKeyword,
+    ClassKeyword,
     ConstKeyword,
+    DefaultKeyword,
     ElseKeyword,
+    EnumKeyword,
+    ExportKeyword,
     ExtendsKeyword,
     FalseKeyword,
+    FunctionKeyword,
     IfKeyword,
     ImportKeyword,
     NewKeyword,
@@ -84,14 +91,24 @@ pub enum SyntaxKind {
     WithKeyword,
     ImplementsKeyword,
     InterfaceKeyword,
+    PrivateKeyword,
+    ProtectedKeyword,
+    PublicKeyword,
+    StaticKeyword,
+    AbstractKeyword,
+    AsKeyword,
     AssertsKeyword,
     AnyKeyword,
+    AsyncKeyword,
     BooleanKeyword,
+    DeclareKeyword,
+    GetKeyword,
     InferKeyword,
     NeverKeyword,
-    NumberKeyword,
     ReadonlyKeyword,
+    NumberKeyword,
     ObjectKeyword,
+    SetKeyword,
     StringKeyword,
     SymbolKeyword,
     TypeKeyword,
@@ -99,6 +116,7 @@ pub enum SyntaxKind {
     UniqueKeyword,
     UnknownKeyword,
     BigIntKeyword,
+    OverrideKeyword,
     OfKeyword,
 
     QualifiedName,
@@ -222,6 +240,7 @@ pub trait NodeInterface: ReadonlyTextRange {
 pub enum Node {
     BaseNode(BaseNode),
     TypeParameterDeclaration(TypeParameterDeclaration),
+    Decorator(Decorator),
     VariableDeclaration(VariableDeclaration),
     VariableDeclarationList(VariableDeclarationList),
     TypeNode(TypeNode),
@@ -584,6 +603,14 @@ impl<'node_array> IntoIterator for &'node_array NodeArray {
     }
 }
 
+impl Deref for NodeArray {
+    type Target = [Rc<Node>];
+
+    fn deref(&self) -> &Self::Target {
+        &self._nodes
+    }
+}
+
 pub enum NodeArrayOrVec {
     NodeArray(NodeArray),
     Vec(Vec<Rc<Node>>),
@@ -745,6 +772,13 @@ impl TypeParameterDeclaration {
             _named_declaration: base_named_declaration,
         }
     }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct Decorator {
+    _node: BaseNode,
+    expression: Rc<Node /*LeftHandSideExpression*/>,
 }
 
 #[derive(Debug)]

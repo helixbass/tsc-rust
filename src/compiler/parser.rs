@@ -7,11 +7,12 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    attach_file_to_diagnostics, create_detached_diagnostic, create_node_factory, create_scanner,
-    get_binary_operator_precedence, is_literal_kind, last_or_undefined, normalize_path,
-    object_allocator, set_text_range_pos_end, token_is_identifier_or_keyword, token_to_string,
-    ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, Expression,
+    append, attach_file_to_diagnostics, create_detached_diagnostic, create_node_factory,
+    create_scanner, get_binary_operator_precedence, is_literal_kind, is_modifier_kind,
+    last_or_undefined, normalize_path, object_allocator, set_text_range_pos_end, some,
+    token_is_identifier_or_keyword, token_to_string, ArrayLiteralExpression, BaseNode,
+    BaseNodeFactory, BinaryExpression, Block, Debug_, Decorator, Diagnostic, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, Expression,
     HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
     InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
@@ -647,7 +648,7 @@ impl ParserType {
         unimplemented!()
     }
 
-    fn parse_optional(&mut self, t: SyntaxKind) -> bool {
+    fn parse_optional(&self, t: SyntaxKind) -> bool {
         if self.token() == t {
             self.next_token();
             return true;
@@ -802,6 +803,82 @@ impl ParserType {
 
     fn parse_property_name(&mut self) -> Node /*PropertyName*/ {
         self.parse_property_name_worker()
+    }
+
+    fn next_token_is_on_same_line_and_can_follow_modifier(&self) -> bool {
+        self.next_token();
+        if self.scanner().has_preceding_line_break() {
+            return false;
+        }
+        self.can_follow_modifier()
+    }
+
+    fn next_token_can_follow_modifier(&self) -> bool {
+        match self.token() {
+            SyntaxKind::ConstKeyword => self.next_token() == SyntaxKind::EnumKeyword,
+            SyntaxKind::ExportKeyword => {
+                self.next_token();
+                if self.token() == SyntaxKind::DefaultKeyword {
+                    return self
+                        .look_ahead(|| Some(self.next_token_can_follow_default_keyword()))
+                        .unwrap();
+                }
+                if self.token() == SyntaxKind::TypeKeyword {
+                    return self
+                        .look_ahead(|| Some(self.next_token_can_follow_export_modifier()))
+                        .unwrap();
+                }
+                self.can_follow_export_modifier()
+            }
+            SyntaxKind::DefaultKeyword => self.next_token_can_follow_default_keyword(),
+            SyntaxKind::StaticKeyword | SyntaxKind::GetKeyword | SyntaxKind::SetKeyword => {
+                self.next_token();
+                self.can_follow_modifier()
+            }
+            _ => self.next_token_is_on_same_line_and_can_follow_modifier(),
+        }
+    }
+
+    fn can_follow_export_modifier(&self) -> bool {
+        self.token() != SyntaxKind::AsteriskToken
+            && self.token() != SyntaxKind::AsKeyword
+            && self.token() != SyntaxKind::OpenBraceToken
+            && self.can_follow_modifier()
+    }
+
+    fn next_token_can_follow_export_modifier(&self) -> bool {
+        self.next_token();
+        self.can_follow_export_modifier()
+    }
+
+    fn parse_any_contextual_modifier(&self) -> bool {
+        is_modifier_kind(self.token())
+            && self
+                .try_parse(|| Some(self.next_token_can_follow_modifier()))
+                .unwrap()
+    }
+
+    fn can_follow_modifier(&self) -> bool {
+        self.token() == SyntaxKind::OpenBracketToken
+            || self.token() == SyntaxKind::OpenBraceToken
+            || self.token() == SyntaxKind::AsteriskToken
+            || self.token() == SyntaxKind::DotDotDotToken
+            || self.is_literal_property_name()
+    }
+
+    fn next_token_can_follow_default_keyword(&self) -> bool {
+        self.next_token();
+        self.token() == SyntaxKind::ClassKeyword
+            || self.token() == SyntaxKind::FunctionKeyword
+            || self.token() == SyntaxKind::InterfaceKeyword
+            || self.token() == SyntaxKind::AbstractKeyword
+                && self
+                    .look_ahead(|| Some(self.next_token_is_class_keyword_on_same_line()))
+                    .unwrap()
+            || self.token() == SyntaxKind::AsyncKeyword
+                && self
+                    .look_ahead(|| Some(self.next_token_is_function_keyword_on_same_line()))
+                    .unwrap()
     }
 
     fn is_list_element(&mut self, kind: ParsingContext) -> bool {
@@ -1660,6 +1737,16 @@ impl ParserType {
         )
     }
 
+    fn next_token_is_class_keyword_on_same_line(&self) -> bool {
+        self.next_token();
+        self.token() == SyntaxKind::ClassKeyword && !self.scanner().has_preceding_line_break()
+    }
+
+    fn next_token_is_function_keyword_on_same_line(&self) -> bool {
+        self.next_token();
+        self.token() == SyntaxKind::FunctionKeyword && !self.scanner().has_preceding_line_break()
+    }
+
     fn is_declaration(&self) -> bool {
         loop {
             match self.token() {
@@ -1668,6 +1755,13 @@ impl ParserType {
                 }
                 SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
                     return self.next_token_is_identifier_on_same_line();
+                }
+                SyntaxKind::DeclareKeyword => {
+                    self.next_token();
+                    if self.scanner().has_preceding_line_break() {
+                        return false;
+                    }
+                    continue;
                 }
                 _ => unimplemented!(),
             }
@@ -1682,7 +1776,9 @@ impl ParserType {
         match self.token() {
             SyntaxKind::SemicolonToken | SyntaxKind::IfKeyword => true,
             SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
-            SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => true,
+            SyntaxKind::DeclareKeyword | SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
+                true
+            }
             _ => self.is_start_of_expression(),
         }
     }
@@ -1697,7 +1793,7 @@ impl ParserType {
                     return self.parse_declaration();
                 }
             }
-            SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
+            SyntaxKind::DeclareKeyword | SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
                 if self.is_start_of_declaration() {
                     return self.parse_declaration();
                 }
@@ -1707,7 +1803,24 @@ impl ParserType {
         self.parse_expression_or_labeled_statement()
     }
 
+    fn is_declare_modifier(&self, modifier: &Node /*Modifier*/) -> bool {
+        modifier.kind() == SyntaxKind::DeclareKeyword
+    }
+
     fn parse_declaration(&mut self) -> Statement {
+        let is_ambient = some(
+            self.look_ahead(|| {
+                self.parse_decorators();
+                self.parse_modifiers(None, None)
+            })
+            .as_ref()
+            .map(|node_array| {
+                let node_array: &[Rc<Node>] = node_array;
+                node_array
+            }),
+            Some(|modifier: &Rc<Node>| self.is_declare_modifier(&**modifier)),
+        );
+
         let pos = self.get_node_pos();
         if false {
             unimplemented!()
@@ -1800,6 +1913,98 @@ impl ParserType {
         self.finish_node(node.into(), pos, None)
     }
 
+    fn try_parse_decorator(&self) -> Option<Decorator> {
+        let pos = self.get_node_pos();
+        if !self.parse_optional(SyntaxKind::AtToken) {
+            return None;
+        }
+        unimplemented!()
+    }
+
+    fn parse_decorators(&self) -> Option<NodeArray /*<Decorator>*/> {
+        let pos = self.get_node_pos();
+        let mut list: Option<Vec<Node>> = None;
+        loop {
+            let decorator = self.try_parse_decorator();
+            if decorator.is_none() {
+                break;
+            }
+            let decorator = decorator.unwrap();
+            if list.is_none() {
+                list = Some(vec![]);
+            }
+            let list = list.as_mut().unwrap();
+            append(list, Some(decorator.into()));
+        }
+        list.map(|list| self.create_node_array(list, pos, None, None))
+    }
+
+    fn try_parse_modifier(
+        &self,
+        permit_invalid_const_as_modifier: Option<bool>,
+        stop_on_start_of_class_static_block: Option<bool>,
+        has_seen_static_modifier: Option<bool>,
+    ) -> Option<Node /*Modifier*/> {
+        let permit_invalid_const_as_modifier = permit_invalid_const_as_modifier.unwrap_or(false);
+        let stop_on_start_of_class_static_block =
+            stop_on_start_of_class_static_block.unwrap_or(false);
+        let has_seen_static_modifier = has_seen_static_modifier.unwrap_or(false);
+        let pos = self.get_node_pos();
+        let kind = self.token();
+
+        if self.token() == SyntaxKind::ConstKeyword && permit_invalid_const_as_modifier {
+            unimplemented!()
+        } else if stop_on_start_of_class_static_block
+            && self.token() == SyntaxKind::StaticKeyword
+            && self
+                .look_ahead(|| Some(self.next_token_is_open_brace()))
+                .unwrap()
+        {
+            return None;
+        } else if has_seen_static_modifier && self.token() == SyntaxKind::StaticKeyword {
+            return None;
+        } else {
+            if !self.parse_any_contextual_modifier() {
+                return None;
+            }
+        }
+
+        Some(
+            self.finish_node(self.factory.create_token(self, kind), pos, None)
+                .into(),
+        )
+    }
+
+    fn parse_modifiers(
+        &self,
+        permit_invalid_const_as_modifier: Option<bool>,
+        stop_on_start_of_class_static_block: Option<bool>,
+    ) -> Option<NodeArray /*<Modifier>*/> {
+        let pos = self.get_node_pos();
+        let mut list: Option<Vec<Node>> = None;
+        let mut has_seen_static = false;
+        loop {
+            let modifier = self.try_parse_modifier(
+                permit_invalid_const_as_modifier,
+                stop_on_start_of_class_static_block,
+                Some(has_seen_static),
+            );
+            if modifier.is_none() {
+                break;
+            }
+            let modifier = modifier.unwrap();
+            if modifier.kind() == SyntaxKind::StaticKeyword {
+                has_seen_static = true;
+            }
+            if list.is_none() {
+                list = Some(vec![]);
+            }
+            let list = list.as_mut().unwrap();
+            append(list, Some(modifier.into()));
+        }
+        list.map(|list| self.create_node_array(list, pos, None, None))
+    }
+
     fn parse_interface_declaration(&mut self, pos: isize) -> InterfaceDeclaration {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None, None);
         let name = self.parse_identifier(None);
@@ -1829,6 +2034,10 @@ impl ParserType {
             type_.into(),
         );
         self.finish_node(node, pos, None)
+    }
+
+    fn next_token_is_open_brace(&self) -> bool {
+        self.next_token() == SyntaxKind::OpenBraceToken
     }
 }
 
