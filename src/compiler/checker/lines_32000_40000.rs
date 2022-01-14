@@ -23,7 +23,7 @@ impl TypeChecker {
         diagnostic: &DiagnosticMessage,
     ) -> bool {
         if !self.is_type_assignable_to(type_, &self.number_or_big_int_type()) {
-            self.error_and_maybe_suggest_await(operand, diagnostic);
+            self.error_and_maybe_suggest_await(operand, diagnostic, None);
             return false;
         }
         true
@@ -269,8 +269,9 @@ impl TypeChecker {
     pub(super) fn check_property_signature(&mut self, node: &PropertySignature) {
         if is_private_identifier(&*node.name()) {
             self.error(
-                Some(node),
+                Some(node.node_wrapper()),
                 &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+                None,
             );
         }
         self.check_property_declaration(node)

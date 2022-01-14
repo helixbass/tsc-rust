@@ -1295,6 +1295,7 @@ pub struct TypeChecker {
     pub number_literal_types: RefCell<HashMap<Number, Rc</*NumberLiteralType*/ Type>>>,
     pub unknown_symbol: Option<Rc<Symbol>>,
     pub any_type: Option<Rc<Type>>,
+    pub error_type: Option<Rc<Type>>,
     pub number_type: Option<Rc<Type>>,
     pub bigint_type: Option<Rc<Type>>,
     pub true_type: Option<Rc<Type>>,
@@ -1309,6 +1310,7 @@ pub struct TypeChecker {
     pub node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
     pub diagnostics: RefCell<DiagnosticCollection>,
     pub assignable_relation: HashMap<String, RelationComparisonResult>,
+    pub comparable_relation: HashMap<String, RelationComparisonResult>,
 }
 
 bitflags! {

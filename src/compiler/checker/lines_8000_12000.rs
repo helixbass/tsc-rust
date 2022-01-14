@@ -310,11 +310,13 @@ impl TypeChecker {
                 self.get_outer_type_parameters_of_class_or_interface(symbol);
             let local_type_parameters =
                 self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+            let mut need_to_set_constraint = false;
             let type_: InterfaceType = if outer_type_parameters.is_some()
                 || local_type_parameters.is_some()
                 || kind == ObjectFlags::Class
                 || false
             {
+                need_to_set_constraint = true;
                 type_.set_object_flags(type_.object_flags() | ObjectFlags::Reference);
                 let mut this_type = self.create_type_parameter(Some(symbol.symbol_wrapper()));
                 this_type.is_this_type = Some(true);
@@ -333,16 +335,18 @@ impl TypeChecker {
             }
             .into();
             let type_rc: Rc<Type> = type_.into();
-            match &*type_rc {
-                Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
-                    base_interface_type,
-                ))) => match &**base_interface_type.this_type.borrow_mut().as_ref().unwrap() {
-                    Type::TypeParameter(type_parameter) => {
-                        *type_parameter.constraint.borrow_mut() = Some(Rc::downgrade(&type_rc));
-                    }
-                    _ => panic!("Expected TypeParameter"),
-                },
-                _ => panic!("Expected BaseInterfaceType"),
+            if need_to_set_constraint {
+                match &*type_rc {
+                    Type::ObjectType(ObjectType::InterfaceType(
+                        InterfaceType::BaseInterfaceType(base_interface_type),
+                    )) => match &**base_interface_type.this_type.borrow_mut().as_ref().unwrap() {
+                        Type::TypeParameter(type_parameter) => {
+                            *type_parameter.constraint.borrow_mut() = Some(Rc::downgrade(&type_rc));
+                        }
+                        _ => panic!("Expected TypeParameter"),
+                    },
+                    _ => panic!("Expected BaseInterfaceType"),
+                }
             }
             original_links_ref.declared_type = Some(type_rc.clone());
             if !Rc::ptr_eq(&links, &original_links) {

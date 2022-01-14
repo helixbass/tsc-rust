@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -11,24 +12,26 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn create_error<TNode: NodeInterface>(
+    pub(super) fn create_error<TNodeRef: Borrow<Node>>(
         &self,
-        location: Option<&TNode>,
+        location: Option<TNodeRef>,
         message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
     ) -> Rc<Diagnostic> {
         if let Some(location) = location {
-            Rc::new(create_diagnostic_for_node(location, message).into())
+            Rc::new(create_diagnostic_for_node(location.borrow(), message, args).into())
         } else {
             unimplemented!()
         }
     }
 
-    pub(super) fn error<TNode: NodeInterface>(
+    pub(super) fn error<TNodeRef: Borrow<Node>>(
         &self,
-        location: Option<&TNode>,
+        location: Option<TNodeRef>,
         message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
     ) -> Rc<Diagnostic> {
-        let diagnostic = self.create_error(location, message);
+        let diagnostic = self.create_error(location, message, args);
         self.diagnostics().add(diagnostic.clone());
         diagnostic
     }
@@ -37,8 +40,9 @@ impl TypeChecker {
         &self,
         location: &TNode,
         message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
     ) -> Rc<Diagnostic> {
-        let diagnostic = self.error(Some(location), message);
+        let diagnostic = self.error(Some(location.node_wrapper()), message, args);
         diagnostic
     }
 
@@ -160,6 +164,7 @@ impl TypeChecker {
         let mut location: Option<Rc<Node>> = location.map(|node| node.node_wrapper());
         let mut result: Option<Rc<Symbol>> = None;
         let mut last_location: Option<Rc<Node>> = None;
+        let error_location = location.clone();
 
         while let Some(location_unwrapped) = location {
             if location_unwrapped.maybe_locals().is_some()
@@ -200,6 +205,27 @@ impl TypeChecker {
             if !exclude_globals {
                 result = lookup(self, &self.globals(), name, meaning);
             }
+        }
+
+        if result.is_none() {
+            if let Some(name_not_found_message) = name_not_found_message {
+                if true {
+                    let mut suggestion: Option<Rc<Symbol>> = None;
+                    if let Some(name_arg) = name_arg {
+                        let name_arg = name_arg.into();
+                        if false {
+                            unimplemented!()
+                        } else {
+                            self.error(
+                                error_location,
+                                &name_not_found_message,
+                                Some(vec![self.diagnostic_name(name_arg)]),
+                            );
+                        }
+                    }
+                }
+            }
+            return None;
         }
 
         result

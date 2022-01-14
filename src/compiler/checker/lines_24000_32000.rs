@@ -20,6 +20,9 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         let symbol = self.get_resolved_symbol(node);
+        if Rc::ptr_eq(&symbol, &self.unknown_symbol()) {
+            return self.error_type();
+        }
 
         let local_or_export_symbol = self
             .get_export_symbol_of_value_symbol_if_exported(Some(symbol))
