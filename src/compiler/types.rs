@@ -9,7 +9,7 @@ use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
 use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
-use local_macros::{ast_type, type_type};
+use local_macros::{ast_type, symbol_type, type_type};
 
 pub struct Path(String);
 
@@ -1439,6 +1439,8 @@ bitflags! {
 }
 
 pub trait SymbolInterface {
+    fn symbol_wrapper(&self) -> Rc<Symbol>;
+    fn set_symbol_wrapper(&self, wrapper: Rc<Symbol>);
     fn flags(&self) -> SymbolFlags;
     fn set_flags(&self, flags: SymbolFlags);
     fn escaped_name(&self) -> &__String;
@@ -1456,103 +1458,15 @@ pub trait SymbolInterface {
 pub type SymbolId = u32;
 
 #[derive(Debug)]
+#[symbol_type(impl_from = false)]
 pub enum Symbol {
     BaseSymbol(BaseSymbol),
     TransientSymbol(TransientSymbol),
 }
 
-impl SymbolInterface for Symbol {
-    fn flags(&self) -> SymbolFlags {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.flags(),
-            Symbol::TransientSymbol(transient_symbol) => transient_symbol.flags(),
-        }
-    }
-
-    fn set_flags(&self, flags: SymbolFlags) {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.set_flags(flags),
-            Symbol::TransientSymbol(transient_symbol) => transient_symbol.set_flags(flags),
-        }
-    }
-
-    fn escaped_name(&self) -> &__String {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.escaped_name(),
-            Symbol::TransientSymbol(transient_symbol) => transient_symbol.escaped_name(),
-        }
-    }
-
-    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.maybe_declarations(),
-            Symbol::TransientSymbol(transient_symbol) => transient_symbol.maybe_declarations(),
-        }
-    }
-
-    fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.set_declarations(declarations),
-            Symbol::TransientSymbol(transient_symbol) => {
-                transient_symbol.set_declarations(declarations)
-            }
-        }
-    }
-
-    fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>> {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.maybe_value_declaration(),
-            Symbol::TransientSymbol(transient_symbol) => transient_symbol.maybe_value_declaration(),
-        }
-    }
-
-    fn set_value_declaration(&self, node: Rc<Node>) {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.set_value_declaration(node),
-            Symbol::TransientSymbol(transient_symbol) => {
-                transient_symbol.set_value_declaration(node)
-            }
-        }
-    }
-
-    fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.maybe_members(),
-            Symbol::TransientSymbol(transient_symbol) => transient_symbol.maybe_members(),
-        }
-    }
-
-    fn members(&self) -> Rc<RefCell<SymbolTable>> {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.members(),
-            Symbol::TransientSymbol(transient_symbol) => transient_symbol.members(),
-        }
-    }
-
-    fn maybe_id(&self) -> Option<SymbolId> {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.maybe_id(),
-            Symbol::TransientSymbol(transient_symbol) => transient_symbol.maybe_id(),
-        }
-    }
-
-    fn id(&self) -> SymbolId {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.id(),
-            Symbol::TransientSymbol(transient_symbol) => transient_symbol.id(),
-        }
-    }
-
-    fn set_id(&self, id: SymbolId) {
-        match self {
-            Symbol::BaseSymbol(base_symbol) => base_symbol.set_id(id),
-            Symbol::TransientSymbol(transient_symbol) => transient_symbol.set_id(id),
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct BaseSymbol {
+    _symbol_wrapper: RefCell<Option<Weak<Symbol>>>,
     flags: Cell<SymbolFlags>,
     escaped_name: __String,
     declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
@@ -1564,6 +1478,7 @@ pub struct BaseSymbol {
 impl BaseSymbol {
     pub fn new(flags: SymbolFlags, name: __String) -> Self {
         Self {
+            _symbol_wrapper: RefCell::new(None),
             flags: Cell::new(flags),
             escaped_name: name,
             declarations: RefCell::new(None),
@@ -1575,6 +1490,19 @@ impl BaseSymbol {
 }
 
 impl SymbolInterface for BaseSymbol {
+    fn symbol_wrapper(&self) -> Rc<Symbol> {
+        self._symbol_wrapper
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .upgrade()
+            .unwrap()
+    }
+
+    fn set_symbol_wrapper(&self, wrapper: Rc<Symbol>) {
+        *self._symbol_wrapper.borrow_mut() = Some(Rc::downgrade(&wrapper));
+    }
+
     fn flags(&self) -> SymbolFlags {
         self.flags.get()
     }
@@ -1670,133 +1598,13 @@ pub trait TransientSymbolInterface: SymbolInterface {
 }
 
 #[derive(Debug)]
+#[symbol_type(interfaces = "TransientSymbolInterface")]
 pub enum TransientSymbol {
     BaseTransientSymbol(BaseTransientSymbol),
 }
 
-impl SymbolInterface for TransientSymbol {
-    fn flags(&self) -> SymbolFlags {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.flags()
-            }
-        }
-    }
-
-    fn set_flags(&self, flags: SymbolFlags) {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.set_flags(flags)
-            }
-        }
-    }
-
-    fn escaped_name(&self) -> &__String {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.escaped_name()
-            }
-        }
-    }
-
-    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.maybe_declarations()
-            }
-        }
-    }
-
-    fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.set_declarations(declarations)
-            }
-        }
-    }
-
-    fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>> {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.maybe_value_declaration()
-            }
-        }
-    }
-
-    fn set_value_declaration(&self, node: Rc<Node>) {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.set_value_declaration(node)
-            }
-        }
-    }
-
-    fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.maybe_members()
-            }
-        }
-    }
-
-    fn members(&self) -> Rc<RefCell<SymbolTable>> {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.members()
-            }
-        }
-    }
-
-    fn maybe_id(&self) -> Option<SymbolId> {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.maybe_id()
-            }
-        }
-    }
-
-    fn id(&self) -> SymbolId {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.id()
-            }
-        }
-    }
-
-    fn set_id(&self, id: SymbolId) {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.set_id(id)
-            }
-        }
-    }
-}
-
-impl TransientSymbolInterface for TransientSymbol {
-    fn symbol_links(&self) -> Rc<RefCell<SymbolLinks>> {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.symbol_links()
-            }
-        }
-    }
-
-    fn check_flags(&self) -> CheckFlags {
-        match self {
-            TransientSymbol::BaseTransientSymbol(base_transient_symbol) => {
-                base_transient_symbol.check_flags()
-            }
-        }
-    }
-}
-
-impl From<TransientSymbol> for Symbol {
-    fn from(transient_symbol: TransientSymbol) -> Self {
-        Symbol::TransientSymbol(transient_symbol)
-    }
-}
-
 #[derive(Debug)]
+#[symbol_type(ancestors = "TransientSymbol")]
 pub struct BaseTransientSymbol {
     _symbol: BaseSymbol,
     _symbol_links: Rc<RefCell<SymbolLinks>>,
@@ -1813,56 +1621,6 @@ impl BaseTransientSymbol {
     }
 }
 
-impl SymbolInterface for BaseTransientSymbol {
-    fn flags(&self) -> SymbolFlags {
-        self._symbol.flags()
-    }
-
-    fn set_flags(&self, flags: SymbolFlags) {
-        self._symbol.set_flags(flags);
-    }
-
-    fn escaped_name(&self) -> &__String {
-        self._symbol.escaped_name()
-    }
-
-    fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
-        self._symbol.maybe_declarations()
-    }
-
-    fn set_declarations(&self, declarations: Vec<Rc<Node>>) {
-        self._symbol.set_declarations(declarations);
-    }
-
-    fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>> {
-        self._symbol.maybe_value_declaration()
-    }
-
-    fn set_value_declaration(&self, node: Rc<Node>) {
-        self._symbol.set_value_declaration(node);
-    }
-
-    fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
-        self._symbol.maybe_members()
-    }
-
-    fn members(&self) -> Rc<RefCell<SymbolTable>> {
-        self._symbol.members()
-    }
-
-    fn maybe_id(&self) -> Option<SymbolId> {
-        self._symbol.maybe_id()
-    }
-
-    fn id(&self) -> SymbolId {
-        self._symbol.id()
-    }
-
-    fn set_id(&self, id: SymbolId) {
-        self._symbol.set_id(id);
-    }
-}
-
 impl TransientSymbolInterface for BaseTransientSymbol {
     fn symbol_links(&self) -> Rc<RefCell<SymbolLinks>> {
         self._symbol_links.clone()
@@ -1870,18 +1628,6 @@ impl TransientSymbolInterface for BaseTransientSymbol {
 
     fn check_flags(&self) -> CheckFlags {
         self.check_flags
-    }
-}
-
-impl From<BaseTransientSymbol> for TransientSymbol {
-    fn from(base_transient_symbol: BaseTransientSymbol) -> Self {
-        TransientSymbol::BaseTransientSymbol(base_transient_symbol)
-    }
-}
-
-impl From<BaseTransientSymbol> for Symbol {
-    fn from(base_transient_symbol: BaseTransientSymbol) -> Self {
-        Symbol::TransientSymbol(TransientSymbol::BaseTransientSymbol(base_transient_symbol))
     }
 }
 
