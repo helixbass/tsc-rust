@@ -1879,7 +1879,9 @@ impl ParserType {
         modifiers: Option<NodeArray>,
     ) -> Statement {
         match self.token() {
-            SyntaxKind::ConstKeyword => self.parse_variable_statement(pos, decorators, modifiers),
+            SyntaxKind::VarKeyword | SyntaxKind::ConstKeyword => {
+                self.parse_variable_statement(pos, decorators, modifiers)
+            }
             SyntaxKind::InterfaceKeyword => self
                 .parse_interface_declaration(pos, decorators, modifiers)
                 .into(),
