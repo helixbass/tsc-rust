@@ -87,6 +87,7 @@ pub enum SyntaxKind {
     ThisKeyword,
     TrueKeyword,
     TypeOfKeyword,
+    VarKeyword,
     VoidKeyword,
     WithKeyword,
     ImplementsKeyword,

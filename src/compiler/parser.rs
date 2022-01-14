@@ -1750,7 +1750,7 @@ impl ParserType {
     fn is_declaration(&self) -> bool {
         loop {
             match self.token() {
-                SyntaxKind::ConstKeyword => {
+                SyntaxKind::VarKeyword | SyntaxKind::ConstKeyword => {
                     return true;
                 }
                 SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
@@ -1774,7 +1774,7 @@ impl ParserType {
 
     fn is_start_of_statement(&mut self) -> bool {
         match self.token() {
-            SyntaxKind::SemicolonToken | SyntaxKind::IfKeyword => true,
+            SyntaxKind::SemicolonToken | SyntaxKind::VarKeyword | SyntaxKind::IfKeyword => true,
             SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
             SyntaxKind::DeclareKeyword | SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
                 true
@@ -1786,6 +1786,7 @@ impl ParserType {
     fn parse_statement(&mut self) -> Statement {
         match self.token() {
             SyntaxKind::SemicolonToken => return self.parse_empty_statement(),
+            SyntaxKind::VarKeyword => return self.parse_variable_statement(self.get_node_pos()),
             SyntaxKind::OpenBraceToken => return self.parse_block(false, None).into(),
             SyntaxKind::IfKeyword => return self.parse_if_statement(),
             SyntaxKind::ConstKeyword => {
@@ -1877,6 +1878,7 @@ impl ParserType {
 
         let mut flags = NodeFlags::None;
         match self.token() {
+            SyntaxKind::VarKeyword => (),
             SyntaxKind::ConstKeyword => {
                 flags |= NodeFlags::Const;
             }

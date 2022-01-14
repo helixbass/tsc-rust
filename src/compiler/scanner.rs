@@ -30,6 +30,7 @@ lazy_static! {
             ("number".to_string(), SyntaxKind::NumberKeyword),
             ("true".to_string(), SyntaxKind::TrueKeyword),
             ("type".to_string(), SyntaxKind::TypeKeyword),
+            ("var".to_string(), SyntaxKind::VarKeyword),
         ]));
 }
 
