@@ -1,5 +1,7 @@
 #![allow(non_upper_case_globals)]
 
+use std::fmt;
+
 pub struct DebugType {}
 
 impl DebugType {
@@ -17,6 +19,29 @@ impl DebugType {
                 format!("False expression: {}", message)
             });
             self.fail(Some(&message));
+        }
+    }
+
+    pub fn assert_equal<TValue: Eq + fmt::Debug>(
+        &self,
+        a: &TValue,
+        b: &TValue,
+        msg: Option<&str>,
+        msg2: Option<&str>,
+    ) {
+        if a != b {
+            let message = match (msg, msg2) {
+                (Some(msg), Some(msg2)) => format!("{} {}", msg, msg2),
+                (Some(msg), _) => msg.to_string(),
+                _ => "".to_string(),
+            };
+            self.fail(Some(&format!("Expected {:?} === {:?}. {}", a, b, &message)));
+        }
+    }
+
+    pub fn assert_less_than_or_equal<TValue: Ord + fmt::Debug>(&self, a: TValue, b: TValue) {
+        if a > b {
+            self.fail(Some(&format!("Expected {:?} <= {:?}", a, b)));
         }
     }
 

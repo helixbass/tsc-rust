@@ -78,7 +78,9 @@ impl TypeChecker {
     ) -> Vec<Rc<Diagnostic>> {
         self.check_source_file(source_file);
 
-        let semantic_diagnostics = self.diagnostics().get_diagnostics(&source_file.file_name);
+        let semantic_diagnostics = self
+            .diagnostics()
+            .get_diagnostics(&*source_file.file_name());
 
         semantic_diagnostics
     }

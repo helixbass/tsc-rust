@@ -2,8 +2,8 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    CharacterCodes, Expression, Node, NodeFlags, NodeInterface, SyntaxKind, TextSpan, __String,
-    is_block, is_module_block, is_source_file,
+    CharacterCodes, Node, NodeFlags, NodeInterface, SyntaxKind, TextSpan, __String, is_block,
+    is_module_block, is_source_file,
 };
 
 fn create_text_span(start: isize, length: isize) -> TextSpan {

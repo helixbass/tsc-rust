@@ -7,18 +7,18 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    create_detached_diagnostic, create_node_factory, create_scanner,
+    attach_file_to_diagnostics, create_detached_diagnostic, create_node_factory, create_scanner,
     get_binary_operator_precedence, is_literal_kind, last_or_undefined, normalize_path,
     object_allocator, set_text_range_pos_end, token_is_identifier_or_keyword, token_to_string,
-    ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block, Debug_,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
-    Diagnostics, Expression, HasExpressionInitializerInterface, HasTypeInterface,
-    HasTypeParametersInterface, Identifier, InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode,
-    LiteralLikeNodeInterface, LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeId, NodeInterface, ObjectLiteralExpression,
-    OperatorPrecedence, PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement,
-    Symbol, SymbolTable, SyntaxKind, TypeAliasDeclaration, TypeElement, TypeNode,
-    TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
+    ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block, Debug_, Diagnostic,
+    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, Expression,
+    HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
+    InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeId, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
+    PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable,
+    SyntaxKind, TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
+    VariableDeclaration, VariableDeclarationList,
 };
 use local_macros::enum_unwrapped;
 
@@ -145,7 +145,7 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
     }
 }
 
-pub fn create_source_file(file_name: &str, source_text: &str) -> SourceFile {
+pub fn create_source_file(file_name: &str, source_text: &str) -> Rc<SourceFile> {
     Parser().parse_source_file(file_name, source_text)
 }
 
@@ -287,7 +287,7 @@ struct ParserType {
     factory: NodeFactory,
     file_name: Option<String>,
     source_text: Option<String>,
-    parse_diagnostics: Option<RefCell<Vec<DiagnosticWithDetachedLocation>>>,
+    parse_diagnostics: Option<RefCell<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     current_token: RefCell<Option<SyntaxKind>>,
     parsing_context: Option<ParsingContext>,
     parse_error_before_next_finished_node: Cell<bool>,
@@ -381,11 +381,11 @@ impl ParserType {
         self.source_text = Some(source_text);
     }
 
-    fn parse_diagnostics(&self) -> RefMut<Vec<DiagnosticWithDetachedLocation>> {
+    fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
         self.parse_diagnostics.as_ref().unwrap().borrow_mut()
     }
 
-    fn set_parse_diagnostics(&mut self, parse_diagnostics: Vec<DiagnosticWithDetachedLocation>) {
+    fn set_parse_diagnostics(&mut self, parse_diagnostics: Vec<Rc<Diagnostic>>) {
         self.parse_diagnostics = Some(RefCell::new(parse_diagnostics));
     }
 
@@ -422,7 +422,7 @@ impl ParserType {
         );
     }
 
-    fn parse_source_file(&mut self, file_name: &str, source_text: &str) -> SourceFile {
+    fn parse_source_file(&mut self, file_name: &str, source_text: &str) -> Rc<SourceFile> {
         self.initialize_state(file_name, source_text);
         self.parse_source_file_worker()
     }
@@ -446,7 +446,7 @@ impl ParserType {
         // })));
     }
 
-    fn parse_source_file_worker(&mut self) -> SourceFile {
+    fn parse_source_file_worker(&mut self) -> Rc<SourceFile> {
         self.next_token();
 
         let statements =
@@ -454,6 +454,11 @@ impl ParserType {
         Debug_.assert(matches!(self.token(), SyntaxKind::EndOfFileToken), None);
 
         let source_file = self.create_source_file(self.file_name(), statements);
+        let source_file = Rc::new(source_file);
+        source_file.set_parse_diagnostics(attach_file_to_diagnostics(
+            &*self.parse_diagnostics(),
+            &source_file,
+        ));
 
         source_file
     }
@@ -466,7 +471,7 @@ impl ParserType {
         let mut source_file = self.factory.create_source_file(self, statements);
 
         source_file.text = self.source_text().to_string();
-        source_file.file_name = file_name.to_string();
+        source_file.set_file_name(file_name.to_string());
 
         source_file
     }
@@ -504,8 +509,8 @@ impl ParserType {
             let last_error = last_or_undefined(&*parse_diagnostics);
             if last_error.map_or(true, |last_error| last_error.start() != start) {
                 let file_name = self.file_name().to_string();
-                parse_diagnostics.push(create_detached_diagnostic(
-                    &file_name, start, length, message, args,
+                parse_diagnostics.push(Rc::new(
+                    create_detached_diagnostic(&file_name, start, length, message, args).into(),
                 ));
             }
         }

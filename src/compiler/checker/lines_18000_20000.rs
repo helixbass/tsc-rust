@@ -74,7 +74,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         } else if false {
             unimplemented!()
         } else if self.error_info().is_some() {
-            let related_information: Option<Vec<DiagnosticRelatedInformation>> = None;
+            let related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>> = None;
             let diag = create_diagnostic_for_node_from_message_chain(
                 &*self.error_node.unwrap(),
                 self.error_info().clone().unwrap(),

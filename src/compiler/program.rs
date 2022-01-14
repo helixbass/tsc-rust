@@ -2,9 +2,9 @@ use std::rc::Rc;
 
 use crate::{
     concatenate, create_source_file, create_type_checker, for_each, get_sys, normalize_path,
-    to_path as to_path_helper, CompilerHost, CreateProgramOptions, Diagnostic,
-    ModuleResolutionHost, ModuleSpecifierResolutionHost, Node, Path, Program, SourceFile,
-    StructureIsReused, System, TypeChecker, TypeCheckerHost,
+    rc_source_file_into_rc_node, to_path as to_path_helper, CompilerHost, CreateProgramOptions,
+    Diagnostic, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node, Path, Program,
+    SourceFile, StructureIsReused, System, TypeChecker, TypeCheckerHost,
 };
 
 fn create_compiler_host() -> impl CompilerHost {
@@ -22,7 +22,7 @@ impl ModuleResolutionHost for CompilerHostConcrete {
 }
 
 impl CompilerHost for CompilerHostConcrete {
-    fn get_source_file(&self, file_name: &str) -> Option<SourceFile> {
+    fn get_source_file(&self, file_name: &str) -> Option<Rc<SourceFile>> {
         let text = self.read_file(file_name);
         text.map(|text| create_source_file(file_name, &text))
     }
@@ -90,6 +90,13 @@ impl ProgramConcrete {
         func()
     }
 
+    fn get_syntactic_diagnostics_for_file(
+        &mut self,
+        source_file: &SourceFile,
+    ) -> Vec<Rc<Diagnostic>> {
+        source_file.parse_diagnostics().clone()
+    }
+
     fn get_semantic_diagnostics_for_file(
         &mut self,
         source_file: &SourceFile,
@@ -141,6 +148,10 @@ impl ProgramConcrete {
 impl ModuleSpecifierResolutionHost for ProgramConcrete {}
 
 impl Program for ProgramConcrete {
+    fn get_syntactic_diagnostics(&mut self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+        self.get_diagnostics_helper(ProgramConcrete::get_syntactic_diagnostics_for_file)
+    }
+
     fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>> {
         self.get_diagnostics_helper(ProgramConcrete::get_semantic_diagnostics_for_file)
     }
@@ -226,10 +237,10 @@ fn find_source_file_worker(
 
     let file = helper_context.host.get_source_file(file_name);
 
-    file.map(|mut file| {
-        file.file_name = file_name.to_string();
-        file.path = Some(_path);
-        let file: Rc<Node> = file.into();
+    file.map(|file| {
+        file.set_file_name(file_name.to_string());
+        file.set_path(_path);
+        let file: Rc<Node> = rc_source_file_into_rc_node(file);
         helper_context.processing_other_files.push(file.clone());
         file
     })

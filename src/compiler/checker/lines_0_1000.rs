@@ -8,8 +8,8 @@ use std::rc::Rc;
 use super::create_node_builder;
 use crate::{
     __String, create_diagnostic_collection, create_symbol_table, object_allocator,
-    DiagnosticCollection, FreshableIntrinsicType, IntrinsicType, NodeId, NodeInterface, Number,
-    ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker,
+    DiagnosticCollection, FreshableIntrinsicType, NodeId, NodeInterface, Number, ObjectFlags,
+    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker,
     TypeCheckerHost, TypeFlags,
 };
 
