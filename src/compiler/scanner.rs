@@ -86,6 +86,10 @@ fn is_hex_digit(ch: char) -> bool {
         || ch >= CharacterCodes::a && ch <= CharacterCodes::f
 }
 
+fn is_code_point(code: u32) -> bool {
+    code <= 0x10ffff
+}
+
 pub fn skip_trivia(text: &str, pos: isize) -> isize {
     if position_is_synthesized(pos) {
         return pos;
@@ -629,13 +633,22 @@ impl Scanner {
         on_error: Option<ErrorCallback>,
         count: usize,
         can_have_separators: bool,
-    ) -> Result<u64, &str> {
+    ) -> Result<u32, String> {
         let value_string = self.scan_hex_digits(on_error, count, false, can_have_separators);
         if !value_string.is_empty() {
-            u64::from_str_radix(&value_string, 16).map_err(|_| "Couldn't convert hex digits to u64")
+            hex_digits_to_u32(&value_string)
         } else {
-            Err("Couldn't scan any hex digits")
+            Err("Couldn't scan any hex digits".to_string())
         }
+    }
+
+    fn scan_minimum_number_of_hex_digits(
+        &self,
+        on_error: Option<ErrorCallback>,
+        count: usize,
+        can_have_separators: bool,
+    ) -> String {
+        self.scan_hex_digits(on_error, count, true, can_have_separators)
     }
 
     fn scan_hex_digits(
@@ -869,7 +882,59 @@ impl Scanner {
             CharacterCodes::single_quote => "'".to_string(),
             CharacterCodes::double_quote => "\"".to_string(),
             CharacterCodes::u => {
-                unimplemented!()
+                if is_tagged_template {
+                    let mut escape_pos = self.pos();
+                    while escape_pos < self.pos() + 4 {
+                        if escape_pos < self.end()
+                            && !is_hex_digit(self.text_char_at_index(escape_pos))
+                            && self.text_char_at_index(escape_pos) != CharacterCodes::open_brace
+                        {
+                            self.set_pos(escape_pos);
+                            self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                            return self.text_substring(start, self.pos());
+                        }
+                        escape_pos += 1;
+                    }
+                }
+                if self.pos() < self.end()
+                    && self.text_char_at_index(self.pos()) == CharacterCodes::open_brace
+                {
+                    self.increment_pos();
+
+                    if is_tagged_template && !is_hex_digit(self.text_char_at_index(self.pos())) {
+                        self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                        return self.text_substring(start, self.pos());
+                    }
+
+                    if is_tagged_template {
+                        let save_pos = self.pos();
+                        let escaped_value_string =
+                            self.scan_minimum_number_of_hex_digits(on_error, 1, false);
+                        let is_escaped_value_empty = escaped_value_string.is_empty();
+                        let escaped_value = if !is_escaped_value_empty {
+                            hex_digits_to_u32(&escaped_value_string)
+                        } else {
+                            Err("Couldn't scan any hex digits".to_string())
+                        };
+
+                        if !match (is_escaped_value_empty, escaped_value) {
+                            (true, _) => true,
+                            (_, Err(_)) => false,
+                            (_, Ok(escaped_value)) => is_code_point(escaped_value),
+                        } || self.text_char_at_index(self.pos()) != CharacterCodes::close_brace
+                        {
+                            self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                            return self.text_substring(start, self.pos());
+                        } else {
+                            self.set_pos(save_pos);
+                        }
+                    }
+                    self.add_token_flag(TokenFlags::ExtendedUnicodeEscape);
+                    return self.scan_extended_unicode_escape(on_error);
+                }
+
+                self.add_token_flag(TokenFlags::UnicodeEscape);
+                self.scan_hexadecimal_escape(on_error, 4)
             }
             CharacterCodes::x => {
                 if is_tagged_template {
@@ -919,6 +984,54 @@ impl Scanner {
                 "".to_string()
             }
         }
+    }
+
+    fn scan_extended_unicode_escape(&self, on_error: Option<ErrorCallback>) -> String {
+        let escaped_value_string = self.scan_minimum_number_of_hex_digits(on_error, 1, false);
+        let escaped_value = if !escaped_value_string.is_empty() {
+            hex_digits_to_u32(&escaped_value_string)
+        } else {
+            Err("Couldn't scan any hex digits".to_string())
+        };
+        let mut is_invalid_extended_escape = false;
+
+        match escaped_value {
+            Err(_) => {
+                self.error(
+                    on_error,
+                    &Diagnostics::Hexadecimal_digit_expected,
+                    None,
+                    None,
+                );
+                is_invalid_extended_escape = true;
+            }
+            Ok(escaped_value) if escaped_value > 0x10ffff => {
+                self.error(on_error, &Diagnostics::An_extended_Unicode_escape_value_must_be_between_0x0_and_0x10FFFF_inclusive, None, None);
+                is_invalid_extended_escape = true;
+            }
+            _ => (),
+        }
+
+        if self.pos() >= self.end() {
+            self.error(on_error, &Diagnostics::Unexpected_end_of_text, None, None);
+            is_invalid_extended_escape = true;
+        } else if self.text_char_at_index(self.pos()) == CharacterCodes::close_brace {
+            self.increment_pos();
+        } else {
+            self.error(
+                on_error,
+                &Diagnostics::Unterminated_Unicode_escape_sequence,
+                None,
+                None,
+            );
+            is_invalid_extended_escape = true;
+        }
+
+        if is_invalid_extended_escape {
+            return "".to_string();
+        }
+
+        utf16_encode_as_string(escaped_value.unwrap())
     }
 
     fn check_big_int_suffix(&self) -> SyntaxKind {
@@ -980,4 +1093,12 @@ fn code_point_at(s: &str, i: usize) -> char {
 
 fn char_size(ch: char) -> usize {
     1
+}
+
+fn utf16_encode_as_string(code_point: u32) -> String {
+    char::from_u32(code_point).unwrap().to_string()
+}
+
+fn hex_digits_to_u32(str: &str) -> Result<u32, String> {
+    u32::from_str_radix(str, 16).map_err(|_| "Couldn't convert hex digits to u32".to_string())
 }

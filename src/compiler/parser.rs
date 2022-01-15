@@ -16,10 +16,9 @@ use crate::{
     HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
     InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeId, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
-    PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable,
-    SyntaxKind, TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
-    VariableDeclaration, VariableDeclarationList,
+    NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence, PropertyAssignment,
+    Scanner, SourceFile, Statement, SyntaxKind, TypeAliasDeclaration, TypeElement, TypeNode,
+    TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
 };
 use local_macros::{ast_type, enum_unwrapped};
 

@@ -1152,6 +1152,7 @@ bitflags! {
         const BinarySpecifier = 1 << 7;
         const OctalSpecifier = 1 << 8;
         const ContainsSeparator = 1 << 9;
+        const UnicodeEscape = 1 << 10;
         const ContainsInvalidEscape = 1 << 11;
 
         const BinaryOrOctalSpecifier = Self::BinarySpecifier.bits | Self::OctalSpecifier.bits;
