@@ -954,6 +954,19 @@ impl ParserType {
         entity
     }
 
+    fn parse_template_expression(&self, is_tagged_template: bool) -> TemplateExpression {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_template_expression(
+                self,
+                self.parse_template_head(is_tagged_template),
+                self.parse_template_spans(is_tagged_template),
+            ),
+            pos,
+            None,
+        )
+    }
+
     fn is_variable_declarator_list_terminator(&self) -> bool {
         if self.can_parse_semicolon() {
             return true;
