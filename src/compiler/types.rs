@@ -43,6 +43,8 @@ pub enum SyntaxKind {
     StringLiteral,
     NoSubstitutionTemplateLiteral,
     TemplateHead,
+    TemplateMiddle,
+    TemplateTail,
     OpenBraceToken,
     CloseBraceToken,
     OpenParenToken,
@@ -1150,6 +1152,7 @@ bitflags! {
         const BinarySpecifier = 1 << 7;
         const OctalSpecifier = 1 << 8;
         const ContainsSeparator = 1 << 9;
+        const ContainsInvalidEscape = 1 << 11;
 
         const BinaryOrOctalSpecifier = Self::BinarySpecifier.bits | Self::OctalSpecifier.bits;
         const NumericLiteralFlags = Self::Scientific.bits | Self::Octal.bits | Self::HexSpecifier.bits | Self::BinaryOrOctalSpecifier.bits | Self::ContainsSeparator.bits;
@@ -2967,6 +2970,7 @@ impl CharacterCodes {
     pub const asterisk: char = '*';
     pub const at: char = '@';
     pub const backslash: char = '\\';
+    pub const backtick: char = '`';
     pub const bar: char = '|';
     pub const close_brace: char = '}';
     pub const close_bracket: char = ']';

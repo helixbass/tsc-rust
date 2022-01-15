@@ -69,6 +69,17 @@ pub fn token_to_string(t: SyntaxKind) -> Option<&'static String> {
     token_strings.get(&t)
 }
 
+fn is_line_break(ch: char) -> bool {
+    ch == CharacterCodes::line_feed
+        || ch == CharacterCodes::carriage_return
+        || ch == CharacterCodes::line_separator
+        || ch == CharacterCodes::paragraph_separator
+}
+
+fn is_digit(ch: char) -> bool {
+    ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
+}
+
 pub fn skip_trivia(text: &str, pos: isize) -> isize {
     if position_is_synthesized(pos) {
         return pos;
@@ -212,7 +223,7 @@ impl Scanner {
 
             match ch {
                 CharacterCodes::line_feed => {
-                    self.set_token_flags(self.token_flags() | TokenFlags::PrecedingLineBreak);
+                    self.add_token_flag(TokenFlags::PrecedingLineBreak);
                     if self.skip_trivia {
                         self.increment_pos();
                         continue;
@@ -229,6 +240,9 @@ impl Scanner {
                 CharacterCodes::double_quote | CharacterCodes::single_quote => {
                     self.set_token_value(self.scan_string(on_error, None));
                     return self.set_token(SyntaxKind::StringLiteral);
+                }
+                CharacterCodes::backtick => {
+                    return self.set_token(self.scan_template_and_set_token_value(on_error, false));
                 }
                 CharacterCodes::open_paren => {
                     self.increment_pos();
@@ -261,7 +275,7 @@ impl Scanner {
                         self.increment_pos_by(2);
 
                         while self.pos() < self.end() {
-                            if self.is_line_break(self.text_char_at_index(self.pos())) {
+                            if is_line_break(self.text_char_at_index(self.pos())) {
                                 break;
                             }
                             self.increment_pos();
@@ -279,9 +293,7 @@ impl Scanner {
                         if self.text_char_at_index(self.pos()) == CharacterCodes::asterisk
                             && self.text_char_at_index(self.pos() + 1) != CharacterCodes::slash
                         {
-                            self.set_token_flags(
-                                self.token_flags() | TokenFlags::PrecedingJSDocComment,
-                            );
+                            self.add_token_flag(TokenFlags::PrecedingJSDocComment);
                         }
 
                         let mut comment_closed = false;
@@ -299,11 +311,9 @@ impl Scanner {
 
                             self.increment_pos();
 
-                            if self.is_line_break(ch) {
+                            if is_line_break(ch) {
                                 last_line_start = self.pos();
-                                self.set_token_flags(
-                                    self.token_flags() | TokenFlags::PrecedingLineBreak,
-                                );
+                                self.add_token_flag(TokenFlags::PrecedingLineBreak);
                             }
                         }
 
@@ -543,15 +553,8 @@ impl Scanner {
         *self.token_flags.borrow_mut() = Some(token_flags);
     }
 
-    fn is_line_break(&self, ch: char) -> bool {
-        ch == CharacterCodes::line_feed
-            || ch == CharacterCodes::carriage_return
-            || ch == CharacterCodes::line_separator
-            || ch == CharacterCodes::paragraph_separator
-    }
-
-    fn is_digit(&self, ch: char) -> bool {
-        ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
+    fn add_token_flag(&self, flag: TokenFlags) {
+        self.set_token_flags(self.token_flags() | flag);
     }
 
     fn error(
@@ -579,7 +582,7 @@ impl Scanner {
                 Some(ch) => ch,
                 None => break,
             };
-            if self.is_digit(ch) {
+            if is_digit(ch) {
                 self.set_pos(self.pos() + 1);
                 continue;
             }
@@ -628,7 +631,7 @@ impl Scanner {
         loop {
             if self.pos() >= self.end() {
                 result.push_str(&self.text_substring(start, self.pos()));
-                self.set_token_flags(self.token_flags() | TokenFlags::Unterminated);
+                self.add_token_flag(TokenFlags::Unterminated);
                 self.error(
                     on_error,
                     &Diagnostics::Unterminated_string_literal,
@@ -646,12 +649,155 @@ impl Scanner {
             if ch == CharacterCodes::backslash && !jsx_attribute_string {
                 unimplemented!()
             }
-            if self.is_line_break(ch) && !jsx_attribute_string {
+            if is_line_break(ch) && !jsx_attribute_string {
                 unimplemented!()
             }
             self.increment_pos();
         }
         result
+    }
+
+    fn scan_template_and_set_token_value(
+        &self,
+        on_error: Option<ErrorCallback>,
+        is_tagged_template: bool,
+    ) -> SyntaxKind {
+        let started_with_backtick = self.text_char_at_index(self.pos()) == CharacterCodes::backtick;
+
+        self.increment_pos();
+        let mut start = self.pos();
+        let mut contents = String::new();
+        let resulting_token: SyntaxKind;
+
+        loop {
+            if self.pos() >= self.end() {
+                contents.push_str(&self.text_substring(start, self.pos()));
+                self.add_token_flag(TokenFlags::Unterminated);
+                self.error(
+                    on_error,
+                    &Diagnostics::Unterminated_template_literal,
+                    None,
+                    None,
+                );
+                resulting_token = if started_with_backtick {
+                    SyntaxKind::NoSubstitutionTemplateLiteral
+                } else {
+                    SyntaxKind::TemplateTail
+                };
+                break;
+            }
+
+            let curr_char = self.text_char_at_index(self.pos());
+
+            if curr_char == CharacterCodes::backtick {
+                contents.push_str(&self.text_substring(start, self.pos()));
+                self.increment_pos();
+                resulting_token = if started_with_backtick {
+                    SyntaxKind::NoSubstitutionTemplateLiteral
+                } else {
+                    SyntaxKind::TemplateTail
+                };
+                break;
+            }
+
+            if curr_char == CharacterCodes::dollar_sign
+                && self.pos() + 1 < self.end()
+                && self.text_char_at_index(self.pos() + 1) == CharacterCodes::open_brace
+            {
+                contents.push_str(&self.text_substring(start, self.pos()));
+                self.increment_pos_by(2);
+                resulting_token = if started_with_backtick {
+                    SyntaxKind::TemplateHead
+                } else {
+                    SyntaxKind::TemplateMiddle
+                };
+                break;
+            }
+
+            if curr_char == CharacterCodes::backslash {
+                contents.push_str(&self.text_substring(start, self.pos()));
+                contents.push_str(&self.scan_escape_sequence(on_error, Some(is_tagged_template)));
+                start = self.pos();
+                continue;
+            }
+
+            if curr_char == CharacterCodes::carriage_return {
+                contents.push_str(&self.text_substring(start, self.pos()));
+                self.increment_pos();
+
+                if self.pos() < self.end()
+                    && self.text_char_at_index(self.pos()) == CharacterCodes::line_feed
+                {
+                    self.increment_pos();
+                }
+
+                contents.push_str("\n");
+                start = self.pos();
+                continue;
+            }
+
+            self.increment_pos();
+        }
+
+        // Debug.assert(resultingToken !== undefined);
+
+        self.set_token_value(contents);
+        resulting_token
+    }
+
+    fn scan_escape_sequence(
+        &self,
+        on_error: Option<ErrorCallback>,
+        is_tagged_template: Option<bool>,
+    ) -> String {
+        let is_tagged_template = is_tagged_template.unwrap_or(false);
+        let start = self.pos();
+        self.increment_pos();
+        if self.pos() >= self.end() {
+            self.error(on_error, &Diagnostics::Unexpected_end_of_text, None, None);
+            return "".to_string();
+        }
+        let ch = self.text_char_at_index(self.pos());
+        self.increment_pos();
+        match ch {
+            CharacterCodes::_0 => {
+                if is_tagged_template
+                    && self.pos() < self.end()
+                    && is_digit(self.text_char_at_index(self.pos()))
+                {
+                    self.increment_pos();
+                    self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                    return self.text_substring(start, self.pos());
+                }
+                "\0".to_string()
+            }
+            CharacterCodes::b => "\u{0008}".to_string(),
+            CharacterCodes::t => "\t".to_string(),
+            CharacterCodes::n => "\n".to_string(),
+            CharacterCodes::v => "\u{000b}".to_string(),
+            CharacterCodes::f => "\u{000c}".to_string(),
+            CharacterCodes::r => "\r".to_string(),
+            CharacterCodes::single_quote => "'".to_string(),
+            CharacterCodes::double_quote => "\"".to_string(),
+            CharacterCodes::u => {
+                unimplemented!()
+            }
+            CharacterCodes::x => {
+                unimplemented!()
+            }
+            CharacterCodes::carriage_return => {
+                if self.pos() < self.end()
+                    && self.text_char_at_index(self.pos()) == CharacterCodes::line_feed
+                {
+                    self.increment_pos();
+                }
+                "".to_string()
+            }
+            CharacterCodes::line_feed
+            | CharacterCodes::line_separator
+            | CharacterCodes::paragraph_separator => "".to_string(),
+            _ => ch.to_string(),
+        }
     }
 
     fn check_big_int_suffix(&self) -> SyntaxKind {
