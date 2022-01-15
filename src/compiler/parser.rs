@@ -21,7 +21,7 @@ use crate::{
     SyntaxKind, TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
     VariableDeclaration, VariableDeclarationList,
 };
-use local_macros::enum_unwrapped;
+use local_macros::{ast_type, enum_unwrapped};
 
 #[derive(Eq, PartialEq)]
 enum SpeculationKind {
@@ -62,14 +62,44 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             visit_node(&mut cb_node, Some(type_parameter_declaration.name()))
         }
         Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                property_signature.maybe_decorators().as_ref(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                property_signature.maybe_modifiers(),
+            );
             visit_node(&mut cb_node, Some(property_signature.name()));
             visit_node(&mut cb_node, property_signature.type_())
         }
         Node::PropertyAssignment(property_assignment) => {
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                property_assignment.maybe_decorators().as_ref(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                property_assignment.maybe_modifiers(),
+            );
             visit_node(&mut cb_node, Some(property_assignment.name()));
             visit_node(&mut cb_node, Some(property_assignment.initializer.clone()))
         }
         Node::VariableDeclaration(variable_declaration) => {
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                variable_declaration.maybe_decorators().as_ref(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                variable_declaration.maybe_modifiers(),
+            );
             visit_node(&mut cb_node, Some(variable_declaration.name()));
             visit_node(&mut cb_node, variable_declaration.type_());
             visit_node(&mut cb_node, variable_declaration.maybe_initializer())
@@ -111,16 +141,38 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
         Node::Expression(Expression::PrefixUnaryExpression(prefix_unary_expression)) => {
             visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()))
         }
-        Node::Statement(Statement::VariableStatement(variable_statement)) => visit_node(
-            &mut cb_node,
-            Some(variable_statement.declaration_list.clone()),
-        ),
+        Node::Statement(Statement::VariableStatement(variable_statement)) => {
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                variable_statement.maybe_decorators().as_ref(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                variable_statement.maybe_modifiers(),
+            );
+            visit_node(
+                &mut cb_node,
+                Some(variable_statement.declaration_list.clone()),
+            )
+        }
         Node::VariableDeclarationList(variable_declaration_list) => visit_nodes(
             &mut cb_node,
             &mut cb_nodes,
             Some(&variable_declaration_list.declarations),
         ),
         Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                interface_declaration.maybe_decorators().as_ref(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                interface_declaration.maybe_modifiers(),
+            );
             visit_node(&mut cb_node, Some(interface_declaration.name()));
             visit_nodes(
                 &mut cb_node,
@@ -134,6 +186,16 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             )
         }
         Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                type_alias_declaration.maybe_decorators().as_ref(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                type_alias_declaration.maybe_modifiers(),
+            );
             visit_node(&mut cb_node, Some(type_alias_declaration.name()));
             visit_nodes(
                 &mut cb_node,
@@ -150,144 +212,9 @@ pub fn create_source_file(file_name: &str, source_text: &str) -> Rc<SourceFile> 
     Parser().parse_source_file(file_name, source_text)
 }
 
+#[ast_type(impl_from = false)]
 pub enum MissingNode {
     Identifier(Identifier),
-}
-
-impl NodeInterface for MissingNode {
-    fn node_wrapper(&self) -> Rc<Node> {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.node_wrapper(),
-        }
-    }
-
-    fn set_node_wrapper(&self, wrapper: Rc<Node>) {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.set_node_wrapper(wrapper),
-        }
-    }
-
-    fn kind(&self) -> SyntaxKind {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.kind(),
-        }
-    }
-
-    fn flags(&self) -> NodeFlags {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.flags(),
-        }
-    }
-
-    fn set_flags(&self, flags: NodeFlags) {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.set_flags(flags),
-        }
-    }
-
-    fn set_decorators(&self, decorators: Option<NodeArray>) {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.set_decorators(decorators),
-        }
-    }
-
-    fn maybe_id(&self) -> Option<NodeId> {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.maybe_id(),
-        }
-    }
-
-    fn id(&self) -> NodeId {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.id(),
-        }
-    }
-
-    fn set_id(&self, id: NodeId) {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.set_id(id),
-        }
-    }
-
-    fn maybe_parent(&self) -> Option<Rc<Node>> {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.maybe_parent(),
-        }
-    }
-
-    fn parent(&self) -> Rc<Node> {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.parent(),
-        }
-    }
-
-    fn set_parent(&self, parent: Rc<Node>) {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.set_parent(parent),
-        }
-    }
-
-    fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.maybe_symbol(),
-        }
-    }
-
-    fn symbol(&self) -> Rc<Symbol> {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.symbol(),
-        }
-    }
-
-    fn set_symbol(&self, symbol: Rc<Symbol>) {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.set_symbol(symbol),
-        }
-    }
-
-    fn maybe_locals(&self) -> RefMut<Option<SymbolTable>> {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.maybe_locals(),
-        }
-    }
-
-    fn locals(&self) -> RefMut<SymbolTable> {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.locals(),
-        }
-    }
-
-    fn set_locals(&self, locals: Option<SymbolTable>) {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.set_locals(locals),
-        }
-    }
-}
-
-impl ReadonlyTextRange for MissingNode {
-    fn pos(&self) -> isize {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.pos(),
-        }
-    }
-
-    fn set_pos(&self, pos: isize) {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.set_pos(pos),
-        }
-    }
-
-    fn end(&self) -> isize {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.end(),
-        }
-    }
-
-    fn set_end(&self, end: isize) {
-        match self {
-            MissingNode::Identifier(identifier) => identifier.set_end(end),
-        }
-    }
 }
 
 #[allow(non_snake_case)]

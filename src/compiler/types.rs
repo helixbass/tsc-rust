@@ -224,7 +224,9 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn kind(&self) -> SyntaxKind;
     fn flags(&self) -> NodeFlags;
     fn set_flags(&self, flags: NodeFlags);
+    fn maybe_decorators(&self) -> Ref<Option<NodeArray>>;
     fn set_decorators(&self, decorators: Option<NodeArray>);
+    fn maybe_modifiers(&self) -> Option<&NodeArray>;
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
     fn set_id(&self, id: NodeId);
@@ -456,8 +458,16 @@ impl NodeInterface for BaseNode {
         self.flags.set(flags);
     }
 
+    fn maybe_decorators(&self) -> Ref<Option<NodeArray>> {
+        self.decorators.borrow()
+    }
+
     fn set_decorators(&self, decorators: Option<NodeArray>) {
         *self.decorators.borrow_mut() = decorators;
+    }
+
+    fn maybe_modifiers(&self) -> Option<&NodeArray> {
+        self.modifiers.as_ref()
     }
 
     fn maybe_id(&self) -> Option<NodeId> {
