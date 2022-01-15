@@ -32,11 +32,15 @@ impl TypeChecker {
             Node::TypeNode(TypeNode::UnionTypeNode(_)) => {
                 self.check_union_or_intersection_type(&*node)
             }
+            Node::Statement(Statement::Block(block)) => self.check_block(block),
             Node::Statement(Statement::VariableStatement(variable_statement)) => {
                 self.check_variable_statement(variable_statement)
             }
             Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
                 self.check_expression_statement(expression_statement)
+            }
+            Node::Statement(Statement::IfStatement(if_statement)) => {
+                self.check_if_statement(if_statement)
             }
             Node::VariableDeclaration(variable_declaration) => {
                 self.check_variable_declaration(variable_declaration)

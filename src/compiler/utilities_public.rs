@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use crate::{
     CharacterCodes, Expression, Node, NodeFlags, NodeInterface, SyntaxKind, TextSpan, __String,
+    is_block, is_module_block, is_source_file,
 };
 
 fn create_text_span(start: isize, length: isize) -> TextSpan {
@@ -135,6 +136,12 @@ fn is_function_like_kind(kind: SyntaxKind) -> bool {
         | SyntaxKind::ConstructorType => true,
         _ => is_function_like_declaration_kind(kind),
     }
+}
+
+pub fn is_function_or_module_block<TNode: NodeInterface>(node: &TNode) -> bool {
+    is_source_file(node)
+        || is_module_block(node)
+        || is_block(node) && is_function_like(node.maybe_parent())
 }
 
 pub fn is_binding_pattern<TNode: NodeInterface>(node: &TNode) -> bool {

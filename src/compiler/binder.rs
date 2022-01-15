@@ -8,12 +8,12 @@ use std::rc::Rc;
 use crate::{
     Symbol, SymbolTable, SyntaxKind, VariableDeclaration, __String, append_if_unique,
     create_symbol_table, for_each, for_each_child, get_escaped_text_of_identifier_or_literal,
-    get_name_of_declaration, is_binding_pattern, is_class_static_block_declaration,
-    is_function_like, is_property_name_literal, object_allocator, set_parent,
-    set_value_declaration, BaseSymbol, Expression, ExpressionStatement, IfStatement,
-    InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    ObjectLiteralExpression, PropertySignature, Statement, SymbolFlags, SymbolInterface,
-    TypeElement, TypeParameterDeclaration,
+    get_name_of_declaration, is_binding_pattern, is_block_or_catch_scoped,
+    is_class_static_block_declaration, is_function_like, is_property_name_literal,
+    object_allocator, set_parent, set_value_declaration, BaseSymbol, Expression,
+    ExpressionStatement, IfStatement, InternalSymbolName, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, ObjectLiteralExpression, PropertySignature, Statement, SymbolFlags,
+    SymbolInterface, TypeElement, TypeParameterDeclaration,
 };
 
 bitflags! {
@@ -521,6 +521,13 @@ impl BinderType {
     fn bind_variable_declaration_or_binding_element(&self, node: &VariableDeclaration) {
         if !is_binding_pattern(&*node.name()) {
             if false {
+                unimplemented!()
+            } else if is_block_or_catch_scoped(node) {
+                self.bind_block_scoped_declaration(
+                    node,
+                    SymbolFlags::BlockScopedVariable,
+                    SymbolFlags::BlockScopedVariableExcludes,
+                );
             } else {
                 self.declare_symbol_and_add_to_symbol_table(
                     node,
