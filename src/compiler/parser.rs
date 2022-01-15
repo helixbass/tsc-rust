@@ -1025,10 +1025,8 @@ impl ParserType {
                     self,
                     kind,
                     self.scanner().get_token_value(),
-                    self.get_template_literal_raw_text(kind),
-                    self.scanner()
-                        .get_token_flags()
-                        .intersects(TokenFlags::TemplateLiteralLikeFlags),
+                    Some(self.get_template_literal_raw_text(kind)),
+                    self.scanner().get_token_flags() & TokenFlags::TemplateLiteralLikeFlags,
                 )
                 .into()
         } else if kind == SyntaxKind::NumericLiteral {

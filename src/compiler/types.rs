@@ -1147,37 +1147,29 @@ pub enum LiteralLikeNode {
 #[derive(Debug)]
 #[ast_type(
     ancestors = "LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface, TemplateLiteralLikeNodeInterface"
+    interfaces = "LiteralLikeNodeInterface"
 )]
-pub enum TemplateLiteralLikeNode {
-    NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteral),
-    TemplateHead(TemplateHead),
-    TemplateMiddle(TemplateMiddle),
-    TemplateTail(TemplateTail),
-}
-
-pub trait TemplateLiteralLikeNodeInterface {
-    fn maybe_raw_text(&self) -> Option<&str>;
-    fn maybe_template_flags(&self) -> Option<TokenFlags>;
-}
-
-#[derive(Debug)]
-#[ast_type(impl_from = false, interfaces = "LiteralLikeNodeInterface")]
-pub struct BaseTemplateLiteralLikeNode {
+pub struct TemplateLiteralLikeNode {
     _literal_like_node: BaseLiteralLikeNode,
     raw_text: Option<String>,
     template_flags: Option<TokenFlags>,
 }
 
-impl BaseTemplateLiteralLikeNode {
-    pub fn new(literal_like_node: BaseLiteralLikeNode) -> Self {
+impl TemplateLiteralLikeNode {
+    pub fn new(
+        literal_like_node: BaseLiteralLikeNode,
+        raw_text: Option<String>,
+        template_flags: Option<TokenFlags>,
+    ) -> Self {
         Self {
             _literal_like_node: literal_like_node,
+            raw_text,
+            template_flags,
         }
     }
 }
 
-impl TemplateLiteralLikeNodeInterface for BaseTemplateLiteralLikeNode {
+impl TemplateLiteralLikeNodeInterface for TemplateLiteralLikeNode {
     fn maybe_raw_text(&self) -> Option<&str> {
         self.raw_text.as_deref()
     }
@@ -1187,21 +1179,9 @@ impl TemplateLiteralLikeNodeInterface for BaseTemplateLiteralLikeNode {
     }
 }
 
-#[derive(Debug)]
-#[ast_type(
-    ancestors = "TemplateLiteralLikeNode, LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface, TemplateLiteralLikeNodeInterface"
-)]
-pub struct NoSubstitutionTemplateLiteral {
-    _template_literal_like_node: BaseTemplateLiteralLikeNode,
-}
-
-impl NoSubstitutionTemplateLiteral {
-    pub fn new(base_template_literal_like_node: BaseTemplateLiteralLikeNode) -> Self {
-        Self {
-            _template_literal_like_node: base_template_literal_like_node,
-        }
-    }
+pub trait TemplateLiteralLikeNodeInterface {
+    fn maybe_raw_text(&self) -> Option<&str>;
+    fn maybe_template_flags(&self) -> Option<TokenFlags>;
 }
 
 bitflags! {
@@ -1256,57 +1236,6 @@ impl BigIntLiteral {
     pub fn new(base_literal_like_node: BaseLiteralLikeNode) -> Self {
         Self {
             _literal_like_node: base_literal_like_node,
-        }
-    }
-}
-
-#[derive(Debug)]
-#[ast_type(
-    ancestors = "TemplateLiteralLikeNode, LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface, TemplateLiteralLikeNodeInterface"
-)]
-pub struct TemplateHead {
-    _template_literal_like_node: BaseTemplateLiteralLikeNode,
-}
-
-impl TemplateHead {
-    pub fn new(base_template_literal_like_node: BaseTemplateLiteralLikeNode) -> Self {
-        Self {
-            _template_literal_like_node: base_template_literal_like_node,
-        }
-    }
-}
-
-#[derive(Debug)]
-#[ast_type(
-    ancestors = "TemplateLiteralLikeNode, LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface, TemplateLiteralLikeNodeInterface"
-)]
-pub struct TemplateMiddle {
-    _template_literal_like_node: BaseTemplateLiteralLikeNode,
-}
-
-impl TemplateMiddle {
-    pub fn new(base_template_literal_like_node: BaseTemplateLiteralLikeNode) -> Self {
-        Self {
-            _template_literal_like_node: base_template_literal_like_node,
-        }
-    }
-}
-
-#[derive(Debug)]
-#[ast_type(
-    ancestors = "TemplateLiteralLikeNode, LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface, TemplateLiteralLikeNodeInterface"
-)]
-pub struct TemplateTail {
-    _template_literal_like_node: BaseTemplateLiteralLikeNode,
-}
-
-impl TemplateTail {
-    pub fn new(base_template_literal_like_node: BaseTemplateLiteralLikeNode) -> Self {
-        Self {
-            _template_literal_like_node: base_template_literal_like_node,
         }
     }
 }
