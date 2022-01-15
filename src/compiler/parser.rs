@@ -871,8 +871,14 @@ impl ParserType {
     fn parse_any_contextual_modifier(&self) -> bool {
         is_modifier_kind(self.token())
             && self
-                .try_parse(|| Some(self.next_token_can_follow_modifier()))
-                .unwrap()
+                .try_parse(|| {
+                    if self.next_token_can_follow_modifier() {
+                        Some(())
+                    } else {
+                        None
+                    }
+                })
+                .is_some()
     }
 
     fn can_follow_modifier(&self) -> bool {
