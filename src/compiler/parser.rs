@@ -9,16 +9,16 @@ use std::rc::Rc;
 use crate::{
     append, attach_file_to_diagnostics, create_detached_diagnostic, create_node_factory,
     create_scanner, get_binary_operator_precedence, is_literal_kind, is_modifier_kind,
-    last_or_undefined, normalize_path, object_allocator, set_text_range_pos_end, some,
-    token_is_identifier_or_keyword, token_to_string, ArrayLiteralExpression, BaseNode,
-    BaseNodeFactory, BinaryExpression, Block, Debug_, Decorator, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, Expression,
+    is_template_literal_kind, last_or_undefined, normalize_path, object_allocator,
+    set_text_range_pos_end, some, token_is_identifier_or_keyword, token_to_string,
+    ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block, Debug_, Decorator,
+    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, Expression,
     HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
     InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
     NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence, PropertyAssignment,
-    Scanner, SourceFile, Statement, SyntaxKind, TypeAliasDeclaration, TypeElement, TypeNode,
-    TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
+    Scanner, SourceFile, Statement, SyntaxKind, TokenFlags, TypeAliasDeclaration, TypeElement,
+    TypeNode, TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -995,10 +995,42 @@ impl ParserType {
         self.parse_literal_like_node(self.token())
     }
 
+    fn get_template_literal_raw_text(&self, kind: SyntaxKind) -> String {
+        let is_last =
+            kind == SyntaxKind::NoSubstitutionTemplateLiteral || kind == SyntaxKind::TemplateTail;
+        let token_text = self.scanner().get_token_text();
+        let token_text_chars = token_text.chars();
+        let token_text_chars_len = token_text_chars.count();
+        token_text_chars
+            .skip(1)
+            .take(
+                token_text_chars_len
+                    - (if self.scanner().is_unterminated() {
+                        0
+                    } else if is_last {
+                        1
+                    } else {
+                        2
+                    })
+                    - 1,
+            )
+            .collect()
+    }
+
     fn parse_literal_like_node(&self, kind: SyntaxKind) -> LiteralLikeNode {
         let pos = self.get_node_pos();
-        let mut node: LiteralLikeNode = if false {
-            unimplemented!()
+        let mut node: LiteralLikeNode = if is_template_literal_kind(kind) {
+            self.factory
+                .create_template_literal_like_node(
+                    self,
+                    kind,
+                    self.scanner().get_token_value(),
+                    self.get_template_literal_raw_text(kind),
+                    self.scanner()
+                        .get_token_flags()
+                        .intersects(TokenFlags::TemplateLiteralLikeFlags),
+                )
+                .into()
         } else if kind == SyntaxKind::NumericLiteral {
             self.factory
                 .create_numeric_literal(
@@ -1365,11 +1397,28 @@ impl ParserType {
 
     fn is_start_of_left_hand_side_expression(&self) -> bool {
         match self.token() {
-            SyntaxKind::TrueKeyword
+            SyntaxKind::ThisKeyword
+            | SyntaxKind::SuperKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::TrueKeyword
             | SyntaxKind::FalseKeyword
             | SyntaxKind::NumericLiteral
             | SyntaxKind::BigIntLiteral
-            | SyntaxKind::OpenBracketToken => true,
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateHead
+            | SyntaxKind::OpenParenToken
+            | SyntaxKind::OpenBracketToken
+            | SyntaxKind::OpenBraceToken
+            | SyntaxKind::FunctionKeyword
+            | SyntaxKind::ClassKeyword
+            | SyntaxKind::NewKeyword
+            | SyntaxKind::SlashToken
+            | SyntaxKind::SlashEqualsToken
+            | SyntaxKind::Identifier => true,
+            SyntaxKind::ImportKeyword => {
+                unimplemented!()
+            }
             _ => self.is_identifier(),
         }
     }
@@ -1529,14 +1578,16 @@ impl ParserType {
 
     fn parse_primary_expression(&self) -> Expression {
         match self.token() {
-            SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral | SyntaxKind::StringLiteral => {
-                return self.parse_literal_node().into()
-            }
+            SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral => return self.parse_literal_node().into(),
             SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => {
                 return self.parse_token_node().into()
             }
             SyntaxKind::OpenBracketToken => return self.parse_array_literal_expression().into(),
             SyntaxKind::OpenBraceToken => return self.parse_object_literal_expression().into(),
+            SyntaxKind::TemplateHead => return self.parse_template_expression(false).into(),
             _ => (),
         }
 

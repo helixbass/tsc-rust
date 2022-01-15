@@ -70,6 +70,7 @@ pub enum SyntaxKind {
     ColonToken,
     AtToken,
     EqualsToken,
+    SlashEqualsToken,
     Identifier,
     PrivateIdentifier,
     BreakKeyword,
@@ -86,6 +87,7 @@ pub enum SyntaxKind {
     ImportKeyword,
     NewKeyword,
     NullKeyword,
+    SuperKeyword,
     ThisKeyword,
     TrueKeyword,
     TypeOfKeyword,
@@ -193,6 +195,8 @@ impl SyntaxKind {
     pub const LastToken: SyntaxKind = SyntaxKind::LastKeyword;
     pub const FirstLiteralToken: SyntaxKind = SyntaxKind::NumericLiteral;
     pub const LastLiteralToken: SyntaxKind = SyntaxKind::NoSubstitutionTemplateLiteral;
+    pub const FirstTemplateToken: SyntaxKind = SyntaxKind::NoSubstitutionTemplateLiteral;
+    pub const LastTemplateToken: SyntaxKind = SyntaxKind::TemplateTail;
 }
 
 bitflags! {
@@ -1135,8 +1139,69 @@ pub trait LiteralLikeNodeInterface {
 #[ast_type(ancestors = "Expression", interfaces = "LiteralLikeNodeInterface")]
 pub enum LiteralLikeNode {
     StringLiteral(StringLiteral),
+    TemplateLiteralLikeNode(TemplateLiteralLikeNode),
     NumericLiteral(NumericLiteral),
     BigIntLiteral(BigIntLiteral),
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "LiteralLikeNode, Expression",
+    interfaces = "LiteralLikeNodeInterface, TemplateLiteralLikeNodeInterface"
+)]
+pub enum TemplateLiteralLikeNode {
+    NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteral),
+    TemplateHead(TemplateHead),
+    TemplateMiddle(TemplateMiddle),
+    TemplateTail(TemplateTail),
+}
+
+pub trait TemplateLiteralLikeNodeInterface {
+    fn maybe_raw_text(&self) -> Option<&str>;
+    fn maybe_template_flags(&self) -> Option<TokenFlags>;
+}
+
+#[derive(Debug)]
+#[ast_type(impl_from = false, interfaces = "LiteralLikeNodeInterface")]
+pub struct BaseTemplateLiteralLikeNode {
+    _literal_like_node: BaseLiteralLikeNode,
+    raw_text: Option<String>,
+    template_flags: Option<TokenFlags>,
+}
+
+impl BaseTemplateLiteralLikeNode {
+    pub fn new(literal_like_node: BaseLiteralLikeNode) -> Self {
+        Self {
+            _literal_like_node: literal_like_node,
+        }
+    }
+}
+
+impl TemplateLiteralLikeNodeInterface for BaseTemplateLiteralLikeNode {
+    fn maybe_raw_text(&self) -> Option<&str> {
+        self.raw_text.as_deref()
+    }
+
+    fn maybe_template_flags(&self) -> Option<TokenFlags> {
+        self.template_flags
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "TemplateLiteralLikeNode, LiteralLikeNode, Expression",
+    interfaces = "LiteralLikeNodeInterface, TemplateLiteralLikeNodeInterface"
+)]
+pub struct NoSubstitutionTemplateLiteral {
+    _template_literal_like_node: BaseTemplateLiteralLikeNode,
+}
+
+impl NoSubstitutionTemplateLiteral {
+    pub fn new(base_template_literal_like_node: BaseTemplateLiteralLikeNode) -> Self {
+        Self {
+            _template_literal_like_node: base_template_literal_like_node,
+        }
+    }
 }
 
 bitflags! {
@@ -1157,6 +1222,7 @@ bitflags! {
 
         const BinaryOrOctalSpecifier = Self::BinarySpecifier.bits | Self::OctalSpecifier.bits;
         const NumericLiteralFlags = Self::Scientific.bits | Self::Octal.bits | Self::HexSpecifier.bits | Self::BinaryOrOctalSpecifier.bits | Self::ContainsSeparator.bits;
+        const TemplateLiteralLikeFlags = Self::ContainsInvalidEscape.bits;
     }
 }
 
@@ -1190,6 +1256,57 @@ impl BigIntLiteral {
     pub fn new(base_literal_like_node: BaseLiteralLikeNode) -> Self {
         Self {
             _literal_like_node: base_literal_like_node,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "TemplateLiteralLikeNode, LiteralLikeNode, Expression",
+    interfaces = "LiteralLikeNodeInterface, TemplateLiteralLikeNodeInterface"
+)]
+pub struct TemplateHead {
+    _template_literal_like_node: BaseTemplateLiteralLikeNode,
+}
+
+impl TemplateHead {
+    pub fn new(base_template_literal_like_node: BaseTemplateLiteralLikeNode) -> Self {
+        Self {
+            _template_literal_like_node: base_template_literal_like_node,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "TemplateLiteralLikeNode, LiteralLikeNode, Expression",
+    interfaces = "LiteralLikeNodeInterface, TemplateLiteralLikeNodeInterface"
+)]
+pub struct TemplateMiddle {
+    _template_literal_like_node: BaseTemplateLiteralLikeNode,
+}
+
+impl TemplateMiddle {
+    pub fn new(base_template_literal_like_node: BaseTemplateLiteralLikeNode) -> Self {
+        Self {
+            _template_literal_like_node: base_template_literal_like_node,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "TemplateLiteralLikeNode, LiteralLikeNode, Expression",
+    interfaces = "LiteralLikeNodeInterface, TemplateLiteralLikeNodeInterface"
+)]
+pub struct TemplateTail {
+    _template_literal_like_node: BaseTemplateLiteralLikeNode,
+}
+
+impl TemplateTail {
+    pub fn new(base_template_literal_like_node: BaseTemplateLiteralLikeNode) -> Self {
+        Self {
+            _template_literal_like_node: base_template_literal_like_node,
         }
     }
 }

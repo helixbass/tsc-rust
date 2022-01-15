@@ -206,6 +206,10 @@ impl Scanner {
         self.token_flags() & TokenFlags::NumericLiteralFlags
     }
 
+    pub fn get_token_flags(&self) -> TokenFlags {
+        self.token_flags()
+    }
+
     fn get_identifier_token(&self) -> SyntaxKind {
         let len = self.token_value().len();
         if len >= 2 && len <= 12 {
