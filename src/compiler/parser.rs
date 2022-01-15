@@ -506,7 +506,7 @@ impl ParserType {
         self.scanner().re_scan_less_than_token()
     }
 
-    fn speculation_helper<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+    fn speculation_helper<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
         &self,
         callback: TCallback,
         speculation_kind: SpeculationKind,
@@ -536,18 +536,28 @@ impl ParserType {
         result
     }
 
-    fn look_ahead<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+    fn look_ahead<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
         &self,
         callback: TCallback,
     ) -> Option<TReturn> {
         self.speculation_helper(callback, SpeculationKind::Lookahead)
     }
 
-    fn try_parse<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+    fn look_ahead_bool<TCallback: FnOnce() -> bool>(&self, callback: TCallback) -> bool {
+        self.look_ahead(|| if callback() { Some(()) } else { None })
+            .is_some()
+    }
+
+    fn try_parse<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
         &self,
         callback: TCallback,
     ) -> Option<TReturn> {
         self.speculation_helper(callback, SpeculationKind::TryParse)
+    }
+
+    fn try_parse_bool<TCallback: FnOnce() -> bool>(&self, callback: TCallback) -> bool {
+        self.try_parse(|| if callback() { Some(()) } else { None })
+            .is_some()
     }
 
     fn is_binding_identifier(&self) -> bool {
@@ -763,14 +773,10 @@ impl ParserType {
             SyntaxKind::ExportKeyword => {
                 self.next_token();
                 if self.token() == SyntaxKind::DefaultKeyword {
-                    return self
-                        .look_ahead(|| Some(self.next_token_can_follow_default_keyword()))
-                        .unwrap();
+                    return self.look_ahead_bool(|| self.next_token_can_follow_default_keyword());
                 }
                 if self.token() == SyntaxKind::TypeKeyword {
-                    return self
-                        .look_ahead(|| Some(self.next_token_can_follow_export_modifier()))
-                        .unwrap();
+                    return self.look_ahead_bool(|| self.next_token_can_follow_export_modifier());
                 }
                 self.can_follow_export_modifier()
             }
@@ -797,15 +803,7 @@ impl ParserType {
 
     fn parse_any_contextual_modifier(&self) -> bool {
         is_modifier_kind(self.token())
-            && self
-                .try_parse(|| {
-                    if self.next_token_can_follow_modifier() {
-                        Some(())
-                    } else {
-                        None
-                    }
-                })
-                .is_some()
+            && self.try_parse_bool(|| self.next_token_can_follow_modifier())
     }
 
     fn can_follow_modifier(&self) -> bool {
@@ -822,13 +820,9 @@ impl ParserType {
             || self.token() == SyntaxKind::FunctionKeyword
             || self.token() == SyntaxKind::InterfaceKeyword
             || self.token() == SyntaxKind::AbstractKeyword
-                && self
-                    .look_ahead(|| Some(self.next_token_is_class_keyword_on_same_line()))
-                    .unwrap()
+                && self.look_ahead_bool(|| self.next_token_is_class_keyword_on_same_line())
             || self.token() == SyntaxKind::AsyncKeyword
-                && self
-                    .look_ahead(|| Some(self.next_token_is_function_keyword_on_same_line()))
-                    .unwrap()
+                && self.look_ahead_bool(|| self.next_token_is_function_keyword_on_same_line())
     }
 
     fn is_list_element(&self, kind: ParsingContext) -> bool {
@@ -836,9 +830,7 @@ impl ParserType {
             ParsingContext::SourceElements | ParsingContext::BlockStatements => {
                 self.is_start_of_statement()
             }
-            ParsingContext::TypeMembers => self
-                .look_ahead(|| Some(self.is_type_member_start()))
-                .unwrap(),
+            ParsingContext::TypeMembers => self.look_ahead_bool(|| self.is_type_member_start()),
             ParsingContext::ObjectLiteralMembers => match self.token() {
                 SyntaxKind::OpenBracketToken
                 | SyntaxKind::AsteriskToken
@@ -1725,7 +1717,7 @@ impl ParserType {
     }
 
     fn is_start_of_declaration(&self) -> bool {
-        self.look_ahead(|| Some(self.is_declaration())).unwrap()
+        self.look_ahead_bool(|| self.is_declaration())
     }
 
     fn is_start_of_statement(&self) -> bool {
@@ -1950,9 +1942,7 @@ impl ParserType {
             unimplemented!()
         } else if stop_on_start_of_class_static_block
             && self.token() == SyntaxKind::StaticKeyword
-            && self
-                .look_ahead(|| Some(self.next_token_is_open_brace()))
-                .unwrap()
+            && self.look_ahead_bool(|| self.next_token_is_open_brace())
         {
             return None;
         } else if has_seen_static_modifier && self.token() == SyntaxKind::StaticKeyword {

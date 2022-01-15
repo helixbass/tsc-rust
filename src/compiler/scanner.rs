@@ -664,7 +664,7 @@ impl Scanner {
         }
     }
 
-    fn speculation_helper<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+    fn speculation_helper<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
         &self,
         mut callback: TCallback,
         is_lookahead: bool,
@@ -688,14 +688,14 @@ impl Scanner {
         result
     }
 
-    pub fn look_ahead<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+    pub fn look_ahead<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
         &self,
         callback: TCallback,
     ) -> Option<TReturn> {
         self.speculation_helper(callback, true)
     }
 
-    pub fn try_scan<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+    pub fn try_scan<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
         &self,
         callback: TCallback,
     ) -> Option<TReturn> {
