@@ -92,10 +92,6 @@ pub fn concatenate<TItem>(mut array1: Vec<TItem>, mut array2: Vec<TItem>) -> Vec
     array1
 }
 
-fn identity_key_selector<TItem>(item: TItem, _: Option<usize>) -> TItem {
-    item
-}
-
 enum ComparerOrEqualityComparer<'closure, TItem> {
     Comparer(&'closure dyn Fn(&TItem, &TItem) -> Comparison),
     EqualityComparer(&'closure dyn Fn(&TItem, &TItem) -> bool),
@@ -149,7 +145,6 @@ pub fn insert_sorted<TItem /*, TComparer: Comparer<&'array_or_item TItem>*/>(
         return;
     }
 
-    // let insert_index = binary_search(array, &insert, identity_key_selector, compare, None);
     let insert_index = binary_search(array, &insert, |item, _| item, compare, None);
     if insert_index < 0 {
         array.insert((!insert_index).try_into().unwrap(), insert);
