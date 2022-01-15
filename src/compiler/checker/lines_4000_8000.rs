@@ -10,10 +10,10 @@ use crate::{
     unescape_leading_underscores, using_single_line_string_writer, BaseIntrinsicType,
     BaseNodeFactorySynthetic, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint,
     EmitTextWriter, Expression, KeywordTypeNode, LiteralType, Node, NodeArray, NodeBuilderFlags,
-    NodeInterface, ObjectFlags, PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface,
-    SourceFile, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable,
-    SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
-    TypeParameter,
+    NodeInterface, Number, ObjectFlags, PrinterOptions, ResolvableTypeInterface,
+    ResolvedTypeInterface, SourceFile, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface,
+    SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypeParameter,
 };
 
 impl TypeChecker {
@@ -385,6 +385,13 @@ impl NodeBuilder {
             )
             .into();
         }
+        if type_.flags().intersects(TypeFlags::BigInt) {
+            return Into::<KeywordTypeNode>::into(
+                factory
+                    .create_keyword_type_node(&self.synthetic_factory, SyntaxKind::BigIntKeyword),
+            )
+            .into();
+        }
         if type_.flags().intersects(TypeFlags::Boolean) {
             return Into::<KeywordTypeNode>::into(
                 factory
@@ -411,6 +418,64 @@ impl NodeBuilder {
                                 ),
                             ),
                             None,
+                        )
+                        .into(),
+                )
+                .into();
+        }
+        if type_.flags().intersects(TypeFlags::NumberLiteral) {
+            let value = match type_ {
+                Type::LiteralType(LiteralType::NumberLiteralType(number_literal_type)) => {
+                    number_literal_type
+                }
+                _ => panic!("Expected NumberLiteralType"),
+            }
+            .value
+            .value();
+            return factory
+                .create_literal_type_node(
+                    &self.synthetic_factory,
+                    if value < 0.0 {
+                        factory
+                            .create_prefix_unary_expression(
+                                &self.synthetic_factory,
+                                SyntaxKind::MinusToken,
+                                factory
+                                    .create_numeric_literal(
+                                        &self.synthetic_factory,
+                                        (-value).to_string(),
+                                        None,
+                                    )
+                                    .into(),
+                            )
+                            .into()
+                    } else {
+                        factory
+                            .create_numeric_literal(
+                                &self.synthetic_factory,
+                                value.to_string(),
+                                None,
+                            )
+                            .into()
+                    },
+                )
+                .into();
+        }
+        if type_.flags().intersects(TypeFlags::BigIntLiteral) {
+            return factory
+                .create_literal_type_node(
+                    &self.synthetic_factory,
+                    factory
+                        .create_big_int_literal(
+                            &self.synthetic_factory,
+                            match type_ {
+                                Type::LiteralType(LiteralType::BigIntLiteralType(
+                                    big_int_literal_type,
+                                )) => big_int_literal_type,
+                                _ => panic!("Expected BigIntLiteralType"),
+                            }
+                            .value
+                            .clone(),
                         )
                         .into(),
                 )

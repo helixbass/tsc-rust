@@ -6,14 +6,14 @@ use std::rc::Rc;
 use super::CheckMode;
 use crate::{
     for_each, get_combined_node_flags, get_effective_initializer, is_binding_element,
-    is_function_or_module_block, is_private_identifier, map, maybe_for_each, ArrayTypeNode, Block,
-    DiagnosticMessage, Diagnostics, Expression, ExpressionStatement, HasTypeParametersInterface,
-    IfStatement, InterfaceDeclaration, LiteralLikeNode, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PrefixUnaryExpression,
-    PropertyAssignment, PropertySignature, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeParameterDeclaration, TypeReferenceNode,
-    UnionOrIntersectionTypeInterface, VariableDeclaration, VariableLikeDeclarationInterface,
-    VariableStatement,
+    is_function_or_module_block, is_private_identifier, map, maybe_for_each, parse_pseudo_big_int,
+    ArrayTypeNode, Block, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
+    HasTypeParametersInterface, IfStatement, InterfaceDeclaration, LiteralLikeNode,
+    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameterDeclaration,
+    TypeReferenceNode, UnionOrIntersectionTypeInterface, VariableDeclaration,
+    VariableLikeDeclarationInterface, VariableStatement,
 };
 
 impl TypeChecker {
@@ -253,6 +253,15 @@ impl TypeChecker {
             Expression::LiteralLikeNode(LiteralLikeNode::NumericLiteral(numeric_literal)) => {
                 self.check_grammar_numeric_literal(numeric_literal);
                 let type_: Rc<Type> = self.get_number_literal_type(numeric_literal.text().into());
+                self.get_fresh_type_of_literal_type(&type_)
+            }
+            Expression::LiteralLikeNode(LiteralLikeNode::BigIntLiteral(big_int_literal)) => {
+                let type_: Rc<Type> = self
+                    .get_big_int_literal_type(PseudoBigInt::new(
+                        false,
+                        parse_pseudo_big_int(big_int_literal.text()),
+                    ))
+                    .into();
                 self.get_fresh_type_of_literal_type(&type_)
             }
             _ => unimplemented!(),

@@ -8,9 +8,9 @@ use super::{ExpandingFlags, IntersectionState, RecursionFlags};
 use crate::{
     UnionOrIntersectionType, UnionOrIntersectionTypeInterface, __String, chain_diagnostic_messages,
     create_diagnostic_for_node_from_message_chain, first_or_undefined, get_object_flags, Debug_,
-    DiagnosticMessage, DiagnosticMessageChain, Diagnostics, Node, NodeInterface, ObjectFlags,
-    RelationComparisonResult, Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, Node,
+    NodeInterface, ObjectFlags, RelationComparisonResult, Symbol, SymbolInterface, Ternary, Type,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 pub(super) struct CheckTypeRelatedTo<'type_checker> {
@@ -74,9 +74,11 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         } else if false {
             unimplemented!()
         } else if self.error_info().is_some() {
+            let related_information: Option<Vec<DiagnosticRelatedInformation>> = None;
             let diag = create_diagnostic_for_node_from_message_chain(
                 &*self.error_node.unwrap(),
                 self.error_info().clone().unwrap(),
+                related_information,
             );
             if true {
                 self.type_checker.diagnostics().add(Rc::new(diag.into()));
@@ -216,6 +218,16 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                 &target,
                 report_errors,
                 intersection_state | IntersectionState::UnionIntersectionCheck,
+            );
+        } else if source.flags().intersects(TypeFlags::UnionOrIntersection)
+            || target.flags().intersects(TypeFlags::UnionOrIntersection)
+        {
+            result = self.recursive_type_related_to(
+                &source,
+                &target,
+                report_errors,
+                intersection_state | IntersectionState::UnionIntersectionCheck,
+                recursion_flags,
             );
         }
         if result == Ternary::False

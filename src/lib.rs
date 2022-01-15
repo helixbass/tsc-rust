@@ -9,10 +9,11 @@ pub use compiler::binder::bind_source_file;
 pub use compiler::checker::{create_type_checker, NodeBuilder};
 pub use compiler::command_line_parser::parse_command_line;
 pub use compiler::core::{
-    append_if_unique, concatenate, every, first_defined, first_or_undefined, for_each,
-    insert_sorted, last_or_undefined, map, maybe_for_each, range_equals, some,
+    append_if_unique, binary_search, binary_search_copy_key, compare_strings_case_sensitive,
+    compare_values, concatenate, every, first_defined, first_or_undefined, for_each, insert_sorted,
+    last_or_undefined, map, maybe_for_each, range_equals, some,
 };
-pub use compiler::core_public::SortedArray;
+pub use compiler::core_public::{Comparer, Comparison, SortedArray};
 pub use compiler::debug::Debug_;
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::emitter::create_printer;
@@ -42,9 +43,10 @@ pub use compiler::types::{
     BaseInterfaceOrClassLikeDeclaration, BaseInterfaceType, BaseIntrinsicType, BaseLiteralLikeNode,
     BaseLiteralType, BaseNamedDeclaration, BaseNode, BaseObjectType, BaseSymbol,
     BaseTransientSymbol, BaseType, BaseUnionOrIntersectionType, BaseVariableLikeDeclaration,
-    BinaryExpression, BindingLikeDeclarationInterface, Block, CharacterCodes, CheckFlags,
-    CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticCollection,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformationInterface,
+    BigIntLiteral, BigIntLiteralType, BinaryExpression, BindingLikeDeclarationInterface, Block,
+    CharacterCodes, CheckFlags, CompilerHost, CreateProgramOptions, Diagnostic, DiagnosticCategory,
+    DiagnosticCollection, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitHint, EmitTextWriter,
     EmptyStatement, ExitStatus, Expression, ExpressionStatement, FreshableIntrinsicType,
     HasExpressionInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
@@ -57,16 +59,17 @@ pub use compiler::types::{
     NodeInterface, NodeLinks, NumberLiteralType, NumericLiteral, ObjectFlags,
     ObjectFlagsTypeInterface, ObjectLiteralExpression, ObjectType, ObjectTypeInterface,
     ParsedCommandLine, Path, PrefixUnaryExpression, Printer, PrinterOptions, Program,
-    PropertyAssignment, PropertySignature, ReadonlyTextRange, RelationComparisonResult,
-    ResolvableTypeInterface, ResolvedTypeInterface, SourceFile, Statement, StringLiteral,
-    StringLiteralType, StructureIsReused, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
-    SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, Ternary,
-    TextSpan, TokenFlags, TransientSymbol, TransientSymbolInterface, Type, TypeChecker,
-    TypeCheckerHost, TypeElement, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
-    TypeLiteralNode, TypeMapper, TypeNode, TypeParameter, TypeParameterDeclaration, TypeReference,
-    TypeReferenceNode, UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionReduction,
-    UnionType, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
-    VariableLikeDeclarationInterface, VariableStatement, __String,
+    PropertyAssignment, PropertySignature, PseudoBigInt, ReadonlyTextRange,
+    RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile,
+    Statement, StringLiteral, StringLiteralType, StructureIsReused, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker,
+    SymbolWriter, SyntaxKind, Ternary, TextSpan, TokenFlags, TransientSymbol,
+    TransientSymbolInterface, Type, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags,
+    TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper, TypeNode, TypeParameter,
+    TypeParameterDeclaration, TypeReference, TypeReferenceNode, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, UnionReduction, UnionType, UnionTypeNode,
+    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, __String,
 };
 pub use compiler::utilities::{
     chain_diagnostic_messages, create_detached_diagnostic, create_diagnostic_collection,
@@ -77,14 +80,15 @@ pub use compiler::utilities::{
     get_first_identifier, get_literal_text, get_object_flags, get_source_file_of_node,
     has_dynamic_name, is_block_or_catch_scoped, is_external_or_common_js_module, is_keyword,
     is_property_name_literal, is_write_only_access, node_is_missing, object_allocator,
-    position_is_synthesized, set_parent, set_text_range_pos_end, set_value_declaration,
-    using_single_line_string_writer, GetLiteralTextFlags, OperatorPrecedence,
+    parse_pseudo_big_int, position_is_synthesized, pseudo_big_int_to_string, set_parent,
+    set_text_range_pos_end, set_value_declaration, using_single_line_string_writer,
+    GetLiteralTextFlags, OperatorPrecedence,
 };
 pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores, get_combined_node_flags,
     get_effective_type_parameter_declarations, get_name_of_declaration, has_initializer,
     has_only_expression_initializer, id_text, is_binding_pattern, is_expression, is_function_like,
-    is_function_or_module_block, is_member_name, unescape_leading_underscores,
+    is_function_or_module_block, is_literal_kind, is_member_name, unescape_leading_underscores,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;

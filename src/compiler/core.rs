@@ -1,6 +1,7 @@
+use std::convert::TryInto;
 use std::ptr;
 
-use crate::SortedArray;
+use crate::{Comparison, SortedArray};
 
 pub fn for_each<
     TCollection: IntoIterator,
@@ -85,12 +86,27 @@ pub fn concatenate<TItem>(mut array1: Vec<TItem>, mut array2: Vec<TItem>) -> Vec
     array1
 }
 
-pub fn insert_sorted<TItem>(array: &mut SortedArray<TItem>, insert: TItem) {
+fn identity_key_selector<TItem>(item: TItem, _: Option<usize>) -> TItem {
+    item
+}
+
+pub fn insert_sorted<TItem /*, TComparer: Comparer<&'array_or_item TItem>*/>(
+    array: &mut SortedArray<TItem>,
+    insert: TItem,
+    // compare: Comparer<&'array_or_item TItem>,
+    // compare: Comparer<&TItem, &TItem>,
+    compare: fn(&TItem, &TItem) -> Comparison,
+) {
     if array.is_empty() {
         array.push(insert);
         return;
     }
-    unimplemented!()
+
+    // let insert_index = binary_search(array, &insert, identity_key_selector, compare, None);
+    let insert_index = binary_search(array, &insert, |item, _| item, compare, None);
+    if insert_index < 0 {
+        array.insert((!insert_index).try_into().unwrap(), insert);
+    }
 }
 
 fn push_if_unique<TItem>(array: &mut Vec<TItem>, to_add: TItem) -> bool {
@@ -127,4 +143,180 @@ pub fn first_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
 
 pub fn last_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
     array.last()
+}
+
+pub fn binary_search<
+    TKey,
+    TItem,
+    TKeySelector: Fn(&TItem, Option<usize>) -> &TKey,
+    // TComparer: Comparer<TKey>,
+>(
+    array: &[TItem],
+    value: &TItem,
+    // key_selector: fn(&TItem, Option<usize>) -> &TKey,
+    key_selector: TKeySelector,
+    // key_comparer: TComparer,
+    // key_comparer: Comparer<&'array TKey>,
+    // key_comparer: Comparer<&TKey, &TKey>,
+    key_comparer: fn(&TKey, &TKey) -> Comparison,
+    offset: Option<usize>,
+) -> isize
+// where
+//     for<'key> &'key TKey: Clone,
+{
+    binary_search_key(
+        array,
+        // key_selector(value, None),
+        value,
+        key_selector,
+        key_comparer,
+        offset,
+    )
+}
+
+pub fn binary_search_copy_key<
+    TKey: Copy,
+    TItem,
+    TKeySelector: Fn(&TItem, Option<usize>) -> TKey,
+    // TComparer: Comparer<TKey>,
+>(
+    array: &[TItem],
+    value: &TItem,
+    key_selector: TKeySelector,
+    key_comparer: fn(TKey, TKey) -> Comparison,
+    offset: Option<usize>,
+) -> isize {
+    binary_search_key_copy_key(
+        array,
+        key_selector(value, None),
+        key_selector,
+        key_comparer,
+        offset,
+    )
+}
+
+fn binary_search_key<
+    TItem,
+    TKey,
+    TKeySelector: Fn(&TItem, Option<usize>) -> &TKey,
+    // TComparer: Comparer<TKey>,
+>(
+    array: &[TItem],
+    item: &TItem,
+    // key: &TSearchedKey,
+    key_selector: TKeySelector,
+    // key_comparer: TComparer,
+    // key_comparer: Comparer<&TKey>,
+    key_comparer: fn(&TKey, &TKey) -> Comparison,
+    offset: Option<usize>,
+) -> isize
+// where
+//     for<'key> &'key TKey: Clone,
+{
+    let key = key_selector(item, None);
+    if array.is_empty()
+    /* !some(array)*/
+    {
+        return -1;
+    }
+
+    let mut low = offset.unwrap_or(0);
+    let mut high = array.len() - 1;
+    while low <= high {
+        let middle = low + ((high - low) >> 1);
+        let mid_key = key_selector(&array[middle], Some(middle));
+        match key_comparer(mid_key, key) {
+            Comparison::LessThan => {
+                low = middle + 1;
+            }
+            Comparison::EqualTo => {
+                return middle.try_into().unwrap();
+            }
+            Comparison::GreaterThan => {
+                high = middle - 1;
+            }
+        }
+    }
+
+    let low: isize = low.try_into().unwrap();
+    !low
+}
+
+fn binary_search_key_copy_key<
+    TItem,
+    TKey: Copy,
+    TKeySelector: Fn(&TItem, Option<usize>) -> TKey,
+>(
+    array: &[TItem],
+    key: TKey,
+    key_selector: TKeySelector,
+    key_comparer: fn(TKey, TKey) -> Comparison,
+    offset: Option<usize>,
+) -> isize {
+    if array.is_empty()
+    /* !some(array)*/
+    {
+        return -1;
+    }
+
+    let mut low: isize = offset.unwrap_or(0).try_into().unwrap();
+    let mut high: isize = (array.len() - 1).try_into().unwrap();
+    while low <= high {
+        let middle: usize = (low + ((high - low) >> 1)).try_into().unwrap();
+        let mid_key = key_selector(&array[middle], Some(middle));
+        let middle: isize = middle.try_into().unwrap();
+        match key_comparer(mid_key, key) {
+            Comparison::LessThan => {
+                low = middle + 1;
+            }
+            Comparison::EqualTo => {
+                return middle;
+            }
+            Comparison::GreaterThan => {
+                high = middle - 1;
+            }
+        }
+    }
+
+    !low
+}
+
+fn identity<TValue>(x: TValue) -> TValue {
+    x
+}
+
+fn compare_comparable_values<TValue: Eq + Ord>(
+    a: Option<TValue>, /*number | string | undefined*/
+    b: Option<TValue>, /*number | string | undefined*/
+) -> Comparison {
+    if let Some(a) = a.as_ref() {
+        if let Some(b) = b.as_ref() {
+            if *a == *b {
+                return Comparison::EqualTo;
+            }
+        }
+    }
+    if a.is_none() {
+        return Comparison::LessThan;
+    } else if b.is_none() {
+        return Comparison::GreaterThan;
+    }
+    let a = a.unwrap();
+    let b = b.unwrap();
+    if a < b {
+        Comparison::LessThan
+    } else {
+        Comparison::GreaterThan
+    }
+}
+
+pub fn compare_values<TValue: Eq + Ord>(
+    a: Option<TValue>, /*number | undefined*/
+    b: Option<TValue>, /*number | undefined*/
+) -> Comparison {
+    compare_comparable_values(a, b)
+}
+
+pub fn compare_strings_case_sensitive(a: Option<&str>, b: Option<&str>) -> Comparison {
+    compare_comparable_values(a, b)
 }

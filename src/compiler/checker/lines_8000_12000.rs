@@ -14,23 +14,49 @@ use crate::{
     is_variable_declaration, range_equals, BaseInterfaceType, CheckFlags, Debug_, InterfaceType,
     InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
     pub(super) fn format_union_types(&self, types: &[Rc<Type>]) -> Vec<Rc<Type>> {
         let mut result: Vec<Rc<Type>> = vec![];
         let mut flags: TypeFlags = TypeFlags::None;
-        for (i, t) in types.iter().enumerate() {
+        let mut i = 0;
+        while i < types.len() {
+            let t = types[i].clone();
             flags |= t.flags();
             if !t.flags().intersects(TypeFlags::Nullable) {
                 if t.flags()
                     .intersects(TypeFlags::BooleanLiteral | TypeFlags::EnumLiteral)
                 {
-                    unimplemented!()
+                    let base_type = if t.flags().intersects(TypeFlags::BooleanLiteral) {
+                        self.boolean_type()
+                    } else {
+                        unimplemented!()
+                    };
+                    if let Type::UnionOrIntersectionType(UnionOrIntersectionType::UnionType(
+                        base_type_as_union_type,
+                    )) = &*base_type
+                    {
+                        let count = base_type_as_union_type.types().len();
+                        if i + count <= types.len()
+                            && Rc::ptr_eq(
+                                &self.get_regular_type_of_literal_type(&*types[i + count - 1]),
+                                &self.get_regular_type_of_literal_type(
+                                    &*base_type_as_union_type.types()[count - 1],
+                                ),
+                            )
+                        {
+                            result.push(base_type);
+                            i += count - 1;
+                            continue;
+                        }
+                    }
                 }
                 result.push(t.clone());
             }
+            i += 1;
         }
         result /*|| types*/
     }

@@ -4,20 +4,23 @@ use bitflags::bitflags;
 use regex::{Captures, Regex};
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::cmp;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
     SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, __String,
-    create_text_span_from_bounds, escape_leading_underscores, get_combined_node_flags,
-    get_name_of_declaration, insert_sorted, is_big_int_literal, is_member_name, skip_trivia,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
-    CharacterCodes, CheckFlags, Debug_, Diagnostic, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation,
-    DiagnosticWithLocation, EmitFlags, EmitTextWriter, Expression, LiteralLikeNode,
-    LiteralLikeNodeInterface, Node, NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression,
-    ReadonlyTextRange, SortedArray, SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
+    escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
+    insert_sorted, is_big_int_literal, is_member_name, skip_trivia, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags,
+    Comparison, Debug_, Diagnostic, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, Node,
+    NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange,
+    SortedArray, SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
     TransientSymbolInterface, Type, TypeInterface,
 };
 
@@ -211,7 +214,9 @@ pub fn get_literal_text<TSourceFileRef: Borrow<SourceFile>>(
                 )
             }
         }
-        LiteralLikeNode::NumericLiteral(numeric_literal) => node.text().to_string(),
+        LiteralLikeNode::NumericLiteral(_) | LiteralLikeNode::BigIntLiteral(_) => {
+            node.text().to_string()
+        }
     }
 }
 
@@ -312,10 +317,17 @@ fn create_diagnostic_for_node_in_source_file<TNode: NodeInterface>(
 pub fn create_diagnostic_for_node_from_message_chain<TNode: NodeInterface>(
     node: &TNode,
     message_chain: DiagnosticMessageChain,
+    related_information: Option<Vec<DiagnosticRelatedInformation>>,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node);
     let span = get_error_span_for_node(source_file.clone(), node);
-    create_file_diagnostic_from_message_chain(source_file, span.start, span.length, message_chain)
+    create_file_diagnostic_from_message_chain(
+        source_file,
+        span.start,
+        span.length,
+        message_chain,
+        related_information,
+    )
 }
 
 fn create_file_diagnostic_from_message_chain(
@@ -323,14 +335,19 @@ fn create_file_diagnostic_from_message_chain(
     start: isize,
     length: isize,
     message_chain: DiagnosticMessageChain,
+    related_information: Option<Vec<DiagnosticRelatedInformation>>,
 ) -> DiagnosticWithLocation {
     // assert_diagnostic_location(&*file, start, length);
-    DiagnosticWithLocation::new(BaseDiagnostic::new(BaseDiagnosticRelatedInformation::new(
-        Some(file),
-        start,
-        length,
-        message_chain,
-    )))
+    DiagnosticWithLocation::new(BaseDiagnostic::new(
+        BaseDiagnosticRelatedInformation::new(
+            message_chain.code,
+            Some(file),
+            start,
+            length,
+            message_chain,
+        ),
+        related_information,
+    ))
 }
 
 fn get_error_span_for_node<TNode: NodeInterface>(
@@ -476,24 +493,17 @@ impl DiagnosticCollection {
     }
 
     pub fn add(&mut self, diagnostic: Rc<Diagnostic>) {
-        // let diagnostics = self
-        //     .file_diagnostics
-        //     .get_mut(&diagnostic.file().unwrap().file_name)
-        //     .unwrap_or_else(|| {
-        //         let diagnostics: SortedArray<Rc<Diagnostic>> = SortedArray::new(vec![]);
-        //         self.file_diagnostics.insert(
-        //             diagnostic.file().unwrap().file_name.to_string(),
-        //             diagnostics,
-        //         );
-        //         self.file_diagnostics
-        //             .get_mut(&diagnostic.file().unwrap().file_name)
-        //             .unwrap()
-        //     });
         if let Some(diagnostics) = self
             .file_diagnostics
             .get_mut(&diagnostic.file().unwrap().file_name)
         {
-            insert_sorted(diagnostics, diagnostic);
+            insert_sorted(
+                diagnostics,
+                diagnostic,
+                |rc_diagnostic_a: &Rc<Diagnostic>, rc_diagnostic_b: &Rc<Diagnostic>| {
+                    compare_diagnostics(&**rc_diagnostic_a, &**rc_diagnostic_b)
+                },
+            );
             return;
         }
         let diagnostics: SortedArray<Rc<Diagnostic>> = SortedArray::new(vec![]);
@@ -505,7 +515,13 @@ impl DiagnosticCollection {
             .file_diagnostics
             .get_mut(&diagnostic.file().unwrap().file_name)
             .unwrap();
-        insert_sorted(diagnostics, diagnostic);
+        insert_sorted(
+            diagnostics,
+            diagnostic,
+            |rc_diagnostic_a: &Rc<Diagnostic>, rc_diagnostic_b: &Rc<Diagnostic>| {
+                compare_diagnostics(&**rc_diagnostic_a, &**rc_diagnostic_b)
+            },
+        );
     }
 
     pub fn get_diagnostics(&self, file_name: &str) -> Vec<Rc<Diagnostic>> {
@@ -781,9 +797,10 @@ pub fn create_detached_diagnostic(
     }
 
     DiagnosticWithDetachedLocation::new(
-        BaseDiagnostic::new(BaseDiagnosticRelatedInformation::new(
-            None, start, length, text,
-        )),
+        BaseDiagnostic::new(
+            BaseDiagnosticRelatedInformation::new(message.code, None, start, length, text),
+            None,
+        ),
         file_name.to_string(),
     )
 }
@@ -803,12 +820,10 @@ fn create_file_diagnostic(
         }
     }
 
-    DiagnosticWithLocation::new(BaseDiagnostic::new(BaseDiagnosticRelatedInformation::new(
-        Some(file),
-        start,
-        length,
-        text,
-    )))
+    DiagnosticWithLocation::new(BaseDiagnostic::new(
+        BaseDiagnosticRelatedInformation::new(message.code, Some(file), start, length, text),
+        None,
+    ))
 }
 
 pub fn chain_diagnostic_messages(
@@ -821,14 +836,177 @@ pub fn chain_diagnostic_messages(
     if let Some(args) = args {
         text = format_string_from_args(&text, args);
     }
-    DiagnosticMessageChain {
-        message_text: text,
-        next: details.map(|details| vec![details]),
+    DiagnosticMessageChain::new(text, message.code, details.map(|details| vec![details]))
+}
+
+fn get_diagnostic_file_path<
+    TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface,
+>(
+    diagnostic: &TDiagnosticRelatedInformation,
+) -> Option<String> {
+    diagnostic
+        .file()
+        .and_then(|file| file.path.as_ref().map(|path| path.to_string()))
+}
+
+fn compare_diagnostics<TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface>(
+    d1: &TDiagnosticRelatedInformation,
+    d2: &TDiagnosticRelatedInformation,
+) -> Comparison {
+    let mut compared = compare_diagnostics_skip_related_information(d1, d2);
+    if compared != Comparison::EqualTo {
+        return compared;
     }
+    if let Some(d1) = d1.maybe_as_diagnostic() {
+        if let Some(d2) = d2.maybe_as_diagnostic() {
+            compared = compare_related_information(d1, d2);
+            if compared != Comparison::EqualTo {
+                return compared;
+            }
+        }
+    }
+    Comparison::EqualTo
+}
+
+fn compare_diagnostics_skip_related_information<
+    TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface,
+>(
+    d1: &TDiagnosticRelatedInformation,
+    d2: &TDiagnosticRelatedInformation,
+) -> Comparison {
+    let mut compared = compare_strings_case_sensitive(
+        get_diagnostic_file_path(d1).as_deref(),
+        get_diagnostic_file_path(d2).as_deref(),
+    );
+    if compared != Comparison::EqualTo {
+        return compared;
+    }
+    compared = compare_values(Some(d1.start()), Some(d2.start()));
+    if compared != Comparison::EqualTo {
+        return compared;
+    }
+    compared = compare_values(Some(d1.length()), Some(d2.length()));
+    if compared != Comparison::EqualTo {
+        return compared;
+    }
+    compared = compare_values(Some(d1.code()), Some(d2.code()));
+    if compared != Comparison::EqualTo {
+        return compared;
+    }
+    compared = compare_message_text(d1.message_text(), d2.message_text());
+    if compared != Comparison::EqualTo {
+        return compared;
+    }
+    Comparison::EqualTo
+}
+
+fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic) -> Comparison {
+    if d1.maybe_related_information().is_none() && d2.maybe_related_information().is_none() {
+        return Comparison::EqualTo;
+    }
+    if let Some(d1_related_information) = d1.maybe_related_information() {
+        if let Some(d2_related_information) = d2.maybe_related_information() {
+            let compared = compare_values(
+                Some(d1_related_information.len()),
+                Some(d2_related_information.len()),
+            );
+            if compared != Comparison::EqualTo {
+                return compared;
+            }
+            let compared_maybe = for_each(d1_related_information, |d1i, index| {
+                let d2i = &d2_related_information[index];
+                let compared = compare_diagnostics(d1i, d2i);
+                match compared {
+                    Comparison::EqualTo => None,
+                    compared => Some(compared),
+                }
+            });
+            if let Some(compared) = compared_maybe {
+                if compared != Comparison::EqualTo {
+                    return compared;
+                }
+            }
+            return Comparison::EqualTo;
+        }
+    }
+    if d1.maybe_related_information().is_some() {
+        Comparison::LessThan
+    } else {
+        Comparison::GreaterThan
+    }
+}
+
+fn compare_message_text(t1: &DiagnosticMessageText, t2: &DiagnosticMessageText) -> Comparison {
+    if let DiagnosticMessageText::String(t1) = t1 {
+        if let DiagnosticMessageText::String(t2) = t2 {
+            return compare_strings_case_sensitive(Some(t1), Some(t2));
+        }
+    }
+    if matches!(t1, DiagnosticMessageText::String(_)) {
+        return Comparison::LessThan;
+    }
+    if matches!(t2, DiagnosticMessageText::String(_)) {
+        return Comparison::GreaterThan;
+    }
+    let t1 = match t1 {
+        DiagnosticMessageText::DiagnosticMessageChain(t1) => t1,
+        _ => panic!("Expected DiagnosticMessageChain"),
+    };
+    let t2 = match t2 {
+        DiagnosticMessageText::DiagnosticMessageChain(t2) => t2,
+        _ => panic!("Expected DiagnosticMessageChain"),
+    };
+    let mut res = compare_strings_case_sensitive(Some(&t1.message_text), Some(&t2.message_text));
+    if res != Comparison::EqualTo {
+        return res;
+    }
+    if t1.next.is_none() && t2.next.is_none() {
+        return Comparison::EqualTo;
+    }
+    if t1.next.is_none() {
+        return Comparison::LessThan;
+    }
+    if t2.next.is_none() {
+        return Comparison::GreaterThan;
+    }
+    let t1_next = t1.next.as_ref().unwrap();
+    let t2_next = t2.next.as_ref().unwrap();
+    let len = cmp::min(t1_next.len(), t2_next.len());
+    for i in 0..len {
+        res = compare_message_text(&t1_next[i].clone().into(), &t2_next[i].clone().into());
+        if res != Comparison::EqualTo {
+            return res;
+        }
+    }
+    if t1_next.len() < t2_next.len() {
+        return Comparison::LessThan;
+    }
+    if t1_next.len() > t2_next.len() {
+        return Comparison::GreaterThan;
+    }
+    Comparison::EqualTo
 }
 
 pub fn position_is_synthesized(pos: isize) -> bool {
     !(pos >= 0)
+}
+
+pub fn parse_pseudo_big_int(string_value: &str) -> String {
+    string_value.to_string()
+}
+
+pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
+    let negative = pseudo_big_int.negative;
+    let base_10_value = &pseudo_big_int.base_10_value;
+    format!(
+        "{}{}",
+        if negative && base_10_value != "0" {
+            "-"
+        } else {
+            ""
+        },
+        base_10_value
+    )
 }
 
 fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &mut TRange, pos: isize) -> &mut TRange {

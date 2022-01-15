@@ -1,11 +1,11 @@
 use std::fmt;
 use std::hash;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialOrd)]
 pub struct Number(f64);
 
 impl Number {
-    fn new(value: f64) -> Self {
+    pub fn new(value: f64) -> Self {
         if value.is_nan() {
             panic!("Tried to initialize Number with NaN: {}", value);
         }
@@ -14,6 +14,10 @@ impl Number {
 
     fn key(&self) -> u64 {
         self.0.to_bits()
+    }
+
+    pub fn value(&self) -> f64 {
+        self.0
     }
 }
 

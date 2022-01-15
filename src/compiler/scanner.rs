@@ -19,6 +19,7 @@ pub fn token_is_identifier_or_keyword(token: SyntaxKind) -> bool {
 lazy_static! {
     static ref text_to_keyword_obj: HashMap<String, SyntaxKind> =
         HashMap::from_iter(IntoIter::new([
+            ("bigint".to_string(), SyntaxKind::BigIntKeyword),
             ("boolean".to_string(), SyntaxKind::BooleanKeyword),
             ("const".to_string(), SyntaxKind::ConstKeyword),
             ("else".to_string(), SyntaxKind::ElseKeyword),
@@ -175,6 +176,10 @@ impl Scanner {
     pub fn has_preceding_line_break(&self) -> bool {
         self.token_flags()
             .intersects(TokenFlags::PrecedingLineBreak)
+    }
+
+    pub fn get_numeric_literal_flags(&self) -> TokenFlags {
+        self.token_flags() & TokenFlags::NumericLiteralFlags
     }
 
     fn get_identifier_token(&self) -> SyntaxKind {
@@ -530,11 +535,15 @@ impl Scanner {
         let end = self.pos();
         let result: String = self.text_substring(start, end);
 
-        self.set_token_value(result);
-        let type_ = self.check_big_int_suffix();
-        ScanNumberReturn {
-            type_,
-            value: self.token_value().to_string(),
+        if false {
+            unimplemented!()
+        } else {
+            self.set_token_value(result);
+            let type_ = self.check_big_int_suffix();
+            ScanNumberReturn {
+                type_,
+                value: self.token_value().to_string(),
+            }
         }
     }
 
@@ -578,7 +587,13 @@ impl Scanner {
     }
 
     fn check_big_int_suffix(&self) -> SyntaxKind {
-        SyntaxKind::NumericLiteral
+        if self.text_char_at_index(self.pos()) == CharacterCodes::n {
+            self.set_token_value(format!("{}n", self.token_value()));
+            self.increment_pos();
+            SyntaxKind::BigIntLiteral
+        } else {
+            SyntaxKind::NumericLiteral
+        }
     }
 
     fn speculation_helper<TReturn, TCallback: FnMut() -> Option<TReturn>>(

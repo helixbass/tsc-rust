@@ -107,6 +107,10 @@ fn skip_partially_emitted_expressions<TNode: NodeInterface>(node: &TNode) -> Rc<
     node.node_wrapper()
 }
 
+pub fn is_literal_kind(kind: SyntaxKind) -> bool {
+    SyntaxKind::FirstLiteralToken <= kind && kind <= SyntaxKind::LastLiteralToken
+}
+
 pub fn is_function_like<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
     node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
 }
