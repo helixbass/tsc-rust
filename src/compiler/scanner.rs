@@ -80,6 +80,12 @@ fn is_digit(ch: char) -> bool {
     ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
 }
 
+fn is_hex_digit(ch: char) -> bool {
+    is_digit(ch)
+        || ch >= CharacterCodes::A && ch <= CharacterCodes::F
+        || ch >= CharacterCodes::a && ch <= CharacterCodes::f
+}
+
 pub fn skip_trivia(text: &str, pos: isize) -> isize {
     if position_is_synthesized(pos) {
         return pos;
@@ -618,6 +624,89 @@ impl Scanner {
         }
     }
 
+    fn scan_exact_number_of_hex_digits(
+        &self,
+        on_error: Option<ErrorCallback>,
+        count: usize,
+        can_have_separators: bool,
+    ) -> Result<u64, &str> {
+        let value_string = self.scan_hex_digits(on_error, count, false, can_have_separators);
+        if !value_string.is_empty() {
+            u64::from_str_radix(&value_string, 16).map_err(|_| "Couldn't convert hex digits to u64")
+        } else {
+            Err("Couldn't scan any hex digits")
+        }
+    }
+
+    fn scan_hex_digits(
+        &self,
+        on_error: Option<ErrorCallback>,
+        min_count: usize,
+        scan_as_many_as_possible: bool,
+        can_have_separators: bool,
+    ) -> String {
+        let mut value_chars: Vec<char> = vec![];
+        let mut allow_separator = false;
+        let mut is_previous_token_separator = false;
+        while value_chars.len() < min_count || scan_as_many_as_possible {
+            let mut ch = self.text_char_at_index(self.pos());
+            if can_have_separators && ch == CharacterCodes::underscore {
+                self.add_token_flag(TokenFlags::ContainsSeparator);
+                if allow_separator {
+                    allow_separator = false;
+                    is_previous_token_separator = true;
+                } else if is_previous_token_separator {
+                    self.error(
+                        on_error,
+                        &Diagnostics::Multiple_consecutive_numeric_separators_are_not_permitted,
+                        Some(self.pos()),
+                        Some(1),
+                    );
+                } else {
+                    self.error(
+                        on_error,
+                        &Diagnostics::Numeric_separators_are_not_allowed_here,
+                        Some(self.pos()),
+                        Some(1),
+                    );
+                }
+                self.increment_pos();
+                continue;
+            }
+            allow_separator = can_have_separators;
+            if ch >= CharacterCodes::A && ch <= CharacterCodes::F {
+                ch = match ch {
+                    CharacterCodes::A => CharacterCodes::a,
+                    CharacterCodes::B => CharacterCodes::b,
+                    CharacterCodes::C => CharacterCodes::c,
+                    CharacterCodes::D => CharacterCodes::d,
+                    CharacterCodes::E => CharacterCodes::e,
+                    CharacterCodes::F => CharacterCodes::f,
+                    _ => panic!("Expected uppercase hex digit"),
+                };
+            } else if !(ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
+                || ch >= CharacterCodes::a && ch <= CharacterCodes::f)
+            {
+                break;
+            }
+            value_chars.push(ch);
+            self.increment_pos();
+            is_previous_token_separator = false;
+        }
+        if value_chars.len() < min_count {
+            value_chars = vec![];
+        }
+        if self.text_char_at_index(self.pos() - 1) == CharacterCodes::underscore {
+            self.error(
+                on_error,
+                &Diagnostics::Numeric_separators_are_not_allowed_here,
+                Some(self.pos() - 1),
+                Some(1),
+            );
+        }
+        value_chars.into_iter().collect()
+    }
+
     fn scan_string(
         &self,
         on_error: Option<ErrorCallback>,
@@ -783,7 +872,18 @@ impl Scanner {
                 unimplemented!()
             }
             CharacterCodes::x => {
-                unimplemented!()
+                if is_tagged_template {
+                    if !is_hex_digit(self.text_char_at_index(self.pos())) {
+                        self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                        return self.text_substring(start, self.pos());
+                    } else if !is_hex_digit(self.text_char_at_index(self.pos() + 1)) {
+                        self.increment_pos();
+                        self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                        return self.text_substring(start, self.pos());
+                    }
+                }
+
+                self.scan_hexadecimal_escape(on_error, 2)
             }
             CharacterCodes::carriage_return => {
                 if self.pos() < self.end()
@@ -797,6 +897,27 @@ impl Scanner {
             | CharacterCodes::line_separator
             | CharacterCodes::paragraph_separator => "".to_string(),
             _ => ch.to_string(),
+        }
+    }
+
+    fn scan_hexadecimal_escape(
+        &self,
+        on_error: Option<ErrorCallback>,
+        num_digits: usize,
+    ) -> String {
+        let escaped_value = self.scan_exact_number_of_hex_digits(on_error, num_digits, false);
+
+        match escaped_value {
+            Ok(escaped_value) => escaped_value.to_string(),
+            Err(_) => {
+                self.error(
+                    on_error,
+                    &Diagnostics::Hexadecimal_digit_expected,
+                    None,
+                    None,
+                );
+                "".to_string()
+            }
         }
     }
 
