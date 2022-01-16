@@ -74,6 +74,21 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
         Node::TypeParameterDeclaration(type_parameter_declaration) => {
             visit_node(&mut cb_node, Some(type_parameter_declaration.name()))
         }
+        Node::ParameterDeclaration(parameter_declaration) => {
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                parameter_declaration.maybe_decorators().as_ref(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                parameter_declaration.maybe_modifiers(),
+            );
+            visit_node(&mut cb_node, Some(parameter_declaration.name()));
+            visit_node(&mut cb_node, parameter_declaration.maybe_type());
+            visit_node(&mut cb_node, parameter_declaration.maybe_initializer())
+        }
         Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
             visit_nodes(
                 &mut cb_node,
