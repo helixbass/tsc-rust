@@ -57,6 +57,8 @@ pub enum SyntaxKind {
     CommaToken,
     LessThanToken,
     GreaterThanToken,
+    EqualsGreaterThanToken,
+    PlusToken,
     MinusToken,
     AsteriskToken,
     SlashToken,
@@ -110,6 +112,8 @@ pub enum SyntaxKind {
     DeclareKeyword,
     GetKeyword,
     InferKeyword,
+    IntrinsicKeyword,
+    IsKeyword,
     NeverKeyword,
     ReadonlyKeyword,
     NumberKeyword,
@@ -139,6 +143,7 @@ pub enum SyntaxKind {
     CallSignature,
     ConstructSignature,
     IndexSignature,
+    TypePredicate,
     TypeReference,
     FunctionType,
     ConstructorType,
@@ -1002,6 +1007,7 @@ pub enum TypeNode {
     IntersectionTypeNode(IntersectionTypeNode),
     LiteralTypeNode(LiteralTypeNode),
     TypeReferenceNode(TypeReferenceNode),
+    TypePredicateNode(TypePredicateNode),
     TypeLiteralNode(TypeLiteralNode),
     ArrayTypeNode(ArrayTypeNode),
 }
@@ -1053,6 +1059,31 @@ impl TypeReferenceNode {
 impl HasTypeArgumentsInterface for TypeReferenceNode {
     fn maybe_type_arguments(&self) -> Option<&NodeArray> {
         self.type_arguments.as_ref()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct TypePredicateNode {
+    _node: BaseNode,
+    pub asserts_modifier: Option<Rc<Node /*AssertsToken*/>>,
+    pub parameter_name: Rc<Node /*Identifier | ThisTypeNode*/>,
+    pub type_: Option<Rc<Node /*TypeNode*/>>,
+}
+
+impl TypePredicateNode {
+    pub fn new(
+        base_node: BaseNode,
+        asserts_modifier: Option<Rc<Node>>,
+        parameter_name: Rc<Node>,
+        type_: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            asserts_modifier,
+            parameter_name,
+            type_,
+        }
     }
 }
 

@@ -1445,6 +1445,32 @@ impl ParserType {
         node
     }
 
+    fn parse_return_type(&self, return_token: SyntaxKind, is_type: bool) -> Option<TypeNode> {
+        if self.should_parse_return_type(return_token, is_type) {
+            return Some(self.parse_type_or_type_predicate());
+        }
+        None
+    }
+
+    fn should_parse_return_type(&self, return_token: SyntaxKind, is_type: bool) -> bool {
+        if return_token == SyntaxKind::EqualsGreaterThanToken {
+            self.parse_expected(return_token, None, None);
+            return true;
+        } else if self.parse_optional(SyntaxKind::ColonToken) {
+            return true;
+        } else if is_type && self.token() == SyntaxKind::EqualsGreaterThanToken {
+            self.parse_error_at_current_token(
+                &Diagnostics::_0_expected,
+                Some(vec![token_to_string(SyntaxKind::ColonToken)
+                    .unwrap()
+                    .to_string()]),
+            );
+            self.next_token();
+            return true;
+        }
+        false
+    }
+
     fn parse_parameters_worker(&self, flags: SignatureFlags) -> NodeArray /*<ParameterDeclaration>*/
     {
         let saved_yield_context = self.in_yield_context();
@@ -1740,6 +1766,41 @@ impl ParserType {
             ParserType::parse_intersection_type_or_higher,
             NodeFactory::create_union_type_node,
         )
+    }
+
+    fn parse_type_or_type_predicate(&self) -> TypeNode {
+        let pos = self.get_node_pos();
+        let type_predicate_variable = if self.is_identifier() {
+            self.try_parse(|| self.parse_type_predicate_prefix())
+        } else {
+            None
+        };
+        let type_ = self.parse_type();
+        if let Some(type_predicate_variable) = type_predicate_variable {
+            self.finish_node(
+                self.factory
+                    .create_type_predicate_node(
+                        self,
+                        None,
+                        type_predicate_variable.into(),
+                        Some(type_.into()),
+                    )
+                    .into(),
+                pos,
+                None,
+            )
+        } else {
+            type_
+        }
+    }
+
+    fn parse_type_predicate_prefix(&self) -> Option<Identifier> {
+        let id = self.parse_identifier(None, None);
+        if self.token() == SyntaxKind::IsKeyword && !self.scanner().has_preceding_line_break() {
+            self.next_token();
+            return Some(id);
+        }
+        None
     }
 
     fn parse_type(&self) -> TypeNode {

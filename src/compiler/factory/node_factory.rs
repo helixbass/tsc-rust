@@ -14,8 +14,8 @@ use crate::{
     ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression, PropertyAssignment,
     PropertySignature, PseudoBigInt, SourceFile, Statement, StringLiteral, SyntaxKind,
     TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration,
-    TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypeReferenceNode, UnionTypeNode,
-    VariableDeclaration, VariableDeclarationList, VariableStatement,
+    TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode,
+    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -342,6 +342,18 @@ impl NodeFactory {
         token: SyntaxKind,
     ) -> BaseNode {
         self.create_token(base_factory, token)
+    }
+
+    pub fn create_type_predicate_node<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        asserts_modifier: Option<Rc<Node>>,
+        parameter_name: Rc<Node>,
+        type_: Option<Rc<Node>>,
+    ) -> TypePredicateNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::TypePredicate);
+        let node = TypePredicateNode::new(node, asserts_modifier, parameter_name, type_);
+        node
     }
 
     pub fn create_type_reference_node<

@@ -71,9 +71,9 @@ pub use compiler::types::{
     Ternary, TextSpan, TokenFlags, TransientSymbol, TransientSymbolInterface, Type,
     TypeAliasDeclaration, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeFormatFlags,
     TypeId, TypeInterface, TypeLiteralNode, TypeMapper, TypeNode, TypeParameter,
-    TypeParameterDeclaration, TypeReference, TypeReferenceNode, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, UnionReduction, UnionType, UnionTypeNode,
-    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    TypeParameterDeclaration, TypePredicateNode, TypeReference, TypeReferenceNode,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
+    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
     VariableStatement, __String,
 };
 pub use compiler::utilities::{
