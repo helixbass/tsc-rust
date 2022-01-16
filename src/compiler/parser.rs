@@ -18,9 +18,9 @@ use crate::{
     KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, ObjectLiteralExpression, OperatorPrecedence, ParameterDeclaration,
-    PropertyAssignment, Scanner, SourceFile, Statement, SyntaxKind, TemplateExpression,
-    TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration, TypeElement, TypeNode,
-    TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
+    PropertyAssignment, ReturnStatement, Scanner, SourceFile, Statement, SyntaxKind,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration,
+    TypeElement, TypeNode, TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -485,20 +485,20 @@ impl ParserType {
         self.set_context_flag(val, NodeFlags::AwaitContext);
     }
 
-    fn do_outside_of_context<TReturn>(
+    fn do_outside_of_context<TReturn, TFunc: FnOnce() -> TReturn>(
         &self,
         context: NodeFlags,
-        func: fn(&ParserType) -> TReturn,
+        func: TFunc,
     ) -> TReturn {
         let context_flags_to_clear = context & self.context_flags();
         if context_flags_to_clear != NodeFlags::None {
             self.set_context_flag(false, context_flags_to_clear);
-            let result = func(self);
+            let result = func();
             self.set_context_flag(true, context_flags_to_clear);
             return result;
         }
 
-        func(self)
+        func()
     }
 
     fn do_inside_of_context<TReturn, TFunc: FnOnce() -> TReturn>(
@@ -517,7 +517,7 @@ impl ParserType {
         func()
     }
 
-    fn allow_in_and<TReturn>(&self, func: fn(&ParserType) -> TReturn) -> TReturn {
+    fn allow_in_and<TReturn, TFunc: FnOnce() -> TReturn>(&self, func: TFunc) -> TReturn {
         self.do_outside_of_context(NodeFlags::DisallowInContext, func)
     }
 
@@ -1244,7 +1244,7 @@ impl ParserType {
         self.finish_node(
             self.factory.create_template_span(
                 self,
-                self.allow_in_and(ParserType::parse_expression).into(),
+                self.allow_in_and(|| self.parse_expression()).into(),
                 self.parse_literal_of_template_span(is_tagged_template)
                     .into(),
             ),
@@ -1837,7 +1837,7 @@ impl ParserType {
     }
 
     fn parse_type(&self) -> TypeNode {
-        self.do_outside_of_context(NodeFlags::TypeExcludesFlags, ParserType::parse_type_worker)
+        self.do_outside_of_context(NodeFlags::TypeExcludesFlags, || self.parse_type_worker())
     }
 
     fn parse_type_worker(&self) -> TypeNode {
@@ -2092,7 +2092,7 @@ impl ParserType {
             unimplemented!()
         } else {
             self.parse_expected(SyntaxKind::ColonToken, None, None);
-            let initializer = self.allow_in_and(ParserType::parse_assignment_expression_or_higher);
+            let initializer = self.allow_in_and(|| self.parse_assignment_expression_or_higher());
             node = self
                 .factory
                 .create_property_assignment(self, name.wrap(), initializer.into());
@@ -2205,7 +2205,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::IfKeyword, None, None);
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
-        let expression = self.allow_in_and(ParserType::parse_expression);
+        let expression = self.allow_in_and(|| self.parse_expression());
         self.parse_expected(SyntaxKind::CloseParenToken, None, None);
         let then_statement = self.parse_statement();
         let else_statement = if self.parse_optional(SyntaxKind::ElseKeyword) {
@@ -2217,6 +2217,23 @@ impl ParserType {
             self.factory
                 .create_if_statement(self, expression, then_statement, else_statement)
                 .into(),
+            pos,
+            None,
+        )
+    }
+
+    fn parse_return_statement(&self) -> ReturnStatement {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::ReturnKeyword, None, None);
+        let expression = if self.can_parse_semicolon() {
+            None
+        } else {
+            Some(self.allow_in_and(|| self.parse_expression()))
+        };
+        self.parse_semicolon();
+        self.finish_node(
+            self.factory
+                .create_return_statement(self, expression.map(Into::into)),
             pos,
             None,
         )
@@ -2278,7 +2295,8 @@ impl ParserType {
             SyntaxKind::SemicolonToken
             | SyntaxKind::VarKeyword
             | SyntaxKind::FunctionKeyword
-            | SyntaxKind::IfKeyword => true,
+            | SyntaxKind::IfKeyword
+            | SyntaxKind::ReturnKeyword => true,
             SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
             SyntaxKind::DeclareKeyword | SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
                 true
@@ -2300,6 +2318,7 @@ impl ParserType {
             }
             SyntaxKind::OpenBraceToken => return self.parse_block(false, None).into(),
             SyntaxKind::IfKeyword => return self.parse_if_statement(),
+            SyntaxKind::ReturnKeyword => return self.parse_return_statement().into(),
             SyntaxKind::ConstKeyword => {
                 if self.is_start_of_declaration() {
                     return self.parse_declaration();

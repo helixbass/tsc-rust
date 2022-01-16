@@ -174,6 +174,7 @@ pub enum SyntaxKind {
     VariableStatement,
     ExpressionStatement,
     IfStatement,
+    ReturnStatement,
     VariableDeclaration,
     VariableDeclarationList,
     FunctionDeclaration,
@@ -1502,6 +1503,7 @@ pub enum Statement {
     VariableStatement(VariableStatement),
     ExpressionStatement(ExpressionStatement),
     IfStatement(IfStatement),
+    ReturnStatement(ReturnStatement),
     InterfaceDeclaration(InterfaceDeclaration),
     TypeAliasDeclaration(TypeAliasDeclaration),
 }
@@ -1583,6 +1585,22 @@ impl IfStatement {
             expression,
             then_statement,
             else_statement,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ReturnStatement {
+    _node: BaseNode,
+    pub expression: Option<Rc</*Expression*/ Node>>,
+}
+
+impl ReturnStatement {
+    pub fn new(base_node: BaseNode, expression: Option<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
         }
     }
 }

@@ -12,11 +12,11 @@ use crate::{
     InterfaceDeclaration, IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
     NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
-    PropertyAssignment, PropertySignature, PseudoBigInt, SourceFile, Statement, StringLiteral,
-    SyntaxKind, TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags,
-    TypeAliasDeclaration, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode,
-    TypeReferenceNode, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement, SourceFile, Statement,
+    StringLiteral, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode, TemplateSpan,
+    TokenFlags, TypeAliasDeclaration, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
+    TypePredicateNode, TypeReferenceNode, UnionTypeNode, VariableDeclaration,
+    VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -690,6 +690,16 @@ impl NodeFactory {
                 .unwrap(),
             self.as_embedded_statement(else_statement.map(|else_statement| else_statement.into())),
         );
+        node
+    }
+
+    pub fn create_return_statement<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Option<Rc<Node>>,
+    ) -> ReturnStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::ReturnStatement);
+        let node = ReturnStatement::new(node, expression);
         node
     }
 

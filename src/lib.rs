@@ -63,7 +63,7 @@ pub use compiler::types::{
     ObjectFlagsTypeInterface, ObjectLiteralExpression, ObjectType, ObjectTypeInterface,
     ParameterDeclaration, ParsedCommandLine, Path, PrefixUnaryExpression, Printer, PrinterOptions,
     Program, PropertyAssignment, PropertySignature, PseudoBigInt, ReadonlyTextRange,
-    RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface,
+    RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface, ReturnStatement,
     SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, StringLiteral,
     StringLiteralType, StructureIsReused, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
     SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind,
