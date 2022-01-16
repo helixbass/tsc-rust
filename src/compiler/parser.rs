@@ -1073,6 +1073,10 @@ impl ParserType {
                     || self.token() == SyntaxKind::ImplementsKeyword
             }
             ParsingContext::ArrayLiteralMembers => self.token() == SyntaxKind::CloseBracketToken,
+            ParsingContext::Parameters => {
+                self.token() == SyntaxKind::CloseParenToken
+                    || self.token() == SyntaxKind::CloseBracketToken
+            }
             ParsingContext::TypeArguments => self.token() != SyntaxKind::CommaToken,
             _ => false,
         }
