@@ -286,7 +286,7 @@ pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWr
     ret
 }
 
-fn get_full_width<TNode: NodeInterface>(node: &TNode) -> isize {
+pub fn get_full_width<TNode: NodeInterface>(node: &TNode) -> isize {
     node.end() - node.pos()
 }
 

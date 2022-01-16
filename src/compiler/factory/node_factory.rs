@@ -11,11 +11,11 @@ use crate::{
     Expression, ExpressionStatement, Identifier, IfStatement, InterfaceDeclaration,
     IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NumericLiteral,
-    ObjectLiteralExpression, PrefixUnaryExpression, PropertyAssignment, PropertySignature,
-    PseudoBigInt, SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression,
-    TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration, TypeLiteralNode,
-    TypeNode, TypeParameterDeclaration, TypeReferenceNode, UnionTypeNode, VariableDeclaration,
-    VariableDeclarationList, VariableStatement,
+    ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression, PropertyAssignment,
+    PropertySignature, PseudoBigInt, SourceFile, Statement, StringLiteral, SyntaxKind,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration,
+    TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypeReferenceNode, UnionTypeNode,
+    VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -291,6 +291,30 @@ impl NodeFactory {
             Some(name),
         );
         let node = TypeParameterDeclaration::new(node);
+        node
+    }
+
+    pub fn create_parameter_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
+        name: Rc<Node>,
+        question_token: Option<Rc<Node /*QuestionToken*/>>,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+        initializer: Option<Rc<Node /*Expression*/>>,
+    ) -> ParameterDeclaration {
+        let node = self.create_base_variable_like_declaration(
+            base_factory,
+            SyntaxKind::Parameter,
+            decorators,
+            modifiers,
+            Some(name),
+            type_,
+            initializer,
+        );
+        let node = ParameterDeclaration::new(node, dot_dot_dot_token, question_token);
         node
     }
 

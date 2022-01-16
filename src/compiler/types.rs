@@ -279,6 +279,7 @@ pub enum Node {
     SignatureDeclarationBase(SignatureDeclarationBase),
     VariableDeclaration(VariableDeclaration),
     VariableDeclarationList(VariableDeclarationList),
+    ParameterDeclaration(ParameterDeclaration),
     TypeNode(TypeNode),
     Expression(Expression),
     TemplateSpan(TemplateSpan),
@@ -922,6 +923,23 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
+    ancestors = "Statement",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct FunctionDeclaration {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+}
+
+impl FunctionDeclaration {
+    pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
     interfaces = "NamedDeclarationInterface, HasExpressionInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
 )]
 pub struct VariableDeclaration {
@@ -948,6 +966,30 @@ impl VariableDeclarationList {
         Self {
             _node: base_node,
             declarations,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasExpressionInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
+)]
+pub struct ParameterDeclaration {
+    _variable_like_declaration: BaseVariableLikeDeclaration,
+    pub dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+}
+
+impl ParameterDeclaration {
+    pub fn new(
+        base_variable_like_declaration: BaseVariableLikeDeclaration,
+        dot_dot_dot_token: Option<Rc<Node>>,
+        question_token: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _variable_like_declaration: base_variable_like_declaration,
+            dot_dot_dot_token,
+            question_token,
         }
     }
 }
@@ -1417,6 +1459,7 @@ impl ObjectLiteralExpression {
 #[derive(Debug)]
 #[ast_type]
 pub enum Statement {
+    FunctionDeclaration(FunctionDeclaration),
     EmptyStatement(EmptyStatement),
     Block(Block),
     VariableStatement(VariableStatement),
