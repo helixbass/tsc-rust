@@ -26,8 +26,11 @@ bitflags! {
 
         const IsControlFlowContainer = 1 << 2;
 
+        const IsFunctionLike = 1 << 3;
+        const IsFunctionExpression = 1 << 4;
         const HasLocals = 1 << 5;
         const IsInterface = 1 << 6;
+        const IsObjectLiteralOrClassExpressionMethodOrAccessor = 1 << 7;
     }
 }
 
@@ -352,6 +355,12 @@ impl BinderType {
                 return ContainerFlags::IsContainer
                     | ContainerFlags::IsControlFlowContainer
                     | ContainerFlags::HasLocals;
+            }
+            SyntaxKind::FunctionDeclaration => {
+                return ContainerFlags::IsContainer
+                    | ContainerFlags::IsControlFlowContainer
+                    | ContainerFlags::HasLocals
+                    | ContainerFlags::IsFunctionLike;
             }
             SyntaxKind::Block => {
                 return if is_function_like(node.maybe_parent())

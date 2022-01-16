@@ -211,8 +211,8 @@ fn get_ast_struct_interface_impl(
         "HasTypeInterface" => {
             quote! {
                 impl crate::HasTypeInterface for #ast_type_name {
-                    fn type_(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
-                        self.#first_field_name.type_()
+                    fn maybe_type(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self.#first_field_name.maybe_type()
                     }
 
                     fn set_type(&mut self, type_: ::std::rc::Rc<crate::Node>) {
@@ -553,6 +553,23 @@ fn get_ast_enum_interface_impl(
                     fn maybe_body(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_body()),*
+                        }
+                    }
+                }
+            }
+        }
+        "HasTypeInterface" => {
+            quote! {
+                impl crate::HasTypeInterface for #ast_type_name {
+                    fn maybe_type(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_type()),*
+                        }
+                    }
+
+                    fn set_type(&mut self, type_: ::std::rc::Rc<crate::Node>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_type(type_)),*
                         }
                     }
                 }

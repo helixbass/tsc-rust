@@ -189,7 +189,7 @@ impl Printer {
 
     fn emit_property_signature(&mut self, node: &PropertySignature) {
         self.emit_node_with_writer(Some(&*node.name()), Printer::write_property);
-        self.emit_type_annotation(node.type_());
+        self.emit_type_annotation(node.maybe_type());
         self.write_trailing_semicolon();
     }
 

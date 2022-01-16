@@ -601,7 +601,7 @@ impl From<BaseNode> for Rc<Node> {
 }
 
 pub trait HasTypeInterface {
-    fn type_(&self) -> Option<Rc<Node>>;
+    fn maybe_type(&self) -> Option<Rc<Node>>;
     fn set_type(&mut self, type_: Rc<Node>);
 }
 
@@ -820,7 +820,7 @@ impl BaseVariableLikeDeclaration {
 }
 
 impl HasTypeInterface for BaseVariableLikeDeclaration {
-    fn type_(&self) -> Option<Rc<Node>> {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
         self.type_.as_ref().map(Clone::clone)
     }
 
@@ -887,6 +887,16 @@ impl BaseSignatureDeclaration {
     }
 }
 
+impl HasTypeInterface for BaseSignatureDeclaration {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = Some(type_);
+    }
+}
+
 impl SignatureDeclarationInterface for BaseSignatureDeclaration {
     fn parameters(&self) -> &NodeArray {
         &self.parameters
@@ -896,7 +906,7 @@ impl SignatureDeclarationInterface for BaseSignatureDeclaration {
 #[derive(Debug)]
 #[ast_type(
     ancestors = "SignatureDeclarationBase",
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
 )]
 pub enum FunctionLikeDeclarationBase {
     BaseFunctionLikeDeclaration(BaseFunctionLikeDeclaration),
@@ -909,7 +919,7 @@ pub trait FunctionLikeDeclarationInterface {
 #[derive(Debug)]
 #[ast_type(
     ancestors = "FunctionLikeDeclarationBase, SignatureDeclarationBase",
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
 )]
 pub struct BaseFunctionLikeDeclaration {
     _signature_declaration: BaseSignatureDeclaration,
@@ -936,7 +946,7 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
 #[derive(Debug)]
 #[ast_type(
     ancestors = "Statement",
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
 )]
 pub struct FunctionDeclaration {
     _function_like_declaration: BaseFunctionLikeDeclaration,
@@ -1628,7 +1638,7 @@ impl PropertySignature {
 }
 
 impl HasTypeInterface for PropertySignature {
-    fn type_(&self) -> Option<Rc<Node>> {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
         self.type_.clone()
     }
 

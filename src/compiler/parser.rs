@@ -13,14 +13,15 @@ use crate::{
     normalize_path, object_allocator, set_text_range_pos_end, some, token_is_identifier_or_keyword,
     token_to_string, ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block,
     Debug_, Decorator, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    Diagnostics, Expression, FunctionDeclaration, HasExpressionInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, Identifier, InterfaceDeclaration,
-    KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, ObjectLiteralExpression, OperatorPrecedence, ParameterDeclaration,
-    PropertyAssignment, ReturnStatement, Scanner, SourceFile, Statement, SyntaxKind,
-    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration,
-    TypeElement, TypeNode, TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
+    Diagnostics, Expression, FunctionDeclaration, FunctionLikeDeclarationInterface,
+    HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
+    InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    LiteralTypeNode, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
+    ParameterDeclaration, PropertyAssignment, ReturnStatement, Scanner,
+    SignatureDeclarationInterface, SourceFile, Statement, SyntaxKind, TemplateExpression,
+    TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration, TypeElement, TypeNode,
+    TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -85,7 +86,7 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
                 property_signature.maybe_modifiers(),
             );
             visit_node(&mut cb_node, Some(property_signature.name()));
-            visit_node(&mut cb_node, property_signature.type_())
+            visit_node(&mut cb_node, property_signature.maybe_type())
         }
         Node::PropertyAssignment(property_assignment) => {
             visit_nodes(
@@ -113,8 +114,33 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
                 variable_declaration.maybe_modifiers(),
             );
             visit_node(&mut cb_node, Some(variable_declaration.name()));
-            visit_node(&mut cb_node, variable_declaration.type_());
+            visit_node(&mut cb_node, variable_declaration.maybe_type());
             visit_node(&mut cb_node, variable_declaration.maybe_initializer())
+        }
+        Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                function_declaration.maybe_decorators().as_ref(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                function_declaration.maybe_modifiers(),
+            );
+            visit_node(&mut cb_node, Some(function_declaration.name()));
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                function_declaration.maybe_type_parameters(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                Some(function_declaration.parameters()),
+            );
+            visit_node(&mut cb_node, function_declaration.maybe_type());
+            visit_node(&mut cb_node, function_declaration.maybe_body())
         }
         Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
             visit_node(&mut cb_node, Some(type_reference_node.type_name.clone()));
