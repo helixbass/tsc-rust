@@ -264,6 +264,29 @@ fn get_ast_struct_interface_impl(
                 }
             }
         }
+        "GenericNamedDeclarationInterface" => {
+            quote! {
+                impl crate::GenericNamedDeclarationInterface for #ast_type_name {}
+            }
+        }
+        "SignatureDeclarationInterface" => {
+            quote! {
+                impl crate::SignatureDeclarationInterface for #ast_type_name {
+                    fn parameters(&self) -> &crate::NodeArray {
+                        self.#first_field_name.parameters()
+                    }
+                }
+            }
+        }
+        "FunctionLikeDeclarationInterface" => {
+            quote! {
+                impl crate::FunctionLikeDeclarationInterface for #ast_type_name {
+                    fn maybe_body(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self.#first_field_name.maybe_body()
+                    }
+                }
+            }
+        }
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
@@ -503,6 +526,33 @@ fn get_ast_enum_interface_impl(
                     fn maybe_template_flags(&self) -> ::std::option::Option<crate::TokenFlags> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_template_flags()),*
+                        }
+                    }
+                }
+            }
+        }
+        "GenericNamedDeclarationInterface" => {
+            quote! {
+                impl crate::GenericNamedDeclarationInterface for #ast_type_name {}
+            }
+        }
+        "SignatureDeclarationInterface" => {
+            quote! {
+                impl crate::SignatureDeclarationInterface for #ast_type_name {
+                    fn parameters(&self) -> &crate::NodeArray {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.parameters()),*
+                        }
+                    }
+                }
+            }
+        }
+        "FunctionLikeDeclarationInterface" => {
+            quote! {
+                impl crate::FunctionLikeDeclarationInterface for #ast_type_name {
+                    fn maybe_body(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_body()),*
                         }
                     }
                 }

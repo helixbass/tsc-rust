@@ -276,6 +276,7 @@ pub enum Node {
     BaseNode(BaseNode),
     TypeParameterDeclaration(TypeParameterDeclaration),
     Decorator(Decorator),
+    SignatureDeclarationBase(SignatureDeclarationBase),
     VariableDeclaration(VariableDeclaration),
     VariableDeclarationList(VariableDeclarationList),
     TypeNode(TypeNode),
@@ -841,6 +842,82 @@ impl TypeParameterDeclaration {
 pub struct Decorator {
     _node: BaseNode,
     expression: Rc<Node /*LeftHandSideExpression*/>,
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "NamedDeclarationInterface, SignatureDeclarationInterface")]
+pub enum SignatureDeclarationBase {
+    FunctionLikeDeclarationBase(FunctionLikeDeclarationBase),
+}
+
+pub trait SignatureDeclarationInterface {
+    fn parameters(&self) -> &NodeArray /*<ParameterDeclaration>*/;
+}
+
+#[derive(Debug)]
+#[ast_type(
+    impl_from = false,
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
+)]
+pub struct BaseSignatureDeclaration {
+    _generic_named_declaration: BaseGenericNamedDeclaration,
+    parameters: NodeArray, /*<ParameterDeclaration>*/
+}
+
+impl BaseSignatureDeclaration {
+    pub fn new(
+        generic_named_declaration: BaseGenericNamedDeclaration,
+        parameters: NodeArray,
+    ) -> Self {
+        Self {
+            _generic_named_declaration: generic_named_declaration,
+            parameters,
+        }
+    }
+}
+
+impl SignatureDeclarationInterface for BaseSignatureDeclaration {
+    fn parameters(&self) -> &NodeArray {
+        &self.parameters
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "SignatureDeclarationBase",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub enum FunctionLikeDeclarationBase {
+    BaseFunctionLikeDeclaration(BaseFunctionLikeDeclaration),
+}
+
+pub trait FunctionLikeDeclarationInterface {
+    fn maybe_body(&self) -> Option<Rc<Node /*Block | Expression*/>>;
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "FunctionLikeDeclarationBase, SignatureDeclarationBase",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
+)]
+pub struct BaseFunctionLikeDeclaration {
+    _signature_declaration: BaseSignatureDeclaration,
+    body: Option<Rc<Node>>,
+}
+
+impl BaseFunctionLikeDeclaration {
+    pub fn new(signature_declaration: BaseSignatureDeclaration, body: Option<Rc<Node>>) -> Self {
+        Self {
+            _signature_declaration: signature_declaration,
+            body,
+        }
+    }
+}
+
+impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
+    fn maybe_body(&self) -> Option<Rc<Node>> {
+        self.body.clone()
+    }
 }
 
 #[derive(Debug)]
@@ -1500,6 +1577,11 @@ pub trait HasTypeParametersInterface {
     fn maybe_type_parameters(&self) -> Option<&NodeArray>;
 }
 
+pub trait GenericNamedDeclarationInterface:
+    NamedDeclarationInterface + HasTypeParametersInterface
+{
+}
+
 #[derive(Debug)]
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseGenericNamedDeclaration {
@@ -1525,10 +1607,12 @@ impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
     }
 }
 
+impl GenericNamedDeclarationInterface for BaseGenericNamedDeclaration {}
+
 #[derive(Debug)]
 #[ast_type(
     impl_from = false,
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
 pub struct BaseInterfaceOrClassLikeDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
@@ -1545,7 +1629,7 @@ impl BaseInterfaceOrClassLikeDeclaration {
 #[derive(Debug)]
 #[ast_type(
     ancestors = "Statement",
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
 pub struct InterfaceDeclaration {
     _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration, /*name: Identifier*/
@@ -1567,7 +1651,7 @@ impl InterfaceDeclaration {
 #[derive(Debug)]
 #[ast_type(
     ancestors = "Statement",
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
 pub struct TypeAliasDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration, /*name: Identifier*/
