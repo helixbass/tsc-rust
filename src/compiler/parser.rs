@@ -477,6 +477,10 @@ impl ParserType {
         self.set_context_flag(val, NodeFlags::YieldContext);
     }
 
+    fn set_decorator_context(&self, val: bool) {
+        self.set_context_flag(val, NodeFlags::DecoratorContext);
+    }
+
     fn set_await_context(&self, val: bool) {
         self.set_context_flag(val, NodeFlags::AwaitContext);
     }
@@ -527,6 +531,10 @@ impl ParserType {
 
     fn in_yield_context(&self) -> bool {
         self.in_context(NodeFlags::YieldContext)
+    }
+
+    fn in_decorator_context(&self) -> bool {
+        self.in_context(NodeFlags::DecoratorContext)
     }
 
     fn in_await_context(&self) -> bool {
@@ -2126,6 +2134,41 @@ impl ParserType {
         }
     }
 
+    fn parse_function_block(
+        &self,
+        flags: SignatureFlags,
+        diagnostic_message: Option<&DiagnosticMessage>,
+    ) -> Block {
+        let saved_yield_context = self.in_yield_context();
+        self.set_yield_context(flags.intersects(SignatureFlags::Yield));
+
+        let saved_await_context = self.in_await_context();
+        self.set_await_context(flags.intersects(SignatureFlags::Await));
+
+        let saved_top_level = self.top_level();
+        self.set_top_level(false);
+
+        let save_decorator_context = self.in_decorator_context();
+        if save_decorator_context {
+            self.set_decorator_context(false);
+        }
+
+        let block = self.parse_block(
+            flags.intersects(SignatureFlags::IgnoreMissingOpenBrace),
+            diagnostic_message,
+        );
+
+        if save_decorator_context {
+            self.set_decorator_context(true);
+        }
+
+        self.set_top_level(saved_top_level);
+        self.set_yield_context(saved_yield_context);
+        self.set_await_context(saved_await_context);
+
+        block
+    }
+
     fn parse_empty_statement(&self) -> Statement {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::SemicolonToken, None, None);
@@ -2309,6 +2352,19 @@ impl ParserType {
         }
     }
 
+    fn parse_function_block_or_semicolon(
+        &self,
+        flags: SignatureFlags,
+        diagnostic_message: Option<&DiagnosticMessage>,
+    ) -> Option<Block> {
+        if self.token() != SyntaxKind::OpenBraceToken && self.can_parse_semicolon() {
+            self.parse_semicolon();
+            return None;
+        }
+
+        Some(self.parse_function_block(flags, diagnostic_message))
+    }
+
     fn is_binding_identifier_or_private_identifier_or_pattern(&self) -> bool {
         self.is_binding_identifier()
     }
@@ -2429,8 +2485,10 @@ impl ParserType {
         }
         let parameters = self.parse_parameters(is_generator | is_async);
         let type_ = self.parse_return_type(SyntaxKind::ColonToken, false);
-        let body = self
-            .parse_function_block_or_semicolon(is_generator | is_async, &Diagnostics::or_expected);
+        let body = self.parse_function_block_or_semicolon(
+            is_generator | is_async,
+            Some(&Diagnostics::or_expected),
+        );
         self.set_await_context(saved_await_context);
         let node = self.factory.create_function_declaration(
             decorators,

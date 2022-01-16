@@ -215,6 +215,7 @@ bitflags! {
         const Const = 1 << 1;
         const DisallowInContext = 1 << 12;
         const YieldContext = 1 << 13;
+        const DecoratorContext = 1 << 14;
         const AwaitContext = 1 << 15;
         const Ambient = 1 << 23;
 
