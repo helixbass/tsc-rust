@@ -317,6 +317,10 @@ impl Node {
             }
             Node::TypeElement(type_element) => type_element,
             Node::PropertyAssignment(property_assignment) => property_assignment,
+            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+                function_declaration
+            }
+            Node::ParameterDeclaration(parameter_declaration) => parameter_declaration,
             _ => panic!("Expected named declaration"),
         }
     }
@@ -2060,7 +2064,9 @@ bitflags! {
 
         const BlockScopedVariableExcludes = Self::Value.bits;
 
+        const ParameterExcludes = Self::Value.bits;
         const PropertyExcludes = Self::None.bits;
+        const FunctionExcludes = Self::Value.bits & !(Self::Function.bits | Self::ValueModule.bits | Self::Class.bits);
         const InterfaceExcludes = Self::Type.bits & !(Self::Interface.bits | Self::Class.bits);
         const TypeParameterExcludes = Self::Type.bits & !Self::TypeParameter.bits;
         const TypeAliasExcludes = Self::Type.bits;
