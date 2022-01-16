@@ -1048,8 +1048,9 @@ impl ParserType {
                     || self.token() == SyntaxKind::DotDotDotToken
                     || self.is_start_of_expression()
             }
+            ParsingContext::Parameters => self.is_start_of_parameter(false),
             ParsingContext::TypeArguments => {
-                self.token() == SyntaxKind::CommaToken || self.is_start_of_type()
+                self.token() == SyntaxKind::CommaToken || self.is_start_of_type(None)
             }
             _ => unimplemented!(),
         }
@@ -1398,6 +1399,14 @@ impl ParserType {
         None
     }
 
+    fn is_start_of_parameter(&self, is_jsdoc_parameter: bool) -> bool {
+        self.token() == SyntaxKind::DotDotDotToken
+            || self.is_binding_identifier_or_private_identifier_or_pattern()
+            || is_modifier_kind(self.token())
+            || self.token() == SyntaxKind::AtToken
+            || self.is_start_of_type(Some(!is_jsdoc_parameter))
+    }
+
     fn parse_name_of_parameter(&self, modifiers: Option<&NodeArray>) -> Rc<Node> {
         let name = self.parse_identifier_or_pattern(Some(
             &Diagnostics::Private_identifiers_cannot_be_used_as_parameters,
@@ -1639,7 +1648,8 @@ impl ParserType {
         }
     }
 
-    fn is_start_of_type(&self) -> bool {
+    fn is_start_of_type(&self, in_start_of_parameter: Option<bool>) -> bool {
+        let in_start_of_parameter = in_start_of_parameter.unwrap_or(false);
         match self.token() {
             SyntaxKind::AnyKeyword
             | SyntaxKind::UnknownKeyword
@@ -1694,7 +1704,7 @@ impl ParserType {
                 }
                 SyntaxKind::OpenBracketToken => {
                     self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
-                    if self.is_start_of_type() {
+                    if self.is_start_of_type(None) {
                         unimplemented!()
                     } else {
                         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
