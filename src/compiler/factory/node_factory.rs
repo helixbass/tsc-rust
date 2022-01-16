@@ -5,26 +5,31 @@ use std::rc::Rc;
 use crate::{
     create_base_node_factory, escape_leading_underscores, is_omitted_expression, last_or_undefined,
     pseudo_big_int_to_string, ArrayLiteralExpression, ArrayTypeNode, BaseBindingLikeDeclaration,
-    BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode,
-    BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
-    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block, EmptyStatement,
-    Expression, ExpressionStatement, Identifier, IfStatement, InterfaceDeclaration,
-    IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NumericLiteral,
-    ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression, PropertyAssignment,
-    PropertySignature, PseudoBigInt, SourceFile, Statement, StringLiteral, SyntaxKind,
-    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration,
-    TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode,
-    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
+    BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block,
+    EmptyStatement, Expression, ExpressionStatement, FunctionDeclaration, Identifier, IfStatement,
+    InterfaceDeclaration, IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
+    LiteralTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
+    NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
+    PropertyAssignment, PropertySignature, PseudoBigInt, SourceFile, Statement, StringLiteral,
+    SyntaxKind, TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags,
+    TypeAliasDeclaration, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode,
+    TypeReferenceNode, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
+    VariableStatement,
 };
 
 impl NodeFactory {
     pub fn create_node_array<TElements: Into<NodeArrayOrVec>>(
         &self,
-        elements: TElements,
+        elements: Option<TElements>,
         has_trailing_comma: Option<bool>,
     ) -> NodeArray {
-        match elements.into() {
+        let elements = match elements {
+            None => NodeArrayOrVec::Vec(vec![]),
+            Some(elements) => elements.into(),
+        };
+        match elements {
             NodeArrayOrVec::NodeArray(node_array) => node_array,
             NodeArrayOrVec::Vec(elements) => NodeArray::new(elements),
         }
@@ -72,16 +77,11 @@ impl NodeFactory {
         kind: SyntaxKind,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-        name: Rc<Node>,
+        name: Option<Rc<Node>>,
         type_parameters: Option<TTypeParameters>,
     ) -> BaseGenericNamedDeclaration {
-        let node = self.create_base_named_declaration(
-            base_factory,
-            kind,
-            decorators,
-            modifiers,
-            Some(name),
-        );
+        let node =
+            self.create_base_named_declaration(base_factory, kind, decorators, modifiers, name);
         let node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
         node
     }
@@ -95,7 +95,7 @@ impl NodeFactory {
         kind: SyntaxKind,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-        name: Rc<Node>,
+        name: Option<Rc<Node>>,
         type_parameters: Option<TTypeParameters>,
     ) -> BaseInterfaceOrClassLikeDeclaration {
         let node = self.create_base_generic_named_declaration(
@@ -107,6 +107,56 @@ impl NodeFactory {
             type_parameters,
         );
         let node = BaseInterfaceOrClassLikeDeclaration::new(node);
+        node
+    }
+
+    fn create_base_signature_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        name: Option<Rc<Node>>,
+        type_parameters: Option<NodeArray>,
+        parameters: Option<NodeArray>,
+        type_: Option<Rc<Node>>,
+    ) -> BaseSignatureDeclaration {
+        let node = self.create_base_generic_named_declaration(
+            base_factory,
+            kind,
+            decorators,
+            modifiers,
+            name,
+            type_parameters,
+        );
+        let node =
+            BaseSignatureDeclaration::new(node, self.create_node_array(parameters, None), type_);
+        node
+    }
+
+    fn create_base_function_like_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        name: Option<Rc<Node>>,
+        type_parameters: Option<NodeArray>,
+        parameters: Option<NodeArray>,
+        type_: Option<Rc<Node>>,
+        body: Option<Rc<Node>>,
+    ) -> BaseFunctionLikeDeclaration {
+        let node = self.create_base_signature_declaration(
+            base_factory,
+            kind,
+            decorators,
+            modifiers,
+            name,
+            type_parameters,
+            parameters,
+            type_,
+        );
+        let node = BaseFunctionLikeDeclaration::new(node, body);
         node
     }
 
@@ -369,7 +419,7 @@ impl NodeFactory {
         let node = TypeReferenceNode::new(
             node,
             self.as_name(type_name),
-            type_arguments.map(|type_arguments| self.create_node_array(type_arguments, None)),
+            type_arguments.map(|type_arguments| self.create_node_array(Some(type_arguments), None)),
         );
         node
     }
@@ -380,10 +430,7 @@ impl NodeFactory {
         members: Option<Vec<Rc<Node>>>,
     ) -> TypeLiteralNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypeLiteral);
-        let node = TypeLiteralNode::new(
-            node,
-            self.create_node_array(members.unwrap_or_else(|| vec![]), None),
-        );
+        let node = TypeLiteralNode::new(node, self.create_node_array(members, None));
         node
     }
 
@@ -469,16 +516,17 @@ impl NodeFactory {
     >(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: TElements, /*Expression*/
+        elements: Option<TElements>, /*Expression*/
     ) -> ArrayLiteralExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ArrayLiteralExpression);
-        let elements_as_node_array = match elements.into() {
+        let elements_as_node_array = elements.map(|elements| match elements.into() {
             NodeArrayOrVec::NodeArray(node_array) => node_array,
             NodeArrayOrVec::Vec(elements) => NodeArray::new(elements),
-        };
+        });
         let has_trailing_comma = {
-            let last_element =
-                last_or_undefined(Into::<&[Rc<Node>]>::into(&elements_as_node_array));
+            let last_element = elements_as_node_array
+                .as_deref()
+                .and_then(|elements_as_node_array| last_or_undefined(elements_as_node_array));
             last_element.and_then(|last_element| {
                 if is_omitted_expression(&**last_element) {
                     Some(true)
@@ -498,7 +546,7 @@ impl NodeFactory {
     >(
         &self,
         base_factory: &TBaseNodeFactory,
-        properties: TProperties, /*ObjectLiteralElementLike*/
+        properties: Option<TProperties>, /*ObjectLiteralElementLike*/
     ) -> ObjectLiteralExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ObjectLiteralExpression);
         let node = ObjectLiteralExpression::new(node, self.create_node_array(properties, None));
@@ -538,8 +586,11 @@ impl NodeFactory {
         template_spans: TTemplateSpans,
     ) -> TemplateExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::TemplateExpression);
-        let node =
-            TemplateExpression::new(node, head, self.create_node_array(template_spans, None));
+        let node = TemplateExpression::new(
+            node,
+            head,
+            self.create_node_array(Some(template_spans), None),
+        );
         node
     }
 
@@ -580,7 +631,11 @@ impl NodeFactory {
         multi_line: Option<bool>,
     ) -> Block {
         let node = self.create_base_node(base_factory, SyntaxKind::Block);
-        let node = Block::new(node, self.create_node_array(statements, None), multi_line);
+        let node = Block::new(
+            node,
+            self.create_node_array(Some(statements), None),
+            multi_line,
+        );
         node
     }
 
@@ -669,8 +724,36 @@ impl NodeFactory {
         let flags = flags.unwrap_or(NodeFlags::None);
         let mut node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
         node.set_flags(node.flags() & NodeFlags::BlockScoped);
-        let node = VariableDeclarationList::new(node, self.create_node_array(declarations, None));
+        let node =
+            VariableDeclarationList::new(node, self.create_node_array(Some(declarations), None));
         node
+    }
+
+    pub fn create_function_declaration<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        asterisk_token: Option<Rc<Node>>,
+        name: Option<Rc<Node>>,
+        type_parameters: Option<NodeArray>,
+        parameters: NodeArray,
+        type_: Option<Rc<Node>>,
+        body: Option<Rc<Node>>,
+    ) -> FunctionDeclaration {
+        let mut node = self.create_base_function_like_declaration(
+            base_factory,
+            SyntaxKind::FunctionDeclaration,
+            decorators,
+            modifiers,
+            name,
+            type_parameters,
+            Some(parameters),
+            type_,
+            body,
+        );
+        node.asterisk_token = asterisk_token;
+        FunctionDeclaration::new(node)
     }
 
     pub fn create_interface_declaration<
@@ -691,10 +774,10 @@ impl NodeFactory {
             SyntaxKind::InterfaceDeclaration,
             decorators,
             modifiers,
-            name,
+            Some(name),
             type_parameters,
         );
-        let node = InterfaceDeclaration::new(node, self.create_node_array(members, None));
+        let node = InterfaceDeclaration::new(node, self.create_node_array(Some(members), None));
         node
     }
 
@@ -715,7 +798,7 @@ impl NodeFactory {
             SyntaxKind::TypeAliasDeclaration,
             decorators,
             modifiers,
-            name,
+            Some(name),
             type_parameters,
         );
         let node = TypeAliasDeclaration::new(node, type_);
@@ -747,7 +830,7 @@ impl NodeFactory {
         let node = base_factory.create_base_source_file_node(SyntaxKind::SourceFile);
         let node = SourceFile::new(
             node,
-            self.create_node_array(statements, None),
+            self.create_node_array(Some(statements), None),
             "".to_string(),
             "".to_string(),
         );
@@ -758,7 +841,7 @@ impl NodeFactory {
         &self,
         array: Option<TArray>,
     ) -> Option<NodeArray> {
-        array.map(|array| self.create_node_array(array, None))
+        array.map(|array| self.create_node_array(Some(array), None))
     }
 
     fn as_name(&self, name: Rc<Node>) -> Rc<Node> {

@@ -804,10 +804,12 @@ impl ParserType {
         has_trailing_comma: Option<bool>,
     ) -> NodeArray {
         let array = self.factory.create_node_array(
-            elements
-                .into_iter()
-                .map(Node::wrap)
-                .collect::<Vec<Rc<Node>>>(),
+            Some(
+                elements
+                    .into_iter()
+                    .map(Node::wrap)
+                    .collect::<Vec<Rc<Node>>>(),
+            ),
             has_trailing_comma,
         );
         // set_text_range_pos_end(
@@ -1396,12 +1398,18 @@ impl ParserType {
         None
     }
 
-    fn parse_name_of_parameter(&self, modifiers: Option<NodeArray>) -> Rc<Node> {
+    fn parse_name_of_parameter(&self, modifiers: Option<&NodeArray>) -> Rc<Node> {
         let name = self.parse_identifier_or_pattern(Some(
             &Diagnostics::Private_identifiers_cannot_be_used_as_parameters,
         ));
         if get_full_width(&*name) == 0
-            && !some(modifiers.as_deref(), Option::<fn(&Rc<Node>) -> bool>::None)
+            && !some(
+                modifiers.as_ref().map(|modifiers| {
+                    let modifiers: &[Rc<Node>] = modifiers;
+                    modifiers
+                }),
+                Option::<fn(&Rc<Node>) -> bool>::None,
+            )
             && is_modifier_kind(self.token())
         {
             self.next_token();
@@ -1433,18 +1441,21 @@ impl ParserType {
         let saved_top_level = self.top_level();
         self.set_top_level(false);
         let modifiers = self.parse_modifiers(None, None);
+        let dot_dot_dot_token = self.parse_optional_token(SyntaxKind::DotDotDotToken);
+        let name = self.parse_name_of_parameter(modifiers.as_ref());
+        let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
+        let type_annotation = self.parse_type_annotation();
+        let initializer = self.parse_initializer();
         let node = self.finish_node(
             self.factory.create_parameter_declaration(
                 self,
                 decorators,
                 modifiers,
-                self.parse_optional_token(SyntaxKind::DotDotDotToken)
-                    .map(Into::into),
-                self.parse_name_of_parameter(modifiers),
-                self.parse_optional_token(SyntaxKind::QuestionToken)
-                    .map(Into::into),
-                self.parse_type_annotation().map(Into::into),
-                self.parse_initializer().map(Into::into),
+                dot_dot_dot_token.map(Into::into),
+                name,
+                question_token.map(Into::into),
+                type_annotation.map(Into::into),
+                initializer.map(Into::into),
             ),
             pos,
             None,
@@ -2049,7 +2060,8 @@ impl ParserType {
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
-            self.factory.create_array_literal_expression(self, elements),
+            self.factory
+                .create_array_literal_expression(self, Some(elements)),
             pos,
             None,
         )
@@ -2087,7 +2099,7 @@ impl ParserType {
         }
         self.finish_node(
             self.factory
-                .create_object_literal_expression(self, properties),
+                .create_object_literal_expression(self, Some(properties)),
             pos,
             None,
         )
@@ -2491,14 +2503,15 @@ impl ParserType {
         );
         self.set_await_context(saved_await_context);
         let node = self.factory.create_function_declaration(
+            self,
             decorators,
             modifiers,
-            asterisk_token,
-            name,
+            asterisk_token.map(Into::into),
+            name.map(Into::into),
             type_parameters,
             parameters,
-            type_,
-            body,
+            type_.map(Into::into),
+            body.map(Into::into),
         );
         self.finish_node(node.into(), pos, None)
     }

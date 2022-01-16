@@ -869,16 +869,19 @@ pub trait SignatureDeclarationInterface {
 pub struct BaseSignatureDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
     parameters: NodeArray, /*<ParameterDeclaration>*/
+    type_: Option<Rc<Node /*TypeNode*/>>,
 }
 
 impl BaseSignatureDeclaration {
     pub fn new(
         generic_named_declaration: BaseGenericNamedDeclaration,
         parameters: NodeArray,
+        type_: Option<Rc<Node>>,
     ) -> Self {
         Self {
             _generic_named_declaration: generic_named_declaration,
             parameters,
+            type_,
         }
     }
 }
@@ -909,7 +912,8 @@ pub trait FunctionLikeDeclarationInterface {
 )]
 pub struct BaseFunctionLikeDeclaration {
     _signature_declaration: BaseSignatureDeclaration,
-    body: Option<Rc<Node>>,
+    pub asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
+    body: Option<Rc<Node /*Block | Expression*/>>,
 }
 
 impl BaseFunctionLikeDeclaration {
@@ -917,6 +921,7 @@ impl BaseFunctionLikeDeclaration {
         Self {
             _signature_declaration: signature_declaration,
             body,
+            asterisk_token: None,
         }
     }
 }
