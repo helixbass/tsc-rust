@@ -9,19 +9,30 @@ use std::rc::Rc;
 use crate::{
     append, attach_file_to_diagnostics, create_detached_diagnostic, create_node_factory,
     create_scanner, get_binary_operator_precedence, is_literal_kind, is_modifier_kind,
-    is_template_literal_kind, last_or_undefined, normalize_path, object_allocator,
-    set_text_range_pos_end, some, token_is_identifier_or_keyword, token_to_string,
-    ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block, Debug_, Decorator,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, Expression,
-    HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
-    LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence, PropertyAssignment,
-    Scanner, SourceFile, Statement, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateSpan, TokenFlags, TypeAliasDeclaration, TypeElement, TypeNode,
-    TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
+    is_template_literal_kind, last_or_undefined, modifiers_to_flags, normalize_path,
+    object_allocator, set_text_range_pos_end, some, token_is_identifier_or_keyword,
+    token_to_string, ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block,
+    Debug_, Decorator, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    Diagnostics, Expression, HasExpressionInitializerInterface, HasTypeInterface,
+    HasTypeParametersInterface, Identifier, InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode,
+    LiteralLikeNodeInterface, LiteralTypeNode, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression,
+    OperatorPrecedence, PropertyAssignment, Scanner, SourceFile, Statement, SyntaxKind,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration,
+    TypeElement, TypeNode, TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
 };
 use local_macros::{ast_type, enum_unwrapped};
+
+bitflags! {
+    pub struct SignatureFlags: u32 {
+        const None = 0;
+        const Yield = 1 << 0;
+        const Await = 1 << 1;
+        const Type = 1 << 2;
+        const IgnoreMissingOpenBrace = 1 << 4;
+        const JSDoc = 1 << 5;
+    }
+}
 
 #[derive(Eq, PartialEq)]
 enum SpeculationKind {
@@ -243,6 +254,7 @@ struct ParserType {
     parse_diagnostics: Option<RefCell<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     current_token: RefCell<Option<SyntaxKind>>,
     parsing_context: Cell<Option<ParsingContext>>,
+    context_flags: Cell<Option<NodeFlags>>,
     parse_error_before_next_finished_node: Cell<bool>,
 }
 
@@ -260,6 +272,7 @@ impl ParserType {
             parse_diagnostics: None,
             current_token: RefCell::new(None),
             parsing_context: Cell::new(None),
+            context_flags: Cell::new(None),
             parse_error_before_next_finished_node: Cell::new(false),
         }
     }
@@ -358,6 +371,14 @@ impl ParserType {
         self.parsing_context.set(Some(parsing_context));
     }
 
+    fn context_flags(&self) -> NodeFlags {
+        self.context_flags.get().unwrap()
+    }
+
+    fn set_context_flags(&self, context_flags: NodeFlags) {
+        self.context_flags.set(Some(context_flags));
+    }
+
     fn parse_error_before_next_finished_node(&self) -> bool {
         self.parse_error_before_next_finished_node.get()
     }
@@ -391,6 +412,8 @@ impl ParserType {
 
         self.set_parse_diagnostics(vec![]);
         self.set_parsing_context(ParsingContext::None);
+
+        self.set_context_flags(NodeFlags::None);
 
         let mut scanner = self.scanner_mut();
         scanner.set_text(Some(_source_text), None, None);
@@ -429,11 +452,31 @@ impl ParserType {
         source_file
     }
 
+    fn set_context_flag(&self, val: bool, flag: NodeFlags) {
+        if val {
+            self.set_context_flags(self.context_flags() | flag);
+        } else {
+            self.set_context_flags(self.context_flags() & !flag);
+        }
+    }
+
+    fn set_await_context(&self, val: bool) {
+        self.set_context_flag(val, NodeFlags::AwaitContext);
+    }
+
     fn do_outside_of_context<TReturn>(
         &self,
         context: NodeFlags,
         func: fn(&ParserType) -> TReturn,
     ) -> TReturn {
+        let context_flags_to_clear = context & self.context_flags();
+        if context_flags_to_clear != NodeFlags::None {
+            self.set_context_flag(false, context_flags_to_clear);
+            let result = func(self);
+            self.set_context_flag(true, context_flags_to_clear);
+            return result;
+        }
+
         func(self)
     }
 
@@ -442,11 +485,27 @@ impl ParserType {
         context: NodeFlags,
         func: TFunc,
     ) -> TReturn {
+        let context_flags_to_set = context & !self.context_flags();
+        if context_flags_to_set != NodeFlags::None {
+            self.set_context_flag(true, context_flags_to_set);
+            let result = func();
+            self.set_context_flag(false, context_flags_to_set);
+            return result;
+        }
+
         func()
     }
 
     fn allow_in_and<TReturn>(&self, func: fn(&ParserType) -> TReturn) -> TReturn {
         self.do_outside_of_context(NodeFlags::DisallowInContext, func)
+    }
+
+    fn in_context(&self, flags: NodeFlags) -> bool {
+        self.context_flags().intersects(flags)
+    }
+
+    fn in_await_context(&self) -> bool {
+        self.in_context(NodeFlags::AwaitContext)
     }
 
     fn parse_error_at_current_token(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
@@ -1941,7 +2000,10 @@ impl ParserType {
 
     fn is_start_of_statement(&self) -> bool {
         match self.token() {
-            SyntaxKind::SemicolonToken | SyntaxKind::VarKeyword | SyntaxKind::IfKeyword => true,
+            SyntaxKind::SemicolonToken
+            | SyntaxKind::VarKeyword
+            | SyntaxKind::FunctionKeyword
+            | SyntaxKind::IfKeyword => true,
             SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
             SyntaxKind::DeclareKeyword | SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
                 true
@@ -1955,6 +2017,9 @@ impl ParserType {
             SyntaxKind::SemicolonToken => return self.parse_empty_statement(),
             SyntaxKind::VarKeyword => {
                 return self.parse_variable_statement(self.get_node_pos(), None, None)
+            }
+            SyntaxKind::FunctionKeyword => {
+                return self.parse_function_declaration(self.get_node_pos(), None, None)
             }
             SyntaxKind::OpenBraceToken => return self.parse_block(false, None).into(),
             SyntaxKind::IfKeyword => return self.parse_if_statement(),
@@ -2116,6 +2181,54 @@ impl ParserType {
             .create_variable_statement(self, modifiers, declaration_list);
         node.set_decorators(decorators);
         self.finish_node(node.into(), pos, None)
+    }
+
+    fn parse_function_declaration(
+        &self,
+        pos: isize,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> FunctionDeclaration {
+        let saved_await_context = self.in_await_context();
+
+        let modifier_flags = modifiers_to_flags(modifiers.as_ref());
+        self.parse_expected(SyntaxKind::FunctionKeyword, None, None);
+        let asterisk_token = self.parse_optional_token(SyntaxKind::AsteriskToken);
+        let name = if modifier_flags.intersects(ModifierFlags::Default) {
+            self.parse_optional_binding_identifier()
+        } else {
+            Some(self.parse_binding_identifier())
+        };
+        let is_generator = if asterisk_token.is_some() {
+            SignatureFlags::Yield
+        } else {
+            SignatureFlags::None
+        };
+        let is_async = if modifier_flags.intersects(ModifierFlags::Async) {
+            SignatureFlags::Await
+        } else {
+            SignatureFlags::None
+        };
+        let type_parameters = self.parse_type_parameters();
+        if modifier_flags.intersects(ModifierFlags::Export) {
+            self.set_await_context(true);
+        }
+        let parameters = self.parse_parameters(is_generator | is_async);
+        let type_ = self.parse_return_type(SyntaxKind::ColonToken, false);
+        let body = self
+            .parse_function_block_or_semicolon(is_generator | is_async, &Diagnostics::or_expected);
+        self.set_await_context(saved_await_context);
+        let node = self.factory.create_function_declaration(
+            decorators,
+            modifiers,
+            asterisk_token,
+            name,
+            type_parameters,
+            parameters,
+            type_,
+            body,
+        );
+        self.finish_node(node, pos, None)
     }
 
     fn try_parse_decorator(&self) -> Option<Decorator> {

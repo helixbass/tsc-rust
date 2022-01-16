@@ -11,8 +11,8 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, __String,
-    compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
+    ModifierFlags, NodeArray, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags,
+    __String, compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
     escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
     insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
@@ -669,6 +669,34 @@ pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeN
         .maybe_as_has_type()
         .and_then(|has_type| has_type.type_());
     type_
+}
+
+pub fn modifiers_to_flags(modifiers: Option<&NodeArray /*Modifier[]*/>) -> ModifierFlags {
+    let mut flags = ModifierFlags::None;
+    if let Some(modifiers) = modifiers {
+        for modifier in modifiers.iter() {
+            flags |= modifier_to_flag(modifier.kind());
+        }
+    }
+    flags
+}
+
+fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
+    match token {
+        SyntaxKind::StaticKeyword => ModifierFlags::Static,
+        SyntaxKind::PublicKeyword => ModifierFlags::Public,
+        SyntaxKind::ProtectedKeyword => ModifierFlags::Protected,
+        SyntaxKind::PrivateKeyword => ModifierFlags::Private,
+        SyntaxKind::AbstractKeyword => ModifierFlags::Abstract,
+        SyntaxKind::ExportKeyword => ModifierFlags::Export,
+        SyntaxKind::DeclareKeyword => ModifierFlags::Ambient,
+        SyntaxKind::ConstKeyword => ModifierFlags::Const,
+        SyntaxKind::DefaultKeyword => ModifierFlags::Default,
+        SyntaxKind::AsyncKeyword => ModifierFlags::Async,
+        SyntaxKind::ReadonlyKeyword => ModifierFlags::Static,
+        SyntaxKind::OverrideKeyword => ModifierFlags::Override,
+        _ => ModifierFlags::None,
+    }
 }
 
 pub fn get_first_identifier<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*Identifier*/> {

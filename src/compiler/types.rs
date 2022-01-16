@@ -87,6 +87,7 @@ pub enum SyntaxKind {
     ImportKeyword,
     NewKeyword,
     NullKeyword,
+    ReturnKeyword,
     SuperKeyword,
     ThisKeyword,
     TrueKeyword,
@@ -215,6 +216,25 @@ bitflags! {
         const BlockScoped = Self::Let.bits | Self::Const.bits;
 
         const TypeExcludesFlags = Self::YieldContext.bits | Self::AwaitContext.bits;
+    }
+}
+
+bitflags! {
+    pub struct ModifierFlags: u32 {
+        const None = 0;
+        const Export = 1 << 0;
+        const Ambient = 1 << 1;
+        const Public = 1 << 2;
+        const Private = 1 << 3;
+        const Protected = 1 << 4;
+        const Static = 1 << 5;
+        const Readonly = 1 << 6;
+        const Abstract = 1 << 7;
+        const Async = 1 << 8;
+        const Default = 1 << 9;
+        const Const = 1 << 11;
+
+        const Override = 1 << 14;
     }
 }
 
