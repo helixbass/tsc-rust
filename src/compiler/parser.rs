@@ -85,7 +85,12 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
                 &mut cb_nodes,
                 parameter_declaration.maybe_modifiers(),
             );
+            visit_node(
+                &mut cb_node,
+                parameter_declaration.dot_dot_dot_token.clone(),
+            );
             visit_node(&mut cb_node, Some(parameter_declaration.name()));
+            visit_node(&mut cb_node, parameter_declaration.question_token.clone());
             visit_node(&mut cb_node, parameter_declaration.maybe_type());
             visit_node(&mut cb_node, parameter_declaration.maybe_initializer())
         }
