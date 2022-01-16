@@ -134,6 +134,9 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         any_type: None,
         error_type: None,
+        undefined_type: None,
+        null_type: None,
+        string_type: None,
         number_type: None,
         bigint_type: None,
         true_type: None,
@@ -143,6 +146,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         boolean_type: None,
         never_type: None,
         number_or_big_int_type: None,
+        template_constraint_type: None,
 
         global_array_type: None,
 
@@ -171,6 +175,21 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     type_checker.error_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Any, "error")
+            .into(),
+    );
+    type_checker.undefined_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Undefined, "undefined")
+            .into(),
+    );
+    type_checker.null_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Null, "null")
+            .into(),
+    );
+    type_checker.string_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::String, "string")
             .into(),
     );
     type_checker.number_type = Some(
@@ -249,6 +268,17 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         vec![type_checker.number_type(), type_checker.bigint_type()],
         None,
     ));
+    type_checker.template_constraint_type = Some(type_checker.get_union_type(
+        vec![
+            type_checker.string_type(),
+            type_checker.number_type(),
+            type_checker.boolean_type(),
+            type_checker.bigint_type(),
+            type_checker.null_type(),
+            type_checker.undefined_type(),
+        ],
+        None,
+    ));
     type_checker.initialize_type_checker(host);
     type_checker
 }
@@ -306,6 +336,18 @@ impl TypeChecker {
         self.error_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn undefined_type(&self) -> Rc<Type> {
+        self.undefined_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn null_type(&self) -> Rc<Type> {
+        self.null_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn string_type(&self) -> Rc<Type> {
+        self.string_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn number_type(&self) -> Rc<Type> {
         self.number_type.as_ref().unwrap().clone()
     }
@@ -340,6 +382,10 @@ impl TypeChecker {
 
     pub(super) fn number_or_big_int_type(&self) -> Rc<Type> {
         self.number_or_big_int_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn template_constraint_type(&self) -> Rc<Type> {
+        self.template_constraint_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn global_array_type(&self) -> Rc<Type> {

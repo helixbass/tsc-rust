@@ -11,8 +11,8 @@ use crate::{
     HasTypeParametersInterface, IfStatement, InterfaceDeclaration, LiteralLikeNode,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, SymbolInterface,
-    SyntaxKind, Type, TypeAliasDeclaration, TypeChecker, TypeFlags, TypeInterface,
-    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeInterface,
+    SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration, TypeChecker, TypeFlags,
+    TypeInterface, TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeInterface,
     VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
 };
 
@@ -60,6 +60,28 @@ impl TypeChecker {
             }
         }
         false
+    }
+
+    pub(super) fn check_template_expression(&self, node: &TemplateExpression) -> Rc<Type> {
+        let mut texts = vec![node.head.as_literal_like_node().text()];
+        let mut types = vec![];
+        for span in node.template_spans.iter() {
+            let span = span.as_template_span();
+            let type_ = self.check_expression(&span.expression.as_expression(), None);
+            texts.push(span.literal.as_literal_like_node().text());
+            types.push(
+                if self.is_type_assignable_to(&type_, &self.template_constraint_type()) {
+                    type_
+                } else {
+                    self.string_type()
+                },
+            );
+        }
+        if false {
+            unimplemented!()
+        } else {
+            self.string_type()
+        }
     }
 
     pub(super) fn check_expression_cached(
@@ -239,6 +261,13 @@ impl TypeChecker {
             // Expression::BinaryExpression(binary_expression) => {
             //     return self.check_binary_expression(binary_expression);
             // }
+            Expression::LiteralLikeNode(LiteralLikeNode::TemplateLiteralLikeNode(
+                template_literal_like_node,
+            )) => {
+                let type_: Rc<Type> =
+                    self.get_string_literal_type(template_literal_like_node.text());
+                self.get_fresh_type_of_literal_type(&type_)
+            }
             Expression::LiteralLikeNode(LiteralLikeNode::StringLiteral(string_literal)) => {
                 let type_: Rc<Type> = self.get_string_literal_type(string_literal.text());
                 self.get_fresh_type_of_literal_type(&type_)
@@ -256,6 +285,9 @@ impl TypeChecker {
                     ))
                     .into();
                 self.get_fresh_type_of_literal_type(&type_)
+            }
+            Expression::TemplateExpression(template_expression) => {
+                self.check_template_expression(template_expression)
             }
             _ => unimplemented!(),
         }
