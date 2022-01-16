@@ -503,24 +503,26 @@ impl ParserType {
     }
 
     fn re_scan_template_token(&self, is_tagged_template: bool) -> SyntaxKind {
-        /*current_token = */
-        self.scanner().re_scan_template_token(
+        self.set_current_token(self.scanner().re_scan_template_token(
             Some(&|message, length| self.scan_error(message, length)),
             is_tagged_template,
-        )
+        ));
+        self.current_token()
     }
 
     fn re_scan_template_head_or_no_substitution_template(&self) -> SyntaxKind {
-        /*current_token = */
-        self.scanner()
-            .re_scan_template_head_or_no_substitution_template(Some(&|message, length| {
-                self.scan_error(message, length)
-            }))
+        self.set_current_token(
+            self.scanner()
+                .re_scan_template_head_or_no_substitution_template(Some(&|message, length| {
+                    self.scan_error(message, length)
+                })),
+        );
+        self.current_token()
     }
 
     fn re_scan_less_than_token(&self) -> SyntaxKind {
-        /*current_token = */
-        self.scanner().re_scan_less_than_token()
+        self.set_current_token(self.scanner().re_scan_less_than_token());
+        self.current_token()
     }
 
     fn speculation_helper<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
