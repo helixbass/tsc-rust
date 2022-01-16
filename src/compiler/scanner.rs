@@ -29,6 +29,7 @@ lazy_static! {
             ("if".to_string(), SyntaxKind::IfKeyword),
             ("interface".to_string(), SyntaxKind::InterfaceKeyword),
             ("number".to_string(), SyntaxKind::NumberKeyword),
+            ("string".to_string(), SyntaxKind::StringKeyword),
             ("true".to_string(), SyntaxKind::TrueKeyword),
             ("type".to_string(), SyntaxKind::TypeKeyword),
             ("var".to_string(), SyntaxKind::VarKeyword),
