@@ -12,10 +12,10 @@ use crate::{
     IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NumericLiteral,
     ObjectLiteralExpression, PrefixUnaryExpression, PropertyAssignment, PropertySignature,
-    PseudoBigInt, SourceFile, Statement, StringLiteral, SyntaxKind, TemplateLiteralLikeNode,
-    TokenFlags, TypeAliasDeclaration, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
-    TypeReferenceNode, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    PseudoBigInt, SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression,
+    TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration, TypeLiteralNode,
+    TypeNode, TypeParameterDeclaration, TypeReferenceNode, UnionTypeNode, VariableDeclaration,
+    VariableDeclarationList, VariableStatement,
 };
 
 impl NodeFactory {
@@ -492,21 +492,48 @@ impl NodeFactory {
         node
     }
 
+    pub fn create_template_expression<
+        TBaseNodeFactory: BaseNodeFactory,
+        TTemplateSpans: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        head: Rc<Node /*TemplateHead*/>,
+        template_spans: TTemplateSpans,
+    ) -> TemplateExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::TemplateExpression);
+        let node =
+            TemplateExpression::new(node, head, self.create_node_array(template_spans, None));
+        node
+    }
+
     pub fn create_template_literal_like_node<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
         text: String,
         raw_text: Option<String>,
-        template_flags: /*Option<*/ TokenFlags, /*>*/
+        template_flags: Option<TokenFlags>,
     ) -> TemplateLiteralLikeNode {
+        let template_flags = template_flags.unwrap_or(TokenFlags::None);
         let node = self.create_base_token(base_factory, kind);
         let node = BaseLiteralLikeNode::new(node, text);
         let node = TemplateLiteralLikeNode::new(
             node,
             raw_text,
-            Some(template_flags/*.unwrap()*/ & TokenFlags::TemplateLiteralLikeFlags),
+            Some(template_flags & TokenFlags::TemplateLiteralLikeFlags),
         );
+        node
+    }
+
+    pub fn create_template_span<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+        literal: Rc<Node /*TemplateMiddle | TemplateTail*/>,
+    ) -> TemplateSpan {
+        let node = self.create_base_node(base_factory, SyntaxKind::TemplateSpan);
+        let node = TemplateSpan::new(node, expression, literal);
         node
     }
 

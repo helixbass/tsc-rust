@@ -157,9 +157,12 @@ pub enum SyntaxKind {
     ArrowFunction,
     PrefixUnaryExpression,
     BinaryExpression,
+    TemplateExpression,
     ClassExpression,
     OmittedExpression,
     ExpressionWithTypeArguments,
+
+    TemplateSpan,
     Block,
     EmptyStatement,
     VariableStatement,
@@ -257,6 +260,7 @@ pub enum Node {
     VariableDeclarationList(VariableDeclarationList),
     TypeNode(TypeNode),
     Expression(Expression),
+    TemplateSpan(TemplateSpan),
     Statement(Statement),
     TypeElement(TypeElement),
     PropertyAssignment(PropertyAssignment),
@@ -1032,6 +1036,7 @@ pub enum Expression {
     PrefixUnaryExpression(PrefixUnaryExpression),
     BinaryExpression(BinaryExpression),
     LiteralLikeNode(LiteralLikeNode),
+    TemplateExpression(TemplateExpression),
     ArrayLiteralExpression(ArrayLiteralExpression),
     ObjectLiteralExpression(ObjectLiteralExpression),
 }
@@ -1151,8 +1156,8 @@ pub enum LiteralLikeNode {
 )]
 pub struct TemplateLiteralLikeNode {
     _literal_like_node: BaseLiteralLikeNode,
-    raw_text: Option<String>,
-    template_flags: Option<TokenFlags>,
+    pub raw_text: Option<String>,
+    pub template_flags: Option<TokenFlags>,
 }
 
 impl TemplateLiteralLikeNode {
@@ -1236,6 +1241,42 @@ impl BigIntLiteral {
     pub fn new(base_literal_like_node: BaseLiteralLikeNode) -> Self {
         Self {
             _literal_like_node: base_literal_like_node,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct TemplateExpression {
+    _node: BaseNode,
+    pub head: Rc<Node /*TemplateHead*/>,
+    pub template_spans: NodeArray, /*<TemplateSpan>*/
+}
+
+impl TemplateExpression {
+    pub fn new(base_node: BaseNode, head: Rc<Node>, template_spans: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            head,
+            template_spans,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct TemplateSpan {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+    pub literal: Rc<Node /*TemplateMiddle | TemplateTail*/>,
+}
+
+impl TemplateSpan {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, literal: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            literal,
         }
     }
 }

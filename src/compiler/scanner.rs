@@ -7,7 +7,8 @@ use std::convert::TryFrom;
 use std::iter::FromIterator;
 
 use crate::{
-    position_is_synthesized, CharacterCodes, DiagnosticMessage, Diagnostics, SyntaxKind, TokenFlags,
+    position_is_synthesized, CharacterCodes, Debug_, DiagnosticMessage, Diagnostics, SyntaxKind,
+    TokenFlags,
 };
 
 pub type ErrorCallback<'callback> = &'callback dyn Fn(&DiagnosticMessage, usize);
@@ -438,6 +439,27 @@ impl Scanner {
             return Some(self.get_identifier_token());
         }
         None
+    }
+
+    pub fn re_scan_template_token(
+        &self,
+        on_error: Option<ErrorCallback>,
+        is_tagged_template: bool,
+    ) -> SyntaxKind {
+        Debug_.assert(
+            self.token() == SyntaxKind::CloseBraceToken,
+            Some("'reScanTemplateToken' should only be called on a '}'"),
+        );
+        self.set_pos(self.token_pos());
+        self.set_token(self.scan_template_and_set_token_value(on_error, is_tagged_template))
+    }
+
+    pub fn re_scan_template_head_or_no_substitution_template(
+        &self,
+        on_error: Option<ErrorCallback>,
+    ) -> SyntaxKind {
+        self.set_pos(self.token_pos());
+        self.set_token(self.scan_template_and_set_token_value(on_error, true))
     }
 
     pub fn re_scan_less_than_token(&self) -> SyntaxKind {

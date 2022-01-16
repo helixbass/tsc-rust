@@ -216,6 +216,30 @@ pub fn get_literal_text<TSourceFileRef: Borrow<SourceFile>>(
                 )
             }
         }
+        LiteralLikeNode::TemplateLiteralLikeNode(node) => {
+            let escape_text = if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
+                || get_emit_flags(node).intersects(EmitFlags::NoAsciiEscaping)
+            {
+                unimplemented!()
+            } else {
+                escape_non_ascii_string
+            };
+
+            let raw_text = node.raw_text.clone().unwrap_or_else(|| {
+                escape_template_substitution(&escape_text(
+                    node.text(),
+                    Some(CharacterCodes::backtick),
+                ))
+            });
+
+            match node.kind() {
+                SyntaxKind::NoSubstitutionTemplateLiteral => format!("`{}`", raw_text),
+                SyntaxKind::TemplateHead => format!("`{}${{", raw_text),
+                SyntaxKind::TemplateMiddle => format!("}}{}${{", raw_text),
+                SyntaxKind::TemplateTail => format!("}}{}`", raw_text),
+                _ => panic!("Unexpected TemplateLiteralLikeNode kind"),
+            }
+        }
         LiteralLikeNode::NumericLiteral(_) | LiteralLikeNode::BigIntLiteral(_) => {
             node.text().to_string()
         }
@@ -540,6 +564,15 @@ impl DiagnosticCollection {
             .map(|sorted_array| sorted_array.into())
             .unwrap_or(vec![])
     }
+}
+
+lazy_static! {
+    static ref template_substitution_reg_exp: Regex = Regex::new(r"\$\{").unwrap();
+}
+fn escape_template_substitution(str: &str) -> String {
+    template_substitution_reg_exp
+        .replace_all(str, "\\${")
+        .to_string()
 }
 
 fn escape_non_ascii_string(
