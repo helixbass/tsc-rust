@@ -913,7 +913,10 @@ pub enum FunctionLikeDeclarationBase {
 }
 
 pub trait FunctionLikeDeclarationInterface {
-    fn maybe_body(&self) -> Option<Rc<Node /*Block | Expression*/>>;
+    fn maybe_body(&self) -> Option<Rc<Node>>;
+    fn maybe_asterisk_token(&self) -> Option<Rc<Node>>;
+    fn maybe_question_token(&self) -> Option<Rc<Node>>;
+    fn maybe_exclamation_token(&self) -> Option<Rc<Node>>;
 }
 
 #[derive(Debug)]
@@ -924,6 +927,8 @@ pub trait FunctionLikeDeclarationInterface {
 pub struct BaseFunctionLikeDeclaration {
     _signature_declaration: BaseSignatureDeclaration,
     pub asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
+    question_token: Option<Rc<Node /*QuestionToken*/>>,
+    exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
     body: Option<Rc<Node /*Block | Expression*/>>,
 }
 
@@ -933,6 +938,8 @@ impl BaseFunctionLikeDeclaration {
             _signature_declaration: signature_declaration,
             body,
             asterisk_token: None,
+            question_token: None,
+            exclamation_token: None,
         }
     }
 }
@@ -940,6 +947,18 @@ impl BaseFunctionLikeDeclaration {
 impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
     fn maybe_body(&self) -> Option<Rc<Node>> {
         self.body.clone()
+    }
+
+    fn maybe_asterisk_token(&self) -> Option<Rc<Node>> {
+        self.asterisk_token.clone()
+    }
+
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+
+    fn maybe_exclamation_token(&self) -> Option<Rc<Node>> {
+        self.exclamation_token.clone()
     }
 }
 

@@ -128,7 +128,10 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
                 &mut cb_nodes,
                 function_declaration.maybe_modifiers(),
             );
+            visit_node(&mut cb_node, function_declaration.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(function_declaration.name()));
+            visit_node(&mut cb_node, function_declaration.maybe_question_token());
+            visit_node(&mut cb_node, function_declaration.maybe_exclamation_token());
             visit_nodes(
                 &mut cb_node,
                 &mut cb_nodes,
