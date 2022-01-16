@@ -204,6 +204,18 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             );
             visit_node(&mut cb_node, Some(type_alias_declaration.type_.clone()))
         }
+        Node::Expression(Expression::TemplateExpression(template_expression)) => {
+            visit_node(&mut cb_node, Some(template_expression.head.clone()));
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                Some(&template_expression.template_spans),
+            )
+        }
+        Node::TemplateSpan(template_span) => {
+            visit_node(&mut cb_node, Some(template_span.expression.clone()));
+            visit_node(&mut cb_node, Some(template_span.literal.clone()))
+        }
         _ => unimplemented!(),
     }
 }
