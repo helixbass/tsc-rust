@@ -255,6 +255,23 @@ impl Scanner {
                     return self.set_token(SyntaxKind::CommaToken);
                 }
                 CharacterCodes::slash => {
+                    if self.text_char_at_index(self.pos() + 1) == CharacterCodes::slash {
+                        self.increment_pos_by(2);
+
+                        while self.pos() < self.end() {
+                            if self.is_line_break(self.text_char_at_index(self.pos())) {
+                                break;
+                            }
+                            self.increment_pos();
+                        }
+
+                        if self.skip_trivia {
+                            continue;
+                        } else {
+                            unimplemented!()
+                        }
+                    }
+
                     if self.text_char_at_index(self.pos() + 1) == CharacterCodes::asterisk {
                         self.increment_pos_by(2);
                         if self.text_char_at_index(self.pos()) == CharacterCodes::asterisk
