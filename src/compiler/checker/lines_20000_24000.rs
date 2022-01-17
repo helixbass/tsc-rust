@@ -5,8 +5,8 @@ use std::rc::Rc;
 
 use crate::{
     every, for_each, get_object_flags, is_write_only_access, node_is_missing, Debug_,
-    DiagnosticMessage, Diagnostics, Expression, Identifier, Node, NodeInterface, ObjectFlags,
-    Symbol, SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    DiagnosticMessage, Diagnostics, Identifier, Node, NodeInterface, ObjectFlags, Symbol,
+    SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {

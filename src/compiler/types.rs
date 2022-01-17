@@ -56,6 +56,7 @@ pub enum SyntaxKind {
     GreaterThanToken,
     MinusToken,
     AsteriskToken,
+    SlashToken,
     PlusPlusToken,
     MinusMinusToken,
     LessThanLessThanToken,
@@ -1078,6 +1079,7 @@ bitflags! {
     pub struct TokenFlags: u32 {
         const None = 0;
         const PrecedingLineBreak = 1 << 0;
+        const PrecedingJSDocComment = 1 << 1;
         const Unterminated = 1 << 2;
         const ExtendedUnicodeEscape = 1 << 3;
         const Scientific = 1 << 4;
@@ -1414,9 +1416,11 @@ pub struct SourceFile {
     _symbols_without_a_symbol_table_strong_references: RefCell<Vec<Rc<Symbol>>>,
     pub statements: NodeArray,
 
-    pub file_name: String,
-    pub path: Option<Path>,
+    file_name: RefCell<String>,
+    path: RefCell<Option<Path>>,
     pub text: String,
+
+    parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 }
 
 impl SourceFile {
@@ -1430,10 +1434,37 @@ impl SourceFile {
             _node: base_node,
             _symbols_without_a_symbol_table_strong_references: RefCell::new(vec![]),
             statements,
-            file_name,
-            path: None,
+            file_name: RefCell::new(file_name),
+            path: RefCell::new(None),
             text,
+            parse_diagnostics: RefCell::new(None),
         }
+    }
+
+    pub fn file_name(&self) -> Ref<String> {
+        self.file_name.borrow()
+    }
+
+    pub fn set_file_name(&self, file_name: String) {
+        *self.file_name.borrow_mut() = file_name;
+    }
+
+    pub fn maybe_path(&self) -> Ref<Option<Path>> {
+        self.path.borrow()
+    }
+
+    pub fn set_path(&self, path: Path) {
+        *self.path.borrow_mut() = Some(path);
+    }
+
+    pub fn parse_diagnostics(&self) -> Ref<Vec<Rc<Diagnostic>>> {
+        Ref::map(self.parse_diagnostics.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_parse_diagnostics(&self, parse_diagnostics: Vec<Rc<Diagnostic>>) {
+        *self.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
     }
 
     pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
@@ -1443,15 +1474,22 @@ impl SourceFile {
     }
 }
 
-impl From<SourceFile> for Rc<Node> {
-    fn from(source_file: SourceFile) -> Self {
-        let rc = Rc::new(Node::SourceFile(Rc::new(source_file)));
-        rc.set_node_wrapper(rc.clone());
-        rc
-    }
+// impl From<Rc<SourceFile>> for Rc<Node> {
+//     fn from(source_file: Rc<SourceFile>) -> Self {
+//         let rc = Rc::new(Node::SourceFile(source_file));
+//         rc.set_node_wrapper(rc.clone());
+//         rc
+//     }
+// }
+
+pub fn rc_source_file_into_rc_node(source_file: Rc<SourceFile>) -> Rc<Node> {
+    let rc = Rc::new(Node::SourceFile(source_file));
+    rc.set_node_wrapper(rc.clone());
+    rc
 }
 
 pub trait Program: TypeCheckerHost {
+    fn get_syntactic_diagnostics(&mut self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>;
     fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>>;
 }
 
@@ -2892,7 +2930,7 @@ pub trait ModuleResolutionHost {
 }
 
 pub trait CompilerHost: ModuleResolutionHost {
-    fn get_source_file(&self, file_name: &str) -> Option<SourceFile>;
+    fn get_source_file(&self, file_name: &str) -> Option<Rc<SourceFile>>;
     fn get_current_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
 }
@@ -2935,20 +2973,30 @@ pub enum Diagnostic {
     DiagnosticWithDetachedLocation(DiagnosticWithDetachedLocation),
 }
 
+impl Diagnostic {
+    pub fn as_diagnostic_with_detached_location(&self) -> &DiagnosticWithDetachedLocation {
+        enum_unwrapped!(self, [Diagnostic, DiagnosticWithDetachedLocation])
+    }
+}
+
 pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
-    fn maybe_related_information(&self) -> Option<&[DiagnosticRelatedInformation]>;
+    fn maybe_related_information(&self) -> Option<&[Rc<DiagnosticRelatedInformation>]>;
+    fn set_related_information(
+        &mut self,
+        related_information: Vec<Rc<DiagnosticRelatedInformation>>,
+    );
 }
 
 #[derive(Clone, Debug)]
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
-    related_information: Option<Vec<DiagnosticRelatedInformation>>,
+    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
 }
 
 impl BaseDiagnostic {
     pub fn new(
         diagnostic_related_information: BaseDiagnosticRelatedInformation,
-        related_information: Option<Vec<DiagnosticRelatedInformation>>,
+        related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
     ) -> Self {
         Self {
             _diagnostic_related_information: diagnostic_related_information,
@@ -2984,8 +3032,15 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
 }
 
 impl DiagnosticInterface for BaseDiagnostic {
-    fn maybe_related_information(&self) -> Option<&[DiagnosticRelatedInformation]> {
+    fn maybe_related_information(&self) -> Option<&[Rc<DiagnosticRelatedInformation>]> {
         self.related_information.as_deref()
+    }
+
+    fn set_related_information(
+        &mut self,
+        related_information: Vec<Rc<DiagnosticRelatedInformation>>,
+    ) {
+        self.related_information = Some(related_information);
     }
 }
 
@@ -3051,13 +3106,27 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
 }
 
 impl DiagnosticInterface for Diagnostic {
-    fn maybe_related_information(&self) -> Option<&[DiagnosticRelatedInformation]> {
+    fn maybe_related_information(&self) -> Option<&[Rc<DiagnosticRelatedInformation>]> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
                 diagnostic_with_location.maybe_related_information()
             }
             Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
                 diagnostic_with_detached_location.maybe_related_information()
+            }
+        }
+    }
+
+    fn set_related_information(
+        &mut self,
+        related_information: Vec<Rc<DiagnosticRelatedInformation>>,
+    ) {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
+                diagnostic_with_location.set_related_information(related_information)
+            }
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
+                diagnostic_with_detached_location.set_related_information(related_information)
             }
         }
     }
@@ -3094,6 +3163,19 @@ pub trait DiagnosticRelatedInformationInterface {
 pub enum DiagnosticRelatedInformation {
     BaseDiagnosticRelatedInformation(BaseDiagnosticRelatedInformation),
     Diagnostic(Diagnostic),
+}
+
+impl DiagnosticRelatedInformation {
+    pub fn as_diagnostic_with_detached_location(&self) -> &DiagnosticWithDetachedLocation {
+        enum_unwrapped!(
+            self,
+            [
+                DiagnosticRelatedInformation,
+                Diagnostic,
+                DiagnosticWithDetachedLocation
+            ]
+        )
+    }
 }
 
 impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
@@ -3157,7 +3239,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
 #[derive(Clone, Debug)]
 pub struct BaseDiagnosticRelatedInformation {
     code: u32,
-    file: Option<Rc<SourceFile>>,
+    file: Option<Weak<SourceFile>>,
     start: isize,
     length: isize,
     message_text: DiagnosticMessageText,
@@ -3173,7 +3255,7 @@ impl BaseDiagnosticRelatedInformation {
     ) -> Self {
         Self {
             code,
-            file,
+            file: file.map(|file| Rc::downgrade(&file)),
             start,
             length,
             message_text: message_text.into(),
@@ -3191,7 +3273,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
     }
 
     fn file(&self) -> Option<Rc<SourceFile>> {
-        self.file.clone()
+        self.file.as_ref().map(|weak| weak.upgrade().unwrap())
     }
 
     fn start(&self) -> isize {
@@ -3251,8 +3333,16 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
 }
 
 impl DiagnosticInterface for DiagnosticWithLocation {
-    fn maybe_related_information(&self) -> Option<&[DiagnosticRelatedInformation]> {
+    fn maybe_related_information(&self) -> Option<&[Rc<DiagnosticRelatedInformation>]> {
         self._diagnostic.maybe_related_information()
+    }
+
+    fn set_related_information(
+        &mut self,
+        related_information: Vec<Rc<DiagnosticRelatedInformation>>,
+    ) {
+        self._diagnostic
+            .set_related_information(related_information)
     }
 }
 
@@ -3262,10 +3352,18 @@ impl From<DiagnosticWithLocation> for Diagnostic {
     }
 }
 
+impl From<DiagnosticWithLocation> for DiagnosticRelatedInformation {
+    fn from(diagnostic_with_location: DiagnosticWithLocation) -> Self {
+        DiagnosticRelatedInformation::Diagnostic(Diagnostic::DiagnosticWithLocation(
+            diagnostic_with_location,
+        ))
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct DiagnosticWithDetachedLocation {
     _diagnostic: BaseDiagnostic,
-    file_name: String,
+    pub file_name: String,
 }
 
 impl DiagnosticWithDetachedLocation {
@@ -3304,8 +3402,16 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
 }
 
 impl DiagnosticInterface for DiagnosticWithDetachedLocation {
-    fn maybe_related_information(&self) -> Option<&[DiagnosticRelatedInformation]> {
+    fn maybe_related_information(&self) -> Option<&[Rc<DiagnosticRelatedInformation>]> {
         self._diagnostic.maybe_related_information()
+    }
+
+    fn set_related_information(
+        &mut self,
+        related_information: Vec<Rc<DiagnosticRelatedInformation>>,
+    ) {
+        self._diagnostic
+            .set_related_information(related_information)
     }
 }
 

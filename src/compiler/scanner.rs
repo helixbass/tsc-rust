@@ -254,6 +254,54 @@ impl Scanner {
                     self.increment_pos();
                     return self.set_token(SyntaxKind::CommaToken);
                 }
+                CharacterCodes::slash => {
+                    if self.text_char_at_index(self.pos() + 1) == CharacterCodes::asterisk {
+                        self.increment_pos_by(2);
+                        if self.text_char_at_index(self.pos()) == CharacterCodes::asterisk
+                            && self.text_char_at_index(self.pos() + 1) != CharacterCodes::slash
+                        {
+                            self.set_token_flags(
+                                self.token_flags() | TokenFlags::PrecedingJSDocComment,
+                            );
+                        }
+
+                        let mut comment_closed = false;
+                        let mut last_line_start = self.token_pos();
+                        while self.pos() < self.end() {
+                            let ch = self.text_char_at_index(self.pos());
+
+                            if ch == CharacterCodes::asterisk
+                                && self.text_char_at_index(self.pos() + 1) == CharacterCodes::slash
+                            {
+                                self.increment_pos_by(2);
+                                comment_closed = true;
+                                break;
+                            }
+
+                            self.increment_pos();
+
+                            if self.is_line_break(ch) {
+                                last_line_start = self.pos();
+                                self.set_token_flags(
+                                    self.token_flags() | TokenFlags::PrecedingLineBreak,
+                                );
+                            }
+                        }
+
+                        if !comment_closed {
+                            self.error(on_error, &Diagnostics::Asterisk_Slash_expected, None, None);
+                        }
+
+                        if self.skip_trivia {
+                            continue;
+                        } else {
+                            unimplemented!()
+                        }
+                    }
+
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::SlashToken);
+                }
                 CharacterCodes::_0
                 | CharacterCodes::_1
                 | CharacterCodes::_2

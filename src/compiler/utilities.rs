@@ -7,6 +7,7 @@ use std::cell::RefCell;
 use std::cmp;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
@@ -315,7 +316,7 @@ fn create_diagnostic_for_node_in_source_file<TNode: NodeInterface>(
 pub fn create_diagnostic_for_node_from_message_chain<TNode: NodeInterface>(
     node: &TNode,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<DiagnosticRelatedInformation>>,
+    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node);
     let span = get_error_span_for_node(source_file.clone(), node);
@@ -333,7 +334,7 @@ fn create_file_diagnostic_from_message_chain(
     start: isize,
     length: isize,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<DiagnosticRelatedInformation>>,
+    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     // assert_diagnostic_location(&*file, start, length);
     DiagnosticWithLocation::new(BaseDiagnostic::new(
@@ -504,7 +505,7 @@ impl DiagnosticCollection {
     pub fn add(&mut self, diagnostic: Rc<Diagnostic>) {
         if let Some(diagnostics) = self
             .file_diagnostics
-            .get_mut(&diagnostic.file().unwrap().file_name)
+            .get_mut(&*diagnostic.file().unwrap().file_name())
         {
             insert_sorted(
                 diagnostics,
@@ -517,12 +518,12 @@ impl DiagnosticCollection {
         }
         let diagnostics: SortedArray<Rc<Diagnostic>> = SortedArray::new(vec![]);
         self.file_diagnostics.insert(
-            diagnostic.file().unwrap().file_name.to_string(),
+            diagnostic.file().unwrap().file_name().to_string(),
             diagnostics,
         );
         let diagnostics = self
             .file_diagnostics
-            .get_mut(&diagnostic.file().unwrap().file_name)
+            .get_mut(&*diagnostic.file().unwrap().file_name())
             .unwrap();
         insert_sorted(
             diagnostics,
@@ -814,6 +815,77 @@ pub fn create_detached_diagnostic(
     )
 }
 
+fn is_diagnostic_with_detached_location(
+    diagnostic: &DiagnosticRelatedInformation, /*DiagnosticRelatedInformation | DiagnosticWithDetachedLocation*/
+) -> bool {
+    matches!(
+        diagnostic,
+        DiagnosticRelatedInformation::Diagnostic(Diagnostic::DiagnosticWithDetachedLocation(_))
+    )
+}
+
+pub fn attach_file_to_diagnostic(
+    diagnostic: &DiagnosticWithDetachedLocation,
+    file: &Rc<SourceFile>,
+) -> DiagnosticWithLocation {
+    let file_name = file.file_name();
+    let length: isize = file.text.len().try_into().unwrap();
+    Debug_.assert_equal(&diagnostic.file_name, &*file_name, None, None);
+    Debug_.assert_less_than_or_equal(diagnostic.start(), length);
+    Debug_.assert_less_than_or_equal(diagnostic.start() + diagnostic.length(), length);
+    let mut diagnostic_with_location = DiagnosticWithLocation::new(BaseDiagnostic::new(
+        BaseDiagnosticRelatedInformation::new(
+            diagnostic.code(),
+            Some(file.clone()),
+            diagnostic.start(),
+            diagnostic.length(),
+            diagnostic.message_text().clone(),
+        ),
+        None,
+    ));
+    if let Some(related_information) = diagnostic.maybe_related_information() {
+        diagnostic_with_location.set_related_information(
+            related_information
+                .iter()
+                .map(|related| {
+                    if is_diagnostic_with_detached_location(related)
+                        && &related.as_diagnostic_with_detached_location().file_name == &*file_name
+                    {
+                        Debug_.assert_less_than_or_equal(related.start(), length);
+                        Debug_
+                            .assert_less_than_or_equal(related.start() + related.length(), length);
+                        Rc::new(
+                            attach_file_to_diagnostic(
+                                related.as_diagnostic_with_detached_location(),
+                                file,
+                            )
+                            .into(),
+                        )
+                    } else {
+                        related.clone()
+                    }
+                })
+                .collect(),
+        );
+    }
+    diagnostic_with_location
+}
+
+pub fn attach_file_to_diagnostics(
+    diagnostics: &[Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>],
+    file: &Rc<SourceFile>,
+) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+    diagnostics
+        .iter()
+        .map(|diagnostic| {
+            Rc::new(
+                attach_file_to_diagnostic(diagnostic.as_diagnostic_with_detached_location(), file)
+                    .into(),
+            )
+        })
+        .collect()
+}
+
 fn create_file_diagnostic(
     file: Rc<SourceFile>,
     start: isize,
@@ -855,10 +927,10 @@ fn get_diagnostic_file_path<
 ) -> Option<String> {
     diagnostic
         .file()
-        .and_then(|file| file.path.as_ref().map(|path| path.to_string()))
+        .and_then(|file| file.maybe_path().as_ref().map(|path| path.to_string()))
 }
 
-fn compare_diagnostics<TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface>(
+pub fn compare_diagnostics<TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface>(
     d1: &TDiagnosticRelatedInformation,
     d2: &TDiagnosticRelatedInformation,
 ) -> Comparison {
@@ -924,7 +996,7 @@ fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic) -> Comparison {
             }
             let compared_maybe = for_each(d1_related_information, |d1i, index| {
                 let d2i = &d2_related_information[index];
-                let compared = compare_diagnostics(d1i, d2i);
+                let compared = compare_diagnostics(&**d1i, &**d2i);
                 match compared {
                     Comparison::EqualTo => None,
                     compared => Some(compared),

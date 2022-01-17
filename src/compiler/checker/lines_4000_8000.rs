@@ -9,11 +9,10 @@ use crate::{
     get_source_file_of_node, get_synthetic_factory, is_expression, is_identifier_text,
     unescape_leading_underscores, using_single_line_string_writer, BaseIntrinsicType,
     BaseNodeFactorySynthetic, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint,
-    EmitTextWriter, Expression, KeywordTypeNode, LiteralType, Node, NodeArray, NodeBuilderFlags,
-    NodeInterface, Number, ObjectFlags, PrinterOptions, ResolvableTypeInterface,
-    ResolvedTypeInterface, SourceFile, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface,
-    SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypeParameter,
+    EmitTextWriter, Expression, KeywordTypeNode, Node, NodeArray, NodeBuilderFlags, NodeInterface,
+    ObjectFlags, PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile,
+    Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter,
 };
 
 impl TypeChecker {

@@ -8,8 +8,8 @@ use std::rc::Rc;
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
     get_check_flags, pseudo_big_int_to_string, ArrayTypeNode, BaseLiteralType, BigIntLiteralType,
-    CheckFlags, Debug_, DiagnosticMessage, Expression, IntrinsicType, LiteralTypeInterface,
-    LiteralTypeNode, NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType,
+    CheckFlags, Debug_, DiagnosticMessage, Expression, LiteralTypeInterface, LiteralTypeNode,
+    NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType,
     ObjectLiteralExpression, PseudoBigInt, RelationComparisonResult, StringLiteralType, Symbol,
     SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
     TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
