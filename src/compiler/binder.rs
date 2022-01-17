@@ -15,6 +15,7 @@ use crate::{
     NodeArray, NodeInterface, ObjectLiteralExpression, PropertySignature, Statement, SymbolFlags,
     SymbolInterface, TypeElement, TypeParameterDeclaration,
 };
+use local_macros::enum_unwrapped;
 
 bitflags! {
     struct ContainerFlags: u32 {
@@ -420,12 +421,8 @@ impl BinderType {
         name: __String,
     ) -> Rc<Symbol> {
         let symbol = self.create_symbol(symbol_flags, name).wrap();
-        match &*self.file() {
-            Node::SourceFile(source_file) => {
-                source_file.keep_strong_reference_to_symbol(symbol.clone());
-            }
-            _ => panic!("Expected SourceFile"),
-        }
+        enum_unwrapped!(&*self.file(), [Node, SourceFile])
+            .keep_strong_reference_to_symbol(symbol.clone());
         self.add_declaration_to_symbol(&symbol, node, symbol_flags);
         symbol
     }

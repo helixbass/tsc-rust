@@ -2,8 +2,12 @@ use darling::FromMeta;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
+use syn::parse::{Parse, ParseStream, Result};
 use syn::Data::{Enum, Struct};
-use syn::{parse_macro_input, AttributeArgs, DataEnum, DeriveInput, Fields, FieldsNamed};
+use syn::{
+    parse_macro_input, AttributeArgs, DataEnum, DeriveInput, Error, Expr, ExprArray, Fields,
+    FieldsNamed, Token,
+};
 
 #[derive(Debug, FromMeta)]
 struct AstTypeArgs {
@@ -1386,6 +1390,78 @@ pub fn symbol_type(attr: TokenStream, item: TokenStream) -> TokenStream {
         #symbol_interface_implementation
 
         #into_implementations
+    }
+    .into()
+}
+
+fn get_enum_unwrapped_match(argument: &Expr, ancestors: &[Ident]) -> TokenStream2 {
+    let mut unwrapped_variant_selector = quote! {
+        unwrapped
+    };
+    for (index, ancestor) in ancestors.iter().skip(1).rev().enumerate() {
+        let previous_ancestor = &ancestors[ancestors.len() - 2 - index];
+        unwrapped_variant_selector = quote! {
+            crate::#previous_ancestor::#ancestor(#unwrapped_variant_selector)
+        }
+    }
+
+    let last_variant = ancestors.last().unwrap();
+
+    quote! {
+        match #argument {
+            #unwrapped_variant_selector => unwrapped,
+            _ => panic!("Expected {}", stringify!(#last_variant)),
+        }
+    }
+}
+
+fn expr_to_ident(expr: &Expr) -> Result<Ident> {
+    match expr {
+        Expr::Path(path) => match path.path.get_ident() {
+            Some(ident) => Ok(ident.clone()),
+            None => Err(Error::new_spanned(path, "Expected ident")),
+        },
+        _ => Err(Error::new_spanned(expr, "Expected ident")),
+    }
+}
+
+struct EnumUnwrapped {
+    argument: Expr,
+    ancestors: Vec<Ident>,
+}
+
+impl Parse for EnumUnwrapped {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let argument: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let ancestors_expr: ExprArray = input.parse()?;
+        // let ancestors = ancestors
+        //     .elems
+        //     .iter()
+        //     .map(|expr| expr_to_ident(expr)?)
+        //     .collect::<Vec<_>>();
+        let mut ancestors = vec![];
+        for ancestor in ancestors_expr.elems.iter() {
+            ancestors.push(expr_to_ident(ancestor)?);
+        }
+        Ok(EnumUnwrapped {
+            argument,
+            ancestors,
+        })
+    }
+}
+
+#[proc_macro]
+pub fn enum_unwrapped(input: TokenStream) -> TokenStream {
+    let EnumUnwrapped {
+        argument,
+        ancestors,
+    } = parse_macro_input!(input as EnumUnwrapped);
+
+    let enum_match = get_enum_unwrapped_match(&argument, &ancestors);
+
+    quote! {
+        #enum_match
     }
     .into()
 }

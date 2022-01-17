@@ -15,6 +15,7 @@ use crate::{
     TypeReferenceNode, UnionOrIntersectionTypeInterface, VariableDeclaration,
     VariableLikeDeclarationInterface, VariableStatement,
 };
+use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn check_arithmetic_operand_type(
@@ -31,10 +32,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_prefix_unary_expression(&self, node: &PrefixUnaryExpression) -> Rc<Type> {
-        let operand_expression = match &*node.operand {
-            Node::Expression(expression) => expression,
-            _ => panic!("Expected Expression"),
-        };
+        let operand_expression = enum_unwrapped!(&*node.operand, [Node, Expression]);
         let operand_type = self.check_expression(operand_expression, None);
         match node.operator {
             SyntaxKind::PlusPlusToken => {
@@ -89,10 +87,7 @@ impl TypeChecker {
         contextual_type: Option<TTypeRef>,
     ) -> Rc<Type> {
         let initializer = get_effective_initializer(declaration).unwrap();
-        let initializer_as_expression = match &*initializer {
-            Node::Expression(expression) => expression,
-            _ => panic!("Expected Expression"),
-        };
+        let initializer_as_expression = enum_unwrapped!(&*initializer, [Node, Expression]);
         let type_ = self
             .get_quick_type_of_expression(initializer_as_expression)
             .unwrap_or_else(|| {
@@ -193,10 +188,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         self.check_expression_for_mutable_location(
-            match &*node.initializer {
-                Node::Expression(expression) => expression,
-                _ => panic!("Expected Expression"),
-            },
+            enum_unwrapped!(&*node.initializer, [Node, Expression]),
             check_mode,
             Option::<&Type>::None,
         )
@@ -369,20 +361,14 @@ impl TypeChecker {
             if let Some(initializer) = initializer {
                 if true {
                     let initializer_type = self.check_expression_cached(
-                        match &*initializer {
-                            Node::Expression(expression) => expression,
-                            _ => panic!("Expected Expression"),
-                        },
+                        enum_unwrapped!(&*initializer, [Node, Expression]),
                         None,
                     );
                     self.check_type_assignable_to_and_optionally_elaborate(
                         &initializer_type,
                         &type_,
                         Some(&*wrapper),
-                        Some(match &*initializer {
-                            Node::Expression(expression) => expression,
-                            _ => panic!("Expected Expression"),
-                        }),
+                        Some(enum_unwrapped!(&*initializer, [Node, Expression])),
                         None,
                     );
                 }
@@ -398,31 +384,19 @@ impl TypeChecker {
 
     pub(super) fn check_variable_statement(&mut self, node: &VariableStatement) {
         for_each(
-            &match &*node.declaration_list {
-                Node::VariableDeclarationList(variable_declaration_list) => {
-                    variable_declaration_list
-                }
-                _ => panic!("Expected VariableDeclarationList"),
-            }
-            .declarations,
+            &enum_unwrapped!(&*node.declaration_list, [Node, VariableDeclarationList]).declarations,
             |declaration, _| Some(self.check_source_element(Some(&**declaration))),
         );
     }
 
     pub(super) fn check_expression_statement(&mut self, node: &ExpressionStatement) {
-        let expression = match &*node.expression {
-            Node::Expression(expression) => expression,
-            _ => panic!("Expected Expression"),
-        };
+        let expression = enum_unwrapped!(&*node.expression, [Node, Expression]);
         self.check_expression(expression, None);
     }
 
     pub(super) fn check_if_statement(&mut self, node: &IfStatement) {
         let type_ = self.check_truthiness_expression(
-            match &*node.expression {
-                Node::Expression(expression) => expression,
-                _ => panic!("Expected expression"),
-            },
+            enum_unwrapped!(&*node.expression, [Node, Expression]),
             None,
         );
         self.check_source_element(Some(&*node.then_statement));
@@ -468,12 +442,10 @@ impl TypeChecker {
     ) {
         if let Some(type_parameter_declarations) = type_parameter_declarations {
             for node in type_parameter_declarations {
-                self.check_type_parameter(match &**node {
-                    Node::TypeParameterDeclaration(type_parameter_declaration) => {
-                        type_parameter_declaration
-                    }
-                    _ => panic!("Expected TypeParameterDeclaration"),
-                });
+                self.check_type_parameter(enum_unwrapped!(
+                    &**node,
+                    [Node, TypeParameterDeclaration]
+                ));
             }
         }
     }

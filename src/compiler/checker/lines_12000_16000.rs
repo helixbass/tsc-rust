@@ -13,6 +13,7 @@ use crate::{
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode,
     TypeReference, TypeReferenceNode, UnionReduction, UnionTypeNode,
 };
+use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn get_apparent_type(&self, type_: &Type) -> Rc<Type> {
@@ -105,12 +106,10 @@ impl TypeChecker {
                 None => vec![],
                 Some(node) => match &**node {
                     Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
-                        let target_as_base_interface_type = match &*type_.target {
-                            Type::ObjectType(ObjectType::InterfaceType(
-                                InterfaceType::BaseInterfaceType(base_interface_type),
-                            )) => base_interface_type,
-                            _ => panic!("Expected BaseInterfaceType"),
-                        };
+                        let target_as_base_interface_type = enum_unwrapped!(
+                            &*type_.target,
+                            [Type, ObjectType, InterfaceType, BaseInterfaceType]
+                        );
                         concatenate(
                             target_as_base_interface_type
                                 .outer_type_parameters
@@ -149,12 +148,10 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let type_ =
             self.get_declared_type_of_symbol(&self.get_merged_symbol(Some(symbol)).unwrap());
-        let type_as_interface_type = match &*type_ {
-            Type::ObjectType(ObjectType::InterfaceType(InterfaceType::BaseInterfaceType(
-                base_interface_type,
-            ))) => base_interface_type,
-            _ => panic!("Expected BaseInterfaceType"),
-        };
+        let type_as_interface_type = enum_unwrapped!(
+            &*type_,
+            [Type, ObjectType, InterfaceType, BaseInterfaceType]
+        );
         let type_parameters = type_as_interface_type.type_parameters.as_ref();
         if let Some(type_parameters) = type_parameters {
             let type_arguments = concatenate(

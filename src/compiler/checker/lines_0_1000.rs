@@ -12,6 +12,7 @@ use crate::{
     ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker,
     TypeCheckerHost, TypeFlags,
 };
+use local_macros::enum_unwrapped;
 
 thread_local! {
     pub(super) static next_symbol_id: RefCell<SymbolId> = RefCell::new(1);
@@ -191,33 +192,25 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "true"),
     )
     .into();
-    match &*true_type {
-        Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
-            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                freshable_intrinsic_type
-                    .regular_type
-                    .init(&regular_true_type, false);
-                freshable_intrinsic_type.fresh_type.init(&true_type, false);
-            }
-            _ => panic!("Expected FreshableIntrinsicType"),
-        },
-        _ => panic!("Expected IntrinsicType"),
-    }
+    let true_type_as_freshable_intrinsic_type =
+        enum_unwrapped!(&*true_type, [Type, IntrinsicType, FreshableIntrinsicType]);
+    true_type_as_freshable_intrinsic_type
+        .regular_type
+        .init(&regular_true_type, false);
+    true_type_as_freshable_intrinsic_type
+        .fresh_type
+        .init(&true_type, false);
     type_checker.true_type = Some(true_type);
-    match &*regular_true_type {
-        Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
-            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                freshable_intrinsic_type
-                    .regular_type
-                    .init(&regular_true_type, false);
-                freshable_intrinsic_type
-                    .fresh_type
-                    .init(type_checker.true_type.as_ref().unwrap(), false);
-            }
-            _ => panic!("Expected FreshableIntrinsicType"),
-        },
-        _ => panic!("Expected IntrinsicType"),
-    }
+    let regular_true_type_as_freshable_intrinsic_type = enum_unwrapped!(
+        &*regular_true_type,
+        [Type, IntrinsicType, FreshableIntrinsicType]
+    );
+    regular_true_type_as_freshable_intrinsic_type
+        .regular_type
+        .init(&regular_true_type, false);
+    regular_true_type_as_freshable_intrinsic_type
+        .fresh_type
+        .init(type_checker.true_type.as_ref().unwrap(), false);
     type_checker.regular_true_type = Some(regular_true_type);
     let false_type: Rc<Type> = FreshableIntrinsicType::new(
         type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "false"),
@@ -227,33 +220,25 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "false"),
     )
     .into();
-    match &*false_type {
-        Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
-            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                freshable_intrinsic_type
-                    .regular_type
-                    .init(&regular_false_type, false);
-                freshable_intrinsic_type.fresh_type.init(&false_type, false);
-            }
-            _ => panic!("Expected FreshableIntrinsicType"),
-        },
-        _ => panic!("Expected IntrinsicType"),
-    }
+    let false_type_as_freshable_intrinsic_type =
+        enum_unwrapped!(&*false_type, [Type, IntrinsicType, FreshableIntrinsicType]);
+    false_type_as_freshable_intrinsic_type
+        .regular_type
+        .init(&regular_false_type, false);
+    false_type_as_freshable_intrinsic_type
+        .fresh_type
+        .init(&false_type, false);
     type_checker.false_type = Some(false_type);
-    match &*regular_false_type {
-        Type::IntrinsicType(intrinsic_type) => match intrinsic_type {
-            IntrinsicType::FreshableIntrinsicType(freshable_intrinsic_type) => {
-                freshable_intrinsic_type
-                    .regular_type
-                    .init(&regular_false_type, false);
-                freshable_intrinsic_type
-                    .fresh_type
-                    .init(type_checker.false_type.as_ref().unwrap(), false);
-            }
-            _ => panic!("Expected FreshableIntrinsicType"),
-        },
-        _ => panic!("Expected IntrinsicType"),
-    }
+    let regular_false_type_as_freshable_intrinsic_type = enum_unwrapped!(
+        &*regular_false_type,
+        [Type, IntrinsicType, FreshableIntrinsicType]
+    );
+    regular_false_type_as_freshable_intrinsic_type
+        .regular_type
+        .init(&regular_false_type, false);
+    regular_false_type_as_freshable_intrinsic_type
+        .fresh_type
+        .init(type_checker.false_type.as_ref().unwrap(), false);
     type_checker.regular_false_type = Some(regular_false_type);
     type_checker.boolean_type = Some(type_checker.get_union_type(
         vec![

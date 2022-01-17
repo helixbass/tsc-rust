@@ -8,6 +8,7 @@ use crate::{
     DiagnosticMessage, Diagnostics, Expression, Identifier, Node, NodeInterface, ObjectFlags,
     Symbol, SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
+use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn type_could_have_top_level_singleton_types(&self, type_: &Type) -> bool {
@@ -175,17 +176,14 @@ impl TypeChecker {
         &self,
         node: &Node,
     ) -> DiagnosticMessage {
-        match node {
-            Node::Expression(Expression::Identifier(identifier)) => match identifier.escaped_text {
-                _ => {
-                    if false {
-                        unimplemented!()
-                    } else {
-                        Diagnostics::Cannot_find_name_0
-                    }
+        match enum_unwrapped!(node, [Node, Expression, Identifier]).escaped_text {
+            _ => {
+                if false {
+                    unimplemented!()
+                } else {
+                    Diagnostics::Cannot_find_name_0
                 }
-            },
-            _ => panic!("Expected Identifier"),
+            }
         }
     }
 
