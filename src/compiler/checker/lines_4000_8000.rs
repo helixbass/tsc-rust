@@ -652,10 +652,8 @@ impl NodeBuilder {
                     .flags
                     .intersects(NodeBuilderFlags::UseFullyQualifiedType);
                 let mut result: Vec<Rc<Node>> = vec![];
-                let mut i: usize = 0;
-                for type_ in types {
-                    i += 1;
-                    let type_node = self.type_to_type_node_helper(type_checker, &type_, context);
+                for (i, type_) in types.iter().enumerate() {
+                    let type_node = self.type_to_type_node_helper(type_checker, type_, context);
                     result.push(type_node.into());
                 }
 

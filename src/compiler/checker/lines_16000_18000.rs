@@ -212,11 +212,7 @@ impl TypeChecker {
         if sources.len() == 1 {
             self.make_unary_type_mapper(
                 &sources[0],
-                &*if let Some(targets) = targets {
-                    targets[0].clone()
-                } else {
-                    self.any_type()
-                },
+                &*targets.map_or_else(|| self.any_type(), |targets| targets[0].clone()),
             )
         } else {
             self.make_array_type_mapper(sources, targets)
@@ -236,12 +232,10 @@ impl TypeChecker {
                 let sources = &mapper.sources;
                 let targets = &mapper.targets;
                 for (i, source) in sources.iter().enumerate() {
-                    if ptr::eq(type_, Rc::as_ptr(&source)) {
-                        return if let Some(targets) = targets {
-                            targets[i].clone()
-                        } else {
-                            self.any_type()
-                        };
+                    if ptr::eq(type_, Rc::as_ptr(source)) {
+                        return targets
+                            .as_ref()
+                            .map_or_else(|| self.any_type(), |targets| targets[i].clone());
                     }
                 }
                 type_.type_wrapper()
@@ -356,17 +350,15 @@ impl TypeChecker {
         type_: Option<TTypeRef>,
         mapper: Option<&TypeMapper>,
     ) -> Option<Rc<Type>> {
-        if let Some(type_) = type_.as_ref() {
-            if let Some(mapper) = mapper {
-                return Some(self.instantiate_type_with_alias(
-                    type_.borrow(),
-                    mapper,
-                    Option::<&Symbol>::None,
-                    None,
-                ));
-            }
+        match (type_.as_ref(), mapper) {
+            (Some(type_), Some(mapper)) => Some(self.instantiate_type_with_alias(
+                type_.borrow(),
+                mapper,
+                Option::<&Symbol>::None,
+                None,
+            )),
+            _ => type_.map(|type_| type_.borrow().type_wrapper()),
         }
-        type_.map(|type_| type_.borrow().type_wrapper())
     }
 
     pub(super) fn instantiate_type_with_alias<TSymbolRef: Borrow<Symbol>>(

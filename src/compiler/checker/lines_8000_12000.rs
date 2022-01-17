@@ -138,8 +138,10 @@ impl TypeChecker {
         &self,
         declaration: &Node,
     ) -> Rc<Type> {
-        let type_ = self.get_type_for_variable_like_declaration(declaration);
-        self.widen_type_for_variable_like_declaration(type_, declaration)
+        self.widen_type_for_variable_like_declaration(
+            self.get_type_for_variable_like_declaration(declaration),
+            declaration,
+        )
     }
 
     pub(super) fn widen_type_for_variable_like_declaration<TTypeRef: Borrow<Type>>(
