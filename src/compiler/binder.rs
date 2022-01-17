@@ -6,14 +6,14 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    Symbol, SymbolTable, SyntaxKind, VariableDeclaration, __String, append_if_unique,
-    create_symbol_table, for_each, for_each_child, get_escaped_text_of_identifier_or_literal,
-    get_name_of_declaration, is_binding_pattern, is_block_or_catch_scoped,
-    is_class_static_block_declaration, is_function_like, is_property_name_literal,
-    object_allocator, set_parent, set_value_declaration, BaseSymbol, Expression,
-    ExpressionStatement, IfStatement, InternalSymbolName, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, ObjectLiteralExpression, PropertySignature, Statement, SymbolFlags,
-    SymbolInterface, TypeElement, TypeParameterDeclaration,
+    FunctionDeclaration, ParameterDeclaration, Symbol, SymbolTable, SyntaxKind,
+    VariableDeclaration, __String, append_if_unique, create_symbol_table, for_each, for_each_child,
+    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, is_binding_pattern,
+    is_block_or_catch_scoped, is_class_static_block_declaration, is_function_like,
+    is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
+    Expression, ExpressionStatement, IfStatement, InternalSymbolName, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, ObjectLiteralExpression, PropertySignature, Statement,
+    SymbolFlags, SymbolInterface, TypeElement, TypeParameterDeclaration,
 };
 
 bitflags! {
@@ -26,8 +26,11 @@ bitflags! {
 
         const IsControlFlowContainer = 1 << 2;
 
+        const IsFunctionLike = 1 << 3;
+        const IsFunctionExpression = 1 << 4;
         const HasLocals = 1 << 5;
         const IsInterface = 1 << 6;
+        const IsObjectLiteralOrClassExpressionMethodOrAccessor = 1 << 7;
     }
 }
 
@@ -279,6 +282,9 @@ impl BinderType {
             Node::Statement(Statement::IfStatement(if_statement)) => {
                 self.bind_if_statement(if_statement);
             }
+            Node::Statement(Statement::ReturnStatement(_)) => {
+                self.bind_return_or_throw(node);
+            }
             Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
                 self.bind_expression_statement(expression_statement);
             }
@@ -325,6 +331,15 @@ impl BinderType {
         self.bind(node.else_statement.clone());
     }
 
+    fn bind_return_or_throw(&self, node: &Node) {
+        self.bind(match node {
+            Node::Statement(Statement::ReturnStatement(return_statement)) => {
+                return_statement.expression.clone()
+            }
+            _ => panic!("Expected return or throw"),
+        });
+    }
+
     fn bind_expression_statement(&self, node: &ExpressionStatement) {
         self.bind(Some(node.expression.clone()));
     }
@@ -352,6 +367,12 @@ impl BinderType {
                 return ContainerFlags::IsContainer
                     | ContainerFlags::IsControlFlowContainer
                     | ContainerFlags::HasLocals;
+            }
+            SyntaxKind::FunctionDeclaration => {
+                return ContainerFlags::IsContainer
+                    | ContainerFlags::IsControlFlowContainer
+                    | ContainerFlags::HasLocals
+                    | ContainerFlags::IsFunctionLike;
             }
             SyntaxKind::Block => {
                 return if is_function_like(node.maybe_parent())
@@ -385,13 +406,15 @@ impl BinderType {
                 symbol_flags,
                 symbol_excludes,
             )),
-            SyntaxKind::TypeAliasDeclaration => Some(self.declare_symbol(
-                &mut *self.container().locals(),
-                Option::<&Symbol>::None,
-                node,
-                symbol_flags,
-                symbol_excludes,
-            )),
+            SyntaxKind::FunctionDeclaration | SyntaxKind::TypeAliasDeclaration => {
+                Some(self.declare_symbol(
+                    &mut *self.container().locals(),
+                    Option::<&Symbol>::None,
+                    node,
+                    symbol_flags,
+                    symbol_excludes,
+                ))
+            }
             _ => unimplemented!(),
         }
     }
@@ -487,6 +510,9 @@ impl BinderType {
             Node::TypeParameterDeclaration(type_parameter_declaration) => {
                 self.bind_type_parameter(type_parameter_declaration)
             }
+            Node::ParameterDeclaration(parameter_declaration) => {
+                self.bind_parameter(parameter_declaration)
+            }
             Node::VariableDeclaration(variable_declaration) => {
                 self.bind_variable_declaration_or_binding_element(variable_declaration)
             }
@@ -499,6 +525,9 @@ impl BinderType {
                     SymbolFlags::Property,
                     SymbolFlags::PropertyExcludes,
                 ),
+            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+                self.bind_function_declaration(function_declaration)
+            }
             Node::Expression(Expression::ObjectLiteralExpression(object_literal_expression)) => {
                 self.bind_object_literal_expression(object_literal_expression)
             }
@@ -548,6 +577,30 @@ impl BinderType {
                     SymbolFlags::FunctionScopedVariableExcludes,
                 );
             }
+        }
+    }
+
+    fn bind_parameter(&self, node: &ParameterDeclaration) {
+        if is_binding_pattern(&*node.name()) {
+            unimplemented!()
+        } else {
+            self.declare_symbol_and_add_to_symbol_table(
+                node,
+                SymbolFlags::FunctionScopedVariable,
+                SymbolFlags::ParameterExcludes,
+            );
+        }
+    }
+
+    fn bind_function_declaration(&self, node: &FunctionDeclaration) {
+        if false {
+            unimplemented!()
+        } else {
+            self.declare_symbol_and_add_to_symbol_table(
+                node,
+                SymbolFlags::Function,
+                SymbolFlags::FunctionExcludes,
+            );
         }
     }
 

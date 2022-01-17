@@ -57,6 +57,8 @@ pub enum SyntaxKind {
     CommaToken,
     LessThanToken,
     GreaterThanToken,
+    EqualsGreaterThanToken,
+    PlusToken,
     MinusToken,
     AsteriskToken,
     SlashToken,
@@ -87,6 +89,7 @@ pub enum SyntaxKind {
     ImportKeyword,
     NewKeyword,
     NullKeyword,
+    ReturnKeyword,
     SuperKeyword,
     ThisKeyword,
     TrueKeyword,
@@ -109,6 +112,8 @@ pub enum SyntaxKind {
     DeclareKeyword,
     GetKeyword,
     InferKeyword,
+    IntrinsicKeyword,
+    IsKeyword,
     NeverKeyword,
     ReadonlyKeyword,
     NumberKeyword,
@@ -138,6 +143,7 @@ pub enum SyntaxKind {
     CallSignature,
     ConstructSignature,
     IndexSignature,
+    TypePredicate,
     TypeReference,
     FunctionType,
     ConstructorType,
@@ -168,6 +174,7 @@ pub enum SyntaxKind {
     VariableStatement,
     ExpressionStatement,
     IfStatement,
+    ReturnStatement,
     VariableDeclaration,
     VariableDeclarationList,
     FunctionDeclaration,
@@ -209,12 +216,32 @@ bitflags! {
         const Const = 1 << 1;
         const DisallowInContext = 1 << 12;
         const YieldContext = 1 << 13;
+        const DecoratorContext = 1 << 14;
         const AwaitContext = 1 << 15;
         const Ambient = 1 << 23;
 
         const BlockScoped = Self::Let.bits | Self::Const.bits;
 
         const TypeExcludesFlags = Self::YieldContext.bits | Self::AwaitContext.bits;
+    }
+}
+
+bitflags! {
+    pub struct ModifierFlags: u32 {
+        const None = 0;
+        const Export = 1 << 0;
+        const Ambient = 1 << 1;
+        const Public = 1 << 2;
+        const Private = 1 << 3;
+        const Protected = 1 << 4;
+        const Static = 1 << 5;
+        const Readonly = 1 << 6;
+        const Abstract = 1 << 7;
+        const Async = 1 << 8;
+        const Default = 1 << 9;
+        const Const = 1 << 11;
+
+        const Override = 1 << 14;
     }
 }
 
@@ -256,8 +283,10 @@ pub enum Node {
     BaseNode(BaseNode),
     TypeParameterDeclaration(TypeParameterDeclaration),
     Decorator(Decorator),
+    SignatureDeclarationBase(SignatureDeclarationBase),
     VariableDeclaration(VariableDeclaration),
     VariableDeclarationList(VariableDeclarationList),
+    ParameterDeclaration(ParameterDeclaration),
     TypeNode(TypeNode),
     Expression(Expression),
     TemplateSpan(TemplateSpan),
@@ -288,6 +317,10 @@ impl Node {
             }
             Node::TypeElement(type_element) => type_element,
             Node::PropertyAssignment(property_assignment) => property_assignment,
+            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+                function_declaration
+            }
+            Node::ParameterDeclaration(parameter_declaration) => parameter_declaration,
             _ => panic!("Expected named declaration"),
         }
     }
@@ -572,7 +605,7 @@ impl From<BaseNode> for Rc<Node> {
 }
 
 pub trait HasTypeInterface {
-    fn type_(&self) -> Option<Rc<Node>>;
+    fn maybe_type(&self) -> Option<Rc<Node>>;
     fn set_type(&mut self, type_: Rc<Node>);
 }
 
@@ -791,7 +824,7 @@ impl BaseVariableLikeDeclaration {
 }
 
 impl HasTypeInterface for BaseVariableLikeDeclaration {
-    fn type_(&self) -> Option<Rc<Node>> {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
         self.type_.as_ref().map(Clone::clone)
     }
 
@@ -821,6 +854,133 @@ impl TypeParameterDeclaration {
 pub struct Decorator {
     _node: BaseNode,
     expression: Rc<Node /*LeftHandSideExpression*/>,
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "NamedDeclarationInterface, SignatureDeclarationInterface")]
+pub enum SignatureDeclarationBase {
+    FunctionLikeDeclarationBase(FunctionLikeDeclarationBase),
+}
+
+pub trait SignatureDeclarationInterface {
+    fn parameters(&self) -> &NodeArray /*<ParameterDeclaration>*/;
+}
+
+#[derive(Debug)]
+#[ast_type(
+    impl_from = false,
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
+)]
+pub struct BaseSignatureDeclaration {
+    _generic_named_declaration: BaseGenericNamedDeclaration,
+    parameters: NodeArray, /*<ParameterDeclaration>*/
+    type_: Option<Rc<Node /*TypeNode*/>>,
+}
+
+impl BaseSignatureDeclaration {
+    pub fn new(
+        generic_named_declaration: BaseGenericNamedDeclaration,
+        parameters: NodeArray,
+        type_: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _generic_named_declaration: generic_named_declaration,
+            parameters,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for BaseSignatureDeclaration {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = Some(type_);
+    }
+}
+
+impl SignatureDeclarationInterface for BaseSignatureDeclaration {
+    fn parameters(&self) -> &NodeArray {
+        &self.parameters
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "SignatureDeclarationBase",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub enum FunctionLikeDeclarationBase {
+    BaseFunctionLikeDeclaration(BaseFunctionLikeDeclaration),
+}
+
+pub trait FunctionLikeDeclarationInterface {
+    fn maybe_body(&self) -> Option<Rc<Node>>;
+    fn maybe_asterisk_token(&self) -> Option<Rc<Node>>;
+    fn maybe_question_token(&self) -> Option<Rc<Node>>;
+    fn maybe_exclamation_token(&self) -> Option<Rc<Node>>;
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "FunctionLikeDeclarationBase, SignatureDeclarationBase",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+)]
+pub struct BaseFunctionLikeDeclaration {
+    _signature_declaration: BaseSignatureDeclaration,
+    pub asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
+    question_token: Option<Rc<Node /*QuestionToken*/>>,
+    exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
+    body: Option<Rc<Node /*Block | Expression*/>>,
+}
+
+impl BaseFunctionLikeDeclaration {
+    pub fn new(signature_declaration: BaseSignatureDeclaration, body: Option<Rc<Node>>) -> Self {
+        Self {
+            _signature_declaration: signature_declaration,
+            body,
+            asterisk_token: None,
+            question_token: None,
+            exclamation_token: None,
+        }
+    }
+}
+
+impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
+    fn maybe_body(&self) -> Option<Rc<Node>> {
+        self.body.clone()
+    }
+
+    fn maybe_asterisk_token(&self) -> Option<Rc<Node>> {
+        self.asterisk_token.clone()
+    }
+
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+
+    fn maybe_exclamation_token(&self) -> Option<Rc<Node>> {
+        self.exclamation_token.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "Statement",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct FunctionDeclaration {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+}
+
+impl FunctionDeclaration {
+    pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -856,6 +1016,30 @@ impl VariableDeclarationList {
 }
 
 #[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasExpressionInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
+)]
+pub struct ParameterDeclaration {
+    _variable_like_declaration: BaseVariableLikeDeclaration,
+    pub dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+}
+
+impl ParameterDeclaration {
+    pub fn new(
+        base_variable_like_declaration: BaseVariableLikeDeclaration,
+        dot_dot_dot_token: Option<Rc<Node>>,
+        question_token: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _variable_like_declaration: base_variable_like_declaration,
+            dot_dot_dot_token,
+            question_token,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type]
 pub enum TypeNode {
     KeywordTypeNode(KeywordTypeNode),
@@ -863,6 +1047,7 @@ pub enum TypeNode {
     IntersectionTypeNode(IntersectionTypeNode),
     LiteralTypeNode(LiteralTypeNode),
     TypeReferenceNode(TypeReferenceNode),
+    TypePredicateNode(TypePredicateNode),
     TypeLiteralNode(TypeLiteralNode),
     ArrayTypeNode(ArrayTypeNode),
 }
@@ -914,6 +1099,31 @@ impl TypeReferenceNode {
 impl HasTypeArgumentsInterface for TypeReferenceNode {
     fn maybe_type_arguments(&self) -> Option<&NodeArray> {
         self.type_arguments.as_ref()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct TypePredicateNode {
+    _node: BaseNode,
+    pub asserts_modifier: Option<Rc<Node /*AssertsToken*/>>,
+    pub parameter_name: Rc<Node /*Identifier | ThisTypeNode*/>,
+    pub type_: Option<Rc<Node /*TypeNode*/>>,
+}
+
+impl TypePredicateNode {
+    pub fn new(
+        base_node: BaseNode,
+        asserts_modifier: Option<Rc<Node>>,
+        parameter_name: Rc<Node>,
+        type_: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            asserts_modifier,
+            parameter_name,
+            type_,
+        }
     }
 }
 
@@ -1320,11 +1530,13 @@ impl ObjectLiteralExpression {
 #[derive(Debug)]
 #[ast_type]
 pub enum Statement {
+    FunctionDeclaration(FunctionDeclaration),
     EmptyStatement(EmptyStatement),
     Block(Block),
     VariableStatement(VariableStatement),
     ExpressionStatement(ExpressionStatement),
     IfStatement(IfStatement),
+    ReturnStatement(ReturnStatement),
     InterfaceDeclaration(InterfaceDeclaration),
     TypeAliasDeclaration(TypeAliasDeclaration),
 }
@@ -1411,6 +1623,22 @@ impl IfStatement {
 }
 
 #[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ReturnStatement {
+    _node: BaseNode,
+    pub expression: Option<Rc</*Expression*/ Node>>,
+}
+
+impl ReturnStatement {
+    pub fn new(base_node: BaseNode, expression: Option<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub enum TypeElement {
     PropertySignature(PropertySignature),
@@ -1433,7 +1661,7 @@ impl PropertySignature {
 }
 
 impl HasTypeInterface for PropertySignature {
-    fn type_(&self) -> Option<Rc<Node>> {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
         self.type_.clone()
     }
 
@@ -1480,6 +1708,11 @@ pub trait HasTypeParametersInterface {
     fn maybe_type_parameters(&self) -> Option<&NodeArray>;
 }
 
+pub trait GenericNamedDeclarationInterface:
+    NamedDeclarationInterface + HasTypeParametersInterface
+{
+}
+
 #[derive(Debug)]
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseGenericNamedDeclaration {
@@ -1505,10 +1738,12 @@ impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
     }
 }
 
+impl GenericNamedDeclarationInterface for BaseGenericNamedDeclaration {}
+
 #[derive(Debug)]
 #[ast_type(
     impl_from = false,
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
 pub struct BaseInterfaceOrClassLikeDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
@@ -1525,7 +1760,7 @@ impl BaseInterfaceOrClassLikeDeclaration {
 #[derive(Debug)]
 #[ast_type(
     ancestors = "Statement",
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
 pub struct InterfaceDeclaration {
     _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration, /*name: Identifier*/
@@ -1547,7 +1782,7 @@ impl InterfaceDeclaration {
 #[derive(Debug)]
 #[ast_type(
     ancestors = "Statement",
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
 pub struct TypeAliasDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration, /*name: Identifier*/
@@ -1829,7 +2064,9 @@ bitflags! {
 
         const BlockScopedVariableExcludes = Self::Value.bits;
 
+        const ParameterExcludes = Self::Value.bits;
         const PropertyExcludes = Self::None.bits;
+        const FunctionExcludes = Self::Value.bits & !(Self::Function.bits | Self::ValueModule.bits | Self::Class.bits);
         const InterfaceExcludes = Self::Type.bits & !(Self::Interface.bits | Self::Class.bits);
         const TypeParameterExcludes = Self::Type.bits & !Self::TypeParameter.bits;
         const TypeAliasExcludes = Self::Type.bits;

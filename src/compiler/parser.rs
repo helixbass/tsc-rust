@@ -8,20 +8,33 @@ use std::rc::Rc;
 
 use crate::{
     append, attach_file_to_diagnostics, create_detached_diagnostic, create_node_factory,
-    create_scanner, get_binary_operator_precedence, is_literal_kind, is_modifier_kind,
-    is_template_literal_kind, last_or_undefined, normalize_path, object_allocator,
-    set_text_range_pos_end, some, token_is_identifier_or_keyword, token_to_string,
-    ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block, Debug_, Decorator,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, Expression,
+    create_scanner, get_binary_operator_precedence, get_full_width, is_literal_kind,
+    is_modifier_kind, is_template_literal_kind, last_or_undefined, modifiers_to_flags,
+    normalize_path, object_allocator, set_text_range_pos_end, some, token_is_identifier_or_keyword,
+    token_to_string, ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block,
+    Debug_, Decorator, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    Diagnostics, Expression, FunctionDeclaration, FunctionLikeDeclarationInterface,
     HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
     InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
-    LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence, PropertyAssignment,
-    Scanner, SourceFile, Statement, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateSpan, TokenFlags, TypeAliasDeclaration, TypeElement, TypeNode,
+    LiteralTypeNode, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
+    ParameterDeclaration, PropertyAssignment, ReturnStatement, Scanner,
+    SignatureDeclarationInterface, SourceFile, Statement, SyntaxKind, TemplateExpression,
+    TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration, TypeElement, TypeNode,
     TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
 };
 use local_macros::{ast_type, enum_unwrapped};
+
+bitflags! {
+    pub struct SignatureFlags: u32 {
+        const None = 0;
+        const Yield = 1 << 0;
+        const Await = 1 << 1;
+        const Type = 1 << 2;
+        const IgnoreMissingOpenBrace = 1 << 4;
+        const JSDoc = 1 << 5;
+    }
+}
 
 #[derive(Eq, PartialEq)]
 enum SpeculationKind {
@@ -61,6 +74,26 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
         Node::TypeParameterDeclaration(type_parameter_declaration) => {
             visit_node(&mut cb_node, Some(type_parameter_declaration.name()))
         }
+        Node::ParameterDeclaration(parameter_declaration) => {
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                parameter_declaration.maybe_decorators().as_ref(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                parameter_declaration.maybe_modifiers(),
+            );
+            visit_node(
+                &mut cb_node,
+                parameter_declaration.dot_dot_dot_token.clone(),
+            );
+            visit_node(&mut cb_node, Some(parameter_declaration.name()));
+            visit_node(&mut cb_node, parameter_declaration.question_token.clone());
+            visit_node(&mut cb_node, parameter_declaration.maybe_type());
+            visit_node(&mut cb_node, parameter_declaration.maybe_initializer())
+        }
         Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
             visit_nodes(
                 &mut cb_node,
@@ -73,7 +106,7 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
                 property_signature.maybe_modifiers(),
             );
             visit_node(&mut cb_node, Some(property_signature.name()));
-            visit_node(&mut cb_node, property_signature.type_())
+            visit_node(&mut cb_node, property_signature.maybe_type())
         }
         Node::PropertyAssignment(property_assignment) => {
             visit_nodes(
@@ -101,8 +134,36 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
                 variable_declaration.maybe_modifiers(),
             );
             visit_node(&mut cb_node, Some(variable_declaration.name()));
-            visit_node(&mut cb_node, variable_declaration.type_());
+            visit_node(&mut cb_node, variable_declaration.maybe_type());
             visit_node(&mut cb_node, variable_declaration.maybe_initializer())
+        }
+        Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                function_declaration.maybe_decorators().as_ref(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                function_declaration.maybe_modifiers(),
+            );
+            visit_node(&mut cb_node, function_declaration.maybe_asterisk_token());
+            visit_node(&mut cb_node, Some(function_declaration.name()));
+            visit_node(&mut cb_node, function_declaration.maybe_question_token());
+            visit_node(&mut cb_node, function_declaration.maybe_exclamation_token());
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                function_declaration.maybe_type_parameters(),
+            );
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                Some(function_declaration.parameters()),
+            );
+            visit_node(&mut cb_node, function_declaration.maybe_type());
+            visit_node(&mut cb_node, function_declaration.maybe_body())
         }
         Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
             visit_node(&mut cb_node, Some(type_reference_node.type_name.clone()));
@@ -243,6 +304,8 @@ struct ParserType {
     parse_diagnostics: Option<RefCell<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     current_token: RefCell<Option<SyntaxKind>>,
     parsing_context: Cell<Option<ParsingContext>>,
+    context_flags: Cell<Option<NodeFlags>>,
+    top_level: Cell<bool>,
     parse_error_before_next_finished_node: Cell<bool>,
 }
 
@@ -260,6 +323,8 @@ impl ParserType {
             parse_diagnostics: None,
             current_token: RefCell::new(None),
             parsing_context: Cell::new(None),
+            context_flags: Cell::new(None),
+            top_level: Cell::new(true),
             parse_error_before_next_finished_node: Cell::new(false),
         }
     }
@@ -358,6 +423,22 @@ impl ParserType {
         self.parsing_context.set(Some(parsing_context));
     }
 
+    fn context_flags(&self) -> NodeFlags {
+        self.context_flags.get().unwrap()
+    }
+
+    fn set_context_flags(&self, context_flags: NodeFlags) {
+        self.context_flags.set(Some(context_flags));
+    }
+
+    fn top_level(&self) -> bool {
+        self.top_level.get()
+    }
+
+    fn set_top_level(&self, top_level: bool) {
+        self.top_level.set(top_level);
+    }
+
     fn parse_error_before_next_finished_node(&self) -> bool {
         self.parse_error_before_next_finished_node.get()
     }
@@ -391,6 +472,10 @@ impl ParserType {
 
         self.set_parse_diagnostics(vec![]);
         self.set_parsing_context(ParsingContext::None);
+        self.set_top_level(true);
+
+        self.set_context_flags(NodeFlags::None);
+        self.set_parse_error_before_next_finished_node(false);
 
         let mut scanner = self.scanner_mut();
         scanner.set_text(Some(_source_text), None, None);
@@ -429,12 +514,40 @@ impl ParserType {
         source_file
     }
 
-    fn do_outside_of_context<TReturn>(
+    fn set_context_flag(&self, val: bool, flag: NodeFlags) {
+        if val {
+            self.set_context_flags(self.context_flags() | flag);
+        } else {
+            self.set_context_flags(self.context_flags() & !flag);
+        }
+    }
+
+    fn set_yield_context(&self, val: bool) {
+        self.set_context_flag(val, NodeFlags::YieldContext);
+    }
+
+    fn set_decorator_context(&self, val: bool) {
+        self.set_context_flag(val, NodeFlags::DecoratorContext);
+    }
+
+    fn set_await_context(&self, val: bool) {
+        self.set_context_flag(val, NodeFlags::AwaitContext);
+    }
+
+    fn do_outside_of_context<TReturn, TFunc: FnOnce() -> TReturn>(
         &self,
         context: NodeFlags,
-        func: fn(&ParserType) -> TReturn,
+        func: TFunc,
     ) -> TReturn {
-        func(self)
+        let context_flags_to_clear = context & self.context_flags();
+        if context_flags_to_clear != NodeFlags::None {
+            self.set_context_flag(false, context_flags_to_clear);
+            let result = func();
+            self.set_context_flag(true, context_flags_to_clear);
+            return result;
+        }
+
+        func()
     }
 
     fn do_inside_of_context<TReturn, TFunc: FnOnce() -> TReturn>(
@@ -442,11 +555,39 @@ impl ParserType {
         context: NodeFlags,
         func: TFunc,
     ) -> TReturn {
+        let context_flags_to_set = context & !self.context_flags();
+        if context_flags_to_set != NodeFlags::None {
+            self.set_context_flag(true, context_flags_to_set);
+            let result = func();
+            self.set_context_flag(false, context_flags_to_set);
+            return result;
+        }
+
         func()
     }
 
-    fn allow_in_and<TReturn>(&self, func: fn(&ParserType) -> TReturn) -> TReturn {
+    fn allow_in_and<TReturn, TFunc: FnOnce() -> TReturn>(&self, func: TFunc) -> TReturn {
         self.do_outside_of_context(NodeFlags::DisallowInContext, func)
+    }
+
+    fn do_in_await_context<TReturn, TFunc: FnOnce() -> TReturn>(&self, func: TFunc) -> TReturn {
+        self.do_inside_of_context(NodeFlags::AwaitContext, func)
+    }
+
+    fn in_context(&self, flags: NodeFlags) -> bool {
+        self.context_flags().intersects(flags)
+    }
+
+    fn in_yield_context(&self) -> bool {
+        self.in_context(NodeFlags::YieldContext)
+    }
+
+    fn in_decorator_context(&self) -> bool {
+        self.in_context(NodeFlags::DecoratorContext)
+    }
+
+    fn in_await_context(&self) -> bool {
+        self.in_context(NodeFlags::AwaitContext)
     }
 
     fn parse_error_at_current_token(&self, message: &DiagnosticMessage, args: Option<Vec<String>>) {
@@ -712,10 +853,12 @@ impl ParserType {
         has_trailing_comma: Option<bool>,
     ) -> NodeArray {
         let array = self.factory.create_node_array(
-            elements
-                .into_iter()
-                .map(Node::wrap)
-                .collect::<Vec<Rc<Node>>>(),
+            Some(
+                elements
+                    .into_iter()
+                    .map(Node::wrap)
+                    .collect::<Vec<Rc<Node>>>(),
+            ),
             has_trailing_comma,
         );
         // set_text_range_pos_end(
@@ -790,6 +933,7 @@ impl ParserType {
         &self,
         is_identifier: bool,
         diagnostic_message: Option<&DiagnosticMessage>,
+        private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
     ) -> Identifier {
         if is_identifier {
             let pos = self.get_node_pos();
@@ -819,18 +963,34 @@ impl ParserType {
         )
     }
 
-    fn parse_binding_identifier(&self) -> Identifier {
-        self.create_identifier(self.is_binding_identifier(), None)
+    fn parse_binding_identifier(
+        &self,
+        private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
+    ) -> Identifier {
+        self.create_identifier(
+            self.is_binding_identifier(),
+            None,
+            private_identifier_diagnostic_message,
+        )
     }
 
-    fn parse_identifier(&self, diagnostic_message: Option<&DiagnosticMessage>) -> Identifier {
-        self.create_identifier(self.is_identifier(), diagnostic_message)
+    fn parse_identifier(
+        &self,
+        diagnostic_message: Option<&DiagnosticMessage>,
+        private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
+    ) -> Identifier {
+        self.create_identifier(
+            self.is_identifier(),
+            diagnostic_message,
+            private_identifier_diagnostic_message,
+        )
     }
 
     fn parse_identifier_name(&self, diagnostic_message: Option<&DiagnosticMessage>) -> Identifier {
         self.create_identifier(
             token_is_identifier_or_keyword(self.token()),
             diagnostic_message,
+            None,
         )
     }
 
@@ -937,8 +1097,9 @@ impl ParserType {
                     || self.token() == SyntaxKind::DotDotDotToken
                     || self.is_start_of_expression()
             }
+            ParsingContext::Parameters => self.is_start_of_parameter(false),
             ParsingContext::TypeArguments => {
-                self.token() == SyntaxKind::CommaToken || self.is_start_of_type()
+                self.token() == SyntaxKind::CommaToken || self.is_start_of_type(None)
             }
             _ => unimplemented!(),
         }
@@ -961,6 +1122,10 @@ impl ParserType {
                     || self.token() == SyntaxKind::ImplementsKeyword
             }
             ParsingContext::ArrayLiteralMembers => self.token() == SyntaxKind::CloseBracketToken,
+            ParsingContext::Parameters => {
+                self.token() == SyntaxKind::CloseParenToken
+                    || self.token() == SyntaxKind::CloseBracketToken
+            }
             ParsingContext::TypeArguments => self.token() != SyntaxKind::CommaToken,
             _ => false,
         }
@@ -1076,7 +1241,7 @@ impl ParserType {
         let entity: Node = if allow_reserved_words {
             self.parse_identifier_name(diagnostic_message).into()
         } else {
-            self.parse_identifier(diagnostic_message).into()
+            self.parse_identifier(diagnostic_message, None).into()
         };
         entity
     }
@@ -1128,7 +1293,7 @@ impl ParserType {
         self.finish_node(
             self.factory.create_template_span(
                 self,
-                self.allow_in_and(ParserType::parse_expression).into(),
+                self.allow_in_and(|| self.parse_expression()).into(),
                 self.parse_literal_of_template_span(is_tagged_template)
                     .into(),
             ),
@@ -1267,7 +1432,7 @@ impl ParserType {
 
     fn parse_type_parameter(&self) -> TypeParameterDeclaration {
         let pos = self.get_node_pos();
-        let name = self.parse_identifier(None);
+        let name = self.parse_identifier(None, None);
 
         let node = self
             .factory
@@ -1285,6 +1450,144 @@ impl ParserType {
             ));
         }
         None
+    }
+
+    fn is_start_of_parameter(&self, is_jsdoc_parameter: bool) -> bool {
+        self.token() == SyntaxKind::DotDotDotToken
+            || self.is_binding_identifier_or_private_identifier_or_pattern()
+            || is_modifier_kind(self.token())
+            || self.token() == SyntaxKind::AtToken
+            || self.is_start_of_type(Some(!is_jsdoc_parameter))
+    }
+
+    fn parse_name_of_parameter(&self, modifiers: Option<&NodeArray>) -> Rc<Node> {
+        let name = self.parse_identifier_or_pattern(Some(
+            &Diagnostics::Private_identifiers_cannot_be_used_as_parameters,
+        ));
+        if get_full_width(&*name) == 0
+            && !some(
+                modifiers.as_ref().map(|modifiers| {
+                    let modifiers: &[Rc<Node>] = modifiers;
+                    modifiers
+                }),
+                Option::<fn(&Rc<Node>) -> bool>::None,
+            )
+            && is_modifier_kind(self.token())
+        {
+            self.next_token();
+        }
+        name
+    }
+
+    fn parse_parameter_in_outer_await_context(&self) -> ParameterDeclaration {
+        self.parse_parameter_worker(true)
+    }
+
+    fn parse_parameter(&self) -> ParameterDeclaration {
+        self.parse_parameter_worker(false)
+    }
+
+    fn parse_parameter_worker(&self, in_outer_await_context: bool) -> ParameterDeclaration {
+        let pos = self.get_node_pos();
+
+        let decorators = if in_outer_await_context {
+            self.do_in_await_context(|| self.parse_decorators())
+        } else {
+            self.parse_decorators()
+        };
+
+        if self.token() == SyntaxKind::ThisKeyword {
+            unimplemented!()
+        }
+
+        let saved_top_level = self.top_level();
+        self.set_top_level(false);
+        let modifiers = self.parse_modifiers(None, None);
+        let dot_dot_dot_token = self.parse_optional_token(SyntaxKind::DotDotDotToken);
+        let name = self.parse_name_of_parameter(modifiers.as_ref());
+        let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
+        let type_annotation = self.parse_type_annotation();
+        let initializer = self.parse_initializer();
+        let node = self.finish_node(
+            self.factory.create_parameter_declaration(
+                self,
+                decorators,
+                modifiers,
+                dot_dot_dot_token.map(Into::into),
+                name,
+                question_token.map(Into::into),
+                type_annotation.map(Into::into),
+                initializer.map(Into::into),
+            ),
+            pos,
+            None,
+        );
+        self.set_top_level(saved_top_level);
+        node
+    }
+
+    fn parse_return_type(&self, return_token: SyntaxKind, is_type: bool) -> Option<TypeNode> {
+        if self.should_parse_return_type(return_token, is_type) {
+            return Some(self.parse_type_or_type_predicate());
+        }
+        None
+    }
+
+    fn should_parse_return_type(&self, return_token: SyntaxKind, is_type: bool) -> bool {
+        if return_token == SyntaxKind::EqualsGreaterThanToken {
+            self.parse_expected(return_token, None, None);
+            return true;
+        } else if self.parse_optional(SyntaxKind::ColonToken) {
+            return true;
+        } else if is_type && self.token() == SyntaxKind::EqualsGreaterThanToken {
+            self.parse_error_at_current_token(
+                &Diagnostics::_0_expected,
+                Some(vec![token_to_string(SyntaxKind::ColonToken)
+                    .unwrap()
+                    .to_string()]),
+            );
+            self.next_token();
+            return true;
+        }
+        false
+    }
+
+    fn parse_parameters_worker(&self, flags: SignatureFlags) -> NodeArray /*<ParameterDeclaration>*/
+    {
+        let saved_yield_context = self.in_yield_context();
+        let saved_await_context = self.in_await_context();
+
+        self.set_yield_context(flags.intersects(SignatureFlags::Yield));
+        self.set_await_context(flags.intersects(SignatureFlags::Await));
+
+        let parameters = if false {
+            unimplemented!()
+        } else {
+            self.parse_delimited_list(
+                ParsingContext::Parameters,
+                if saved_await_context {
+                    ParserType::parse_parameter_in_outer_await_context
+                } else {
+                    ParserType::parse_parameter
+                },
+                None,
+            )
+        };
+
+        self.set_yield_context(saved_yield_context);
+        self.set_await_context(saved_await_context);
+
+        parameters
+    }
+
+    fn parse_parameters(&self, flags: SignatureFlags) -> NodeArray /*<ParameterDeclaration>*/ {
+        if !self.parse_expected(SyntaxKind::OpenParenToken, None, None) {
+            return self.create_missing_list();
+        }
+
+        let parameters = self.parse_parameters_worker(flags);
+        self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+        parameters
     }
 
     fn parse_type_member_semicolon(&self) {
@@ -1398,7 +1701,8 @@ impl ParserType {
         }
     }
 
-    fn is_start_of_type(&self) -> bool {
+    fn is_start_of_type(&self, in_start_of_parameter: Option<bool>) -> bool {
+        let in_start_of_parameter = in_start_of_parameter.unwrap_or(false);
         match self.token() {
             SyntaxKind::AnyKeyword
             | SyntaxKind::UnknownKeyword
@@ -1453,7 +1757,7 @@ impl ParserType {
                 }
                 SyntaxKind::OpenBracketToken => {
                     self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
-                    if self.is_start_of_type() {
+                    if self.is_start_of_type(None) {
                         unimplemented!()
                     } else {
                         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
@@ -1546,8 +1850,43 @@ impl ParserType {
         )
     }
 
+    fn parse_type_or_type_predicate(&self) -> TypeNode {
+        let pos = self.get_node_pos();
+        let type_predicate_variable = if self.is_identifier() {
+            self.try_parse(|| self.parse_type_predicate_prefix())
+        } else {
+            None
+        };
+        let type_ = self.parse_type();
+        if let Some(type_predicate_variable) = type_predicate_variable {
+            self.finish_node(
+                self.factory
+                    .create_type_predicate_node(
+                        self,
+                        None,
+                        type_predicate_variable.into(),
+                        Some(type_.into()),
+                    )
+                    .into(),
+                pos,
+                None,
+            )
+        } else {
+            type_
+        }
+    }
+
+    fn parse_type_predicate_prefix(&self) -> Option<Identifier> {
+        let id = self.parse_identifier(None, None);
+        if self.token() == SyntaxKind::IsKeyword && !self.scanner().has_preceding_line_break() {
+            self.next_token();
+            return Some(id);
+        }
+        None
+    }
+
     fn parse_type(&self) -> TypeNode {
-        self.do_outside_of_context(NodeFlags::TypeExcludesFlags, ParserType::parse_type_worker)
+        self.do_outside_of_context(NodeFlags::TypeExcludesFlags, || self.parse_type_worker())
     }
 
     fn parse_type_worker(&self) -> TypeNode {
@@ -1760,7 +2099,7 @@ impl ParserType {
             _ => (),
         }
 
-        self.parse_identifier(Some(&Diagnostics::Expression_expected))
+        self.parse_identifier(Some(&Diagnostics::Expression_expected), None)
             .into()
     }
 
@@ -1784,7 +2123,8 @@ impl ParserType {
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
-            self.factory.create_array_literal_expression(self, elements),
+            self.factory
+                .create_array_literal_expression(self, Some(elements)),
             pos,
             None,
         )
@@ -1801,7 +2141,7 @@ impl ParserType {
             unimplemented!()
         } else {
             self.parse_expected(SyntaxKind::ColonToken, None, None);
-            let initializer = self.allow_in_and(ParserType::parse_assignment_expression_or_higher);
+            let initializer = self.allow_in_and(|| self.parse_assignment_expression_or_higher());
             node = self
                 .factory
                 .create_property_assignment(self, name.wrap(), initializer.into());
@@ -1822,26 +2162,18 @@ impl ParserType {
         }
         self.finish_node(
             self.factory
-                .create_object_literal_expression(self, properties),
+                .create_object_literal_expression(self, Some(properties)),
             pos,
             None,
         )
     }
 
-    fn parse_expression_or_labeled_statement(&self) -> Statement {
-        let pos = self.get_node_pos();
-        let expression = self.parse_expression();
-        let node: Statement = if false {
-            unimplemented!()
+    fn parse_optional_binding_identifier(&self) -> Option<Identifier> {
+        if self.is_binding_identifier() {
+            Some(self.parse_binding_identifier(None))
         } else {
-            if !self.try_parse_semicolon() {
-                self.parse_error_for_missing_semicolon_after(&expression);
-            }
-            self.factory
-                .create_expression_statement(self, expression)
-                .into()
-        };
-        self.finish_node(node, pos, None)
+            None
+        }
     }
 
     fn parse_block(
@@ -1877,6 +2209,41 @@ impl ParserType {
         }
     }
 
+    fn parse_function_block(
+        &self,
+        flags: SignatureFlags,
+        diagnostic_message: Option<&DiagnosticMessage>,
+    ) -> Block {
+        let saved_yield_context = self.in_yield_context();
+        self.set_yield_context(flags.intersects(SignatureFlags::Yield));
+
+        let saved_await_context = self.in_await_context();
+        self.set_await_context(flags.intersects(SignatureFlags::Await));
+
+        let saved_top_level = self.top_level();
+        self.set_top_level(false);
+
+        let save_decorator_context = self.in_decorator_context();
+        if save_decorator_context {
+            self.set_decorator_context(false);
+        }
+
+        let block = self.parse_block(
+            flags.intersects(SignatureFlags::IgnoreMissingOpenBrace),
+            diagnostic_message,
+        );
+
+        if save_decorator_context {
+            self.set_decorator_context(true);
+        }
+
+        self.set_top_level(saved_top_level);
+        self.set_yield_context(saved_yield_context);
+        self.set_await_context(saved_await_context);
+
+        block
+    }
+
     fn parse_empty_statement(&self) -> Statement {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::SemicolonToken, None, None);
@@ -1887,7 +2254,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::IfKeyword, None, None);
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
-        let expression = self.allow_in_and(ParserType::parse_expression);
+        let expression = self.allow_in_and(|| self.parse_expression());
         self.parse_expected(SyntaxKind::CloseParenToken, None, None);
         let then_statement = self.parse_statement();
         let else_statement = if self.parse_optional(SyntaxKind::ElseKeyword) {
@@ -1902,6 +2269,39 @@ impl ParserType {
             pos,
             None,
         )
+    }
+
+    fn parse_return_statement(&self) -> ReturnStatement {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::ReturnKeyword, None, None);
+        let expression = if self.can_parse_semicolon() {
+            None
+        } else {
+            Some(self.allow_in_and(|| self.parse_expression()))
+        };
+        self.parse_semicolon();
+        self.finish_node(
+            self.factory
+                .create_return_statement(self, expression.map(Into::into)),
+            pos,
+            None,
+        )
+    }
+
+    fn parse_expression_or_labeled_statement(&self) -> Statement {
+        let pos = self.get_node_pos();
+        let expression = self.parse_expression();
+        let node: Statement = if false {
+            unimplemented!()
+        } else {
+            if !self.try_parse_semicolon() {
+                self.parse_error_for_missing_semicolon_after(&expression);
+            }
+            self.factory
+                .create_expression_statement(self, expression)
+                .into()
+        };
+        self.finish_node(node, pos, None)
     }
 
     fn next_token_is_class_keyword_on_same_line(&self) -> bool {
@@ -1941,7 +2341,11 @@ impl ParserType {
 
     fn is_start_of_statement(&self) -> bool {
         match self.token() {
-            SyntaxKind::SemicolonToken | SyntaxKind::VarKeyword | SyntaxKind::IfKeyword => true,
+            SyntaxKind::SemicolonToken
+            | SyntaxKind::VarKeyword
+            | SyntaxKind::FunctionKeyword
+            | SyntaxKind::IfKeyword
+            | SyntaxKind::ReturnKeyword => true,
             SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
             SyntaxKind::DeclareKeyword | SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
                 true
@@ -1956,8 +2360,14 @@ impl ParserType {
             SyntaxKind::VarKeyword => {
                 return self.parse_variable_statement(self.get_node_pos(), None, None)
             }
+            SyntaxKind::FunctionKeyword => {
+                return self
+                    .parse_function_declaration(self.get_node_pos(), None, None)
+                    .into()
+            }
             SyntaxKind::OpenBraceToken => return self.parse_block(false, None).into(),
             SyntaxKind::IfKeyword => return self.parse_if_statement(),
+            SyntaxKind::ReturnKeyword => return self.parse_return_statement().into(),
             SyntaxKind::ConstKeyword => {
                 if self.is_start_of_declaration() {
                     return self.parse_declaration();
@@ -2036,12 +2446,29 @@ impl ParserType {
         }
     }
 
+    fn parse_function_block_or_semicolon(
+        &self,
+        flags: SignatureFlags,
+        diagnostic_message: Option<&DiagnosticMessage>,
+    ) -> Option<Block> {
+        if self.token() != SyntaxKind::OpenBraceToken && self.can_parse_semicolon() {
+            self.parse_semicolon();
+            return None;
+        }
+
+        Some(self.parse_function_block(flags, diagnostic_message))
+    }
+
     fn is_binding_identifier_or_private_identifier_or_pattern(&self) -> bool {
         self.is_binding_identifier()
     }
 
-    fn parse_identifier_or_pattern(&self) -> Rc<Node> {
-        self.parse_binding_identifier().into()
+    fn parse_identifier_or_pattern(
+        &self,
+        private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
+    ) -> Rc<Node> {
+        self.parse_binding_identifier(private_identifier_diagnostic_message)
+            .into()
     }
 
     fn parse_variable_declaration_no_exclamation(&self) -> VariableDeclaration {
@@ -2054,7 +2481,9 @@ impl ParserType {
 
     fn parse_variable_declaration(&self, allow_exclamation: bool) -> VariableDeclaration {
         let pos = self.get_node_pos();
-        let name = self.parse_identifier_or_pattern();
+        let name = self.parse_identifier_or_pattern(Some(
+            &Diagnostics::Private_identifiers_are_not_allowed_in_variable_declarations,
+        ));
         let type_ = self.parse_type_annotation();
         let initializer = if false {
             None
@@ -2115,6 +2544,57 @@ impl ParserType {
             .factory
             .create_variable_statement(self, modifiers, declaration_list);
         node.set_decorators(decorators);
+        self.finish_node(node.into(), pos, None)
+    }
+
+    fn parse_function_declaration(
+        &self,
+        pos: isize,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> FunctionDeclaration {
+        let saved_await_context = self.in_await_context();
+
+        let modifier_flags = modifiers_to_flags(modifiers.as_ref());
+        self.parse_expected(SyntaxKind::FunctionKeyword, None, None);
+        let asterisk_token = self.parse_optional_token(SyntaxKind::AsteriskToken);
+        let name = if modifier_flags.intersects(ModifierFlags::Default) {
+            self.parse_optional_binding_identifier()
+        } else {
+            Some(self.parse_binding_identifier(None))
+        };
+        let is_generator = if asterisk_token.is_some() {
+            SignatureFlags::Yield
+        } else {
+            SignatureFlags::None
+        };
+        let is_async = if modifier_flags.intersects(ModifierFlags::Async) {
+            SignatureFlags::Await
+        } else {
+            SignatureFlags::None
+        };
+        let type_parameters = self.parse_type_parameters();
+        if modifier_flags.intersects(ModifierFlags::Export) {
+            self.set_await_context(true);
+        }
+        let parameters = self.parse_parameters(is_generator | is_async);
+        let type_ = self.parse_return_type(SyntaxKind::ColonToken, false);
+        let body = self.parse_function_block_or_semicolon(
+            is_generator | is_async,
+            Some(&Diagnostics::or_expected),
+        );
+        self.set_await_context(saved_await_context);
+        let node = self.factory.create_function_declaration(
+            self,
+            decorators,
+            modifiers,
+            asterisk_token.map(Into::into),
+            name.map(Into::into),
+            type_parameters,
+            parameters,
+            type_.map(Into::into),
+            body.map(Into::into),
+        );
         self.finish_node(node.into(), pos, None)
     }
 
@@ -2215,7 +2695,7 @@ impl ParserType {
         modifiers: Option<NodeArray>,
     ) -> InterfaceDeclaration {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None, None);
-        let name = self.parse_identifier(None);
+        let name = self.parse_identifier(None, None);
         let type_parameters = self.parse_type_parameters();
         let members = self.parse_object_type_members();
         let node = self.factory.create_interface_declaration(
@@ -2236,7 +2716,7 @@ impl ParserType {
         modifiers: Option<NodeArray>,
     ) -> TypeAliasDeclaration {
         self.parse_expected(SyntaxKind::TypeKeyword, None, None);
-        let name = self.parse_identifier(None);
+        let name = self.parse_identifier(None, None);
         let type_parameters = self.parse_type_parameters();
         self.parse_expected(SyntaxKind::EqualsToken, None, None);
         let type_ = if false {
@@ -2300,6 +2780,7 @@ bitflags! {
         const VariableDeclarations = 1 << 8;
         const ObjectLiteralMembers = 1 << 12;
         const ArrayLiteralMembers = 1 << 15;
+        const Parameters = 1 << 16;
         const TypeParameters = 1 << 19;
         const TypeArguments = 1 << 20;
     }

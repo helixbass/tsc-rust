@@ -376,7 +376,7 @@ impl TypeChecker {
         node: &TNode,
     ) {
         if !is_binding_element(node) {
-            self.check_source_element(node.type_());
+            self.check_source_element(node.maybe_type());
         }
 
         let symbol = self.get_symbol_of_node(node).unwrap();
