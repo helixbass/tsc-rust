@@ -44,6 +44,10 @@ pub fn is_variable_declaration<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::VariableDeclaration
 }
 
+pub fn is_type_alias_declaration<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.kind() == SyntaxKind::TypeAliasDeclaration
+}
+
 pub fn is_module_block<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::ModuleBlock
 }

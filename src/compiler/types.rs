@@ -159,6 +159,9 @@ pub enum SyntaxKind {
 
     JSDocFunctionType,
     JSDocSignature,
+    JSDocCallbackTag,
+    JSDocEnumTag,
+    JSDocTypedefTag,
 }
 
 impl SyntaxKind {
@@ -363,6 +366,10 @@ impl Node {
 
     pub fn as_type_node(&self) -> &TypeNode {
         enum_unwrapped!(self, [Node, TypeNode])
+    }
+
+    pub fn as_type_alias_declaration(&self) -> &TypeAliasDeclaration {
+        enum_unwrapped!(self, [Node, Statement, TypeAliasDeclaration])
     }
 }
 

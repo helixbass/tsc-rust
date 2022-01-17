@@ -13,15 +13,15 @@ use crate::{
     SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, __String,
     compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
     escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
-    insert_sorted, is_big_int_literal, is_member_name, skip_trivia, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags,
-    Comparison, Debug_, Diagnostic, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange,
-    SortedArray, SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    TransientSymbolInterface, Type, TypeInterface,
+    insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
+    CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic, DiagnosticCollection,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitTextWriter, Expression,
+    LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
+    PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -378,6 +378,17 @@ pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode
         }
     }
     symbol.set_value_declaration(node.node_wrapper());
+}
+
+fn is_jsdoc_type_alias<TNode: NodeInterface>(node: &TNode) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocEnumTag
+    )
+}
+
+pub fn is_type_alias<TNode: NodeInterface>(node: &TNode) -> bool {
+    is_jsdoc_type_alias(node) || is_type_alias_declaration(node)
 }
 
 fn walk_up<TNode: NodeInterface>(node: &TNode, kind: SyntaxKind) -> Option<Rc<Node>> {
