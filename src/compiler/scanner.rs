@@ -7,7 +7,8 @@ use std::convert::TryFrom;
 use std::iter::FromIterator;
 
 use crate::{
-    position_is_synthesized, CharacterCodes, DiagnosticMessage, Diagnostics, SyntaxKind, TokenFlags,
+    position_is_synthesized, CharacterCodes, Debug_, DiagnosticMessage, Diagnostics, SyntaxKind,
+    TokenFlags,
 };
 
 pub type ErrorCallback<'callback> = &'callback dyn Fn(&DiagnosticMessage, usize);
@@ -67,6 +68,27 @@ lazy_static! {
 
 pub fn token_to_string(t: SyntaxKind) -> Option<&'static String> {
     token_strings.get(&t)
+}
+
+fn is_line_break(ch: char) -> bool {
+    ch == CharacterCodes::line_feed
+        || ch == CharacterCodes::carriage_return
+        || ch == CharacterCodes::line_separator
+        || ch == CharacterCodes::paragraph_separator
+}
+
+fn is_digit(ch: char) -> bool {
+    ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
+}
+
+fn is_hex_digit(ch: char) -> bool {
+    is_digit(ch)
+        || ch >= CharacterCodes::A && ch <= CharacterCodes::F
+        || ch >= CharacterCodes::a && ch <= CharacterCodes::f
+}
+
+fn is_code_point(code: u32) -> bool {
+    code <= 0x10ffff
 }
 
 pub fn skip_trivia(text: &str, pos: isize) -> isize {
@@ -185,6 +207,10 @@ impl Scanner {
         self.token_flags() & TokenFlags::NumericLiteralFlags
     }
 
+    pub fn get_token_flags(&self) -> TokenFlags {
+        self.token_flags()
+    }
+
     fn get_identifier_token(&self) -> SyntaxKind {
         let len = self.token_value().len();
         if len >= 2 && len <= 12 {
@@ -212,7 +238,7 @@ impl Scanner {
 
             match ch {
                 CharacterCodes::line_feed => {
-                    self.set_token_flags(self.token_flags() | TokenFlags::PrecedingLineBreak);
+                    self.add_token_flag(TokenFlags::PrecedingLineBreak);
                     if self.skip_trivia {
                         self.increment_pos();
                         continue;
@@ -229,6 +255,9 @@ impl Scanner {
                 CharacterCodes::double_quote | CharacterCodes::single_quote => {
                     self.set_token_value(self.scan_string(on_error, None));
                     return self.set_token(SyntaxKind::StringLiteral);
+                }
+                CharacterCodes::backtick => {
+                    return self.set_token(self.scan_template_and_set_token_value(on_error, false));
                 }
                 CharacterCodes::open_paren => {
                     self.increment_pos();
@@ -261,7 +290,7 @@ impl Scanner {
                         self.increment_pos_by(2);
 
                         while self.pos() < self.end() {
-                            if self.is_line_break(self.text_char_at_index(self.pos())) {
+                            if is_line_break(self.text_char_at_index(self.pos())) {
                                 break;
                             }
                             self.increment_pos();
@@ -279,9 +308,7 @@ impl Scanner {
                         if self.text_char_at_index(self.pos()) == CharacterCodes::asterisk
                             && self.text_char_at_index(self.pos() + 1) != CharacterCodes::slash
                         {
-                            self.set_token_flags(
-                                self.token_flags() | TokenFlags::PrecedingJSDocComment,
-                            );
+                            self.add_token_flag(TokenFlags::PrecedingJSDocComment);
                         }
 
                         let mut comment_closed = false;
@@ -299,11 +326,9 @@ impl Scanner {
 
                             self.increment_pos();
 
-                            if self.is_line_break(ch) {
+                            if is_line_break(ch) {
                                 last_line_start = self.pos();
-                                self.set_token_flags(
-                                    self.token_flags() | TokenFlags::PrecedingLineBreak,
-                                );
+                                self.add_token_flag(TokenFlags::PrecedingLineBreak);
                             }
                         }
 
@@ -414,6 +439,27 @@ impl Scanner {
             return Some(self.get_identifier_token());
         }
         None
+    }
+
+    pub fn re_scan_template_token(
+        &self,
+        on_error: Option<ErrorCallback>,
+        is_tagged_template: bool,
+    ) -> SyntaxKind {
+        Debug_.assert(
+            self.token() == SyntaxKind::CloseBraceToken,
+            Some("'reScanTemplateToken' should only be called on a '}'"),
+        );
+        self.set_pos(self.token_pos());
+        self.set_token(self.scan_template_and_set_token_value(on_error, is_tagged_template))
+    }
+
+    pub fn re_scan_template_head_or_no_substitution_template(
+        &self,
+        on_error: Option<ErrorCallback>,
+    ) -> SyntaxKind {
+        self.set_pos(self.token_pos());
+        self.set_token(self.scan_template_and_set_token_value(on_error, true))
     }
 
     pub fn re_scan_less_than_token(&self) -> SyntaxKind {
@@ -543,15 +589,8 @@ impl Scanner {
         *self.token_flags.borrow_mut() = Some(token_flags);
     }
 
-    fn is_line_break(&self, ch: char) -> bool {
-        ch == CharacterCodes::line_feed
-            || ch == CharacterCodes::carriage_return
-            || ch == CharacterCodes::line_separator
-            || ch == CharacterCodes::paragraph_separator
-    }
-
-    fn is_digit(&self, ch: char) -> bool {
-        ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
+    fn add_token_flag(&self, flag: TokenFlags) {
+        self.set_token_flags(self.token_flags() | flag);
     }
 
     fn error(
@@ -579,7 +618,7 @@ impl Scanner {
                 Some(ch) => ch,
                 None => break,
             };
-            if self.is_digit(ch) {
+            if is_digit(ch) {
                 self.set_pos(self.pos() + 1);
                 continue;
             }
@@ -615,6 +654,98 @@ impl Scanner {
         }
     }
 
+    fn scan_exact_number_of_hex_digits(
+        &self,
+        on_error: Option<ErrorCallback>,
+        count: usize,
+        can_have_separators: bool,
+    ) -> Result<u32, String> {
+        let value_string = self.scan_hex_digits(on_error, count, false, can_have_separators);
+        if !value_string.is_empty() {
+            hex_digits_to_u32(&value_string)
+        } else {
+            Err("Couldn't scan any hex digits".to_string())
+        }
+    }
+
+    fn scan_minimum_number_of_hex_digits(
+        &self,
+        on_error: Option<ErrorCallback>,
+        count: usize,
+        can_have_separators: bool,
+    ) -> String {
+        self.scan_hex_digits(on_error, count, true, can_have_separators)
+    }
+
+    fn scan_hex_digits(
+        &self,
+        on_error: Option<ErrorCallback>,
+        min_count: usize,
+        scan_as_many_as_possible: bool,
+        can_have_separators: bool,
+    ) -> String {
+        let mut value_chars: Vec<char> = vec![];
+        let mut allow_separator = false;
+        let mut is_previous_token_separator = false;
+        while value_chars.len() < min_count || scan_as_many_as_possible {
+            let mut ch = self.text_char_at_index(self.pos());
+            if can_have_separators && ch == CharacterCodes::underscore {
+                self.add_token_flag(TokenFlags::ContainsSeparator);
+                if allow_separator {
+                    allow_separator = false;
+                    is_previous_token_separator = true;
+                } else if is_previous_token_separator {
+                    self.error(
+                        on_error,
+                        &Diagnostics::Multiple_consecutive_numeric_separators_are_not_permitted,
+                        Some(self.pos()),
+                        Some(1),
+                    );
+                } else {
+                    self.error(
+                        on_error,
+                        &Diagnostics::Numeric_separators_are_not_allowed_here,
+                        Some(self.pos()),
+                        Some(1),
+                    );
+                }
+                self.increment_pos();
+                continue;
+            }
+            allow_separator = can_have_separators;
+            if ch >= CharacterCodes::A && ch <= CharacterCodes::F {
+                ch = match ch {
+                    CharacterCodes::A => CharacterCodes::a,
+                    CharacterCodes::B => CharacterCodes::b,
+                    CharacterCodes::C => CharacterCodes::c,
+                    CharacterCodes::D => CharacterCodes::d,
+                    CharacterCodes::E => CharacterCodes::e,
+                    CharacterCodes::F => CharacterCodes::f,
+                    _ => panic!("Expected uppercase hex digit"),
+                };
+            } else if !(ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
+                || ch >= CharacterCodes::a && ch <= CharacterCodes::f)
+            {
+                break;
+            }
+            value_chars.push(ch);
+            self.increment_pos();
+            is_previous_token_separator = false;
+        }
+        if value_chars.len() < min_count {
+            value_chars = vec![];
+        }
+        if self.text_char_at_index(self.pos() - 1) == CharacterCodes::underscore {
+            self.error(
+                on_error,
+                &Diagnostics::Numeric_separators_are_not_allowed_here,
+                Some(self.pos() - 1),
+                Some(1),
+            );
+        }
+        value_chars.into_iter().collect()
+    }
+
     fn scan_string(
         &self,
         on_error: Option<ErrorCallback>,
@@ -628,7 +759,7 @@ impl Scanner {
         loop {
             if self.pos() >= self.end() {
                 result.push_str(&self.text_substring(start, self.pos()));
-                self.set_token_flags(self.token_flags() | TokenFlags::Unterminated);
+                self.add_token_flag(TokenFlags::Unterminated);
                 self.error(
                     on_error,
                     &Diagnostics::Unterminated_string_literal,
@@ -646,12 +777,287 @@ impl Scanner {
             if ch == CharacterCodes::backslash && !jsx_attribute_string {
                 unimplemented!()
             }
-            if self.is_line_break(ch) && !jsx_attribute_string {
+            if is_line_break(ch) && !jsx_attribute_string {
                 unimplemented!()
             }
             self.increment_pos();
         }
         result
+    }
+
+    fn scan_template_and_set_token_value(
+        &self,
+        on_error: Option<ErrorCallback>,
+        is_tagged_template: bool,
+    ) -> SyntaxKind {
+        let started_with_backtick = self.text_char_at_index(self.pos()) == CharacterCodes::backtick;
+
+        self.increment_pos();
+        let mut start = self.pos();
+        let mut contents = String::new();
+        let resulting_token: SyntaxKind;
+
+        loop {
+            if self.pos() >= self.end() {
+                contents.push_str(&self.text_substring(start, self.pos()));
+                self.add_token_flag(TokenFlags::Unterminated);
+                self.error(
+                    on_error,
+                    &Diagnostics::Unterminated_template_literal,
+                    None,
+                    None,
+                );
+                resulting_token = if started_with_backtick {
+                    SyntaxKind::NoSubstitutionTemplateLiteral
+                } else {
+                    SyntaxKind::TemplateTail
+                };
+                break;
+            }
+
+            let curr_char = self.text_char_at_index(self.pos());
+
+            if curr_char == CharacterCodes::backtick {
+                contents.push_str(&self.text_substring(start, self.pos()));
+                self.increment_pos();
+                resulting_token = if started_with_backtick {
+                    SyntaxKind::NoSubstitutionTemplateLiteral
+                } else {
+                    SyntaxKind::TemplateTail
+                };
+                break;
+            }
+
+            if curr_char == CharacterCodes::dollar_sign
+                && self.pos() + 1 < self.end()
+                && self.text_char_at_index(self.pos() + 1) == CharacterCodes::open_brace
+            {
+                contents.push_str(&self.text_substring(start, self.pos()));
+                self.increment_pos_by(2);
+                resulting_token = if started_with_backtick {
+                    SyntaxKind::TemplateHead
+                } else {
+                    SyntaxKind::TemplateMiddle
+                };
+                break;
+            }
+
+            if curr_char == CharacterCodes::backslash {
+                contents.push_str(&self.text_substring(start, self.pos()));
+                contents.push_str(&self.scan_escape_sequence(on_error, Some(is_tagged_template)));
+                start = self.pos();
+                continue;
+            }
+
+            if curr_char == CharacterCodes::carriage_return {
+                contents.push_str(&self.text_substring(start, self.pos()));
+                self.increment_pos();
+
+                if self.pos() < self.end()
+                    && self.text_char_at_index(self.pos()) == CharacterCodes::line_feed
+                {
+                    self.increment_pos();
+                }
+
+                contents.push_str("\n");
+                start = self.pos();
+                continue;
+            }
+
+            self.increment_pos();
+        }
+
+        // Debug.assert(resultingToken !== undefined);
+
+        self.set_token_value(contents);
+        resulting_token
+    }
+
+    fn scan_escape_sequence(
+        &self,
+        on_error: Option<ErrorCallback>,
+        is_tagged_template: Option<bool>,
+    ) -> String {
+        let is_tagged_template = is_tagged_template.unwrap_or(false);
+        let start = self.pos();
+        self.increment_pos();
+        if self.pos() >= self.end() {
+            self.error(on_error, &Diagnostics::Unexpected_end_of_text, None, None);
+            return "".to_string();
+        }
+        let ch = self.text_char_at_index(self.pos());
+        self.increment_pos();
+        match ch {
+            CharacterCodes::_0 => {
+                if is_tagged_template
+                    && self.pos() < self.end()
+                    && is_digit(self.text_char_at_index(self.pos()))
+                {
+                    self.increment_pos();
+                    self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                    return self.text_substring(start, self.pos());
+                }
+                "\0".to_string()
+            }
+            CharacterCodes::b => "\u{0008}".to_string(),
+            CharacterCodes::t => "\t".to_string(),
+            CharacterCodes::n => "\n".to_string(),
+            CharacterCodes::v => "\u{000b}".to_string(),
+            CharacterCodes::f => "\u{000c}".to_string(),
+            CharacterCodes::r => "\r".to_string(),
+            CharacterCodes::single_quote => "'".to_string(),
+            CharacterCodes::double_quote => "\"".to_string(),
+            CharacterCodes::u => {
+                if is_tagged_template {
+                    let mut escape_pos = self.pos();
+                    while escape_pos < self.pos() + 4 {
+                        if escape_pos < self.end()
+                            && !is_hex_digit(self.text_char_at_index(escape_pos))
+                            && self.text_char_at_index(escape_pos) != CharacterCodes::open_brace
+                        {
+                            self.set_pos(escape_pos);
+                            self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                            return self.text_substring(start, self.pos());
+                        }
+                        escape_pos += 1;
+                    }
+                }
+                if self.pos() < self.end()
+                    && self.text_char_at_index(self.pos()) == CharacterCodes::open_brace
+                {
+                    self.increment_pos();
+
+                    if is_tagged_template && !is_hex_digit(self.text_char_at_index(self.pos())) {
+                        self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                        return self.text_substring(start, self.pos());
+                    }
+
+                    if is_tagged_template {
+                        let save_pos = self.pos();
+                        let escaped_value_string =
+                            self.scan_minimum_number_of_hex_digits(on_error, 1, false);
+                        let is_escaped_value_empty = escaped_value_string.is_empty();
+                        let escaped_value = if !is_escaped_value_empty {
+                            hex_digits_to_u32(&escaped_value_string)
+                        } else {
+                            Err("Couldn't scan any hex digits".to_string())
+                        };
+
+                        if !match (is_escaped_value_empty, escaped_value) {
+                            (true, _) => true,
+                            (_, Err(_)) => false,
+                            (_, Ok(escaped_value)) => is_code_point(escaped_value),
+                        } || self.text_char_at_index(self.pos()) != CharacterCodes::close_brace
+                        {
+                            self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                            return self.text_substring(start, self.pos());
+                        } else {
+                            self.set_pos(save_pos);
+                        }
+                    }
+                    self.add_token_flag(TokenFlags::ExtendedUnicodeEscape);
+                    return self.scan_extended_unicode_escape(on_error);
+                }
+
+                self.add_token_flag(TokenFlags::UnicodeEscape);
+                self.scan_hexadecimal_escape(on_error, 4)
+            }
+            CharacterCodes::x => {
+                if is_tagged_template {
+                    if !is_hex_digit(self.text_char_at_index(self.pos())) {
+                        self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                        return self.text_substring(start, self.pos());
+                    } else if !is_hex_digit(self.text_char_at_index(self.pos() + 1)) {
+                        self.increment_pos();
+                        self.add_token_flag(TokenFlags::ContainsInvalidEscape);
+                        return self.text_substring(start, self.pos());
+                    }
+                }
+
+                self.scan_hexadecimal_escape(on_error, 2)
+            }
+            CharacterCodes::carriage_return => {
+                if self.pos() < self.end()
+                    && self.text_char_at_index(self.pos()) == CharacterCodes::line_feed
+                {
+                    self.increment_pos();
+                }
+                "".to_string()
+            }
+            CharacterCodes::line_feed
+            | CharacterCodes::line_separator
+            | CharacterCodes::paragraph_separator => "".to_string(),
+            _ => ch.to_string(),
+        }
+    }
+
+    fn scan_hexadecimal_escape(
+        &self,
+        on_error: Option<ErrorCallback>,
+        num_digits: usize,
+    ) -> String {
+        let escaped_value = self.scan_exact_number_of_hex_digits(on_error, num_digits, false);
+
+        match escaped_value {
+            Ok(escaped_value) => escaped_value.to_string(),
+            Err(_) => {
+                self.error(
+                    on_error,
+                    &Diagnostics::Hexadecimal_digit_expected,
+                    None,
+                    None,
+                );
+                "".to_string()
+            }
+        }
+    }
+
+    fn scan_extended_unicode_escape(&self, on_error: Option<ErrorCallback>) -> String {
+        let escaped_value_string = self.scan_minimum_number_of_hex_digits(on_error, 1, false);
+        let escaped_value = if !escaped_value_string.is_empty() {
+            hex_digits_to_u32(&escaped_value_string)
+        } else {
+            Err("Couldn't scan any hex digits".to_string())
+        };
+        let mut is_invalid_extended_escape = false;
+
+        match escaped_value {
+            Err(_) => {
+                self.error(
+                    on_error,
+                    &Diagnostics::Hexadecimal_digit_expected,
+                    None,
+                    None,
+                );
+                is_invalid_extended_escape = true;
+            }
+            Ok(escaped_value) if escaped_value > 0x10ffff => {
+                self.error(on_error, &Diagnostics::An_extended_Unicode_escape_value_must_be_between_0x0_and_0x10FFFF_inclusive, None, None);
+                is_invalid_extended_escape = true;
+            }
+            _ => (),
+        }
+
+        if self.pos() >= self.end() {
+            self.error(on_error, &Diagnostics::Unexpected_end_of_text, None, None);
+            is_invalid_extended_escape = true;
+        } else if self.text_char_at_index(self.pos()) == CharacterCodes::close_brace {
+            self.increment_pos();
+        } else {
+            self.error(
+                on_error,
+                &Diagnostics::Unterminated_Unicode_escape_sequence,
+                None,
+                None,
+            );
+            is_invalid_extended_escape = true;
+        }
+
+        if is_invalid_extended_escape {
+            return "".to_string();
+        }
+
+        utf16_encode_as_string(escaped_value.unwrap())
     }
 
     fn check_big_int_suffix(&self) -> SyntaxKind {
@@ -713,4 +1119,12 @@ fn code_point_at(s: &str, i: usize) -> char {
 
 fn char_size(ch: char) -> usize {
     1
+}
+
+fn utf16_encode_as_string(code_point: u32) -> String {
+    char::from_u32(code_point).unwrap().to_string()
+}
+
+fn hex_digits_to_u32(str: &str) -> Result<u32, String> {
+    u32::from_str_radix(str, 16).map_err(|_| "Couldn't convert hex digits to u32".to_string())
 }

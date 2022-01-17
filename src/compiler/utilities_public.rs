@@ -121,6 +121,10 @@ pub fn is_literal_kind(kind: SyntaxKind) -> bool {
     SyntaxKind::FirstLiteralToken <= kind && kind <= SyntaxKind::LastLiteralToken
 }
 
+pub fn is_template_literal_kind(kind: SyntaxKind) -> bool {
+    SyntaxKind::FirstTemplateToken <= kind && kind <= SyntaxKind::LastTemplateToken
+}
+
 pub fn is_modifier_kind(kind: SyntaxKind) -> bool {
     matches!(
         kind,

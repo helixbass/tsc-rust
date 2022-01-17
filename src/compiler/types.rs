@@ -43,6 +43,8 @@ pub enum SyntaxKind {
     StringLiteral,
     NoSubstitutionTemplateLiteral,
     TemplateHead,
+    TemplateMiddle,
+    TemplateTail,
     OpenBraceToken,
     CloseBraceToken,
     OpenParenToken,
@@ -68,6 +70,7 @@ pub enum SyntaxKind {
     ColonToken,
     AtToken,
     EqualsToken,
+    SlashEqualsToken,
     Identifier,
     PrivateIdentifier,
     BreakKeyword,
@@ -84,6 +87,7 @@ pub enum SyntaxKind {
     ImportKeyword,
     NewKeyword,
     NullKeyword,
+    SuperKeyword,
     ThisKeyword,
     TrueKeyword,
     TypeOfKeyword,
@@ -153,9 +157,12 @@ pub enum SyntaxKind {
     ArrowFunction,
     PrefixUnaryExpression,
     BinaryExpression,
+    TemplateExpression,
     ClassExpression,
     OmittedExpression,
     ExpressionWithTypeArguments,
+
+    TemplateSpan,
     Block,
     EmptyStatement,
     VariableStatement,
@@ -191,6 +198,8 @@ impl SyntaxKind {
     pub const LastToken: SyntaxKind = SyntaxKind::LastKeyword;
     pub const FirstLiteralToken: SyntaxKind = SyntaxKind::NumericLiteral;
     pub const LastLiteralToken: SyntaxKind = SyntaxKind::NoSubstitutionTemplateLiteral;
+    pub const FirstTemplateToken: SyntaxKind = SyntaxKind::NoSubstitutionTemplateLiteral;
+    pub const LastTemplateToken: SyntaxKind = SyntaxKind::TemplateTail;
 }
 
 bitflags! {
@@ -251,6 +260,7 @@ pub enum Node {
     VariableDeclarationList(VariableDeclarationList),
     TypeNode(TypeNode),
     Expression(Expression),
+    TemplateSpan(TemplateSpan),
     Statement(Statement),
     TypeElement(TypeElement),
     PropertyAssignment(PropertyAssignment),
@@ -1026,6 +1036,7 @@ pub enum Expression {
     PrefixUnaryExpression(PrefixUnaryExpression),
     BinaryExpression(BinaryExpression),
     LiteralLikeNode(LiteralLikeNode),
+    TemplateExpression(TemplateExpression),
     ArrayLiteralExpression(ArrayLiteralExpression),
     ObjectLiteralExpression(ObjectLiteralExpression),
 }
@@ -1133,8 +1144,49 @@ pub trait LiteralLikeNodeInterface {
 #[ast_type(ancestors = "Expression", interfaces = "LiteralLikeNodeInterface")]
 pub enum LiteralLikeNode {
     StringLiteral(StringLiteral),
+    TemplateLiteralLikeNode(TemplateLiteralLikeNode),
     NumericLiteral(NumericLiteral),
     BigIntLiteral(BigIntLiteral),
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "LiteralLikeNode, Expression",
+    interfaces = "LiteralLikeNodeInterface"
+)]
+pub struct TemplateLiteralLikeNode {
+    _literal_like_node: BaseLiteralLikeNode,
+    pub raw_text: Option<String>,
+    pub template_flags: Option<TokenFlags>,
+}
+
+impl TemplateLiteralLikeNode {
+    pub fn new(
+        literal_like_node: BaseLiteralLikeNode,
+        raw_text: Option<String>,
+        template_flags: Option<TokenFlags>,
+    ) -> Self {
+        Self {
+            _literal_like_node: literal_like_node,
+            raw_text,
+            template_flags,
+        }
+    }
+}
+
+impl TemplateLiteralLikeNodeInterface for TemplateLiteralLikeNode {
+    fn maybe_raw_text(&self) -> Option<&str> {
+        self.raw_text.as_deref()
+    }
+
+    fn maybe_template_flags(&self) -> Option<TokenFlags> {
+        self.template_flags
+    }
+}
+
+pub trait TemplateLiteralLikeNodeInterface {
+    fn maybe_raw_text(&self) -> Option<&str>;
+    fn maybe_template_flags(&self) -> Option<TokenFlags>;
 }
 
 bitflags! {
@@ -1150,9 +1202,12 @@ bitflags! {
         const BinarySpecifier = 1 << 7;
         const OctalSpecifier = 1 << 8;
         const ContainsSeparator = 1 << 9;
+        const UnicodeEscape = 1 << 10;
+        const ContainsInvalidEscape = 1 << 11;
 
         const BinaryOrOctalSpecifier = Self::BinarySpecifier.bits | Self::OctalSpecifier.bits;
         const NumericLiteralFlags = Self::Scientific.bits | Self::Octal.bits | Self::HexSpecifier.bits | Self::BinaryOrOctalSpecifier.bits | Self::ContainsSeparator.bits;
+        const TemplateLiteralLikeFlags = Self::ContainsInvalidEscape.bits;
     }
 }
 
@@ -1186,6 +1241,42 @@ impl BigIntLiteral {
     pub fn new(base_literal_like_node: BaseLiteralLikeNode) -> Self {
         Self {
             _literal_like_node: base_literal_like_node,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct TemplateExpression {
+    _node: BaseNode,
+    pub head: Rc<Node /*TemplateHead*/>,
+    pub template_spans: NodeArray, /*<TemplateSpan>*/
+}
+
+impl TemplateExpression {
+    pub fn new(base_node: BaseNode, head: Rc<Node>, template_spans: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            head,
+            template_spans,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct TemplateSpan {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+    pub literal: Rc<Node /*TemplateMiddle | TemplateTail*/>,
+}
+
+impl TemplateSpan {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, literal: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            literal,
         }
     }
 }
@@ -2967,6 +3058,7 @@ impl CharacterCodes {
     pub const asterisk: char = '*';
     pub const at: char = '@';
     pub const backslash: char = '\\';
+    pub const backtick: char = '`';
     pub const bar: char = '|';
     pub const close_brace: char = '}';
     pub const close_bracket: char = ']';

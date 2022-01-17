@@ -251,6 +251,19 @@ fn get_ast_struct_interface_impl(
                 }
             }
         }
+        "TemplateLiteralLikeNodeInterface" => {
+            quote! {
+                impl crate::TemplateLiteralLikeNodeInterface for #ast_type_name {
+                    fn maybe_raw_text(&self) -> ::std::option::Option<&str> {
+                        self.#first_field_name.maybe_raw_text()
+                    }
+
+                    fn maybe_template_flags(&self) -> ::std::option::Option<crate::TokenFlags> {
+                        self.#first_field_name.maybe_template_flags()
+                    }
+                }
+            }
+        }
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
@@ -473,6 +486,23 @@ fn get_ast_enum_interface_impl(
                     fn maybe_type_parameters(&self) -> ::std::option::Option<&crate::NodeArray> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_type_parameters()),*
+                        }
+                    }
+                }
+            }
+        }
+        "TemplateLiteralLikeNodeInterface" => {
+            quote! {
+                impl crate::TemplateLiteralLikeNodeInterface for #ast_type_name {
+                    fn maybe_raw_text(&self) -> ::std::option::Option<&str> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_raw_text()),*
+                        }
+                    }
+
+                    fn maybe_template_flags(&self) -> ::std::option::Option<crate::TokenFlags> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_template_flags()),*
                         }
                     }
                 }

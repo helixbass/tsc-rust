@@ -64,7 +64,8 @@ pub use compiler::types::{
     RelationComparisonResult, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile,
     Statement, StringLiteral, StringLiteralType, StructureIsReused, Symbol, SymbolFlags,
     SymbolFormatFlags, SymbolId, SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker,
-    SymbolWriter, SyntaxKind, Ternary, TextSpan, TokenFlags, TransientSymbol,
+    SymbolWriter, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode,
+    TemplateLiteralLikeNodeInterface, TemplateSpan, Ternary, TextSpan, TokenFlags, TransientSymbol,
     TransientSymbolInterface, Type, TypeAliasDeclaration, TypeChecker, TypeCheckerHost,
     TypeElement, TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper,
     TypeNode, TypeParameter, TypeParameterDeclaration, TypeReference, TypeReferenceNode,
@@ -91,7 +92,7 @@ pub use compiler::utilities_public::{
     get_effective_type_parameter_declarations, get_name_of_declaration, has_initializer,
     has_only_expression_initializer, id_text, is_binding_pattern, is_expression, is_function_like,
     is_function_or_module_block, is_literal_kind, is_member_name, is_modifier_kind,
-    sort_and_deduplicate_diagnostics, unescape_leading_underscores,
+    is_template_literal_kind, sort_and_deduplicate_diagnostics, unescape_leading_underscores,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;

@@ -9,17 +9,17 @@ use std::rc::Rc;
 use crate::{
     append, attach_file_to_diagnostics, create_detached_diagnostic, create_node_factory,
     create_scanner, get_binary_operator_precedence, is_literal_kind, is_modifier_kind,
-    last_or_undefined, normalize_path, object_allocator, set_text_range_pos_end, some,
-    token_is_identifier_or_keyword, token_to_string, ArrayLiteralExpression, BaseNode,
-    BaseNodeFactory, BinaryExpression, Block, Debug_, Decorator, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, Expression,
+    is_template_literal_kind, last_or_undefined, normalize_path, object_allocator,
+    set_text_range_pos_end, some, token_is_identifier_or_keyword, token_to_string,
+    ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block, Debug_, Decorator,
+    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, Expression,
     HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
     InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeId, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
-    PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement, Symbol, SymbolTable,
-    SyntaxKind, TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
-    VariableDeclaration, VariableDeclarationList,
+    NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence, PropertyAssignment,
+    Scanner, SourceFile, Statement, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode,
+    TemplateSpan, TokenFlags, TypeAliasDeclaration, TypeElement, TypeNode,
+    TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -204,6 +204,18 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
             );
             visit_node(&mut cb_node, Some(type_alias_declaration.type_.clone()))
         }
+        Node::Expression(Expression::TemplateExpression(template_expression)) => {
+            visit_node(&mut cb_node, Some(template_expression.head.clone()));
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                Some(&template_expression.template_spans),
+            )
+        }
+        Node::TemplateSpan(template_span) => {
+            visit_node(&mut cb_node, Some(template_span.expression.clone()));
+            visit_node(&mut cb_node, Some(template_span.literal.clone()))
+        }
         _ => unimplemented!(),
     }
 }
@@ -215,6 +227,7 @@ pub fn create_source_file(file_name: &str, source_text: &str) -> Rc<SourceFile> 
 #[ast_type(impl_from = false)]
 pub enum MissingNode {
     Identifier(Identifier),
+    TemplateLiteralLikeNode(TemplateLiteralLikeNode),
 }
 
 #[allow(non_snake_case)]
@@ -501,9 +514,27 @@ impl ParserType {
         self.next_token_without_check()
     }
 
+    fn re_scan_template_token(&self, is_tagged_template: bool) -> SyntaxKind {
+        self.set_current_token(self.scanner().re_scan_template_token(
+            Some(&|message, length| self.scan_error(message, length)),
+            is_tagged_template,
+        ));
+        self.current_token()
+    }
+
+    fn re_scan_template_head_or_no_substitution_template(&self) -> SyntaxKind {
+        self.set_current_token(
+            self.scanner()
+                .re_scan_template_head_or_no_substitution_template(Some(&|message, length| {
+                    self.scan_error(message, length)
+                })),
+        );
+        self.current_token()
+    }
+
     fn re_scan_less_than_token(&self) -> SyntaxKind {
-        /*current_token = */
-        self.scanner().re_scan_less_than_token()
+        self.set_current_token(self.scanner().re_scan_less_than_token());
+        self.current_token()
     }
 
     fn speculation_helper<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
@@ -605,12 +636,39 @@ impl ParserType {
         unimplemented!()
     }
 
+    fn parse_optional_token(&self, t: SyntaxKind) -> Option<Node> {
+        if self.token() == t {
+            return Some(self.parse_token_node().into());
+        }
+        None
+    }
+
     fn parse_optional(&self, t: SyntaxKind) -> bool {
         if self.token() == t {
             self.next_token();
             return true;
         }
         false
+    }
+
+    fn parse_expected_token(
+        &self,
+        t: SyntaxKind,
+        diagnostic_message: Option<&DiagnosticMessage>,
+        args: Option<Vec<String>>,
+    ) -> Node {
+        self.parse_optional_token(t).unwrap_or_else(|| {
+            enum_unwrapped!(
+                self.create_missing_node(
+                    t,
+                    false,
+                    diagnostic_message.unwrap_or(&Diagnostics::_0_expected),
+                    Some(args.unwrap_or_else(|| vec![token_to_string(t).unwrap().to_string()])),
+                ),
+                [MissingNode, TemplateLiteralLikeNode]
+            )
+            .into()
+        })
     }
 
     fn parse_token_node(&self) -> BaseNode {
@@ -690,13 +748,37 @@ impl ParserType {
     fn create_missing_node(
         &self,
         kind: SyntaxKind,
-        diagnostic_message: DiagnosticMessage,
+        report_at_current_position: bool,
+        diagnostic_message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> MissingNode {
-        self.parse_error_at_current_token(&diagnostic_message, args);
+        if report_at_current_position {
+            self.parse_error_at_position(
+                self.scanner().get_start_pos().try_into().unwrap(),
+                0,
+                diagnostic_message,
+                args,
+            );
+        } else
+        /*if diagnostic_message*/
+        {
+            self.parse_error_at_current_token(&diagnostic_message, args);
+        }
 
         let pos = self.get_node_pos();
-        let result = MissingNode::Identifier(self.factory.create_identifier(self, ""));
+        let result = if kind == SyntaxKind::Identifier {
+            MissingNode::Identifier(self.factory.create_identifier(self, ""))
+        } else if is_template_literal_kind(kind) {
+            MissingNode::TemplateLiteralLikeNode(self.factory.create_template_literal_like_node(
+                self,
+                kind,
+                "".to_string(),
+                Some("".to_string()),
+                None,
+            ))
+        } else {
+            unimplemented!()
+        };
         self.finish_node(result, pos, None)
     }
 
@@ -707,7 +789,7 @@ impl ParserType {
     fn create_identifier(
         &self,
         is_identifier: bool,
-        diagnostic_message: Option<DiagnosticMessage>,
+        diagnostic_message: Option<&DiagnosticMessage>,
     ) -> Identifier {
         if is_identifier {
             let pos = self.get_node_pos();
@@ -716,14 +798,21 @@ impl ParserType {
             return self.finish_node(self.factory.create_identifier(self, &text), pos, None);
         }
 
+        let report_at_current_position = self.token() == SyntaxKind::EndOfFileToken;
+
         let msg_arg = self.scanner().get_token_text();
 
-        let default_message = Diagnostics::Identifier_expected;
+        let default_message = if false {
+            unimplemented!()
+        } else {
+            Diagnostics::Identifier_expected
+        };
 
         enum_unwrapped!(
             self.create_missing_node(
                 SyntaxKind::Identifier,
-                diagnostic_message.unwrap_or(default_message),
+                report_at_current_position,
+                diagnostic_message.unwrap_or(&default_message),
                 Some(vec![msg_arg]),
             ),
             [MissingNode, Identifier]
@@ -734,11 +823,11 @@ impl ParserType {
         self.create_identifier(self.is_binding_identifier(), None)
     }
 
-    fn parse_identifier(&self, diagnostic_message: Option<DiagnosticMessage>) -> Identifier {
+    fn parse_identifier(&self, diagnostic_message: Option<&DiagnosticMessage>) -> Identifier {
         self.create_identifier(self.is_identifier(), diagnostic_message)
     }
 
-    fn parse_identifier_name(&self, diagnostic_message: Option<DiagnosticMessage>) -> Identifier {
+    fn parse_identifier_name(&self, diagnostic_message: Option<&DiagnosticMessage>) -> Identifier {
         self.create_identifier(
             token_is_identifier_or_keyword(self.token()),
             diagnostic_message,
@@ -877,6 +966,43 @@ impl ParserType {
         }
     }
 
+    fn is_variable_declarator_list_terminator(&self) -> bool {
+        if self.can_parse_semicolon() {
+            return true;
+        }
+
+        false
+    }
+
+    fn parse_list<TItem: Into<Node>>(
+        &self,
+        kind: ParsingContext,
+        parse_element: fn(&ParserType) -> TItem,
+    ) -> NodeArray {
+        let mut list = vec![];
+        let list_pos = self.get_node_pos();
+
+        while !self.is_list_terminator(kind) {
+            if self.is_list_element(kind) {
+                list.push(self.parse_list_element(kind, parse_element).into());
+
+                continue;
+            }
+
+            unimplemented!()
+        }
+
+        self.create_node_array(list, list_pos, None, None)
+    }
+
+    fn parse_list_element<TItem: Into<Node>>(
+        &self,
+        _parsing_context: ParsingContext,
+        parse_element: fn(&ParserType) -> TItem,
+    ) -> TItem {
+        parse_element(self)
+    }
+
     fn parse_delimited_list<TItem: Into<Node>>(
         &self,
         kind: ParsingContext,
@@ -944,7 +1070,7 @@ impl ParserType {
     fn parse_entity_name(
         &self,
         allow_reserved_words: bool,
-        diagnostic_message: Option<DiagnosticMessage>,
+        diagnostic_message: Option<&DiagnosticMessage>,
     ) -> Node /*EntityName*/ {
         let pos = self.get_node_pos();
         let entity: Node = if allow_reserved_words {
@@ -955,51 +1081,123 @@ impl ParserType {
         entity
     }
 
-    fn is_variable_declarator_list_terminator(&self) -> bool {
-        if self.can_parse_semicolon() {
-            return true;
-        }
-
-        false
-    }
-
-    fn parse_list<TItem: Into<Node>>(
-        &self,
-        kind: ParsingContext,
-        parse_element: fn(&ParserType) -> TItem,
-    ) -> NodeArray {
+    fn parse_template_spans(&self, is_tagged_template: bool) -> NodeArray /*<TemplateSpan>*/ {
+        let pos = self.get_node_pos();
         let mut list = vec![];
-        let list_pos = self.get_node_pos();
-
-        while !self.is_list_terminator(kind) {
-            if self.is_list_element(kind) {
-                list.push(self.parse_list_element(kind, parse_element).into());
-
-                continue;
-            }
-
-            unimplemented!()
-        }
-
-        self.create_node_array(list, list_pos, None, None)
+        let mut node: TemplateSpan;
+        while {
+            node = self.parse_template_span(is_tagged_template);
+            let is_node_template_middle = node.literal.kind() == SyntaxKind::TemplateMiddle;
+            list.push(node.into());
+            is_node_template_middle
+        } {}
+        self.create_node_array(list, pos, None, None)
     }
 
-    fn parse_list_element<TItem: Into<Node>>(
-        &self,
-        _parsing_context: ParsingContext,
-        parse_element: fn(&ParserType) -> TItem,
-    ) -> TItem {
-        parse_element(self)
+    fn parse_template_expression(&self, is_tagged_template: bool) -> TemplateExpression {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_template_expression(
+                self,
+                self.parse_template_head(is_tagged_template).into(),
+                self.parse_template_spans(is_tagged_template),
+            ),
+            pos,
+            None,
+        )
+    }
+
+    fn parse_literal_of_template_span(&self, is_tagged_template: bool) -> Node /*TemplateMiddle | TemplateTail*/
+    {
+        if self.token() == SyntaxKind::CloseBraceToken {
+            self.re_scan_template_token(is_tagged_template);
+            self.parse_template_middle_or_template_tail().into()
+        } else {
+            self.parse_expected_token(
+                SyntaxKind::TemplateTail,
+                Some(&Diagnostics::_0_expected),
+                Some(vec![token_to_string(SyntaxKind::CloseBraceToken)
+                    .unwrap()
+                    .to_string()]),
+            )
+        }
+    }
+
+    fn parse_template_span(&self, is_tagged_template: bool) -> TemplateSpan {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_template_span(
+                self,
+                self.allow_in_and(ParserType::parse_expression).into(),
+                self.parse_literal_of_template_span(is_tagged_template)
+                    .into(),
+            ),
+            pos,
+            None,
+        )
     }
 
     fn parse_literal_node(&self) -> LiteralLikeNode {
         self.parse_literal_like_node(self.token())
     }
 
+    fn parse_template_head(&self, is_tagged_template: bool) -> LiteralLikeNode /*TemplateHead*/ {
+        if is_tagged_template {
+            self.re_scan_template_head_or_no_substitution_template();
+        }
+        let fragment = self.parse_literal_like_node(self.token());
+        Debug_.assert(
+            fragment.kind() == SyntaxKind::TemplateHead,
+            Some("Template head has wrong token kind"),
+        );
+        fragment
+    }
+
+    fn parse_template_middle_or_template_tail(&self) -> LiteralLikeNode /*TemplateMiddle | TemplateTail*/
+    {
+        let fragment = self.parse_literal_like_node(self.token());
+        Debug_.assert(
+            fragment.kind() == SyntaxKind::TemplateMiddle
+                || fragment.kind() == SyntaxKind::TemplateTail,
+            Some("Template fragment has wrong token kind"),
+        );
+        fragment
+    }
+
+    fn get_template_literal_raw_text(&self, kind: SyntaxKind) -> String {
+        let is_last =
+            kind == SyntaxKind::NoSubstitutionTemplateLiteral || kind == SyntaxKind::TemplateTail;
+        let token_text = self.scanner().get_token_text();
+        let token_text_chars = token_text.chars();
+        let token_text_chars_len = token_text_chars.clone().count();
+        token_text_chars
+            .skip(1)
+            .take(
+                token_text_chars_len
+                    - (if self.scanner().is_unterminated() {
+                        0
+                    } else if is_last {
+                        1
+                    } else {
+                        2
+                    })
+                    - 1,
+            )
+            .collect()
+    }
+
     fn parse_literal_like_node(&self, kind: SyntaxKind) -> LiteralLikeNode {
         let pos = self.get_node_pos();
-        let mut node: LiteralLikeNode = if false {
-            unimplemented!()
+        let mut node: LiteralLikeNode = if is_template_literal_kind(kind) {
+            self.factory
+                .create_template_literal_like_node(
+                    self,
+                    kind,
+                    self.scanner().get_token_value(),
+                    Some(self.get_template_literal_raw_text(kind)),
+                    Some(self.scanner().get_token_flags() & TokenFlags::TemplateLiteralLikeFlags),
+                )
+                .into()
         } else if kind == SyntaxKind::NumericLiteral {
             self.factory
                 .create_numeric_literal(
@@ -1037,7 +1235,7 @@ impl ParserType {
     }
 
     fn parse_entity_name_of_type_reference(&self) -> Node /*EntityName*/ {
-        self.parse_entity_name(true, Some(Diagnostics::Type_expected))
+        self.parse_entity_name(true, Some(&Diagnostics::Type_expected))
     }
 
     fn parse_type_arguments_of_type_reference(&self) -> Option<NodeArray /*<TypeNode>*/> {
@@ -1366,11 +1564,28 @@ impl ParserType {
 
     fn is_start_of_left_hand_side_expression(&self) -> bool {
         match self.token() {
-            SyntaxKind::TrueKeyword
+            SyntaxKind::ThisKeyword
+            | SyntaxKind::SuperKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::TrueKeyword
             | SyntaxKind::FalseKeyword
             | SyntaxKind::NumericLiteral
             | SyntaxKind::BigIntLiteral
-            | SyntaxKind::OpenBracketToken => true,
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateHead
+            | SyntaxKind::OpenParenToken
+            | SyntaxKind::OpenBracketToken
+            | SyntaxKind::OpenBraceToken
+            | SyntaxKind::FunctionKeyword
+            | SyntaxKind::ClassKeyword
+            | SyntaxKind::NewKeyword
+            | SyntaxKind::SlashToken
+            | SyntaxKind::SlashEqualsToken
+            | SyntaxKind::Identifier => true,
+            SyntaxKind::ImportKeyword => {
+                unimplemented!()
+            }
             _ => self.is_identifier(),
         }
     }
@@ -1530,18 +1745,20 @@ impl ParserType {
 
     fn parse_primary_expression(&self) -> Expression {
         match self.token() {
-            SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral | SyntaxKind::StringLiteral => {
-                return self.parse_literal_node().into()
-            }
+            SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral => return self.parse_literal_node().into(),
             SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => {
                 return self.parse_token_node().into()
             }
             SyntaxKind::OpenBracketToken => return self.parse_array_literal_expression().into(),
             SyntaxKind::OpenBraceToken => return self.parse_object_literal_expression().into(),
+            SyntaxKind::TemplateHead => return self.parse_template_expression(false).into(),
             _ => (),
         }
 
-        self.parse_identifier(Some(Diagnostics::Expression_expected))
+        self.parse_identifier(Some(&Diagnostics::Expression_expected))
             .into()
     }
 
