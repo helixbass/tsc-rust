@@ -183,6 +183,7 @@ impl TypeChecker {
         let node = node.as_type_node();
         match node {
             TypeNode::KeywordTypeNode(_) => match node.kind() {
+                SyntaxKind::StringKeyword => self.string_type(),
                 SyntaxKind::NumberKeyword => self.number_type(),
                 SyntaxKind::BigIntKeyword => self.bigint_type(),
                 SyntaxKind::BooleanKeyword => self.boolean_type(),

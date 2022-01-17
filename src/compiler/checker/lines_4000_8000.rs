@@ -377,6 +377,13 @@ impl NodeBuilder {
         type_: &Type,
         context: &NodeBuilderContext,
     ) -> TypeNode {
+        if type_.flags().intersects(TypeFlags::String) {
+            return Into::<KeywordTypeNode>::into(
+                factory
+                    .create_keyword_type_node(&self.synthetic_factory, SyntaxKind::StringKeyword),
+            )
+            .into();
+        }
         if type_.flags().intersects(TypeFlags::Number) {
             return Into::<KeywordTypeNode>::into(
                 factory

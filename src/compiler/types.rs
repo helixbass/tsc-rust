@@ -407,6 +407,10 @@ impl Node {
     pub fn as_type_alias_declaration(&self) -> &TypeAliasDeclaration {
         enum_unwrapped!(self, [Node, Statement, TypeAliasDeclaration])
     }
+
+    pub fn as_template_span(&self) -> &TemplateSpan {
+        enum_unwrapped!(self, [Node, TemplateSpan])
+    }
 }
 
 #[derive(Debug)]
@@ -1681,6 +1685,9 @@ pub struct TypeChecker {
     pub unknown_symbol: Option<Rc<Symbol>>,
     pub any_type: Option<Rc<Type>>,
     pub error_type: Option<Rc<Type>>,
+    pub undefined_type: Option<Rc<Type>>,
+    pub null_type: Option<Rc<Type>>,
+    pub string_type: Option<Rc<Type>>,
     pub number_type: Option<Rc<Type>>,
     pub bigint_type: Option<Rc<Type>>,
     pub true_type: Option<Rc<Type>>,
@@ -1690,6 +1697,7 @@ pub struct TypeChecker {
     pub boolean_type: Option<Rc<Type>>,
     pub never_type: Option<Rc<Type>>,
     pub number_or_big_int_type: Option<Rc<Type>>,
+    pub template_constraint_type: Option<Rc<Type>>,
     pub global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
     pub node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
