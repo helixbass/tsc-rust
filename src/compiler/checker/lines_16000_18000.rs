@@ -27,13 +27,13 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = StringLiteralType::new(type_, value).into();
-        enum_unwrapped!(&*type_, [Type, LiteralType]).set_regular_type(
-            &if let Some(regular_type) = regular_type {
+        type_
+            .as_literal_type()
+            .set_regular_type(&if let Some(regular_type) = regular_type {
                 regular_type.borrow().type_wrapper()
             } else {
                 type_.clone()
-            },
-        );
+            });
         type_
     }
 
@@ -46,13 +46,13 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = NumberLiteralType::new(type_, value).into();
-        enum_unwrapped!(&*type_, [Type, LiteralType]).set_regular_type(
-            &if let Some(regular_type) = regular_type {
+        type_
+            .as_literal_type()
+            .set_regular_type(&if let Some(regular_type) = regular_type {
                 regular_type.borrow().type_wrapper()
             } else {
                 type_.clone()
-            },
-        );
+            });
         type_
     }
 
@@ -65,13 +65,13 @@ impl TypeChecker {
         let type_ = self.create_type(flags);
         let type_ = BaseLiteralType::new(type_);
         let type_: Rc<Type> = BigIntLiteralType::new(type_, value).into();
-        enum_unwrapped!(&*type_, [Type, LiteralType]).set_regular_type(
-            &if let Some(regular_type) = regular_type {
+        type_
+            .as_literal_type()
+            .set_regular_type(&if let Some(regular_type) = regular_type {
                 regular_type.borrow().type_wrapper()
             } else {
                 type_.clone()
-            },
-        );
+            });
         type_
     }
 
@@ -162,7 +162,7 @@ impl TypeChecker {
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_type.is_none() {
             links_ref.resolved_type = Some(self.get_regular_type_of_literal_type(
-                &self.check_expression(enum_unwrapped!(&*node.literal, [Node, Expression]), None),
+                &self.check_expression(node.literal.as_expression(), None),
             ));
         }
         links_ref.resolved_type.clone().unwrap()
@@ -180,7 +180,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
-        let node = enum_unwrapped!(node, [Node, TypeNode]);
+        let node = node.as_type_node();
         match node {
             TypeNode::KeywordTypeNode(_) => match node.kind() {
                 SyntaxKind::NumberKeyword => self.number_type(),
@@ -494,7 +494,7 @@ impl TypeChecker {
         source_prop_type: &Type,
     ) -> Rc<Type> {
         self.check_expression_for_mutable_location(
-            enum_unwrapped!(next, [Node, Expression]),
+            next.as_expression(),
             Some(CheckMode::Contextual),
             Some(source_prop_type),
         )

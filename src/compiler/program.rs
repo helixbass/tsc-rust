@@ -6,7 +6,6 @@ use crate::{
     ModuleResolutionHost, ModuleSpecifierResolutionHost, Node, Path, Program, SourceFile,
     StructureIsReused, System, TypeChecker, TypeCheckerHost,
 };
-use local_macros::enum_unwrapped;
 
 fn create_compiler_host() -> impl CompilerHost {
     create_compiler_host_worker()
@@ -76,9 +75,7 @@ impl ProgramConcrete {
     ) -> Vec<Rc<Diagnostic>> {
         self.get_source_files()
             .iter()
-            .flat_map(|source_file| {
-                get_diagnostics(self, &*enum_unwrapped!(&**source_file, [Node, SourceFile]))
-            })
+            .flat_map(|source_file| get_diagnostics(self, source_file.as_source_file()))
             .collect()
     }
 

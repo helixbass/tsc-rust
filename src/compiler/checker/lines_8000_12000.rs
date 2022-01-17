@@ -17,7 +17,6 @@ use crate::{
     SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn format_union_types(&self, types: &[Rc<Type>]) -> Vec<Rc<Type>> {
@@ -198,10 +197,7 @@ impl TypeChecker {
             type_ = self
                 .try_get_type_from_effective_type_node(&*declaration)
                 .unwrap_or_else(|| {
-                    self.check_property_assignment(
-                        enum_unwrapped!(&*declaration, [Node, PropertyAssignment]),
-                        None,
-                    )
+                    self.check_property_assignment(declaration.as_property_assignment(), None)
                 });
         } else if is_property_signature(&*declaration) || is_variable_declaration(&*declaration) {
             type_ = self.get_widened_type_for_variable_like_declaration(&*declaration);
@@ -360,19 +356,15 @@ impl TypeChecker {
             .into();
             let type_rc: Rc<Type> = type_.into();
             if need_to_set_constraint {
-                *enum_unwrapped!(
-                    &**enum_unwrapped!(
-                        &*type_rc,
-                        [Type, ObjectType, InterfaceType, BaseInterfaceType]
-                    )
+                *type_rc
+                    .as_base_interface_type()
                     .this_type
                     .borrow_mut()
                     .as_ref()
-                    .unwrap(),
-                    [Type, TypeParameter]
-                )
-                .constraint
-                .borrow_mut() = Some(Rc::downgrade(&type_rc));
+                    .unwrap()
+                    .as_type_parameter()
+                    .constraint
+                    .borrow_mut() = Some(Rc::downgrade(&type_rc));
             }
             original_links_ref.declared_type = Some(type_rc.clone());
             if !Rc::ptr_eq(&links, &original_links) {
@@ -437,7 +429,7 @@ impl TypeChecker {
     }
 
     pub(super) fn resolve_declared_members(&self, type_: &Type /*InterfaceType*/) -> Rc<Type> {
-        let type_as_interface_type = enum_unwrapped!(type_, [Type, ObjectType, InterfaceType]);
+        let type_as_interface_type = type_.as_interface_type();
         if type_as_interface_type.maybe_declared_properties().is_none() {
             let symbol = type_.symbol();
             let members = self.get_members_of_symbol(&symbol);
@@ -512,7 +504,8 @@ impl TypeChecker {
             mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments)));
             members = Rc::new(RefCell::new(
                 self.create_instantiated_symbol_table(
-                    enum_unwrapped!(source, [Type, ObjectType, InterfaceType, BaseInterfaceType])
+                    source
+                        .as_base_interface_type()
                         .maybe_declared_properties()
                         .as_ref()
                         .unwrap(),
@@ -521,16 +514,13 @@ impl TypeChecker {
                 ),
             ));
         }
-        self.set_structured_type_members(enum_unwrapped!(type_, [Type, ObjectType]), members);
+        self.set_structured_type_members(type_.as_object_type(), members);
     }
 
     pub(super) fn resolve_type_reference_members(&self, type_: &Type /*TypeReference*/) {
-        let type_as_type_reference = enum_unwrapped!(type_, [Type, ObjectType, TypeReference]);
+        let type_as_type_reference = type_.as_type_reference();
         let source = self.resolve_declared_members(&type_as_type_reference.target);
-        let source_as_base_interface_type = enum_unwrapped!(
-            &*source,
-            [Type, ObjectType, InterfaceType, BaseInterfaceType]
-        );
+        let source_as_base_interface_type = source.as_base_interface_type();
         let type_parameters = concatenate(
             source_as_base_interface_type
                 .type_parameters

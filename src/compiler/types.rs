@@ -319,6 +319,43 @@ impl Node {
             _ => panic!("Expected union or intersection type"),
         }
     }
+
+    pub fn as_expression(&self) -> &Expression {
+        // node_unwrapped!(self, Expression)
+        enum_unwrapped!(self, [Node, Expression])
+    }
+
+    pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
+        enum_unwrapped!(self, [Node, VariableDeclarationList])
+    }
+
+    pub fn as_type_parameter_declaration(&self) -> &TypeParameterDeclaration {
+        enum_unwrapped!(self, [Node, TypeParameterDeclaration])
+    }
+
+    pub fn as_property_assignment(&self) -> &PropertyAssignment {
+        enum_unwrapped!(self, [Node, PropertyAssignment])
+    }
+
+    pub fn as_source_file(&self) -> &Rc<SourceFile> {
+        enum_unwrapped!(self, [Node, SourceFile])
+    }
+
+    pub fn as_variable_declaration(&self) -> &VariableDeclaration {
+        enum_unwrapped!(self, [Node, VariableDeclaration])
+    }
+
+    pub fn as_object_literal_expression(&self) -> &ObjectLiteralExpression {
+        enum_unwrapped!(self, [Node, Expression, ObjectLiteralExpression])
+    }
+
+    pub fn as_identifier(&self) -> &Identifier {
+        enum_unwrapped!(self, [Node, Expression, Identifier])
+    }
+
+    pub fn as_type_node(&self) -> &TypeNode {
+        enum_unwrapped!(self, [Node, TypeNode])
+    }
 }
 
 #[derive(Debug)]
@@ -1885,7 +1922,7 @@ impl Type {
         }
     }
 
-    pub fn as_union_or_intersection_type(&self) -> &dyn UnionOrIntersectionTypeInterface {
+    pub fn as_union_or_intersection_type_interface(&self) -> &dyn UnionOrIntersectionTypeInterface {
         match self {
             Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
             _ => panic!("Expected union or intersection type"),
@@ -1917,6 +1954,50 @@ impl Type {
             Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
             _ => panic!("Expected object flags type"),
         }
+    }
+
+    pub fn as_base_interface_type(&self) -> &BaseInterfaceType {
+        enum_unwrapped!(self, [Type, ObjectType, InterfaceType, BaseInterfaceType])
+    }
+
+    pub fn as_type_parameter(&self) -> &TypeParameter {
+        enum_unwrapped!(self, [Type, TypeParameter])
+    }
+
+    pub fn as_interface_type(&self) -> &InterfaceType {
+        enum_unwrapped!(self, [Type, ObjectType, InterfaceType])
+    }
+
+    pub fn as_object_type(&self) -> &ObjectType {
+        enum_unwrapped!(self, [Type, ObjectType])
+    }
+
+    pub fn as_type_reference(&self) -> &TypeReference {
+        enum_unwrapped!(self, [Type, ObjectType, TypeReference])
+    }
+
+    pub fn as_string_literal_type(&self) -> &StringLiteralType {
+        enum_unwrapped!(self, [Type, LiteralType, StringLiteralType])
+    }
+
+    pub fn as_number_literal_type(&self) -> &NumberLiteralType {
+        enum_unwrapped!(self, [Type, LiteralType, NumberLiteralType])
+    }
+
+    pub fn as_big_int_literal_type(&self) -> &BigIntLiteralType {
+        enum_unwrapped!(self, [Type, LiteralType, BigIntLiteralType])
+    }
+
+    pub fn as_union_or_intersection_type(&self) -> &UnionOrIntersectionType {
+        enum_unwrapped!(self, [Type, UnionOrIntersectionType])
+    }
+
+    pub fn as_literal_type(&self) -> &LiteralType {
+        enum_unwrapped!(self, [Type, LiteralType])
+    }
+
+    pub fn as_freshable_intrinsic_type(&self) -> &FreshableIntrinsicType {
+        enum_unwrapped!(self, [Type, IntrinsicType, FreshableIntrinsicType])
     }
 }
 
@@ -2120,7 +2201,7 @@ impl StringLiteralType {
             self.value.clone(),
             Some(self.type_wrapper()),
         );
-        enum_unwrapped!(&*fresh_type, [Type, LiteralType]).set_fresh_type(&fresh_type);
+        fresh_type.as_literal_type().set_fresh_type(&fresh_type);
         self.set_fresh_type(&fresh_type);
         type_checker.keep_strong_reference_to_type(fresh_type);
         self.fresh_type().unwrap().upgrade().unwrap()
@@ -2175,7 +2256,7 @@ impl NumberLiteralType {
             self.value,
             Some(self.type_wrapper()),
         );
-        enum_unwrapped!(&*fresh_type, [Type, LiteralType]).set_fresh_type(&fresh_type);
+        fresh_type.as_literal_type().set_fresh_type(&fresh_type);
         self.set_fresh_type(&fresh_type);
         type_checker.keep_strong_reference_to_type(fresh_type);
         self.fresh_type().unwrap().upgrade().unwrap()
@@ -2230,7 +2311,7 @@ impl BigIntLiteralType {
             self.value.clone(),
             Some(self.type_wrapper()),
         );
-        enum_unwrapped!(&*fresh_type, [Type, LiteralType]).set_fresh_type(&fresh_type);
+        fresh_type.as_literal_type().set_fresh_type(&fresh_type);
         self.set_fresh_type(&fresh_type);
         type_checker.keep_strong_reference_to_type(fresh_type);
         self.fresh_type().unwrap().upgrade().unwrap()

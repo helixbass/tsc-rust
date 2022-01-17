@@ -7,7 +7,6 @@ use crate::{
     bind_source_file, for_each, is_external_or_common_js_module, Diagnostic, Node, NodeInterface,
     NumericLiteral, SourceFile, Statement, TypeChecker, TypeCheckerHost, TypeElement, TypeNode,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn check_source_element<TNodeRef: Borrow<Node>>(&mut self, node: Option<TNodeRef>) {
@@ -91,7 +90,7 @@ impl TypeChecker {
         }
 
         for file in host.get_source_files() {
-            if !is_external_or_common_js_module(enum_unwrapped!(&*file, [Node, SourceFile])) {
+            if !is_external_or_common_js_module(file.as_source_file()) {
                 self.merge_symbol_table(&mut *self.globals(), &*file.locals(), None);
             }
         }

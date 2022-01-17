@@ -15,7 +15,6 @@ use crate::{
     TypeReferenceNode, UnionOrIntersectionTypeInterface, VariableDeclaration,
     VariableLikeDeclarationInterface, VariableStatement,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn check_arithmetic_operand_type(
@@ -32,7 +31,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_prefix_unary_expression(&self, node: &PrefixUnaryExpression) -> Rc<Type> {
-        let operand_expression = enum_unwrapped!(&*node.operand, [Node, Expression]);
+        let operand_expression = node.operand.as_expression();
         let operand_type = self.check_expression(operand_expression, None);
         match node.operator {
             SyntaxKind::PlusPlusToken => {
@@ -87,7 +86,7 @@ impl TypeChecker {
         contextual_type: Option<TTypeRef>,
     ) -> Rc<Type> {
         let initializer = get_effective_initializer(declaration).unwrap();
-        let initializer_as_expression = enum_unwrapped!(&*initializer, [Node, Expression]);
+        let initializer_as_expression = initializer.as_expression();
         let type_ = self
             .get_quick_type_of_expression(initializer_as_expression)
             .unwrap_or_else(|| {
@@ -188,7 +187,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         self.check_expression_for_mutable_location(
-            enum_unwrapped!(&*node.initializer, [Node, Expression]),
+            node.initializer.as_expression(),
             check_mode,
             Option::<&Type>::None,
         )
@@ -360,15 +359,13 @@ impl TypeChecker {
             let initializer = get_effective_initializer(node);
             if let Some(initializer) = initializer {
                 if true {
-                    let initializer_type = self.check_expression_cached(
-                        enum_unwrapped!(&*initializer, [Node, Expression]),
-                        None,
-                    );
+                    let initializer_type =
+                        self.check_expression_cached(initializer.as_expression(), None);
                     self.check_type_assignable_to_and_optionally_elaborate(
                         &initializer_type,
                         &type_,
                         Some(&*wrapper),
-                        Some(enum_unwrapped!(&*initializer, [Node, Expression])),
+                        Some(initializer.as_expression()),
                         None,
                     );
                 }
@@ -384,21 +381,21 @@ impl TypeChecker {
 
     pub(super) fn check_variable_statement(&mut self, node: &VariableStatement) {
         for_each(
-            &enum_unwrapped!(&*node.declaration_list, [Node, VariableDeclarationList]).declarations,
+            &node
+                .declaration_list
+                .as_variable_declaration_list()
+                .declarations,
             |declaration, _| Some(self.check_source_element(Some(&**declaration))),
         );
     }
 
     pub(super) fn check_expression_statement(&mut self, node: &ExpressionStatement) {
-        let expression = enum_unwrapped!(&*node.expression, [Node, Expression]);
+        let expression = node.expression.as_expression();
         self.check_expression(expression, None);
     }
 
     pub(super) fn check_if_statement(&mut self, node: &IfStatement) {
-        let type_ = self.check_truthiness_expression(
-            enum_unwrapped!(&*node.expression, [Node, Expression]),
-            None,
-        );
+        let type_ = self.check_truthiness_expression(node.expression.as_expression(), None);
         self.check_source_element(Some(&*node.then_statement));
 
         if node.then_statement.kind() == SyntaxKind::EmptyStatement {
@@ -442,10 +439,7 @@ impl TypeChecker {
     ) {
         if let Some(type_parameter_declarations) = type_parameter_declarations {
             for node in type_parameter_declarations {
-                self.check_type_parameter(enum_unwrapped!(
-                    &**node,
-                    [Node, TypeParameterDeclaration]
-                ));
+                self.check_type_parameter(node.as_type_parameter_declaration());
             }
         }
     }

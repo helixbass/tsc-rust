@@ -15,7 +15,6 @@ use crate::{
     SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
     TypeInterface, TypeParameter,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn get_export_symbol_of_value_symbol_if_exported<TSymbolRef: Borrow<Symbol>>(
@@ -407,9 +406,7 @@ impl NodeBuilder {
                     factory
                         .create_string_literal(
                             &self.synthetic_factory,
-                            enum_unwrapped!(type_, [Type, LiteralType, StringLiteralType])
-                                .value
-                                .clone(),
+                            type_.as_string_literal_type().value.clone(),
                             Some(
                                 context.flags.intersects(
                                     NodeBuilderFlags::UseSingleQuotesForStringLiteralType,
@@ -422,9 +419,7 @@ impl NodeBuilder {
                 .into();
         }
         if type_.flags().intersects(TypeFlags::NumberLiteral) {
-            let value = enum_unwrapped!(type_, [Type, LiteralType, NumberLiteralType])
-                .value
-                .value();
+            let value = type_.as_number_literal_type().value.value();
             return factory
                 .create_literal_type_node(
                     &self.synthetic_factory,
@@ -461,9 +456,7 @@ impl NodeBuilder {
                     factory
                         .create_big_int_literal(
                             &self.synthetic_factory,
-                            enum_unwrapped!(type_, [Type, LiteralType, BigIntLiteralType])
-                                .value
-                                .clone(),
+                            type_.as_big_int_literal_type().value.clone(),
                         )
                         .into(),
                 )
@@ -499,7 +492,7 @@ impl NodeBuilder {
             .intersects(TypeFlags::Union | TypeFlags::Intersection)
         {
             let types = {
-                let types = type_.as_union_or_intersection_type().types();
+                let types = type_.as_union_or_intersection_type_interface().types();
                 if type_.flags().intersects(TypeFlags::Union) {
                     type_checker.format_union_types(types)
                 } else {

@@ -1,19 +1,18 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
     UnionType, __String, binary_search_copy_key, compare_values, concatenate,
     get_name_of_declaration, get_object_flags, map, unescape_leading_underscores, ArrayTypeNode,
-    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, InterfaceType, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectType, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode,
-    TypeReference, TypeReferenceNode, UnionReduction, UnionTypeNode,
+    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
+    UnionReduction, UnionTypeNode,
 };
-use local_macros::enum_unwrapped;
 
 impl TypeChecker {
     pub(super) fn get_apparent_type(&self, type_: &Type) -> Rc<Type> {
@@ -106,10 +105,7 @@ impl TypeChecker {
                 None => vec![],
                 Some(node) => match &**node {
                     Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
-                        let target_as_base_interface_type = enum_unwrapped!(
-                            &*type_.target,
-                            [Type, ObjectType, InterfaceType, BaseInterfaceType]
-                        );
+                        let target_as_base_interface_type = type_.target.as_base_interface_type();
                         concatenate(
                             target_as_base_interface_type
                                 .outer_type_parameters
@@ -148,14 +144,11 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let type_ =
             self.get_declared_type_of_symbol(&self.get_merged_symbol(Some(symbol)).unwrap());
-        let type_as_interface_type = enum_unwrapped!(
-            &*type_,
-            [Type, ObjectType, InterfaceType, BaseInterfaceType]
-        );
-        let type_parameters = type_as_interface_type.type_parameters.as_ref();
+        let type_as_base_interface_type = type_.as_base_interface_type();
+        let type_parameters = type_as_base_interface_type.type_parameters.as_ref();
         if let Some(type_parameters) = type_parameters {
             let type_arguments = concatenate(
-                type_as_interface_type
+                type_as_base_interface_type
                     .outer_type_parameters
                     .clone()
                     .unwrap_or_else(|| vec![]),
@@ -386,7 +379,7 @@ impl TypeChecker {
                     } else {
                         TypeFlags::None
                     },
-                type_.as_union_or_intersection_type().types(),
+                type_.as_union_or_intersection_type_interface().types(),
             );
         }
         if !flags.intersects(TypeFlags::Never) {

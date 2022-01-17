@@ -2,6 +2,8 @@ use darling::FromMeta;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
+use std::array::IntoIter;
+use std::collections::HashMap;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::Data::{Enum, Struct};
 use syn::{
@@ -1462,6 +1464,118 @@ pub fn enum_unwrapped(input: TokenStream) -> TokenStream {
 
     quote! {
         #enum_match
+    }
+    .into()
+}
+
+fn get_node_enum_unwrapped_call(argument: &Expr, variant_name: &Ident) -> TokenStream2 {
+    let known_node_variant_names: HashMap<String, Vec<&'static str>> =
+        HashMap::from_iter(IntoIter::new([
+            ("Expression".to_string(), vec![]),
+            ("VariableDeclarationList".to_string(), vec![]),
+            ("TypeParameterDeclaration".to_string(), vec![]),
+            ("PropertyAssignment".to_string(), vec![]),
+        ]));
+
+    let mut ancestors = vec!["Node"];
+    let variant_name_string = variant_name.to_string();
+    ancestors.extend_from_slice(known_node_variant_names.get(&variant_name_string).unwrap());
+    ancestors.push(&variant_name_string);
+    let ancestors = ancestors
+        .into_iter()
+        .map(|ancestor_str| Ident::new(ancestor_str, variant_name.span()));
+    let ancestors = quote! {
+        [#(#ancestors),*]
+    };
+
+    quote! {
+        ::local_macros::enum_unwrapped!(#argument, #ancestors)
+    }
+}
+
+struct NodeUnwrapped {
+    argument: Expr,
+    variant_name: Ident,
+}
+
+impl Parse for NodeUnwrapped {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let argument: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let variant_name: Ident = input.parse()?;
+        Ok(NodeUnwrapped {
+            argument,
+            variant_name,
+        })
+    }
+}
+
+#[proc_macro]
+pub fn node_unwrapped(input: TokenStream) -> TokenStream {
+    let NodeUnwrapped {
+        argument,
+        variant_name,
+    } = parse_macro_input!(input as NodeUnwrapped);
+
+    let enum_unwrapped_call = get_node_enum_unwrapped_call(&argument, &variant_name);
+
+    quote! {
+        #enum_unwrapped_call
+    }
+    .into()
+}
+
+fn get_type_enum_unwrapped_call(argument: &Expr, variant_name: &Ident) -> TokenStream2 {
+    let known_type_variant_names: HashMap<String, Vec<&'static str>> =
+        HashMap::from_iter(IntoIter::new([(
+            "BaseInterfaceType".to_string(),
+            vec!["ObjectType", "InterfaceType"],
+        )]));
+
+    let mut ancestors = vec!["Type"];
+    let variant_name_string = variant_name.to_string();
+    ancestors.extend_from_slice(known_type_variant_names.get(&variant_name_string).unwrap());
+    ancestors.push(&variant_name_string);
+    let ancestors = ancestors
+        .into_iter()
+        .map(|ancestor_str| Ident::new(ancestor_str, variant_name.span()));
+    let ancestors = quote! {
+        [#(#ancestors),*]
+    };
+
+    quote! {
+        ::local_macros::enum_unwrapped!(#argument, #ancestors)
+    }
+}
+
+struct TypeUnwrapped {
+    argument: Expr,
+    variant_name: Ident,
+}
+
+impl Parse for TypeUnwrapped {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let argument: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let variant_name: Ident = input.parse()?;
+        Ok(TypeUnwrapped {
+            argument,
+            variant_name,
+        })
+    }
+}
+
+#[proc_macro]
+pub fn type_unwrapped(input: TokenStream) -> TokenStream {
+    let TypeUnwrapped {
+        argument,
+        variant_name,
+    } = parse_macro_input!(input as TypeUnwrapped);
+
+    let enum_unwrapped_call = get_type_enum_unwrapped_call(&argument, &variant_name);
+
+    quote! {
+        #enum_unwrapped_call
     }
     .into()
 }
