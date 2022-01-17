@@ -68,16 +68,18 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         let links = self.get_node_links(node);
-        let mut links_ref = links.borrow_mut();
-        if links_ref.resolved_type.is_none() {
+        let links_resolved_type_is_none = (*links).borrow().resolved_type.is_none();
+        if links_resolved_type_is_none {
             if let Some(check_mode) = check_mode {
                 if check_mode != CheckMode::Normal {
                     return self.check_expression(node, Some(check_mode));
                 }
             }
-            links_ref.resolved_type = Some(self.check_expression(node, check_mode));
+            let resolved_type = self.check_expression(node, check_mode);
+            links.borrow_mut().resolved_type = Some(resolved_type);
         }
-        links_ref.resolved_type.clone().unwrap()
+        let resolved_type = (*links).borrow().resolved_type.clone().unwrap();
+        resolved_type
     }
 
     pub(super) fn check_declaration_initializer<TTypeRef: Borrow<Type>>(

@@ -22,6 +22,7 @@ lazy_static! {
             ("bigint".to_string(), SyntaxKind::BigIntKeyword),
             ("boolean".to_string(), SyntaxKind::BooleanKeyword),
             ("const".to_string(), SyntaxKind::ConstKeyword),
+            ("declare".to_string(), SyntaxKind::DeclareKeyword),
             ("else".to_string(), SyntaxKind::ElseKeyword),
             ("false".to_string(), SyntaxKind::FalseKeyword),
             ("if".to_string(), SyntaxKind::IfKeyword),
@@ -29,6 +30,7 @@ lazy_static! {
             ("number".to_string(), SyntaxKind::NumberKeyword),
             ("true".to_string(), SyntaxKind::TrueKeyword),
             ("type".to_string(), SyntaxKind::TypeKeyword),
+            ("var".to_string(), SyntaxKind::VarKeyword),
         ]));
 }
 
@@ -662,7 +664,7 @@ impl Scanner {
         }
     }
 
-    fn speculation_helper<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+    fn speculation_helper<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
         &self,
         mut callback: TCallback,
         is_lookahead: bool,
@@ -686,14 +688,14 @@ impl Scanner {
         result
     }
 
-    pub fn look_ahead<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+    pub fn look_ahead<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
         &self,
         callback: TCallback,
     ) -> Option<TReturn> {
         self.speculation_helper(callback, true)
     }
 
-    pub fn try_scan<TReturn, TCallback: FnMut() -> Option<TReturn>>(
+    pub fn try_scan<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
         &self,
         callback: TCallback,
     ) -> Option<TReturn> {

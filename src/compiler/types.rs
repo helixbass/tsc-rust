@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::BitAndAssign;
+use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
@@ -65,14 +66,20 @@ pub enum SyntaxKind {
     ExclamationToken,
     QuestionToken,
     ColonToken,
+    AtToken,
     EqualsToken,
     Identifier,
     PrivateIdentifier,
     BreakKeyword,
+    ClassKeyword,
     ConstKeyword,
+    DefaultKeyword,
     ElseKeyword,
+    EnumKeyword,
+    ExportKeyword,
     ExtendsKeyword,
     FalseKeyword,
+    FunctionKeyword,
     IfKeyword,
     ImportKeyword,
     NewKeyword,
@@ -80,18 +87,29 @@ pub enum SyntaxKind {
     ThisKeyword,
     TrueKeyword,
     TypeOfKeyword,
+    VarKeyword,
     VoidKeyword,
     WithKeyword,
     ImplementsKeyword,
     InterfaceKeyword,
+    PrivateKeyword,
+    ProtectedKeyword,
+    PublicKeyword,
+    StaticKeyword,
+    AbstractKeyword,
+    AsKeyword,
     AssertsKeyword,
     AnyKeyword,
+    AsyncKeyword,
     BooleanKeyword,
+    DeclareKeyword,
+    GetKeyword,
     InferKeyword,
     NeverKeyword,
-    NumberKeyword,
     ReadonlyKeyword,
+    NumberKeyword,
     ObjectKeyword,
+    SetKeyword,
     StringKeyword,
     SymbolKeyword,
     TypeKeyword,
@@ -99,6 +117,7 @@ pub enum SyntaxKind {
     UniqueKeyword,
     UnknownKeyword,
     BigIntKeyword,
+    OverrideKeyword,
     OfKeyword,
 
     QualifiedName,
@@ -182,6 +201,7 @@ bitflags! {
         const DisallowInContext = 1 << 12;
         const YieldContext = 1 << 13;
         const AwaitContext = 1 << 15;
+        const Ambient = 1 << 23;
 
         const BlockScoped = Self::Let.bits | Self::Const.bits;
 
@@ -203,6 +223,10 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_node_wrapper(&self, wrapper: Rc<Node>);
     fn kind(&self) -> SyntaxKind;
     fn flags(&self) -> NodeFlags;
+    fn set_flags(&self, flags: NodeFlags);
+    fn maybe_decorators(&self) -> Ref<Option<NodeArray>>;
+    fn set_decorators(&self, decorators: Option<NodeArray>);
+    fn maybe_modifiers(&self) -> Option<&NodeArray>;
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
     fn set_id(&self, id: NodeId);
@@ -222,6 +246,7 @@ pub trait NodeInterface: ReadonlyTextRange {
 pub enum Node {
     BaseNode(BaseNode),
     TypeParameterDeclaration(TypeParameterDeclaration),
+    Decorator(Decorator),
     VariableDeclaration(VariableDeclaration),
     VariableDeclarationList(VariableDeclarationList),
     TypeNode(TypeNode),
@@ -378,7 +403,9 @@ impl Node {
 pub struct BaseNode {
     _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
-    pub flags: NodeFlags,
+    flags: Cell<NodeFlags>,
+    pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
+    pub modifiers: Option<ModifiersArray>,
     pub id: Cell<Option<NodeId>>,
     pub parent: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<isize>,
@@ -392,7 +419,9 @@ impl BaseNode {
         Self {
             _node_wrapper: RefCell::new(None),
             kind,
-            flags,
+            flags: Cell::new(flags),
+            decorators: RefCell::new(None),
+            modifiers: None,
             id: Cell::new(None),
             parent: RefCell::new(None),
             pos: Cell::new(pos),
@@ -422,7 +451,23 @@ impl NodeInterface for BaseNode {
     }
 
     fn flags(&self) -> NodeFlags {
-        self.flags
+        self.flags.get()
+    }
+
+    fn set_flags(&self, flags: NodeFlags) {
+        self.flags.set(flags);
+    }
+
+    fn maybe_decorators(&self) -> Ref<Option<NodeArray>> {
+        self.decorators.borrow()
+    }
+
+    fn set_decorators(&self, decorators: Option<NodeArray>) {
+        *self.decorators.borrow_mut() = decorators;
+    }
+
+    fn maybe_modifiers(&self) -> Option<&NodeArray> {
+        self.modifiers.as_ref()
     }
 
     fn maybe_id(&self) -> Option<NodeId> {
@@ -584,6 +629,14 @@ impl<'node_array> IntoIterator for &'node_array NodeArray {
     }
 }
 
+impl Deref for NodeArray {
+    type Target = [Rc<Node>];
+
+    fn deref(&self) -> &Self::Target {
+        &self._nodes
+    }
+}
+
 pub enum NodeArrayOrVec {
     NodeArray(NodeArray),
     Vec(Vec<Rc<Node>>),
@@ -622,6 +675,8 @@ impl MemberNameInterface for Identifier {
         self.escaped_text.clone()
     }
 }
+
+pub type ModifiersArray = NodeArray; /*<Modifier>*/
 
 pub trait MemberNameInterface: NodeInterface {
     fn escaped_text(&self) -> __String;
@@ -745,6 +800,13 @@ impl TypeParameterDeclaration {
             _named_declaration: base_named_declaration,
         }
     }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct Decorator {
+    _node: BaseNode,
+    expression: Rc<Node /*LeftHandSideExpression*/>,
 }
 
 #[derive(Debug)]

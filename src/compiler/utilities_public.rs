@@ -121,6 +121,24 @@ pub fn is_literal_kind(kind: SyntaxKind) -> bool {
     SyntaxKind::FirstLiteralToken <= kind && kind <= SyntaxKind::LastLiteralToken
 }
 
+pub fn is_modifier_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::AbstractKeyword
+            | SyntaxKind::AsyncKeyword
+            | SyntaxKind::ConstKeyword
+            | SyntaxKind::DeclareKeyword
+            | SyntaxKind::DefaultKeyword
+            | SyntaxKind::ExportKeyword
+            | SyntaxKind::PublicKeyword
+            | SyntaxKind::PrivateKeyword
+            | SyntaxKind::ProtectedKeyword
+            | SyntaxKind::ReadonlyKeyword
+            | SyntaxKind::StaticKeyword
+            | SyntaxKind::OverrideKeyword
+    )
+}
+
 pub fn is_function_like<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
     node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
 }

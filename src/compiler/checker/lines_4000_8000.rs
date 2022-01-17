@@ -626,8 +626,10 @@ impl NodeBuilder {
                 };
             }
 
+            let modifiers = if false { unimplemented!() } else { None };
             let property_signature = factory.create_property_signature(
                 &self.synthetic_factory,
+                modifiers,
                 property_name,
                 Some(property_type_node.into()),
             );

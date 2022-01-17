@@ -72,23 +72,24 @@ pub fn map<
     result
 }
 
-pub fn some<TItem>(array: &[TItem], predicate: Option<Box<dyn FnMut(&TItem) -> bool>>) -> bool {
-    predicate.map_or(!array.is_empty(), |predicate| array.iter().any(predicate))
+pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(
+    array: Option<&[TItem]>,
+    predicate: Option<TPredicate>,
+) -> bool {
+    array.map_or(false, |array| {
+        predicate.map_or(!array.is_empty(), |predicate| array.iter().any(predicate))
+    })
 }
 
 pub fn concatenate<TItem>(mut array1: Vec<TItem>, mut array2: Vec<TItem>) -> Vec<TItem> {
-    if !some(&array2, None) {
+    if !some(Some(&array2), Option::<fn(&TItem) -> bool>::None) {
         return array1;
     }
-    if !some(&array1, None) {
+    if !some(Some(&array1), Option::<fn(&TItem) -> bool>::None) {
         return array2;
     }
     array1.append(&mut array2);
     array1
-}
-
-fn identity_key_selector<TItem>(item: TItem, _: Option<usize>) -> TItem {
-    item
 }
 
 enum ComparerOrEqualityComparer<'closure, TItem> {
@@ -144,7 +145,6 @@ pub fn insert_sorted<TItem /*, TComparer: Comparer<&'array_or_item TItem>*/>(
         return;
     }
 
-    // let insert_index = binary_search(array, &insert, identity_key_selector, compare, None);
     let insert_index = binary_search(array, &insert, |item, _| item, compare, None);
     if insert_index < 0 {
         array.insert((!insert_index).try_into().unwrap(), insert);
@@ -171,22 +171,14 @@ pub fn sort_and_deduplicate<
     )
 }
 
-fn push_if_unique<TItem>(array: &mut Vec<TItem>, to_add: TItem) -> bool {
-    if false {
-        unimplemented!()
-    } else {
-        array.push(to_add);
-        true
+pub fn append<TItem>(to: &mut Vec<TItem>, value: Option<TItem>) {
+    if value.is_none() {
+        return /*to*/;
     }
-}
-
-pub fn append_if_unique<TItem>(array: Option<Vec<TItem>>, to_add: TItem) -> Vec<TItem> {
-    if let Some(mut array) = array {
-        push_if_unique(&mut array, to_add);
-        array
-    } else {
-        vec![to_add]
-    }
+    let value = value.unwrap();
+    // if to === undefined
+    to.push(value);
+    /*to*/
 }
 
 fn to_offset<TItem>(array: &[TItem], offset: isize) -> usize {
@@ -229,6 +221,24 @@ pub fn add_range<TItem: Clone>(
         i += 1;
     }
     // to
+}
+
+fn push_if_unique<TItem>(array: &mut Vec<TItem>, to_add: TItem) -> bool {
+    if false {
+        unimplemented!()
+    } else {
+        array.push(to_add);
+        true
+    }
+}
+
+pub fn append_if_unique<TItem>(array: Option<Vec<TItem>>, to_add: TItem) -> Vec<TItem> {
+    if let Some(mut array) = array {
+        push_if_unique(&mut array, to_add);
+        array
+    } else {
+        vec![to_add]
+    }
 }
 
 fn comparison_to_ordering(comparison: Comparison) -> Ordering {
