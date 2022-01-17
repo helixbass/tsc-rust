@@ -64,11 +64,11 @@ pub use compiler::types::{
     Statement, StringLiteral, StringLiteralType, StructureIsReused, Symbol, SymbolFlags,
     SymbolFormatFlags, SymbolId, SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker,
     SymbolWriter, SyntaxKind, Ternary, TextSpan, TokenFlags, TransientSymbol,
-    TransientSymbolInterface, Type, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags,
-    TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper, TypeNode, TypeParameter,
-    TypeParameterDeclaration, TypeReference, TypeReferenceNode, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, UnionReduction, UnionType, UnionTypeNode,
-    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    TransientSymbolInterface, Type, TypeAliasDeclaration, TypeChecker, TypeCheckerHost,
+    TypeElement, TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper,
+    TypeNode, TypeParameter, TypeParameterDeclaration, TypeReference, TypeReferenceNode,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
+    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
     VariableStatement, __String,
 };
 pub use compiler::utilities::{

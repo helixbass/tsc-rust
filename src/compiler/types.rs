@@ -93,6 +93,7 @@ pub enum SyntaxKind {
     ObjectKeyword,
     StringKeyword,
     SymbolKeyword,
+    TypeKeyword,
     UndefinedKeyword,
     UniqueKeyword,
     UnknownKeyword,
@@ -145,6 +146,7 @@ pub enum SyntaxKind {
     FunctionDeclaration,
     ClassDeclaration,
     InterfaceDeclaration,
+    TypeAliasDeclaration,
     ModuleBlock,
 
     CatchClause,
@@ -242,6 +244,9 @@ impl Node {
             Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
                 interface_declaration
             }
+            Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
+                type_alias_declaration
+            }
             Node::TypeElement(type_element) => type_element,
             Node::PropertyAssignment(property_assignment) => property_assignment,
             _ => panic!("Expected named declaration"),
@@ -298,6 +303,9 @@ impl Node {
         match self {
             Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
                 interface_declaration
+            }
+            Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
+                type_alias_declaration
             }
             _ => panic!("Expected has type parameters"),
         }
@@ -1152,6 +1160,7 @@ pub enum Statement {
     ExpressionStatement(ExpressionStatement),
     IfStatement(IfStatement),
     InterfaceDeclaration(InterfaceDeclaration),
+    TypeAliasDeclaration(TypeAliasDeclaration),
 }
 
 #[derive(Debug)]
@@ -1365,6 +1374,28 @@ impl InterfaceDeclaration {
         Self {
             _interface_or_class_like_declaration: base_interface_or_class_like_declaration,
             members,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "Statement",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface"
+)]
+pub struct TypeAliasDeclaration {
+    _generic_named_declaration: BaseGenericNamedDeclaration, /*name: Identifier*/
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl TypeAliasDeclaration {
+    pub fn new(
+        base_generic_named_declaration: BaseGenericNamedDeclaration,
+        type_: Rc<Node>,
+    ) -> Self {
+        Self {
+            _generic_named_declaration: base_generic_named_declaration,
+            type_,
         }
     }
 }
@@ -1595,6 +1626,7 @@ bitflags! {
         const PropertyExcludes = Self::None.bits;
         const InterfaceExcludes = Self::Type.bits & !(Self::Interface.bits | Self::Class.bits);
         const TypeParameterExcludes = Self::Type.bits & !Self::TypeParameter.bits;
+        const TypeAliasExcludes = Self::Type.bits;
     }
 }
 

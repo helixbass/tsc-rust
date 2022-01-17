@@ -17,8 +17,8 @@ use crate::{
     LiteralLikeNodeInterface, LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray,
     NodeArrayOrVec, NodeFactory, NodeFlags, NodeId, NodeInterface, ObjectLiteralExpression,
     OperatorPrecedence, PropertyAssignment, ReadonlyTextRange, Scanner, SourceFile, Statement,
-    Symbol, SymbolTable, SyntaxKind, TypeElement, TypeNode, TypeParameterDeclaration,
-    VariableDeclaration, VariableDeclarationList,
+    Symbol, SymbolTable, SyntaxKind, TypeAliasDeclaration, TypeElement, TypeNode,
+    TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
 };
 use local_macros::enum_unwrapped;
 
@@ -131,6 +131,15 @@ pub fn for_each_child<TNodeCallback: FnMut(Option<Rc<Node>>), TNodesCallback: Fn
                 &mut cb_nodes,
                 Some(&interface_declaration.members),
             )
+        }
+        Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
+            visit_node(&mut cb_node, Some(type_alias_declaration.name()));
+            visit_nodes(
+                &mut cb_node,
+                &mut cb_nodes,
+                type_alias_declaration.maybe_type_parameters(),
+            );
+            visit_node(&mut cb_node, Some(type_alias_declaration.type_.clone()))
         }
         _ => unimplemented!(),
     }
@@ -1652,7 +1661,7 @@ impl ParserType {
                 SyntaxKind::ConstKeyword => {
                     return true;
                 }
-                SyntaxKind::InterfaceKeyword => {
+                SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
                     return self.next_token_is_identifier_on_same_line();
                 }
                 _ => unimplemented!(),
@@ -1668,7 +1677,7 @@ impl ParserType {
         match self.token() {
             SyntaxKind::SemicolonToken | SyntaxKind::IfKeyword => true,
             SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
-            SyntaxKind::InterfaceKeyword => true,
+            SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => true,
             _ => self.is_start_of_expression(),
         }
     }
@@ -1683,7 +1692,7 @@ impl ParserType {
                     return self.parse_declaration();
                 }
             }
-            SyntaxKind::InterfaceKeyword => {
+            SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
                 if self.is_start_of_declaration() {
                     return self.parse_declaration();
                 }
@@ -1706,6 +1715,7 @@ impl ParserType {
         match self.token() {
             SyntaxKind::ConstKeyword => self.parse_variable_statement(pos),
             SyntaxKind::InterfaceKeyword => self.parse_interface_declaration(pos).into(),
+            SyntaxKind::TypeKeyword => self.parse_type_alias_declaration(pos).into(),
             _ => unimplemented!(),
         }
     }
@@ -1793,6 +1803,26 @@ impl ParserType {
         let node =
             self.factory
                 .create_interface_declaration(self, name.into(), type_parameters, members);
+        self.finish_node(node, pos, None)
+    }
+
+    fn parse_type_alias_declaration(&mut self, pos: isize) -> TypeAliasDeclaration {
+        self.parse_expected(SyntaxKind::TypeKeyword, None, None);
+        let name = self.parse_identifier(None);
+        let type_parameters = self.parse_type_parameters();
+        self.parse_expected(SyntaxKind::EqualsToken, None, None);
+        let type_ = if false {
+            unimplemented!()
+        } else {
+            self.parse_type()
+        };
+        self.parse_semicolon();
+        let node = self.factory.create_type_alias_declaration(
+            self,
+            name.into(),
+            type_parameters,
+            type_.into(),
+        );
         self.finish_node(node, pos, None)
     }
 }

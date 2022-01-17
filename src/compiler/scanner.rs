@@ -28,6 +28,7 @@ lazy_static! {
             ("interface".to_string(), SyntaxKind::InterfaceKeyword),
             ("number".to_string(), SyntaxKind::NumberKeyword),
             ("true".to_string(), SyntaxKind::TrueKeyword),
+            ("type".to_string(), SyntaxKind::TypeKeyword),
         ]));
 }
 

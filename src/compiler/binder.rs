@@ -345,6 +345,9 @@ impl BinderType {
             SyntaxKind::InterfaceDeclaration => {
                 return ContainerFlags::IsContainer | ContainerFlags::IsInterface;
             }
+            SyntaxKind::TypeAliasDeclaration => {
+                return ContainerFlags::IsContainer | ContainerFlags::HasLocals;
+            }
             SyntaxKind::SourceFile => {
                 return ContainerFlags::IsContainer
                     | ContainerFlags::IsControlFlowContainer
@@ -378,6 +381,13 @@ impl BinderType {
             SyntaxKind::InterfaceDeclaration => Some(self.declare_symbol(
                 &mut *self.container().symbol().members().borrow_mut(),
                 Some(self.container().symbol()),
+                node,
+                symbol_flags,
+                symbol_excludes,
+            )),
+            SyntaxKind::TypeAliasDeclaration => Some(self.declare_symbol(
+                &mut *self.container().locals(),
+                Option::<&Symbol>::None,
                 node,
                 symbol_flags,
                 symbol_excludes,
@@ -497,6 +507,12 @@ impl BinderType {
                     interface_declaration,
                     SymbolFlags::Interface,
                     SymbolFlags::InterfaceExcludes,
+                ),
+            Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => self
+                .bind_block_scoped_declaration(
+                    type_alias_declaration,
+                    SymbolFlags::TypeAlias,
+                    SymbolFlags::TypeAliasExcludes,
                 ),
             _ => (),
         }
