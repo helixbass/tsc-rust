@@ -1,30 +1,17 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
-use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::{MissingNode, Parser, ParserType, ParsingContext, SpeculationKind};
+use super::{MissingNode, ParserType, ParsingContext, SpeculationKind};
 use crate::{
-    append, attach_file_to_diagnostics, create_detached_diagnostic, create_node_factory,
-    create_scanner, get_binary_operator_precedence, get_full_width, is_literal_kind,
-    is_modifier_kind, is_template_literal_kind, last_or_undefined, modifiers_to_flags,
-    normalize_path, object_allocator, set_text_range_pos_end, some, token_is_identifier_or_keyword,
-    token_to_string, ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block,
-    Debug_, Decorator, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    Diagnostics, Expression, FunctionDeclaration, FunctionLikeDeclarationInterface,
-    HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
-    LiteralTypeNode, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
-    ParameterDeclaration, PropertyAssignment, ReturnStatement, Scanner,
-    SignatureDeclarationInterface, SourceFile, Statement, SyntaxKind, TemplateExpression,
-    TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration, TypeElement, TypeNode,
-    TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
+    attach_file_to_diagnostics, create_detached_diagnostic, is_modifier_kind,
+    is_template_literal_kind, last_or_undefined, set_text_range_pos_end,
+    token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, Expression, Identifier, Node, NodeArray,
+    NodeArrayOrVec, NodeFlags, NodeInterface, SourceFile, SyntaxKind,
 };
-use local_macros::{ast_type, enum_unwrapped};
+use local_macros::enum_unwrapped;
 
 impl ParserType {
     pub(super) fn parse_source_file_worker(&self) -> Rc<SourceFile> {
@@ -455,7 +442,7 @@ impl ParserType {
         } else
         /*if diagnostic_message*/
         {
-            self.parse_error_at_current_token(&diagnostic_message, args);
+            self.parse_error_at_current_token(diagnostic_message, args);
         }
 
         let pos = self.get_node_pos();

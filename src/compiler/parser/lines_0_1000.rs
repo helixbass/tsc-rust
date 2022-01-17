@@ -8,23 +8,14 @@ use std::rc::Rc;
 
 use super::{Parser, ParsingContext};
 use crate::{
-    append, attach_file_to_diagnostics, create_detached_diagnostic, create_node_factory,
-    create_scanner, get_binary_operator_precedence, get_full_width, is_literal_kind,
-    is_modifier_kind, is_template_literal_kind, last_or_undefined, modifiers_to_flags,
-    normalize_path, object_allocator, set_text_range_pos_end, some, token_is_identifier_or_keyword,
-    token_to_string, ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block,
-    Debug_, Decorator, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    Diagnostics, Expression, FunctionDeclaration, FunctionLikeDeclarationInterface,
+    create_node_factory, create_scanner, normalize_path, object_allocator, BaseNode, Diagnostic,
+    DiagnosticMessage, Expression, FunctionLikeDeclarationInterface,
     HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
-    LiteralTypeNode, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
-    ParameterDeclaration, PropertyAssignment, ReturnStatement, Scanner,
-    SignatureDeclarationInterface, SourceFile, Statement, SyntaxKind, TemplateExpression,
-    TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration, TypeElement, TypeNode,
-    TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
+    NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeFlags, NodeInterface, Scanner,
+    SignatureDeclarationInterface, SourceFile, Statement, SyntaxKind, TemplateLiteralLikeNode,
+    TypeElement, TypeNode,
 };
-use local_macros::{ast_type, enum_unwrapped};
+use local_macros::ast_type;
 
 bitflags! {
     pub struct SignatureFlags: u32 {

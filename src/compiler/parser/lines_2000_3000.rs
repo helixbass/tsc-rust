@@ -1,30 +1,13 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
-use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::TryInto;
-use std::rc::Rc;
 
-use super::{Parser, ParserType, ParsingContext};
+use super::{ParserType, ParsingContext};
 use crate::{
-    append, attach_file_to_diagnostics, create_detached_diagnostic, create_node_factory,
-    create_scanner, get_binary_operator_precedence, get_full_width, is_literal_kind,
-    is_modifier_kind, is_template_literal_kind, last_or_undefined, modifiers_to_flags,
-    normalize_path, object_allocator, set_text_range_pos_end, some, token_is_identifier_or_keyword,
-    token_to_string, ArrayLiteralExpression, BaseNode, BaseNodeFactory, BinaryExpression, Block,
-    Debug_, Decorator, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    Diagnostics, Expression, FunctionDeclaration, FunctionLikeDeclarationInterface,
-    HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceDeclaration, KeywordTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
-    LiteralTypeNode, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, OperatorPrecedence,
-    ParameterDeclaration, PropertyAssignment, ReturnStatement, Scanner,
-    SignatureDeclarationInterface, SourceFile, Statement, SyntaxKind, TemplateExpression,
-    TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration, TypeElement, TypeNode,
-    TypeParameterDeclaration, VariableDeclaration, VariableDeclarationList,
+    is_literal_kind, is_template_literal_kind, token_to_string, Debug_, DiagnosticMessage,
+    Diagnostics, LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeArray, NodeInterface,
+    SyntaxKind, TemplateExpression, TemplateSpan, TokenFlags, TypeNode,
 };
-use local_macros::{ast_type, enum_unwrapped};
 
 impl ParserType {
     pub(super) fn can_follow_modifier(&self) -> bool {
