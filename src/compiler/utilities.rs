@@ -11,7 +11,8 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    ModifierFlags, NodeArray, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags,
+    find_ancestor, is_function_like_or_class_static_block_declaration, ModifierFlags, NodeArray,
+    Signature, SignatureFlags, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags,
     __String, compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
     escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
     insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
@@ -386,6 +387,14 @@ fn get_error_span_for_node<TNode: NodeInterface>(
 
 pub fn is_external_or_common_js_module(file: &SourceFile) -> bool {
     false
+}
+
+pub fn get_containing_function_or_class_static_block<TNode: NodeInterface>(
+    node: &TNode,
+) -> Option<Rc<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
+    find_ancestor(node.maybe_parent(), |node: &Node| {
+        is_function_like_or_class_static_block_declaration(Some(node))
+    })
 }
 
 pub fn get_effective_initializer<TNode: NodeInterface>(
@@ -793,6 +802,11 @@ fn _Type(flags: TypeFlags) -> BaseType {
 }
 
 #[allow(non_snake_case)]
+fn _Signature(flags: SignatureFlags) -> Signature {
+    Signature::new(flags)
+}
+
+#[allow(non_snake_case)]
 fn Node(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
     BaseNode::new(kind, NodeFlags::None, pos, end)
 }
@@ -832,6 +846,10 @@ impl ObjectAllocator {
 
     pub fn get_type_constructor(&self) -> fn(TypeFlags) -> BaseType {
         _Type
+    }
+
+    pub fn get_signature_constructor(&self) -> fn(SignatureFlags) -> Signature {
+        _Signature
     }
 }
 

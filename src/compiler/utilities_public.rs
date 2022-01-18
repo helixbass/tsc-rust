@@ -2,9 +2,9 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    CharacterCodes, Node, NodeFlags, NodeInterface, SyntaxKind, TextSpan, __String,
-    compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
-    Diagnostic, SortedArray,
+    is_class_static_block_declaration, CharacterCodes, Node, NodeFlags, NodeInterface, SyntaxKind,
+    TextSpan, __String, compare_diagnostics, is_block, is_module_block, is_source_file,
+    sort_and_deduplicate, Diagnostic, SortedArray,
 };
 
 pub fn sort_and_deduplicate_diagnostics(
@@ -50,6 +50,42 @@ fn get_combined_flags<TNode: NodeInterface, TCallback: FnMut(&Node) -> NodeFlags
 
 pub fn get_combined_node_flags<TNode: NodeInterface>(node: &TNode) -> NodeFlags {
     get_combined_flags(node, |n| n.flags())
+}
+
+pub enum FindAncestorCallbackReturn {
+    Bool(bool),
+    Quit,
+}
+
+impl From<bool> for FindAncestorCallbackReturn {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
+pub fn find_ancestor<
+    TNodeRef: Borrow<Node>,
+    TCallbackReturn: Into<FindAncestorCallbackReturn>,
+    TCallback: FnMut(&Node) -> TCallbackReturn,
+>(
+    node: Option<TNodeRef>,
+    callback: TCallback,
+) -> Option<Rc<Node>> {
+    let mut node = node.map(|node| node.borrow().node_wrapper());
+    while let Some(rc_node_ref) = node.as_ref() {
+        let result = callback(&**rc_node_ref).into();
+        match result {
+            FindAncestorCallbackReturn::Quit => {
+                return None;
+            }
+            FindAncestorCallbackReturn::Bool(result) if result => {
+                return node;
+            }
+            _ => (),
+        }
+        node = rc_node_ref.maybe_parent();
+    }
+    None
 }
 
 pub fn escape_leading_underscores(identifier: &str) -> __String {
@@ -145,6 +181,18 @@ pub fn is_modifier_kind(kind: SyntaxKind) -> bool {
 
 pub fn is_function_like<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
     node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
+}
+
+pub fn is_function_like_or_class_static_block_declaration<TNodeRef: Borrow<Node>>(
+    node: Option<TNodeRef>,
+) -> bool {
+    match node {
+        Some(node) => {
+            let node = node.borrow();
+            is_function_like_kind(node.kind()) || is_class_static_block_declaration(node)
+        }
+        None => false,
+    }
 }
 
 fn is_function_like_declaration_kind(kind: SyntaxKind) -> bool {

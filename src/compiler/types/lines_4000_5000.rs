@@ -7,8 +7,8 @@ use std::rc::{Rc, Weak};
 
 use super::{
     BaseType, DiagnosticCollection, ModuleSpecifierResolutionHost, Node, NodeId, NodeLinks,
-    ObjectFlags, RelationComparisonResult, SymbolTable, SymbolTracker, Type, TypeFlags, TypeMapper,
-    __String,
+    ObjectFlags, RelationComparisonResult, Signature, SignatureFlags, SymbolTable, SymbolTracker,
+    Type, TypeFlags, TypeMapper, __String,
 };
 use crate::{NodeBuilder, Number};
 use local_macros::symbol_type;
@@ -33,8 +33,10 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 #[allow(non_snake_case)]
 pub struct TypeChecker {
     pub _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
+    pub produce_diagnostics: bool,
     pub Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
     pub Type: fn(TypeFlags) -> BaseType,
+    pub Signature: fn(SignatureFlags) -> Signature,
     pub(crate) type_count: Cell<u32>,
     pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
     pub strict_null_checks: bool,
@@ -158,6 +160,8 @@ pub trait SymbolWriter: SymbolTracker {
     fn write_symbol(&mut self, text: &str, symbol: &Symbol);
     fn clear(&mut self);
 }
+
+pub type TypePredicate = ();
 
 bitflags! {
     pub struct SymbolFlags: u32 {

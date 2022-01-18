@@ -6,16 +6,16 @@ use std::rc::Rc;
 
 use super::NodeBuilderContext;
 use crate::{
-    __String, append_if_unique, concatenate, create_symbol_table, declaration_name_to_string,
-    escape_leading_underscores, first_defined, get_check_flags, get_declaration_of_kind,
-    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
-    get_name_of_declaration, has_dynamic_name, has_only_expression_initializer,
-    is_property_assignment, is_property_declaration, is_property_signature, is_type_alias,
-    is_variable_declaration, range_equals, BaseInterfaceType, CheckFlags, Debug_, InterfaceType,
-    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface,
+    Signature, SignatureFlags, TypePredicate, __String, append_if_unique, concatenate,
+    create_symbol_table, declaration_name_to_string, escape_leading_underscores, first_defined,
+    get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
+    get_effective_type_parameter_declarations, get_name_of_declaration, has_dynamic_name,
+    has_only_expression_initializer, is_property_assignment, is_property_declaration,
+    is_property_signature, is_type_alias, is_variable_declaration, range_equals, BaseInterfaceType,
+    CheckFlags, Debug_, InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType,
+    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -562,6 +562,15 @@ impl TypeChecker {
         self.set_structured_type_members(type_.as_object_type(), members);
     }
 
+    pub(super) fn resolve_class_or_interface_members(&self, type_: &Type /*InterfaceType*/) {
+        self.resolve_object_type_members(
+            type_,
+            &self.resolve_declared_members(type_),
+            vec![],
+            vec![],
+        );
+    }
+
     pub(super) fn resolve_type_reference_members(&self, type_: &Type /*TypeReference*/) {
         let type_as_type_reference = type_.as_type_reference();
         let source = self.resolve_declared_members(&type_as_type_reference.target);
@@ -586,13 +595,26 @@ impl TypeChecker {
         self.resolve_object_type_members(type_, &source, type_parameters, padded_type_arguments);
     }
 
-    pub(super) fn resolve_class_or_interface_members(&self, type_: &Type /*InterfaceType*/) {
-        self.resolve_object_type_members(
-            type_,
-            &self.resolve_declared_members(type_),
-            vec![],
-            vec![],
-        );
+    pub(super) fn create_signature(
+        &self,
+        declaration: Option<Rc<Node>>,
+        type_parameters: Option<Vec<Rc<Type>>>,
+        this_parameter: Option<Rc<Symbol>>,
+        parameters: Vec<Rc<Symbol>>,
+        resolved_return_type: Option<Rc<Type>>,
+        resolved_type_predicate: Option<TypePredicate>,
+        min_argument_count: usize,
+        flags: SignatureFlags,
+    ) -> Signature {
+        let mut sig = (self.Signature)(flags);
+        sig.declaration = declaration;
+        sig.type_parameters = type_parameters;
+        sig.set_parameters(parameters);
+        sig.this_parameter = this_parameter;
+        sig.resolved_return_type = resolved_return_type;
+        sig.resolved_type_predicate = resolved_type_predicate;
+        sig.set_min_argument_count(min_argument_count);
+        sig
     }
 
     pub(super) fn resolve_structured_type_members(

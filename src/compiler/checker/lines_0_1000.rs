@@ -107,8 +107,10 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 ) -> TypeChecker {
     let mut type_checker = TypeChecker {
         _types_needing_strong_references: RefCell::new(vec![]),
+        produce_diagnostics,
         Symbol: object_allocator.get_symbol_constructor(),
         Type: object_allocator.get_type_constructor(),
+        Signature: object_allocator.get_signature_constructor(),
 
         type_count: Cell::new(0),
 

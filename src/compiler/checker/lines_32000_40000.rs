@@ -5,15 +5,17 @@ use std::rc::Rc;
 
 use super::CheckMode;
 use crate::{
-    for_each, get_combined_node_flags, get_effective_initializer, is_binding_element,
-    is_function_or_module_block, is_private_identifier, map, maybe_for_each, parse_pseudo_big_int,
-    ArrayTypeNode, Block, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
+    for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
+    get_effective_initializer, is_binding_element, is_function_or_module_block,
+    is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, ArrayTypeNode, Block,
+    DiagnosticMessage, Diagnostics, Expression, ExpressionStatement, FunctionDeclaration,
     HasTypeParametersInterface, IfStatement, InterfaceDeclaration, LiteralLikeNode,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, SymbolInterface,
-    SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration, TypeChecker, TypeFlags,
-    TypeInterface, TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeInterface,
-    VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
+    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement,
+    SymbolInterface, SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration, TypeChecker,
+    TypeFlags, TypeInterface, TypeParameterDeclaration, TypeReferenceNode,
+    UnionOrIntersectionTypeInterface, VariableDeclaration, VariableLikeDeclarationInterface,
+    VariableStatement,
 };
 
 impl TypeChecker {
@@ -353,6 +355,20 @@ impl TypeChecker {
         self.get_type_from_type_node(node);
     }
 
+    pub(super) fn check_function_declaration(&mut self, node: &FunctionDeclaration) {
+        if self.produce_diagnostics {
+            self.check_function_or_method_declaration(&node.node_wrapper());
+        }
+    }
+
+    pub(super) fn check_function_or_method_declaration(
+        &mut self,
+        node: &Node, /*FunctionDeclaration | MethodDeclaration | MethodSignature*/
+    ) {
+        // self.check_decorators(node);
+        // self.check_signature_declaration(node);
+    }
+
     pub(super) fn check_block(&mut self, node: &Block) {
         if is_function_or_module_block(node) {
             for_each(&node.statements, |statement, _| {
@@ -465,6 +481,44 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         self.check_truthiness_of_type(&self.check_expression(node, check_mode), node)
+    }
+
+    pub(super) fn check_return_statement(&self, node: &ReturnStatement) {
+        let container = get_containing_function_or_class_static_block(node);
+
+        let signature = self.get_signature_from_declaration(container);
+        let return_type = self.get_return_type_of_signature(signature);
+        let function_flags = self.get_function_flags(container);
+        if self.strict_null_checks
+            || node.expression.is_some()
+            || return_type.flags().intersects(TypeFlags::Never)
+        {
+            let expr_type = match node.expression {
+                Some(expression) => self.check_expression_cached(expression.as_expression(), None),
+                None => self.undefined_type(),
+            };
+            if false {
+                unimplemented!()
+            } else if self.get_return_type_from_annotation(container) {
+                let unwrapped_return_type = self
+                    .unwrap_return_type(return_type, function_flags)
+                    .unwrap_or(return_type);
+                let unwrapped_expr_type = if function_flags.intersects(FunctionFlags::Async) {
+                    self.check_awaited_type(expr_type, false, node, &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member)
+                } else {
+                    expr_type
+                };
+                // if unwrappedReturnType {
+                self.check_type_assignable_to_and_optionally_elaborate(
+                    &unwrapped_expr_type,
+                    &unwrapped_return_type,
+                    Some(&*node.node_wrapper()),
+                    node.expression.map(|expression| expression.as_expression()),
+                    None,
+                );
+                // }
+            }
+        }
     }
 
     pub(super) fn check_type_parameters(

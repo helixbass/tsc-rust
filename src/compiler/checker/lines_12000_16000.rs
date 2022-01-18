@@ -6,7 +6,8 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    UnionType, __String, binary_search_copy_key, compare_values, concatenate,
+    append_if_unique, get_effective_type_parameter_declarations, is_binding_pattern, Signature,
+    SignatureFlags, UnionType, __String, binary_search_copy_key, compare_values, concatenate,
     get_name_of_declaration, get_object_flags, map, unescape_leading_underscores, ArrayTypeNode,
     BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node, NodeInterface,
     ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
@@ -57,12 +58,102 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn get_type_parameters_from_declaration(
+        &self,
+        declaration: &Node, /*DeclarationWithTypeParameters*/
+    ) -> Option<Vec<Rc<Type /*<TypeParameter>*/>>> {
+        let mut result: Option<Vec<Rc<Type>>> = None;
+        for node in get_effective_type_parameter_declarations(declaration) {
+            result = Some(append_if_unique(
+                result,
+                self.get_declared_type_of_type_parameter(&node.symbol()),
+            ));
+        }
+        result
+    }
+
     pub(super) fn fill_missing_type_arguments(
         &self,
         type_arguments: Option<Vec<Rc<Type>>>,
         type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
     ) -> Option<Vec<Rc<Type>>> {
         type_arguments.map(|vec| vec.clone())
+    }
+
+    pub(super) fn get_signature_from_declaration(
+        &self,
+        declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
+    ) -> Rc<Signature> {
+        let links = self.get_node_links(declaration);
+        if (*links).borrow().resolved_signature.is_none() {
+            let mut parameters: Vec<Rc<Symbol>> = vec![];
+            let mut flags = SignatureFlags::None;
+            let mut min_argument_count = 0;
+            let mut this_parameter: Option<Rc<Symbol>> = None;
+            let mut has_this_parameter = false;
+
+            let declaration_as_signature_declaration = declaration.as_signature_declaration();
+            for (i, param) in declaration_as_signature_declaration
+                .parameters()
+                .iter()
+                .enumerate()
+            {
+                let mut param_symbol = param.symbol();
+                let type_ = if false {
+                    unimplemented!()
+                } else {
+                    param.as_has_type().maybe_type()
+                };
+                if
+                /*paramSymbol &&*/
+                param_symbol.flags().intersects(SymbolFlags::Property)
+                    && !is_binding_pattern(&*param.as_named_declaration().name())
+                {
+                    let resolved_symbol = self.resolve_name(
+                        Some(&**param),
+                        param_symbol.escaped_name(),
+                        SymbolFlags::Value,
+                        None,
+                        None,
+                        false,
+                        None,
+                    );
+                    param_symbol = resolved_symbol.unwrap();
+                }
+                if i == 0 && false {
+                    unimplemented!()
+                } else {
+                    parameters.push(param_symbol);
+                }
+
+                if matches!(type_, Some(type_) if type_.kind() == SyntaxKind::LiteralType) {
+                    flags |= SignatureFlags::HasLiteralTypes;
+                }
+
+                let is_optional_parameter = false;
+                if !is_optional_parameter {
+                    min_argument_count = parameters.len();
+                }
+            }
+
+            let class_type: Option<Rc<Type>> = if false { unimplemented!() } else { None };
+            let type_parameters = match class_type {
+                Some(class_type) => unimplemented!(),
+                None => self.get_type_parameters_from_declaration(declaration),
+            };
+            let resolved_signature = Rc::new(self.create_signature(
+                Some(declaration.node_wrapper()),
+                type_parameters,
+                this_parameter,
+                parameters,
+                None,
+                None,
+                min_argument_count,
+                flags,
+            ));
+            links.borrow_mut().resolved_signature = Some(resolved_signature);
+        }
+        (*links).borrow().resolved_signature.clone().unwrap()
     }
 
     pub(super) fn get_propagating_flags_of_types(

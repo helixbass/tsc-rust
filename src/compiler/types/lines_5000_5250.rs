@@ -8,7 +8,7 @@ use std::rc::{Rc, Weak};
 use super::{
     BaseInterfaceType, BigIntLiteralType, InterfaceType, LiteralType, NumberLiteralType,
     ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface, ResolvedTypeInterface,
-    StringLiteralType, Symbol, TypeParameter, TypeReference, UnionOrIntersectionType,
+    Signature, StringLiteralType, Symbol, TypeParameter, TypeReference, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface,
 };
 use crate::WeakSelf;
@@ -50,6 +50,7 @@ bitflags! {
 pub struct NodeLinks {
     pub flags: NodeCheckFlags,
     pub resolved_type: Option<Rc<Type>>,
+    pub resolved_signature: Option<Rc<Signature>>,
     pub resolved_symbol: Option<Rc<Symbol>>,
 }
 
@@ -59,6 +60,7 @@ impl NodeLinks {
             flags: NodeCheckFlags::None,
             resolved_type: None,
             resolved_symbol: None,
+            resolved_signature: None,
         }
     }
 }

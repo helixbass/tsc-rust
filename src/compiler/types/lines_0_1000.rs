@@ -8,9 +8,10 @@ use super::{
     Decorator, Expression, HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier,
     LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, NamedDeclarationInterface,
     NodeArray, ObjectLiteralExpression, ParameterDeclaration, PropertyAssignment,
-    SignatureDeclarationBase, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
-    TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
-    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
+    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
+    SymbolTable, TemplateSpan, TypeAliasDeclaration, TypeElement, TypeNode,
+    TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
+    VariableDeclarationList,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -347,6 +348,10 @@ impl Node {
             Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
                 Some(property_signature)
             }
+            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+                Some(function_declaration)
+            }
+            Node::ParameterDeclaration(parameter_declaration) => Some(parameter_declaration),
             _ => None,
         }
     }
@@ -400,6 +405,19 @@ impl Node {
             }
             _ => panic!("Expected union or intersection type"),
         }
+    }
+
+    pub fn as_signature_declaration(&self) -> &dyn SignatureDeclarationInterface {
+        match self {
+            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+                function_declaration
+            }
+            _ => panic!("Expected signature declaration"),
+        }
+    }
+
+    pub fn as_has_type(&self) -> &dyn HasTypeInterface {
+        self.maybe_as_has_type().expect("Expected has type")
     }
 
     pub fn as_expression(&self) -> &Expression {
