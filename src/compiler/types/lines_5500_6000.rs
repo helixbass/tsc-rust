@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::BitAndAssign;
@@ -57,11 +57,11 @@ pub struct Signature {
     pub flags: SignatureFlags,
     pub declaration: Option<Rc<Node /*SignatureDeclaration | JSDocSignature*/>>,
     pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
-    parameters: RefCell<Option<Vec<Rc<Symbol>>>>,
+    parameters: Option<Vec<Rc<Symbol>>>,
     pub this_parameter: Option<Rc<Symbol>>,
     pub resolved_return_type: Option<Rc<Type>>,
     pub resolved_type_predicate: Option<TypePredicate>,
-    min_argument_count: Cell<Option<usize>>,
+    min_argument_count: Option<usize>,
     pub resolved_min_argument_count: Option<usize>,
 }
 
@@ -71,31 +71,29 @@ impl Signature {
             flags,
             declaration: None,
             type_parameters: None,
-            parameters: RefCell::new(None),
+            parameters: None,
             this_parameter: None,
             resolved_return_type: None,
             resolved_type_predicate: None,
-            min_argument_count: Cell::new(None),
+            min_argument_count: None,
             resolved_min_argument_count: None,
         }
     }
 
-    pub fn parameters(&self) -> Ref<Vec<Rc<Symbol>>> {
-        Ref::map(self.parameters.borrow(), |parameters| {
-            parameters.as_ref().unwrap()
-        })
+    pub fn parameters(&self) -> &[Rc<Symbol>] {
+        self.parameters.as_ref().unwrap()
     }
 
-    pub fn set_parameters(&self, parameters: Vec<Rc<Symbol>>) {
-        *self.parameters.borrow_mut() = Some(parameters);
+    pub fn set_parameters(&mut self, parameters: Vec<Rc<Symbol>>) {
+        self.parameters = Some(parameters);
     }
 
     pub fn min_argument_count(&self) -> usize {
-        self.min_argument_count.get().unwrap()
+        self.min_argument_count.unwrap()
     }
 
-    pub fn set_min_argument_count(&self, min_argument_count: usize) {
-        self.min_argument_count.set(Some(min_argument_count));
+    pub fn set_min_argument_count(&mut self, min_argument_count: usize) {
+        self.min_argument_count = Some(min_argument_count);
     }
 }
 

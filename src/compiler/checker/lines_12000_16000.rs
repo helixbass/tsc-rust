@@ -114,7 +114,7 @@ impl TypeChecker {
                         param_symbol.escaped_name(),
                         SymbolFlags::Value,
                         None,
-                        None,
+                        Option::<Rc<Node>>::None,
                         false,
                         None,
                     );
