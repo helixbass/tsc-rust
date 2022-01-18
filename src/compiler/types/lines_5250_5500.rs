@@ -2,20 +2,14 @@
 
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::fmt;
-use std::ops::BitAndAssign;
-use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseType, DiagnosticCollection, ModuleSpecifierResolutionHost, Node, NodeId, PseudoBigInt,
-    RelationComparisonResult, ResolvedTypeInterface, SourceFile, Symbol, SymbolTable,
-    SymbolTracker, Type, TypeChecker, TypeInterface,
+    BaseType, Node, PseudoBigInt, ResolvedTypeInterface, Symbol, SymbolTable, Type, TypeChecker,
+    TypeInterface,
 };
-use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
-use local_macros::{ast_type, enum_unwrapped, symbol_type, type_type};
+use crate::{Number, WeakSelf};
+use local_macros::type_type;
 
 pub trait LiteralTypeInterface: TypeInterface {
     fn fresh_type(&self) -> Option<&Weak<Type>>;

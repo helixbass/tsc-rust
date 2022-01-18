@@ -1,23 +1,18 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::RefCell;
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::fmt;
-use std::ops::BitAndAssign;
-use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseInterfaceType, BigIntLiteralType, DiagnosticCollection, InterfaceType, LiteralType,
-    ModuleSpecifierResolutionHost, Node, NodeId, NumberLiteralType, ObjectFlagsTypeInterface,
-    ObjectType, PseudoBigInt, RelationComparisonResult, ResolvableTypeInterface,
-    ResolvedTypeInterface, SourceFile, StringLiteralType, Symbol, SymbolTracker, TypeParameter,
-    TypeReference, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
+    BaseInterfaceType, BigIntLiteralType, InterfaceType, LiteralType, NumberLiteralType,
+    ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface, ResolvedTypeInterface,
+    StringLiteralType, Symbol, TypeParameter, TypeReference, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface,
 };
-use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
-use local_macros::{ast_type, enum_unwrapped, symbol_type, type_type};
+use crate::WeakSelf;
+use local_macros::{enum_unwrapped, type_type};
 
 pub struct InternalSymbolName;
 

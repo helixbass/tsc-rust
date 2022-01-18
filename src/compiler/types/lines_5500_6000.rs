@@ -1,20 +1,13 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::HashMap;
+use std::cell::{RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::BitAndAssign;
-use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
-use super::{
-    BaseType, DiagnosticCollection, ModuleSpecifierResolutionHost, Node, NodeId, PseudoBigInt,
-    RelationComparisonResult, SourceFile, Symbol, SymbolTable, SymbolTracker, Type, TypeChecker,
-};
-use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
-use local_macros::{ast_type, enum_unwrapped, symbol_type, type_type};
+use super::{BaseType, SourceFile, Symbol, SymbolTable, Type, TypeChecker};
+use local_macros::{enum_unwrapped, type_type};
 
 pub trait ResolvedTypeInterface {
     fn members(&self) -> Rc<RefCell<SymbolTable>>;

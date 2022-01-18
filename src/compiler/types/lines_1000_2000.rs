@@ -1,22 +1,14 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::fmt;
-use std::ops::BitAndAssign;
 use std::ops::Deref;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use super::{
     ArrayLiteralExpression, BaseGenericNamedDeclaration, BaseLiteralLikeNode, BaseNode,
-    BinaryExpression, Diagnostic, HasExpressionInitializerInterface, HasTypeInterface,
-    LiteralLikeNode, Node, NodeInterface, ObjectLiteralExpression, Symbol, SymbolTable, SyntaxKind,
-    TemplateExpression, TypeCheckerHost, __String,
+    BinaryExpression, HasExpressionInitializerInterface, HasTypeInterface, LiteralLikeNode, Node,
+    NodeInterface, ObjectLiteralExpression, SyntaxKind, TemplateExpression, __String,
 };
-use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
-use local_macros::{ast_type, enum_unwrapped, symbol_type, type_type};
+use local_macros::ast_type;
 
 #[derive(Clone, Debug)]
 pub struct NodeArray {

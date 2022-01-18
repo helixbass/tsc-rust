@@ -1,22 +1,16 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::fmt;
-use std::ops::BitAndAssign;
-use std::ops::Deref;
-use std::rc::{Rc, Weak};
+use std::cell::{Ref, RefCell};
+use std::rc::Rc;
 
 use super::{
     BaseNamedDeclaration, BaseNode, BindingLikeDeclarationInterface, Diagnostic, Expression,
     FunctionDeclaration, HasExpressionInitializerInterface, HasTypeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Path, StringLiteral, Symbol,
-    SymbolTable, TypeCheckerHost, VariableLikeDeclarationInterface, __String,
+    TypeCheckerHost, VariableLikeDeclarationInterface,
 };
-use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
-use local_macros::{ast_type, enum_unwrapped, symbol_type, type_type};
+use local_macros::ast_type;
 
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression")]
@@ -69,7 +63,7 @@ impl LiteralLikeNodeInterface for BaseLiteralLikeNode {
     }
 
     fn is_unterminated(&self) -> Option<bool> {
-        self.is_unterminated.clone()
+        self.is_unterminated
     }
 
     fn set_is_unterminated(&mut self, is_unterminated: Option<bool>) {
@@ -77,7 +71,7 @@ impl LiteralLikeNodeInterface for BaseLiteralLikeNode {
     }
 
     fn has_extended_unicode_escape(&self) -> Option<bool> {
-        self.has_extended_unicode_escape.clone()
+        self.has_extended_unicode_escape
     }
 
     fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>) {

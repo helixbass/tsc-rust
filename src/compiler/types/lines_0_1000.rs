@@ -2,24 +2,17 @@
 
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::fmt;
-use std::ops::BitAndAssign;
-use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    Decorator, Diagnostic, Expression, HasTypeArgumentsInterface, HasTypeParametersInterface,
-    Identifier, LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray,
-    NamedDeclarationInterface, NodeArray, ObjectLiteralExpression, ParameterDeclaration,
-    PropertyAssignment, SignatureDeclarationBase, SourceFile, Statement, Symbol, SymbolTable,
-    TemplateSpan, TypeAliasDeclaration, TypeCheckerHost, TypeElement, TypeNode,
-    TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
-    VariableDeclarationList, __String,
+    Decorator, Expression, HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier,
+    LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, NamedDeclarationInterface,
+    NodeArray, ObjectLiteralExpression, ParameterDeclaration, PropertyAssignment,
+    SignatureDeclarationBase, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
+    TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
+    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
 };
-use crate::{NodeBuilder, Number, SortedArray, WeakSelf};
-use local_macros::{ast_type, enum_unwrapped, symbol_type, type_type};
+use local_macros::{ast_type, enum_unwrapped};
 
 #[derive(Debug)]
 pub struct Path(String);
@@ -527,11 +520,11 @@ impl NodeInterface for BaseNode {
     }
 
     fn maybe_id(&self) -> Option<NodeId> {
-        self.id.get().clone()
+        self.id.get()
     }
 
     fn id(&self) -> NodeId {
-        self.id.get().clone().unwrap()
+        self.id.get().unwrap()
     }
 
     fn set_id(&self, id: NodeId) {
