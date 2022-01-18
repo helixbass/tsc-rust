@@ -7,10 +7,7 @@ use std::convert::TryFrom;
 use std::iter::FromIterator;
 
 use super::code_point_at;
-use crate::{
-    position_is_synthesized, CharacterCodes, Debug_, DiagnosticMessage, Diagnostics, SyntaxKind,
-    TokenFlags,
-};
+use crate::{position_is_synthesized, CharacterCodes, DiagnosticMessage, SyntaxKind, TokenFlags};
 
 pub type ErrorCallback<'callback> = &'callback dyn Fn(&DiagnosticMessage, usize);
 

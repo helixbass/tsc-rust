@@ -1,16 +1,7 @@
 #![allow(non_upper_case_globals)]
 
-use std::array::IntoIter;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::iter::FromIterator;
-
 use super::{is_identifier_part, is_identifier_start, ErrorCallback, Scanner};
-use crate::{
-    position_is_synthesized, CharacterCodes, Debug_, DiagnosticMessage, Diagnostics, SyntaxKind,
-    TokenFlags,
-};
+use crate::{Debug_, SyntaxKind};
 
 impl Scanner {
     pub(super) fn scan_identifier(&self, start_character: char) -> Option<SyntaxKind> {
@@ -69,14 +60,14 @@ impl Scanner {
 
     pub(super) fn speculation_helper<TReturn, TCallback: FnOnce() -> Option<TReturn>>(
         &self,
-        mut callback: TCallback,
+        callback: TCallback,
         is_lookahead: bool,
     ) -> Option<TReturn> {
         let save_pos = self.pos();
         let save_start_pos = self.start_pos();
         let save_token_pos = self.token_pos();
         let save_token = self.token();
-        let save_token_value = self.token_value().to_string();
+        let save_token_value = self.token_value();
         let save_token_flags = self.token_flags();
         let result = callback();
 

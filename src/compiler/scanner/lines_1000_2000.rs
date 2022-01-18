@@ -1,19 +1,10 @@
 #![allow(non_upper_case_globals)]
 
-use std::array::IntoIter;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::iter::FromIterator;
-
 use super::{
     code_point_at, hex_digits_to_u32, is_code_point, is_digit, is_hex_digit, is_line_break,
     text_to_keyword, utf16_encode_as_string, ErrorCallback, Scanner,
 };
-use crate::{
-    position_is_synthesized, CharacterCodes, Debug_, DiagnosticMessage, Diagnostics, SyntaxKind,
-    TokenFlags,
-};
+use crate::{CharacterCodes, DiagnosticMessage, Diagnostics, SyntaxKind, TokenFlags};
 
 impl Scanner {
     pub(super) fn error(
@@ -72,7 +63,7 @@ impl Scanner {
             let type_ = self.check_big_int_suffix();
             ScanNumberReturn {
                 type_,
-                value: self.token_value().to_string(),
+                value: self.token_value(),
             }
         }
     }
