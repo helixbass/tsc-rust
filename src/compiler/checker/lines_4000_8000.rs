@@ -53,13 +53,13 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn create_object_type(
+    pub(super) fn create_object_type<TSymbol: Borrow<Symbol>>(
         &self,
         object_flags: ObjectFlags,
-        symbol: &Symbol,
+        symbol: Option<TSymbol>,
     ) -> BaseObjectType {
         let mut type_ = self.create_type(TypeFlags::Object);
-        type_.set_symbol(symbol.symbol_wrapper());
+        type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         let type_ = BaseObjectType::new(type_, object_flags);
         type_
     }
@@ -136,9 +136,9 @@ impl TypeChecker {
         // type_
     }
 
-    pub(super) fn create_anonymous_type(
+    pub(super) fn create_anonymous_type<TSymbol: Borrow<Symbol>>(
         &self,
-        symbol: &Symbol,
+        symbol: Option<TSymbol>,
         members: Rc<RefCell<SymbolTable>>,
     ) -> BaseObjectType {
         let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);

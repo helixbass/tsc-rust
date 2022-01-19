@@ -11,15 +11,15 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    find_ancestor, is_function_like_or_class_static_block_declaration, ModifierFlags, NodeArray,
-    Signature, SignatureFlags, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags,
-    __String, compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
-    escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
-    insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
-    CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic, DiagnosticCollection,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    find_ancestor, is_function_like_or_class_static_block_declaration, is_jsdoc_signature,
+    ModifierFlags, NodeArray, Signature, SignatureFlags, SymbolTracker, SymbolWriter, SyntaxKind,
+    TextSpan, TypeFlags, __String, compare_strings_case_sensitive, compare_values,
+    create_text_span_from_bounds, escape_leading_underscores, for_each, get_combined_node_flags,
+    get_name_of_declaration, insert_sorted, is_big_int_literal, is_member_name,
+    is_type_alias_declaration, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitTextWriter, Expression,
     LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
     PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
@@ -138,7 +138,7 @@ fn get_text_of_node_from_source_text<TNode: NodeInterface>(
     include_trivia: Option<bool>,
 ) -> String {
     let include_trivia = include_trivia.unwrap_or(false);
-    if node_is_missing(node) {
+    if node_is_missing(Some(node.node_wrapper())) {
         return "".to_string();
     }
 
@@ -302,7 +302,11 @@ pub fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceF
     parent.as_source_file().clone()
 }
 
-pub fn node_is_missing<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn node_is_missing<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
+    if node.is_none() {
+        return false;
+    }
+    let node = node.unwrap().borrow();
     node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
 }
 
@@ -389,6 +393,15 @@ pub fn is_external_or_common_js_module(file: &SourceFile) -> bool {
     false
 }
 
+pub fn is_import_call(n: &Node) -> bool {
+    match n {
+        Node::Expression(Expression::CallExpression(call_expression)) => {
+            call_expression.expression.kind() == SyntaxKind::ImportKeyword
+        }
+        _ => false,
+    }
+}
+
 pub fn get_containing_function_or_class_static_block<TNode: NodeInterface>(
     node: &TNode,
 ) -> Option<Rc<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
@@ -447,6 +460,59 @@ fn walk_up_parenthesized_expressions<TNode: NodeInterface>(node: &TNode) -> Opti
 
 pub fn is_keyword(token: SyntaxKind) -> bool {
     SyntaxKind::FirstKeyword <= token && token <= SyntaxKind::LastKeyword
+}
+
+bitflags! {
+    pub struct FunctionFlags: u32 {
+        const Normal = 0;
+        const Generator = 1 << 0;
+        const Async = 1 << 1;
+        const Invalid = 1 << 2;
+        const AsyncGenerator = Self::Async.bits | Self::Generator.bits;
+    }
+}
+
+pub fn get_function_flags<TNodeRef: Borrow<Node>>(
+    node: Option<TNodeRef /*SignatureDeclaration*/>,
+) -> FunctionFlags {
+    if node.is_none() {
+        return FunctionFlags::Invalid;
+    }
+    let node = node.unwrap().borrow();
+
+    let mut flags = FunctionFlags::Normal;
+    match node.kind() {
+        SyntaxKind::FunctionDeclaration
+        | SyntaxKind::FunctionExpression
+        | SyntaxKind::MethodDeclaration => {
+            if node
+                .as_function_like_declaration()
+                .maybe_asterisk_token()
+                .is_some()
+            {
+                flags |= FunctionFlags::Generator;
+            }
+            if has_syntactic_modifier(node, ModifierFlags::Async) {
+                flags |= FunctionFlags::Async;
+            }
+        }
+        SyntaxKind::ArrowFunction => {
+            if has_syntactic_modifier(node, ModifierFlags::Async) {
+                flags |= FunctionFlags::Async;
+            }
+        }
+        _ => (),
+    }
+
+    if node
+        .maybe_as_function_like_declaration()
+        .and_then(|node| node.maybe_body())
+        .is_none()
+    {
+        flags |= FunctionFlags::Invalid;
+    }
+
+    flags
 }
 
 pub fn has_dynamic_name<TNode: NodeInterface>(declaration: &TNode /*Declaration*/) -> bool {
@@ -678,6 +744,64 @@ pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeN
         .maybe_as_has_type()
         .and_then(|has_type| has_type.maybe_type());
     type_
+}
+
+pub fn get_effective_return_type_node(
+    node: &Node, /*SignatureDeclaration | JSDocSignature*/
+) -> Option<Rc<Node /*TypeNode*/>> {
+    if is_jsdoc_signature(node) {
+        unimplemented!()
+    } else {
+        node.as_signature_declaration().maybe_type().or_else(|| {
+            if false {
+                unimplemented!()
+            } else {
+                None
+            }
+        })
+    }
+}
+
+fn has_syntactic_modifier(node: &Node, flags: ModifierFlags) -> bool {
+    get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
+}
+
+fn get_selected_syntactic_modifier_flags(node: &Node, flags: ModifierFlags) -> ModifierFlags {
+    get_syntactic_modifier_flags(node) & flags
+}
+
+fn get_modifier_flags_worker(
+    node: &Node,
+    include_jsdoc: bool,
+    always_include_jsdoc: Option<bool>,
+) -> ModifierFlags {
+    if node.kind() >= SyntaxKind::FirstToken && node.kind() <= SyntaxKind::LastToken {
+        return ModifierFlags::None;
+    }
+
+    if !node
+        .modifier_flags_cache()
+        .intersects(ModifierFlags::HasComputedFlags)
+    {
+        node.set_modifier_flags_cache(
+            get_syntactic_modifier_flags_no_cache(node) | ModifierFlags::HasComputedFlags,
+        );
+    }
+
+    node.modifier_flags_cache()
+        & !(ModifierFlags::HasComputedFlags | ModifierFlags::HasComputedJSDocModifiers)
+}
+
+fn get_syntactic_modifier_flags(node: &Node) -> ModifierFlags {
+    get_modifier_flags_worker(node, false, None)
+}
+
+fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
+    let mut flags = modifiers_to_flags(node.maybe_modifiers());
+    if node.flags().intersects(NodeFlags::NestedNamespace) || false {
+        flags |= ModifierFlags::Export;
+    }
+    flags
 }
 
 pub fn modifiers_to_flags(modifiers: Option<&NodeArray /*Modifier[]*/>) -> ModifierFlags {

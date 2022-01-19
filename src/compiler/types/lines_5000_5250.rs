@@ -225,7 +225,7 @@ pub trait TypeInterface {
     fn id(&self) -> TypeId;
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
-    fn set_symbol(&mut self, symbol: Rc<Symbol>);
+    fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>);
 }
 
 #[derive(Clone, Debug)]
@@ -277,8 +277,8 @@ impl TypeInterface for BaseType {
         self.symbol.as_ref().unwrap().clone()
     }
 
-    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
-        self.symbol = Some(symbol);
+    fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>) {
+        self.symbol = symbol;
     }
 }
 

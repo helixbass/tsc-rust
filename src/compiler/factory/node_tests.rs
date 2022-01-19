@@ -59,3 +59,7 @@ pub fn is_property_assignment<TNode: NodeInterface>(node: &TNode) -> bool {
 pub fn is_source_file<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::SourceFile
 }
+
+pub fn is_jsdoc_signature<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.kind() == SyntaxKind::JSDocSignature
+}

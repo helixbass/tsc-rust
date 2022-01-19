@@ -261,6 +261,16 @@ impl ObjectLiteralExpression {
 }
 
 #[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct CallExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*LeftHandSideExpression*/>,
+    pub question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    pub arguments: NodeArray, /*<Expression>*/
+}
+
+#[derive(Debug)]
 #[ast_type]
 pub enum Statement {
     FunctionDeclaration(FunctionDeclaration),

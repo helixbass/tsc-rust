@@ -253,12 +253,14 @@ pub struct Decorator {
 }
 
 #[derive(Debug)]
-#[ast_type(interfaces = "NamedDeclarationInterface, SignatureDeclarationInterface")]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+)]
 pub enum SignatureDeclarationBase {
     FunctionLikeDeclarationBase(FunctionLikeDeclarationBase),
 }
 
-pub trait SignatureDeclarationInterface {
+pub trait SignatureDeclarationInterface: NamedDeclarationInterface + HasTypeInterface {
     fn parameters(&self) -> &NodeArray /*<ParameterDeclaration>*/;
 }
 
@@ -649,6 +651,7 @@ pub enum Expression {
     TemplateExpression(TemplateExpression),
     ArrayLiteralExpression(ArrayLiteralExpression),
     ObjectLiteralExpression(ObjectLiteralExpression),
+    CallExpression(CallExpression),
 }
 
 impl From<BaseNode> for Expression {

@@ -355,6 +355,46 @@ impl TypeChecker {
         self.get_type_from_type_node(node);
     }
 
+    pub(super) fn is_awaited_type_instantiation(&self, type_: &Type) -> bool {
+        if type_.flags().intersects(TypeFlags::Conditional) {
+            unimplemented!()
+        }
+        false
+    }
+
+    pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Union) {
+            self.map_type(
+                type_,
+                &mut |type_| Some(self.unwrap_awaited_type(type_)),
+                None,
+            )
+            .unwrap()
+        } else if self.is_awaited_type_instantiation(type_) {
+            unimplemented!()
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
+    pub(super) fn get_awaited_type_no_alias<TErrorNode: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        error_node: Option<TErrorNode>,
+        diagnostic_message: Option<&DiagnosticMessage>,
+        args: Option<Vec<String>>,
+    ) -> Option<Rc<Type>> {
+        if self.is_type_any(Some(type_)) {
+            return Some(type_.type_wrapper());
+        }
+
+        if self.is_awaited_type_instantiation(type_) {
+            return Some(type_.type_wrapper());
+        }
+
+        unimplemented!()
+    }
+
     pub(super) fn check_function_declaration(&mut self, node: &FunctionDeclaration) {
         if self.produce_diagnostics {
             self.check_function_or_method_declaration(&node.node_wrapper());
@@ -486,7 +526,12 @@ impl TypeChecker {
     pub(super) fn check_return_statement(&self, node: &ReturnStatement) {
         let container = get_containing_function_or_class_static_block(node);
 
-        let signature = self.get_signature_from_declaration(container);
+        if container.is_none() {
+            unimplemented!()
+        }
+        let container = container.unwrap();
+
+        let signature = self.get_signature_from_declaration(&container);
         let return_type = self.get_return_type_of_signature(signature);
         let function_flags = self.get_function_flags(container);
         if self.strict_null_checks

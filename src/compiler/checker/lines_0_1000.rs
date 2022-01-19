@@ -7,10 +7,10 @@ use std::rc::Rc;
 
 use super::create_node_builder;
 use crate::{
-    __String, create_diagnostic_collection, create_symbol_table, object_allocator,
-    DiagnosticCollection, FreshableIntrinsicType, NodeId, NodeInterface, Number, ObjectFlags,
-    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker,
-    TypeCheckerHost, TypeFlags,
+    BaseInterfaceType, GenericableTypeInterface, __String, create_diagnostic_collection,
+    create_symbol_table, object_allocator, DiagnosticCollection, FreshableIntrinsicType, NodeId,
+    NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface,
+    SymbolTable, Type, TypeChecker, TypeCheckerHost, TypeFlags,
 };
 
 thread_local! {
@@ -136,6 +136,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         any_type: None,
         error_type: None,
+        unknown_type: None,
         undefined_type: None,
         null_type: None,
         string_type: None,
@@ -146,11 +147,17 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         false_type: None,
         regular_false_type: None,
         boolean_type: None,
+        void_type: None,
         never_type: None,
         number_or_big_int_type: None,
         template_constraint_type: None,
 
+        empty_generic_type: None,
+
         global_array_type: None,
+
+        deferred_global_promise_type: RefCell::new(None),
+        deferred_global_promise_constructor_symbol: RefCell::new(None),
 
         symbol_links: RefCell::new(HashMap::new()),
         node_links: RefCell::new(HashMap::new()),
@@ -177,6 +184,11 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     type_checker.error_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Any, "error")
+            .into(),
+    );
+    type_checker.unknown_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Unknown, "unknown")
             .into(),
     );
     type_checker.undefined_type = Some(
@@ -261,6 +273,11 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         ],
         None,
     ));
+    type_checker.void_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Void, "void")
+            .into(),
+    );
     type_checker.never_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Never, "never")
@@ -281,6 +298,11 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         ],
         None,
     ));
+    let empty_generic_type =
+        type_checker.create_anonymous_type(Option::<&Symbol>::None, type_checker.empty_symbols());
+    let empty_generic_type = BaseInterfaceType::new(empty_generic_type, None, None, None, None);
+    empty_generic_type.genericize(HashMap::new());
+    type_checker.empty_generic_type = Some(empty_generic_type.into());
     type_checker.initialize_type_checker(host);
     type_checker
 }
@@ -338,6 +360,10 @@ impl TypeChecker {
         self.error_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn unknown_type(&self) -> Rc<Type> {
+        self.unknown_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn undefined_type(&self) -> Rc<Type> {
         self.undefined_type.as_ref().unwrap().clone()
     }
@@ -378,6 +404,10 @@ impl TypeChecker {
         self.boolean_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn void_type(&self) -> Rc<Type> {
+        self.void_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn never_type(&self) -> Rc<Type> {
         self.never_type.as_ref().unwrap().clone()
     }
@@ -388,6 +418,10 @@ impl TypeChecker {
 
     pub(super) fn template_constraint_type(&self) -> Rc<Type> {
         self.template_constraint_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn empty_generic_type(&self) -> Rc<Type> {
+        self.empty_generic_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn global_array_type(&self) -> Rc<Type> {

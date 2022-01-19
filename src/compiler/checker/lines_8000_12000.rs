@@ -88,6 +88,16 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_type_any<TTypeRef: Borrow<Type>>(&self, type_: Option<TTypeRef>) -> bool {
+        match type_ {
+            Some(type_) => {
+                let type_ = type_.borrow();
+                type_.flags().intersects(TypeFlags::Any)
+            }
+            None => false,
+        }
+    }
+
     pub(super) fn add_optionality(
         &self,
         type_: &Type,

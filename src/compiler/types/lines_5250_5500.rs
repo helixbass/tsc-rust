@@ -2,6 +2,7 @@
 
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{
@@ -380,6 +381,8 @@ pub struct BaseInterfaceType {
     pub local_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub this_type: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
     declared_properties: RefCell<Option<Vec<Rc<Symbol>>>>,
+    instantiations: RefCell<Option<HashMap<String, Rc<Type /*TypeReference*/>>>>,
+    variances: RefCell<Option<Vec<VarianceFlags>>>,
 }
 
 impl BaseInterfaceType {
@@ -397,6 +400,8 @@ impl BaseInterfaceType {
             local_type_parameters,
             this_type: RefCell::new(this_type),
             declared_properties: RefCell::new(None),
+            instantiations: RefCell::new(None),
+            variances: RefCell::new(None),
         }
     }
 }
@@ -414,6 +419,28 @@ impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
 pub trait InterfaceTypeWithDeclaredMembersInterface {
     fn maybe_declared_properties(&self) -> Ref<Option<Vec<Rc<Symbol>>>>;
     fn set_declared_properties(&self, declared_properties: Vec<Rc<Symbol>>);
+}
+
+impl GenericableTypeInterface for BaseInterfaceType {
+    fn genericize(&self, instantiations: HashMap<String, Rc<Type /*TypeReference*/>>) {
+        *self.instantiations.borrow_mut() = Some(instantiations);
+    }
+}
+
+impl GenericTypeInterface for BaseInterfaceType {
+    fn instantiations(&self) -> RefMut<HashMap<String, Rc<Type /*TypeReference*/>>> {
+        RefMut::map(self.instantiations.borrow_mut(), |instantiations| {
+            instantiations.as_mut().unwrap()
+        })
+    }
+
+    fn maybe_variances(&self) -> RefMut<Option<Vec<VarianceFlags>>> {
+        self.variances.borrow_mut()
+    }
+
+    fn set_variances(&self, variances: Vec<VarianceFlags>) {
+        *self.variances.borrow_mut() = Some(variances);
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -441,6 +468,30 @@ impl TypeReference {
             resolved_type_arguments: RefCell::new(resolved_type_arguments),
         }
     }
+}
+
+bitflags! {
+    pub struct VarianceFlags: u32 {
+        const Invariant = 0;
+        const Covariant = 1 << 0;
+        const Contravariant = 1 << 1;
+        const Bivariant = Self::Covariant.bits | Self::Contravariant.bits;
+        const Independent = 1 << 2;
+        const VarianceMask = Self::Invariant.bits | Self::Covariant.bits | Self::Contravariant.bits | Self::Independent.bits;
+        const Unmeasurable = 1 << 3;
+        const Unreliable = 1 << 4;
+        const AllowsStructuralFallback = Self::Unmeasurable.bits | Self::Unreliable.bits;
+    }
+}
+
+pub trait GenericableTypeInterface: TypeInterface {
+    fn genericize(&self, instantiations: HashMap<String, Rc<Type /*TypeReference*/>>);
+}
+
+pub trait GenericTypeInterface: TypeInterface {
+    fn instantiations(&self) -> RefMut<HashMap<String, Rc<Type /*TypeReference*/>>>;
+    fn maybe_variances(&self) -> RefMut<Option<Vec<VarianceFlags>>>;
+    fn set_variances(&self, variances: Vec<VarianceFlags>);
 }
 
 pub trait UnionOrIntersectionTypeInterface: TypeInterface {

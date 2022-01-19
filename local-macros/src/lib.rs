@@ -85,6 +85,14 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_flags(flags)
                     }
 
+                    fn modifier_flags_cache(&self) -> crate::ModifierFlags {
+                        self.#first_field_name.modifier_flags_cache()
+                    }
+
+                    fn set_modifier_flags_cache(&self, flags: crate::ModifierFlags) {
+                        self.#first_field_name.set_modifier_flags_cache(flags)
+                    }
+
                     fn maybe_decorators(&self) -> ::std::cell::Ref<::std::option::Option<crate::NodeArray>> {
                         self.#first_field_name.maybe_decorators()
                     }
@@ -339,6 +347,18 @@ fn get_ast_enum_interface_impl(
                     fn set_flags(&self, flags: crate::NodeFlags) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_flags(flags)),*
+                        }
+                    }
+
+                    fn modifier_flags_cache(&self) -> crate::ModifierFlags {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.modifier_flags_cache()),*
+                        }
+                    }
+
+                    fn set_modifier_flags_cache(&self, flags: crate::ModifierFlags) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_modifier_flags_cache(flags)),*
                         }
                     }
 
@@ -802,7 +822,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.symbol()
                     }
 
-                    fn set_symbol(&mut self, symbol: ::std::rc::Rc<crate::Symbol>) {
+                    fn set_symbol(&mut self, symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
                         self.#first_field_name.set_symbol(symbol)
                     }
                 }
@@ -951,7 +971,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn set_symbol(&mut self, symbol: ::std::rc::Rc<crate::Symbol>) {
+                    fn set_symbol(&mut self, symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
                         }

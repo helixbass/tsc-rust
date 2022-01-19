@@ -5,13 +5,13 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
 use super::{
-    Decorator, Expression, HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier,
-    LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, NamedDeclarationInterface,
-    NodeArray, ObjectLiteralExpression, ParameterDeclaration, PropertyAssignment,
-    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
-    SymbolTable, TemplateSpan, TypeAliasDeclaration, TypeElement, TypeNode,
-    TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
-    VariableDeclarationList,
+    Decorator, Expression, FunctionLikeDeclarationInterface, HasTypeArgumentsInterface,
+    HasTypeParametersInterface, Identifier, LiteralLikeNodeInterface, MemberNameInterface,
+    ModifiersArray, NamedDeclarationInterface, NodeArray, ObjectLiteralExpression,
+    ParameterDeclaration, PropertyAssignment, SignatureDeclarationBase,
+    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
+    TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
+    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -205,6 +205,7 @@ impl SyntaxKind {
     pub const LastReservedWord: SyntaxKind = SyntaxKind::WithKeyword;
     pub const FirstKeyword: SyntaxKind = SyntaxKind::BreakKeyword;
     pub const LastKeyword: SyntaxKind = SyntaxKind::OfKeyword;
+    pub const FirstToken: SyntaxKind = SyntaxKind::Unknown;
     pub const LastToken: SyntaxKind = SyntaxKind::LastKeyword;
     pub const FirstLiteralToken: SyntaxKind = SyntaxKind::NumericLiteral;
     pub const LastLiteralToken: SyntaxKind = SyntaxKind::NoSubstitutionTemplateLiteral;
@@ -217,6 +218,7 @@ bitflags! {
         const None = 0;
         const Let = 1 << 0;
         const Const = 1 << 1;
+        const NestedNamespace = 1 << 2;
         const DisallowInContext = 1 << 12;
         const YieldContext = 1 << 13;
         const DecoratorContext = 1 << 14;
@@ -243,8 +245,11 @@ bitflags! {
         const Async = 1 << 8;
         const Default = 1 << 9;
         const Const = 1 << 11;
+        const HasComputedJSDocModifiers = 1 << 12;
 
+        const Deprecated = 1 << 13;
         const Override = 1 << 14;
+        const HasComputedFlags = 1 << 29;
     }
 }
 
@@ -261,6 +266,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn node_wrapper(&self) -> Rc<Node>;
     fn set_node_wrapper(&self, wrapper: Rc<Node>);
     fn kind(&self) -> SyntaxKind;
+    fn modifier_flags_cache(&self) -> ModifierFlags;
+    fn set_modifier_flags_cache(&self, flags: ModifierFlags);
     fn flags(&self) -> NodeFlags;
     fn set_flags(&self, flags: NodeFlags);
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>>;
@@ -420,6 +427,22 @@ impl Node {
         self.maybe_as_has_type().expect("Expected has type")
     }
 
+    pub fn maybe_as_function_like_declaration(
+        &self,
+    ) -> Option<&dyn FunctionLikeDeclarationInterface> {
+        match self {
+            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+                Some(function_declaration)
+            }
+            _ => None,
+        }
+    }
+
+    pub fn as_function_like_declaration(&self) -> &dyn FunctionLikeDeclarationInterface {
+        self.maybe_as_function_like_declaration()
+            .expect("Expected function like declaration")
+    }
+
     pub fn as_expression(&self) -> &Expression {
         // node_unwrapped!(self, Expression)
         enum_unwrapped!(self, [Node, Expression])
@@ -471,6 +494,7 @@ pub struct BaseNode {
     _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
     flags: Cell<NodeFlags>,
+    modifier_flags_cache: Cell<ModifierFlags>,
     pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
     pub modifiers: Option<ModifiersArray>,
     pub id: Cell<Option<NodeId>>,
@@ -487,6 +511,7 @@ impl BaseNode {
             _node_wrapper: RefCell::new(None),
             kind,
             flags: Cell::new(flags),
+            modifier_flags_cache: Cell::new(ModifierFlags::None),
             decorators: RefCell::new(None),
             modifiers: None,
             id: Cell::new(None),
@@ -523,6 +548,14 @@ impl NodeInterface for BaseNode {
 
     fn set_flags(&self, flags: NodeFlags) {
         self.flags.set(flags);
+    }
+
+    fn modifier_flags_cache(&self) -> ModifierFlags {
+        self.modifier_flags_cache.get()
+    }
+
+    fn set_modifier_flags_cache(&self, flags: ModifierFlags) {
+        self.modifier_flags_cache.set(flags);
     }
 
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>> {

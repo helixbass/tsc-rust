@@ -6,13 +6,14 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    append_if_unique, get_effective_type_parameter_declarations, is_binding_pattern, Signature,
-    SignatureFlags, UnionType, __String, binary_search_copy_key, compare_values, concatenate,
-    get_name_of_declaration, get_object_flags, map, unescape_leading_underscores, ArrayTypeNode,
-    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
-    UnionReduction, UnionTypeNode,
+    append_if_unique, get_effective_return_type_node, get_effective_type_parameter_declarations,
+    is_binding_pattern, node_is_missing, Signature, SignatureFlags, UnionType, __String,
+    binary_search_copy_key, compare_values, concatenate, get_name_of_declaration, get_object_flags,
+    map, unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType,
+    DiagnosticMessage, Diagnostics, Expression, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode, UnionReduction,
+    UnionTypeNode,
 };
 
 impl TypeChecker {
@@ -154,6 +155,66 @@ impl TypeChecker {
             links.borrow_mut().resolved_signature = Some(resolved_signature);
         }
         (*links).borrow().resolved_signature.clone().unwrap()
+    }
+
+    pub(super) fn get_signature_of_type_tag(
+        &self,
+        node: &Node, /*SignatureDeclaration | JSDocSignature*/
+    ) -> Option<Rc<Signature>> {
+        if !false {
+            return None;
+        }
+        unimplemented!()
+    }
+
+    pub(super) fn get_return_type_of_type_tag(
+        &self,
+        node: &Node, /*SignatureDeclaration | JSDocSignature*/
+    ) -> Option<Rc<Type>> {
+        let signature = self.get_signature_of_type_tag(node);
+        signature.map(|signature| self.get_return_type_of_signature(&signature))
+    }
+
+    pub(super) fn get_return_type_of_signature(&self, signature: &Signature) -> Rc<Type> {
+        if signature.resolved_return_type.borrow().is_none() {
+            let mut type_: Rc<Type> = if false {
+                unimplemented!()
+            } else {
+                let signature_declaration = signature.declaration.as_ref().unwrap();
+                self.get_return_type_from_annotation(signature_declaration)
+                    .unwrap_or_else(|| {
+                        if node_is_missing(
+                            signature_declaration
+                                .maybe_as_function_like_declaration()
+                                .and_then(|function_like_declaration| {
+                                    function_like_declaration.maybe_body()
+                                }),
+                        ) {
+                            self.any_type()
+                        } else {
+                            self.get_return_type_from_body(signature_declaration, None)
+                        }
+                    })
+            };
+            if signature.flags.intersects(SignatureFlags::IsInnerCallChain) {
+                type_ = self.add_optional_type_marker(type_);
+            } else if signature.flags.intersects(SignatureFlags::IsOuterCallChain) {
+                type_ = self.get_optional_type(&type_, None);
+            }
+            *signature.resolved_return_type.borrow_mut() = Some(type_);
+        }
+        signature.resolved_return_type.borrow().clone().unwrap()
+    }
+
+    pub(super) fn get_return_type_from_annotation(
+        &self,
+        declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
+    ) -> Option<Rc<Type>> {
+        let type_node = get_effective_return_type_node(declaration);
+        if let Some(type_node) = type_node {
+            return Some(self.get_type_from_type_node(&type_node));
+        }
+        self.get_return_type_of_type_tag(declaration)
     }
 
     pub(super) fn get_propagating_flags_of_types(
@@ -370,6 +431,22 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_global_value_symbol(
+        &self,
+        name: &__String,
+        report_errors: bool,
+    ) -> Option<Rc<Symbol>> {
+        self.get_global_symbol(
+            name,
+            SymbolFlags::Value,
+            if report_errors {
+                Some(Diagnostics::Cannot_find_global_value_0)
+            } else {
+                None
+            },
+        )
+    }
+
     pub(super) fn get_global_type_symbol(
         &self,
         name: &__String,
@@ -403,13 +480,51 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_global_type(&self, name: &__String, report_errors: bool) -> Option<Rc<Type>> {
+    pub(super) fn get_global_type(
+        &self,
+        name: &__String,
+        arity: usize,
+        report_errors: bool,
+    ) -> Option<Rc<Type>> {
         let symbol = self.get_global_type_symbol(name, report_errors);
         if true {
             Some(self.get_type_of_global_symbol(symbol))
         } else {
             None
         }
+    }
+
+    pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/> {
+        let deferred_global_promise_type_ref = self.deferred_global_promise_type.borrow_mut();
+        if let Some(deferred_global_promise_type) = deferred_global_promise_type_ref.as_ref() {
+            return deferred_global_promise_type.clone();
+        }
+        *deferred_global_promise_type_ref =
+            self.get_global_type(&__String::new("Promise".to_string()), 1, report_errors);
+        deferred_global_promise_type_ref.map_or_else(
+            || self.empty_generic_type(),
+            |deferred_global_promise_type| deferred_global_promise_type.clone(),
+        )
+    }
+
+    pub(super) fn get_global_promise_constructor_symbol(
+        &self,
+        report_errors: bool,
+    ) -> Option<Rc<Symbol>> {
+        let deferred_global_promise_constructor_symbol_ref =
+            self.deferred_global_promise_constructor_symbol.borrow_mut();
+        if let Some(deferred_global_promise_constructor_symbol) =
+            deferred_global_promise_constructor_symbol_ref.as_ref()
+        {
+            return Some(deferred_global_promise_constructor_symbol.clone());
+        }
+        *deferred_global_promise_constructor_symbol_ref =
+            self.get_global_value_symbol(&__String::new("Promise".to_string()), report_errors);
+        deferred_global_promise_constructor_symbol_ref.map(
+            |deferred_global_promise_constructor_symbol| {
+                deferred_global_promise_constructor_symbol.clone()
+            },
+        )
     }
 
     pub(super) fn get_array_or_tuple_target_type(
