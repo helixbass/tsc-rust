@@ -579,12 +579,12 @@ impl TypeChecker {
                 ),
             ));
             call_signatures = self.instantiate_signatures(
-                source_as_interface_type_with_declared_members.declared_call_signatures(),
-                mapper,
+                &*source_as_interface_type_with_declared_members.declared_call_signatures(),
+                mapper.as_ref().unwrap(),
             );
             construct_signatures = self.instantiate_signatures(
-                source_as_interface_type_with_declared_members.declared_construct_signatures(),
-                mapper,
+                &*source_as_interface_type_with_declared_members.declared_construct_signatures(),
+                mapper.as_ref().unwrap(),
             );
         }
         self.set_structured_type_members(
