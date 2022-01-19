@@ -11,7 +11,7 @@ pub use compiler::command_line_parser::parse_command_line;
 pub use compiler::core::{
     add_range, append, append_if_unique, binary_search, binary_search_copy_key,
     compare_strings_case_sensitive, compare_values, concatenate, every, first_defined,
-    first_or_undefined, for_each, insert_sorted, last_or_undefined, map, maybe_for_each,
+    first_or_undefined, for_each, insert_sorted, last_or_undefined, length, map, maybe_for_each,
     range_equals, some, sort_and_deduplicate,
 };
 pub use compiler::core_public::{Comparer, Comparison, SortedArray};

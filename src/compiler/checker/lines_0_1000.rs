@@ -90,6 +90,14 @@ bitflags! {
     }
 }
 
+bitflags! {
+    pub(super) struct MinArgumentCountFlags: u32 {
+        const None = 0;
+        const StrongArityForUntypedJS = 1 << 0;
+        const VoidIsNonOptional = 1 << 1;
+    }
+}
+
 pub(super) fn get_symbol_id(symbol: &Symbol) -> SymbolId {
     if symbol.maybe_id().is_none() {
         symbol.set_id(get_next_symbol_id());

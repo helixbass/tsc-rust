@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::BitAndAssign;
@@ -78,7 +78,7 @@ pub struct Signature {
     pub resolved_return_type: RefCell<Option<Rc<Type>>>,
     pub resolved_type_predicate: Option<TypePredicate>,
     min_argument_count: Option<usize>,
-    pub resolved_min_argument_count: Option<usize>,
+    pub resolved_min_argument_count: Cell<Option<usize>>,
     pub target: Option<Rc<Signature>>,
     pub mapper: Option<TypeMapper>,
 }
@@ -94,7 +94,7 @@ impl Signature {
             resolved_return_type: RefCell::new(None),
             resolved_type_predicate: None,
             min_argument_count: None,
-            resolved_min_argument_count: None,
+            resolved_min_argument_count: Cell::new(None),
             target: None,
             mapper: None,
         }
@@ -114,6 +114,19 @@ impl Signature {
 
     pub fn set_min_argument_count(&mut self, min_argument_count: usize) {
         self.min_argument_count = Some(min_argument_count);
+    }
+
+    pub fn maybe_resolved_min_argument_count(&self) -> Option<usize> {
+        self.resolved_min_argument_count.get()
+    }
+
+    pub fn resolved_min_argument_count(&self) -> usize {
+        self.resolved_min_argument_count.get().unwrap()
+    }
+
+    pub fn set_resolved_min_argument_count(&self, min_argument_count: usize) {
+        self.resolved_min_argument_count
+            .set(Some(min_argument_count));
     }
 }
 

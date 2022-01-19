@@ -4,15 +4,15 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::CheckMode;
+use super::{signature_has_rest_parameter, CheckMode, MinArgumentCountFlags};
 use crate::{
     is_function_expression_or_arrow_function, is_import_call, is_object_literal_method,
-    ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature, UnionReduction, __String,
-    create_symbol_table, get_effective_type_annotation_node, get_function_flags, get_object_flags,
-    has_initializer, is_object_literal_expression, HasExpressionInitializerInterface, Identifier,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
-    PropertyAssignment, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature, SignatureFlags, UnionReduction,
+    __String, create_symbol_table, get_effective_type_annotation_node, get_function_flags,
+    get_object_flags, has_initializer, is_object_literal_expression,
+    HasExpressionInitializerInterface, Identifier, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectLiteralExpression, PropertyAssignment, Symbol, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -345,6 +345,122 @@ impl TypeChecker {
             || type_.flags().intersects(TypeFlags::NonPrimitive)
             || (type_.flags().intersects(TypeFlags::Union) && unimplemented!())
             || (type_.flags().intersects(TypeFlags::Intersection) && unimplemented!())
+    }
+
+    pub(super) fn accepts_void(&self, t: &Type) -> bool {
+        t.flags().intersects(TypeFlags::Void)
+    }
+
+    pub(super) fn get_type_of_parameter(&self, symbol: &Symbol) -> Rc<Type> {
+        let type_ = self.get_type_of_symbol(symbol);
+        if self.strict_null_checks {
+            let declaration = symbol.maybe_value_declaration();
+            if matches!(&*declaration, Some(declaration) if has_initializer(&*declaration.upgrade().unwrap()))
+            {
+                return self.get_optional_type(&type_, None);
+            }
+        }
+        type_
+    }
+
+    pub(super) fn get_type_at_position(&self, signature: &Signature, pos: usize) -> Rc<Type> {
+        self.try_get_type_at_position(signature, pos)
+            .unwrap_or_else(|| self.any_type())
+    }
+
+    pub(super) fn try_get_type_at_position(
+        &self,
+        signature: &Signature,
+        pos: usize,
+    ) -> Option<Rc<Type>> {
+        let param_count = signature.parameters().len()
+            - if signature_has_rest_parameter(signature) {
+                1
+            } else {
+                0
+            };
+        if pos < param_count {
+            return Some(self.get_type_of_parameter(&signature.parameters()[pos]));
+        }
+        if signature_has_rest_parameter(signature) {
+            let rest_type = self.get_type_of_symbol(&signature.parameters()[param_count]);
+            let index = pos - param_count;
+            unimplemented!()
+        }
+        None
+    }
+
+    pub(super) fn get_parameter_count(&self, signature: &Signature) -> usize {
+        let length = signature.parameters().len();
+        if signature_has_rest_parameter(signature) {
+            let rest_type = self.get_type_of_symbol(&signature.parameters()[length - 1]);
+            if self.is_tuple_type(&rest_type) {
+                unimplemented!()
+            }
+        }
+        length
+    }
+
+    pub(super) fn get_min_argument_count(
+        &self,
+        signature: &Signature,
+        flags: Option<MinArgumentCountFlags>,
+    ) -> usize {
+        let strong_arity_for_untyped_js = match flags {
+            None => false,
+            Some(flags) => flags.intersects(MinArgumentCountFlags::StrongArityForUntypedJS),
+        };
+        let void_is_non_optional = match flags {
+            None => false,
+            Some(flags) => flags.intersects(MinArgumentCountFlags::VoidIsNonOptional),
+        };
+        if void_is_non_optional || signature.maybe_resolved_min_argument_count().is_none() {
+            let mut min_argument_count = None;
+            if signature_has_rest_parameter(signature) {
+                let rest_type = self
+                    .get_type_of_symbol(&signature.parameters()[signature.parameters().len() - 1]);
+                if self.is_tuple_type(&rest_type) {
+                    unimplemented!()
+                }
+            }
+            if min_argument_count.is_none() {
+                if !strong_arity_for_untyped_js
+                    && signature
+                        .flags
+                        .intersects(SignatureFlags::IsUntypedSignatureInJSFile)
+                {
+                    return 0;
+                }
+                min_argument_count = Some(signature.min_argument_count());
+            }
+            let mut min_argument_count = min_argument_count.unwrap();
+            if void_is_non_optional {
+                return min_argument_count;
+            }
+            let mut i = min_argument_count - 1;
+            while i >= 0 {
+                let type_ = self.get_type_at_position(signature, i);
+                if self
+                    .filter_type(&type_, TypeChecker::accepts_void)
+                    .flags()
+                    .intersects(TypeFlags::Never)
+                {
+                    break;
+                }
+                min_argument_count = i;
+                i -= 1;
+            }
+            signature.set_resolved_min_argument_count(min_argument_count);
+        }
+        signature.resolved_min_argument_count()
+    }
+    pub(super) fn has_effective_rest_parameter(&self, signature: &Signature) -> bool {
+        if signature_has_rest_parameter(signature) {
+            let rest_type =
+                self.get_type_of_symbol(&signature.parameters()[signature.parameters().len() - 1]);
+            return !self.is_tuple_type(&rest_type) || unimplemented!();
+        }
+        false
     }
 
     pub(super) fn create_promise_type(&self, promised_type: &Type) -> Rc<Type> {

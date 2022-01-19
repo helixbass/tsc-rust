@@ -239,6 +239,7 @@ bitflags! {
         const Class = 1 << 0;
         const Interface = 1 << 1;
         const Reference = 1 << 2;
+        const Tuple = 1 << 3;
         const Anonymous = 1 << 4;
         const Mapped = 1 << 5;
         const ObjectLiteral = 1 << 7;

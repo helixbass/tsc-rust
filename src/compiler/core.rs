@@ -4,6 +4,13 @@ use std::ptr;
 
 use crate::{Comparison, Debug_, SortedArray};
 
+pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
+    match array {
+        Some(array) => array.len(),
+        None => 0,
+    }
+}
+
 pub fn for_each<
     TCollection: IntoIterator,
     TReturn,

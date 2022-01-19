@@ -5,7 +5,8 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, for_each, is_external_or_common_js_module, Diagnostic, Node, NodeInterface,
-    NumericLiteral, SourceFile, Statement, TypeChecker, TypeCheckerHost, TypeElement, TypeNode,
+    NumericLiteral, Signature, SignatureFlags, SourceFile, Statement, TypeChecker, TypeCheckerHost,
+    TypeElement, TypeNode,
 };
 
 impl TypeChecker {
@@ -112,4 +113,8 @@ impl TypeChecker {
     pub(super) fn check_grammar_numeric_literal(&self, node: &NumericLiteral) -> bool {
         false
     }
+}
+
+pub(super) fn signature_has_rest_parameter(s: &Signature) -> bool {
+    s.flags.intersects(SignatureFlags::HasRestParameter)
 }
