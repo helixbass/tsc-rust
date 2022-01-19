@@ -432,7 +432,7 @@ pub fn is_variable_statement<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::VariableStatement
 }
 
-pub fn is_emty_statement<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_empty_statement<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::EmptyStatement
 }
 
