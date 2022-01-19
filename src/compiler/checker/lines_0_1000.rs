@@ -306,8 +306,12 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         ],
         None,
     ));
-    let empty_generic_type =
-        type_checker.create_anonymous_type(Option::<&Symbol>::None, type_checker.empty_symbols());
+    let empty_generic_type = type_checker.create_anonymous_type(
+        Option::<&Symbol>::None,
+        type_checker.empty_symbols(),
+        vec![],
+        vec![],
+    );
     let empty_generic_type = BaseInterfaceType::new(empty_generic_type, None, None, None, None);
     empty_generic_type.genericize(HashMap::new());
     type_checker.empty_generic_type = Some(empty_generic_type.into());

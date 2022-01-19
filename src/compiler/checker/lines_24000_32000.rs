@@ -236,9 +236,9 @@ impl TypeChecker {
         }
         let type_ = type_.unwrap();
         if !type_.flags().intersects(TypeFlags::Union) {
-            return self.get_contextual_call_signature(type_, node);
+            return self.get_contextual_call_signature(&type_, node);
         }
-        let mut signature_list: Option<Vec<Signature>> = None;
+        let mut signature_list: Option<Vec<Rc<Signature>>> = None;
         let types = type_.as_union_or_intersection_type_interface().types();
         for current in types {
             let signature = self.get_contextual_call_signature(current, node);
@@ -299,6 +299,8 @@ impl TypeChecker {
             let result = self.create_anonymous_type(
                 Some(node.symbol()),
                 Rc::new(RefCell::new(properties_table)),
+                vec![],
+                vec![],
             );
             result.set_object_flags(
                 result.object_flags()

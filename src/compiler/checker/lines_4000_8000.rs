@@ -147,9 +147,11 @@ impl TypeChecker {
         &self,
         symbol: Option<TSymbol>,
         members: Rc<RefCell<SymbolTable>>,
+        call_signatures: Vec<Rc<Signature>>,
+        construct_signatures: Vec<Rc<Signature>>,
     ) -> BaseObjectType {
         let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);
-        self.set_structured_type_members(&type_, members);
+        self.set_structured_type_members(&type_, members, call_signatures, construct_signatures);
         type_
     }
 

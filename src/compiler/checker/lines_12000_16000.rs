@@ -65,11 +65,13 @@ impl TypeChecker {
         kind: SignatureKind,
     ) -> Vec<Rc<Signature>> {
         if type_.flags().intersects(TypeFlags::StructuredType) {
-            let resolved = self.resolve_structured_type_members(type_);
+            let resolved = self
+                .resolve_structured_type_members(type_)
+                .as_resolved_type();
             return if kind == SignatureKind::Call {
-                resolved.call_signatures
+                resolved.call_signatures().clone()
             } else {
-                resolved.construct_signatures
+                resolved.construct_signatures().clone()
             };
         }
         vec![]
@@ -80,7 +82,7 @@ impl TypeChecker {
         type_: &Type,
         kind: SignatureKind,
     ) -> Vec<Rc<Signature>> {
-        self.get_signatures_of_structured_type(self.get_reduced_apparent_type(type_), kind)
+        self.get_signatures_of_structured_type(&self.get_reduced_apparent_type(type_), kind)
     }
 
     pub(super) fn get_type_parameters_from_declaration(

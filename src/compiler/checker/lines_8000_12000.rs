@@ -644,7 +644,7 @@ impl TypeChecker {
         sig.type_parameters = type_parameters;
         sig.set_parameters(parameters);
         sig.this_parameter = this_parameter;
-        sig.resolved_return_type = resolved_return_type;
+        *sig.resolved_return_type.borrow_mut() = resolved_return_type;
         sig.resolved_type_predicate = resolved_type_predicate;
         sig.set_min_argument_count(min_argument_count);
         sig
