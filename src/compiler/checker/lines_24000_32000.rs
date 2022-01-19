@@ -248,7 +248,7 @@ impl TypeChecker {
                         signature_list = Some(vec![signature]);
                     }
                     Some(signature_list) => {
-                        if !self.compare_signature_identical(
+                        if !self.compare_signatures_identical(
                             &signature_list[0],
                             signature,
                             false,

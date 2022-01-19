@@ -2,6 +2,7 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use super::NodeBuilderContext;
@@ -96,6 +97,11 @@ impl TypeChecker {
             }
             None => false,
         }
+    }
+
+    pub(super) fn is_error_type(&self, type_: &Type) -> bool {
+        ptr::eq(type_, &*self.error_type())
+            || type_.flags().intersects(TypeFlags::Any) && type_.maybe_alias_symbol().is_some()
     }
 
     pub(super) fn add_optionality(
@@ -718,5 +724,33 @@ impl TypeChecker {
         } else {
             self.get_properties_of_object_type(&type_)
         }
+    }
+
+    pub(super) fn get_constraint_of_type_parameter(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> Option<Rc<Type>> {
+        if self.has_non_circular_base_constraint(type_parameter) {
+            self.get_constraint_from_type_parameter(type_parameter)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn has_non_circular_base_constraint(
+        &self,
+        type_: &Type, /*InstantiableType*/
+    ) -> bool {
+        !Rc::ptr_eq(
+            &self.get_resolved_base_constraint(type_),
+            &self.circular_constraint_type(),
+        )
+    }
+
+    pub(super) fn get_resolved_base_constraint(
+        &self,
+        type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 }

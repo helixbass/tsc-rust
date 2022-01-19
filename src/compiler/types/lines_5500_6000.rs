@@ -39,6 +39,18 @@ impl TypeParameter {
         }
     }
 
+    pub fn maybe_constraint(&self) -> Option<Rc<Type>> {
+        self.constraint.borrow().map(|weak| weak.upgrade().unwrap())
+    }
+
+    pub fn set_constraint(&self, constraint: Rc<Type>) {
+        *self.constraint.borrow_mut() = Some(Rc::downgrade(&constraint));
+    }
+
+    pub fn maybe_mapper(&self) -> Ref<Option<TypeMapper>> {
+        self.mapper.borrow()
+    }
+
     pub fn set_mapper(&self, mapper: TypeMapper) {
         *self.mapper.borrow_mut() = Some(mapper);
     }

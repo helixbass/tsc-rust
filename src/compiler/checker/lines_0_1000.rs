@@ -170,6 +170,9 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         empty_generic_type: None,
 
+        no_constraint_type: None,
+        circular_constraint_type: None,
+
         global_array_type: None,
 
         deferred_global_promise_type: RefCell::new(None),
@@ -323,6 +326,17 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     let empty_generic_type = BaseInterfaceType::new(empty_generic_type, None, None, None, None);
     empty_generic_type.genericize(HashMap::new());
     type_checker.empty_generic_type = Some(empty_generic_type.into());
+
+    type_checker.no_constraint_type = Some(
+        type_checker
+            .create_anonymous_type(None, type_checker.empty_symbols(), vec![], vec![])
+            .into(),
+    );
+    type_checker.circular_constraint_type = Some(
+        type_checker
+            .create_anonymous_type(None, type_checker.empty_symbols(), vec![], vec![])
+            .into(),
+    );
     type_checker.initialize_type_checker(host);
     type_checker
 }
@@ -442,6 +456,14 @@ impl TypeChecker {
 
     pub(super) fn empty_generic_type(&self) -> Rc<Type> {
         self.empty_generic_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn no_constraint_type(&self) -> Rc<Type> {
+        self.no_constraint_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn circular_constraint_type(&self) -> Rc<Type> {
+        self.circular_constraint_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn global_array_type(&self) -> Rc<Type> {

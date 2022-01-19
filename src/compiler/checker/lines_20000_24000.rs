@@ -63,7 +63,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn compare_signature_identical<TCompareTypes: FnMut(&Type, &Type) -> Ternary>(
+    pub(super) fn compare_signatures_identical<TCompareTypes: FnMut(&Type, &Type) -> Ternary>(
         &self,
         mut source: Rc<Signature>,
         target: &Signature,
@@ -75,10 +75,10 @@ impl TypeChecker {
         if ptr::eq(&*source, target) {
             return Ternary::True;
         }
-        if !self.is_matching_signature(source, target, partial_match) {
+        if !self.is_matching_signature(&source, target, partial_match) {
             return Ternary::False;
         }
-        if length(source.type_parameters) != length(target.type_parameters) {
+        if length(source.type_parameters.as_deref()) != length(target.type_parameters.as_deref()) {
             return Ternary::False;
         }
         if let Some(target_type_parameters) = target.type_parameters {
@@ -91,20 +91,22 @@ impl TypeChecker {
                 let s = &source_type_parameters[i];
                 if !(Rc::ptr_eq(s, t)
                     || compare_types(
-                        self.instantiate_type(
-                            self.get_constraint_from_type_parameter(s),
-                            Some(&mapper),
-                        )
-                        .unwrap_or_else(|| self.unknown_type()),
+                        &self
+                            .instantiate_type(
+                                self.get_constraint_from_type_parameter(s),
+                                Some(&mapper),
+                            )
+                            .unwrap_or_else(|| self.unknown_type()),
                         self.get_constraint_from_type_parameter(t)
                             .unwrap_or_else(|| self.unknown_type()),
                     ) != Ternary::False
                         && compare_types(
-                            self.instantiate_type(
-                                self.get_default_from_type_parameter(s),
-                                Some(&mapper),
-                            )
-                            .unwrap_or_else(|| self.unknown_type()),
+                            &self
+                                .instantiate_type(
+                                    self.get_default_from_type_parameter(s),
+                                    Some(&mapper),
+                                )
+                                .unwrap_or_else(|| self.unknown_type()),
                             self.get_default_from_type_parameter(t)
                                 .unwrap_or_else(|| self.unknown_type()),
                         ) != Ternary::False)

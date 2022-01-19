@@ -235,6 +235,7 @@ pub trait TypeInterface {
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>);
+    fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>>;
 }
 
 #[derive(Clone, Debug)]
@@ -243,6 +244,7 @@ pub struct BaseType {
     pub flags: TypeFlags,
     pub id: Option<TypeId>,
     symbol: Option<Rc<Symbol>>,
+    alias_symbol: Option<Rc<Symbol>>,
 }
 
 impl BaseType {
@@ -252,6 +254,7 @@ impl BaseType {
             flags,
             id: None,
             symbol: None,
+            alias_symbol: None,
         }
     }
 }
@@ -288,6 +291,10 @@ impl TypeInterface for BaseType {
 
     fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>) {
         self.symbol = symbol;
+    }
+
+    fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>> {
+        self.alias_symbol.as_ref().map(Clone::clone)
     }
 }
 

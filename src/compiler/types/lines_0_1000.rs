@@ -154,6 +154,7 @@ pub enum SyntaxKind {
     ArrayType,
     UnionType,
     IntersectionType,
+    MappedType,
     LiteralType,
     ObjectBindingPattern,
     ArrayBindingPattern,

@@ -6,14 +6,14 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    append_if_unique, get_effective_return_type_node, get_effective_type_parameter_declarations,
-    is_binding_pattern, node_is_missing, Signature, SignatureFlags, SignatureKind, UnionType,
-    __String, binary_search_copy_key, compare_values, concatenate, get_name_of_declaration,
-    get_object_flags, map, unescape_leading_underscores, ArrayTypeNode,
-    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
-    UnionReduction, UnionTypeNode,
+    append_if_unique, filter, get_effective_return_type_node,
+    get_effective_type_parameter_declarations, is_binding_pattern, node_is_missing, Signature,
+    SignatureFlags, SignatureKind, UnionType, __String, binary_search_copy_key, compare_values,
+    concatenate, get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
+    ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference,
+    TypeReferenceNode, UnionReduction, UnionTypeNode,
 };
 
 impl TypeChecker {
@@ -241,6 +241,80 @@ impl TypeChecker {
             return Some(self.get_type_from_type_node(&type_node));
         }
         self.get_return_type_of_type_tag(declaration)
+    }
+
+    pub(super) fn get_constraint_declaration(
+        &self,
+        type_: &Type, /*TypeParameter*/
+    ) -> Option<Rc<Node /*TypeNode*/>> {
+        match map_defined(
+            filter(
+                type_
+                    .maybe_symbol()
+                    .and_then(|symbol| symbol.maybe_declarations()),
+                is_type_parameter_declaration,
+            ),
+            |node, _| get_effective_constraint_of_type_parameter(node),
+        ) {
+            Some(constraint_declarations) if !constraint_declarations.is_empty() => {
+                constraint_declarations[0]
+            }
+            _ => None,
+        }
+    }
+
+    pub(super) fn get_constraint_from_type_parameter(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> Option<Rc<Type>> {
+        let type_parameter = type_parameter.as_type_parameter();
+        if type_parameter.maybe_constraint().is_none() {
+            if let Some(type_parameter_target) = type_parameter.target {
+                let target_constraint =
+                    self.get_constraint_of_type_parameter(&type_parameter_target);
+                type_parameter.set_constraint(match target_constraint {
+                    Some(target_constraint) => self
+                        .instantiate_type(
+                            Some(target_constraint),
+                            type_parameter.maybe_mapper().as_ref(),
+                        )
+                        .unwrap(),
+                    None => self.no_constraint_type(),
+                });
+            } else {
+                let constraint_declaration = self.get_constraint_declaration(type_parameter);
+                match constraint_declaration {
+                    None => {
+                        type_parameter.set_constraint(
+                            self.get_inferred_type_parameter_constraint(type_parameter)
+                                .unwrap_or_else(|| self.no_constraint_type()),
+                        );
+                    }
+                    Some(constraint_declaration) => {
+                        let mut type_ = self.get_type_from_type_node(constraint_declaration);
+                        if type_.flags().intersects(TypeFlags::Any) && !self.is_error_type(&type_) {
+                            type_ = if constraint_declaration.parent().parent().kind()
+                                == SyntaxKind::MappedType
+                            {
+                                self.keyof_constraint_type()
+                            } else {
+                                self.unknown_type()
+                            };
+                        }
+                        type_parameter.set_constraint(type_);
+                    }
+                }
+            }
+        }
+        type_parameter
+            .maybe_constraint()
+            .and_then(|type_parameter_constraint| {
+                if Rc::ptr_eq(&type_parameter_constraint, &self.no_constraint_type()) {
+                    None
+                } else {
+                    Some(type_parameter_constraint)
+                }
+            })
     }
 
     pub(super) fn get_propagating_flags_of_types(
