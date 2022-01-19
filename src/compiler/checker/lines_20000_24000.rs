@@ -3,6 +3,7 @@
 use std::borrow::Borrow;
 use std::rc::Rc;
 
+use super::WideningKind;
 use crate::{
     every, for_each, get_object_flags, is_write_only_access, node_is_missing, Debug_,
     DiagnosticMessage, Diagnostics, Identifier, Node, NodeInterface, ObjectFlags, Symbol,
@@ -150,6 +151,26 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
+    pub(super) fn report_errors_from_widening(
+        &self,
+        declaration: &Node, /*Declaration*/
+        type_: &Type,
+        widening_kind: Option<WideningKind>,
+    ) {
+        if self.produce_diagnostics
+            && self.no_implicit_any
+            && get_object_flags(type_).intersects(ObjectFlags::ContainsWideningType)
+            && (widening_kind.is_none()
+                || self
+                    .get_contextual_signature_for_function_like_declaration(declaration)
+                    .is_none())
+        {
+            if !self.report_widening_errors_in_type(type_) {
+                self.report_implicit_any(declaration, type_, widening_kind);
+            }
+        }
+    }
+
     pub(super) fn could_contain_type_variables(&self, type_: &Type) -> bool {
         let object_flags = get_object_flags(&type_);
         if object_flags.intersects(ObjectFlags::CouldContainTypeVariablesComputed) {
@@ -194,7 +215,7 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_symbol.is_none() {
-            links_ref.resolved_symbol = Some(if !node_is_missing(node) {
+            links_ref.resolved_symbol = Some(if !node_is_missing(Some(node.node_wrapper())) {
                 self.resolve_name(
                     Some(node),
                     &node.escaped_text,

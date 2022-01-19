@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{RefCell, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::BitAndAssign;
@@ -14,6 +14,8 @@ pub trait ResolvedTypeInterface {
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
     fn properties(&self) -> RefMut<Vec<Rc<Symbol>>>;
     fn set_properties(&self, properties: Vec<Rc<Symbol>>);
+    fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
+    fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
 }
 
 #[derive(Clone, Debug)]
@@ -21,6 +23,8 @@ pub trait ResolvedTypeInterface {
 pub struct TypeParameter {
     _type: BaseType,
     pub constraint: RefCell<Option<Weak<Type>>>, // TODO: is it correct that this is weak?
+    pub target: Option<Rc<Type /*TypeParameter*/>>,
+    pub mapper: RefCell<Option<TypeMapper>>,
     pub is_this_type: Option<bool>,
 }
 
@@ -29,9 +33,21 @@ impl TypeParameter {
         Self {
             _type: base_type,
             constraint: RefCell::new(None),
+            target: None,
+            mapper: RefCell::new(None),
             is_this_type: None,
         }
     }
+
+    pub fn set_mapper(&self, mapper: TypeMapper) {
+        *self.mapper.borrow_mut() = Some(mapper);
+    }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum SignatureKind {
+    Call,
+    Construct,
 }
 
 bitflags! {
@@ -63,6 +79,8 @@ pub struct Signature {
     pub resolved_type_predicate: Option<TypePredicate>,
     min_argument_count: Option<usize>,
     pub resolved_min_argument_count: Option<usize>,
+    pub target: Option<Rc<Signature>>,
+    pub mapper: Option<TypeMapper>,
 }
 
 impl Signature {
@@ -77,6 +95,8 @@ impl Signature {
             resolved_type_predicate: None,
             min_argument_count: None,
             resolved_min_argument_count: None,
+            target: None,
+            mapper: None,
         }
     }
 

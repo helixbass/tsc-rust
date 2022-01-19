@@ -41,6 +41,13 @@ pub(super) fn increment_next_node_id() {
     });
 }
 
+pub(super) enum WideningKind {
+    Normal,
+    FunctionReturn,
+    GeneratorNext,
+    GeneratorYield,
+}
+
 bitflags! {
     pub(super) struct CheckMode: u32 {
         const Normal = 0;
@@ -117,6 +124,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         empty_symbols: Rc::new(RefCell::new(create_symbol_table())),
 
         strict_null_checks: true,
+        no_implicit_any: true,
         fresh_object_literal_flag: if false {
             unimplemented!()
         } else {

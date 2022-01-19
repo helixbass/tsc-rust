@@ -6,10 +6,11 @@ use std::rc::Rc;
 
 use super::CheckMode;
 use crate::{
-    is_import_call, Diagnostics, FunctionFlags, UnionReduction, __String, create_symbol_table,
-    get_effective_type_annotation_node, get_function_flags, get_object_flags, has_initializer,
-    is_object_literal_expression, HasExpressionInitializerInterface, Identifier, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
+    is_function_expression_or_arrow_function, is_import_call, is_object_literal_method,
+    ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature, UnionReduction, __String,
+    create_symbol_table, get_effective_type_annotation_node, get_function_flags, get_object_flags,
+    has_initializer, is_object_literal_expression, HasExpressionInitializerInterface, Identifier,
+    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
     PropertyAssignment, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface,
 };
@@ -101,6 +102,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_type_for_object_literal_element(
         &self,
         element: &PropertyAssignment,
+        context_flags: Option<ContextFlags>,
     ) -> Option<Rc<Type>> {
         let parent = element.parent();
         let object_literal = parent.as_object_literal_expression();
@@ -111,7 +113,7 @@ impl TypeChecker {
         // if property_assignment_type.is_some() {
         //     return property_assignment_type;
         // }
-        let type_ = self.get_apparent_type_of_contextual_type(object_literal);
+        let type_ = self.get_apparent_type_of_contextual_type(object_literal, context_flags);
         if let Some(type_) = type_ {
             if self.has_bindable_name(element) {
                 return self.get_type_of_property_of_contextual_type(
@@ -127,15 +129,21 @@ impl TypeChecker {
     pub(super) fn get_apparent_type_of_contextual_type<TNode: NodeInterface>(
         &self,
         node: &TNode, /*Expression | MethodDeclaration*/
+        context_flags: Option<ContextFlags>,
     ) -> Option<Rc<Type>> {
         let contextual_type = if false {
             unimplemented!()
         } else {
-            self.get_contextual_type(node)
+            self.get_contextual_type(node, context_flags)
         };
-        let instantiated_type = self.instantiate_contextual_type(contextual_type, node);
+        let instantiated_type =
+            self.instantiate_contextual_type(contextual_type, node, context_flags);
         if let Some(instantiated_type) = instantiated_type {
-            if true {
+            if !(matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::NoConstraints))
+                && instantiated_type
+                    .flags()
+                    .intersects(TypeFlags::TypeVariable))
+            {
                 let apparent_type = self
                     .map_type(
                         &instantiated_type,
@@ -161,6 +169,7 @@ impl TypeChecker {
         &self,
         contextual_type: Option<TTypeRef>,
         node: &TNode,
+        context_flags: Option<ContextFlags>,
     ) -> Option<Rc<Type>> {
         if false {
             unimplemented!()
@@ -171,17 +180,98 @@ impl TypeChecker {
     pub(super) fn get_contextual_type<TNode: NodeInterface>(
         &self,
         node: &TNode, /*Expression*/
+        context_flags: Option<ContextFlags>,
     ) -> Option<Rc<Type>> {
         let parent = node.parent();
         match &*parent {
             Node::VariableDeclaration(variable_declaration) => {
                 self.get_contextual_type_for_initializer_expression(node)
             }
-            Node::PropertyAssignment(property_assignment) => {
-                self.get_contextual_type_for_object_literal_element(property_assignment)
-            }
+            Node::PropertyAssignment(property_assignment) => self
+                .get_contextual_type_for_object_literal_element(property_assignment, context_flags),
             _ => unimplemented!(),
         }
+    }
+
+    pub(super) fn get_contextual_call_signature(
+        &self,
+        type_: &Type,
+        node: &Node, /*SignatureDeclaration*/
+    ) -> Option<Rc<Signature>> {
+        let signatures = self.get_signatures_of_type(type_, SignatureKind::Call);
+        let applicable_by_arity = filter(signatures, |s| !is_arity_smaller(s, node));
+        if applicable_by_arity.len() == 1 {
+            applicable_by_arity[0]
+        } else {
+            self.get_intersected_signatures(applicable_by_arity)
+        }
+    }
+
+    pub(super) fn get_contextual_signature_for_function_like_declaration(
+        &self,
+        node: &Node, /*FunctionLikeDeclaration*/
+    ) -> Option<Rc<Signature>> {
+        if is_function_expression_or_arrow_function(node) || is_object_literal_method(node) {
+            self.get_contextual_signature(node)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_contextual_signature(
+        &self,
+        node: &Node, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
+    ) -> Option<Rc<Signature>> {
+        Debug_.assert(
+            node.kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node),
+            None,
+        );
+        let type_tag_signature = self.get_signature_of_type_tag(node);
+        if type_tag_signature.is_some() {
+            return type_tag_signature;
+        }
+        let type_ = self.get_apparent_type_of_contextual_type(node, Some(ContextFlags::Signature));
+        if type_.is_none() {
+            return None;
+        }
+        let type_ = type_.unwrap();
+        if !type_.flags().intersects(TypeFlags::Union) {
+            return self.get_contextual_call_signature(type_, node);
+        }
+        let mut signature_list: Option<Vec<Signature>> = None;
+        let types = type_.as_union_or_intersection_type_interface().types();
+        for current in types {
+            let signature = self.get_contextual_call_signature(current, node);
+            if let Some(signature) = signature {
+                match signature_list {
+                    None => {
+                        signature_list = Some(vec![signature]);
+                    }
+                    Some(signature_list) => {
+                        if !self.compare_signature_identical(
+                            &signature_list[0],
+                            signature,
+                            false,
+                            true,
+                            true,
+                            compare_types_identical,
+                        ) {
+                            return None;
+                        } else {
+                            signature_list.push(signature);
+                        }
+                    }
+                }
+            }
+        }
+
+        signature_list.map(|signature_list| {
+            if signature_list.len() == 1 {
+                signature_list[0]
+            } else {
+                self.create_union_signature(signature_list[0], signature_list)
+            }
+        })
     }
 
     pub(super) fn check_object_literal(&self, node: &ObjectLiteralExpression) -> Rc<Type> {
@@ -339,7 +429,7 @@ impl TypeChecker {
             let types = self.check_and_aggregate_return_expression_types(func, check_mode);
             if types.is_none() {
                 return if function_flags.intersects(FunctionFlags::Async) {
-                    self.create_promise_return_type(func, self.never_type())
+                    self.create_promise_return_type(func, &self.never_type())
                 } else {
                     self.never_type()
                 };
@@ -347,7 +437,7 @@ impl TypeChecker {
             let types = types.unwrap();
             if types.is_empty() {
                 return if function_flags.intersects(FunctionFlags::Async) {
-                    self.create_promise_return_type(func, self.void_type())
+                    self.create_promise_return_type(func, &self.void_type())
                 } else {
                     self.void_type()
                 };

@@ -886,8 +886,8 @@ fn get_type_struct_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>) {
-                        self.#first_field_name.resolve(members, properties)
+                    fn resolve(&self, members: ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
+                        self.#first_field_name.resolve(members, properties, call_signatures, construct_signatures)
                     }
 
                     fn is_resolved(&self) -> bool {
@@ -910,6 +910,14 @@ fn get_type_struct_interface_impl(
                     fn set_properties(&self, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>) {
                         self.#first_field_name.set_properties(properties)
                     }
+
+                    fn call_signatures(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
+                        self.#first_field_name.call_signatures()
+                    }
+
+                    fn construct_signatures(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
+                        self.#first_field_name.construct_signatures()
+                    }
                 }
             }
         }
@@ -918,6 +926,35 @@ fn get_type_struct_interface_impl(
                 impl crate::UnionOrIntersectionTypeInterface for #type_type_name {
                     fn types(&self) -> &[::std::rc::Rc<crate::Type>] {
                         self.#first_field_name.types()
+                    }
+                }
+            }
+        }
+        "InterfaceTypeWithDeclaredMembersInterface" => {
+            quote! {
+                impl crate::InterfaceTypeWithDeclaredMembersInterface for #type_type_name {
+                    fn maybe_declared_properties(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>>> {
+                        self.#first_field_name.maybe_declared_properties()
+                    }
+
+                    fn set_declared_properties(&self, declared_properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>) {
+                        self.#first_field_name.set_declared_properties(declared_properties)
+                    }
+
+                    fn declared_call_signatures(&self) -> Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
+                        self.#first_field_name.declared_call_signatures()
+                    }
+
+                    fn set_declared_call_signatures(&self, declared_call_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
+                        self.#first_field_name.set_declared_call_signatures(declared_call_signatures)
+                    }
+
+                    fn declared_construct_signatures(&self) -> Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
+                        self.#first_field_name.declared_construct_signatures()
+                    }
+
+                    fn set_declared_construct_signatures(&self, declared_construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
+                        self.#first_field_name.set_declared_construct_signatures(declared_construct_signatures)
                     }
                 }
             }
@@ -1053,9 +1090,9 @@ fn get_type_enum_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>) {
+                    fn resolve(&self, members: ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
                         match self {
-                            #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties)),*
+                            #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties, call_signatures, construct_signatures)),*
                         }
                     }
 
@@ -1087,6 +1124,18 @@ fn get_type_enum_interface_impl(
                             #(#type_type_name::#variant_names(nested) => nested.set_properties(properties)),*
                         }
                     }
+
+                    fn call_signatures(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.call_signatures()),*
+                        }
+                    }
+
+                    fn construct_signatures(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.construct_signatures()),*
+                        }
+                    }
                 }
             }
         }
@@ -1096,6 +1145,47 @@ fn get_type_enum_interface_impl(
                     fn types(&self) -> &[::std::rc::Rc<crate::Type>] {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.types()),*
+                        }
+                    }
+                }
+            }
+        }
+        "InterfaceTypeWithDeclaredMembersInterface" => {
+            quote! {
+                impl crate::InterfaceTypeWithDeclaredMembersInterface for #type_type_name {
+                    fn maybe_declared_properties(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_declared_properties()),*
+                        }
+                    }
+
+                    fn set_declared_properties(&self, declared_properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_declared_properties(declared_properties)),*
+                        }
+                    }
+
+                    fn declared_call_signatures(&self) -> Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.declared_call_signatures()),*
+                        }
+                    }
+
+                    fn set_declared_call_signatures(&self, declared_call_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_declared_call_signatures(declared_call_signatures)),*
+                        }
+                    }
+
+                    fn declared_construct_signatures(&self) -> Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.declared_construct_signatures()),*
+                        }
+                    }
+
+                    fn set_declared_construct_signatures(&self, declared_construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_declared_construct_signatures(declared_construct_signatures)),*
                         }
                     }
                 }

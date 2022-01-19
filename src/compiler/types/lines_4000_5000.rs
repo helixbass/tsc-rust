@@ -40,6 +40,7 @@ pub struct TypeChecker {
     pub(crate) type_count: Cell<u32>,
     pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
     pub strict_null_checks: bool,
+    pub no_implicit_any: bool,
     pub fresh_object_literal_flag: ObjectFlags,
     pub exact_optional_property_types: bool,
     pub node_builder: NodeBuilder,
@@ -81,6 +82,16 @@ pub enum UnionReduction {
     None,
     Literal,
     Subtype,
+}
+
+bitflags! {
+    pub struct ContextFlags: u32 {
+        const None = 0;
+        const Signature = 1 << 0;
+        const NoConstraints = 1 << 1;
+        const Completions = 1 << 2;
+        const SkipBindingPatters = 1 << 3;
+    }
 }
 
 bitflags! {

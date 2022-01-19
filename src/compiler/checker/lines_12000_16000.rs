@@ -7,13 +7,13 @@ use std::rc::Rc;
 
 use crate::{
     append_if_unique, get_effective_return_type_node, get_effective_type_parameter_declarations,
-    is_binding_pattern, node_is_missing, Signature, SignatureFlags, UnionType, __String,
-    binary_search_copy_key, compare_values, concatenate, get_name_of_declaration, get_object_flags,
-    map, unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType,
-    DiagnosticMessage, Diagnostics, Expression, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode, UnionReduction,
-    UnionTypeNode,
+    is_binding_pattern, node_is_missing, Signature, SignatureFlags, SignatureKind, UnionType,
+    __String, binary_search_copy_key, compare_values, concatenate, get_name_of_declaration,
+    get_object_flags, map, unescape_leading_underscores, ArrayTypeNode,
+    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
+    UnionReduction, UnionTypeNode,
 };
 
 impl TypeChecker {
@@ -57,6 +57,30 @@ impl TypeChecker {
             unimplemented!()
         }
         None
+    }
+
+    pub(super) fn get_signatures_of_structured_type(
+        &self,
+        type_: &Type,
+        kind: SignatureKind,
+    ) -> Vec<Rc<Signature>> {
+        if type_.flags().intersects(TypeFlags::StructuredType) {
+            let resolved = self.resolve_structured_type_members(type_);
+            return if kind == SignatureKind::Call {
+                resolved.call_signatures
+            } else {
+                resolved.construct_signatures
+            };
+        }
+        vec![]
+    }
+
+    pub(super) fn get_signatures_of_type(
+        &self,
+        type_: &Type,
+        kind: SignatureKind,
+    ) -> Vec<Rc<Signature>> {
+        self.get_signatures_of_structured_type(self.get_reduced_apparent_type(type_), kind)
     }
 
     pub(super) fn get_type_parameters_from_declaration(
@@ -236,7 +260,7 @@ impl TypeChecker {
         target: &Type, /*GenericType*/
         type_arguments: Option<Vec<Rc<Type>>>,
     ) -> TypeReference {
-        let type_ = self.create_object_type(ObjectFlags::Reference, &target.symbol());
+        let type_ = self.create_object_type(ObjectFlags::Reference, Some(target.symbol()));
         type_.set_object_flags(
             type_.object_flags()
                 | if let Some(type_arguments) = type_arguments.as_ref() {

@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    TypeNode, __String, create_printer, create_text_writer, factory, get_object_flags,
+    Signature, TypeNode, __String, create_printer, create_text_writer, factory, get_object_flags,
     get_source_file_of_node, get_synthetic_factory, is_expression, is_identifier_text,
     unescape_leading_underscores, using_single_line_string_writer, BaseIntrinsicType,
     BaseNodeFactorySynthetic, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint,
@@ -127,9 +127,16 @@ impl TypeChecker {
         &self,
         type_: &TType,
         members: Rc<RefCell<SymbolTable>>,
+        call_signatures: Vec<Rc<Signature>>,
+        construct_signatures: Vec<Rc<Signature>>,
     ) /*-> BaseObjectType*/
     {
-        type_.resolve(members.clone(), vec![]);
+        type_.resolve(
+            members.clone(),
+            vec![],
+            call_signatures,
+            construct_signatures,
+        );
         if true {
             type_.set_properties(self.get_named_members(&*(*members).borrow()));
         }

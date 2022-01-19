@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseType, Node, PseudoBigInt, ResolvedTypeInterface, Symbol, SymbolTable, Type, TypeChecker,
-    TypeInterface,
+    BaseType, Node, PseudoBigInt, ResolvedTypeInterface, Signature, Symbol, SymbolTable, Type,
+    TypeChecker, TypeInterface,
 };
 use crate::{Number, WeakSelf};
 use local_macros::type_type;
@@ -285,6 +285,8 @@ pub struct BaseObjectType {
     object_flags: Cell<ObjectFlags>,
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     properties: RefCell<Option<Vec<Rc<Symbol>>>>,
+    call_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
+    construct_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
 }
 
 impl BaseObjectType {
@@ -294,6 +296,8 @@ impl BaseObjectType {
             object_flags: Cell::new(object_flags),
             members: RefCell::new(None),
             properties: RefCell::new(None),
+            call_signatures: RefCell::new(None),
+            construct_signatures: RefCell::new(None),
         }
     }
 }
@@ -311,14 +315,28 @@ impl ObjectFlagsTypeInterface for BaseObjectType {
 impl ObjectTypeInterface for BaseObjectType {}
 
 pub trait ResolvableTypeInterface {
-    fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>);
+    fn resolve(
+        &self,
+        members: Rc<RefCell<SymbolTable>>,
+        properties: Vec<Rc<Symbol>>,
+        call_signatures: Vec<Rc<Signature>>,
+        construct_signatures: Vec<Rc<Signature>>,
+    );
     fn is_resolved(&self) -> bool;
 }
 
 impl ResolvableTypeInterface for BaseObjectType {
-    fn resolve(&self, members: Rc<RefCell<SymbolTable>>, properties: Vec<Rc<Symbol>>) {
+    fn resolve(
+        &self,
+        members: Rc<RefCell<SymbolTable>>,
+        properties: Vec<Rc<Symbol>>,
+        call_signatures: Vec<Rc<Signature>>,
+        construct_signatures: Vec<Rc<Signature>>,
+    ) {
         *self.members.borrow_mut() = Some(members);
         *self.properties.borrow_mut() = Some(properties);
+        *self.call_signatures.borrow_mut() = Some(call_signatures);
+        *self.construct_signatures.borrow_mut() = Some(construct_signatures);
     }
 
     fn is_resolved(&self) -> bool {
@@ -340,33 +358,27 @@ impl ResolvedTypeInterface for BaseObjectType {
     fn set_properties(&self, properties: Vec<Rc<Symbol>>) {
         *self.properties.borrow_mut() = Some(properties);
     }
+
+    fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>> {
+        Ref::map(self.call_signatures.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>> {
+        Ref::map(self.construct_signatures.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
-    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface"
 )]
 pub enum InterfaceType {
     BaseInterfaceType(BaseInterfaceType),
-}
-
-impl InterfaceTypeWithDeclaredMembersInterface for InterfaceType {
-    fn maybe_declared_properties(&self) -> Ref<Option<Vec<Rc<Symbol>>>> {
-        match self {
-            InterfaceType::BaseInterfaceType(base_interface_type) => {
-                base_interface_type.maybe_declared_properties()
-            }
-        }
-    }
-
-    fn set_declared_properties(&self, declared_properties: Vec<Rc<Symbol>>) {
-        match self {
-            InterfaceType::BaseInterfaceType(base_interface_type) => {
-                base_interface_type.set_declared_properties(declared_properties)
-            }
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -381,6 +393,8 @@ pub struct BaseInterfaceType {
     pub local_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub this_type: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
     declared_properties: RefCell<Option<Vec<Rc<Symbol>>>>,
+    declared_call_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
+    declared_construct_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
     instantiations: RefCell<Option<HashMap<String, Rc<Type /*TypeReference*/>>>>,
     variances: RefCell<Option<Vec<VarianceFlags>>>,
 }
@@ -400,6 +414,8 @@ impl BaseInterfaceType {
             local_type_parameters,
             this_type: RefCell::new(this_type),
             declared_properties: RefCell::new(None),
+            declared_call_signatures: RefCell::new(None),
+            declared_construct_signatures: RefCell::new(None),
             instantiations: RefCell::new(None),
             variances: RefCell::new(None),
         }
@@ -414,11 +430,37 @@ impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
     fn set_declared_properties(&self, declared_properties: Vec<Rc<Symbol>>) {
         *self.declared_properties.borrow_mut() = Some(declared_properties);
     }
+
+    fn declared_call_signatures(&self) -> Ref<Vec<Rc<Signature>>> {
+        Ref::map(
+            self.declared_call_signatures.borrow(),
+            |declared_call_signatures| declared_call_signatures.as_ref().unwrap(),
+        )
+    }
+
+    fn set_declared_call_signatures(&self, declared_call_signatures: Vec<Rc<Signature>>) {
+        *self.declared_call_signatures.borrow_mut() = Some(declared_call_signatures);
+    }
+
+    fn declared_construct_signatures(&self) -> Ref<Vec<Rc<Signature>>> {
+        Ref::map(
+            self.declared_construct_signatures.borrow(),
+            |declared_construct_signatures| declared_construct_signatures.as_ref().unwrap(),
+        )
+    }
+
+    fn set_declared_construct_signatures(&self, declared_construct_signatures: Vec<Rc<Signature>>) {
+        *self.declared_construct_signatures.borrow_mut() = Some(declared_construct_signatures);
+    }
 }
 
 pub trait InterfaceTypeWithDeclaredMembersInterface {
     fn maybe_declared_properties(&self) -> Ref<Option<Vec<Rc<Symbol>>>>;
     fn set_declared_properties(&self, declared_properties: Vec<Rc<Symbol>>);
+    fn declared_call_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
+    fn set_declared_call_signatures(&self, declared_call_signatures: Vec<Rc<Signature>>);
+    fn declared_construct_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
+    fn set_declared_construct_signatures(&self, declared_construct_signatures: Vec<Rc<Signature>>);
 }
 
 impl GenericableTypeInterface for BaseInterfaceType {

@@ -6,10 +6,10 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseInterfaceType, BigIntLiteralType, InterfaceType, LiteralType, NumberLiteralType,
-    ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface, ResolvedTypeInterface,
-    Signature, StringLiteralType, Symbol, TypeParameter, TypeReference, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface,
+    BaseInterfaceType, BigIntLiteralType, InterfaceType, InterfaceTypeWithDeclaredMembersInterface,
+    LiteralType, NumberLiteralType, ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface,
+    ResolvedTypeInterface, Signature, StringLiteralType, Symbol, TypeParameter, TypeReference,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
 };
 use crate::WeakSelf;
 use local_macros::{enum_unwrapped, type_type};
@@ -170,6 +170,15 @@ impl Type {
             Type::ObjectType(object_type) => object_type,
             Type::UnionOrIntersectionType(union_or_intersection_type) => union_or_intersection_type,
             _ => panic!("Expected object flags type"),
+        }
+    }
+
+    pub fn as_interface_type_with_declared_members(
+        &self,
+    ) -> &dyn InterfaceTypeWithDeclaredMembersInterface {
+        match self {
+            Type::ObjectType(ObjectType::InterfaceType(interface_type)) => interface_type,
+            _ => panic!("Expected interface type with declared members"),
         }
     }
 

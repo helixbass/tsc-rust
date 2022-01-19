@@ -402,6 +402,12 @@ pub fn is_import_call(n: &Node) -> bool {
     }
 }
 
+pub fn is_object_literal_method<TNode: NodeInterface>(node: &TNode) -> bool {
+    /*node &&*/
+    node.kind() == SyntaxKind::MethodDeclaration
+        && node.parent().kind() == SyntaxKind::ObjectLiteralExpression
+}
+
 pub fn get_containing_function_or_class_static_block<TNode: NodeInterface>(
     node: &TNode,
 ) -> Option<Rc<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
@@ -1310,4 +1316,11 @@ pub fn set_parent<TNode: NodeInterface>(child: &TNode, parent: Option<Rc<Node>>)
         child.set_parent(parent.clone());
     }
     child
+}
+
+pub fn is_function_expression_or_arrow_function<TNode: NodeInterface>(node: &TNode) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+    )
 }

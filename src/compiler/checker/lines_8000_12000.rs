@@ -338,7 +338,7 @@ impl TypeChecker {
                 ObjectFlags::Interface
             };
 
-            let type_ = self.create_object_type(kind, symbol);
+            let type_ = self.create_object_type(kind, Some(symbol));
             let outer_type_parameters =
                 self.get_outer_type_parameters_of_class_or_interface(symbol);
             let local_type_parameters =
@@ -546,14 +546,24 @@ impl TypeChecker {
         type_parameters: Vec<Rc<Type /*TypeParameter*/>>,
         type_arguments: Vec<Rc<Type>>,
     ) {
-        let members: Rc<RefCell<SymbolTable>>;
         let mut mapper: Option<TypeMapper> = None;
+        let members: Rc<RefCell<SymbolTable>>;
+        let call_signatures: Vec<Rc<Signature>>;
+        let construct_signatures: Vec<Rc<Signature>>;
+        let source_as_interface_type_with_declared_members =
+            source.as_interface_type_with_declared_members();
         if range_equals(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.maybe_symbol() {
                 self.get_members_of_symbol(&source_symbol)
             } else {
                 unimplemented!()
             };
+            call_signatures = source_as_interface_type_with_declared_members
+                .declared_call_signatures()
+                .clone();
+            construct_signatures = source_as_interface_type_with_declared_members
+                .declared_construct_signatures()
+                .clone();
         } else {
             let type_parameters_len_is_1 = type_parameters.len() == 1;
             mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments)));
@@ -568,8 +578,21 @@ impl TypeChecker {
                     type_parameters_len_is_1,
                 ),
             ));
+            call_signatures = self.instantiate_signatures(
+                source_as_interface_type_with_declared_members.declared_call_signatures(),
+                mapper,
+            );
+            construct_signatures = self.instantiate_signatures(
+                source_as_interface_type_with_declared_members.declared_construct_signatures(),
+                mapper,
+            );
         }
-        self.set_structured_type_members(type_.as_object_type(), members);
+        self.set_structured_type_members(
+            type_.as_object_type(),
+            members,
+            call_signatures,
+            construct_signatures,
+        );
     }
 
     pub(super) fn resolve_class_or_interface_members(&self, type_: &Type /*InterfaceType*/) {

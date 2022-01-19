@@ -7,12 +7,12 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
-    get_check_flags, pseudo_big_int_to_string, ArrayTypeNode, BaseLiteralType, BigIntLiteralType,
-    CheckFlags, Debug_, DiagnosticMessage, Expression, LiteralTypeInterface, LiteralTypeNode,
-    NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType,
-    ObjectLiteralExpression, PseudoBigInt, RelationComparisonResult, StringLiteralType, Symbol,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
+    get_check_flags, map, pseudo_big_int_to_string, ArrayTypeNode, BaseLiteralType,
+    BigIntLiteralType, CheckFlags, Debug_, DiagnosticMessage, Expression, LiteralTypeInterface,
+    LiteralTypeNode, NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType,
+    ObjectLiteralExpression, PseudoBigInt, RelationComparisonResult, Signature, SignatureFlags,
+    StringLiteralType, Symbol, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
 };
 use local_macros::enum_unwrapped;
 
@@ -205,6 +205,54 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn instantiate_list<
+        TItem,
+        TInstantiator: FnMut(&Rc<TItem>, &TypeMapper) -> Rc<TItem>,
+    >(
+        &self,
+        items: Option<&[Rc<TItem>]>,
+        mapper: &TypeMapper,
+        instantiator: TInstantiator,
+    ) -> Option<Vec<Rc<TItem>>> {
+        if items.is_none() {
+            return None;
+        }
+        let items = items.unwrap();
+        if
+        /*items &&*/
+        !items.is_empty() {
+            let mut i = 0;
+            while i < items.len() {
+                let item = &items[i];
+                let mapped = instantiator(item, mapper);
+                if !Rc::ptr_eq(item, &mapped) {
+                    let mut result = if i == 0 { vec![] } else { items[..i].to_vec() };
+                    result.push(mapped);
+                    i += 1;
+                    while i < items.len() {
+                        result.push(instantiator(&items[i], mapper));
+                        i += 1;
+                    }
+                    return Some(result);
+                }
+
+                i += 1;
+            }
+        }
+        Some(items.to_vec())
+    }
+
+    pub(super) fn instantiate_signatures(
+        &self,
+        signatures: &[Rc<Signature>],
+        mapper: &TypeMapper,
+    ) -> Vec<Rc<Signature>> {
+        self.instantiate_list(Some(signatures), mapper, |signature, mapper| {
+            self.instantiate_signature(signature.clone(), mapper, None)
+        })
+        .unwrap()
+    }
+
     pub(super) fn create_type_mapper(
         &self,
         sources: Vec<Rc<Type /*TypeParameter*/>>,
@@ -305,6 +353,62 @@ impl TypeChecker {
         } else {
             mapper2
         }
+    }
+
+    pub(super) fn clone_type_parameter(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> Rc<Type /*TypeParameter*/> {
+        let mut result = self.create_type_parameter(Some(type_parameter.symbol()));
+        result.target = Some(type_parameter.type_wrapper());
+        result.into()
+    }
+
+    pub(super) fn instantiate_signature(
+        &self,
+        signature: Rc<Signature>,
+        mapper: &TypeMapper,
+        erase_type_parameters: Option<bool>,
+    ) -> Rc<Signature> {
+        let mut mapper = mapper.clone();
+        let erase_type_parameters = erase_type_parameters.unwrap_or(false);
+        let mut fresh_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
+        if let Some(signature_type_parameters) = signature.type_parameters {
+            if !erase_type_parameters {
+                fresh_type_parameters =
+                    map(Some(signature_type_parameters), |type_parameter, _| {
+                        self.clone_type_parameter(&type_parameter)
+                    });
+                mapper = self.combine_type_mappers(
+                    Some(self.create_type_mapper(signature_type_parameters, fresh_type_parameters)),
+                    mapper,
+                );
+                for tp in fresh_type_parameters.as_ref().unwrap() {
+                    tp.as_type_parameter().set_mapper(mapper.clone());
+                }
+            }
+        }
+        let mut result = self.create_signature(
+            signature.declaration,
+            fresh_type_parameters,
+            signature
+                .this_parameter
+                .as_ref()
+                .map(|this_parameter| self.instantiate_symbol(this_parameter, &mapper)),
+            self.instantiate_list(
+                Some(signature.parameters()),
+                &mapper,
+                |parameter, mapper| self.instantiate_symbol(parameter, mapper),
+            )
+            .unwrap(),
+            None,
+            None,
+            signature.min_argument_count(),
+            signature.flags & SignatureFlags::PropagatingFlags,
+        );
+        result.target = Some(signature);
+        result.mapper = Some(mapper);
+        Rc::new(result)
     }
 
     pub(super) fn instantiate_symbol(&self, symbol: &Symbol, mapper: &TypeMapper) -> Rc<Symbol> {
