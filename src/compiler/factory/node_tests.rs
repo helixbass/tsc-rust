@@ -469,7 +469,7 @@ pub fn is_continue_statement<TNode: NodeInterface>(node: &TNode) -> bool {
 }
 
 pub fn is_break_statement<TNode: NodeInterface>(node: &TNode) -> bool {
-    node.kind() == SyntaxKind::BreaStatement
+    node.kind() == SyntaxKind::BreakStatement
 }
 
 pub fn is_return_statement<TNode: NodeInterface>(node: &TNode) -> bool {
@@ -788,10 +788,6 @@ pub fn is_jsdoc_author_tag<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::JSDocAuthorTag
 }
 
-pub fn is_jsdoc_author_tag<TNode: NodeInterface>(node: &TNode) -> bool {
-    node.kind() == SyntaxKind::JSDocAuthorTag
-}
-
 pub fn is_jsdoc_class_tag<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::JSDocClassTag
 }
@@ -857,7 +853,7 @@ pub fn is_jsdoc_typedef_tag<TNode: NodeInterface>(node: &TNode) -> bool {
 }
 
 pub fn is_jsdoc_unknown_tag<TNode: NodeInterface>(node: &TNode) -> bool {
-    node.kind() == SyntaxKind::JSDocUnknownTag
+    node.kind() == SyntaxKind::JSDocTag
 }
 
 pub fn is_jsdoc_property_tag<TNode: NodeInterface>(node: &TNode) -> bool {
