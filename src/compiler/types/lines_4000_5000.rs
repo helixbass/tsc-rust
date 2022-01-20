@@ -6,9 +6,9 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseType, DiagnosticCollection, ModuleSpecifierResolutionHost, Node, NodeId, NodeLinks,
-    ObjectFlags, RelationComparisonResult, SymbolTable, SymbolTracker, Type, TypeFlags, TypeMapper,
-    __String,
+    BaseType, CompilerOptions, DiagnosticCollection, ModuleSpecifierResolutionHost, Node, NodeId,
+    NodeLinks, ObjectFlags, RelationComparisonResult, SymbolTable, SymbolTracker, Type, TypeFlags,
+    TypeMapper, __String,
 };
 use crate::{NodeBuilder, Number};
 use local_macros::symbol_type;
@@ -26,6 +26,7 @@ pub enum ExitStatus {
 }
 
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
+    fn get_compiler_options(&self) -> Rc<CompilerOptions>;
     fn get_source_files(&self) -> Vec<Rc<Node>>;
 }
 
@@ -37,6 +38,7 @@ pub struct TypeChecker {
     pub Type: fn(TypeFlags) -> BaseType,
     pub(crate) type_count: Cell<u32>,
     pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
+    pub(crate) compiler_options: Rc<CompilerOptions>,
     pub strict_null_checks: bool,
     pub fresh_object_literal_flag: ObjectFlags,
     pub exact_optional_property_types: bool,

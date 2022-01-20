@@ -671,7 +671,7 @@ impl Scanner {
                     return self.set_token(SyntaxKind::CloseBraceToken);
                 }
                 _ch => {
-                    let identifier_kind = self.scan_identifier(ch);
+                    let identifier_kind = self.scan_identifier(ch, self.language_version);
                     if let Some(identifier_kind) = identifier_kind {
                         return self.set_token(identifier_kind);
                     }

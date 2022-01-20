@@ -15,6 +15,7 @@ fn execute_command_line_worker(sys: &dyn System, command_line: ParsedCommandLine
 fn perform_compilation(_sys: &dyn System, config: ParsedCommandLine) {
     let program_options = CreateProgramOptions {
         root_names: &config.file_names,
+        options: config.options,
     };
     let program = create_program(program_options);
     let _exit_status = emit_files_and_report_errors_and_get_exit_status(program);

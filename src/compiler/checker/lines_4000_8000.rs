@@ -5,14 +5,15 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    TypeNode, __String, create_printer, create_text_writer, factory, get_object_flags,
-    get_source_file_of_node, get_synthetic_factory, is_expression, is_identifier_text,
-    unescape_leading_underscores, using_single_line_string_writer, BaseIntrinsicType,
-    BaseNodeFactorySynthetic, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint,
-    EmitTextWriter, Expression, KeywordTypeNode, Node, NodeArray, NodeBuilderFlags, NodeInterface,
-    ObjectFlags, PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile,
-    Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter,
+    get_emit_script_target, TypeNode, __String, create_printer, create_text_writer, factory,
+    get_object_flags, get_source_file_of_node, get_synthetic_factory, is_expression,
+    is_identifier_text, unescape_leading_underscores, using_single_line_string_writer,
+    BaseIntrinsicType, BaseNodeFactorySynthetic, BaseObjectType, BaseType, CharacterCodes, Debug_,
+    EmitHint, EmitTextWriter, Expression, KeywordTypeNode, Node, NodeArray, NodeBuilderFlags,
+    NodeInterface, ObjectFlags, PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface,
+    SourceFile, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable,
+    SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypeParameter,
 };
 
 impl TypeChecker {
@@ -613,7 +614,8 @@ impl NodeBuilder {
         } else {
             type_checker.get_non_missing_type_of_symbol(property_symbol)
         };
-        let property_name = self.get_property_name_node_for_symbol(property_symbol, context);
+        let property_name =
+            self.get_property_name_node_for_symbol(type_checker, property_symbol, context);
         if false {
             unimplemented!()
         } else {
@@ -763,6 +765,7 @@ impl NodeBuilder {
 
     fn get_property_name_node_for_symbol(
         &self,
+        type_checker: &TypeChecker,
         symbol: &Symbol,
         context: &NodeBuilderContext,
     ) -> Rc<Node> {
@@ -770,6 +773,7 @@ impl NodeBuilder {
         let string_named = false;
         let raw_name = unescape_leading_underscores(symbol.escaped_name());
         self.create_property_name_node_for_identifier_or_literal(
+            type_checker,
             raw_name,
             Some(string_named),
             Some(single_quote),
@@ -778,11 +782,16 @@ impl NodeBuilder {
 
     fn create_property_name_node_for_identifier_or_literal(
         &self,
+        type_checker: &TypeChecker,
         name: String,
         string_named: Option<bool>,
         single_quote: Option<bool>,
     ) -> Rc<Node> {
-        if is_identifier_text(&name) {
+        if is_identifier_text(
+            &name,
+            Some(get_emit_script_target(&type_checker.compiler_options)),
+            None,
+        ) {
             factory.create_identifier(&self.synthetic_factory, &name)
         } else {
             unimplemented!()

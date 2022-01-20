@@ -2,9 +2,9 @@ use std::rc::Rc;
 
 use crate::{
     concatenate, create_source_file, create_type_checker, for_each, get_sys, normalize_path,
-    rc_source_file_into_rc_node, to_path as to_path_helper, CompilerHost, CreateProgramOptions,
-    Diagnostic, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node, Path, Program,
-    SourceFile, StructureIsReused, System, TypeChecker, TypeCheckerHost,
+    rc_source_file_into_rc_node, to_path as to_path_helper, CompilerHost, CompilerOptions,
+    CreateProgramOptions, Diagnostic, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node,
+    Path, Program, SourceFile, StructureIsReused, System, TypeChecker, TypeCheckerHost,
 };
 
 fn create_compiler_host() -> impl CompilerHost {
@@ -41,13 +41,15 @@ fn create_compiler_host_worker() -> impl CompilerHost {
 }
 
 struct ProgramConcrete {
+    options: Rc<CompilerOptions>,
     files: Vec<Rc</*SourceFile*/ Node>>,
     diagnostics_producing_type_checker: Option<TypeChecker>,
 }
 
 impl ProgramConcrete {
-    pub fn new(files: Vec<Rc<Node>>) -> Self {
+    pub fn new(options: Rc<CompilerOptions>, files: Vec<Rc<Node>>) -> Self {
         ProgramConcrete {
+            options,
             files,
             diagnostics_producing_type_checker: None,
         }
@@ -158,6 +160,10 @@ impl Program for ProgramConcrete {
 }
 
 impl TypeCheckerHost for ProgramConcrete {
+    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+        self.options.clone()
+    }
+
     fn get_source_files(&self) -> Vec<Rc<Node>> {
         self.files.clone()
     }
@@ -170,7 +176,10 @@ struct CreateProgramHelperContext<'a> {
 }
 
 pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Program {
-    let CreateProgramOptions { root_names } = root_names_or_options;
+    let CreateProgramOptions {
+        root_names,
+        options,
+    } = root_names_or_options;
 
     let mut processing_other_files: Option<Vec<Rc<Node>>> = None;
     let mut files: Vec<Rc<Node>> = vec![];
@@ -198,7 +207,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Progr
         processing_other_files = None;
     }
 
-    ProgramConcrete::new(files)
+    ProgramConcrete::new(options, files)
 }
 
 fn filter_semantic_diagnostics(diagnostic: Vec<Rc<Diagnostic>>) -> Vec<Rc<Diagnostic>> {

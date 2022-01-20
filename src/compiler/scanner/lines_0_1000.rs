@@ -11,9 +11,9 @@ use std::iter::FromIterator;
 use super::code_point_at;
 use crate::{
     binary_search_copy_key, compare_values, maybe_text_char_at_index, position_is_synthesized,
-    text_char_at_index, text_len, text_str_num_chars, text_substring, CharacterCodes, Debug_,
-    DiagnosticMessage, Diagnostics, LineAndCharacter, ScriptTarget, SourceFileLike,
-    SourceTextAsChars, SyntaxKind, TokenFlags,
+    text_char_at_index, text_len, text_str_num_chars, text_substring, CharacterCodes, CommentKind,
+    CommentRange, Debug_, DiagnosticMessage, Diagnostics, LanguageVariant, LineAndCharacter,
+    ScriptTarget, SourceFileLike, SourceTextAsChars, SyntaxKind, TokenFlags,
 };
 
 pub type ErrorCallback<'callback> = &'callback dyn Fn(&DiagnosticMessage, usize);
@@ -897,7 +897,6 @@ pub fn could_start_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
 
 pub fn skip_trivia(
     text: &SourceTextAsChars,
-    text_str: &str,
     pos: isize,
     stop_after_line_break: Option<bool>,
     stop_at_comments: Option<bool>,
@@ -1004,8 +1003,8 @@ pub fn skip_trivia(
                 }
             }
             CharacterCodes::hash => {
-                if pos == 0 && is_shebang_trivia(text_str, pos) {
-                    pos = scan_shebang_trivia(text_str, pos);
+                if pos == 0 && is_shebang_trivia(text, pos) {
+                    pos = scan_shebang_trivia(text, pos);
                     can_consume_star = false;
                     continue;
                 }
@@ -1107,48 +1106,390 @@ lazy_static! {
     pub(super) static ref shebang_trivia_regex: Regex = Regex::new(r"^#!.*").unwrap();
 }
 
-pub(crate) fn is_shebang_trivia(
-    text: &str,
-    pos: usize, // this is a char index, not a string (byte) index, it's only ok because it's always 0 here
-) -> bool {
+// pub(crate) fn is_shebang_trivia(
+//     text: &str,
+//     pos: usize, // this is a char index, not a string (byte) index, it's only ok because it's always 0 here
+// ) -> bool {
+//     Debug_.assert(pos == 0, None);
+//     shebang_trivia_regex.is_match(text)
+// }
+pub(crate) fn is_shebang_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
     Debug_.assert(pos == 0, None);
-    shebang_trivia_regex.is_match(text)
+    if text_len(text) < 2 {
+        return false;
+    }
+    if text_char_at_index(text, 0) != CharacterCodes::hash {
+        return false;
+    }
+    if text_char_at_index(text, 1) != CharacterCodes::exclamation {
+        return false;
+    }
+    true
 }
 
-pub(crate) fn scan_shebang_trivia(
-    text: &str,
-    mut pos: usize, // this is a char index, not a string (byte) index, it's only ok because it's always 0 here
-) -> usize {
-    let original_pos = pos;
-    let shebang = shebang_trivia_regex.find(text).unwrap().as_str();
-    pos = pos + shebang.len();
-    text_str_num_chars(text, original_pos, pos)
+// pub(crate) fn scan_shebang_trivia(
+//     text: &str,
+//     mut pos: usize, // this is a char index, not a string (byte) index, it's only ok because it's always 0 here
+// ) -> usize {
+//     let original_pos = pos;
+//     let shebang = shebang_trivia_regex.find(text).unwrap().as_str();
+//     pos = pos + shebang.len();
+//     text_str_num_chars(text, original_pos, pos)
+// }
+pub(crate) fn scan_shebang_trivia(text: &SourceTextAsChars, mut pos: usize) -> usize {
+    get_shebang(text).unwrap().len()
 }
 
-pub(super) fn is_identifier_start(ch: char) -> bool {
+pub(super) fn iterate_comment_ranges<
+    TState,
+    TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, TState, Option<TMemo>) -> TMemo,
+>(
+    reduce: bool,
+    text: &SourceTextAsChars,
+    mut pos: usize,
+    trailing: bool,
+    cb: TCallback,
+    state: TState,
+    initial: Option<TMemo>,
+) -> Option<TMemo> {
+    let mut pending_pos: Option<usize> = None;
+    let mut pending_end: Option<usize> = None;
+    let mut pending_kind: Option<CommentKind> = None;
+    let mut pending_has_trailing_new_line: Option<bool> = None;
+    let mut has_pending_comment_range = false;
+    let mut collecting = trailing;
+    let mut accumulator = initial;
+    if pos == 0 {
+        collecting = true;
+        let shebang = get_shebang(text);
+        if let Some(shebang) = shebang {
+            pos = shebang.len();
+        }
+    }
+    while pos >= 0 && pos < text_len(text) {
+        let ch = text_char_at_index(text, pos);
+        match ch {
+            CharacterCodes::carriage_return => {
+                if matches!(
+                    maybe_text_char_at_index(text, pos + 1),
+                    Some(CharacterCodes::line_feed)
+                ) {
+                    pos += 1;
+                }
+                pos += 1;
+                if trailing {
+                    break;
+                }
+
+                collecting = true;
+                if has_pending_comment_range {
+                    pending_has_trailing_new_line = Some(true);
+                }
+
+                continue;
+            }
+            CharacterCodes::line_feed => {
+                pos += 1;
+                if trailing {
+                    break;
+                }
+
+                collecting = true;
+                if has_pending_comment_range {
+                    pending_has_trailing_new_line = Some(true);
+                }
+
+                continue;
+            }
+            CharacterCodes::tab
+            | CharacterCodes::vertical_tab
+            | CharacterCodes::form_feed
+            | CharacterCodes::space => {
+                pos += 1;
+                continue;
+            }
+            CharacterCodes::slash => {
+                let next_char = maybe_text_char_at_index(text, pos + 1);
+                let mut has_trailing_new_line = false;
+                if matches!(
+                    next_char,
+                    Some(CharacterCodes::slash | CharacterCodes::asterisk)
+                ) {
+                    let next_char = next_char.unwrap();
+                    let kind = if next_char == CharacterCodes::slash {
+                        SyntaxKind::SingleLineCommentTrivia
+                    } else {
+                        SyntaxKind::MultiLineCommentTrivia
+                    };
+                    let start_pos = pos;
+                    pos += 2;
+                    if next_char == CharacterCodes::slash {
+                        while pos < text_len(text) {
+                            if is_line_break(text_char_at_index(text, pos)) {
+                                has_trailing_new_line = true;
+                                break;
+                            }
+                            pos += 1;
+                        }
+                    } else {
+                        while pos < text_len(text) {
+                            if text_char_at_index(text, pos) == CharacterCodes::asterisk
+                                && matches!(
+                                    maybe_text_char_at_index(text, pos + 1),
+                                    Some(CharacterCodes::slash)
+                                )
+                            {
+                                pos += 2;
+                                break;
+                            }
+                            pos += 1;
+                        }
+                    }
+
+                    if collecting {
+                        if has_pending_comment_range {
+                            accumulator = Some(cb(
+                                pending_pos.unwrap(),
+                                pending_end.unwrap(),
+                                pending_kind.unwrap(),
+                                pending_has_trailing_new_line.unwrap(),
+                                state,
+                                accumulator,
+                            ));
+                            if !reduce && accumulator.is_some() {
+                                return accumulator;
+                            }
+                        }
+
+                        pending_pos = Some(start_pos);
+                        pending_end = Some(pos);
+                        pending_kind = Some(kind);
+                        pending_has_trailing_new_line = Some(has_trailing_new_line);
+                        has_pending_comment_range = true;
+                    }
+
+                    continue;
+                }
+
+                break;
+            }
+            _ => {
+                if ch > CharacterCodes::max_ascii_character && is_white_space_like(ch) {
+                    if has_pending_comment_range && is_line_break(ch) {
+                        pending_has_trailing_new_line = Some(true);
+                    }
+                    pos += 1;
+                    continue;
+                }
+                break;
+            }
+        }
+    }
+
+    accumulator
+}
+
+pub fn for_each_leading_comment_range<
+    TState,
+    TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, TState) -> TMemo,
+>(
+    text: &SourceTextAsChars,
+    pos: usize,
+    cb: TCallback,
+    state: TState, // TODO: expose a for_each_leading_comment_no_state variant (with different callback args and no state arg)?
+) -> Option<TMemo> {
+    iterate_comment_ranges(
+        false,
+        text,
+        pos,
+        false,
+        |pos, end, kind, has_trailing_new_line, state, _| {
+            cb(pos, end, kind, has_trailing_new_line, state)
+        },
+        state,
+        None,
+    )
+}
+
+pub fn for_each_trailing_comment_range<
+    TState,
+    TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, TState) -> TMemo,
+>(
+    text: &SourceTextAsChars,
+    pos: usize,
+    cb: TCallback,
+    state: TState,
+) -> Option<TMemo> {
+    iterate_comment_ranges(
+        false,
+        text,
+        pos,
+        true,
+        |pos, end, kind, has_trailing_new_line, state, _| {
+            cb(pos, end, kind, has_trailing_new_line, state)
+        },
+        state,
+        None,
+    )
+}
+
+pub fn reduce_each_leading_comment_range<
+    TState,
+    TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, TState, TMemo) -> TMemo,
+>(
+    text: &SourceTextAsChars,
+    pos: usize,
+    cb: TCallback,
+    state: TState,
+    initial: TMemo,
+) -> TMemo {
+    iterate_comment_ranges(
+        true,
+        text,
+        pos,
+        false,
+        |pos, end, kind, has_trailing_new_line, state, memo| {
+            cb(pos, end, kind, has_trailing_new_line, state, memo.unwrap())
+        },
+        state,
+        Some(initial),
+    )
+    .unwrap()
+}
+
+pub fn reduce_each_trailing_comment_range<
+    TState,
+    TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, TState, TMemo) -> TMemo,
+>(
+    text: &SourceTextAsChars,
+    pos: usize,
+    cb: TCallback,
+    state: TState,
+    initial: TMemo,
+) -> TMemo {
+    iterate_comment_ranges(
+        true,
+        text,
+        pos,
+        true,
+        |pos, end, kind, has_trailing_new_line, state, memo| {
+            cb(pos, end, kind, has_trailing_new_line, state, memo.unwrap())
+        },
+        state,
+        Some(initial),
+    )
+    .unwrap()
+}
+
+pub(super) fn append_comment_range(
+    pos: usize,
+    end: usize,
+    kind: CommentKind,
+    has_trailing_new_line: bool,
+    _state: (),
+    mut comments: Option<Vec<CommentRange>>,
+) -> Option<Vec<CommentRange>> {
+    if comments.is_none() {
+        comments = Some(vec![]);
+    }
+    let mut comments = comments.unwrap();
+
+    comments.push(CommentRange::new(
+        kind,
+        pos.try_into().unwrap(),
+        end.try_into().unwrap(),
+        Some(has_trailing_new_line),
+    ));
+    Some(comments)
+}
+
+pub(super) fn get_leading_comment_ranges(
+    text: &SourceTextAsChars,
+    pos: usize,
+) -> Option<Vec<CommentRange>> {
+    reduce_each_leading_comment_range(text, pos, append_comment_range, (), None)
+}
+
+pub(super) fn get_trailing_comment_ranges(
+    text: &SourceTextAsChars,
+    pos: usize,
+) -> Option<Vec<CommentRange>> {
+    reduce_each_trailing_comment_range(text, pos, append_comment_range, (), None)
+}
+
+// pub(super) fn get_shebang(text: &str) -> Option<String> {
+//     let match_ = shebang_trivia_regex.find(text);
+//     match_.map(|match_| match_.as_str().to_string())
+// }
+pub(super) fn get_shebang(text: &SourceTextAsChars) -> Option<Vec<char>> {
+    if text_len(text) < 2 {
+        return None;
+    }
+    if text_char_at_index(text, 0) != CharacterCodes::hash {
+        return None;
+    }
+    if text_char_at_index(text, 1) != CharacterCodes::exclamation {
+        return None;
+    }
+    let shebang = vec!['#', '!'];
+    let mut pos = 2;
+    while pos < text_len(text) {
+        let ch = text_char_at_index(text, pos);
+        if ch == CharacterCodes::line_feed {
+            break;
+        }
+        shebang.push(ch);
+        pos += 1;
+    }
+    Some(shebang)
+}
+
+pub(super) fn is_identifier_start(ch: char, language_version: Option<ScriptTarget>) -> bool {
     ch >= CharacterCodes::A && ch <= CharacterCodes::Z
         || ch >= CharacterCodes::a && ch <= CharacterCodes::z
         || ch == CharacterCodes::dollar_sign
         || ch == CharacterCodes::underscore
-        || ch > CharacterCodes::max_ascii_character && is_unicode_identifier_start(ch)
+        || ch > CharacterCodes::max_ascii_character
+            && is_unicode_identifier_start(ch, language_version)
 }
 
-pub(super) fn is_identifier_part(ch: char) -> bool {
+pub(super) fn is_identifier_part(
+    ch: char,
+    language_version: Option<ScriptTarget>,
+    identifier_variant: Option<LanguageVariant>,
+) -> bool {
     ch >= CharacterCodes::A && ch <= CharacterCodes::Z
         || ch >= CharacterCodes::a && ch <= CharacterCodes::z
         || ch >= CharacterCodes::_0 && ch <= CharacterCodes::_9
         || ch == CharacterCodes::dollar_sign
         || ch == CharacterCodes::underscore
-        || ch > CharacterCodes::max_ascii_character && is_unicode_identifier_start(ch)
+        || match identifier_variant {
+            Some(LanguageVariant::JSX) => {
+                matches!(ch, CharacterCodes::minus | CharacterCodes::colon)
+            }
+            _ => false,
+        }
+        || ch > CharacterCodes::max_ascii_character
+            && is_unicode_identifier_start(ch, language_version)
 }
 
-pub fn is_identifier_text(name: &str) -> bool {
+pub fn is_identifier_text(
+    name: &str,
+    language_version: Option<ScriptTarget>,
+    identifier_variant: Option<LanguageVariant>,
+) -> bool {
     let ch = code_point_at(&name.chars().collect(), 0);
-    if !is_identifier_start(ch) {
+    if !is_identifier_start(ch, language_version) {
         return false;
     }
+
     for ch in name.chars().skip(1) {
-        if !is_identifier_part(ch) {
+        if !is_identifier_part(ch, language_version, identifier_variant) {
             return false;
         }
     }
@@ -1156,11 +1497,12 @@ pub fn is_identifier_text(name: &str) -> bool {
     true
 }
 
-pub fn create_scanner(skip_trivia: bool) -> Scanner {
-    Scanner::new(skip_trivia)
+pub fn create_scanner(language_version: ScriptTarget, skip_trivia: bool) -> Scanner {
+    Scanner::new(language_version, skip_trivia)
 }
 
 pub struct Scanner /*<'on_error>*/ {
+    pub(super) language_version: ScriptTarget,
     pub(super) skip_trivia: bool,
     // on_error: Option<ErrorCallback<'on_error>>,
     pub(super) text: Option<SourceTextAsChars>,
@@ -1175,8 +1517,9 @@ pub struct Scanner /*<'on_error>*/ {
 }
 
 impl Scanner {
-    pub(super) fn new(skip_trivia: bool) -> Self {
+    pub(super) fn new(language_version: ScriptTarget, skip_trivia: bool) -> Self {
         Scanner {
+            language_version,
             skip_trivia,
             // on_error: None,
             text: None,

@@ -11,19 +11,19 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    text_substring, ModifierFlags, NodeArray, SourceFileLike, SourceTextAsChars, SymbolTracker,
-    SymbolWriter, SyntaxKind, TextSpan, TypeFlags, __String, compare_strings_case_sensitive,
-    compare_values, create_text_span_from_bounds, escape_leading_underscores, for_each,
-    get_combined_node_flags, get_name_of_declaration, insert_sorted, is_big_int_literal,
-    is_member_name, is_type_alias_declaration, skip_trivia, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags,
-    Comparison, Debug_, Diagnostic, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange,
-    SortedArray, SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    TransientSymbolInterface, Type, TypeInterface,
+    text_substring, CompilerOptions, ModifierFlags, ModuleKind, NodeArray, ScriptTarget,
+    SourceFileLike, SourceTextAsChars, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan,
+    TypeFlags, __String, compare_strings_case_sensitive, compare_values,
+    create_text_span_from_bounds, escape_leading_underscores, for_each, get_combined_node_flags,
+    get_name_of_declaration, insert_sorted, is_big_int_literal, is_member_name,
+    is_type_alias_declaration, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitTextWriter, Expression,
+    LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
+    PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -129,17 +129,11 @@ fn get_source_text_of_node_from_source_file<TNode: NodeInterface>(
     include_trivia: Option<bool>,
 ) -> String {
     let include_trivia = include_trivia.unwrap_or(false);
-    get_text_of_node_from_source_text(
-        source_file.text_as_chars(),
-        source_file.text(),
-        node,
-        Some(include_trivia),
-    )
+    get_text_of_node_from_source_text(source_file.text_as_chars(), node, Some(include_trivia))
 }
 
 fn get_text_of_node_from_source_text<TNode: NodeInterface>(
     source_text: &SourceTextAsChars,
-    source_text_str: &str,
     node: &TNode,
     include_trivia: Option<bool>,
 ) -> String {
@@ -151,7 +145,7 @@ fn get_text_of_node_from_source_text<TNode: NodeInterface>(
     let start = if include_trivia {
         node.pos()
     } else {
-        skip_trivia(source_text, source_text_str, node.pos(), None, None, None)
+        skip_trivia(source_text, node.pos(), None, None, None)
     };
     let end = node.end();
     if !(start >= 0 && end >= 0 && end - start >= 0) {
@@ -1124,6 +1118,18 @@ fn compare_message_text(t1: &DiagnosticMessageText, t2: &DiagnosticMessageText) 
         return Comparison::GreaterThan;
     }
     Comparison::EqualTo
+}
+
+pub fn get_emit_script_target(compiler_options: &CompilerOptions) -> ScriptTarget {
+    compiler_options.target.unwrap_or_else(|| {
+        if matches!(compiler_options.module, Some(ModuleKind::Node12)) {
+            ScriptTarget::ES2020
+        } else if matches!(compiler_options.module, Some(ModuleKind::NodeNext)) {
+            ScriptTarget::ESNext
+        } else {
+            ScriptTarget::ES3
+        }
+    })
 }
 
 pub fn position_is_synthesized(pos: isize) -> bool {

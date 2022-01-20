@@ -1,14 +1,14 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
     BaseNamedDeclaration, BaseNode, BindingLikeDeclarationInterface, Diagnostic, Expression,
     FunctionDeclaration, HasExpressionInitializerInterface, HasTypeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Path, StringLiteral, Symbol,
-    TypeCheckerHost, VariableLikeDeclarationInterface,
+    SyntaxKind, TextRange, TypeCheckerHost, VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
 
@@ -531,6 +531,49 @@ impl TypeAliasDeclaration {
             _generic_named_declaration: base_generic_named_declaration,
             type_,
         }
+    }
+}
+
+pub type CommentKind = SyntaxKind; /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
+
+pub struct CommentRange {
+    pos: Cell<isize>,
+    end: Cell<isize>,
+    has_trailing_new_line: Option<bool>,
+    kind: CommentKind,
+}
+
+impl CommentRange {
+    pub fn new(
+        kind: CommentKind,
+        pos: isize,
+        end: isize,
+        has_trailing_new_line: Option<bool>,
+    ) -> Self {
+        Self {
+            kind,
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+            has_trailing_new_line,
+        }
+    }
+}
+
+impl TextRange for CommentRange {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
     }
 }
 

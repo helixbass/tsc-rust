@@ -1,19 +1,23 @@
 #![allow(non_upper_case_globals)]
 
 use super::{is_identifier_part, is_identifier_start, ErrorCallback, Scanner};
-use crate::{Debug_, SourceTextAsChars, SyntaxKind};
+use crate::{Debug_, ScriptTarget, SourceTextAsChars, SyntaxKind};
 
 impl Scanner {
-    pub(super) fn scan_identifier(&self, start_character: char) -> Option<SyntaxKind> {
+    pub(super) fn scan_identifier(
+        &self,
+        start_character: char,
+        language_version: ScriptTarget,
+    ) -> Option<SyntaxKind> {
         let mut ch = start_character;
-        if is_identifier_start(ch) {
+        if is_identifier_start(ch, Some(language_version)) {
             self.set_pos(self.pos() + char_size(ch));
             loop {
                 if !(self.pos() < self.end()) {
                     break;
                 }
                 ch = code_point_at(self.text(), self.pos());
-                if !is_identifier_part(ch) {
+                if !is_identifier_part(ch, Some(language_version), None) {
                     break;
                 }
                 self.set_pos(self.pos() + char_size(ch));
