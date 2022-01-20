@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Ref, RefCell};
+use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
@@ -534,6 +534,20 @@ impl TypeAliasDeclaration {
     }
 }
 
+pub type SourceText = String;
+
+pub trait SourceFileLike {
+    fn text(&self) -> &SourceText;
+    fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>>;
+    fn line_map(&self) -> Ref<Vec<usize>>;
+    fn maybe_get_position_of_line_and_character(
+        &self,
+        line: usize,
+        character: usize,
+        allow_edits: Option<bool>,
+    ) -> Option<usize>;
+}
+
 #[derive(Debug)]
 #[ast_type(impl_from = false)]
 pub struct SourceFile {
@@ -546,6 +560,8 @@ pub struct SourceFile {
     pub text: String,
 
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+
+    line_map: RefCell<Option<Vec<usize>>>,
 }
 
 impl SourceFile {
@@ -563,6 +579,7 @@ impl SourceFile {
             path: RefCell::new(None),
             text,
             parse_diagnostics: RefCell::new(None),
+            line_map: RefCell::new(None),
         }
     }
 
@@ -596,6 +613,31 @@ impl SourceFile {
         self._symbols_without_a_symbol_table_strong_references
             .borrow_mut()
             .push(symbol);
+    }
+}
+
+impl SourceFileLike for SourceFile {
+    fn text(&self) -> &SourceText {
+        &self.text
+    }
+
+    fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>> {
+        self.line_map.borrow_mut()
+    }
+
+    fn line_map(&self) -> Ref<Vec<usize>> {
+        Ref::map(self.line_map.borrow(), |line_map| {
+            line_map.as_ref().unwrap()
+        })
+    }
+
+    fn maybe_get_position_of_line_and_character(
+        &self,
+        line: usize,
+        character: usize,
+        allow_edits: Option<bool>,
+    ) -> Option<usize> {
+        None
     }
 }
 
