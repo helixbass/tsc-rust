@@ -534,10 +534,31 @@ impl TypeAliasDeclaration {
     }
 }
 
-pub type SourceText = String;
+pub type SourceTextAsChars = Vec<char>;
+
+pub fn text_len(text: &SourceTextAsChars) -> usize {
+    text.len()
+}
+
+pub fn maybe_text_char_at_index(text: &SourceTextAsChars, index: usize) -> Option<char> {
+    text.get(index).map(|ch| *ch)
+}
+
+pub fn text_char_at_index(text: &SourceTextAsChars, index: usize) -> char {
+    maybe_text_char_at_index(text, index).unwrap()
+}
+
+pub fn text_substring(text: &SourceTextAsChars, start: usize, end: usize) -> String {
+    text[start..end].into_iter().collect()
+}
+
+pub fn text_str_num_chars(text: &str, start: usize, end: usize) -> usize {
+    text[start..end].chars().count()
+}
 
 pub trait SourceFileLike {
-    fn text(&self) -> &SourceText;
+    fn text(&self) -> &str;
+    fn text_as_chars(&self) -> &SourceTextAsChars;
     fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>>;
     fn line_map(&self) -> Ref<Vec<usize>>;
     fn maybe_get_position_of_line_and_character(
@@ -558,6 +579,7 @@ pub struct SourceFile {
     file_name: RefCell<String>,
     path: RefCell<Option<Path>>,
     pub text: String,
+    pub text_as_chars: SourceTextAsChars,
 
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
@@ -578,6 +600,7 @@ impl SourceFile {
             file_name: RefCell::new(file_name),
             path: RefCell::new(None),
             text,
+            text_as_chars: text.chars().collect(),
             parse_diagnostics: RefCell::new(None),
             line_map: RefCell::new(None),
         }
@@ -617,8 +640,12 @@ impl SourceFile {
 }
 
 impl SourceFileLike for SourceFile {
-    fn text(&self) -> &SourceText {
+    fn text(&self) -> &str {
         &self.text
+    }
+
+    fn text_as_chars(&self) -> &SourceTextAsChars {
+        &self.text_as_chars
     }
 
     fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>> {

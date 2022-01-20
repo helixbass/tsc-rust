@@ -481,7 +481,12 @@ impl ParserType {
         self.set_parse_error_before_next_finished_node(false);
 
         let mut scanner = self.scanner_mut();
-        scanner.set_text(Some(_source_text), None, None);
+        scanner.set_text(
+            Some(_source_text.chars().collect()),
+            Some(_source_text.to_string()),
+            None,
+            None,
+        );
         // scanner.set_on_error(Some(Box::new(move |message, length| {
         //     self.scan_error(message, length)
         // })));

@@ -10,9 +10,10 @@ use std::iter::FromIterator;
 
 use super::code_point_at;
 use crate::{
-    binary_search_copy_key, compare_values, position_is_synthesized, CharacterCodes, Debug_,
-    DiagnosticMessage, Diagnostics, LineAndCharacter, ScriptTarget, SourceFileLike, SourceText,
-    SyntaxKind, TokenFlags,
+    binary_search_copy_key, compare_values, maybe_text_char_at_index, position_is_synthesized,
+    text_char_at_index, text_len, text_str_num_chars, text_substring, CharacterCodes, Debug_,
+    DiagnosticMessage, Diagnostics, LineAndCharacter, ScriptTarget, SourceFileLike,
+    SourceTextAsChars, SyntaxKind, TokenFlags,
 };
 
 pub type ErrorCallback<'callback> = &'callback dyn Fn(&DiagnosticMessage, usize);
@@ -720,23 +721,7 @@ pub(crate) fn string_to_token(s: &str) -> Option<SyntaxKind> {
     text_to_token.get(s).map(|token| *token)
 }
 
-pub(super) fn text_len(text: &SourceText) -> usize {
-    text.chars().count()
-}
-
-pub(super) fn maybe_text_char_at_index(text: &SourceText, index: usize) -> Option<char> {
-    text.chars().nth(index)
-}
-
-pub(super) fn text_char_at_index(text: &SourceText, index: usize) -> char {
-    maybe_text_char_at_index(text, index).unwrap()
-}
-
-pub(super) fn text_substring(text: &SourceText, start: usize, end: usize) -> String {
-    text.chars().skip(start).take(end - start).collect()
-}
-
-pub(crate) fn compute_line_starts(text: &SourceText) -> Vec<usize> {
+pub(crate) fn compute_line_starts(text: &SourceTextAsChars) -> Vec<usize> {
     let mut result = vec![];
     let mut pos = 0;
     let mut line_start = 0;
@@ -778,7 +763,7 @@ pub(crate) fn get_line_starts<TSourceFileLike: SourceFileLike>(
         return source_file.line_map();
     }
     {
-        *source_file.maybe_line_map() = Some(compute_line_starts(source_file.text()));
+        *source_file.maybe_line_map() = Some(compute_line_starts(source_file.text_as_chars()));
     }
     source_file.line_map()
 }
@@ -888,7 +873,7 @@ pub(crate) fn is_octal_digit(ch: char) -> bool {
     ch >= CharacterCodes::_0 && ch <= CharacterCodes::_7
 }
 
-pub fn could_start_trivia(text: &SourceText, pos: usize) -> bool {
+pub fn could_start_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
     let ch = maybe_text_char_at_index(text, pos);
     match ch {
         None => false,
@@ -911,7 +896,8 @@ pub fn could_start_trivia(text: &SourceText, pos: usize) -> bool {
 }
 
 pub fn skip_trivia(
-    text: &SourceText,
+    text: &SourceTextAsChars,
+    text_str: &str,
     pos: isize,
     stop_after_line_break: Option<bool>,
     stop_at_comments: Option<bool>,
@@ -1008,14 +994,18 @@ pub fn skip_trivia(
             | CharacterCodes::equals
             | CharacterCodes::greater_than => {
                 if is_conflict_marker_trivia(text, pos) {
-                    pos = scan_conflict_marker_trivia(text, pos, None);
+                    pos = scan_conflict_marker_trivia(
+                        text,
+                        pos,
+                        Option::<fn(&DiagnosticMessage, Option<usize>, Option<usize>)>::None,
+                    );
                     can_consume_star = false;
                     continue;
                 }
             }
             CharacterCodes::hash => {
-                if pos == 0 && is_shebang_trivia(text, pos) {
-                    pos = scan_shebang_trivia(text, pos);
+                if pos == 0 && is_shebang_trivia(text_str, pos) {
+                    pos = scan_shebang_trivia(text_str, pos);
                     can_consume_star = false;
                     continue;
                 }
@@ -1046,7 +1036,7 @@ pub(super) const fn merge_conflict_marker_length() -> usize {
     7
 }
 
-fn is_conflict_marker_trivia(text: &SourceText, pos: usize) -> bool {
+fn is_conflict_marker_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
     // Debug_.assert(pos >= 0);
 
     if pos == 0 || matches!(maybe_text_char_at_index(text, pos - 1), Some(ch) if is_line_break(ch))
@@ -1071,7 +1061,7 @@ fn is_conflict_marker_trivia(text: &SourceText, pos: usize) -> bool {
 }
 
 fn scan_conflict_marker_trivia<TError: FnMut(&DiagnosticMessage, Option<usize>, Option<usize>)>(
-    text: &SourceText,
+    text: &SourceTextAsChars,
     mut pos: usize,
     error: Option<TError>,
 ) -> usize {
@@ -1113,6 +1103,28 @@ fn scan_conflict_marker_trivia<TError: FnMut(&DiagnosticMessage, Option<usize>, 
     pos
 }
 
+lazy_static! {
+    pub(super) static ref shebang_trivia_regex: Regex = Regex::new(r"^#!.*").unwrap();
+}
+
+pub(crate) fn is_shebang_trivia(
+    text: &str,
+    pos: usize, // this is a char index, not a string (byte) index, it's only ok because it's always 0 here
+) -> bool {
+    Debug_.assert(pos == 0, None);
+    shebang_trivia_regex.is_match(text)
+}
+
+pub(crate) fn scan_shebang_trivia(
+    text: &str,
+    mut pos: usize, // this is a char index, not a string (byte) index, it's only ok because it's always 0 here
+) -> usize {
+    let original_pos = pos;
+    let shebang = shebang_trivia_regex.find(text).unwrap().as_str();
+    pos = pos + shebang.len();
+    text_str_num_chars(text, original_pos, pos)
+}
+
 pub(super) fn is_identifier_start(ch: char) -> bool {
     ch >= CharacterCodes::A && ch <= CharacterCodes::Z
         || ch >= CharacterCodes::a && ch <= CharacterCodes::z
@@ -1131,7 +1143,7 @@ pub(super) fn is_identifier_part(ch: char) -> bool {
 }
 
 pub fn is_identifier_text(name: &str) -> bool {
-    let ch = code_point_at(name, 0);
+    let ch = code_point_at(&name.chars().collect(), 0);
     if !is_identifier_start(ch) {
         return false;
     }
@@ -1151,7 +1163,8 @@ pub fn create_scanner(skip_trivia: bool) -> Scanner {
 pub struct Scanner /*<'on_error>*/ {
     pub(super) skip_trivia: bool,
     // on_error: Option<ErrorCallback<'on_error>>,
-    pub(super) text: Option<SourceText>,
+    pub(super) text: Option<SourceTextAsChars>,
+    pub(super) text_str: Option<String>,
     pub(super) pos: RefCell<Option<usize>>,
     pub(super) end: Option<usize>,
     pub(super) start_pos: RefCell<Option<usize>>,
@@ -1167,6 +1180,7 @@ impl Scanner {
             skip_trivia,
             // on_error: None,
             text: None,
+            text_str: None,
             pos: RefCell::new(None),
             end: None,
             start_pos: RefCell::new(None),
@@ -1177,12 +1191,21 @@ impl Scanner {
         }
     }
 
-    pub(super) fn text(&self) -> &SourceText {
+    pub(super) fn text(&self) -> &SourceTextAsChars {
         self.text.as_ref().unwrap()
     }
 
-    pub(super) fn set_text_(&mut self, text: SourceText) {
+    pub(super) fn text_str(&self) -> &str {
+        self.text_str.as_ref().unwrap()
+    }
+
+    pub(super) fn set_text_(&mut self, text: SourceTextAsChars, text_str: String) {
         self.text = Some(text);
+        self.text_str = Some(text_str);
+    }
+
+    pub(super) fn maybe_text_char_at_index(&self, index: usize) -> Option<char> {
+        maybe_text_char_at_index(self.text(), index)
     }
 
     pub(super) fn text_char_at_index(&self, index: usize) -> char {

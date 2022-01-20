@@ -27,26 +27,19 @@ impl Scanner {
         let start = self.pos();
         let result = "".to_string();
         loop {
-            let ch = self.text().chars().nth(self.pos());
+            let ch = self.maybe_text_char_at_index(self.pos());
             let ch = match ch {
                 Some(ch) => ch,
                 None => break,
             };
             if is_digit(ch) {
-                self.set_pos(self.pos() + 1);
+                self.increment_pos();
                 continue;
             }
             break;
         }
         let mut ret = result;
-        ret.push_str(
-            &self
-                .text()
-                .chars()
-                .skip(start)
-                .take(self.pos() - start)
-                .collect::<String>(),
-        );
+        ret.push_str(&self.text_substring(start, self.pos()));
         ret
     }
 
@@ -545,7 +538,7 @@ impl Scanner {
                     return self.set_token(SyntaxKind::AsteriskToken);
                 }
                 CharacterCodes::plus => {
-                    if let Some(next_char) = self.text().chars().nth(self.pos() + 1) {
+                    if let Some(next_char) = self.maybe_text_char_at_index(self.pos() + 1) {
                         if next_char == CharacterCodes::plus {
                             self.increment_pos_by(2);
                             return self.set_token(SyntaxKind::PlusPlusToken);
