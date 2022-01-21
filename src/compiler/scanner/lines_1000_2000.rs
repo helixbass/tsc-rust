@@ -2,7 +2,7 @@
 
 use super::{
     code_point_at, hex_digits_to_u32, is_code_point, is_digit, is_hex_digit, is_identifier_start,
-    is_line_break, text_to_keyword, utf16_encode_as_string, ErrorCallback, Scanner,
+    is_line_break, is_octal_digit, text_to_keyword, utf16_encode_as_string, ErrorCallback, Scanner,
 };
 use crate::{CharacterCodes, DiagnosticMessage, Diagnostics, SyntaxKind, TokenFlags};
 
@@ -197,6 +197,14 @@ impl Scanner {
         }
     }
 
+    pub(super) fn scan_octal_digits(&self) -> u32 {
+        let start = self.pos();
+        while matches!(self.maybe_text_char_at_index(self.pos()), Some(ch) if is_octal_digit(ch)) {
+            self.increment_pos();
+        }
+        u32::from_str_radix(&self.text_substring(start, self.pos()), 8).unwrap()
+    }
+
     pub(super) fn scan_exact_number_of_hex_digits(
         &self,
         on_error: Option<ErrorCallback>,
@@ -298,7 +306,7 @@ impl Scanner {
         let quote = self.text_char_at_index(self.pos());
         self.increment_pos();
         let mut result = String::new();
-        let start = self.pos();
+        let mut start = self.pos();
         loop {
             if self.pos() >= self.end() {
                 result.push_str(&self.text_substring(start, self.pos()));
@@ -318,10 +326,21 @@ impl Scanner {
                 break;
             }
             if ch == CharacterCodes::backslash && !jsx_attribute_string {
-                unimplemented!()
+                result.push_str(&self.text_substring(start, self.pos()));
+                result.push_str(&self.scan_escape_sequence(on_error, None));
+                start = self.pos();
+                continue;
             }
             if is_line_break(ch) && !jsx_attribute_string {
-                unimplemented!()
+                result.push_str(&self.text_substring(start, self.pos()));
+                self.add_token_flag(TokenFlags::Unterminated);
+                self.error(
+                    on_error,
+                    &Diagnostics::Unterminated_string_literal,
+                    None,
+                    None,
+                );
+                break;
             }
             self.increment_pos();
         }
@@ -761,7 +780,7 @@ impl Scanner {
                     let ScanNumberReturn {
                         type_: token,
                         value: token_value,
-                    } = self.scan_number();
+                    } = self.scan_number(on_error);
                     self.set_token(token);
                     self.set_token_value(token_value);
                     return token;
