@@ -636,6 +636,7 @@ impl SourceFile {
         file_name: String,
         text: String,
     ) -> Self {
+        let text_as_chars = text.chars().collect();
         Self {
             _node: base_node,
             _symbols_without_a_symbol_table_strong_references: RefCell::new(vec![]),
@@ -643,7 +644,7 @@ impl SourceFile {
             file_name: RefCell::new(file_name),
             path: RefCell::new(None),
             text,
-            text_as_chars: text.chars().collect(),
+            text_as_chars,
             parse_diagnostics: RefCell::new(None),
             line_map: RefCell::new(None),
         }

@@ -1064,7 +1064,7 @@ fn scan_conflict_marker_trivia<TError: FnMut(&DiagnosticMessage, Option<usize>, 
     mut pos: usize,
     error: Option<TError>,
 ) -> usize {
-    if let Some(error) = error {
+    if let Some(mut error) = error {
         error(
             &Diagnostics::Merge_conflict_marker_encountered,
             Some(pos),
@@ -1136,21 +1136,21 @@ pub(crate) fn is_shebang_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
 //     pos = pos + shebang.len();
 //     text_str_num_chars(text, original_pos, pos)
 // }
-pub(crate) fn scan_shebang_trivia(text: &SourceTextAsChars, mut pos: usize) -> usize {
+pub(crate) fn scan_shebang_trivia(text: &SourceTextAsChars, pos: usize) -> usize {
     get_shebang(text).unwrap().len()
 }
 
 pub(super) fn iterate_comment_ranges<
     TState,
     TMemo,
-    TCallback: FnMut(usize, usize, CommentKind, bool, TState, Option<TMemo>) -> TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, &TState, Option<TMemo>) -> TMemo,
 >(
     reduce: bool,
     text: &SourceTextAsChars,
     mut pos: usize,
     trailing: bool,
-    cb: TCallback,
-    state: TState,
+    mut cb: TCallback,
+    state: &TState,
     initial: Option<TMemo>,
 ) -> Option<TMemo> {
     let mut pending_pos: Option<usize> = None;
@@ -1293,12 +1293,12 @@ pub(super) fn iterate_comment_ranges<
 pub fn for_each_leading_comment_range<
     TState,
     TMemo,
-    TCallback: FnMut(usize, usize, CommentKind, bool, TState) -> TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, &TState) -> TMemo,
 >(
     text: &SourceTextAsChars,
     pos: usize,
-    cb: TCallback,
-    state: TState, // TODO: expose a for_each_leading_comment_no_state variant (with different callback args and no state arg)?
+    mut cb: TCallback,
+    state: &TState, // TODO: expose a for_each_leading_comment_no_state variant (with different callback args and no state arg)?
 ) -> Option<TMemo> {
     iterate_comment_ranges(
         false,
@@ -1316,12 +1316,12 @@ pub fn for_each_leading_comment_range<
 pub fn for_each_trailing_comment_range<
     TState,
     TMemo,
-    TCallback: FnMut(usize, usize, CommentKind, bool, TState) -> TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, &TState) -> TMemo,
 >(
     text: &SourceTextAsChars,
     pos: usize,
-    cb: TCallback,
-    state: TState,
+    mut cb: TCallback,
+    state: &TState,
 ) -> Option<TMemo> {
     iterate_comment_ranges(
         false,
@@ -1339,12 +1339,12 @@ pub fn for_each_trailing_comment_range<
 pub fn reduce_each_leading_comment_range<
     TState,
     TMemo,
-    TCallback: FnMut(usize, usize, CommentKind, bool, TState, TMemo) -> TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, &TState, TMemo) -> TMemo,
 >(
     text: &SourceTextAsChars,
     pos: usize,
-    cb: TCallback,
-    state: TState,
+    mut cb: TCallback,
+    state: &TState,
     initial: TMemo,
 ) -> TMemo {
     iterate_comment_ranges(
@@ -1364,12 +1364,12 @@ pub fn reduce_each_leading_comment_range<
 pub fn reduce_each_trailing_comment_range<
     TState,
     TMemo,
-    TCallback: FnMut(usize, usize, CommentKind, bool, TState, TMemo) -> TMemo,
+    TCallback: FnMut(usize, usize, CommentKind, bool, &TState, TMemo) -> TMemo,
 >(
     text: &SourceTextAsChars,
     pos: usize,
-    cb: TCallback,
-    state: TState,
+    mut cb: TCallback,
+    state: &TState,
     initial: TMemo,
 ) -> TMemo {
     iterate_comment_ranges(
@@ -1391,7 +1391,7 @@ pub(super) fn append_comment_range(
     end: usize,
     kind: CommentKind,
     has_trailing_new_line: bool,
-    _state: (),
+    _state: &(),
     mut comments: Option<Vec<CommentRange>>,
 ) -> Option<Vec<CommentRange>> {
     if comments.is_none() {
@@ -1412,14 +1412,14 @@ pub(super) fn get_leading_comment_ranges(
     text: &SourceTextAsChars,
     pos: usize,
 ) -> Option<Vec<CommentRange>> {
-    reduce_each_leading_comment_range(text, pos, append_comment_range, (), None)
+    reduce_each_leading_comment_range(text, pos, append_comment_range, &(), None)
 }
 
 pub(super) fn get_trailing_comment_ranges(
     text: &SourceTextAsChars,
     pos: usize,
 ) -> Option<Vec<CommentRange>> {
-    reduce_each_trailing_comment_range(text, pos, append_comment_range, (), None)
+    reduce_each_trailing_comment_range(text, pos, append_comment_range, &(), None)
 }
 
 // pub(super) fn get_shebang(text: &str) -> Option<String> {
@@ -1436,7 +1436,7 @@ pub(super) fn get_shebang(text: &SourceTextAsChars) -> Option<Vec<char>> {
     if text_char_at_index(text, 1) != CharacterCodes::exclamation {
         return None;
     }
-    let shebang = vec!['#', '!'];
+    let mut shebang = vec!['#', '!'];
     let mut pos = 2;
     while pos < text_len(text) {
         let ch = text_char_at_index(text, pos);
