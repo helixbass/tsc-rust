@@ -728,8 +728,8 @@ pub fn rc_source_file_into_rc_node(source_file: Rc<SourceFile>) -> Rc<Node> {
 
 #[derive(Debug)]
 pub struct CommentDirective {
-    range: BaseTextRange,
-    type_: CommentDirectiveType,
+    pub range: BaseTextRange,
+    pub type_: CommentDirectiveType,
 }
 
 #[derive(Debug, PartialEq, Eq)]

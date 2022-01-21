@@ -1,7 +1,14 @@
 #![allow(non_upper_case_globals)]
 
+use regex::Regex;
+use std::cell::RefMut;
+use std::convert::TryInto;
+
 use super::{is_identifier_part, is_identifier_start, ErrorCallback, Scanner};
-use crate::{Debug_, ScriptTarget, SourceTextAsChars, SyntaxKind};
+use crate::{
+    append, trim_string_start, BaseTextRange, CommentDirective, CommentDirectiveType, Debug_,
+    ScriptTarget, SourceTextAsChars, SyntaxKind,
+};
 
 impl Scanner {
     pub(super) fn scan_identifier(
@@ -28,7 +35,65 @@ impl Scanner {
         None
     }
 
-    pub fn re_scan_template_token(
+    pub(super) fn append_if_comment_directive(
+        &self,
+        mut comment_directives: RefMut<Option<Vec<CommentDirective>>>,
+        text: &str,
+        comment_directive_reg_ex: &Regex,
+        line_start: usize,
+    ) /*Vec<CommentDirective>*/
+    {
+        let type_ =
+            self.get_directive_from_comment(&trim_string_start(text), comment_directive_reg_ex);
+        if type_.is_none() {
+            return /*comment_directives*/;
+        }
+        let type_ = type_.unwrap();
+
+        if comment_directives.is_none() {
+            *comment_directives = Some(vec![]);
+        }
+        let mut comment_directives =
+            RefMut::map(comment_directives, |option| option.as_mut().unwrap());
+
+        /*return*/
+        append(
+            &mut comment_directives,
+            Some(CommentDirective {
+                range: BaseTextRange::new(
+                    line_start.try_into().unwrap(),
+                    self.pos().try_into().unwrap(),
+                ),
+                type_,
+            }),
+        )
+    }
+
+    pub(super) fn get_directive_from_comment(
+        &self,
+        text: &str,
+        comment_directive_reg_ex: &Regex,
+    ) -> Option<CommentDirectiveType> {
+        let match_ = comment_directive_reg_ex.captures(text);
+        if match_.is_none() {
+            return None;
+        }
+        let match_ = match_.unwrap();
+
+        match match_.get(1).unwrap().as_str() {
+            "ts-expect-error" => {
+                return Some(CommentDirectiveType::ExpectError);
+            }
+            "ts-ignore" => {
+                return Some(CommentDirectiveType::Ignore);
+            }
+            _ => (),
+        }
+
+        None
+    }
+
+    pub(crate) fn re_scan_template_token(
         &self,
         on_error: Option<ErrorCallback>,
         is_tagged_template: bool,
@@ -41,7 +106,7 @@ impl Scanner {
         self.set_token(self.scan_template_and_set_token_value(on_error, is_tagged_template))
     }
 
-    pub fn re_scan_template_head_or_no_substitution_template(
+    pub(crate) fn re_scan_template_head_or_no_substitution_template(
         &self,
         on_error: Option<ErrorCallback>,
     ) -> SyntaxKind {
@@ -49,7 +114,7 @@ impl Scanner {
         self.set_token(self.scan_template_and_set_token_value(on_error, true))
     }
 
-    pub fn re_scan_less_than_token(&self) -> SyntaxKind {
+    pub(crate) fn re_scan_less_than_token(&self) -> SyntaxKind {
         if self.token() == SyntaxKind::LessThanLessThanToken {
             unimplemented!()
         }

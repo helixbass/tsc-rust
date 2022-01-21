@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use regex::Regex;
-use std::cell::{Cell, Ref, RefCell};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 
 use super::{code_point_at, is_line_break, is_unicode_identifier_start, is_white_space_like};
@@ -805,6 +805,14 @@ impl Scanner {
 
     pub(super) fn add_token_flag(&self, flag: TokenFlags) {
         self.set_token_flags(self.token_flags() | flag);
+    }
+
+    pub(super) fn maybe_comment_directives(&self) -> RefMut<Option<Vec<CommentDirective>>> {
+        self.comment_directives.borrow_mut()
+    }
+
+    pub(super) fn in_jsdoc_type(&self) -> isize {
+        self.in_jsdoc_type.get()
     }
 
     pub fn get_start_pos(&self) -> usize {

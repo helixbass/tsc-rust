@@ -1,9 +1,11 @@
 #![allow(non_upper_case_globals)]
 
 use super::{
-    char_size, code_point_at, hex_digits_to_u32, is_code_point, is_digit, is_hex_digit,
-    is_identifier_part, is_identifier_start, is_line_break, is_octal_digit, maybe_code_point_at,
-    text_to_keyword, utf16_encode_as_string, ErrorCallback, Scanner,
+    char_size, code_point_at, comment_directive_reg_ex_multi_line,
+    comment_directive_reg_ex_single_line, hex_digits_to_u32, is_code_point, is_digit, is_hex_digit,
+    is_identifier_part, is_identifier_start, is_line_break, is_octal_digit, is_shebang_trivia,
+    is_white_space_single_line, maybe_code_point_at, scan_shebang_trivia, text_to_keyword,
+    utf16_encode_as_string, ErrorCallback, Scanner,
 };
 use crate::{
     parse_pseudo_big_int, CharacterCodes, DiagnosticMessage, Diagnostics, ScriptTarget, SyntaxKind,
@@ -818,7 +820,7 @@ impl Scanner {
     pub fn scan(&self, on_error: Option<ErrorCallback>) -> SyntaxKind {
         self.set_start_pos(self.pos());
         self.set_token_flags(TokenFlags::None);
-
+        let mut asterisk_seen = false;
         loop {
             self.set_token_pos(self.pos());
             if self.pos() >= self.end() {
@@ -826,21 +828,87 @@ impl Scanner {
             }
             let ch = code_point_at(self.text(), self.pos());
 
+            if ch == CharacterCodes::hash
+                && self.pos() == 0
+                && is_shebang_trivia(self.text(), self.pos())
+            {
+                self.set_pos(scan_shebang_trivia(self.text(), self.pos()));
+                if self.skip_trivia {
+                    continue;
+                } else {
+                    return self.set_token(SyntaxKind::ShebangTrivia);
+                }
+            }
+
             match ch {
-                CharacterCodes::line_feed => {
+                CharacterCodes::line_feed | CharacterCodes::carriage_return => {
                     self.add_token_flag(TokenFlags::PrecedingLineBreak);
                     if self.skip_trivia {
                         self.increment_pos();
                         continue;
                     } else {
-                        unimplemented!()
+                        if ch == CharacterCodes::carriage_return
+                            && self.pos() + 1 < self.end()
+                            && self.text_char_at_index(self.pos() + 1) == CharacterCodes::line_feed
+                        {
+                            self.increment_pos_by(2);
+                        } else {
+                            self.increment_pos();
+                        }
+                        return self.set_token(SyntaxKind::NewLineTrivia);
                     }
                 }
-                CharacterCodes::space => {
+                CharacterCodes::tab
+                | CharacterCodes::vertical_tab
+                | CharacterCodes::form_feed
+                | CharacterCodes::space
+                | CharacterCodes::non_breaking_space
+                | CharacterCodes::ogham
+                | CharacterCodes::en_quad
+                | CharacterCodes::em_quad
+                | CharacterCodes::en_space
+                | CharacterCodes::em_space
+                | CharacterCodes::three_per_em_space
+                | CharacterCodes::four_per_em_space
+                | CharacterCodes::six_per_em_space
+                | CharacterCodes::figure_space
+                | CharacterCodes::punctuation_space
+                | CharacterCodes::thin_space
+                | CharacterCodes::hair_space
+                | CharacterCodes::zero_width_space
+                | CharacterCodes::narrow_no_break_space
+                | CharacterCodes::mathematical_space
+                | CharacterCodes::ideographic_space
+                | CharacterCodes::byte_order_mark => {
                     if self.skip_trivia {
                         self.increment_pos();
                         continue;
+                    } else {
+                        while self.pos() < self.end()
+                            && is_white_space_single_line(self.text_char_at_index(self.pos()))
+                        {
+                            self.increment_pos();
+                        }
+                        return self.set_token(SyntaxKind::WhitespaceTrivia);
                     }
+                }
+                CharacterCodes::exclamation => {
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::equals)
+                    ) {
+                        if matches!(
+                            self.maybe_text_char_at_index(self.pos() + 2),
+                            Some(CharacterCodes::equals)
+                        ) {
+                            self.increment_pos_by(3);
+                            return self.set_token(SyntaxKind::ExclamationEqualsEqualsToken);
+                        }
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::ExclamationEqualsToken);
+                    }
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::ExclamationToken);
                 }
                 CharacterCodes::double_quote | CharacterCodes::single_quote => {
                     self.set_token_value(self.scan_string(on_error, None));
@@ -848,6 +916,42 @@ impl Scanner {
                 }
                 CharacterCodes::backtick => {
                     return self.set_token(self.scan_template_and_set_token_value(on_error, false));
+                }
+                CharacterCodes::percent => {
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::equals)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::PercentEqualsToken);
+                    }
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::PercentToken);
+                }
+                CharacterCodes::ampersand => {
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::ampersand)
+                    ) {
+                        if matches!(
+                            self.maybe_text_char_at_index(self.pos() + 2),
+                            Some(CharacterCodes::equals)
+                        ) {
+                            self.increment_pos_by(3);
+                            return self.set_token(SyntaxKind::AmpersandAmpersandEqualsToken);
+                        }
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::AmpersandAmpersandToken);
+                    }
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::equals)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::AmpersandEqualsToken);
+                    }
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::AmpersandToken);
                 }
                 CharacterCodes::open_paren => {
                     self.increment_pos();
@@ -858,25 +962,103 @@ impl Scanner {
                     return self.set_token(SyntaxKind::CloseParenToken);
                 }
                 CharacterCodes::asterisk => {
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::equals)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::AsteriskEqualsToken);
+                    }
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::asterisk)
+                    ) {
+                        if matches!(
+                            self.maybe_text_char_at_index(self.pos() + 2),
+                            Some(CharacterCodes::equals)
+                        ) {
+                            self.increment_pos_by(3);
+                            return self.set_token(SyntaxKind::AsteriskAsteriskEqualsToken);
+                        }
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::AsteriskAsteriskToken);
+                    }
                     self.increment_pos();
+                    if self.in_jsdoc_type() != 0
+                        && !asterisk_seen
+                        && self
+                            .token_flags()
+                            .intersects(TokenFlags::PrecedingLineBreak)
+                    {
+                        asterisk_seen = true;
+                        continue;
+                    }
                     return self.set_token(SyntaxKind::AsteriskToken);
                 }
                 CharacterCodes::plus => {
-                    if let Some(next_char) = self.maybe_text_char_at_index(self.pos() + 1) {
-                        if next_char == CharacterCodes::plus {
-                            self.increment_pos_by(2);
-                            return self.set_token(SyntaxKind::PlusPlusToken);
-                        }
-                        unimplemented!();
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::plus)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::PlusPlusToken);
                     }
-                    unimplemented!();
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::equals)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::PlusEqualsToken);
+                    }
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::PlusToken);
                 }
                 CharacterCodes::comma => {
                     self.increment_pos();
                     return self.set_token(SyntaxKind::CommaToken);
                 }
+                CharacterCodes::minus => {
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::minus)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::MinusMinusToken);
+                    }
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::equals)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::MinusEqualsToken);
+                    }
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::MinusToken);
+                }
+                CharacterCodes::dot => {
+                    if matches!(self.maybe_text_char_at_index(self.pos() + 1), Some(ch) if is_digit(ch))
+                    {
+                        self.set_token_value(self.scan_number(on_error).value);
+                        return self.set_token(SyntaxKind::NumericLiteral);
+                    }
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::dot)
+                    ) && matches!(
+                        self.maybe_text_char_at_index(self.pos() + 2),
+                        Some(CharacterCodes::dot)
+                    ) {
+                        self.increment_pos_by(3);
+                        return self.set_token(SyntaxKind::DotDotDotToken);
+                    }
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::DotToken);
+                }
                 CharacterCodes::slash => {
-                    if self.text_char_at_index(self.pos() + 1) == CharacterCodes::slash {
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::slash)
+                    ) {
                         self.increment_pos_by(2);
 
                         while self.pos() < self.end() {
@@ -886,18 +1068,30 @@ impl Scanner {
                             self.increment_pos();
                         }
 
+                        /*self.set_comment_directives(*/
+                        self.append_if_comment_directive(
+                            self.maybe_comment_directives(),
+                            &self.text_substring(self.token_pos(), self.pos()),
+                            &comment_directive_reg_ex_single_line,
+                            self.token_pos(),
+                        )/*)*/;
+
                         if self.skip_trivia {
                             continue;
                         } else {
-                            unimplemented!()
+                            return self.set_token(SyntaxKind::SingleLineCommentTrivia);
                         }
                     }
 
                     if self.text_char_at_index(self.pos() + 1) == CharacterCodes::asterisk {
                         self.increment_pos_by(2);
-                        if self.text_char_at_index(self.pos()) == CharacterCodes::asterisk
-                            && self.text_char_at_index(self.pos() + 1) != CharacterCodes::slash
-                        {
+                        if matches!(
+                            self.maybe_text_char_at_index(self.pos()),
+                            Some(CharacterCodes::asterisk)
+                        ) && !matches!(
+                            self.maybe_text_char_at_index(self.pos() + 1),
+                            Some(CharacterCodes::slash)
+                        ) {
                             self.add_token_flag(TokenFlags::PrecedingJSDocComment);
                         }
 
@@ -907,7 +1101,10 @@ impl Scanner {
                             let ch = self.text_char_at_index(self.pos());
 
                             if ch == CharacterCodes::asterisk
-                                && self.text_char_at_index(self.pos() + 1) == CharacterCodes::slash
+                                && matches!(
+                                    self.maybe_text_char_at_index(self.pos() + 1),
+                                    Some(CharacterCodes::slash)
+                                )
                             {
                                 self.increment_pos_by(2);
                                 comment_closed = true;
@@ -922,6 +1119,14 @@ impl Scanner {
                             }
                         }
 
+                        /*self.set_comment_directives(*/
+                        self.append_if_comment_directive(
+                            self.maybe_comment_directives(),
+                            &self.text_substring(last_line_start, self.pos()),
+                            &comment_directive_reg_ex_multi_line,
+                            last_line_start
+                        )/*)*/;
+
                         if !comment_closed {
                             self.error(on_error, &Diagnostics::Asterisk_Slash_expected, None, None);
                         }
@@ -929,8 +1134,19 @@ impl Scanner {
                         if self.skip_trivia {
                             continue;
                         } else {
-                            unimplemented!()
+                            if !comment_closed {
+                                self.add_token_flag(TokenFlags::Unterminated);
+                            }
+                            return self.set_token(SyntaxKind::MultiLineCommentTrivia);
                         }
+                    }
+
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::equals)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::SlashEqualsToken);
                     }
 
                     self.increment_pos();

@@ -82,6 +82,7 @@ pub enum SyntaxKind {
     EndOfFileToken,
     SingleLineCommentTrivia,
     MultiLineCommentTrivia,
+    NewLineTrivia,
     WhitespaceTrivia,
     ShebangTrivia,
     ConflictMarkerTrivia,
