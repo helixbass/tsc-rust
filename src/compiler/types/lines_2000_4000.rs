@@ -5,8 +5,8 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
-    BaseNamedDeclaration, BaseNode, BindingLikeDeclarationInterface, Diagnostic, Expression,
-    FunctionDeclaration, HasExpressionInitializerInterface, HasTypeInterface,
+    BaseNamedDeclaration, BaseNode, BaseTextRange, BindingLikeDeclarationInterface, Diagnostic,
+    Expression, FunctionDeclaration, HasExpressionInitializerInterface, HasTypeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Path, StringLiteral, Symbol,
     SyntaxKind, TextRange, TypeCheckerHost, VariableLikeDeclarationInterface,
 };
@@ -724,6 +724,18 @@ pub fn rc_source_file_into_rc_node(source_file: Rc<SourceFile>) -> Rc<Node> {
     let rc = Rc::new(Node::SourceFile(source_file));
     rc.set_node_wrapper(rc.clone());
     rc
+}
+
+#[derive(Debug)]
+pub struct CommentDirective {
+    range: BaseTextRange,
+    type_: CommentDirectiveType,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum CommentDirectiveType {
+    ExpectError,
+    Ignore,
 }
 
 pub trait Program: TypeCheckerHost {

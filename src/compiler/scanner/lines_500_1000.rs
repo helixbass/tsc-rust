@@ -1,14 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use regex::Regex;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::convert::{TryFrom, TryInto};
 
 use super::{code_point_at, is_line_break, is_unicode_identifier_start, is_white_space_like};
 use crate::{
     maybe_text_char_at_index, position_is_synthesized, text_char_at_index, text_len,
-    text_substring, CharacterCodes, CommentKind, CommentRange, Debug_, DiagnosticMessage,
-    Diagnostics, LanguageVariant, ScriptTarget, SourceTextAsChars, SyntaxKind, TokenFlags,
+    text_substring, CharacterCodes, CommentDirective, CommentKind, CommentRange, Debug_,
+    DiagnosticMessage, Diagnostics, LanguageVariant, ScriptTarget, SourceTextAsChars, SyntaxKind,
+    TokenFlags,
 };
 
 pub(super) fn is_digit(ch: char) -> bool {
@@ -653,13 +654,24 @@ pub fn is_identifier_text(
     true
 }
 
-pub fn create_scanner(language_version: ScriptTarget, skip_trivia: bool) -> Scanner {
-    Scanner::new(language_version, skip_trivia)
+pub fn create_scanner(
+    language_version: ScriptTarget,
+    skip_trivia: bool,
+    language_variant: Option<LanguageVariant>,
+    text_initial_as_chars: Option<SourceTextAsChars>,
+    text_initial: Option<String>,
+    /*onError?: ErrorCallback,*/ start: Option<usize>,
+    length: Option<usize>,
+) -> Scanner {
+    let mut scanner = Scanner::new(language_version, skip_trivia, language_variant);
+    scanner.set_text(text_initial_as_chars, text_initial, start, length);
+    scanner
 }
 
 pub struct Scanner /*<'on_error>*/ {
     pub(super) language_version: ScriptTarget,
     pub(super) skip_trivia: bool,
+    pub(super) language_variant: Option<LanguageVariant>,
     // on_error: Option<ErrorCallback<'on_error>>,
     pub(super) text: Option<SourceTextAsChars>,
     pub(super) text_str: Option<String>,
@@ -670,13 +682,20 @@ pub struct Scanner /*<'on_error>*/ {
     pub(super) token: RefCell<Option<SyntaxKind>>,
     pub(super) token_value: RefCell<Option<String>>,
     pub(super) token_flags: RefCell<Option<TokenFlags>>,
+    pub(super) comment_directives: RefCell<Option<Vec<CommentDirective>>>,
+    pub(super) in_jsdoc_type: Cell<isize>,
 }
 
 impl Scanner {
-    pub(super) fn new(language_version: ScriptTarget, skip_trivia: bool) -> Self {
+    pub(super) fn new(
+        language_version: ScriptTarget,
+        skip_trivia: bool,
+        language_variant: Option<LanguageVariant>,
+    ) -> Self {
         Scanner {
             language_version,
             skip_trivia,
+            language_variant,
             // on_error: None,
             text: None,
             text_str: None,
@@ -687,6 +706,8 @@ impl Scanner {
             token: RefCell::new(None),
             token_value: RefCell::new(None),
             token_flags: RefCell::new(None),
+            comment_directives: RefCell::new(None),
+            in_jsdoc_type: Cell::new(0),
         }
     }
 
