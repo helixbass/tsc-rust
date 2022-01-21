@@ -2,9 +2,10 @@
 
 use super::{
     char_size, code_point_at, comment_directive_reg_ex_multi_line,
-    comment_directive_reg_ex_single_line, hex_digits_to_u32, is_code_point, is_digit, is_hex_digit,
-    is_identifier_part, is_identifier_start, is_line_break, is_octal_digit, is_shebang_trivia,
-    is_white_space_single_line, maybe_code_point_at, scan_shebang_trivia, text_to_keyword,
+    comment_directive_reg_ex_single_line, hex_digits_to_u32, is_code_point,
+    is_conflict_marker_trivia, is_digit, is_hex_digit, is_identifier_part, is_identifier_start,
+    is_line_break, is_octal_digit, is_shebang_trivia, is_white_space_single_line,
+    maybe_code_point_at, scan_conflict_marker_trivia, scan_shebang_trivia, text_to_keyword,
     utf16_encode_as_string, ErrorCallback, Scanner,
 };
 use crate::{
@@ -1152,8 +1153,71 @@ impl Scanner {
                     self.increment_pos();
                     return self.set_token(SyntaxKind::SlashToken);
                 }
-                CharacterCodes::_0
-                | CharacterCodes::_1
+                CharacterCodes::_0 => {
+                    if self.pos() + 2 < self.end()
+                        && self.text_char_at_index(self.pos() + 1) == CharacterCodes::X
+                        || self.text_char_at_index(self.pos() + 1) == CharacterCodes::x
+                    {
+                        self.increment_pos_by(2);
+                        self.set_token_value(
+                            self.scan_minimum_number_of_hex_digits(on_error, 1, true),
+                        );
+                        if self.token_value().is_empty() {
+                            self.error(
+                                on_error,
+                                &Diagnostics::Hexadecimal_digit_expected,
+                                None,
+                                None,
+                            );
+                            self.set_token_value("0".to_string());
+                        }
+                        self.set_token_value(format!("0x{}", self.token_value()));
+                        self.add_token_flag(TokenFlags::HexSpecifier);
+                        return self.set_token(self.check_big_int_suffix());
+                    } else if self.pos() + 2 < self.end()
+                        && self.text_char_at_index(self.pos() + 1) == CharacterCodes::B
+                        || self.text_char_at_index(self.pos() + 1) == CharacterCodes::b
+                    {
+                        self.increment_pos_by(2);
+                        self.set_token_value(self.scan_binary_or_octal_digits(on_error, 2));
+                        if self.token_value().is_empty() {
+                            self.error(on_error, &Diagnostics::Binary_digit_expected, None, None);
+                            self.set_token_value("0".to_string());
+                        }
+                        self.set_token_value(format!("0b{}", self.token_value()));
+                        self.add_token_flag(TokenFlags::BinarySpecifier);
+                        return self.set_token(self.check_big_int_suffix());
+                    } else if self.pos() + 2 < self.end()
+                        && self.text_char_at_index(self.pos() + 1) == CharacterCodes::O
+                        || self.text_char_at_index(self.pos() + 1) == CharacterCodes::o
+                    {
+                        self.increment_pos_by(2);
+                        self.set_token_value(self.scan_binary_or_octal_digits(on_error, 8));
+                        if self.token_value().is_empty() {
+                            self.error(on_error, &Diagnostics::Octal_digit_expected, None, None);
+                            self.set_token_value("0".to_string());
+                        }
+                        self.set_token_value(format!("0o{}", self.token_value()));
+                        self.add_token_flag(TokenFlags::OctalSpecifier);
+                        return self.set_token(self.check_big_int_suffix());
+                    }
+                    if self.pos() + 1 < self.end()
+                        && is_octal_digit(self.text_char_at_index(self.pos() + 1))
+                    {
+                        self.set_token_value(self.scan_octal_digits().to_string());
+                        self.add_token_flag(TokenFlags::Octal);
+                        return self.set_token(SyntaxKind::NumericLiteral);
+                    }
+
+                    let ScanNumberReturn {
+                        type_: token,
+                        value: token_value,
+                    } = self.scan_number(on_error);
+                    self.set_token(token);
+                    self.set_token_value(token_value);
+                    return token;
+                }
+                CharacterCodes::_1
                 | CharacterCodes::_2
                 | CharacterCodes::_3
                 | CharacterCodes::_4
@@ -1179,16 +1243,128 @@ impl Scanner {
                     return self.set_token(SyntaxKind::SemicolonToken);
                 }
                 CharacterCodes::less_than => {
+                    if is_conflict_marker_trivia(self.text(), self.pos()) {
+                        self.set_pos(scan_conflict_marker_trivia(
+                            self.text(),
+                            self.pos(),
+                            // Some(|diag, pos, len| self.error(on_error, diag, pos, len)),
+                            |diag, pos, len| self.error(on_error, diag, pos, len),
+                        ));
+                        if self.skip_trivia {
+                            continue;
+                        } else {
+                            return self.set_token(SyntaxKind::ConflictMarkerTrivia);
+                        }
+                    }
+
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::less_than)
+                    ) {
+                        if matches!(
+                            self.maybe_text_char_at_index(self.pos() + 2),
+                            Some(CharacterCodes::equals)
+                        ) {
+                            self.increment_pos_by(3);
+                            return self.set_token(SyntaxKind::LessThanLessThanEqualsToken);
+                        }
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::LessThanLessThanToken);
+                    }
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::equals)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::LessThanEqualsToken);
+                    }
                     self.increment_pos();
                     return self.set_token(SyntaxKind::LessThanToken);
                 }
+                CharacterCodes::equals => {
+                    if is_conflict_marker_trivia(self.text(), self.pos()) {
+                        self.set_pos(scan_conflict_marker_trivia(
+                            self.text(),
+                            self.pos(),
+                            // Some(|diag, pos, len| self.error(on_error, diag, pos, len)),
+                            |diag, pos, len| self.error(on_error, diag, pos, len),
+                        ));
+                        if self.skip_trivia {
+                            continue;
+                        } else {
+                            return self.set_token(SyntaxKind::ConflictMarkerTrivia);
+                        }
+                    }
+
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::equals)
+                    ) {
+                        if matches!(
+                            self.maybe_text_char_at_index(self.pos() + 2),
+                            Some(CharacterCodes::equals)
+                        ) {
+                            self.increment_pos_by(3);
+                            return self.set_token(SyntaxKind::EqualsEqualsEqualsToken);
+                        }
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::EqualsEqualsToken);
+                    }
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::greater_than)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::EqualsGreaterThanToken);
+                    }
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::EqualsToken);
+                }
                 CharacterCodes::greater_than => {
+                    if is_conflict_marker_trivia(self.text(), self.pos()) {
+                        self.set_pos(scan_conflict_marker_trivia(
+                            self.text(),
+                            self.pos(),
+                            // Some(|diag, pos, len| self.error(on_error, diag, pos, len)),
+                            |diag, pos, len| self.error(on_error, diag, pos, len),
+                        ));
+                        if self.skip_trivia {
+                            continue;
+                        } else {
+                            return self.set_token(SyntaxKind::ConflictMarkerTrivia);
+                        }
+                    }
+
                     self.increment_pos();
                     return self.set_token(SyntaxKind::GreaterThanToken);
                 }
-                CharacterCodes::equals => {
+                CharacterCodes::question => {
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::dot)
+                    ) && matches!(
+                        self.maybe_text_char_at_index(self.pos() + 2),
+                        Some(ch) if !is_digit(ch)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::QuestionDotToken);
+                    }
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::question)
+                    ) {
+                        if matches!(
+                            self.maybe_text_char_at_index(self.pos() + 2),
+                            Some(CharacterCodes::equals)
+                        ) {
+                            self.increment_pos_by(3);
+                            return self.set_token(SyntaxKind::QuestionQuestionEqualsToken);
+                        }
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::QuestionQuestionToken);
+                    }
                     self.increment_pos();
-                    return self.set_token(SyntaxKind::EqualsToken);
+                    return self.set_token(SyntaxKind::QuestionToken);
                 }
                 CharacterCodes::open_bracket => {
                     self.increment_pos();
@@ -1198,24 +1374,170 @@ impl Scanner {
                     self.increment_pos();
                     return self.set_token(SyntaxKind::CloseBracketToken);
                 }
+                CharacterCodes::caret => {
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::equals)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::CaretEqualsToken);
+                    }
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::CaretToken);
+                }
                 CharacterCodes::open_brace => {
                     self.increment_pos();
                     return self.set_token(SyntaxKind::OpenBraceToken);
                 }
                 CharacterCodes::bar => {
+                    if is_conflict_marker_trivia(self.text(), self.pos()) {
+                        self.set_pos(scan_conflict_marker_trivia(
+                            self.text(),
+                            self.pos(),
+                            // Some(|diag, pos, len| self.error(on_error, diag, pos, len)),
+                            |diag, pos, len| self.error(on_error, diag, pos, len),
+                        ));
+                        if self.skip_trivia {
+                            continue;
+                        } else {
+                            return self.set_token(SyntaxKind::ConflictMarkerTrivia);
+                        }
+                    }
+
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::bar)
+                    ) {
+                        if matches!(
+                            self.maybe_text_char_at_index(self.pos() + 2),
+                            Some(CharacterCodes::equals)
+                        ) {
+                            self.increment_pos_by(3);
+                            return self.set_token(SyntaxKind::BarBarEqualsToken);
+                        }
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::BarBarToken);
+                    }
+                    if matches!(
+                        self.maybe_text_char_at_index(self.pos() + 1),
+                        Some(CharacterCodes::equals)
+                    ) {
+                        self.increment_pos_by(2);
+                        return self.set_token(SyntaxKind::BarEqualsToken);
+                    }
                     self.increment_pos();
                     return self.set_token(SyntaxKind::BarToken);
                 }
                 CharacterCodes::close_brace => {
-                    self.set_pos(self.pos() + 1);
+                    self.increment_pos();
                     return self.set_token(SyntaxKind::CloseBraceToken);
+                }
+                CharacterCodes::tilde => {
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::TildeToken);
+                }
+                CharacterCodes::at => {
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::AtToken);
+                }
+                CharacterCodes::backslash => {
+                    let extended_cooked_char = self.peek_extended_unicode_escape(on_error);
+                    if matches!(
+                        extended_cooked_char,
+                        Ok(extended_cooked_char) if matches!(
+                            char::from_u32(extended_cooked_char),
+                            Some(extended_cooked_char) if is_identifier_start(extended_cooked_char, Some(self.language_version))
+                        )
+                    ) {
+                        self.increment_pos_by(3);
+                        self.add_token_flag(TokenFlags::ExtendedUnicodeEscape);
+                        self.set_token_value(format!(
+                            "{}{}",
+                            self.scan_extended_unicode_escape(on_error),
+                            self.scan_identifier_parts(on_error)
+                        ));
+                        return self.set_token(self.get_identifier_token());
+                    }
+
+                    let cooked_char = self.peek_unicode_escape(on_error);
+                    if matches!(
+                        cooked_char,
+                        Ok(cooked_char) if matches!(
+                            char::from_u32(cooked_char),
+                            Some(cooked_char) if is_identifier_start(cooked_char, Some(self.language_version))
+                        )
+                    ) {
+                        self.increment_pos_by(6);
+                        self.add_token_flag(TokenFlags::UnicodeEscape);
+                        self.set_token_value(format!(
+                            "{}{}",
+                            char::from_u32(cooked_char.unwrap()).unwrap(),
+                            self.scan_identifier_parts(on_error)
+                        ));
+                        return self.set_token(self.get_identifier_token());
+                    }
+
+                    self.error(on_error, &Diagnostics::Invalid_character, None, None);
+                    self.increment_pos();
+                    return self.set_token(SyntaxKind::Unknown);
+                }
+                CharacterCodes::hash => {
+                    if self.pos() != 0
+                        && matches!(
+                            self.maybe_text_char_at_index(self.pos() + 1),
+                            Some(CharacterCodes::exclamation)
+                        )
+                    {
+                        self.error(
+                            on_error,
+                            &Diagnostics::can_only_be_used_at_the_start_of_a_file,
+                            None,
+                            None,
+                        );
+                        self.increment_pos();
+                        return self.set_token(SyntaxKind::Unknown);
+                    }
+
+                    if matches!(maybe_code_point_at(self.text(), self.pos() + 1), Some(ch) if is_identifier_start(ch, Some(self.language_version)))
+                    {
+                        self.increment_pos();
+                        self.scan_identifier(
+                            code_point_at(self.text(), self.pos()),
+                            self.language_version,
+                        );
+                    } else {
+                        self.set_token_value(code_point_at(self.text(), self.pos()).to_string());
+                        self.error(
+                            on_error,
+                            &Diagnostics::Invalid_character,
+                            Some(self.pos()),
+                            Some(char_size(ch)),
+                        );
+                        self.increment_pos();
+                    }
+                    return self.set_token(SyntaxKind::PrivateIdentifier);
                 }
                 _ch => {
                     let identifier_kind = self.scan_identifier(ch, self.language_version);
                     if let Some(identifier_kind) = identifier_kind {
                         return self.set_token(identifier_kind);
+                    } else if is_white_space_single_line(ch) {
+                        self.increment_pos_by(char_size(ch));
+                        continue;
+                    } else if is_line_break(ch) {
+                        self.add_token_flag(TokenFlags::PrecedingLineBreak);
+                        self.increment_pos_by(char_size(ch));
+                        continue;
                     }
-                    unimplemented!()
+                    let size = char_size(ch);
+                    self.error(
+                        on_error,
+                        &Diagnostics::Invalid_character,
+                        Some(self.pos()),
+                        Some(size),
+                    );
+                    self.increment_pos_by(size);
+                    return self.set_token(SyntaxKind::Unknown);
                 }
             }
         }

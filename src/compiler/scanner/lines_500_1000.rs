@@ -153,7 +153,8 @@ pub(crate) fn skip_trivia(
                     pos = scan_conflict_marker_trivia(
                         text,
                         pos,
-                        Option::<fn(&DiagnosticMessage, Option<usize>, Option<usize>)>::None,
+                        // Option::<fn(&DiagnosticMessage, Option<usize>, Option<usize>)>::None,
+                        |_, _, _| {},
                     );
                     can_consume_star = false;
                     continue;
@@ -192,7 +193,7 @@ pub(super) const fn merge_conflict_marker_length() -> usize {
     7
 }
 
-fn is_conflict_marker_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
+pub(super) fn is_conflict_marker_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
     // Debug_.assert(pos >= 0);
 
     if pos == 0 || matches!(maybe_text_char_at_index(text, pos - 1), Some(ch) if is_line_break(ch))
@@ -216,18 +217,21 @@ fn is_conflict_marker_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
     false
 }
 
-fn scan_conflict_marker_trivia<TError: FnMut(&DiagnosticMessage, Option<usize>, Option<usize>)>(
+pub(super) fn scan_conflict_marker_trivia<
+    TError: FnOnce(&DiagnosticMessage, Option<usize>, Option<usize>),
+>(
     text: &SourceTextAsChars,
     mut pos: usize,
-    error: Option<TError>,
+    // error: Option<TError>,
+    error: TError,
 ) -> usize {
-    if let Some(mut error) = error {
-        error(
-            &Diagnostics::Merge_conflict_marker_encountered,
-            Some(pos),
-            Some(merge_conflict_marker_length()),
-        );
-    }
+    // if let Some(mut error) = error {
+    error(
+        &Diagnostics::Merge_conflict_marker_encountered,
+        Some(pos),
+        Some(merge_conflict_marker_length()),
+    );
+    // }
 
     let ch = text_char_at_index(text, pos);
     let len = text_len(text);
