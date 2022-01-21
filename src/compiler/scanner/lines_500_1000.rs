@@ -665,6 +665,8 @@ pub fn create_scanner(
 ) -> Scanner {
     let mut scanner = Scanner::new(language_version, skip_trivia, language_variant);
     scanner.set_text(text_initial_as_chars, text_initial, start, length);
+    /*if Debug.isDebugging {
+    Object.defineProperty(scanner, "__debugShowCurrentPositionInText"*/
     scanner
 }
 

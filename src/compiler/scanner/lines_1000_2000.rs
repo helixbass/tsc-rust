@@ -1,8 +1,8 @@
 #![allow(non_upper_case_globals)]
 
 use super::{
-    code_point_at, hex_digits_to_u32, is_code_point, is_digit, is_hex_digit, is_line_break,
-    text_to_keyword, utf16_encode_as_string, ErrorCallback, Scanner,
+    code_point_at, hex_digits_to_u32, is_code_point, is_digit, is_hex_digit, is_identifier_start,
+    is_line_break, text_to_keyword, utf16_encode_as_string, ErrorCallback, Scanner,
 };
 use crate::{CharacterCodes, DiagnosticMessage, Diagnostics, SyntaxKind, TokenFlags};
 
@@ -23,8 +23,10 @@ impl Scanner {
         }
     }
 
-    pub(super) fn scan_number_fragment(&self) -> String {
+    pub(super) fn scan_number_fragment(&self, on_error: Option<ErrorCallback>) -> String {
         let start = self.pos();
+        let mut allow_separator = false;
+        let mut is_previous_token_separator = false;
         let result = "".to_string();
         loop {
             let ch = self.maybe_text_char_at_index(self.pos());
@@ -32,32 +34,166 @@ impl Scanner {
                 Some(ch) => ch,
                 None => break,
             };
+            if ch == CharacterCodes::underscore {
+                self.add_token_flag(TokenFlags::ContainsSeparator);
+                if allow_separator {
+                    allow_separator = false;
+                    is_previous_token_separator = true;
+                    result.push_str(&self.text_substring(start, self.pos()));
+                } else if is_previous_token_separator {
+                    self.error(
+                        on_error,
+                        &Diagnostics::Multiple_consecutive_numeric_separators_are_not_permitted,
+                        Some(self.pos()),
+                        Some(1),
+                    );
+                } else {
+                    self.error(
+                        on_error,
+                        &Diagnostics::Numeric_separators_are_not_allowed_here,
+                        Some(self.pos()),
+                        Some(1),
+                    );
+                }
+                self.increment_pos();
+                start = self.pos();
+                continue;
+            }
             if is_digit(ch) {
+                allow_separator = true;
+                is_previous_token_separator = false;
                 self.increment_pos();
                 continue;
             }
             break;
+        }
+        if self.text_char_at_index(self.pos() - 1) == CharacterCodes::underscore {
+            self.error(
+                on_error,
+                &Diagnostics::Numeric_separators_are_not_allowed_here,
+                Some(self.pos() - 1),
+                Some(1),
+            );
         }
         let mut ret = result;
         ret.push_str(&self.text_substring(start, self.pos()));
         ret
     }
 
-    pub(super) fn scan_number(&self) -> ScanNumberReturn {
+    pub(super) fn scan_number(&self, on_error: Option<ErrorCallback>) -> ScanNumberReturn {
         let start = self.pos();
-        let main_fragment = self.scan_number_fragment();
+        let main_fragment = self.scan_number_fragment(on_error);
+        let mut decimal_fragment: Option<String> = None;
+        let mut scientific_fragment: Option<String> = None;
+        if self.text_char_at_index(self.pos()) == CharacterCodes::dot {
+            self.increment_pos();
+            decimal_fragment = Some(self.scan_number_fragment(on_error));
+        }
         let end = self.pos();
-        let result: String = self.text_substring(start, end);
 
-        if false {
-            unimplemented!()
+        if matches!(
+            self.maybe_text_char_at_index(self.pos()),
+            Some(CharacterCodes::E | CharacterCodes::e)
+        ) {
+            self.increment_pos();
+            self.add_token_flag(TokenFlags::Scientific);
+            if matches!(
+                self.maybe_text_char_at_index(self.pos()),
+                Some(CharacterCodes::plus | CharacterCodes::minus)
+            ) {
+                self.increment_pos();
+            }
+            let pre_numeric_part = self.pos();
+            let final_fragment = self.scan_number_fragment(on_error);
+            if final_fragment.is_empty() {
+                self.error(on_error, &Diagnostics::Digit_expected, None, None);
+            } else {
+                scientific_fragment = Some(format!(
+                    "{}{}",
+                    self.text_substring(end, pre_numeric_part),
+                    final_fragment
+                ));
+                end = self.pos();
+            }
+        }
+        let mut result: String;
+        if self.token_flags().intersects(TokenFlags::ContainsSeparator) {
+            result = main_fragment;
+            if let Some(decimal_fragment) = decimal_fragment {
+                result.push_str(&format!(".{}", decimal_fragment));
+            }
+            if let Some(scientific_fragment) = scientific_fragment {
+                result.push_str(&scientific_fragment);
+            }
+        } else {
+            result = self.text_substring(start, end);
+        }
+
+        if decimal_fragment.is_some() || self.token_flags().intersects(TokenFlags::Scientific) {
+            self.check_for_identifier_start_after_numeric_literal(
+                on_error,
+                start,
+                Some(
+                    decimal_fragment.is_none()
+                        && self.token_flags().intersects(TokenFlags::Scientific),
+                ),
+            );
+            ScanNumberReturn {
+                type_: SyntaxKind::NumericLiteral,
+                value: result.parse::<f64>().unwrap().to_string(),
+            }
         } else {
             self.set_token_value(result);
             let type_ = self.check_big_int_suffix();
+            self.check_for_identifier_start_after_numeric_literal(on_error, start, None);
             ScanNumberReturn {
                 type_,
                 value: self.token_value(),
             }
+        }
+    }
+
+    pub(super) fn check_for_identifier_start_after_numeric_literal(
+        &self,
+        on_error: Option<ErrorCallback>,
+        numeric_start: usize,
+        is_scientific: Option<bool>,
+    ) {
+        let is_scientific = is_scientific.unwrap_or(false);
+        if !is_identifier_start(
+            code_point_at(self.text(), self.pos()),
+            Some(self.language_version),
+        ) {
+            return;
+        }
+
+        let identifier_start = self.pos();
+        let length = self.scan_identifier_parts().len();
+
+        if length == 1 && self.text_char_at_index(identifier_start) == CharacterCodes::n {
+            if is_scientific {
+                self.error(
+                    on_error,
+                    &Diagnostics::A_bigint_literal_cannot_use_exponential_notation,
+                    Some(numeric_start),
+                    Some(identifier_start - numeric_start + 1),
+                );
+            } else {
+                self.error(
+                    on_error,
+                    &Diagnostics::A_bigint_literal_must_be_an_integer,
+                    Some(numeric_start),
+                    Some(identifier_start - numeric_start + 1),
+                );
+            }
+        } else {
+            self.error(
+                on_error,
+                &Diagnostics::An_identifier_or_keyword_cannot_immediately_follow_a_numeric_literal,
+                Some(identifier_start),
+                Some(length),
+            );
+            self.set_pos(identifier_start);
         }
     }
 
