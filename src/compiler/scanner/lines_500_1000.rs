@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use regex::Regex;
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, Ref, RefCell};
 use std::convert::{TryFrom, TryInto};
 
 use super::{code_point_at, is_line_break, is_unicode_identifier_start, is_white_space_like};
@@ -813,6 +813,10 @@ impl Scanner {
         self.pos()
     }
 
+    pub fn get_token(&self) -> SyntaxKind {
+        self.token()
+    }
+
     pub fn get_token_pos(&self) -> usize {
         self.token_pos()
     }
@@ -825,18 +829,40 @@ impl Scanner {
         self.token_value()
     }
 
+    pub fn has_unicode_escape(&self) -> bool {
+        self.token_flags().intersects(TokenFlags::UnicodeEscape)
+    }
+
     pub fn has_extended_unicode_escape(&self) -> bool {
         self.token_flags()
             .intersects(TokenFlags::ExtendedUnicodeEscape)
+    }
+
+    pub fn has_preceding_line_break(&self) -> bool {
+        self.token_flags()
+            .intersects(TokenFlags::PrecedingLineBreak)
+    }
+
+    pub fn has_preceding_jsdoc_comment(&self) -> bool {
+        self.token_flags()
+            .intersects(TokenFlags::PrecedingJSDocComment)
+    }
+
+    pub fn is_identifier(&self) -> bool {
+        self.token() == SyntaxKind::Identifier || self.token() > SyntaxKind::LastReservedWord
+    }
+
+    pub fn is_reserved_word(&self) -> bool {
+        self.token() >= SyntaxKind::FirstReservedWord
+            && self.token() <= SyntaxKind::LastReservedWord
     }
 
     pub fn is_unterminated(&self) -> bool {
         self.token_flags().intersects(TokenFlags::Unterminated)
     }
 
-    pub fn has_preceding_line_break(&self) -> bool {
-        self.token_flags()
-            .intersects(TokenFlags::PrecedingLineBreak)
+    pub fn get_comment_directives(&self) -> Ref<Option<Vec<CommentDirective>>> {
+        self.comment_directives.borrow()
     }
 
     pub fn get_numeric_literal_flags(&self) -> TokenFlags {
