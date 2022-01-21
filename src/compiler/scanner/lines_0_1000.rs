@@ -966,7 +966,7 @@ pub fn could_start_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
     }
 }
 
-pub fn skip_trivia(
+pub(crate) fn skip_trivia(
     text: &SourceTextAsChars,
     pos: isize,
     stop_after_line_break: Option<bool>,
