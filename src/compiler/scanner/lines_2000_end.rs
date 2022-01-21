@@ -122,6 +122,10 @@ impl Scanner {
     }
 }
 
+pub(super) fn maybe_code_point_at(s: &SourceTextAsChars, i: usize) -> Option<char> {
+    s.get(i).map(|ch| *ch)
+}
+
 pub(super) fn code_point_at(s: &SourceTextAsChars, i: usize) -> char {
     s[i]
 }

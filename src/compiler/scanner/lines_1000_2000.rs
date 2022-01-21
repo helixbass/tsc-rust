@@ -1,10 +1,14 @@
 #![allow(non_upper_case_globals)]
 
 use super::{
-    code_point_at, hex_digits_to_u32, is_code_point, is_digit, is_hex_digit, is_identifier_start,
-    is_line_break, is_octal_digit, text_to_keyword, utf16_encode_as_string, ErrorCallback, Scanner,
+    char_size, code_point_at, hex_digits_to_u32, is_code_point, is_digit, is_hex_digit,
+    is_identifier_part, is_identifier_start, is_line_break, is_octal_digit, maybe_code_point_at,
+    text_to_keyword, utf16_encode_as_string, ErrorCallback, Scanner,
 };
-use crate::{CharacterCodes, DiagnosticMessage, Diagnostics, SyntaxKind, TokenFlags};
+use crate::{
+    parse_pseudo_big_int, CharacterCodes, DiagnosticMessage, Diagnostics, ScriptTarget, SyntaxKind,
+    TokenFlags,
+};
 
 impl Scanner {
     pub(super) fn error(
@@ -24,10 +28,10 @@ impl Scanner {
     }
 
     pub(super) fn scan_number_fragment(&self, on_error: Option<ErrorCallback>) -> String {
-        let start = self.pos();
+        let mut start = self.pos();
         let mut allow_separator = false;
         let mut is_previous_token_separator = false;
-        let result = "".to_string();
+        let mut result = "".to_string();
         loop {
             let ch = self.maybe_text_char_at_index(self.pos());
             let ch = match ch {
@@ -89,7 +93,7 @@ impl Scanner {
             self.increment_pos();
             decimal_fragment = Some(self.scan_number_fragment(on_error));
         }
-        let end = self.pos();
+        let mut end = self.pos();
 
         if matches!(
             self.maybe_text_char_at_index(self.pos()),
@@ -119,7 +123,7 @@ impl Scanner {
         let mut result: String;
         if self.token_flags().intersects(TokenFlags::ContainsSeparator) {
             result = main_fragment;
-            if let Some(decimal_fragment) = decimal_fragment {
+            if let Some(decimal_fragment) = decimal_fragment.as_ref() {
                 result.push_str(&format!(".{}", decimal_fragment));
             }
             if let Some(scientific_fragment) = scientific_fragment {
@@ -168,7 +172,7 @@ impl Scanner {
         }
 
         let identifier_start = self.pos();
-        let length = self.scan_identifier_parts().len();
+        let length = self.scan_identifier_parts(on_error).len();
 
         if length == 1 && self.text_char_at_index(identifier_start) == CharacterCodes::n {
             if is_scientific {
@@ -622,6 +626,103 @@ impl Scanner {
         utf16_encode_as_string(escaped_value.unwrap())
     }
 
+    pub(super) fn peek_unicode_escape(
+        &self,
+        on_error: Option<ErrorCallback>,
+    ) -> Result<u32, String> {
+        if self.pos() + 5 < self.end()
+            && self.text_char_at_index(self.pos() + 1) == CharacterCodes::u
+        {
+            let start = self.pos();
+            self.increment_pos_by(2);
+            let value = self.scan_exact_number_of_hex_digits(on_error, 4, false);
+            self.set_pos(start);
+            return value;
+        }
+        Err("Didn't find Unicode escape".to_string())
+    }
+
+    pub(super) fn peek_extended_unicode_escape(
+        &self,
+        on_error: Option<ErrorCallback>,
+    ) -> Result<u32, String> {
+        if self.language_version >= ScriptTarget::ES2015
+            && matches!(
+                maybe_code_point_at(self.text(), self.pos() + 1),
+                Some(CharacterCodes::u)
+            )
+            && matches!(
+                maybe_code_point_at(self.text(), self.pos() + 2),
+                Some(CharacterCodes::open_brace)
+            )
+        {
+            let start = self.pos();
+            self.increment_pos_by(3);
+            let escaped_value_string = self.scan_minimum_number_of_hex_digits(on_error, 1, false);
+            let escaped_value = if !escaped_value_string.is_empty() {
+                hex_digits_to_u32(&escaped_value_string)
+            } else {
+                Err("Couldn't scan any hex digits".to_string())
+            };
+            self.set_pos(start);
+            return escaped_value;
+        }
+        Err("Didn't find extended Unicode escape".to_string())
+    }
+
+    pub(super) fn scan_identifier_parts(&self, on_error: Option<ErrorCallback>) -> String {
+        let mut result = "".to_string();
+        let mut start = self.pos();
+        while self.pos() < self.end() {
+            let ch = code_point_at(self.text(), self.pos());
+            if is_identifier_part(ch, Some(self.language_version), None) {
+                self.increment_pos_by(char_size(ch));
+            } else if ch == CharacterCodes::backslash {
+                let ch_u32 = self.peek_extended_unicode_escape(on_error);
+                if let Ok(ch_u32) = ch_u32 {
+                    let ch = char::from_u32(ch_u32);
+                    if matches!(ch, Some(ch) if is_identifier_part(ch, Some(self.language_version), None))
+                    {
+                        self.increment_pos_by(3);
+                        self.add_token_flag(TokenFlags::ExtendedUnicodeEscape);
+                        result.push_str(&self.scan_extended_unicode_escape(on_error));
+                        start = self.pos();
+                        continue;
+                    }
+                }
+                let ch_u32 = self.peek_unicode_escape(on_error);
+                let ch = match ch_u32 {
+                    Err(_) => {
+                        break;
+                    }
+                    Ok(ch_u32) => {
+                        let ch = char::from_u32(ch_u32);
+                        match ch {
+                            Some(ch)
+                                if is_identifier_part(ch, Some(self.language_version), None) =>
+                            {
+                                ch
+                            }
+                            _ => {
+                                break;
+                            }
+                        }
+                    }
+                };
+                self.add_token_flag(TokenFlags::UnicodeEscape);
+                result.push_str(&self.text_substring(start, self.pos()));
+                // result.push_str(&utf16_encode_as_string(ch));
+                result.push(ch);
+                self.increment_pos_by(6);
+                start = self.pos();
+            } else {
+                break;
+            }
+        }
+        result.push_str(&self.text_substring(start, self.pos()));
+        result
+    }
+
     pub(super) fn get_identifier_token(&self) -> SyntaxKind {
         let len = self.token_value().len();
         if len >= 2 && len <= 12 {
@@ -636,12 +737,80 @@ impl Scanner {
         self.set_token(SyntaxKind::Identifier)
     }
 
+    pub(super) fn scan_binary_or_octal_digits(
+        &self,
+        on_error: Option<ErrorCallback>,
+        base: u32, /*2 | 8*/
+    ) -> String {
+        let mut value = "".to_string();
+        let mut separator_allowed = false;
+        let mut is_previous_token_separator = false;
+        loop {
+            let ch = self.maybe_text_char_at_index(self.pos());
+            if matches!(ch, Some(CharacterCodes::underscore)) {
+                self.add_token_flag(TokenFlags::ContainsSeparator);
+                if separator_allowed {
+                    separator_allowed = false;
+                    is_previous_token_separator = true;
+                } else if is_previous_token_separator {
+                    self.error(
+                        on_error,
+                        &Diagnostics::Multiple_consecutive_numeric_separators_are_not_permitted,
+                        Some(self.pos()),
+                        Some(1),
+                    );
+                } else {
+                    self.error(
+                        on_error,
+                        &Diagnostics::Numeric_separators_are_not_allowed_here,
+                        Some(self.pos()),
+                        Some(1),
+                    );
+                }
+                self.increment_pos();
+                continue;
+            }
+            separator_allowed = true;
+            if !matches!(ch, Some(ch) if is_digit(ch))
+                || ch.unwrap() as u32 - CharacterCodes::_0 as u32 >= base
+            {
+                break;
+            }
+            value.push(self.text_char_at_index(self.pos()));
+            self.increment_pos();
+            is_previous_token_separator = false;
+        }
+        if self.text_char_at_index(self.pos() - 1) == CharacterCodes::underscore {
+            self.error(
+                on_error,
+                &Diagnostics::Numeric_separators_are_not_allowed_here,
+                Some(self.pos() - 1),
+                Some(1),
+            );
+        }
+        value
+    }
+
     pub(super) fn check_big_int_suffix(&self) -> SyntaxKind {
         if self.text_char_at_index(self.pos()) == CharacterCodes::n {
             self.set_token_value(format!("{}n", self.token_value()));
+            if self
+                .token_flags()
+                .intersects(TokenFlags::BinaryOrOctalSpecifier)
+            {
+                self.set_token_value(format!("{}n", parse_pseudo_big_int(&self.token_value())));
+            }
             self.increment_pos();
             SyntaxKind::BigIntLiteral
         } else {
+            let numeric_value = if self.token_flags().intersects(TokenFlags::BinarySpecifier) {
+                u32::from_str_radix(&self.token_value()[2..], 2).unwrap()
+            } else if self.token_flags().intersects(TokenFlags::OctalSpecifier) {
+                u32::from_str_radix(&self.token_value()[2..], 8).unwrap()
+            } else {
+                u32::from_str_radix(&self.token_value(), 10).unwrap()
+            };
+            self.set_token_value(numeric_value.to_string());
             SyntaxKind::NumericLiteral
         }
     }
