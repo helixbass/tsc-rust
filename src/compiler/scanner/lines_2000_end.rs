@@ -130,7 +130,7 @@ pub(super) fn char_size(ch: char) -> usize {
     1
 }
 
-pub(super) fn utf16_encode_as_string(code_point: u32) -> String {
+pub(crate) fn utf16_encode_as_string(code_point: u32) -> String {
     char::from_u32(code_point).unwrap().to_string()
 }
 

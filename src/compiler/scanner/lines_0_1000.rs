@@ -10,15 +10,16 @@ use std::iter::FromIterator;
 
 use super::code_point_at;
 use crate::{
-    binary_search_copy_key, compare_values, maybe_text_char_at_index, position_is_synthesized,
-    text_char_at_index, text_len, text_str_num_chars, text_substring, CharacterCodes, CommentKind,
-    CommentRange, Debug_, DiagnosticMessage, Diagnostics, LanguageVariant, LineAndCharacter,
-    ScriptTarget, SourceFileLike, SourceTextAsChars, SyntaxKind, TokenFlags,
+    arrays_equal, binary_search_copy_key, compare_values, maybe_text_char_at_index,
+    position_is_synthesized, text_char_at_index, text_len, text_str_num_chars, text_substring,
+    CharacterCodes, CommentKind, CommentRange, Debug_, DiagnosticMessage, Diagnostics,
+    LanguageVariant, LineAndCharacter, ScriptTarget, SourceFileLike, SourceTextAsChars, SyntaxKind,
+    TokenFlags,
 };
 
 pub type ErrorCallback<'callback> = &'callback dyn Fn(&DiagnosticMessage, usize);
 
-pub fn token_is_identifier_or_keyword(token: SyntaxKind) -> bool {
+pub(crate) fn token_is_identifier_or_keyword(token: SyntaxKind) -> bool {
     token >= SyntaxKind::Identifier
 }
 
@@ -27,7 +28,7 @@ pub(crate) fn token_is_identifier_or_keyword_or_greater_than(token: SyntaxKind) 
 }
 
 lazy_static! {
-    pub(super) static ref text_to_keyword_obj: HashMap<String, SyntaxKind> =
+    pub(crate) static ref text_to_keyword_obj: HashMap<String, SyntaxKind> =
         HashMap::from_iter(IntoIter::new([
             ("abstract".to_string(), SyntaxKind::AbstractKeyword),
             ("any".to_string(), SyntaxKind::AnyKeyword),
@@ -669,7 +670,7 @@ pub(super) fn lookup_in_unicode_map(code: char, map: &[char]) -> bool {
     false
 }
 
-pub(super) fn is_unicode_identifier_start(
+pub(crate) fn is_unicode_identifier_start(
     code: char,
     language_version: Option<ScriptTarget>,
 ) -> bool {
@@ -719,6 +720,76 @@ pub fn token_to_string(t: SyntaxKind) -> Option<&'static String> {
 
 pub(crate) fn string_to_token(s: &str) -> Option<SyntaxKind> {
     text_to_token.get(s).map(|token| *token)
+}
+
+pub fn get_position_of_line_and_character<TSourceFile: SourceFileLike>(
+    source_file: &TSourceFile,
+    line: usize,
+    character: usize,
+    allow_edits: Option<bool>,
+) -> usize {
+    source_file
+        .maybe_get_position_of_line_and_character(line, character, allow_edits)
+        .unwrap_or_else(|| {
+            compute_position_of_line_and_character(
+                &get_line_starts(source_file),
+                line,
+                character,
+                Some(source_file.text_as_chars()),
+                allow_edits,
+            )
+        })
+}
+
+pub(crate) fn compute_position_of_line_and_character(
+    line_starts: &[usize],
+    mut line: usize,
+    character: usize,
+    debug_text: Option<&SourceTextAsChars>,
+    allow_edits: Option<bool>,
+) -> usize {
+    let allow_edits = allow_edits.unwrap_or(false);
+    if
+    /*line < 0 ||*/
+    line >= line_starts.len() {
+        if allow_edits {
+            line = /*if line < 0 {
+                0
+            } else*/ if line >= line_starts.len() {
+                line_starts.len() - 1
+            } else {
+                line
+            };
+        } else {
+            Debug_.fail(Some(&format!(
+                "Bad line number. Line: {}, lineStarts.length: {} , line map is correct? {}",
+                line,
+                line_starts.len(),
+                match debug_text {
+                    Some(debug_text) =>
+                        arrays_equal(line_starts, &compute_line_starts(debug_text)).to_string(),
+                    None => "unknown".to_string(),
+                },
+            )));
+        }
+    }
+
+    let res = line_starts[line] + character;
+    if allow_edits {
+        return if matches!(line_starts.get(line + 1), Some(line_start) if res > *line_start) {
+            line_starts[line + 1]
+        } else if matches!(debug_text, Some(debug_text) if res > text_len(debug_text)) {
+            text_len(debug_text.unwrap())
+        } else {
+            res
+        };
+    }
+    if line < line_starts.len() - 1 {
+        Debug_.assert(res < line_starts[line + 1], None);
+    } else if let Some(debug_text) = debug_text {
+        Debug_.assert(res <= text_len(debug_text), None);
+    }
+    res
 }
 
 pub(crate) fn compute_line_starts(text: &SourceTextAsChars) -> Vec<usize> {
@@ -1408,14 +1479,14 @@ pub(super) fn append_comment_range(
     Some(comments)
 }
 
-pub(super) fn get_leading_comment_ranges(
+pub fn get_leading_comment_ranges(
     text: &SourceTextAsChars,
     pos: usize,
 ) -> Option<Vec<CommentRange>> {
     reduce_each_leading_comment_range(text, pos, append_comment_range, &(), None)
 }
 
-pub(super) fn get_trailing_comment_ranges(
+pub fn get_trailing_comment_ranges(
     text: &SourceTextAsChars,
     pos: usize,
 ) -> Option<Vec<CommentRange>> {
@@ -1426,7 +1497,7 @@ pub(super) fn get_trailing_comment_ranges(
 //     let match_ = shebang_trivia_regex.find(text);
 //     match_.map(|match_| match_.as_str().to_string())
 // }
-pub(super) fn get_shebang(text: &SourceTextAsChars) -> Option<Vec<char>> {
+pub fn get_shebang(text: &SourceTextAsChars) -> Option<Vec<char>> {
     if text_len(text) < 2 {
         return None;
     }
@@ -1449,7 +1520,7 @@ pub(super) fn get_shebang(text: &SourceTextAsChars) -> Option<Vec<char>> {
     Some(shebang)
 }
 
-pub(super) fn is_identifier_start(ch: char, language_version: Option<ScriptTarget>) -> bool {
+pub fn is_identifier_start(ch: char, language_version: Option<ScriptTarget>) -> bool {
     ch >= CharacterCodes::A && ch <= CharacterCodes::Z
         || ch >= CharacterCodes::a && ch <= CharacterCodes::z
         || ch == CharacterCodes::dollar_sign
@@ -1458,7 +1529,7 @@ pub(super) fn is_identifier_start(ch: char, language_version: Option<ScriptTarge
             && is_unicode_identifier_start(ch, language_version)
 }
 
-pub(super) fn is_identifier_part(
+pub fn is_identifier_part(
     ch: char,
     language_version: Option<ScriptTarget>,
     identifier_variant: Option<LanguageVariant>,

@@ -9,7 +9,7 @@ pub use compiler::binder::bind_source_file;
 pub use compiler::checker::{create_type_checker, NodeBuilder};
 pub use compiler::command_line_parser::parse_command_line;
 pub use compiler::core::{
-    add_range, append, append_if_unique, binary_search, binary_search_copy_key,
+    add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key,
     compare_strings_case_sensitive, compare_values, concatenate, every, first_defined,
     first_or_undefined, for_each, insert_sorted, last_or_undefined, map, maybe_for_each,
     range_equals, some, sort_and_deduplicate,
@@ -87,9 +87,21 @@ pub use compiler::factory::node_tests::{
 pub use compiler::parser::{create_source_file, for_each_child, MissingNode};
 pub use compiler::path::{normalize_path, to_path};
 pub use compiler::program::create_program;
+use compiler::scanner::{
+    compute_line_and_character_of_position, compute_line_of_position, compute_line_starts,
+    compute_position_of_line_and_character, get_line_starts, get_lines_between_positions,
+    is_identifier_text, is_octal_digit, is_shebang_trivia, is_unicode_identifier_start,
+    scan_shebang_trivia, skip_trivia, string_to_token, text_to_keyword_obj,
+    token_is_identifier_or_keyword, token_is_identifier_or_keyword_or_greater_than,
+    utf16_encode_as_string,
+};
 pub use compiler::scanner::{
-    create_scanner, is_identifier_text, skip_trivia, token_is_identifier_or_keyword,
-    token_to_string, Scanner,
+    could_start_trivia, create_scanner, for_each_leading_comment_range,
+    for_each_trailing_comment_range, get_leading_comment_ranges,
+    get_line_and_character_of_position, get_position_of_line_and_character, get_shebang,
+    get_trailing_comment_ranges, is_identifier_part, is_identifier_start, is_line_break,
+    is_white_space_like, is_white_space_single_line, reduce_each_leading_comment_range,
+    reduce_each_trailing_comment_range, token_to_string, ErrorCallback, Scanner,
 };
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
