@@ -1502,6 +1502,7 @@ impl Scanner {
                     {
                         self.increment_pos();
                         self.scan_identifier(
+                            on_error,
                             code_point_at(self.text(), self.pos()),
                             self.language_version,
                         );
@@ -1518,7 +1519,7 @@ impl Scanner {
                     return self.set_token(SyntaxKind::PrivateIdentifier);
                 }
                 _ch => {
-                    let identifier_kind = self.scan_identifier(ch, self.language_version);
+                    let identifier_kind = self.scan_identifier(on_error, ch, self.language_version);
                     if let Some(identifier_kind) = identifier_kind {
                         return self.set_token(identifier_kind);
                     } else if is_white_space_single_line(ch) {

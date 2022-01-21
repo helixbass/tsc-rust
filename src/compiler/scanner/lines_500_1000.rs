@@ -799,6 +799,10 @@ impl Scanner {
         *self.token_value.borrow_mut() = Some(token_value);
     }
 
+    pub(super) fn set_maybe_token_value(&self, token_value: Option<String>) {
+        *self.token_value.borrow_mut() = token_value;
+    }
+
     pub(super) fn token_flags(&self) -> TokenFlags {
         self.token_flags.borrow().unwrap()
     }

@@ -43,7 +43,7 @@ pub trait TextRange {
     fn set_end(&self, end: isize);
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct BaseTextRange {
     pos: Cell<isize>,
     end: Cell<isize>,

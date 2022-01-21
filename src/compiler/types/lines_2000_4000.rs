@@ -726,13 +726,13 @@ pub fn rc_source_file_into_rc_node(source_file: Rc<SourceFile>) -> Rc<Node> {
     rc
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CommentDirective {
     pub range: BaseTextRange,
     pub type_: CommentDirectiveType,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CommentDirectiveType {
     ExpectError,
     Ignore,
