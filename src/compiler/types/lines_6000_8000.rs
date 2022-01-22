@@ -1,10 +1,12 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{ModuleResolutionKind, Node, NodeArray, SourceFile, SyntaxKind};
-use crate::{MapLike, NodeFactoryFlags};
+use super::{DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, SourceFile, SyntaxKind};
+use crate::{MapLike, NodeFactoryFlags, OptionsNameMap};
+use local_macros::command_line_type;
 
 #[derive(Debug)]
 pub struct PluginImport {
@@ -225,6 +227,156 @@ pub struct ParsedCommandLine {
 pub struct CreateProgramOptions<'config> {
     pub root_names: &'config [String],
     pub options: Rc<CompilerOptions>,
+}
+
+pub(crate) enum CommandLineOptionType {
+    String,
+    Number,
+    Boolean,
+    Object,
+    List,
+    Map(HashMap<String, String /*number | string*/>),
+}
+
+pub(crate) enum StringOrDiagnosticMessage {
+    String(String),
+    DiagnosticMessage(DiagnosticMessage),
+}
+
+pub(crate) struct CommandLineOptionBase {
+    name: String,
+    type_: CommandLineOptionType,
+    is_file_path: Option<bool>,
+    short_name: Option<String>,
+    description: Option<DiagnosticMessage>,
+    default_value_description: Option<StringOrDiagnosticMessage>,
+    param_type: Option<DiagnosticMessage>,
+    is_tsconfig_only: Option<bool>,
+    is_command_line_only: Option<bool>,
+    show_in_simplified_help_view: Option<bool>,
+    category: Option<DiagnosticMessage>,
+    strict_flag: Option<bool>,
+    affects_source_file: Option<bool>,
+    affects_module_resolution: Option<bool>,
+    affects_bind_diagnostics: Option<bool>,
+    affects_semantic_diagnostics: Option<bool>,
+    affects_emit: Option<bool>,
+    affects_program_structure: Option<bool>,
+    transpile_option_value: Option<bool>,
+    // extra_validation: Option<Box<dyn Fn(CompilerOptionsValue) -> (DiagnosticMessage, Vec<String>)>>,
+}
+
+#[command_line_type]
+pub(crate) struct CommandLineOptionOfStringType {
+    _command_line_option_base: CommandLineOptionBase,
+}
+
+impl CommandLineOptionOfStringType {
+    pub(crate) fn new(command_line_option_base: CommandLineOptionBase) -> Self {
+        Self {
+            _command_line_option_base: command_line_option_base,
+        }
+    }
+}
+
+#[command_line_type]
+pub(crate) struct CommandLineOptionOfNumberType {
+    _command_line_option_base: CommandLineOptionBase,
+}
+
+impl CommandLineOptionOfNumberType {
+    pub(crate) fn new(command_line_option_base: CommandLineOptionBase) -> Self {
+        Self {
+            _command_line_option_base: command_line_option_base,
+        }
+    }
+}
+
+#[command_line_type]
+pub(crate) struct CommandLineOptionOfBooleanType {
+    _command_line_option_base: CommandLineOptionBase,
+}
+
+impl CommandLineOptionOfBooleanType {
+    pub(crate) fn new(command_line_option_base: CommandLineOptionBase) -> Self {
+        Self {
+            _command_line_option_base: command_line_option_base,
+        }
+    }
+}
+
+#[command_line_type]
+pub(crate) struct CommandLineOptionOfCustomType {
+    _command_line_option_base: CommandLineOptionBase,
+}
+
+impl CommandLineOptionOfCustomType {
+    pub(crate) fn new(command_line_option_base: CommandLineOptionBase) -> Self {
+        Self {
+            _command_line_option_base: command_line_option_base,
+        }
+    }
+}
+
+pub trait AlternateModeDiagnostics {
+    fn diagnostic(&self) -> &DiagnosticMessage;
+    fn get_options_name_map(&self) -> OptionsNameMap;
+}
+
+pub trait DidYouMeanOptionsDiagnostics {
+    fn maybe_alternate_mode(&self) -> Option<Box<dyn AlternateModeDiagnostics>>;
+    fn option_declarations(&self) -> &[CommandLineOption];
+    fn unknown_option_diagnostic(&self) -> &DiagnosticMessage;
+    fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage;
+}
+
+#[command_line_type]
+pub(crate) struct TsConfigOnlyOption {
+    _command_line_option_base: CommandLineOptionBase,
+    pub element_options: Option<HashMap<String, CommandLineOption>>,
+    pub extra_key_diagnostics: Option<Box<dyn DidYouMeanOptionsDiagnostics>>,
+}
+
+impl TsConfigOnlyOption {
+    pub(crate) fn new(
+        command_line_option_base: CommandLineOptionBase,
+        element_options: Option<HashMap<String, CommandLineOption>>,
+        extra_key_diagnostics: Option<Box<dyn DidYouMeanOptionsDiagnostics>>,
+    ) -> Self {
+        Self {
+            _command_line_option_base: command_line_option_base,
+            element_options,
+            extra_key_diagnostics,
+        }
+    }
+}
+
+#[command_line_type]
+pub(crate) struct CommandLineOptionOfListType {
+    _command_line_option_base: CommandLineOptionBase,
+    pub element: Box<CommandLineOption>,
+}
+
+impl CommandLineOptionOfListType {
+    pub(crate) fn new(
+        command_line_option_base: CommandLineOptionBase,
+        element: CommandLineOption,
+    ) -> Self {
+        Self {
+            _command_line_option_base: command_line_option_base,
+            element: Box::new(element),
+        }
+    }
+}
+
+#[command_line_type]
+pub(crate) enum CommandLineOption {
+    CommandLineOptionOfCustomType(CommandLineOptionOfCustomType),
+    CommandLineOptionOfStringType(CommandLineOptionOfStringType),
+    CommandLineOptionOfNumberType(CommandLineOptionOfNumberType),
+    CommandLineOptionOfBooleanType(CommandLineOptionOfBooleanType),
+    TsConfigOnlyOption(TsConfigOnlyOption),
+    CommandLineOptionOfListType(CommandLineOptionOfListType),
 }
 
 #[non_exhaustive]

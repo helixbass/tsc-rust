@@ -8,6 +8,7 @@ mod rust_helpers;
 pub use compiler::binder::bind_source_file;
 pub use compiler::checker::{create_type_checker, NodeBuilder};
 pub use compiler::command_line_parser::parse_command_line;
+use compiler::command_line_parser::{module_resolution_option_declarations, OptionsNameMap};
 pub use compiler::core::{
     add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key,
     compare_strings_case_sensitive, compare_values, concatenate, every, first_defined,
@@ -113,11 +114,11 @@ pub use compiler::types::{
     BaseNamedDeclaration, BaseNode, BaseObjectType, BaseSignatureDeclaration, BaseSymbol,
     BaseTextRange, BaseTransientSymbol, BaseType, BaseUnionOrIntersectionType,
     BaseVariableLikeDeclaration, BigIntLiteral, BigIntLiteralType, BinaryExpression,
-    BindingLikeDeclarationInterface, Block, CharacterCodes, CheckFlags, CommentDirective,
-    CommentDirectiveType, CommentKind, CommentRange, CompilerHost, CompilerOptions,
-    CreateProgramOptions, Decorator, Diagnostic, DiagnosticCategory, DiagnosticCollection,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    BindingLikeDeclarationInterface, Block, CharacterCodes, CheckFlags, CommandLineOption,
+    CommentDirective, CommentDirectiveType, CommentKind, CommentRange, CompilerHost,
+    CompilerOptions, CreateProgramOptions, Decorator, Diagnostic, DiagnosticCategory,
+    DiagnosticCollection, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitHint, EmitTextWriter,
     EmptyStatement, ExitStatus, Expression, ExpressionStatement, FreshableIntrinsicType,
     FunctionDeclaration, FunctionLikeDeclarationBase, FunctionLikeDeclarationInterface,
