@@ -4,6 +4,7 @@ use bitflags::bitflags;
 use std::rc::Rc;
 
 use super::SourceFile;
+use crate::NodeFactoryFlags;
 
 #[derive(Debug)]
 pub struct CompilerOptions {
@@ -231,4 +232,6 @@ pub enum EmitHint {
     Unspecified,
 }
 
-pub struct NodeFactory {}
+pub struct NodeFactory {
+    pub flags: NodeFactoryFlags,
+}

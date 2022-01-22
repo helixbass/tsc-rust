@@ -819,6 +819,10 @@ impl ObjectAllocator {
         Identifier
     }
 
+    pub fn get_private_identifier_constructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
+        Node
+    }
+
     pub fn get_source_file_constructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
         Node
     }

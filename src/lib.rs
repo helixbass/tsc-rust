@@ -22,7 +22,7 @@ pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
 };
 pub use compiler::factory::node_factory::{
-    create_node_factory, factory, get_synthetic_factory, BaseNodeFactorySynthetic,
+    create_node_factory, factory, synthetic_factory, BaseNodeFactorySynthetic, NodeFactoryFlags,
 };
 pub use compiler::factory::node_tests::{
     is_abstract_modifier, is_array_binding_pattern, is_array_literal_expression,

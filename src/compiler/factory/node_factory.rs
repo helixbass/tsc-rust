@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use bitflags::bitflags;
 use std::rc::Rc;
 
 use crate::{
@@ -19,7 +20,21 @@ use crate::{
     VariableDeclarationList, VariableStatement,
 };
 
+bitflags! {
+    pub struct NodeFactoryFlags: u32 {
+        const None = 0;
+        const NoParenthesizerRules = 1 << 0;
+        const NoNodeConverters = 1 << 1;
+        const NoIndentationOnFreshPropertyAccess = 1 << 2;
+        const NoOriginalNode = 1 << 3;
+    }
+}
+
 impl NodeFactory {
+    pub fn new(flags: NodeFactoryFlags) -> Self {
+        Self { flags }
+    }
+
     pub fn create_node_array<TElements: Into<NodeArrayOrVec>>(
         &self,
         elements: Option<TElements>,
@@ -867,63 +882,73 @@ impl NodeFactory {
     }
 }
 
-pub fn create_node_factory() -> NodeFactory {
-    NodeFactory {}
+pub fn create_node_factory(
+    flags: NodeFactoryFlags, /*, baseFactory: BaseNodeFactory*/
+) -> NodeFactory {
+    NodeFactory::new(flags)
 }
 
-// lazy_static! {
-//     static ref base_factory_static: BaseNodeFactoryConcrete = create_base_node_factory();
-// }
+thread_local! {
+    static base_factory_static: BaseNodeFactoryConcrete = create_base_node_factory();
+}
 
 fn make_synthetic(node: BaseNode) -> BaseNode {
+    node.set_flags(node.flags() | NodeFlags::Synthesized);
     node
 }
 
-// lazy_static! {
-//     pub static ref synthetic_factory: BaseNodeFactorySynthetic = BaseNodeFactorySynthetic::new();
-// }
-
-// pub fn get_synthetic_factory() -> &'static impl BaseNodeFactory {
-//     &*synthetic_factory
-// }
-
-pub fn get_synthetic_factory() -> BaseNodeFactorySynthetic {
-    BaseNodeFactorySynthetic::new()
+thread_local! {
+    pub static synthetic_factory: BaseNodeFactorySynthetic = BaseNodeFactorySynthetic::new();
 }
+
+// pub fn get_synthetic_factory() -> BaseNodeFactorySynthetic {
+//     BaseNodeFactorySynthetic::new()
+// }
 
 #[derive(Debug)]
-pub struct BaseNodeFactorySynthetic {
-    base_factory: BaseNodeFactoryConcrete,
-}
+pub struct BaseNodeFactorySynthetic {}
 
 impl BaseNodeFactorySynthetic {
     pub fn new() -> Self {
-        Self {
-            base_factory: create_base_node_factory(),
-        }
+        Self {}
     }
 }
 
 impl BaseNodeFactory for BaseNodeFactorySynthetic {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(self.base_factory.create_base_source_file_node(kind))
+        make_synthetic(
+            base_factory_static
+                .with(|base_factory| base_factory.create_base_source_file_node(kind)),
+        )
     }
 
     fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(self.base_factory.create_base_identifier_node(kind))
+        make_synthetic(
+            base_factory_static.with(|base_factory| base_factory.create_base_identifier_node(kind)),
+        )
+    }
+
+    fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
+        make_synthetic(
+            base_factory_static
+                .with(|base_factory| base_factory.create_base_private_identifier_node(kind)),
+        )
     }
 
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(self.base_factory.create_base_token_node(kind))
+        make_synthetic(
+            base_factory_static.with(|base_factory| base_factory.create_base_token_node(kind)),
+        )
     }
 
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(self.base_factory.create_base_node(kind))
+        make_synthetic(base_factory_static.with(|base_factory| base_factory.create_base_node(kind)))
     }
 }
 
 lazy_static! {
-    pub static ref factory: NodeFactory = create_node_factory();
+    pub static ref factory: NodeFactory =
+        create_node_factory(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess);
 }
 
 pub enum PseudoBigIntOrString {

@@ -477,6 +477,10 @@ impl BaseNodeFactory for ParserType {
         self.IdentifierConstructor()(kind, 0, 0)
     }
 
+    fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
+        self.PrivateIdentifierConstructor()(kind, 0, 0)
+    }
+
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
         self.TokenConstructor()(kind, 0, 0)
     }

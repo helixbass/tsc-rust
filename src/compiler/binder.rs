@@ -274,7 +274,11 @@ impl BinderType {
     }
 
     fn bind_each_child(&self, node: &Node) {
-        for_each_child(node, |node| self.bind(node), |nodes| self.bind_each(nodes));
+        for_each_child(
+            node,
+            |node| self.bind(Some(node)),
+            |nodes| self.bind_each(nodes),
+        );
     }
 
     fn bind_children(&self, node: &Node) {

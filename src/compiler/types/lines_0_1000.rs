@@ -487,15 +487,45 @@ bitflags! {
         const None = 0;
         const Let = 1 << 0;
         const Const = 1 << 1;
+        const NestedNamespace = 1 << 2;
+        const Synthesized = 1 << 3;
+        const Namespace = 1 << 4;
+        const OptionalChain = 1 << 5;
+        const ExportContext = 1 << 6;
+        const ContainsThis = 1 << 7;
+        const HasImplicitReturn = 1 << 8;
+        const HasExplicitReturn = 1 << 9;
+        const GlobalAugmentation = 1 << 10;
+        const HasAsyncFunctions = 1 << 11;
         const DisallowInContext = 1 << 12;
         const YieldContext = 1 << 13;
         const DecoratorContext = 1 << 14;
         const AwaitContext = 1 << 15;
+        const ThisNodeHasError = 1 << 16;
+        const JavaScriptFile = 1 << 17;
+        const ThisNodeOrAnySubNodesHasError = 1 << 18;
+        const HasAggregatedChildData = 1 << 19;
+
+        const PossiblyContainsDynamicImport = 1 << 20;
+        const PossiblyContainsImportMeta = 1 << 21;
+
+        const JSDoc = 1 << 21;
         const Ambient = 1 << 23;
+        const InWithStatement = 1 << 24;
+        const JsonFile = 1 << 25;
+        const TypeCached = 1 << 26;
+        const Deprecated = 1 << 27;
 
         const BlockScoped = Self::Let.bits | Self::Const.bits;
 
+        const ReachabilityCheckFlags = Self::HasImplicitReturn.bits | Self::HasExplicitReturn.bits;
+        const ReachabilityAndEmitFlags = Self::ReachabilityCheckFlags.bits | Self::HasAsyncFunctions.bits;
+
+        const ContextFlags = Self::DisallowInContext.bits | Self::YieldContext.bits | Self::DecoratorContext.bits | Self::AwaitContext.bits | Self::JavaScriptFile.bits | Self::InWithStatement.bits | Self::Ambient.bits;
+
         const TypeExcludesFlags = Self::YieldContext.bits | Self::AwaitContext.bits;
+
+        const PermanentlySetIncrementalFlags = Self::PossiblyContainsDynamicImport.bits | Self::PossiblyContainsImportMeta.bits;
     }
 }
 
