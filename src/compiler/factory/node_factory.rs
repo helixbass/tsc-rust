@@ -13,11 +13,11 @@ use crate::{
     InterfaceDeclaration, IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
     NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
-    PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement, SourceFile, Statement,
-    StringLiteral, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode, TemplateSpan,
-    TokenFlags, TypeAliasDeclaration, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
-    TypePredicateNode, TypeReferenceNode, UnionTypeNode, VariableDeclaration,
-    VariableDeclarationList, VariableStatement,
+    PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement,
+    ShorthandPropertyAssignment, SourceFile, Statement, StringLiteral, SyntaxKind,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration,
+    TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode,
+    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 bitflags! {
@@ -347,6 +347,8 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
         name: Rc<Node>,
+        constraint: Option<Rc<Node /*TypeNode*/>>,
+        default_type: Option<Rc<Node /*TypeNode*/>>,
     ) -> TypeParameterDeclaration {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -355,7 +357,7 @@ impl NodeFactory {
             None,
             Some(name),
         );
-        let node = TypeParameterDeclaration::new(node);
+        let node = TypeParameterDeclaration::new(node, constraint, default_type);
         node
     }
 
@@ -844,6 +846,33 @@ impl NodeFactory {
             Some(name),
         );
         let node = PropertyAssignment::new(node, initializer);
+        node
+    }
+
+    pub fn create_shorthand_property_assignment<TBaseNodeFactory: BaseNodeFactory>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Rc<Node>,
+        object_assignment_initializer: Option<Rc<Node>>,
+    ) -> ShorthandPropertyAssignment {
+        let node = self.create_base_named_declaration(
+            base_factory,
+            SyntaxKind::PropertyAssignment,
+            None,
+            None,
+            Some(name),
+        );
+        let node = ShorthandPropertyAssignment::new(
+            node,
+            object_assignment_initializer.map(|object_assignment_initializer| {
+                self.parenthesizer_rules()
+                    .parenthesize_expression_for_disallowed_comma(object_assignment_initializer)
+            }),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(node.object_assignment_initializer)
+                | TransformFlags::ContainsES2015,
+        );
         node
     }
 

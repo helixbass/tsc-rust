@@ -7,7 +7,7 @@ use std::rc::{Rc, Weak};
 use super::{
     Decorator, Expression, HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier,
     LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, NamedDeclarationInterface,
-    NodeArray, ObjectLiteralExpression, ParameterDeclaration, PropertyAssignment,
+    NodeArray, ObjectLiteralExpression, ParameterDeclaration, PropertyAssignment, QualifiedName,
     SignatureDeclarationBase, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
     TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
     UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
@@ -597,6 +597,7 @@ pub enum Node {
     TypeElement(TypeElement),
     PropertyAssignment(PropertyAssignment),
     SourceFile(Rc<SourceFile>),
+    QualifiedName(QualifiedName),
 }
 
 impl Node {

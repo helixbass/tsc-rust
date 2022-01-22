@@ -8,12 +8,13 @@ use std::rc::Rc;
 
 use super::{Parser, ParsingContext};
 use crate::{
-    create_node_factory, create_scanner, normalize_path, object_allocator, BaseNode,
-    BaseNodeFactory, Diagnostic, DiagnosticMessage, Expression, FunctionLikeDeclarationInterface,
-    HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags,
-    NodeInterface, Scanner, ScriptTarget, SignatureDeclarationInterface, SourceFile, Statement,
-    SyntaxKind, TemplateLiteralLikeNode, TypeElement, TypeNode,
+    create_node_factory, create_scanner, maybe_text_char_at_index, normalize_path,
+    object_allocator, BaseNode, BaseNodeFactory, CharacterCodes, Diagnostic, DiagnosticMessage,
+    Expression, FunctionLikeDeclarationInterface, HasExpressionInitializerInterface,
+    HasTypeInterface, HasTypeParametersInterface, Identifier, NamedDeclarationInterface, Node,
+    NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
+    SignatureDeclarationInterface, SourceFile, SourceTextAsChars, Statement, SyntaxKind,
+    TemplateLiteralLikeNode, TypeElement, TypeNode,
 };
 use local_macros::ast_type;
 
@@ -168,6 +169,19 @@ fn visit_nodes<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeArray)>(
 //     None
 // }
 
+pub(crate) fn is_jsdoc_like_text(text: &SourceTextAsChars, start: usize) -> bool {
+    matches!(
+        maybe_text_char_at_index(text, start + 1),
+        Some(CharacterCodes::asterisk)
+    ) && matches!(
+        maybe_text_char_at_index(text, start + 2),
+        Some(CharacterCodes::asterisk)
+    ) && !matches!(
+        maybe_text_char_at_index(text, start + 3),
+        Some(CharacterCodes::slash)
+    )
+}
+
 pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeArray)>(
     node: &Node,
     mut cb_node: TNodeCallback,
@@ -177,8 +191,15 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
         return;
     }
     match node {
+        Node::QualifiedName(qualified_name) => {
+            visit_node(&mut cb_node, Some(&*qualified_name.left));
+            visit_node(&mut cb_node, Some(&*qualified_name.right));
+        }
         Node::TypeParameterDeclaration(type_parameter_declaration) => {
-            visit_node(&mut cb_node, Some(&*type_parameter_declaration.name()))
+            visit_node(&mut cb_node, Some(type_parameter_declaration.name()));
+            visit_node(&mut cb_node, type_parameter_declaration.constraint.clone());
+            visit_node(&mut cb_node, type_parameter_declaration.default.clone());
+            visit_node(&mut cb_node, type_parameter_declaration.expression.clone());
         }
         Node::ParameterDeclaration(parameter_declaration) => {
             visit_nodes(

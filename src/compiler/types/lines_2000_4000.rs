@@ -437,6 +437,31 @@ impl PropertyAssignment {
     }
 }
 
+#[derive(Debug)]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
+pub struct ShorthandPropertyAssignment {
+    _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+    pub exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
+    pub equals_token: Option<Rc<Node /*EqualsToken*/>>,
+    pub object_assignment_initializer: Option<Rc<Node /*Expression*/>>,
+}
+
+impl ShorthandPropertyAssignment {
+    pub fn new(
+        base_named_declaration: BaseNamedDeclaration,
+        object_assignment_initializer: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+            question_token: None,
+            exclamation_token: None,
+            equals_token: None,
+            object_assignment_initializer,
+        }
+    }
+}
+
 pub trait HasTypeParametersInterface {
     fn maybe_type_parameters(&self) -> Option<&NodeArray>;
 }

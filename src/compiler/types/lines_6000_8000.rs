@@ -4,7 +4,7 @@ use bitflags::bitflags;
 use std::rc::Rc;
 
 use super::SourceFile;
-use crate::NodeFactoryFlags;
+use crate::{Node, NodeArray, NodeFactoryFlags, SyntaxKind};
 
 #[derive(Debug)]
 pub struct CompilerOptions {
@@ -230,6 +230,100 @@ bitflags! {
 pub enum EmitHint {
     Expression,
     Unspecified,
+}
+
+pub trait ParenthesizerRules {
+    // fn get_parenthesize_left_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
+    fn parenthesize_left_side_of_binary_for_operator(
+        &self,
+        binary_operator: SyntaxKind,
+        left_side: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*Expression*/>;
+    // fn get_parenthesize_right_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
+    fn parenthesize_right_side_of_binary_for_operator(
+        &self,
+        binary_operator: SyntaxKind,
+        right_side: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*Expression*/>;
+    fn parenthesize_left_side_of_binary(
+        &self,
+        binary_operator: SyntaxKind,
+        left_side: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*Expression*/>;
+    fn parenthesize_right_side_of_binary(
+        &self,
+        binary_operator: SyntaxKind,
+        left_side: Option<Rc<Node /*Expression*/>>,
+        right_side: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*Expression*/>;
+    fn parenthesize_expression_of_computed_property_name(
+        &self,
+        expression: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*Expression*/>;
+    fn parenthesize_condition_of_conditional_expression(
+        &self,
+        condition: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*Expression*/>;
+    fn parenthesize_branch_of_conditional_expression(
+        &self,
+        branch: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*Expression*/>;
+    fn parenthesize_expression_of_export_default(
+        &self,
+        expression: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*Expression*/>;
+    fn parenthesize_expression_of_new(
+        &self,
+        expression: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*LeftHandSideExpression*/>;
+    fn parenthesize_left_side_of_access(
+        &self,
+        expression: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*LeftHandSideExpression*/>;
+    fn parenthesize_operand_of_postfix_unary(
+        &self,
+        operand: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*LeftHandSideExpression*/>;
+    fn parenthesize_operand_of_prefix_unary(
+        &self,
+        operand: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*UnaryExpression*/>;
+    fn parenthesize_expressions_of_comma_delimited_list(
+        &self,
+        elements: NodeArray, /*<Expression>*/
+    ) -> NodeArray /*<Expression>*/;
+    fn parenthesize_expression_for_disallowed_comma(
+        &self,
+        expression: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*Expression*/>;
+    fn parenthesize_expression_of_expression_statement(
+        &self,
+        expression: Rc<Node /*Expression*/>,
+    ) -> Rc<Node /*Expression*/>;
+    fn parenthesize_concise_body_of_arrow_function(
+        &self,
+        expression: Rc<Node /*Expression | ConciseBody*/>,
+    ) -> Rc<Node /*Expression | ConciseBody*/>;
+    fn parenthesize_member_of_conditional_type(
+        &self,
+        member: Rc<Node /*TypeNode*/>,
+    ) -> Rc<Node /*TypeNode*/>;
+    fn parenthesize_member_of_element_type(
+        &self,
+        member: Rc<Node /*TypeNode*/>,
+    ) -> Rc<Node /*TypeNode*/>;
+    fn parenthesize_element_type_of_array_type(
+        &self,
+        member: Rc<Node /*TypeNode*/>,
+    ) -> Rc<Node /*TypeNode*/>;
+    fn parenthesize_constituent_types_of_union_or_intersection_type(
+        &self,
+        members: NodeArray, /*<TypeNode>*/
+    ) -> NodeArray /*<TypeNode>*/;
+    fn parenthesize_type_arguments(
+        &self,
+        type_parameters: Option<NodeArray /*<TypeNode>*/>,
+    ) -> Option<NodeArray /*<TypeNode>*/>;
 }
 
 pub struct NodeFactory {

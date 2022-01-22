@@ -121,6 +121,31 @@ impl MemberNameInterface for Identifier {
 
 pub type ModifiersArray = NodeArray; /*<Modifier>*/
 
+#[derive(Debug)]
+#[ast_type]
+pub struct QualifiedName {
+    _node: BaseNode,
+    pub left: Rc<Node /*EntityName*/>,
+    pub right: Rc<Node /*Identifier*/>,
+    pub(crate) jsdoc_dot_pos: Option<usize>,
+}
+
+impl QualifiedName {
+    pub fn new(
+        base_node: BaseNode,
+        left: Rc<Node>,
+        right: Rc<Node>,
+        jsdoc_dot_pos: Option<usize>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            left,
+            right,
+            jsdoc_dot_pos,
+        }
+    }
+}
+
 pub trait MemberNameInterface: NodeInterface {
     fn escaped_text(&self) -> __String;
 }
@@ -235,12 +260,22 @@ impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct TypeParameterDeclaration {
     _named_declaration: BaseNamedDeclaration,
+    pub constraint: Option<Rc<Node /*TypeNode*/>>,
+    pub default: Option<Rc<Node /*TypeNode*/>>,
+    pub expression: Option<Rc<Node /*Expression*/>>,
 }
 
 impl TypeParameterDeclaration {
-    pub fn new(base_named_declaration: BaseNamedDeclaration) -> Self {
+    pub fn new(
+        base_named_declaration: BaseNamedDeclaration,
+        constraint: Option<Rc<Node>>,
+        default: Option<Rc<Node>>,
+    ) -> Self {
         Self {
             _named_declaration: base_named_declaration,
+            constraint,
+            default,
+            expression: None,
         }
     }
 }
