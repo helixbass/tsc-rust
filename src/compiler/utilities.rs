@@ -8,23 +8,24 @@ use std::cmp;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    is_white_space_like, text_substring, CompilerOptions, ModifierFlags, ModuleKind, NodeArray,
-    ScriptTarget, SourceFileLike, SourceTextAsChars, SymbolTracker, SymbolWriter, SyntaxKind,
-    TextSpan, TypeFlags, UnderscoreEscapedMap, __String, compare_strings_case_sensitive,
-    compare_values, create_text_span_from_bounds, escape_leading_underscores, for_each,
-    get_combined_node_flags, get_name_of_declaration, insert_sorted, is_big_int_literal,
-    is_member_name, is_type_alias_declaration, skip_trivia, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags,
-    Comparison, Debug_, Diagnostic, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange,
-    SortedArray, SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    TransientSymbolInterface, Type, TypeInterface,
+    is_source_file, is_white_space_like, text_substring, CompilerOptions, ModifierFlags,
+    ModuleKind, NodeArray, ScriptTarget, SourceFileLike, SourceTextAsChars, SymbolTracker,
+    SymbolWriter, SyntaxKind, TextSpan, TypeFlags, UnderscoreEscapedMap, __String,
+    compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
+    escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
+    insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
+    CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic, DiagnosticCollection,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitTextWriter, Expression,
+    LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
+    PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -215,6 +216,89 @@ impl SymbolTracker for SingleLineStringWriter {
     fn report_inaccessible_unique_symbol_error(&mut self) {}
 
     fn report_private_in_base_of_class_expression(&mut self, property_name: &str) {}
+}
+
+pub fn changes_affect_module_resolution(
+    old_options: &CompilerOptions,
+    new_options: &CompilerOptions,
+) -> bool {
+    old_options.config_file_path != new_options.config_file_path
+        || options_have_module_resolution_changes(old_options, new_options)
+}
+
+pub fn options_have_module_resolution_changes(
+    old_options: &CompilerOptions,
+    new_options: &CompilerOptions,
+) -> bool {
+    options_have_changes(
+        old_options,
+        new_options,
+        module_resolution_option_declarations,
+    )
+}
+
+pub fn changes_affecting_program_structure(
+    old_options: &CompilerOptions,
+    new_options: &CompilerOptions,
+) -> bool {
+    options_have_changes(
+        old_options,
+        new_options,
+        options_affecting_program_structure,
+    )
+}
+
+pub enum ForEachAncestorReturn<TReturn> {
+    Option(Option<TReturn>),
+    Quit,
+}
+
+impl<TReturn> From<Option<TReturn>> for ForEachAncestorReturn<TReturn> {
+    fn from(value: Option<TReturn>) -> Self {
+        Self::Option(value)
+    }
+}
+
+pub fn options_have_changes(
+    old_options: &CompilerOptions,
+    new_options: &CompilerOptions,
+    option_declarations: &[CommandLineOption],
+) -> bool {
+    !ptr::eq(old_options, new_options)
+        && option_declarations.iter().any(|o| {
+            !is_json_equal(
+                get_compiler_option_value(old_options, o),
+                get_compiler_option_value(new_options, o),
+            )
+        })
+}
+
+pub fn for_each_ancestor<
+    TReturn,
+    TCallbackReturn: Into<ForEachAncestorReturn<TReturn>>,
+    TCallback: FnMut(&Node) -> TCallbackReturn,
+>(
+    node: &Node,
+    callback: TCallback,
+) -> Option<TReturn> {
+    let mut node = node.node_wrapper();
+    loop {
+        let res = callback(&node).into();
+        match res {
+            ForEachAncestorReturn::Quit => {
+                return None;
+            }
+            ForEachAncestorReturn::Option(option) => {
+                if option.is_some() {
+                    return option;
+                }
+            }
+        }
+        if is_source_file(&*node) {
+            return None;
+        }
+        node = node.parent();
+    }
 }
 
 fn get_source_text_of_node_from_source_file<TNode: NodeInterface>(
