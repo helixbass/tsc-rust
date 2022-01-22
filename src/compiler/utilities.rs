@@ -11,21 +11,29 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    text_substring, CompilerOptions, ModifierFlags, ModuleKind, NodeArray, ScriptTarget,
-    SourceFileLike, SourceTextAsChars, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan,
-    TypeFlags, __String, compare_strings_case_sensitive, compare_values,
-    create_text_span_from_bounds, escape_leading_underscores, for_each, get_combined_node_flags,
-    get_name_of_declaration, insert_sorted, is_big_int_literal, is_member_name,
-    is_type_alias_declaration, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
-    BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitTextWriter, Expression,
-    LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
-    PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
+    is_white_space_like, text_substring, CompilerOptions, ModifierFlags, ModuleKind, NodeArray,
+    ScriptTarget, SourceFileLike, SourceTextAsChars, SymbolTracker, SymbolWriter, SyntaxKind,
+    TextSpan, TypeFlags, UnderscoreEscapedMap, __String, compare_strings_case_sensitive,
+    compare_values, create_text_span_from_bounds, escape_leading_underscores, for_each,
+    get_combined_node_flags, get_name_of_declaration, insert_sorted, is_big_int_literal,
+    is_member_name, is_type_alias_declaration, skip_trivia, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags,
+    Comparison, Debug_, Diagnostic, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, Node,
+    NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange,
+    SortedArray, SourceFile, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    TransientSymbolInterface, Type, TypeInterface,
 };
 use local_macros::enum_unwrapped;
+
+// resolvingEmptyArray: never[] = [];
+
+pub const external_helpers_module_name_text: &str = "tslib";
+
+pub const default_maximum_truncation_length: usize = 160;
+pub const no_truncation_maximum_truncation_length: usize = 1_000_000;
 
 pub fn get_declaration_of_kind(
     symbol: &Symbol,
@@ -44,9 +52,24 @@ pub fn get_declaration_of_kind(
     None
 }
 
-pub fn create_symbol_table() -> SymbolTable {
+pub fn create_underscore_escaped_map<TValue>() -> UnderscoreEscapedMap<TValue> {
+    UnderscoreEscapedMap::new()
+}
+
+// function hasEntries
+
+pub fn create_symbol_table(symbols: Option<&[Rc<Symbol>]>) -> SymbolTable {
     let result = SymbolTable::new();
+    if let Some(symbols) = symbols {
+        for symbol in symbols {
+            result.insert(symbol.escaped_name().clone(), symbol.clone());
+        }
+    }
     result
+}
+
+pub fn is_transient_symbol(symbol: &Symbol) -> bool {
+    symbol.flags().intersects(SymbolFlags::Transient)
 }
 
 // lazy_static! {
@@ -78,7 +101,19 @@ impl SingleLineStringWriter {
 }
 
 impl EmitTextWriter for SingleLineStringWriter {
+    fn get_text(&self) -> String {
+        self.str.clone()
+    }
+
     fn write(&mut self, text: &str) {
+        self.write_text(text);
+    }
+
+    fn raw_write(&mut self, text: &str) {
+        self.write_text(text);
+    }
+
+    fn write_literal(&mut self, text: &str) {
         self.write_text(text);
     }
 
@@ -86,14 +121,46 @@ impl EmitTextWriter for SingleLineStringWriter {
         self.write_text(text);
     }
 
-    fn get_text(&self) -> String {
-        self.str.clone()
+    fn write_comment(&mut self, text: &str) {
+        self.write_text(text);
+    }
+
+    fn get_text_pos(&self) -> usize {
+        self.str.len()
+    }
+
+    fn get_line(&self) -> usize {
+        0
+    }
+
+    fn get_column(&self) -> usize {
+        0
+    }
+
+    fn get_indent(&self) -> usize {
+        0
+    }
+
+    fn is_at_start_of_line(&self) -> bool {
+        false
+    }
+
+    fn has_trailing_comment(&self) -> bool {
+        false
+    }
+
+    fn has_trailing_whitespace(&self) -> bool {
+        !self.str.is_empty() && is_white_space_like(self.str.chars().last().unwrap())
     }
 }
 
 impl SymbolWriter for SingleLineStringWriter {
     fn write_keyword(&mut self, text: &str) {
         self.write_text(text);
+    }
+
+    fn write_operator(&mut self, s: &str) {
+        self.write_text(s);
     }
 
     fn write_punctuation(&mut self, s: &str) {
@@ -108,6 +175,10 @@ impl SymbolWriter for SingleLineStringWriter {
         self.write_text(s);
     }
 
+    fn write_parameter(&mut self, s: &str) {
+        self.write_text(s);
+    }
+
     fn write_property(&mut self, s: &str) {
         self.write_text(s);
     }
@@ -116,12 +187,35 @@ impl SymbolWriter for SingleLineStringWriter {
         self.write_text(s);
     }
 
+    fn write_line(&mut self, _: Option<bool>) {
+        self.str.push_str(" ");
+    }
+
+    fn increase_indent(&mut self) {}
+
+    fn decrease_indent(&mut self) {}
+
     fn clear(&mut self) {
         self.str = "".to_string();
     }
 }
 
-impl SymbolTracker for SingleLineStringWriter {}
+impl SymbolTracker for SingleLineStringWriter {
+    fn track_symbol(
+        &mut self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<Rc<Node>>,
+        meaning: SymbolFlags,
+    ) -> Option<bool> {
+        Some(false)
+    }
+
+    fn report_inaccessible_this_error(&mut self) {}
+
+    fn report_inaccessible_unique_symbol_error(&mut self) {}
+
+    fn report_private_in_base_of_class_expression(&mut self, property_name: &str) {}
+}
 
 fn get_source_text_of_node_from_source_file<TNode: NodeInterface>(
     source_file: &SourceFile,
@@ -385,6 +479,12 @@ pub fn is_external_or_common_js_module(file: &SourceFile) -> bool {
     false
 }
 
+pub fn is_in_js_file<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+    node.map_or(false, |node| {
+        node.borrow().flags().intersects(NodeFlags::JavaScriptFile)
+    })
+}
+
 pub fn get_effective_initializer<TNode: NodeInterface>(
     node: &TNode, /*HasExpressionInitializer*/
 ) -> Option<Rc<Node>> {
@@ -411,6 +511,69 @@ fn is_jsdoc_type_alias<TNode: NodeInterface>(node: &TNode) -> bool {
 
 pub fn is_type_alias<TNode: NodeInterface>(node: &TNode) -> bool {
     is_jsdoc_type_alias(node) || is_type_alias_declaration(node)
+}
+
+pub fn get_jsdoc_comments_and_tags(
+    host_node: &Node,
+    no_cache: Option<bool>,
+) -> Vec<Rc<Node /*JSDoc | JSDocTag*/>> {
+    let mut result: Option<Vec<Rc<Node>>> = None;
+    if is_variable_like(host_node)
+        && has_initializer(host_node)
+        && has_jsdoc_nodes(host_node.as_has_initializer().maybe_initializer().unwrap())
+    {
+        result = add_range(
+            result,
+            filter_owned_jsdoc_tags(
+                host_node,
+                last(
+                    host_node
+                        .as_has_initializer()
+                        .maybe_initializer()
+                        .unwrap()
+                        .as_has_jsdoc()
+                        .maybe_js_doc()
+                        .unwrap(),
+                ),
+            ),
+        );
+    }
+
+    let mut node: Option<Rc<Node>> = host_node.node_wrapper();
+    while matches!(node, Some(node) if node.maybe_parent().is_some()) {
+        if has_jsdoc_nodes(&node) {
+            result = add_range(
+                result,
+                filter_owned_jsdoc_tags(
+                    host_node,
+                    last(node.as_has_jsdoc().maybe_js_doc().unwrap()),
+                ),
+            );
+        }
+
+        if node.kind() == SyntaxKind::Parameter {
+            result = add_range(
+                result,
+                (if no_cache {
+                    get_jsdoc_parameter_tags_no_cache
+                } else {
+                    get_jsdoc_parameter_tags
+                })(node),
+            );
+        }
+        if node.kind() == SyntaxKind::TypeParameter {
+            result = add_range(
+                result,
+                (if no_cache {
+                    get_jsdoc_type_parameter_tags_no_cache
+                } else {
+                    get_jsdoc_type_parameter_tags
+                })(node),
+            );
+        }
+        node = get_next_jsdoc_comment_location(node);
+    }
+    result.unwrap_or(vec![])
 }
 
 fn walk_up<TNode: NodeInterface>(node: &TNode, kind: SyntaxKind) -> Option<Rc<Node>> {
@@ -480,15 +643,91 @@ fn node_is_synthesized<TRange: ReadonlyTextRange>(range: &TRange) -> bool {
     position_is_synthesized(range.pos()) || position_is_synthesized(range.end())
 }
 
+pub enum Associativity {
+    Left,
+    Right,
+}
+
+pub fn get_operator_associativity(
+    kind: SyntaxKind,
+    operator: SyntaxKind,
+    has_arguments: Option<bool>,
+) -> Associativity {
+    let has_arguments = has_arguments.unwrap_or(false);
+    match kind {
+        SyntaxKind::NewExpression => {
+            return if has_arguments {
+                Associativity::Left
+            } else {
+                Associativity::Right
+            };
+        }
+
+        SyntaxKind::PrefixUnaryExpression
+        | SyntaxKind::TypeOfExpression
+        | SyntaxKind::VoidExpression
+        | SyntaxKind::DeleteExpression
+        | SyntaxKind::AwaitExpression
+        | SyntaxKind::ConditionalExpression
+        | SyntaxKind::YieldExpression => {
+            return Associativity::Right;
+        }
+
+        SyntaxKind::BinaryExpression => match operator {
+            SyntaxKind::AsteriskAsteriskToken
+            | SyntaxKind::EqualsToken
+            | SyntaxKind::PlusEqualsToken
+            | SyntaxKind::MinusEqualsToken
+            | SyntaxKind::AsteriskAsteriskEqualsToken
+            | SyntaxKind::AsteriskEqualsToken
+            | SyntaxKind::SlashEqualsToken
+            | SyntaxKind::PercentEqualsToken
+            | SyntaxKind::LessThanLessThanEqualsToken
+            | SyntaxKind::GreaterThanGreaterThanEqualsToken
+            | SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken
+            | SyntaxKind::AmpersandEqualsToken
+            | SyntaxKind::CaretEqualsToken
+            | SyntaxKind::BarEqualsToken
+            | SyntaxKind::BarBarEqualsToken
+            | SyntaxKind::AmpersandAmpersandEqualsToken
+            | SyntaxKind::QuestionQuestionEqualsToken => {
+                return Associativity::Right;
+            }
+        },
+        _ => (),
+    }
+    Associativity::Left
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum OperatorPrecedence {
     Comma,
+    Spread,
+    Yield,
+    Assignment,
+    Conditional,
+    LogicalOR,
+    LogicalAND,
+    BitwiseOR,
+    BitwiseXOR,
+    BitwiseAND,
+    Equality,
+    Relational,
+    Shift,
+    Additive,
     Multiplicative,
+    Exponentiation,
+    Unary,
+    Update,
+    LeftHandSide,
+    Member,
     Primary,
     Invalid = -1,
 }
 
 impl OperatorPrecedence {
+    pub const Coalesce: OperatorPrecedence = OperatorPrecedence::Conditional;
+    pub const Highest: OperatorPrecedence = OperatorPrecedence::Primary;
     pub const Lowest: OperatorPrecedence = OperatorPrecedence::Comma;
 }
 
@@ -504,12 +743,121 @@ impl PartialOrd for OperatorPrecedence {
     }
 }
 
+pub fn get_operator_precedence(
+    node_kind: SyntaxKind,
+    operator_kind: SyntaxKind,
+    has_arguments: Option<bool>,
+) -> OperatorPrecedence {
+    let has_arguments = has_arguments.unwrap_or(false);
+    match node_kind {
+        SyntaxKind::CommaListExpression => OperatorPrecedence::Comma,
+        SyntaxKind::SpreadElement => OperatorPrecedence::Spread,
+        SyntaxKind::YieldExpression => OperatorPrecedence::Yield,
+        SyntaxKind::ConditionalExpression => OperatorPrecedence::Conditional,
+        SyntaxKind::BinaryExpression => match operator_kind {
+            SyntaxKind::CommaToken => OperatorPrecedence::Comma,
+            SyntaxKind::EqualsToken
+            | SyntaxKind::PlusEqualsToken
+            | SyntaxKind::MinusEqualsToken
+            | SyntaxKind::AsteriskAsteriskEqualsToken
+            | SyntaxKind::AsteriskEqualsToken
+            | SyntaxKind::SlashEqualsToken
+            | SyntaxKind::PercentEqualsToken
+            | SyntaxKind::LessThanLessThanEqualsToken
+            | SyntaxKind::GreaterThanGreaterThanEqualsToken
+            | SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken
+            | SyntaxKind::AmpersandEqualsToken
+            | SyntaxKind::CaretEqualsToken
+            | SyntaxKind::BarEqualsToken
+            | SyntaxKind::BarBarEqualsToken
+            | SyntaxKind::AmpersandAmpersandEqualsToken
+            | SyntaxKind::QuestionQuestionEqualsToken => OperatorPrecedence::Assignment,
+            _ => get_binary_operator_precedence(operator_kind),
+        },
+        SyntaxKind::TypeAssertionExpression
+        | SyntaxKind::NonNullExpression
+        | SyntaxKind::PrefixUnaryExpression
+        | SyntaxKind::TypeOfExpression
+        | SyntaxKind::VoidExpression
+        | SyntaxKind::DeleteExpression
+        | SyntaxKind::AwaitExpression => OperatorPrecedence::Unary,
+
+        SyntaxKind::PostfixUnaryExpression => OperatorPrecedence::Update,
+
+        SyntaxKind::CallExpression => OperatorPrecedence::LeftHandSide,
+
+        SyntaxKind::NewExpression => {
+            if has_arguments {
+                OperatorPrecedence::Member
+            } else {
+                OperatorPrecedence::LeftHandSide
+            }
+        }
+
+        SyntaxKind::TaggedTemplateExpression
+        | SyntaxKind::PropertyAccessExpression
+        | SyntaxKind::ElementAccessExpression
+        | SyntaxKind::MetaProperty => OperatorPrecedence::Member,
+
+        SyntaxKind::AsExpression => OperatorPrecedence::Relational,
+
+        SyntaxKind::ThisKeyword
+        | SyntaxKind::SuperKeyword
+        | SyntaxKind::Identifier
+        | SyntaxKind::PrivateIdentifier
+        | SyntaxKind::NullKeyword
+        | SyntaxKind::TrueKeyword
+        | SyntaxKind::FalseKeyword
+        | SyntaxKind::NumericLiteral
+        | SyntaxKind::BigIntLiteral
+        | SyntaxKind::StringLiteral
+        | SyntaxKind::ArrayLiteralExpression
+        | SyntaxKind::ObjectLiteralExpression
+        | SyntaxKind::FunctionExpression
+        | SyntaxKind::ArrowFunction
+        | SyntaxKind::ClassExpression
+        | SyntaxKind::RegularExpressionLiteral
+        | SyntaxKind::NoSubstitutionTemplateLiteral
+        | SyntaxKind::TemplateExpression
+        | SyntaxKind::ParenthesizedExpression
+        | SyntaxKind::OmittedExpression
+        | SyntaxKind::JsxElement
+        | SyntaxKind::JsxSelfClosingElement
+        | SyntaxKind::JsxFragment => OperatorPrecedence::Primary,
+
+        _ => OperatorPrecedence::Invalid,
+    }
+}
+
 pub fn get_binary_operator_precedence(kind: SyntaxKind) -> OperatorPrecedence {
     match kind {
-        SyntaxKind::AsteriskToken => return OperatorPrecedence::Multiplicative,
-        _ => (),
+        SyntaxKind::QuestionQuestionToken => OperatorPrecedence::Coalesce,
+        SyntaxKind::BarBarToken => OperatorPrecedence::LogicalOR,
+        SyntaxKind::AmpersandAmpersandToken => OperatorPrecedence::LogicalAND,
+        SyntaxKind::BarToken => OperatorPrecedence::BitwiseOR,
+        SyntaxKind::CaretToken => OperatorPrecedence::BitwiseXOR,
+        SyntaxKind::AmpersandToken => OperatorPrecedence::BitwiseAND,
+        SyntaxKind::EqualsEqualsToken
+        | SyntaxKind::ExclamationEqualsToken
+        | SyntaxKind::EqualsEqualsEqualsToken
+        | SyntaxKind::ExclamationEqualsEqualsToken => OperatorPrecedence::Equality,
+        SyntaxKind::LessThanToken
+        | SyntaxKind::GreaterThanToken
+        | SyntaxKind::LessThanEqualsToken
+        | SyntaxKind::GreaterThanEqualsToken
+        | SyntaxKind::InstanceOfKeyword
+        | SyntaxKind::InKeyword
+        | SyntaxKind::AsKeyword => OperatorPrecedence::Relational,
+        SyntaxKind::LessThanLessThanToken
+        | SyntaxKind::GreaterThanGreaterThanToken
+        | SyntaxKind::GreaterThanGreaterThanGreaterThanToken => OperatorPrecedence::Shift,
+        SyntaxKind::PlusToken | SyntaxKind::MinusToken => OperatorPrecedence::Additive,
+        SyntaxKind::AsteriskToken | SyntaxKind::SlashToken | SyntaxKind::PercentToken => {
+            OperatorPrecedence::Multiplicative
+        }
+        SyntaxKind::AsteriskAsteriskToken => OperatorPrecedence::Exponentiation,
+        _ => OperatorPrecedence::Invalid,
     }
-    OperatorPrecedence::Invalid
 }
 
 pub fn create_diagnostic_collection() -> DiagnosticCollection {

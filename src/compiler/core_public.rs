@@ -43,6 +43,12 @@ impl<TItem> Deref for SortedArray<TItem> {
     }
 }
 
+// pub trait ReadonlyCollection<TKey> {
+//     fn size(&self) -> usize;
+//     fh has(&self, key: &TKey) -> bool;
+//     fn keys(&self) ->
+// }
+
 pub type Comparer<TValue> = fn(a: TValue, b: TValue) -> Comparison;
 // pub trait Comparer<TValue>: Fn(TValue, TValue) -> Comparison + 'static {}
 

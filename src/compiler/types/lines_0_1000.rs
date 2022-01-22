@@ -578,6 +578,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
     fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: Option<SymbolTable>);
+    fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
+    fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node /*JSDocTag*/>>);
 }
 
 #[derive(Debug)]
@@ -763,6 +765,7 @@ pub struct BaseNode {
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RefCell<Option<SymbolTable>>,
+    js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
 }
 
 impl BaseNode {
@@ -779,6 +782,7 @@ impl BaseNode {
             end: Cell::new(end),
             symbol: RefCell::new(None),
             locals: RefCell::new(None),
+            js_doc_cache: RefCell::new(None),
         }
     }
 }
@@ -873,6 +877,18 @@ impl NodeInterface for BaseNode {
 
     fn set_locals(&self, locals: Option<SymbolTable>) {
         *self.locals.borrow_mut() = locals;
+    }
+
+    fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>> {
+        self.js_doc_cache
+            .borrow()
+            .clone()
+            .map(|vec| vec.iter().map(|weak| weak.upgrade().unwrap()).collect())
+    }
+
+    fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node /*JSDocTag*/>>) {
+        *self.js_doc_cache.borrow_mut() =
+            Some(js_doc_cache.iter().map(|rc| Rc::downgrade(rc)).collect());
     }
 }
 

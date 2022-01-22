@@ -153,11 +153,16 @@ bitflags! {
 
 pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
+    fn write_operator(&mut self, text: &str);
     fn write_punctuation(&mut self, text: &str);
     fn write_space(&mut self, text: &str);
     fn write_string_literal(&mut self, text: &str);
+    fn write_parameter(&mut self, text: &str);
     fn write_property(&mut self, text: &str);
     fn write_symbol(&mut self, text: &str, symbol: &Symbol);
+    fn write_line(&mut self, force: Option<bool>);
+    fn increase_indent(&mut self);
+    fn decrease_indent(&mut self);
     fn clear(&mut self);
 }
 

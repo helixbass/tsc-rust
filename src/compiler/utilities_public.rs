@@ -2,8 +2,8 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    CharacterCodes, Node, NodeFlags, NodeInterface, SyntaxKind, TextSpan, __String,
-    compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
+    is_jsdoc, CharacterCodes, Debug_, Node, NodeFlags, NodeInterface, SyntaxKind, TextSpan,
+    __String, compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
     Diagnostic, SortedArray,
 };
 
@@ -100,6 +100,42 @@ pub fn get_name_of_declaration<TNode: NodeInterface>(declaration: &TNode) -> Opt
     get_non_assigned_name_of_declaration(declaration)
 }
 
+pub fn get_jsdoc_type_tag(node: &Node) -> Option<Rc<Node /*JSDocTypeTag*/>> {
+    let tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag);
+    if matches!(tag, Some(tag) if matches!(tag.as_jsdoc_type_tag().type_expression, Some(type_expression) /*if type_expression.type_.is_some()*/))
+    {
+        return tag;
+    }
+    None
+}
+
+fn get_jsdoc_tags_worker(node: &Node, no_cache: Option<bool>) -> Vec<Rc<Node /*JSDocTag*/>> {
+    let mut tags: Option<Vec<Rc<Node>>> = node.maybe_js_doc_cache().clone();
+    if tags.is_none() || no_cache.unwrap_or(false) {
+        let comments = get_jsdoc_comments_and_tags(node, no_cache);
+        Debug_.assert(comments.len() < 2 || comments[0] != comments[1], None);
+        tags = Some(flat_map(comments, |j| {
+            if is_jsdoc(j) {
+                j.as_jsdoc().tags
+            } else {
+                vec![j]
+            }
+        }));
+        if !no_cache.unwrap_or(false) {
+            node.set_js_doc_cache(tags.clone().unwrap());
+        }
+    }
+    tags.unwrap()
+}
+
+fn get_first_jsdoc_tag<TPredicate: FnMut(&Node /*JSDocTag*/) -> bool>(
+    node: &Node,
+    predicate: TPredicate,
+    no_cache: Option<bool>,
+) -> Option<Rc<Node>> {
+    find(get_jsdoc_tags_worker(node, no_cache), predicate)
+}
+
 pub fn get_effective_type_parameter_declarations(
     node: &Node,
 ) -> Vec<Rc<Node /*TypeParameterDeclaration*/>> {
@@ -114,7 +150,7 @@ pub fn is_member_name<TNode: NodeInterface>(node: &TNode) -> bool {
 }
 
 fn skip_partially_emitted_expressions<TNode: NodeInterface>(node: &TNode) -> Rc<Node> {
-    node.node_wrapper()
+    skip_outer_expressions(node, OuterExpressionKinds::PartiallyEmittedExpressions)
 }
 
 pub fn is_literal_kind(kind: SyntaxKind) -> bool {

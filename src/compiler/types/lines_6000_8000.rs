@@ -234,17 +234,7 @@ pub enum EmitHint {
 
 pub trait ParenthesizerRules {
     // fn get_parenthesize_left_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
-    fn parenthesize_left_side_of_binary_for_operator(
-        &self,
-        binary_operator: SyntaxKind,
-        left_side: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*Expression*/>;
     // fn get_parenthesize_right_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
-    fn parenthesize_right_side_of_binary_for_operator(
-        &self,
-        binary_operator: SyntaxKind,
-        right_side: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*Expression*/>;
     fn parenthesize_left_side_of_binary(
         &self,
         binary_operator: SyntaxKind,
