@@ -1,4 +1,7 @@
+use std::collections::HashMap;
 use std::ops::Deref;
+
+pub type MapLike<TValue> = HashMap<String, TValue>;
 
 #[derive(Debug)]
 pub struct SortedArray<TItem> {

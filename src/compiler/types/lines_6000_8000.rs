@@ -3,13 +3,134 @@
 use bitflags::bitflags;
 use std::rc::Rc;
 
-use super::SourceFile;
-use crate::{Node, NodeArray, NodeFactoryFlags, SyntaxKind};
+use super::{ModuleResolutionKind, Node, NodeArray, SourceFile, SyntaxKind};
+use crate::{MapLike, NodeFactoryFlags};
+
+#[derive(Debug)]
+pub struct PluginImport {
+    pub name: String,
+}
 
 #[derive(Debug)]
 pub struct CompilerOptions {
-    pub target: Option<ScriptTarget>,
+    pub(crate) all: Option<bool>,
+    pub allow_js: Option<bool>,
+    pub allow_non_ts_extensions: Option<bool>,
+    pub allow_synthetic_default_imports: Option<bool>,
+    pub allow_umd_global_access: Option<bool>,
+    pub allow_unreachable_code: Option<bool>,
+    pub allow_unused_labels: Option<bool>,
+    pub always_strict: Option<bool>,
+    pub base_url: Option<String>,
+    pub(crate) build: Option<bool>,
+    pub charset: Option<String>,
+    pub check_js: Option<bool>,
+    pub(crate) config_file_path: Option<String>,
+    pub(crate) config_file: Option<Rc<SourceFile /*TsConfigSourceFile*/>>,
+    pub declaration: Option<bool>,
+    pub declaration_map: Option<bool>,
+    pub emit_declaration_only: Option<bool>,
+    pub declaration_dir: Option<String>,
+    pub diagnostics: Option<bool>,
+    pub extended_diagnostics: Option<bool>,
+    pub disable_size_limit: Option<bool>,
+    pub disable_source_of_project_reference_redirect: Option<bool>,
+    pub disable_solution_searching: Option<bool>,
+    pub disable_referenced_project_load: Option<bool>,
+    pub downlevel_iteration: Option<bool>,
+    pub emit_bom: Option<bool>,
+    pub emit_decorator_metadata: Option<bool>,
+    pub exact_optional_property_types: Option<bool>,
+    pub experimental_decorators: Option<bool>,
+    pub force_consistent_casing_in_file_names: Option<bool>,
+    pub(crate) generate_cpu_profile: Option<String>,
+    pub(crate) generate_trace: Option<String>,
+    pub(crate) help: Option<bool>,
+    pub import_helpers: Option<bool>,
+    pub imports_not_used_as_values: Option<ImportsNotUsedAsValues>,
+    pub init: Option<bool>,
+    pub inline_source_map: Option<bool>,
+    pub inline_sources: Option<bool>,
+    pub isolated_modules: Option<bool>,
+    pub jsx: Option<JsxEmit>,
+    pub keyof_strings_only: Option<bool>,
+    pub lib: Option<Vec<String>>,
+    pub(crate) list_emitted_files: Option<bool>,
+    pub(crate) list_files: Option<bool>,
+    pub(crate) explain_files: Option<bool>,
+    pub(crate) list_files_only: Option<bool>,
+    pub locale: Option<String>,
+    pub map_root: Option<String>,
+    pub max_node_module_js_depth: Option<usize>,
     pub module: Option<ModuleKind>,
+    pub module_resolution: Option<ModuleResolutionKind>,
+    pub new_line: Option<NewLineKind>,
+    pub no_emit: Option<bool>,
+    pub(crate) no_emit_for_js_files: Option<bool>,
+    pub no_emit_helpers: Option<bool>,
+    pub no_emit_on_error: Option<bool>,
+    pub no_error_truncation: Option<bool>,
+    pub no_fallthrough_cases_in_switch: Option<bool>,
+    pub no_implicit_any: Option<bool>,
+    pub no_implicit_returns: Option<bool>,
+    pub no_implicit_this: Option<bool>,
+    pub no_strict_generic_checks: Option<bool>,
+    pub no_unused_locals: Option<bool>,
+    pub no_unused_parameters: Option<bool>,
+    pub no_implicit_use_strict: Option<bool>,
+    pub no_property_access_from_index_signature: Option<bool>,
+    pub assume_changes_only_affect_direct_dependencies: Option<bool>,
+    pub no_lib: Option<bool>,
+    pub no_resolve: Option<bool>,
+    pub no_unchecked_indexed_access: Option<bool>,
+    pub out: Option<String>,
+    pub out_dir: Option<String>,
+    pub out_file: Option<String>,
+    pub paths: Option<MapLike<Vec<String>>>,
+    pub(crate) paths_base_path: Option<String>,
+    pub plugins: Option<Vec<PluginImport>>,
+    pub preserve_const_enums: Option<bool>,
+    pub no_implicit_override: Option<bool>,
+    pub preserve_symlinks: Option<bool>,
+    pub preserve_value_imports: Option<bool>,
+    pub(crate) preserve_watch_output: Option<bool>,
+    pub project: Option<String>,
+    pub(crate) pretty: Option<bool>,
+    pub react_namespace: Option<String>,
+    pub jsx_factory: Option<String>,
+    pub jsx_fragment_factory: Option<String>,
+    pub jsx_import_source: Option<String>,
+    pub composite: Option<bool>,
+    pub incremental: Option<bool>,
+    pub ts_build_info_file: Option<String>,
+    pub remove_comments: Option<bool>,
+    pub root_dir: Option<String>,
+    pub root_dirs: Option<Vec<String>>,
+    pub skip_lib_check: Option<bool>,
+    pub skip_default_lib_check: Option<bool>,
+    pub source_map: Option<bool>,
+    pub source_root: Option<String>,
+    pub strict: Option<bool>,
+    pub strict_function_types: Option<bool>,
+    pub strict_bind_call_apply: Option<bool>,
+    pub strict_null_checks: Option<bool>,
+    pub strict_property_initialization: Option<bool>,
+    pub strip_internal: Option<bool>,
+    pub suppress_excess_property_errors: Option<bool>,
+    pub suppress_implicit_any_index_errors: Option<bool>,
+    pub(crate) suppress_output_path_check: Option<bool>,
+    pub target: Option<ScriptTarget>,
+    pub trace_resolution: Option<bool>,
+    pub use_unknown_in_catch_variables: Option<bool>,
+    pub resolve_json_module: Option<bool>,
+    pub types: Option<Vec<String>>,
+    pub type_roots: Option<Vec<String>>,
+    pub(crate) version: Option<bool>,
+    pub(crate) watch: Option<bool>,
+    pub es_module_interop: Option<bool>,
+    pub(crate) show_config: Option<bool>,
+    pub use_define_for_class_fields: Option<bool>,
+    // [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -29,10 +150,45 @@ pub enum ModuleKind {
     NodeNext = 199,
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum JsxEmit {
+    None = 0,
+    Preserve = 1,
+    React = 2,
+    ReactNative = 3,
+    ReactJSX = 4,
+    ReactJSXDev = 5,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ImportsNotUsedAsValues {
+    Remove,
+    Preserve,
+    Error,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum NewLineKind {
+    CarriageReturnLineFeed = 0,
+    LineFeed = 1,
+}
+
 #[derive(Debug)]
 pub struct LineAndCharacter {
     pub line: usize,
     pub character: usize,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ScriptKind {
+    Unknown = 0,
+    JS = 1,
+    JSX = 2,
+    TS = 3,
+    TSX = 4,
+    External = 5,
+    JSON = 6,
+    Deferred = 7,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]

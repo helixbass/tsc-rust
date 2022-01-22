@@ -248,17 +248,6 @@ pub fn changes_affecting_program_structure(
     )
 }
 
-pub enum ForEachAncestorReturn<TReturn> {
-    Option(Option<TReturn>),
-    Quit,
-}
-
-impl<TReturn> From<Option<TReturn>> for ForEachAncestorReturn<TReturn> {
-    fn from(value: Option<TReturn>) -> Self {
-        Self::Option(value)
-    }
-}
-
 pub fn options_have_changes(
     old_options: &CompilerOptions,
     new_options: &CompilerOptions,
@@ -271,6 +260,17 @@ pub fn options_have_changes(
                 get_compiler_option_value(new_options, o),
             )
         })
+}
+
+pub enum ForEachAncestorReturn<TReturn> {
+    Option(Option<TReturn>),
+    Quit,
+}
+
+impl<TReturn> From<Option<TReturn>> for ForEachAncestorReturn<TReturn> {
+    fn from(value: Option<TReturn>) -> Self {
+        Self::Option(value)
+    }
 }
 
 pub fn for_each_ancestor<

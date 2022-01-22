@@ -613,3 +613,11 @@ pub enum DiagnosticCategory {
     Suggestion,
     Message,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModuleResolutionKind {
+    Classic = 1,
+    NodeJs = 2,
+    Node12 = 3,
+    NodeNext = 99,
+}
