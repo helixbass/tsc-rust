@@ -1,18 +1,104 @@
 use std::array::IntoIter;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
-    CommandLineOption, CommandLineOptionBase, CommandLineOptionMapTypeValue,
-    CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType, CommandLineOptionOfStringType,
-    CommandLineOptionType, CompilerOptions, Diagnostics, ParsedCommandLine, ScriptTarget,
+    CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
+    CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType,
+    CommandLineOptionOfListType, CommandLineOptionOfStringType, CommandLineOptionType,
+    CompilerOptions, Diagnostics, ModuleKind, ParsedCommandLine, ScriptTarget,
     StringOrDiagnosticMessage,
 };
 
 thread_local! {
-    pub(crate) static common_options_with_build: Vec<CommandLineOption> = vec![
+    pub(crate) static lib_entries: Vec<(&'static str, &'static str)> = vec![
+        ("es5", "lib.es5.d.ts"),
+        ("es6", "lib.es2015.d.ts"),
+        ("es2015", "lib.es2015.d.ts"),
+        ("es7", "lib.es2016.d.ts"),
+        ("es2016", "lib.es2016.d.ts"),
+        ("es2017", "lib.es2017.d.ts"),
+        ("es2018", "lib.es2018.d.ts"),
+        ("es2019", "lib.es2019.d.ts"),
+        ("es2020", "lib.es2020.d.ts"),
+        ("es2021", "lib.es2021.d.ts"),
+        ("esnext", "lib.esnext.d.ts"),
+        ("dom", "lib.dom.d.ts"),
+        ("dom.iterable", "lib.dom.iterable.d.ts"),
+        ("webworker", "lib.webworker.d.ts"),
+        (
+            "webworker.importscripts",
+            "lib.webworker.importscripts.d.ts",
+        ),
+        ("webworker.iterable", "lib.webworker.iterable.d.ts"),
+        ("scripthost", "lib.scripthost.d.ts"),
+        ("es2015.core", "lib.es2015.core.d.ts"),
+        ("es2015.collection", "lib.es2015.collection.d.ts"),
+        ("es2015.generator", "lib.es2015.generator.d.ts"),
+        ("es2015.iterable", "lib.es2015.iterable.d.ts"),
+        ("es2015.promise", "lib.es2015.promise.d.ts"),
+        ("es2015.proxy", "lib.es2015.proxy.d.ts"),
+        ("es2015.reflect", "lib.es2015.reflect.d.ts"),
+        ("es2015.symbol", "lib.es2015.symbol.d.ts"),
+        (
+            "es2015.symbol.wellknown",
+            "lib.es2015.symbol.wellknown.d.ts",
+        ),
+        ("es2016.array.include", "lib.es2016.array.include.d.ts"),
+        ("es2017.object", "lib.es2017.object.d.ts"),
+        ("es2017.sharedmemory", "lib.es2017.sharedmemory.d.ts"),
+        ("es2017.string", "lib.es2017.string.d.ts"),
+        ("es2017.intl", "lib.es2017.intl.d.ts"),
+        ("es2017.typedarrays", "lib.es2017.typedarrays.d.ts"),
+        ("es2018.asyncgenerator", "lib.es2018.asyncgenerator.d.ts"),
+        ("es2018.asynciterable", "lib.es2018.asynciterable.d.ts"),
+        ("es2018.intl", "lib.es2018.intl.d.ts"),
+        ("es2018.promise", "lib.es2018.promise.d.ts"),
+        ("es2018.regexp", "lib.es2018.regexp.d.ts"),
+        ("es2019.array", "lib.es2019.array.d.ts"),
+        ("es2019.object", "lib.es2019.object.d.ts"),
+        ("es2019.string", "lib.es2019.string.d.ts"),
+        ("es2019.symbol", "lib.es2019.symbol.d.ts"),
+        ("es2020.bigint", "lib.es2020.bigint.d.ts"),
+        ("es2020.promise", "lib.es2020.promise.d.ts"),
+        ("es2020.sharedmemory", "lib.es2020.sharedmemory.d.ts"),
+        ("es2020.string", "lib.es2020.string.d.ts"),
+        (
+            "es2020.symbol.wellknown",
+            "lib.es2020.symbol.wellknown.d.ts",
+        ),
+        ("es2020.intl", "lib.es2020.intl.d.ts"),
+        ("es2021.promise", "lib.es2021.promise.d.ts"),
+        ("es2021.string", "lib.es2021.string.d.ts"),
+        ("es2021.weakref", "lib.es2021.weakref.d.ts"),
+        ("es2021.intl", "lib.es2021.intl.d.ts"),
+        ("esnext.array", "lib.es2019.array.d.ts"),
+        ("esnext.symbol", "lib.es2019.symbol.d.ts"),
+        ("esnext.asynciterable", "lib.es2018.asynciterable.d.ts"),
+        ("esnext.intl", "lib.esnext.intl.d.ts"),
+        ("esnext.bigint", "lib.es2020.bigint.d.ts"),
+        ("esnext.string", "lib.es2021.string.d.ts"),
+        ("esnext.promise", "lib.es2021.promise.d.ts"),
+        ("esnext.weakref", "lib.es2021.weakref.d.ts"),
+    ];
+}
+
+thread_local! {
+    pub(crate) static libs: Vec<&'static str> =
+        lib_entries.with(|lib_entries_| lib_entries_.iter().map(|entry| entry.0).collect());
+}
+
+thread_local! {
+    pub(crate) static lib_map: HashMap<&'static str, &'static str> = lib_entries
+        .with(|lib_entries_| HashMap::from_iter(lib_entries_.iter().map(|tuple| (tuple.0, tuple.1))));
+}
+
+thread_local! {
+    pub(crate) static common_options_with_build: Vec<Rc<CommandLineOption>> = vec![
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "help".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -35,6 +121,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "help".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -57,6 +144,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "watch".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -79,6 +167,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "preserveWatchOutput".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -101,6 +190,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "listFiles".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -123,6 +213,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "explainFiles".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -145,6 +236,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "listEmittedFiles".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -167,6 +259,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "pretty".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -189,6 +282,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "traceResolution".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -211,6 +305,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "diagnostics".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -233,6 +328,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "extendedDiagnostics".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -255,6 +351,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfStringType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "generateCpuProfile".to_string(),
             type_: CommandLineOptionType::String,
             is_file_path: Some(true),
@@ -277,6 +374,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfStringType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "generateTrace".to_string(),
             type_: CommandLineOptionType::String,
             is_file_path: Some(true),
@@ -299,6 +397,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "incremental".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -321,6 +420,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "assumeChangesOnlyAffectDirectDependencies".to_string(),
             type_: CommandLineOptionType::Boolean,
             is_file_path: None,
@@ -343,6 +443,7 @@ thread_local! {
         })
         .into(),
         CommandLineOptionOfStringType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "locale".to_string(),
             type_: CommandLineOptionType::String,
             is_file_path: None,
@@ -367,22 +468,24 @@ thread_local! {
     ];
 }
 
-pub(crate) static target_option_declaration: CommandLineOption /*CommandLineOptionOfCustomType*/ =
+thread_local! {
+    pub(crate) static target_option_declaration: Rc<CommandLineOption /*CommandLineOptionOfCustomType*/> =
         CommandLineOptionOfCustomType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
             name: "target".to_string(),
             type_: CommandLineOptionType::Map(
                 HashMap::from_iter(IntoIter::new([
-                    ("es3".to_string(), CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES3)),
-                    ("es5".to_string(), CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES5)),
-                    ("es6".to_string(), CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2015)),
-                    ("es2015".to_string(), CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2015)),
-                    ("es2016".to_string(), CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2016)),
-                    ("es2017".to_string(), CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2017)),
-                    ("es2018".to_string(), CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2018)),
-                    ("es2019".to_string(), CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2019)),
-                    ("es2020".to_string(), CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2020)),
-                    ("es2021".to_string(), CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2021)),
-                    ("esnext".to_string(), CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ESNext)),
+                    ("es3", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES3)),
+                    ("es5", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES5)),
+                    ("es6", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2015)),
+                    ("es2015", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2015)),
+                    ("es2016", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2016)),
+                    ("es2017", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2017)),
+                    ("es2018", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2018)),
+                    ("es2019", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2019)),
+                    ("es2020", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2020)),
+                    ("es2021", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ES2021)),
+                    ("esnext", CommandLineOptionMapTypeValue::ScriptTarget(ScriptTarget::ESNext)),
                 ]))
             ),
             is_file_path: None,
@@ -403,39 +506,313 @@ pub(crate) static target_option_declaration: CommandLineOption /*CommandLineOpti
             affects_program_structure: None,
             transpile_option_value: None,
         }).into();
+}
 
 thread_local! {
-    pub(crate) static semantic_diagnostics_option_declarations: Vec<CommandLineOption> =
+pub(crate) static command_options_without_build: Vec<Rc<CommandLineOption>> = vec![
+    CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+        _command_line_option_wrapper: RefCell::new(None),
+        name: "all".to_string(),
+        type_: CommandLineOptionType::Boolean,
+        is_file_path: None,
+        short_name: None,
+        description: Some(Diagnostics::Show_all_compiler_options),
+        default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
+        param_type: None,
+        is_tsconfig_only: None,
+        is_command_line_only: None,
+        show_in_simplified_help_view: Some(true),
+        category: Some(Diagnostics::Command_line_Options),
+        strict_flag: None,
+        affects_source_file: None,
+        affects_module_resolution: None,
+        affects_bind_diagnostics: None,
+        affects_semantic_diagnostics: None,
+        affects_emit: None,
+        affects_program_structure: None,
+        transpile_option_value: None,
+    })
+    .into(),
+    CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+        _command_line_option_wrapper: RefCell::new(None),
+        name: "version".to_string(),
+        type_: CommandLineOptionType::Boolean,
+        is_file_path: None,
+        short_name: Some("v".to_string()),
+        description: Some(Diagnostics::Print_the_compiler_s_version),
+        default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
+        param_type: None,
+        is_tsconfig_only: None,
+        is_command_line_only: None,
+        show_in_simplified_help_view: Some(true),
+        category: Some(Diagnostics::Command_line_Options),
+        strict_flag: None,
+        affects_source_file: None,
+        affects_module_resolution: None,
+        affects_bind_diagnostics: None,
+        affects_semantic_diagnostics: None,
+        affects_emit: None,
+        affects_program_structure: None,
+        transpile_option_value: None,
+    })
+    .into(),
+    CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+        _command_line_option_wrapper: RefCell::new(None),
+        name: "init".to_string(),
+        type_: CommandLineOptionType::Boolean,
+        is_file_path: None,
+        short_name: None,
+        description: Some(
+            Diagnostics::Initializes_a_TypeScript_project_and_creates_a_tsconfig_json_file,
+        ),
+        default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
+        param_type: None,
+        is_tsconfig_only: None,
+        is_command_line_only: None,
+        show_in_simplified_help_view: Some(true),
+        category: Some(Diagnostics::Command_line_Options),
+        strict_flag: None,
+        affects_source_file: None,
+        affects_module_resolution: None,
+        affects_bind_diagnostics: None,
+        affects_semantic_diagnostics: None,
+        affects_emit: None,
+        affects_program_structure: None,
+        transpile_option_value: None,
+    })
+    .into(),
+    CommandLineOptionOfStringType::new(CommandLineOptionBase {
+        _command_line_option_wrapper: RefCell::new(None),
+        name: "project".to_string(),
+        type_: CommandLineOptionType::String,
+        is_file_path: Some(true ),
+        short_name: Some("p".to_string()),
+        description: Some(Diagnostics::Compile_the_project_given_the_path_to_its_configuration_file_or_to_a_folder_with_a_tsconfig_json),
+        default_value_description: None,
+        param_type: Some(Diagnostics::FILE_OR_DIRECTORY),
+        is_tsconfig_only: None,
+        is_command_line_only: None,
+        show_in_simplified_help_view: Some(true),
+        category: Some(Diagnostics::Command_line_Options),
+        strict_flag: None,
+        affects_source_file: None,
+        affects_module_resolution: None,
+        affects_bind_diagnostics: None,
+        affects_semantic_diagnostics: None,
+        affects_emit: None,
+        affects_program_structure: None,
+        transpile_option_value: None,
+    })
+    .into(),
+    CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+        _command_line_option_wrapper: RefCell::new(None),
+        name: "build".to_string(),
+        type_: CommandLineOptionType::Boolean,
+        is_file_path: None,
+        short_name: Some("b".to_string()),
+        description: Some(Diagnostics::Build_one_or_more_projects_and_their_dependencies_if_out_of_date),
+        default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
+        param_type: None,
+        is_tsconfig_only: None,
+        is_command_line_only: None,
+        show_in_simplified_help_view: Some(true),
+        category: Some(Diagnostics::Command_line_Options),
+        strict_flag: None,
+        affects_source_file: None,
+        affects_module_resolution: None,
+        affects_bind_diagnostics: None,
+        affects_semantic_diagnostics: None,
+        affects_emit: None,
+        affects_program_structure: None,
+        transpile_option_value: None,
+    })
+    .into(),
+    CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+        _command_line_option_wrapper: RefCell::new(None),
+        name: "showConfig".to_string(),
+        type_: CommandLineOptionType::Boolean,
+        is_file_path: None,
+        short_name: None,
+        description: Some(Diagnostics::Print_the_final_configuration_instead_of_building),
+        default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
+        param_type: None,
+        is_tsconfig_only: None,
+        is_command_line_only: Some(true),
+        show_in_simplified_help_view: Some(true),
+        category: Some(Diagnostics::Command_line_Options),
+        strict_flag: None,
+        affects_source_file: None,
+        affects_module_resolution: None,
+        affects_bind_diagnostics: None,
+        affects_semantic_diagnostics: None,
+        affects_emit: None,
+        affects_program_structure: None,
+        transpile_option_value: None,
+    })
+    .into(),
+    CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+        _command_line_option_wrapper: RefCell::new(None),
+        name: "listFilesOnly".to_string(),
+        type_: CommandLineOptionType::Boolean,
+        is_file_path: None,
+        short_name: None,
+        description: Some(Diagnostics::Print_names_of_files_that_are_part_of_the_compilation_and_then_stop_processing),
+        default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
+        param_type: None,
+        is_tsconfig_only: None,
+        is_command_line_only: Some(true),
+        show_in_simplified_help_view: None,
+        category: Some(Diagnostics::Command_line_Options),
+        strict_flag: None,
+        affects_source_file: None,
+        affects_module_resolution: None,
+        affects_bind_diagnostics: None,
+        affects_semantic_diagnostics: Some(true),
+        affects_emit: Some(true),
+        affects_program_structure: None,
+        transpile_option_value: None,
+    })
+    .into(),
+    target_option_declaration.with(|target_option_declaration_| (*target_option_declaration_).clone()),
+    CommandLineOptionOfCustomType::new(CommandLineOptionBase {
+        _command_line_option_wrapper: RefCell::new(None),
+        name: "module".to_string(),
+        type_: CommandLineOptionType::Map(
+            HashMap::from_iter(IntoIter::new([
+                ("none", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::None)),
+                ("commonjs", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::CommonJS)),
+                ("amd", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::AMD)),
+                ("system", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::System)),
+                ("umd", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::UMD)),
+                ("es6", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::ES2015)),
+                ("es2015", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::ES2015)),
+                ("es2020", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::ES2020)),
+                ("es2022", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::ES2022)),
+                ("esnext", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::ESNext)),
+                ("node12", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::Node12)),
+                ("nodenext", CommandLineOptionMapTypeValue::ModuleKind(ModuleKind::NodeNext)),
+            ]))
+        ),
+        is_file_path: None,
+        short_name: Some("m".to_string()),
+        description: Some(Diagnostics::Specify_what_module_code_is_generated),
+        default_value_description: None,
+        param_type: Some(Diagnostics::KIND),
+        is_tsconfig_only: None,
+        is_command_line_only: None,
+        show_in_simplified_help_view: Some(true),
+        category: Some(Diagnostics::Modules),
+        strict_flag: None,
+        affects_source_file: None,
+        affects_module_resolution: Some(true),
+        affects_bind_diagnostics: None,
+        affects_semantic_diagnostics: None,
+        affects_emit: Some(true),
+        affects_program_structure: None,
+        transpile_option_value: None,
+    }).into(),
+    CommandLineOptionOfListType::new(CommandLineOptionBase {
+        _command_line_option_wrapper: RefCell::new(None),
+        name: "lib".to_string(),
+        type_: CommandLineOptionType::List,
+        is_file_path: None,
+        short_name: None,
+        description: Some(Diagnostics::Specify_a_set_of_bundled_library_declaration_files_that_describe_the_target_runtime_environment),
+        default_value_description: None,
+        param_type: None,
+        is_tsconfig_only: None,
+        is_command_line_only: None,
+        show_in_simplified_help_view: Some(true),
+        category: Some(Diagnostics::Language_and_Environment),
+        strict_flag: None,
+        affects_source_file: None,
+        affects_module_resolution: None,
+        affects_bind_diagnostics: None,
+        affects_semantic_diagnostics: None,
+        affects_emit: None,
+        affects_program_structure: Some(true),
+        transpile_option_value: None,
+    },
+        CommandLineOptionOfCustomType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
+            name: "lib".to_string(),
+            type_: CommandLineOptionType::Map(
+                lib_map.with(|lib_map_| HashMap::from_iter(lib_map_.iter().map(|(key, value)|
+                   (*key, CommandLineOptionMapTypeValue::StaticStr(*value))
+                )))
+            ),
+            is_file_path: None,
+            short_name: None,
+            description: None,
+            default_value_description: None,
+            param_type: None,
+            is_tsconfig_only: None,
+            is_command_line_only: None,
+            show_in_simplified_help_view: None,
+            category: None,
+            strict_flag: None,
+            affects_source_file: None,
+            affects_module_resolution: None,
+            affects_bind_diagnostics: None,
+            affects_semantic_diagnostics: None,
+            affects_emit: None,
+            affects_program_structure: None,
+            transpile_option_value: None,
+        }).into(),
+    )
+    .into(),
+
+];
+}
+
+thread_local! {
+pub(crate) static option_declarations: Vec<Rc<CommandLineOption>> =
+    common_options_with_build.with(|common_options_with_build_| {
+        command_options_without_build.with(|command_options_without_build_| {
+            common_options_with_build_
+                .iter()
+                .chain(command_options_without_build_.iter())
+                .map(Clone::clone)
+                .collect()
+        })
+    });
+}
+
+thread_local! {
+    pub(crate) static semantic_diagnostics_option_declarations: Vec<Rc<CommandLineOption>> =
         option_declarations.with(|option_declarations_| {
             option_declarations_
                 .iter()
                 .filter(|option| option.affects_semantic_diagnostics())
+                .map(Clone::clone)
                 .collect()
         });
 }
 
 thread_local! {
-    pub(crate) static affects_emit_option_declarations: Vec<CommandLineOption> =
+    pub(crate) static affects_emit_option_declarations: Vec<Rc<CommandLineOption>> =
         option_declarations.with(|option_declarations_| {
             option_declarations_
                 .iter()
                 .filter(|option| option.affects_emit())
+                .map(Clone::clone)
                 .collect()
         });
 }
 
 thread_local! {
-    pub(crate) static module_resolution_option_declarations: Vec<CommandLineOption> =
+    pub(crate) static module_resolution_option_declarations: Vec<Rc<CommandLineOption>> =
         option_declarations.with(|option_declarations_| {
             option_declarations_
                 .iter()
                 .filter(|option| option.affects_module_resolution())
+                .map(Clone::clone)
                 .collect()
         });
 }
 
 pub(crate) struct OptionsNameMap {
-    pub options_name_map: HashMap<String, CommandLineOption>,
+    pub options_name_map: HashMap<String, Rc<CommandLineOption>>,
     pub short_option_names: HashMap<String, String>,
 }
 

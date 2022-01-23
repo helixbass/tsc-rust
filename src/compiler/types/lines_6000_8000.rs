@@ -1,8 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, SourceFile, SyntaxKind};
 use crate::{MapLike, NodeFactoryFlags, OptionsNameMap};
@@ -319,8 +320,10 @@ pub struct CreateProgramOptions<'config> {
 
 #[derive(Debug)]
 pub enum CommandLineOptionMapTypeValue {
+    StaticStr(&'static str),
     String(String),
     ScriptTarget(ScriptTarget),
+    ModuleKind(ModuleKind),
 }
 
 #[derive(Debug)]
@@ -330,7 +333,7 @@ pub enum CommandLineOptionType {
     Boolean,
     Object,
     List,
-    Map(HashMap<String, CommandLineOptionMapTypeValue /*number | string*/>),
+    Map(HashMap<&'static str, CommandLineOptionMapTypeValue /*number | string*/>),
 }
 
 pub enum StringOrDiagnosticMessage {
@@ -339,6 +342,8 @@ pub enum StringOrDiagnosticMessage {
 }
 
 pub trait CommandLineOptionInterface {
+    fn command_line_option_wrapper(&self) -> Rc<CommandLineOption>;
+    fn set_command_line_option_wrapper(&self, wrapper: Rc<CommandLineOption>);
     fn name(&self) -> &str;
     fn type_(&self) -> &CommandLineOptionType;
     fn is_file_path(&self) -> bool;
@@ -361,6 +366,7 @@ pub trait CommandLineOptionInterface {
 }
 
 pub struct CommandLineOptionBase {
+    pub _command_line_option_wrapper: RefCell<Option<Weak<CommandLineOption>>>,
     pub name: String,
     pub type_: CommandLineOptionType,
     pub is_file_path: Option<bool>,
@@ -384,6 +390,19 @@ pub struct CommandLineOptionBase {
 }
 
 impl CommandLineOptionInterface for CommandLineOptionBase {
+    fn command_line_option_wrapper(&self) -> Rc<CommandLineOption> {
+        self._command_line_option_wrapper
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .upgrade()
+            .unwrap()
+    }
+
+    fn set_command_line_option_wrapper(&self, wrapper: Rc<CommandLineOption>) {
+        *self._command_line_option_wrapper.borrow_mut() = Some(Rc::downgrade(&wrapper));
+    }
+
     fn name(&self) -> &str {
         &self.name
     }
@@ -549,17 +568,17 @@ impl TsConfigOnlyOption {
 #[command_line_option_type]
 pub struct CommandLineOptionOfListType {
     _command_line_option_base: CommandLineOptionBase,
-    pub element: Box<CommandLineOption>,
+    pub element: Rc<CommandLineOption>,
 }
 
 impl CommandLineOptionOfListType {
     pub(crate) fn new(
         command_line_option_base: CommandLineOptionBase,
-        element: CommandLineOption,
+        element: Rc<CommandLineOption>,
     ) -> Self {
         Self {
             _command_line_option_base: command_line_option_base,
-            element: Box::new(element),
+            element,
         }
     }
 }

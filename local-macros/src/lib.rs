@@ -1637,6 +1637,14 @@ fn get_command_line_option_struct_interface_impl(
         "CommandLineOptionInterface" => {
             quote! {
                 impl crate::CommandLineOptionInterface for #command_line_option_type_name {
+                    fn command_line_option_wrapper(&self) -> ::std::rc::Rc<crate::CommandLineOption> {
+                        self.#first_field_name.command_line_option_wrapper()
+                    }
+
+                    fn set_command_line_option_wrapper(&self, wrapper: ::std::rc::Rc<crate::CommandLineOption>) {
+                        self.#first_field_name.set_command_line_option_wrapper(wrapper)
+                    }
+
                     fn name(&self) -> &str {
                         self.#first_field_name.name()
                     }
@@ -1728,6 +1736,18 @@ fn get_command_line_option_enum_interface_impl(
         "CommandLineOptionInterface" => {
             quote! {
                 impl crate::CommandLineOptionInterface for #command_line_option_type_name {
+                    fn command_line_option_wrapper(&self) -> ::std::rc::Rc<crate::CommandLineOption> {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.command_line_option_wrapper()),*
+                        }
+                    }
+
+                    fn set_command_line_option_wrapper(&self, wrapper: ::std::rc::Rc<crate::CommandLineOption>) {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.set_command_line_option_wrapper(wrapper)),*
+                        }
+                    }
+
                     fn name(&self) -> &str {
                         match self {
                             #(#command_line_option_type_name::#variant_names(nested) => nested.name()),*
@@ -1942,18 +1962,17 @@ pub fn command_line_option_type(attr: TokenStream, item: TokenStream) -> TokenSt
             previous_variant_name = ancestor_ident;
         }
 
-        // quote! {
-        //     #into_implementations
+        quote! {
+            #into_implementations
 
-        //     impl ::std::convert::From<#ast_type_name> for ::std::rc::Rc<crate::Node> {
-        //         fn from(concrete: #ast_type_name) -> Self {
-        //             let rc = ::std::rc::Rc::new(#construct_variant);
-        //             crate::NodeInterface::set_node_wrapper(&*rc, rc.clone());
-        //             rc
-        //         }
-        //     }
-        // }
-        into_implementations
+            impl ::std::convert::From<#command_line_option_type_name> for ::std::rc::Rc<crate::CommandLineOption> {
+                fn from(concrete: #command_line_option_type_name) -> Self {
+                    let rc = ::std::rc::Rc::new(#construct_variant);
+                    crate::CommandLineOptionInterface::set_command_line_option_wrapper(&*rc, rc.clone());
+                    rc
+                }
+            }
+        }
     } else {
         quote! {}
     };
