@@ -179,9 +179,10 @@ pub use compiler::utilities::{
 pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores, get_combined_node_flags,
     get_effective_type_parameter_declarations, get_name_of_declaration, has_initializer,
-    has_only_expression_initializer, id_text, is_binding_pattern, is_expression, is_function_like,
-    is_function_or_module_block, is_literal_kind, is_member_name, is_modifier_kind,
-    is_template_literal_kind, sort_and_deduplicate_diagnostics, unescape_leading_underscores,
+    has_jsdoc_nodes, has_only_expression_initializer, id_text, is_binding_pattern, is_expression,
+    is_function_like, is_function_or_module_block, is_literal_kind, is_member_name,
+    is_modifier_kind, is_template_literal_kind, sort_and_deduplicate_diagnostics,
+    unescape_leading_underscores,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;

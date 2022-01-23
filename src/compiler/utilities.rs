@@ -12,11 +12,11 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    is_source_file, is_white_space_like, module_resolution_option_declarations,
-    options_affecting_program_structure, text_substring, CommandLineOption,
-    CommandLineOptionInterface, CompilerOptions, CompilerOptionsValue, ModifierFlags, ModuleKind,
-    NodeArray, ScriptTarget, SourceFileLike, SourceTextAsChars, SymbolTracker, SymbolWriter,
-    SyntaxKind, TextSpan, TypeFlags, UnderscoreEscapedMap, __String,
+    has_initializer, has_jsdoc_nodes, is_source_file, is_white_space_like,
+    module_resolution_option_declarations, options_affecting_program_structure, text_substring,
+    CommandLineOption, CommandLineOptionInterface, CompilerOptions, CompilerOptionsValue,
+    ModifierFlags, ModuleKind, NodeArray, ScriptTarget, SourceFileLike, SourceTextAsChars,
+    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, UnderscoreEscapedMap, __String,
     compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
     escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
     insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
@@ -620,10 +620,11 @@ pub fn get_jsdoc_comments_and_tags(
     host_node: &Node,
     no_cache: Option<bool>,
 ) -> Vec<Rc<Node /*JSDoc | JSDocTag*/>> {
+    let no_cache = no_cache.unwrap_or(false);
     let mut result: Option<Vec<Rc<Node>>> = None;
     if is_variable_like(host_node)
         && has_initializer(host_node)
-        && has_jsdoc_nodes(host_node.as_has_initializer().maybe_initializer().unwrap())
+        && has_jsdoc_nodes(&*host_node.as_has_initializer().maybe_initializer().unwrap())
     {
         result = add_range(
             result,
@@ -634,7 +635,6 @@ pub fn get_jsdoc_comments_and_tags(
                         .as_has_initializer()
                         .maybe_initializer()
                         .unwrap()
-                        .as_has_jsdoc()
                         .maybe_js_doc()
                         .unwrap(),
                 ),
@@ -644,13 +644,11 @@ pub fn get_jsdoc_comments_and_tags(
 
     let mut node: Option<Rc<Node>> = Some(host_node.node_wrapper());
     while matches!(node, Some(node) if node.maybe_parent().is_some()) {
-        if has_jsdoc_nodes(&node) {
+        let node = node.as_ref().unwrap();
+        if has_jsdoc_nodes(&**node) {
             result = add_range(
                 result,
-                filter_owned_jsdoc_tags(
-                    host_node,
-                    last(node.as_has_jsdoc().maybe_js_doc().unwrap()),
-                ),
+                filter_owned_jsdoc_tags(host_node, last(node.maybe_js_doc().unwrap())),
             );
         }
 

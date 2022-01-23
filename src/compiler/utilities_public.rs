@@ -257,6 +257,10 @@ fn is_expression_kind(kind: SyntaxKind) -> bool {
     }
 }
 
+pub fn has_jsdoc_nodes<TNode: NodeInterface>(node: &TNode) -> bool {
+    node.maybe_js_doc().map_or(false, |jsdoc| !jsdoc.is_empty())
+}
+
 pub fn has_initializer<TNode: NodeInterface>(node: &TNode) -> bool {
     node.node_wrapper()
         .maybe_as_has_initializer()

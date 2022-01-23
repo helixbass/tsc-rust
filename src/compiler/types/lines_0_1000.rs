@@ -580,6 +580,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
     fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: Option<SymbolTable>);
+    fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
+    fn set_js_doc(&self, js_doc: Vec<Rc<Node /*JSDoc*/>>);
     fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
     fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node /*JSDocTag*/>>);
 }
@@ -786,6 +788,7 @@ pub struct BaseNode {
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RefCell<Option<SymbolTable>>,
+    js_doc: RefCell<Option<Vec<Weak<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
 }
 
@@ -803,6 +806,7 @@ impl BaseNode {
             end: Cell::new(end),
             symbol: RefCell::new(None),
             locals: RefCell::new(None),
+            js_doc: RefCell::new(None),
             js_doc_cache: RefCell::new(None),
         }
     }
@@ -900,14 +904,25 @@ impl NodeInterface for BaseNode {
         *self.locals.borrow_mut() = locals;
     }
 
-    fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>> {
+    fn maybe_js_doc(&self) -> Option<Vec<Rc<Node>>> {
+        self.js_doc
+            .borrow()
+            .clone()
+            .map(|vec| vec.iter().map(|weak| weak.upgrade().unwrap()).collect())
+    }
+
+    fn set_js_doc(&self, js_doc: Vec<Rc<Node>>) {
+        *self.js_doc.borrow_mut() = Some(js_doc.iter().map(|rc| Rc::downgrade(rc)).collect());
+    }
+
+    fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node>>> {
         self.js_doc_cache
             .borrow()
             .clone()
             .map(|vec| vec.iter().map(|weak| weak.upgrade().unwrap()).collect())
     }
 
-    fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node /*JSDocTag*/>>) {
+    fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node>>) {
         *self.js_doc_cache.borrow_mut() =
             Some(js_doc_cache.iter().map(|rc| Rc::downgrade(rc)).collect());
     }
