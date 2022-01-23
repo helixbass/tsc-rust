@@ -241,7 +241,7 @@ pub enum ModuleKind {
     NodeNext = 199,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum JsxEmit {
     None = 0,
     Preserve = 1,
@@ -324,6 +324,10 @@ pub enum CommandLineOptionMapTypeValue {
     String(String),
     ScriptTarget(ScriptTarget),
     ModuleKind(ModuleKind),
+    JsxEmit(JsxEmit),
+    ImportsNotUsedAsValues(ImportsNotUsedAsValues),
+    ModuleResolutionKind(ModuleResolutionKind),
+    NewLineKind(NewLineKind),
 }
 
 #[derive(Debug)]
