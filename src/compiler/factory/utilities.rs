@@ -1,6 +1,9 @@
 use std::rc::Rc;
 
-use crate::{is_in_js_file, is_parenthesized_expression, Node, NodeInterface, SyntaxKind};
+use crate::{
+    is_in_js_file, is_parenthesized_expression, Node, NodeInterface, OuterExpressionKinds,
+    SyntaxKind,
+};
 
 pub fn is_jsdoc_type_assertion(node: &Node) -> bool {
     is_parenthesized_expression(node)

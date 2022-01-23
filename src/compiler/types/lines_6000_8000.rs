@@ -758,6 +758,21 @@ pub enum EmitHint {
     Unspecified,
 }
 
+bitflags! {
+    pub struct OuterExpressionKinds: u32 {
+        const None = 0;
+        const Parentheses = 1 << 0;
+        const TypeAssertions = 1 << 1;
+        const NonNullAssertions = 1 << 2;
+        const PartiallyEmittedExpressions = 1 << 3;
+
+        const Assertions = Self::TypeAssertions.bits | Self::NonNullAssertions.bits;
+        const All = Self::Parentheses.bits | Self::Assertions.bits | Self::PartiallyEmittedExpressions.bits;
+
+        const ExcludeJSDocTypeAssertion = 1 << 4;
+    }
+}
+
 pub trait ParenthesizerRules {
     // fn get_parenthesize_left_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     // fn get_parenthesize_right_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->

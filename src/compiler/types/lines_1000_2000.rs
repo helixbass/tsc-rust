@@ -4,9 +4,10 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
-    ArrayLiteralExpression, BaseGenericNamedDeclaration, BaseLiteralLikeNode, BaseNode,
-    BinaryExpression, HasExpressionInitializerInterface, HasTypeInterface, LiteralLikeNode, Node,
-    NodeInterface, ObjectLiteralExpression, SyntaxKind, TemplateExpression, __String,
+    ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseLiteralLikeNode,
+    BaseNode, BinaryExpression, HasExpressionInterface, HasInitializerInterface, HasTypeInterface,
+    LiteralLikeNode, Node, NodeInterface, NonNullExpression, ObjectLiteralExpression,
+    ParenthesizedExpression, SyntaxKind, TemplateExpression, TypeAssertion, __String,
 };
 use local_macros::ast_type;
 
@@ -151,6 +152,7 @@ pub trait MemberNameInterface: NodeInterface {
 }
 
 pub trait NamedDeclarationInterface: NodeInterface {
+    fn maybe_name(&self) -> Option<Rc<Node>>;
     fn name(&self) -> Rc<Node>;
     fn set_name(&mut self, name: Rc<Node>);
 }
@@ -182,7 +184,7 @@ impl NamedDeclarationInterface for BaseNamedDeclaration {
 }
 
 pub trait BindingLikeDeclarationInterface:
-    NamedDeclarationInterface + HasExpressionInitializerInterface
+    NamedDeclarationInterface + HasInitializerInterface
 {
 }
 
@@ -205,7 +207,7 @@ impl BaseBindingLikeDeclaration {
     }
 }
 
-impl HasExpressionInitializerInterface for BaseBindingLikeDeclaration {
+impl HasInitializerInterface for BaseBindingLikeDeclaration {
     fn maybe_initializer(&self) -> Option<Rc<Node>> {
         self.initializer.as_ref().map(Clone::clone)
     }
@@ -225,7 +227,7 @@ pub trait VariableLikeDeclarationInterface:
 #[derive(Debug)]
 #[ast_type(
     impl_from = false,
-    interfaces = "NamedDeclarationInterface, HasExpressionInitializerInterface, BindingLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface"
 )]
 pub struct BaseVariableLikeDeclaration {
     _binding_like_declaration: BaseBindingLikeDeclaration,
@@ -416,7 +418,7 @@ impl FunctionDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasExpressionInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
 )]
 pub struct VariableDeclaration {
     _variable_like_declaration: BaseVariableLikeDeclaration,
@@ -448,7 +450,7 @@ impl VariableDeclarationList {
 
 #[derive(Debug)]
 #[ast_type(
-    interfaces = "NamedDeclarationInterface, HasExpressionInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
 )]
 pub struct ParameterDeclaration {
     _variable_like_declaration: BaseVariableLikeDeclaration,
@@ -676,19 +678,46 @@ impl StringLiteral {
 #[derive(Debug)]
 #[ast_type]
 pub enum Expression {
+    PartiallyEmittedExpression(PartiallyEmittedExpression),
     TokenExpression(BaseNode),
     Identifier(Identifier),
     PrefixUnaryExpression(PrefixUnaryExpression),
     BinaryExpression(BinaryExpression),
     LiteralLikeNode(LiteralLikeNode),
     TemplateExpression(TemplateExpression),
+    ParenthesizedExpression(ParenthesizedExpression),
     ArrayLiteralExpression(ArrayLiteralExpression),
     ObjectLiteralExpression(ObjectLiteralExpression),
+    AsExpression(AsExpression),
+    TypeAssertion(TypeAssertion),
+    NonNullExpression(NonNullExpression),
 }
 
 impl From<BaseNode> for Expression {
     fn from(base_node: BaseNode) -> Self {
         Expression::TokenExpression(base_node)
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct PartiallyEmittedExpression {
+    pub _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl PartiallyEmittedExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for PartiallyEmittedExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 

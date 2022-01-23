@@ -10,9 +10,9 @@ use super::{Parser, ParsingContext};
 use crate::{
     create_node_factory, create_scanner, maybe_text_char_at_index, normalize_path,
     object_allocator, BaseNode, BaseNodeFactory, CharacterCodes, Diagnostic, DiagnosticMessage,
-    Expression, FunctionLikeDeclarationInterface, HasExpressionInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, Identifier, NamedDeclarationInterface, Node,
-    NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
+    Expression, FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
+    HasTypeParametersInterface, Identifier, NamedDeclarationInterface, Node, NodeArray,
+    NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
     SignatureDeclarationInterface, SourceFile, SourceTextAsChars, Statement, SyntaxKind,
     TemplateLiteralLikeNode, TypeElement, TypeNode,
 };

@@ -5,12 +5,14 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
 use super::{
-    Decorator, Expression, HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier,
-    LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, NamedDeclarationInterface,
-    NodeArray, ObjectLiteralExpression, ParameterDeclaration, PropertyAssignment, QualifiedName,
-    SignatureDeclarationBase, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
-    TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
-    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
+    BindingElement, Decorator, EnumMember, Expression, HasExpressionInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDocTag, JSDocTypeTag,
+    JsxAttribute, LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray,
+    NamedDeclarationInterface, NodeArray, ObjectLiteralExpression, ParameterDeclaration,
+    PropertyAssignment, PropertyDeclaration, QualifiedName, SignatureDeclarationBase, SourceFile,
+    Statement, Symbol, SymbolTable, TemplateSpan, TypeAliasDeclaration, TypeElement, TypeNode,
+    TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
+    VariableDeclarationList,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -600,6 +602,11 @@ pub enum Node {
     PropertyAssignment(PropertyAssignment),
     SourceFile(Rc<SourceFile>),
     QualifiedName(QualifiedName),
+    JSDocTag(JSDocTag),
+    BindingElement(BindingElement),
+    PropertyDeclaration(PropertyDeclaration),
+    EnumMember(EnumMember),
+    JsxAttribute(JsxAttribute),
 }
 
 impl Node {
@@ -655,26 +662,25 @@ impl Node {
         }
     }
 
-    pub fn as_has_expression_initializer(&self) -> &dyn HasExpressionInitializerInterface {
+    pub fn maybe_as_has_initializer(&self) -> Option<&dyn HasInitializerInterface> {
         match self {
-            Node::VariableDeclaration(variable_declaration) => variable_declaration,
-            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
-                property_signature
-            }
-            _ => panic!("Expected has expression initializer"),
+            Node::VariableDeclaration(node) => Some(node),
+            Node::ParameterDeclaration(node) => Some(node),
+            Node::BindingElement(node) => Some(node),
+            Node::TypeElement(TypeElement::PropertySignature(node)) => Some(node),
+            Node::PropertyDeclaration(node) => Some(node),
+            Node::PropertyAssignment(node) => Some(node),
+            Node::EnumMember(node) => Some(node),
+            Node::Statement(Statement::ForStatement(node)) => Some(node),
+            Node::Statement(Statement::ForInStatement(node)) => Some(node),
+            Node::Statement(Statement::ForOfStatement(node)) => Some(node),
+            Node::JsxAttribute(node) => Some(node),
+            _ => None,
         }
     }
 
-    pub fn maybe_as_has_expression_initializer(
-        &self,
-    ) -> Option<&dyn HasExpressionInitializerInterface> {
-        match self {
-            Node::VariableDeclaration(variable_declaration) => Some(variable_declaration),
-            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
-                Some(property_signature)
-            }
-            _ => None,
-        }
+    pub fn as_has_initializer(&self) -> &dyn HasInitializerInterface {
+        self.maybe_as_has_initializer().unwrap()
     }
 
     pub fn as_has_type_parameters(&self) -> &dyn HasTypeParametersInterface {
@@ -703,6 +709,17 @@ impl Node {
                 intersection_type_node
             }
             _ => panic!("Expected union or intersection type"),
+        }
+    }
+
+    pub fn as_has_expression(&self) -> &dyn HasExpressionInterface {
+        match self {
+            Node::Expression(Expression::ParenthesizedExpression(node)) => node,
+            Node::Expression(Expression::TypeAssertion(node)) => node,
+            Node::Expression(Expression::AsExpression(node)) => node,
+            Node::Expression(Expression::NonNullExpression(node)) => node,
+            Node::Expression(Expression::PartiallyEmittedExpression(node)) => node,
+            _ => panic!("Expected has expression"),
         }
     }
 
@@ -749,6 +766,10 @@ impl Node {
 
     pub fn as_template_span(&self) -> &TemplateSpan {
         enum_unwrapped!(self, [Node, TemplateSpan])
+    }
+
+    pub fn as_jsdoc_type_tag(&self) -> &JSDocTypeTag {
+        enum_unwrapped!(self, [Node, JSDocTag, JSDocTypeTag])
     }
 }
 
@@ -929,7 +950,7 @@ pub trait HasTypeInterface {
     fn set_type(&mut self, type_: Rc<Node>);
 }
 
-pub trait HasExpressionInitializerInterface {
+pub trait HasInitializerInterface {
     fn maybe_initializer(&self) -> Option<Rc<Node>>;
     fn set_initializer(&mut self, initializer: Rc<Node>);
 }

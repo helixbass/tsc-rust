@@ -5,10 +5,11 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
-    BaseNamedDeclaration, BaseNode, BaseTextRange, BindingLikeDeclarationInterface, Diagnostic,
-    Expression, FunctionDeclaration, HasExpressionInitializerInterface, HasTypeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Path, StringLiteral, Symbol,
-    SyntaxKind, TextRange, TypeCheckerHost, VariableLikeDeclarationInterface,
+    BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseTextRange,
+    BaseVariableLikeDeclaration, BindingLikeDeclarationInterface, Diagnostic, Expression,
+    FunctionDeclaration, HasInitializerInterface, HasTypeInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, Path, StringLiteral, Symbol, SyntaxKind, TextRange,
+    TypeCheckerHost, VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
 
@@ -228,6 +229,32 @@ impl TemplateSpan {
     }
 }
 
+pub trait HasExpressionInterface {
+    fn expression(&self) -> Rc<Node>;
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct ParenthesizedExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl ParenthesizedExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for ParenthesizedExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression")]
 pub struct ArrayLiteralExpression {
@@ -261,6 +288,108 @@ impl ObjectLiteralExpression {
 }
 
 #[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct AsExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl AsExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, type_: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            type_,
+        }
+    }
+}
+
+impl HasExpressionInterface for AsExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct TypeAssertion {
+    _node: BaseNode,
+    pub type_: Rc<Node /*TypeNode*/>,
+    pub expression: Rc<Node /*UnaryExpression*/>,
+}
+
+impl TypeAssertion {
+    pub fn new(base_node: BaseNode, type_: Rc<Node>, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for TypeAssertion {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct NonNullExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl NonNullExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for NonNullExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxAttribute {
+    _node: BaseNode,
+    pub name: Rc<Node /*Identifier*/>,
+    pub initializer: Option<Rc<Node /*StringLiteral | JsxExpression*/>>,
+}
+
+impl JsxAttribute {
+    pub fn new(base_node: BaseNode, name: Rc<Node>, initializer: Option<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+            initializer,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for JsxAttribute {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
+#[derive(Debug)]
 #[ast_type]
 pub enum Statement {
     FunctionDeclaration(FunctionDeclaration),
@@ -272,6 +401,9 @@ pub enum Statement {
     ReturnStatement(ReturnStatement),
     InterfaceDeclaration(InterfaceDeclaration),
     TypeAliasDeclaration(TypeAliasDeclaration),
+    ForStatement(ForStatement),
+    ForInStatement(ForInStatement),
+    ForOfStatement(ForOfStatement),
 }
 
 #[derive(Debug)]
@@ -357,6 +489,53 @@ impl IfStatement {
 
 #[derive(Debug)]
 #[ast_type(ancestors = "Statement")]
+pub struct ForStatement {
+    _node: BaseNode,
+    pub statement: Rc<Node /*Statement*/>,
+    pub initializer: Option<Rc<Node /*ForInitializer*/>>,
+    pub condition: Option<Rc<Node /*Expression*/>>,
+    pub expression: Option<Rc<Node /*Expression*/>>,
+}
+
+impl ForStatement {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ForInStatement {
+    _node: BaseNode,
+    pub statement: Rc<Node /*Statement*/>,
+    pub initializer: Rc<Node /*ForInitializer*/>,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl ForInStatement {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ForOfStatement {
+    _node: BaseNode,
+    pub await_modifier: Option<Rc<Node /*AwaitKeywordToken*/>>,
+    pub statement: Rc<Node /*Statement*/>,
+    pub initializer: Rc<Node /*ForInitializer*/>,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl ForOfStatement {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
 pub struct ReturnStatement {
     _node: BaseNode,
     pub expression: Option<Rc</*Expression*/ Node>>,
@@ -378,10 +557,30 @@ pub enum TypeElement {
 }
 
 #[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface"
+)]
+pub struct BindingElement {
+    _binding_like_declaration: BaseBindingLikeDeclaration, /*name: BindingName*/
+    pub property_name: Option<Rc<Node /*PropertyName*/>>,
+    pub dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
+}
+
+impl BindingElement {
+    pub fn new(base_binding_like_declaration: BaseBindingLikeDeclaration) -> Self {
+        Self {
+            _binding_like_declaration: base_binding_like_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(ancestors = "TypeElement", interfaces = "NamedDeclarationInterface")]
 pub struct PropertySignature {
     _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
     pub type_: Option<Rc<Node /*TypeNode*/>>,
+    pub initializer: Option<Rc<Node /*Expression*/>>,
 }
 
 impl PropertySignature {
@@ -403,13 +602,13 @@ impl HasTypeInterface for PropertySignature {
     }
 }
 
-impl HasExpressionInitializerInterface for PropertySignature {
+impl HasInitializerInterface for PropertySignature {
     fn maybe_initializer(&self) -> Option<Rc<Node>> {
-        None
+        self.initializer.clone()
     }
 
-    fn set_initializer(&mut self, _initializer: Rc<Node>) {
-        panic!("Shouldn't call set_initializer() on PropertySignature")
+    fn set_initializer(&mut self, initializer: Rc<Node>) {
+        self.initializer = Some(initializer);
     }
 }
 
@@ -418,15 +617,35 @@ impl BindingLikeDeclarationInterface for PropertySignature {}
 impl VariableLikeDeclarationInterface for PropertySignature {}
 
 #[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
+)]
+pub struct PropertyDeclaration {
+    _variable_like_declaration: BaseVariableLikeDeclaration,
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+    pub exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
+}
+
+impl PropertyDeclaration {
+    pub fn new(
+        base_variable_like_declaration: BaseVariableLikeDeclaration,
+        question_token: Option<Rc<Node>>,
+        exclamation_token: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _variable_like_declaration: base_variable_like_declaration,
+            question_token,
+            exclamation_token,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct PropertyAssignment {
     _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
     pub initializer: Rc<Node /*Expression*/>,
 }
-
-// TODO: should implement HasExpressionInitializerInterface for PropertyAssignment? Its initializer
-// isn't optional - should maybe change HasExpressionInitializerInterface initializer() ->
-// maybe_initializer() and add non-optional initializer()?
 
 impl PropertyAssignment {
     pub fn new(base_named_declaration: BaseNamedDeclaration, initializer: Rc<Node>) -> Self {
@@ -434,6 +653,16 @@ impl PropertyAssignment {
             _named_declaration: base_named_declaration,
             initializer,
         }
+    }
+}
+
+impl HasInitializerInterface for PropertyAssignment {
+    fn maybe_initializer(&self) -> Option<Rc<Node>> {
+        Some(self.initializer.clone())
+    }
+
+    fn set_initializer(&mut self, initializer: Rc<Node>) {
+        self.initializer = initializer;
     }
 }
 
@@ -559,6 +788,50 @@ impl TypeAliasDeclaration {
     }
 }
 
+#[derive(Debug)]
+#[ast_type]
+pub struct EnumMember {
+    _node: BaseNode,
+    pub name: Rc<Node /*PropertyName*/>,
+    pub initializer: Option<Rc<Node /*Expression*/>>,
+}
+
+impl NamedDeclarationInterface for EnumMember {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
+impl HasInitializerInterface for EnumMember {
+    fn maybe_initializer(&self) -> Option<Rc<Node>> {
+        self.initializer.clone()
+    }
+
+    fn set_initializer(&mut self, initializer: Rc<Node>) {
+        self.initializer = Some(initializer);
+    }
+}
+
+impl EnumMember {
+    pub fn new(
+        base_generic_named_declaration: BaseGenericNamedDeclaration,
+        type_: Rc<Node>,
+    ) -> Self {
+        Self {
+            _generic_named_declaration: base_generic_named_declaration,
+            type_,
+        }
+    }
+}
+
 pub type CommentKind = SyntaxKind; /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
 
 pub struct CommentRange {
@@ -599,6 +872,324 @@ impl TextRange for CommentRange {
 
     fn set_end(&self, end: isize) {
         self.end.set(end);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "JSDocTagInterface")]
+pub enum JSDocTag {
+    BaseJSDocTag(BaseJSDocTag),
+    JSDocAugmentsTag(JSDocAugmentsTag),
+    JSDocImplementsTag(JSDocImplementsTag),
+    JSDocEnumTag(JSDocEnumTag),
+    JSDocThisTag(JSDocThisTag),
+    JSDocTemplateTag(JSDocTemplateTag),
+    JSDocSeeTag(JSDocSeeTag),
+    JSDocReturnTag(JSDocReturnTag),
+    JSDocTypeTag(JSDocTypeTag),
+    JSDocTypedefTag(JSDocTypedefTag),
+    JSDocCallbackTag(JSDocCallbackTag),
+    JSDocPropertyLikeTag(JSDocPropertyLikeTag),
+}
+
+pub trait JSDocTagInterface {
+    fn tag_name(&self) -> Rc<Node /*Identifier*/>;
+    fn maybe_comment(&self) -> Option<&StringOrNodeArray /*<JSDocComment>*/>;
+}
+
+#[derive(Debug)]
+pub enum StringOrNodeArray {
+    String(String),
+    NodeArray(NodeArray),
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag")]
+pub struct BaseJSDocTag {
+    _node: BaseNode,
+    tag_name: Rc<Node /*Identifier*/>,
+    comment: Option<StringOrNodeArray /*<JSDocComment>*/>,
+}
+
+impl BaseJSDocTag {
+    pub fn new(
+        base_node: BaseNode,
+        tag_name: Rc<Node>,
+        comment: Option<StringOrNodeArray>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            tag_name,
+            comment,
+        }
+    }
+}
+
+impl JSDocTagInterface for BaseJSDocTag {
+    fn tag_name(&self) -> Rc<Node> {
+        self.tag_name.clone()
+    }
+
+    fn maybe_comment(&self) -> Option<&StringOrNodeArray> {
+        self.comment.as_ref()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct JSDocAugmentsTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    pub class: Rc<
+        Node, /*ExpressionWithTypeArguments & { readonly expression: Identifier | PropertyAccessEntityNameExpression*/
+    >,
+}
+
+impl JSDocAugmentsTag {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, class: Rc<Node>) -> Self {
+        Self {
+            _base_jsdoc_tag: base_jsdoc_tag,
+            class,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct JSDocImplementsTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    pub class: Rc<
+        Node, /*ExpressionWithTypeArguments & { readonly expression: Identifier | PropertyAccessEntityNameExpression*/
+    >,
+}
+
+impl JSDocImplementsTag {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, class: Rc<Node>) -> Self {
+        Self {
+            _base_jsdoc_tag: base_jsdoc_tag,
+            class,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct JSDocEnumTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    pub type_expression: Rc<Node /*JSDocTypeExpression*/>,
+}
+
+impl JSDocEnumTag {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Rc<Node>) -> Self {
+        Self {
+            _base_jsdoc_tag: base_jsdoc_tag,
+            type_expression,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct JSDocThisTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    pub type_expression: Rc<Node /*JSDocTypeExpression*/>,
+}
+
+impl JSDocThisTag {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Rc<Node>) -> Self {
+        Self {
+            _base_jsdoc_tag: base_jsdoc_tag,
+            type_expression,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct JSDocTemplateTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    pub constraint: Option<Rc<Node /*JSDocTypeExpression*/>>,
+    pub type_parameters: NodeArray, /*<TypeParameterDeclaration>*/
+}
+
+impl JSDocTemplateTag {
+    pub fn new(
+        base_jsdoc_tag: BaseJSDocTag,
+        constraint: Option<Rc<Node>>,
+        type_parameters: NodeArray,
+    ) -> Self {
+        Self {
+            _base_jsdoc_tag: base_jsdoc_tag,
+            constraint,
+            type_parameters,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct JSDocSeeTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    pub name: Option<Rc<Node /*JSDocNameReference*/>>,
+}
+
+impl JSDocSeeTag {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, name: Option<Rc<Node>>) -> Self {
+        Self {
+            _base_jsdoc_tag: base_jsdoc_tag,
+            name,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct JSDocReturnTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    pub type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+}
+
+impl JSDocReturnTag {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Option<Rc<Node>>) -> Self {
+        Self {
+            _base_jsdoc_tag: base_jsdoc_tag,
+            type_expression,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct JSDocTypeTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    type_expression: Rc<Node /*JSDocTypeExpression*/>,
+}
+
+impl JSDocTypeTag {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Rc<Node>) -> Self {
+        Self {
+            _base_jsdoc_tag: base_jsdoc_tag,
+            type_expression,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct JSDocTypedefTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    pub full_name: Option<Rc<Node /*JSDocNamespaceDeclaration | Identifier*/>>,
+    pub name: Option<Rc<Node /*Identifier*/>>,
+    pub type_expression: Option<Rc<Node /*JSDocTypeExpression | JSDocTypeLiteral*/>>,
+}
+
+impl JSDocTypedefTag {
+    pub fn new(
+        base_jsdoc_tag: BaseJSDocTag,
+        full_name: Option<Rc<Node>>,
+        name: Option<Rc<Node>>,
+        type_expression: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _base_jsdoc_tag: base_jsdoc_tag,
+            full_name,
+            name,
+            type_expression,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for JSDocTypedefTag {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        self.name.clone()
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone().unwrap()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = Some(name);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct JSDocCallbackTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    pub full_name: Option<Rc<Node /*JSDocNamespaceDeclaration | Identifier*/>>,
+    pub name: Option<Rc<Node /*Identifier*/>>,
+    pub type_expression: Rc<Node /*JSDocSignature*/>,
+}
+
+impl JSDocCallbackTag {
+    pub fn new(
+        base_jsdoc_tag: BaseJSDocTag,
+        full_name: Option<Rc<Node>>,
+        name: Option<Rc<Node>>,
+        type_expression: Rc<Node>,
+    ) -> Self {
+        Self {
+            _base_jsdoc_tag: base_jsdoc_tag,
+            full_name,
+            name,
+            type_expression,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for JSDocCallbackTag {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        self.name.clone()
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone().unwrap()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = Some(name);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct JSDocPropertyLikeTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    pub name: Rc<Node /*EntityName*/>,
+    pub type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+    pub is_name_first: bool,
+    pub is_bracketed: bool,
+}
+
+impl JSDocPropertyLikeTag {
+    pub fn new(
+        base_jsdoc_tag: BaseJSDocTag,
+        name: Rc<Node>,
+        type_expression: Option<Rc<Node>>,
+        is_name_first: bool,
+        is_bracketed: bool,
+    ) -> Self {
+        Self {
+            _base_jsdoc_tag: base_jsdoc_tag,
+            name,
+            type_expression,
+            is_name_first,
+            is_bracketed,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for JSDocPropertyLikeTag {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
     }
 }
 

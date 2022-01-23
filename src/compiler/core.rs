@@ -54,6 +54,17 @@ pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .all(|(index, value)| predicate(value, index))
 }
 
+pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: &[TItem],
+    mut predicate: TCallback,
+) -> Option<&TItem> {
+    array
+        .into_iter()
+        .enumerate()
+        .find(|(index, value)| predicate(value, *index))
+        .map(|(_, value)| value)
+}
+
 pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {
     // TODO: separate eg arrays_equal_by() helper taking equality_comparer callback and not imposing `Eq` bound?
     a.len() == b.len() && every(a, |item_a, i| *item_a == b[i])

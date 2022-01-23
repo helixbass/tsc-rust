@@ -179,6 +179,10 @@ fn get_ast_struct_interface_impl(
         "NamedDeclarationInterface" => {
             quote! {
                 impl crate::NamedDeclarationInterface for #ast_type_name {
+                    fn maybe_name(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self.#first_field_name.maybe_name()
+                    }
+
                     fn name(&self) -> ::std::rc::Rc<crate::Node> {
                         self.#first_field_name.name()
                     }
@@ -198,9 +202,9 @@ fn get_ast_struct_interface_impl(
                 }
             }
         }
-        "HasExpressionInitializerInterface" => {
+        "HasInitializerInterface" => {
             quote! {
-                impl crate::HasExpressionInitializerInterface for #ast_type_name {
+                impl crate::HasInitializerInterface for #ast_type_name {
                     fn maybe_initializer(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
                         self.#first_field_name.maybe_initializer()
                     }
@@ -303,6 +307,19 @@ fn get_ast_struct_interface_impl(
 
                     fn maybe_exclamation_token(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
                         self.#first_field_name.maybe_exclamation_token()
+                    }
+                }
+            }
+        }
+        "JSDocTagInterface" => {
+            quote! {
+                impl crate::JSDocTagInterface for #ast_type_name {
+                    fn tag_name(&self) -> ::std::rc::Rc<crate::Node> {
+                        self.#first_field_name.tag_name()
+                    }
+
+                    fn maybe_comment(&self) -> ::std::option::Option<&crate::StringOrNodeArray> {
+                        self.#first_field_name.maybe_comment()
                     }
                 }
             }
@@ -521,6 +538,12 @@ fn get_ast_enum_interface_impl(
         "NamedDeclarationInterface" => {
             quote! {
                 impl crate::NamedDeclarationInterface for #ast_type_name {
+                    fn maybe_name(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_name()),*
+                        }
+                    }
+
                     fn name(&self) -> ::std::rc::Rc<crate::Node> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.name()),*
@@ -620,6 +643,23 @@ fn get_ast_enum_interface_impl(
                     fn set_type(&mut self, type_: ::std::rc::Rc<crate::Node>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_type(type_)),*
+                        }
+                    }
+                }
+            }
+        }
+        "JSDocTagInterface" => {
+            quote! {
+                impl crate::JSDocTagInterface for #ast_type_name {
+                    fn tag_name(&self) -> ::std::rc::Rc<crate::Node> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.tag_name()),*
+                        }
+                    }
+
+                    fn maybe_comment(&self) -> ::std::option::Option<&crate::StringOrNodeArray> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_comment()),*
                         }
                     }
                 }

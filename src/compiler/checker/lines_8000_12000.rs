@@ -122,7 +122,7 @@ impl TypeChecker {
 
         if has_only_expression_initializer(declaration)
             && declaration
-                .as_has_expression_initializer()
+                .as_has_initializer()
                 .maybe_initializer()
                 .is_some()
         {

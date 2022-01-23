@@ -568,6 +568,22 @@ pub fn is_external_or_common_js_module(file: &SourceFile) -> bool {
     false
 }
 
+pub fn is_variable_like<TNode: NodeInterface>(node: &TNode) -> bool {
+    /* if node {*/
+    match node.kind() {
+        SyntaxKind::BindingElement
+        | SyntaxKind::EnumMember
+        | SyntaxKind::Parameter
+        | SyntaxKind::PropertyAssignment
+        | SyntaxKind::PropertyDeclaration
+        | SyntaxKind::PropertySignature
+        | SyntaxKind::ShorthandPropertyAssignment
+        | SyntaxKind::VariableDeclaration => true,
+        _ => false,
+    }
+    /*}*/
+}
+
 pub fn is_in_js_file<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
     node.map_or(false, |node| {
         node.borrow().flags().intersects(NodeFlags::JavaScriptFile)
@@ -577,9 +593,7 @@ pub fn is_in_js_file<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
 pub fn get_effective_initializer<TNode: NodeInterface>(
     node: &TNode, /*HasExpressionInitializer*/
 ) -> Option<Rc<Node>> {
-    node.node_wrapper()
-        .as_has_expression_initializer()
-        .maybe_initializer()
+    node.node_wrapper().as_has_initializer().maybe_initializer()
 }
 
 pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode) {
@@ -628,7 +642,7 @@ pub fn get_jsdoc_comments_and_tags(
         );
     }
 
-    let mut node: Option<Rc<Node>> = host_node.node_wrapper();
+    let mut node: Option<Rc<Node>> = Some(host_node.node_wrapper());
     while matches!(node, Some(node) if node.maybe_parent().is_some()) {
         if has_jsdoc_nodes(&node) {
             result = add_range(

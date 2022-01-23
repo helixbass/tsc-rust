@@ -2,9 +2,9 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    is_jsdoc, CharacterCodes, Debug_, Node, NodeFlags, NodeInterface, SyntaxKind, TextSpan,
-    __String, compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
-    Diagnostic, SortedArray,
+    find, is_jsdoc, is_jsdoc_type_tag, CharacterCodes, Debug_, Node, NodeFlags, NodeInterface,
+    SyntaxKind, TextSpan, __String, compare_diagnostics, is_block, is_module_block, is_source_file,
+    sort_and_deduplicate, Diagnostic, SortedArray,
 };
 
 pub fn sort_and_deduplicate_diagnostics(
@@ -101,9 +101,9 @@ pub fn get_name_of_declaration<TNode: NodeInterface>(declaration: &TNode) -> Opt
 }
 
 pub fn get_jsdoc_type_tag(node: &Node) -> Option<Rc<Node /*JSDocTypeTag*/>> {
-    let tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag);
-    if matches!(tag, Some(tag) if matches!(tag.as_jsdoc_type_tag().type_expression, Some(type_expression) /*if type_expression.type_.is_some()*/))
-    {
+    let tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag, None);
+    // if matches!(tag, Some(tag) if matches!(tag.as_jsdoc_type_tag().type_expression, Some(type_expression) /*if type_expression.type_.is_some()*/))
+    if tag.is_some() {
         return tag;
     }
     None
@@ -133,7 +133,10 @@ fn get_first_jsdoc_tag<TPredicate: FnMut(&Node /*JSDocTag*/) -> bool>(
     predicate: TPredicate,
     no_cache: Option<bool>,
 ) -> Option<Rc<Node>> {
-    find(get_jsdoc_tags_worker(node, no_cache), predicate)
+    find(&get_jsdoc_tags_worker(node, no_cache), |element, _| {
+        predicate(element)
+    })
+    .map(Clone::clone)
 }
 
 pub fn get_effective_type_parameter_declarations(
@@ -256,7 +259,7 @@ fn is_expression_kind(kind: SyntaxKind) -> bool {
 
 pub fn has_initializer<TNode: NodeInterface>(node: &TNode) -> bool {
     node.node_wrapper()
-        .maybe_as_has_expression_initializer()
+        .maybe_as_has_initializer()
         .and_then(|node| node.maybe_initializer())
         .is_some()
 }
