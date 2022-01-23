@@ -12,9 +12,10 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    is_source_file, is_white_space_like, text_substring, CompilerOptions, ModifierFlags,
-    ModuleKind, NodeArray, ScriptTarget, SourceFileLike, SourceTextAsChars, SymbolTracker,
-    SymbolWriter, SyntaxKind, TextSpan, TypeFlags, UnderscoreEscapedMap, __String,
+    is_source_file, is_white_space_like, module_resolution_option_declarations, text_substring,
+    CommandLineOption, CommandLineOptionInterface, CompilerOptions, CompilerOptionsValue,
+    ModifierFlags, ModuleKind, NodeArray, ScriptTarget, SourceFileLike, SourceTextAsChars,
+    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, UnderscoreEscapedMap, __String,
     compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
     escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
     insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
@@ -230,11 +231,13 @@ pub fn options_have_module_resolution_changes(
     old_options: &CompilerOptions,
     new_options: &CompilerOptions,
 ) -> bool {
-    options_have_changes(
-        old_options,
-        new_options,
-        module_resolution_option_declarations,
-    )
+    module_resolution_option_declarations.with(|module_resolution_option_declarations_| {
+        options_have_changes(
+            old_options,
+            new_options,
+            module_resolution_option_declarations_,
+        )
+    })
 }
 
 pub fn changes_affecting_program_structure(
@@ -255,10 +258,9 @@ pub fn options_have_changes(
 ) -> bool {
     !ptr::eq(old_options, new_options)
         && option_declarations.iter().any(|o| {
-            !is_json_equal(
-                get_compiler_option_value(old_options, o),
-                get_compiler_option_value(new_options, o),
-            )
+            /* !is_json_equal(*/
+            get_compiler_option_value(old_options, o) != get_compiler_option_value(new_options, o)
+            /*)*/
         })
 }
 
@@ -1566,6 +1568,220 @@ pub fn get_emit_script_target(compiler_options: &CompilerOptions) -> ScriptTarge
             ScriptTarget::ES3
         }
     })
+}
+
+fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> CompilerOptionsValue {
+    match name {
+        "all" => CompilerOptionsValue::Bool(options.all.clone()),
+        "allow_js" => CompilerOptionsValue::Bool(options.allow_js.clone()),
+        "allow_non_ts_extensions" => {
+            CompilerOptionsValue::Bool(options.allow_non_ts_extensions.clone())
+        }
+        "allow_synthetic_default_imports" => {
+            CompilerOptionsValue::Bool(options.allow_synthetic_default_imports.clone())
+        }
+        "allow_umd_global_access" => {
+            CompilerOptionsValue::Bool(options.allow_umd_global_access.clone())
+        }
+        "allow_unreachable_code" => {
+            CompilerOptionsValue::Bool(options.allow_unreachable_code.clone())
+        }
+        "allow_unused_labels" => CompilerOptionsValue::Bool(options.allow_unused_labels.clone()),
+        "always_strict" => CompilerOptionsValue::Bool(options.always_strict.clone()),
+        "base_url" => CompilerOptionsValue::String(options.base_url.clone()),
+        "build" => CompilerOptionsValue::Bool(options.build.clone()),
+        "charset" => CompilerOptionsValue::String(options.charset.clone()),
+        "check_js" => CompilerOptionsValue::Bool(options.check_js.clone()),
+        "config_file_path" => CompilerOptionsValue::String(options.config_file_path.clone()),
+        "config_file" => CompilerOptionsValue::SourceFile(options.config_file.clone()),
+        "declaration" => CompilerOptionsValue::Bool(options.declaration.clone()),
+        "declaration_map" => CompilerOptionsValue::Bool(options.declaration_map.clone()),
+        "emit_declaration_only" => {
+            CompilerOptionsValue::Bool(options.emit_declaration_only.clone())
+        }
+        "declaration_dir" => CompilerOptionsValue::String(options.declaration_dir.clone()),
+        "diagnostics" => CompilerOptionsValue::Bool(options.diagnostics.clone()),
+        "extended_diagnostics" => CompilerOptionsValue::Bool(options.extended_diagnostics.clone()),
+        "disable_size_limit" => CompilerOptionsValue::Bool(options.disable_size_limit.clone()),
+        "disable_source_of_project_reference_redirect" => {
+            CompilerOptionsValue::Bool(options.disable_source_of_project_reference_redirect.clone())
+        }
+        "disable_solution_searching" => {
+            CompilerOptionsValue::Bool(options.disable_solution_searching.clone())
+        }
+        "disable_referenced_project_load" => {
+            CompilerOptionsValue::Bool(options.disable_referenced_project_load.clone())
+        }
+        "downlevel_iteration" => CompilerOptionsValue::Bool(options.downlevel_iteration.clone()),
+        "emit_bom" => CompilerOptionsValue::Bool(options.emit_bom.clone()),
+        "emit_decorator_metadata" => {
+            CompilerOptionsValue::Bool(options.emit_decorator_metadata.clone())
+        }
+        "exact_optional_property_types" => {
+            CompilerOptionsValue::Bool(options.exact_optional_property_types.clone())
+        }
+        "experimental_decorators" => {
+            CompilerOptionsValue::Bool(options.experimental_decorators.clone())
+        }
+        "force_consistent_casing_in_file_names" => {
+            CompilerOptionsValue::Bool(options.force_consistent_casing_in_file_names.clone())
+        }
+        "generate_cpu_profile" => {
+            CompilerOptionsValue::String(options.generate_cpu_profile.clone())
+        }
+        "generate_trace" => CompilerOptionsValue::String(options.generate_trace.clone()),
+        "help" => CompilerOptionsValue::Bool(options.help.clone()),
+        "import_helpers" => CompilerOptionsValue::Bool(options.import_helpers.clone()),
+        "imports_not_used_as_values" => {
+            CompilerOptionsValue::ImportsNotUsedAsValues(options.imports_not_used_as_values.clone())
+        }
+        "init" => CompilerOptionsValue::Bool(options.init.clone()),
+        "inline_source_map" => CompilerOptionsValue::Bool(options.inline_source_map.clone()),
+        "inline_sources" => CompilerOptionsValue::Bool(options.inline_sources.clone()),
+        "isolated_modules" => CompilerOptionsValue::Bool(options.isolated_modules.clone()),
+        "jsx" => CompilerOptionsValue::JsxEmit(options.jsx.clone()),
+        "keyof_strings_only" => CompilerOptionsValue::Bool(options.keyof_strings_only.clone()),
+        "lib" => CompilerOptionsValue::VecString(options.lib.clone()),
+        "list_emitted_files" => CompilerOptionsValue::Bool(options.list_emitted_files.clone()),
+        "list_files" => CompilerOptionsValue::Bool(options.list_files.clone()),
+        "explain_files" => CompilerOptionsValue::Bool(options.explain_files.clone()),
+        "list_files_only" => CompilerOptionsValue::Bool(options.list_files_only.clone()),
+        "locale" => CompilerOptionsValue::String(options.locale.clone()),
+        "map_root" => CompilerOptionsValue::String(options.map_root.clone()),
+        "max_node_module_js_depth" => {
+            CompilerOptionsValue::Usize(options.max_node_module_js_depth.clone())
+        }
+        "module" => CompilerOptionsValue::ModuleKind(options.module.clone()),
+        "module_resolution" => {
+            CompilerOptionsValue::ModuleResolutionKind(options.module_resolution.clone())
+        }
+        "new_line" => CompilerOptionsValue::NewLineKind(options.new_line.clone()),
+        "no_emit" => CompilerOptionsValue::Bool(options.no_emit.clone()),
+        "no_emit_for_js_files" => CompilerOptionsValue::Bool(options.no_emit_for_js_files.clone()),
+        "no_emit_helpers" => CompilerOptionsValue::Bool(options.no_emit_helpers.clone()),
+        "no_emit_on_error" => CompilerOptionsValue::Bool(options.no_emit_on_error.clone()),
+        "no_error_truncation" => CompilerOptionsValue::Bool(options.no_error_truncation.clone()),
+        "no_fallthrough_cases_in_switch" => {
+            CompilerOptionsValue::Bool(options.no_fallthrough_cases_in_switch.clone())
+        }
+        "no_implicit_any" => CompilerOptionsValue::Bool(options.no_implicit_any.clone()),
+        "no_implicit_returns" => CompilerOptionsValue::Bool(options.no_implicit_returns.clone()),
+        "no_implicit_this" => CompilerOptionsValue::Bool(options.no_implicit_this.clone()),
+        "no_strict_generic_checks" => {
+            CompilerOptionsValue::Bool(options.no_strict_generic_checks.clone())
+        }
+        "no_unused_locals" => CompilerOptionsValue::Bool(options.no_unused_locals.clone()),
+        "no_unused_parameters" => CompilerOptionsValue::Bool(options.no_unused_parameters.clone()),
+        "no_implicit_use_strict" => {
+            CompilerOptionsValue::Bool(options.no_implicit_use_strict.clone())
+        }
+        "no_property_access_from_index_signature" => {
+            CompilerOptionsValue::Bool(options.no_property_access_from_index_signature.clone())
+        }
+        "assume_changes_only_affect_direct_dependencies" => CompilerOptionsValue::Bool(
+            options
+                .assume_changes_only_affect_direct_dependencies
+                .clone(),
+        ),
+        "no_lib" => CompilerOptionsValue::Bool(options.no_lib.clone()),
+        "no_resolve" => CompilerOptionsValue::Bool(options.no_resolve.clone()),
+        "no_unchecked_indexed_access" => {
+            CompilerOptionsValue::Bool(options.no_unchecked_indexed_access.clone())
+        }
+        "out" => CompilerOptionsValue::String(options.out.clone()),
+        "out_dir" => CompilerOptionsValue::String(options.out_dir.clone()),
+        "out_file" => CompilerOptionsValue::String(options.out_file.clone()),
+        "paths" => CompilerOptionsValue::MapLikeVecString(options.paths.clone()),
+        "paths_base_path" => CompilerOptionsValue::String(options.paths_base_path.clone()),
+        "plugins" => CompilerOptionsValue::VecPluginImport(options.plugins.clone()),
+        "preserve_const_enums" => CompilerOptionsValue::Bool(options.preserve_const_enums.clone()),
+        "no_implicit_override" => CompilerOptionsValue::Bool(options.no_implicit_override.clone()),
+        "preserve_symlinks" => CompilerOptionsValue::Bool(options.preserve_symlinks.clone()),
+        "preserve_value_imports" => {
+            CompilerOptionsValue::Bool(options.preserve_value_imports.clone())
+        }
+        "preserve_watch_output" => {
+            CompilerOptionsValue::Bool(options.preserve_watch_output.clone())
+        }
+        "project" => CompilerOptionsValue::String(options.project.clone()),
+        "pretty" => CompilerOptionsValue::Bool(options.pretty.clone()),
+        "react_namespace" => CompilerOptionsValue::String(options.react_namespace.clone()),
+        "jsx_factory" => CompilerOptionsValue::String(options.jsx_factory.clone()),
+        "jsx_fragment_factory" => {
+            CompilerOptionsValue::String(options.jsx_fragment_factory.clone())
+        }
+        "jsx_import_source" => CompilerOptionsValue::String(options.jsx_import_source.clone()),
+        "composite" => CompilerOptionsValue::Bool(options.composite.clone()),
+        "incremental" => CompilerOptionsValue::Bool(options.incremental.clone()),
+        "ts_build_info_file" => CompilerOptionsValue::String(options.ts_build_info_file.clone()),
+        "remove_comments" => CompilerOptionsValue::Bool(options.remove_comments.clone()),
+        "root_dir" => CompilerOptionsValue::String(options.root_dir.clone()),
+        "root_dirs" => CompilerOptionsValue::VecString(options.root_dirs.clone()),
+        "skip_lib_check" => CompilerOptionsValue::Bool(options.skip_lib_check.clone()),
+        "skip_default_lib_check" => {
+            CompilerOptionsValue::Bool(options.skip_default_lib_check.clone())
+        }
+        "source_map" => CompilerOptionsValue::Bool(options.source_map.clone()),
+        "source_root" => CompilerOptionsValue::String(options.source_root.clone()),
+        "strict" => CompilerOptionsValue::Bool(options.strict.clone()),
+        "strict_function_types" => {
+            CompilerOptionsValue::Bool(options.strict_function_types.clone())
+        }
+        "strict_bind_call_apply" => {
+            CompilerOptionsValue::Bool(options.strict_bind_call_apply.clone())
+        }
+        "strict_null_checks" => CompilerOptionsValue::Bool(options.strict_null_checks.clone()),
+        "strict_property_initialization" => {
+            CompilerOptionsValue::Bool(options.strict_property_initialization.clone())
+        }
+        "strip_internal" => CompilerOptionsValue::Bool(options.strip_internal.clone()),
+        "suppress_excess_property_errors" => {
+            CompilerOptionsValue::Bool(options.suppress_excess_property_errors.clone())
+        }
+        "suppress_implicit_any_index_errors" => {
+            CompilerOptionsValue::Bool(options.suppress_implicit_any_index_errors.clone())
+        }
+        "suppress_output_path_check" => {
+            CompilerOptionsValue::Bool(options.suppress_output_path_check.clone())
+        }
+        "target" => CompilerOptionsValue::ScriptTarget(options.target.clone()),
+        "trace_resolution" => CompilerOptionsValue::Bool(options.trace_resolution.clone()),
+        "use_unknown_in_catch_variables" => {
+            CompilerOptionsValue::Bool(options.use_unknown_in_catch_variables.clone())
+        }
+        "resolve_json_module" => CompilerOptionsValue::Bool(options.resolve_json_module.clone()),
+        "types" => CompilerOptionsValue::VecString(options.types.clone()),
+        "type_roots" => CompilerOptionsValue::VecString(options.type_roots.clone()),
+        "version" => CompilerOptionsValue::Bool(options.version.clone()),
+        "watch" => CompilerOptionsValue::Bool(options.watch.clone()),
+        "es_module_interop" => CompilerOptionsValue::Bool(options.es_module_interop.clone()),
+        "show_config" => CompilerOptionsValue::Bool(options.show_config.clone()),
+        "use_define_for_class_fields" => {
+            CompilerOptionsValue::Bool(options.use_define_for_class_fields.clone())
+        }
+        _ => panic!("Unknown compiler option: {:?}", name),
+    }
+}
+
+pub fn get_strict_option_value(
+    compiler_options: &CompilerOptions,
+    flag: &str, /*StrictOptionName*/
+) -> bool {
+    match lookup_compiler_option_value(compiler_options, flag).as_option_bool() {
+        None => compiler_options.strict.unwrap_or(false),
+        Some(bool_) => bool_,
+    }
+}
+
+pub fn get_compiler_option_value(
+    options: &CompilerOptions,
+    option: &CommandLineOption,
+) -> CompilerOptionsValue {
+    if option.strict_flag() {
+        CompilerOptionsValue::Bool(Some(get_strict_option_value(options, option.name())))
+    } else {
+        lookup_compiler_option_value(options, option.name())
+    }
 }
 
 pub fn position_is_synthesized(pos: isize) -> bool {

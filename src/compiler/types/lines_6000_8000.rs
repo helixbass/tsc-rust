@@ -6,12 +6,100 @@ use std::rc::Rc;
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, SourceFile, SyntaxKind};
 use crate::{MapLike, NodeFactoryFlags, OptionsNameMap};
-use local_macros::command_line_type;
+use local_macros::{command_line_option_type, enum_unwrapped};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PluginImport {
     pub name: String,
 }
+
+#[derive(Debug)]
+pub enum CompilerOptionsValue {
+    Bool(Option<bool>),
+    String(Option<String>),
+    SourceFile(Option<Rc<SourceFile>>),
+    ImportsNotUsedAsValues(Option<ImportsNotUsedAsValues>),
+    JsxEmit(Option<JsxEmit>),
+    VecString(Option<Vec<String>>),
+    Usize(Option<usize>),
+    ModuleKind(Option<ModuleKind>),
+    ModuleResolutionKind(Option<ModuleResolutionKind>),
+    NewLineKind(Option<NewLineKind>),
+    MapLikeVecString(Option<MapLike<Vec<String>>>),
+    VecPluginImport(Option<Vec<PluginImport>>),
+    ScriptTarget(Option<ScriptTarget>),
+}
+
+impl CompilerOptionsValue {
+    pub fn as_option_bool(&self) -> Option<bool> {
+        enum_unwrapped!(self, [CompilerOptionsValue, Bool]).clone()
+    }
+}
+
+impl PartialEq for CompilerOptionsValue {
+    fn eq(&self, other: &CompilerOptionsValue) -> bool {
+        match (self, other) {
+            (CompilerOptionsValue::Bool(self_value), CompilerOptionsValue::Bool(other_value)) => {
+                self_value == other_value
+            }
+            (
+                CompilerOptionsValue::String(self_value),
+                CompilerOptionsValue::String(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::SourceFile(self_value),
+                CompilerOptionsValue::SourceFile(other_value),
+            ) => {
+                self_value.is_some()
+                    && other_value.is_some()
+                    && Rc::ptr_eq(self_value.as_ref().unwrap(), other_value.as_ref().unwrap())
+                    || self_value.is_none() && other_value.is_none()
+            }
+            (
+                CompilerOptionsValue::ImportsNotUsedAsValues(self_value),
+                CompilerOptionsValue::ImportsNotUsedAsValues(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::JsxEmit(self_value),
+                CompilerOptionsValue::JsxEmit(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::VecString(self_value),
+                CompilerOptionsValue::VecString(other_value),
+            ) => self_value == other_value,
+            (CompilerOptionsValue::Usize(self_value), CompilerOptionsValue::Usize(other_value)) => {
+                self_value == other_value
+            }
+            (
+                CompilerOptionsValue::ModuleKind(self_value),
+                CompilerOptionsValue::ModuleKind(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::ModuleResolutionKind(self_value),
+                CompilerOptionsValue::ModuleResolutionKind(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::NewLineKind(self_value),
+                CompilerOptionsValue::NewLineKind(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::MapLikeVecString(self_value),
+                CompilerOptionsValue::MapLikeVecString(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::VecPluginImport(self_value),
+                CompilerOptionsValue::VecPluginImport(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::ScriptTarget(self_value),
+                CompilerOptionsValue::ScriptTarget(other_value),
+            ) => self_value == other_value,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for CompilerOptionsValue {}
 
 #[derive(Debug)]
 pub struct CompilerOptions {
@@ -229,45 +317,152 @@ pub struct CreateProgramOptions<'config> {
     pub options: Rc<CompilerOptions>,
 }
 
-pub(crate) enum CommandLineOptionType {
+#[derive(Debug)]
+pub enum CommandLineOptionMapTypeValue {
+    String(String),
+    ScriptTarget(ScriptTarget),
+}
+
+#[derive(Debug)]
+pub enum CommandLineOptionType {
     String,
     Number,
     Boolean,
     Object,
     List,
-    Map(HashMap<String, String /*number | string*/>),
+    Map(HashMap<String, CommandLineOptionMapTypeValue /*number | string*/>),
 }
 
-pub(crate) enum StringOrDiagnosticMessage {
+pub enum StringOrDiagnosticMessage {
     String(String),
     DiagnosticMessage(DiagnosticMessage),
 }
 
-pub(crate) struct CommandLineOptionBase {
-    name: String,
-    type_: CommandLineOptionType,
-    is_file_path: Option<bool>,
-    short_name: Option<String>,
-    description: Option<DiagnosticMessage>,
-    default_value_description: Option<StringOrDiagnosticMessage>,
-    param_type: Option<DiagnosticMessage>,
-    is_tsconfig_only: Option<bool>,
-    is_command_line_only: Option<bool>,
-    show_in_simplified_help_view: Option<bool>,
-    category: Option<DiagnosticMessage>,
-    strict_flag: Option<bool>,
-    affects_source_file: Option<bool>,
-    affects_module_resolution: Option<bool>,
-    affects_bind_diagnostics: Option<bool>,
-    affects_semantic_diagnostics: Option<bool>,
-    affects_emit: Option<bool>,
-    affects_program_structure: Option<bool>,
-    transpile_option_value: Option<bool>,
+pub trait CommandLineOptionInterface {
+    fn name(&self) -> &str;
+    fn type_(&self) -> &CommandLineOptionType;
+    fn is_file_path(&self) -> bool;
+    fn maybe_short_name(&self) -> Option<&str>;
+    fn maybe_description(&self) -> Option<&DiagnosticMessage>;
+    fn maybe_default_value_description(&self) -> Option<&StringOrDiagnosticMessage>;
+    fn maybe_param_type(&self) -> Option<&DiagnosticMessage>;
+    fn is_tsconfig_only(&self) -> bool;
+    fn is_command_line_only(&self) -> bool;
+    fn show_in_simplified_help_view(&self) -> bool;
+    fn maybe_category(&self) -> Option<&DiagnosticMessage>;
+    fn strict_flag(&self) -> bool;
+    fn affects_source_file(&self) -> bool;
+    fn affects_module_resolution(&self) -> bool;
+    fn affects_bind_diagnostics(&self) -> bool;
+    fn affects_semantic_diagnostics(&self) -> bool;
+    fn affects_emit(&self) -> bool;
+    fn affects_program_structure(&self) -> bool;
+    fn transpile_option_value(&self) -> bool;
+}
+
+pub struct CommandLineOptionBase {
+    pub name: String,
+    pub type_: CommandLineOptionType,
+    pub is_file_path: Option<bool>,
+    pub short_name: Option<String>,
+    pub description: Option<DiagnosticMessage>,
+    pub default_value_description: Option<StringOrDiagnosticMessage>,
+    pub param_type: Option<DiagnosticMessage>,
+    pub is_tsconfig_only: Option<bool>,
+    pub is_command_line_only: Option<bool>,
+    pub show_in_simplified_help_view: Option<bool>,
+    pub category: Option<DiagnosticMessage>,
+    pub strict_flag: Option<bool>,
+    pub affects_source_file: Option<bool>,
+    pub affects_module_resolution: Option<bool>,
+    pub affects_bind_diagnostics: Option<bool>,
+    pub affects_semantic_diagnostics: Option<bool>,
+    pub affects_emit: Option<bool>,
+    pub affects_program_structure: Option<bool>,
+    pub transpile_option_value: Option<bool>,
     // extra_validation: Option<Box<dyn Fn(CompilerOptionsValue) -> (DiagnosticMessage, Vec<String>)>>,
 }
 
-#[command_line_type]
-pub(crate) struct CommandLineOptionOfStringType {
+impl CommandLineOptionInterface for CommandLineOptionBase {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn type_(&self) -> &CommandLineOptionType {
+        &self.type_
+    }
+
+    fn is_file_path(&self) -> bool {
+        self.is_file_path.unwrap_or(false)
+    }
+
+    fn maybe_short_name(&self) -> Option<&str> {
+        self.short_name.as_deref()
+    }
+
+    fn maybe_description(&self) -> Option<&DiagnosticMessage> {
+        self.description.as_ref()
+    }
+
+    fn maybe_default_value_description(&self) -> Option<&StringOrDiagnosticMessage> {
+        self.default_value_description.as_ref()
+    }
+
+    fn maybe_param_type(&self) -> Option<&DiagnosticMessage> {
+        self.param_type.as_ref()
+    }
+
+    fn is_tsconfig_only(&self) -> bool {
+        self.is_tsconfig_only.unwrap_or(false)
+    }
+
+    fn is_command_line_only(&self) -> bool {
+        self.is_command_line_only.unwrap_or(false)
+    }
+
+    fn show_in_simplified_help_view(&self) -> bool {
+        self.show_in_simplified_help_view.unwrap_or(false)
+    }
+
+    fn maybe_category(&self) -> Option<&DiagnosticMessage> {
+        self.category.as_ref()
+    }
+
+    fn strict_flag(&self) -> bool {
+        self.strict_flag.unwrap_or(false)
+    }
+
+    fn affects_source_file(&self) -> bool {
+        self.affects_source_file.unwrap_or(false)
+    }
+
+    fn affects_module_resolution(&self) -> bool {
+        self.affects_module_resolution.unwrap_or(false)
+    }
+
+    fn affects_bind_diagnostics(&self) -> bool {
+        self.affects_bind_diagnostics.unwrap_or(false)
+    }
+
+    fn affects_semantic_diagnostics(&self) -> bool {
+        self.affects_semantic_diagnostics.unwrap_or(false)
+    }
+
+    fn affects_emit(&self) -> bool {
+        self.affects_emit.unwrap_or(false)
+    }
+
+    fn affects_program_structure(&self) -> bool {
+        self.affects_program_structure.unwrap_or(false)
+    }
+
+    fn transpile_option_value(&self) -> bool {
+        self.transpile_option_value.unwrap_or(false)
+    }
+}
+
+#[command_line_option_type]
+pub struct CommandLineOptionOfStringType {
     _command_line_option_base: CommandLineOptionBase,
 }
 
@@ -279,8 +474,8 @@ impl CommandLineOptionOfStringType {
     }
 }
 
-#[command_line_type]
-pub(crate) struct CommandLineOptionOfNumberType {
+#[command_line_option_type]
+pub struct CommandLineOptionOfNumberType {
     _command_line_option_base: CommandLineOptionBase,
 }
 
@@ -292,8 +487,8 @@ impl CommandLineOptionOfNumberType {
     }
 }
 
-#[command_line_type]
-pub(crate) struct CommandLineOptionOfBooleanType {
+#[command_line_option_type]
+pub struct CommandLineOptionOfBooleanType {
     _command_line_option_base: CommandLineOptionBase,
 }
 
@@ -305,8 +500,8 @@ impl CommandLineOptionOfBooleanType {
     }
 }
 
-#[command_line_type]
-pub(crate) struct CommandLineOptionOfCustomType {
+#[command_line_option_type]
+pub struct CommandLineOptionOfCustomType {
     _command_line_option_base: CommandLineOptionBase,
 }
 
@@ -330,8 +525,8 @@ pub trait DidYouMeanOptionsDiagnostics {
     fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage;
 }
 
-#[command_line_type]
-pub(crate) struct TsConfigOnlyOption {
+#[command_line_option_type]
+pub struct TsConfigOnlyOption {
     _command_line_option_base: CommandLineOptionBase,
     pub element_options: Option<HashMap<String, CommandLineOption>>,
     pub extra_key_diagnostics: Option<Box<dyn DidYouMeanOptionsDiagnostics>>,
@@ -351,8 +546,8 @@ impl TsConfigOnlyOption {
     }
 }
 
-#[command_line_type]
-pub(crate) struct CommandLineOptionOfListType {
+#[command_line_option_type]
+pub struct CommandLineOptionOfListType {
     _command_line_option_base: CommandLineOptionBase,
     pub element: Box<CommandLineOption>,
 }
@@ -369,8 +564,8 @@ impl CommandLineOptionOfListType {
     }
 }
 
-#[command_line_type]
-pub(crate) enum CommandLineOption {
+#[command_line_option_type(impl_from = false)]
+pub enum CommandLineOption {
     CommandLineOptionOfCustomType(CommandLineOptionOfCustomType),
     CommandLineOptionOfStringType(CommandLineOptionOfStringType),
     CommandLineOptionOfNumberType(CommandLineOptionOfNumberType),
