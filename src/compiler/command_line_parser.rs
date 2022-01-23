@@ -2900,16 +2900,16 @@ thread_local! {
 }
 
 thread_local! {
-pub(crate) static option_declarations: Vec<Rc<CommandLineOption>> =
-    common_options_with_build.with(|common_options_with_build_| {
-        command_options_without_build.with(|command_options_without_build_| {
-            common_options_with_build_
-                .iter()
-                .chain(command_options_without_build_.iter())
-                .map(Clone::clone)
-                .collect()
-        })
-    });
+    pub(crate) static option_declarations: Vec<Rc<CommandLineOption>> =
+        common_options_with_build.with(|common_options_with_build_| {
+            command_options_without_build.with(|command_options_without_build_| {
+                common_options_with_build_
+                    .iter()
+                    .chain(command_options_without_build_.iter())
+                    .map(Clone::clone)
+                    .collect()
+            })
+        });
 }
 
 thread_local! {
@@ -2940,6 +2940,32 @@ thread_local! {
             option_declarations_
                 .iter()
                 .filter(|option| option.affects_module_resolution())
+                .map(Clone::clone)
+                .collect()
+        });
+}
+
+thread_local! {
+    pub(crate) static source_file_affecting_compiler_options: Vec<Rc<CommandLineOption>> =
+        option_declarations.with(|option_declarations_| {
+            option_declarations_
+                .iter()
+                .filter(|option| {
+                    option.affects_source_file()
+                        || option.affects_module_resolution()
+                        || option.affects_bind_diagnostics()
+                })
+                .map(Clone::clone)
+                .collect()
+        });
+}
+
+thread_local! {
+    pub(crate) static options_affecting_program_structure: Vec<Rc<CommandLineOption>> =
+        option_declarations.with(|option_declarations_| {
+            option_declarations_
+                .iter()
+                .filter(|option| option.affects_program_structure())
                 .map(Clone::clone)
                 .collect()
         });

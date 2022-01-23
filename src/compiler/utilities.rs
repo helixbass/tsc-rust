@@ -12,10 +12,11 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    is_source_file, is_white_space_like, module_resolution_option_declarations, text_substring,
-    CommandLineOption, CommandLineOptionInterface, CompilerOptions, CompilerOptionsValue,
-    ModifierFlags, ModuleKind, NodeArray, ScriptTarget, SourceFileLike, SourceTextAsChars,
-    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TypeFlags, UnderscoreEscapedMap, __String,
+    is_source_file, is_white_space_like, module_resolution_option_declarations,
+    options_affecting_program_structure, text_substring, CommandLineOption,
+    CommandLineOptionInterface, CompilerOptions, CompilerOptionsValue, ModifierFlags, ModuleKind,
+    NodeArray, ScriptTarget, SourceFileLike, SourceTextAsChars, SymbolTracker, SymbolWriter,
+    SyntaxKind, TextSpan, TypeFlags, UnderscoreEscapedMap, __String,
     compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
     escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
     insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
@@ -235,7 +236,7 @@ pub fn options_have_module_resolution_changes(
         options_have_changes(
             old_options,
             new_options,
-            module_resolution_option_declarations_,
+            &*module_resolution_option_declarations_,
         )
     })
 }
@@ -244,17 +245,19 @@ pub fn changes_affecting_program_structure(
     old_options: &CompilerOptions,
     new_options: &CompilerOptions,
 ) -> bool {
-    options_have_changes(
-        old_options,
-        new_options,
-        options_affecting_program_structure,
-    )
+    options_affecting_program_structure.with(|options_affecting_program_structure_| {
+        options_have_changes(
+            old_options,
+            new_options,
+            &*options_affecting_program_structure_,
+        )
+    })
 }
 
 pub fn options_have_changes(
     old_options: &CompilerOptions,
     new_options: &CompilerOptions,
-    option_declarations: &[CommandLineOption],
+    option_declarations: &[Rc<CommandLineOption>],
 ) -> bool {
     !ptr::eq(old_options, new_options)
         && option_declarations.iter().any(|o| {
