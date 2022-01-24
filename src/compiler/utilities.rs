@@ -12,7 +12,9 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    add_range, filter, first_or_undefined, has_initializer, has_jsdoc_nodes, id_text,
+    add_range, filter, first_or_undefined, get_jsdoc_parameter_tags,
+    get_jsdoc_parameter_tags_no_cache, get_jsdoc_type_parameter_tags,
+    get_jsdoc_type_parameter_tags_no_cache, has_initializer, has_jsdoc_nodes, id_text,
     is_binary_expression, is_call_expression, is_element_access_expression,
     is_expression_statement, is_identifier, is_jsdoc, is_jsdoc_type_tag,
     is_left_hand_side_expression, is_module_declaration, is_numeric_literal,
@@ -993,54 +995,57 @@ pub fn get_jsdoc_comments_and_tags(
 
     let mut node: Option<Rc<Node>> = Some(host_node.node_wrapper());
     while matches!(node, Some(node) if node.maybe_parent().is_some()) {
-        let node = node.as_ref().unwrap();
-        if has_jsdoc_nodes(&**node) {
+        let node_present = node.clone().unwrap();
+        if has_jsdoc_nodes(&*node_present) {
             if result.is_none() {
                 result = Some(vec![]);
             }
             /*result = */
             add_range(
                 result.as_mut().unwrap(),
-                filter_owned_jsdoc_tags(host_node, &last(node.maybe_js_doc().as_deref().unwrap()))
-                    .as_deref(),
+                filter_owned_jsdoc_tags(
+                    host_node,
+                    &last(node_present.maybe_js_doc().as_deref().unwrap()),
+                )
+                .as_deref(),
                 None,
                 None,
             );
         }
 
-        if node.kind() == SyntaxKind::Parameter {
+        if node_present.kind() == SyntaxKind::Parameter {
             if result.is_none() {
                 result = Some(vec![]);
             }
             /*result = */
             add_range(
                 result.as_mut().unwrap(),
-                (if no_cache {
+                Some(&(if no_cache {
                     get_jsdoc_parameter_tags_no_cache
                 } else {
                     get_jsdoc_parameter_tags
-                })(node),
+                })(&node_present)),
                 None,
                 None,
             );
         }
-        if node.kind() == SyntaxKind::TypeParameter {
+        if node_present.kind() == SyntaxKind::TypeParameter {
             if result.is_none() {
                 result = Some(vec![]);
             }
             /*result = */
             add_range(
                 result.as_mut().unwrap(),
-                (if no_cache {
+                Some(&(if no_cache {
                     get_jsdoc_type_parameter_tags_no_cache
                 } else {
                     get_jsdoc_type_parameter_tags
-                })(node),
+                })(&node_present)),
                 None,
                 None,
             );
         }
-        node = get_next_jsdoc_comment_location(node);
+        node = get_next_jsdoc_comment_location(&node_present);
     }
     result.unwrap_or(vec![])
 }
@@ -1127,7 +1132,7 @@ pub fn get_next_jsdoc_comment_location(node: &Node) -> Option<Rc<Node>> {
                     node,
                 )
             )
-            || get_source_of_defaulted_assignment(great_grandparent).is_some()
+            || get_source_of_defaulted_assignment(&great_grandparent).is_some()
     ) {
         return great_grandparent;
     }

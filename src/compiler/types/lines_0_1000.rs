@@ -7,14 +7,14 @@ use std::rc::{Rc, Weak};
 use super::{
     BinaryExpression, BindingElement, CallExpression, Decorator, ElementAccessExpression,
     EnumMember, Expression, ExpressionStatement, HasExpressionInterface, HasTypeArgumentsInterface,
-    HasTypeParametersInterface, Identifier, JSDoc, JSDocTag, JSDocTypeTag, JsxAttribute,
-    LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, ModuleDeclaration,
-    NamedDeclarationInterface, NodeArray, NumericLiteral, ObjectLiteralExpression,
-    ParameterDeclaration, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
-    QualifiedName, SignatureDeclarationBase, SourceFile, Statement, Symbol, SymbolTable,
-    TemplateSpan, TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
-    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
-    VariableStatement, VoidExpression,
+    HasTypeParametersInterface, Identifier, JSDoc, JSDocPropertyLikeTag, JSDocTag,
+    JSDocTemplateTag, JSDocTypeTag, JsxAttribute, LiteralLikeNodeInterface, MemberNameInterface,
+    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NodeArray, NumericLiteral,
+    ObjectLiteralExpression, ParameterDeclaration, PropertyAccessExpression, PropertyAssignment,
+    PropertyDeclaration, QualifiedName, SignatureDeclarationBase, SignatureDeclarationInterface,
+    SourceFile, Statement, Symbol, SymbolTable, TemplateSpan, TypeAliasDeclaration, TypeElement,
+    TypeNode, TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
+    VariableDeclarationList, VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -728,6 +728,13 @@ impl Node {
         }
     }
 
+    pub fn as_signature_declaration(&self) -> &dyn SignatureDeclarationInterface {
+        match self {
+            Node::Statement(Statement::FunctionDeclaration(node)) => node,
+            _ => panic!("Expected signature declaration"),
+        }
+    }
+
     pub fn as_expression(&self) -> &Expression {
         // node_unwrapped!(self, Expression)
         enum_unwrapped!(self, [Node, Expression])
@@ -815,6 +822,18 @@ impl Node {
 
     pub fn as_numeric_literal(&self) -> &NumericLiteral {
         enum_unwrapped!(self, [Node, Expression, LiteralLikeNode, NumericLiteral])
+    }
+
+    pub fn as_parameter_declaration(&self) -> &ParameterDeclaration {
+        enum_unwrapped!(self, [Node, ParameterDeclaration])
+    }
+
+    pub fn as_jsdoc_property_like_tag(&self) -> &JSDocPropertyLikeTag {
+        enum_unwrapped!(self, [Node, JSDocTag, JSDocPropertyLikeTag])
+    }
+
+    pub fn as_jsdoc_template_tag(&self) -> &JSDocTemplateTag {
+        enum_unwrapped!(self, [Node, JSDocTag, JSDocTemplateTag])
     }
 }
 

@@ -170,22 +170,26 @@ pub use compiler::utilities::{
     declaration_name_to_string, get_binary_operator_precedence, get_check_flags,
     get_declaration_of_kind, get_effective_initializer, get_effective_type_annotation_node,
     get_emit_script_target, get_escaped_text_of_identifier_or_literal, get_first_identifier,
-    get_full_width, get_literal_text, get_object_flags, get_operator_associativity,
-    get_operator_precedence, get_source_file_of_node, has_dynamic_name, is_block_or_catch_scoped,
-    is_external_or_common_js_module, is_in_js_file, is_keyword, is_property_name_literal,
-    is_type_alias, is_write_only_access, modifiers_to_flags, node_is_missing, object_allocator,
-    parse_pseudo_big_int, position_is_synthesized, pseudo_big_int_to_string, set_parent,
-    set_text_range_pos_end, set_value_declaration, using_single_line_string_writer, Associativity,
-    GetLiteralTextFlags, OperatorPrecedence,
+    get_full_width, get_jsdoc_comments_and_tags, get_literal_text, get_object_flags,
+    get_operator_associativity, get_operator_precedence, get_source_file_of_node, has_dynamic_name,
+    is_block_or_catch_scoped, is_external_or_common_js_module, is_in_js_file, is_keyword,
+    is_property_name_literal, is_type_alias, is_write_only_access, modifiers_to_flags,
+    node_is_missing, object_allocator, parse_pseudo_big_int, position_is_synthesized,
+    pseudo_big_int_to_string, set_parent, set_text_range_pos_end, set_value_declaration,
+    using_single_line_string_writer, Associativity, GetLiteralTextFlags, OperatorPrecedence,
 };
-use compiler::utilities_public::is_left_hand_side_expression;
 pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores, get_combined_node_flags,
-    get_effective_type_parameter_declarations, get_jsdoc_type_tag, get_name_of_declaration,
-    has_initializer, has_jsdoc_nodes, has_only_expression_initializer, id_text, is_binding_pattern,
-    is_expression, is_function_like, is_function_or_module_block, is_literal_kind, is_member_name,
+    get_effective_type_parameter_declarations, get_jsdoc_parameter_tags,
+    get_jsdoc_type_parameter_tags, get_jsdoc_type_tag, get_name_of_declaration, has_initializer,
+    has_jsdoc_nodes, has_only_expression_initializer, id_text, is_binding_pattern, is_expression,
+    is_function_like, is_function_or_module_block, is_literal_kind, is_member_name,
     is_modifier_kind, is_string_literal_like, is_template_literal_kind,
     sort_and_deduplicate_diagnostics, unescape_leading_underscores,
+};
+use compiler::utilities_public::{
+    get_jsdoc_parameter_tags_no_cache, get_jsdoc_type_parameter_tags_no_cache,
+    is_left_hand_side_expression,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;
