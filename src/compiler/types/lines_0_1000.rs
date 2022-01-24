@@ -9,11 +9,12 @@ use super::{
     EnumMember, Expression, ExpressionStatement, HasExpressionInterface, HasTypeArgumentsInterface,
     HasTypeParametersInterface, Identifier, JSDoc, JSDocPropertyLikeTag, JSDocTag,
     JSDocTemplateTag, JSDocTypeTag, JsxAttribute, LiteralLikeNodeInterface, MemberNameInterface,
-    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NodeArray, NumericLiteral,
-    ObjectLiteralExpression, ParameterDeclaration, PropertyAccessExpression, PropertyAssignment,
-    PropertyDeclaration, QualifiedName, SignatureDeclarationBase, SignatureDeclarationInterface,
-    SourceFile, Statement, Symbol, SymbolTable, TemplateSpan, TypeAliasDeclaration, TypeElement,
-    TypeNode, TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
+    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray,
+    NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, PropertyAccessExpression,
+    PropertyAssignment, PropertyDeclaration, QualifiedName, ShorthandPropertyAssignment,
+    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
+    SymbolTable, TemplateSpan, TypeAliasDeclaration, TypeElement, TypeNode,
+    TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
     VariableDeclarationList, VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
@@ -612,6 +613,7 @@ pub enum Node {
     EnumMember(EnumMember),
     JsxAttribute(JsxAttribute),
     JSDoc(JSDoc),
+    ShorthandPropertyAssignment(ShorthandPropertyAssignment),
 }
 
 impl Node {
@@ -834,6 +836,10 @@ impl Node {
 
     pub fn as_jsdoc_template_tag(&self) -> &JSDocTemplateTag {
         enum_unwrapped!(self, [Node, JSDocTag, JSDocTemplateTag])
+    }
+
+    pub fn as_new_expression(&self) -> &NewExpression {
+        enum_unwrapped!(self, [Node, Expression, NewExpression])
     }
 }
 

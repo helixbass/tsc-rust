@@ -257,7 +257,7 @@ pub fn is_member_name<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::Identifier || node.kind() == SyntaxKind::PrivateIdentifier
 }
 
-fn skip_partially_emitted_expressions(node: &Node) -> Rc<Node> {
+pub fn skip_partially_emitted_expressions(node: &Node) -> Rc<Node> {
     skip_outer_expressions(
         node,
         Some(OuterExpressionKinds::PartiallyEmittedExpressions),

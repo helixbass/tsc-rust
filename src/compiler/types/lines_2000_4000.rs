@@ -20,6 +20,7 @@ pub struct BinaryExpression {
     pub left: Rc<Node>,
     pub operator_token: Rc<Node>,
     pub right: Rc<Node>,
+    cached_literal_kind: Cell<Option<SyntaxKind>>,
 }
 
 impl BinaryExpression {
@@ -34,7 +35,16 @@ impl BinaryExpression {
             left,
             operator_token,
             right,
+            cached_literal_kind: Cell::new(None),
         }
+    }
+
+    pub fn maybe_cached_literal_kind(&self) -> Option<SyntaxKind> {
+        self.cached_literal_kind.get()
+    }
+
+    pub fn set_cached_literal_kind(&self, cached_literal_kind: SyntaxKind) {
+        self.cached_literal_kind.set(Some(cached_literal_kind));
     }
 }
 
@@ -421,6 +431,35 @@ impl HasExpressionInterface for CallExpression {
 
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression")]
+pub struct NewExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*LeftHandSideExpression*/>,
+    pub type_arguments: Option<NodeArray/*<TypeNode>*/>,
+    pub arguments: Option<NodeArray/*<Expression>*/>,
+}
+
+impl NewExpression {
+    pub fn new(base_node: BaseNode,
+               expression: Rc<Node>,
+    type_arguments: Option<NodeArray>*/>,
+    arguments: Option<NodeArray>*/>,
+               ) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            type_arguments, arguments
+        }
+    }
+}
+
+impl HasExpressionInterface for NewExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
 pub struct AsExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
@@ -637,12 +676,24 @@ pub struct ForStatement {
     pub statement: Rc<Node /*Statement*/>,
     pub initializer: Option<Rc<Node /*ForInitializer*/>>,
     pub condition: Option<Rc<Node /*Expression*/>>,
-    pub expression: Option<Rc<Node /*Expression*/>>,
+    pub incrementor: Option<Rc<Node /*Expression*/>>,
 }
 
 impl ForStatement {
-    pub fn new(base_node: BaseNode) -> Self {
-        Self { _node: base_node }
+    pub fn new(
+        base_node: BaseNode,
+        statement: Rc<Node>,
+        initializer: Option<Rc<Node>>,
+        condition: Option<Rc<Node>>,
+        incrementor: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            statement,
+            initializer,
+            condition,
+            incrementor,
+        }
     }
 }
 
@@ -666,8 +717,18 @@ pub struct ForInStatement {
 }
 
 impl ForInStatement {
-    pub fn new(base_node: BaseNode) -> Self {
-        Self { _node: base_node }
+    pub fn new(
+        base_node: BaseNode,
+        statement: Rc<Node>,
+        initializer: Rc<Node>,
+        expression: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            statement,
+            initializer,
+            expression,
+        }
     }
 }
 
@@ -692,8 +753,20 @@ pub struct ForOfStatement {
 }
 
 impl ForOfStatement {
-    pub fn new(base_node: BaseNode) -> Self {
-        Self { _node: base_node }
+    pub fn new(
+        base_node: BaseNode,
+        await_modifier: Option<Rc<Node>>,
+        statement: Rc<Node>,
+        initializer: Rc<Node>,
+        expression: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            await_modifier,
+            statement,
+            initializer,
+            expression,
+        }
     }
 }
 
@@ -740,9 +813,15 @@ pub struct BindingElement {
 }
 
 impl BindingElement {
-    pub fn new(base_binding_like_declaration: BaseBindingLikeDeclaration) -> Self {
+    pub fn new(
+        base_binding_like_declaration: BaseBindingLikeDeclaration,
+        property_name: Option<Rc<Node>>,
+        dot_dot_dot_token: Option<Rc<Node>>,
+    ) -> Self {
         Self {
             _binding_like_declaration: base_binding_like_declaration,
+            property_name,
+            dot_dot_dot_token,
         }
     }
 }
@@ -757,10 +836,16 @@ pub struct PropertySignature {
 }
 
 impl PropertySignature {
-    pub fn new(base_named_declaration: BaseNamedDeclaration, type_: Option<Rc<Node>>) -> Self {
+    pub fn new(
+        base_named_declaration: BaseNamedDeclaration,
+        question_token: Option<Rc<Node>>,
+        type_: Option<Rc<Node>>,
+    ) -> Self {
         Self {
             _named_declaration: base_named_declaration,
+            question_token,
             type_,
+            initializer: None,
         }
     }
 }
@@ -970,13 +1055,11 @@ pub struct EnumMember {
 }
 
 impl EnumMember {
-    pub fn new(
-        base_generic_named_declaration: BaseGenericNamedDeclaration,
-        type_: Rc<Node>,
-    ) -> Self {
+    pub fn new(base_node: BaseNode, name: Rc<Node>, initializer: Option<Rc<Node>>) -> Self {
         Self {
-            _generic_named_declaration: base_generic_named_declaration,
-            type_,
+            _node: base_node,
+            name,
+            initializer,
         }
     }
 }

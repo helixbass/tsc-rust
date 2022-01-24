@@ -1220,9 +1220,17 @@ fn node_is_synthesized<TRange: ReadonlyTextRange>(range: &TRange) -> bool {
     position_is_synthesized(range.pos()) || position_is_synthesized(range.end())
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Associativity {
     Left,
     Right,
+}
+
+pub fn get_expression_associativity(expression: &Node /*Expression*/) -> Associativity {
+    let operator = get_operator(expression);
+    let has_arguments = expression.kind() == SyntaxKind::NewExpression
+        && expression.as_new_expression().arguments.is_some();
+    get_operator_associativity(expression.kind(), operator, Some(has_arguments))
 }
 
 pub fn get_operator_associativity(
@@ -1274,6 +1282,24 @@ pub fn get_operator_associativity(
         _ => (),
     }
     Associativity::Left
+}
+
+pub fn get_expression_precedence(expression: &Node) -> OperatorPrecedence {
+    let operator = get_operator(expression);
+    let has_arguments = expression.kind() == SyntaxKind::NewExpression
+        && expression.as_new_expression().arguments.is_some();
+    get_operator_precedence(expression.kind(), operator, Some(has_arguments))
+}
+
+pub fn get_operator(expression: &Node) -> SyntaxKind {
+    match expression {
+        Node::Expression(Expression::BinaryExpression(expression)) => {
+            expression.operator_token.kind()
+        }
+        Node::Expression(Expression::PrefixUnaryExpression(expression)) => expression.operator,
+        Node::Expression(Expression::PostfixUnaryExpression(expression)) => expression.operator,
+        _ => expression.kind(),
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

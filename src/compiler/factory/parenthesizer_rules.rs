@@ -2,9 +2,10 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    compare_values, get_operator_associativity, get_operator_precedence, Associativity, Comparison,
-    Node, NodeArray, NodeFactory, NodeInterface, OperatorPrecedence, ParenthesizerRules,
-    SyntaxKind,
+    compare_values, get_expression_associativity, get_expression_precedence,
+    get_operator_associativity, get_operator_precedence, is_binary_expression, is_literal_kind,
+    skip_partially_emitted_expressions, Associativity, Comparison, Node, NodeArray, NodeFactory,
+    NodeInterface, OperatorPrecedence, ParenthesizerRules, SyntaxKind,
 };
 
 pub fn create_parenthesizer_rules(factory: Rc<NodeFactory>) -> ParenthesizerRulesConcrete {
@@ -38,8 +39,8 @@ impl ParenthesizerRulesConcrete {
         {
             return true;
         }
-        let operand_precedence = get_expression_precedence(emitted_operand);
-        match compare_values(operand_precedence, binary_operator_precedence) {
+        let operand_precedence = get_expression_precedence(&emitted_operand);
+        match compare_values(Some(operand_precedence), Some(binary_operator_precedence)) {
             Comparison::LessThan => {
                 if !is_left_side_of_binary
                     && binary_operator_associativity == Associativity::Right
@@ -55,11 +56,11 @@ impl ParenthesizerRulesConcrete {
                 if is_left_side_of_binary {
                     binary_operator_associativity == Associativity::Right
                 } else {
-                    if is_binary_expression(emitted_operand)
+                    if is_binary_expression(&*emitted_operand)
                         && emitted_operand.as_binary_expression().operator_token.kind()
                             == binary_operator
                     {
-                        if operator_has_associative_property(binary_operator) {
+                        if self.operator_has_associative_property(binary_operator) {
                             return false;
                         }
 
@@ -67,13 +68,14 @@ impl ParenthesizerRulesConcrete {
                             let left_kind = match left_operand {
                                 Some(left_operand) => {
                                     let left_operand = left_operand.borrow();
-                                    get_literal_kind_of_binary_plus_operand(left_operand);
+                                    self.get_literal_kind_of_binary_plus_operand(left_operand)
                                 }
                                 None => SyntaxKind::Unknown,
                             };
                             if is_literal_kind(left_kind)
                                 && left_kind
-                                    == get_literal_kind_of_binary_plus_operand(emitted_operand)
+                                    == self
+                                        .get_literal_kind_of_binary_plus_operand(&emitted_operand)
                             {
                                 return false;
                             }
@@ -85,6 +87,58 @@ impl ParenthesizerRulesConcrete {
                 }
             }
         }
+    }
+
+    fn operator_has_associative_property(&self, binary_operator: SyntaxKind) -> bool {
+        matches!(
+            binary_operator,
+            SyntaxKind::AsteriskToken
+                | SyntaxKind::BarToken
+                | SyntaxKind::AmpersandToken
+                | SyntaxKind::CaretToken
+        )
+    }
+
+    fn get_literal_kind_of_binary_plus_operand(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> SyntaxKind {
+        let node = skip_partially_emitted_expressions(node);
+
+        if is_literal_kind(node.kind()) {
+            return node.kind();
+        }
+
+        if node.kind() == SyntaxKind::BinaryExpression
+            && node.as_binary_expression().operator_token.kind() == SyntaxKind::PlusToken
+        {
+            let node_as_binary_expression = node.as_binary_expression();
+            if node_as_binary_expression
+                .maybe_cached_literal_kind()
+                .is_some()
+            {
+                return node_as_binary_expression
+                    .maybe_cached_literal_kind()
+                    .unwrap();
+            }
+
+            let left_kind =
+                self.get_literal_kind_of_binary_plus_operand(&node_as_binary_expression.left);
+            let literal_kind = if is_literal_kind(left_kind)
+                && left_kind
+                    == self
+                        .get_literal_kind_of_binary_plus_operand(&node_as_binary_expression.right)
+            {
+                left_kind
+            } else {
+                SyntaxKind::Unknown
+            };
+
+            node_as_binary_expression.set_cached_literal_kind(literal_kind);
+            return literal_kind;
+        }
+
+        SyntaxKind::Unknown
     }
 }
 

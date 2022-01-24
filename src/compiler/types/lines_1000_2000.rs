@@ -6,7 +6,7 @@ use std::rc::Rc;
 use super::{
     ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseLiteralLikeNode,
     BaseNode, BinaryExpression, CallExpression, ElementAccessExpression, HasExpressionInterface,
-    HasInitializerInterface, HasTypeInterface, LiteralLikeNode, Node, NodeInterface,
+    HasInitializerInterface, HasTypeInterface, LiteralLikeNode, NewExpression, Node, NodeInterface,
     NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression,
     SyntaxKind, TemplateExpression, TypeAssertion, VoidExpression, __String,
 };
@@ -696,6 +696,8 @@ pub enum Expression {
     PropertyAccessExpression(PropertyAccessExpression),
     ElementAccessExpression(ElementAccessExpression),
     VoidExpression(VoidExpression),
+    NewExpression(NewExpression),
+    PostfixUnaryExpression(PostfixUnaryExpression),
 }
 
 impl From<BaseNode> for Expression {
@@ -730,16 +732,34 @@ impl HasExpressionInterface for PartiallyEmittedExpression {
 #[ast_type(ancestors = "Expression")]
 pub struct PrefixUnaryExpression {
     pub _node: BaseNode,
-    pub operator: SyntaxKind,
-    pub operand: Rc<Node>,
+    pub operator: SyntaxKind, /*PrefixUnaryOperator*/
+    pub operand: Rc<Node /*UnaryExpression*/>,
 }
 
 impl PrefixUnaryExpression {
-    pub fn new(base_node: BaseNode, operator: SyntaxKind, operand: Expression) -> Self {
+    pub fn new(base_node: BaseNode, operator: SyntaxKind, operand: Rc<Node>) -> Self {
         Self {
             _node: base_node,
             operator,
-            operand: operand.into(),
+            operand,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct PostfixUnaryExpression {
+    pub _node: BaseNode,
+    pub operand: Rc<Node /*LeftHandSideExpression*/>,
+    pub operator: SyntaxKind, /*PostfixUnaryOperator*/
+}
+
+impl PostfixUnaryExpression {
+    pub fn new(base_node: BaseNode, operand: Rc<Node>, operator: SyntaxKind) -> Self {
+        Self {
+            _node: base_node,
+            operand,
+            operator,
         }
     }
 }
