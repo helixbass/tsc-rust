@@ -36,6 +36,13 @@ pub trait ReadonlyTextRange {
     fn set_end(&self, end: isize);
 }
 
+pub trait TextRange {
+    fn pos(&self) -> isize;
+    fn set_pos(&self, pos: isize);
+    fn end(&self) -> isize;
+    fn set_end(&self, end: isize);
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum SyntaxKind {
     Unknown,
@@ -73,6 +80,8 @@ pub enum SyntaxKind {
     GreaterThanEqualsToken,
     EqualsEqualsToken,
     ExclamationEqualsToken,
+    EqualsEqualsEqualsToken,
+    ExclamationEqualsEqualsToken,
     EqualsGreaterThanToken,
     PlusToken,
     MinusToken,

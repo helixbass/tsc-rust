@@ -12,8 +12,8 @@ use crate::{
     DiagnosticMessage, Expression, FunctionLikeDeclarationInterface,
     HasExpressionInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
     NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeFlags, NodeInterface, Scanner,
-    SignatureDeclarationInterface, SourceFile, Statement, SyntaxKind, TemplateLiteralLikeNode,
-    TypeElement, TypeNode,
+    ScriptTarget, SignatureDeclarationInterface, SourceFile, Statement, SyntaxKind,
+    TemplateLiteralLikeNode, TypeElement, TypeNode,
 };
 use local_macros::ast_type;
 
@@ -305,7 +305,7 @@ pub(super) struct ParserType {
 impl ParserType {
     pub(super) fn new() -> Self {
         ParserType {
-            scanner: RefCell::new(create_scanner(true)),
+            scanner: RefCell::new(create_scanner(ScriptTarget::Latest, true)),
             NodeConstructor: None,
             IdentifierConstructor: None,
             TokenConstructor: None,
@@ -481,7 +481,12 @@ impl ParserType {
         self.set_parse_error_before_next_finished_node(false);
 
         let mut scanner = self.scanner_mut();
-        scanner.set_text(Some(_source_text), None, None);
+        scanner.set_text(
+            Some(_source_text.chars().collect()),
+            Some(_source_text.to_string()),
+            None,
+            None,
+        );
         // scanner.set_on_error(Some(Box::new(move |message, length| {
         //     self.scan_error(message, length)
         // })));

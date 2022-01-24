@@ -6,26 +6,101 @@ use std::rc::Rc;
 use super::SourceFile;
 
 #[derive(Debug)]
+pub struct CompilerOptions {
+    pub target: Option<ScriptTarget>,
+    pub module: Option<ModuleKind>,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ModuleKind {
+    None = 0,
+    CommonJS = 1,
+    AMD = 2,
+    UMD = 3,
+
+    System = 4,
+    ES2015 = 5,
+    ES2020 = 6,
+    ES2022 = 7,
+    ESNext = 99,
+
+    Node12 = 100,
+    NodeNext = 199,
+}
+
+#[derive(Debug)]
+pub struct LineAndCharacter {
+    pub line: usize,
+    pub character: usize,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum ScriptTarget {
+    ES3 = 0,
+    ES5 = 1,
+    ES2015 = 2,
+    ES2016 = 3,
+    ES2017 = 4,
+    ES2018 = 5,
+    ES2019 = 6,
+    ES2020 = 7,
+    ES2021 = 8,
+    ESNext = 99,
+    JSON = 100,
+}
+
+impl ScriptTarget {
+    pub const Latest: ScriptTarget = ScriptTarget::ESNext;
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum LanguageVariant {
+    Standard,
+    JSX,
+}
+
+#[derive(Debug)]
 pub struct ParsedCommandLine {
+    pub options: Rc<CompilerOptions>,
     pub file_names: Vec<String>,
 }
 
 pub struct CreateProgramOptions<'config> {
     pub root_names: &'config [String],
+    pub options: Rc<CompilerOptions>,
 }
 
 #[non_exhaustive]
 pub struct CharacterCodes;
 #[allow(non_upper_case_globals)]
 impl CharacterCodes {
-    pub const max_ascii_character: char = '';
+    pub const null_character: char = '\u{0000}';
+    pub const max_ascii_character: char = '\u{007f}';
 
     pub const line_feed: char = '\n';
     pub const carriage_return: char = '\r';
-    pub const line_separator: char = ' ';
-    pub const paragraph_separator: char = ' ';
+    pub const line_separator: char = '\u{2028}';
+    pub const paragraph_separator: char = '\u{2029}';
+    pub const next_line: char = '\u{0085}';
 
     pub const space: char = ' ';
+    pub const non_breaking_space: char = '\u{00a0}';
+    pub const en_quad: char = '\u{2000}';
+    pub const em_quad: char = '\u{2001}';
+    pub const en_space: char = '\u{2002}';
+    pub const em_space: char = '\u{2003}';
+    pub const three_per_em_space: char = '\u{2004}';
+    pub const four_per_em_space: char = '\u{2005}';
+    pub const six_per_em_space: char = '\u{2006}';
+    pub const figure_space: char = '\u{2007}';
+    pub const punctuation_space: char = '\u{2008}';
+    pub const thin_space: char = '\u{2009}';
+    pub const hair_space: char = '\u{200a}';
+    pub const zero_width_space: char = '\u{200b}';
+    pub const narrow_no_break_space: char = '\u{202f}';
+    pub const ideographic_space: char = '\u{3000}';
+    pub const mathematical_space: char = '\u{205f}';
+    pub const ogham: char = '\u{1680}';
 
     pub const underscore: char = '_';
     pub const dollar_sign: char = '$';
@@ -95,28 +170,42 @@ impl CharacterCodes {
     pub const Y: char = 'Y';
     pub const Z: char = 'Z';
 
+    pub const ampersand: char = '&';
     pub const asterisk: char = '*';
     pub const at: char = '@';
     pub const backslash: char = '\\';
     pub const backtick: char = '`';
     pub const bar: char = '|';
+    pub const caret: char = '^';
     pub const close_brace: char = '}';
     pub const close_bracket: char = ']';
     pub const close_paren: char = ')';
     pub const colon: char = ':';
     pub const comma: char = ',';
+    pub const dot: char = '.';
     pub const double_quote: char = '"';
     pub const equals: char = '=';
+    pub const exclamation: char = '!';
     pub const greater_than: char = '>';
     pub const hash: char = '#';
     pub const less_than: char = '<';
+    pub const minus: char = '-';
     pub const open_brace: char = '{';
     pub const open_bracket: char = '[';
     pub const open_paren: char = '(';
+    pub const percent: char = '%';
     pub const plus: char = '+';
+    pub const question: char = '?';
     pub const semicolon: char = ';';
     pub const single_quote: char = '\'';
     pub const slash: char = '/';
+    pub const tilde: char = '~';
+
+    pub const backspace: char = '\u{0008}';
+    pub const form_feed: char = '\u{000c}';
+    pub const byte_order_mark: char = '\u{feff}';
+    pub const tab: char = '\t';
+    pub const vertical_tab: char = '\u{000b}';
 }
 
 pub trait ModuleResolutionHost {

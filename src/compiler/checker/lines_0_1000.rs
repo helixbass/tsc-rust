@@ -105,6 +105,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     host: &TTypeCheckerHost,
     produce_diagnostics: bool,
 ) -> TypeChecker {
+    let compiler_options = host.get_compiler_options();
     let mut type_checker = TypeChecker {
         _types_needing_strong_references: RefCell::new(vec![]),
         Symbol: object_allocator.get_symbol_constructor(),
@@ -114,6 +115,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         empty_symbols: Rc::new(RefCell::new(create_symbol_table())),
 
+        compiler_options,
         strict_null_checks: true,
         fresh_object_literal_flag: if false {
             unimplemented!()

@@ -53,6 +53,11 @@ pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .all(|(index, value)| predicate(value, index))
 }
 
+pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {
+    // TODO: separate eg arrays_equal_by() helper taking equality_comparer callback and not imposing `Eq` bound?
+    a.len() == b.len() && every(a, |item_a, i| *item_a == b[i])
+}
+
 pub fn map<
     TCollection: IntoIterator,
     TReturn,

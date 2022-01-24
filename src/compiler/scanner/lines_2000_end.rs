@@ -1,30 +1,28 @@
 #![allow(non_upper_case_globals)]
 
 use super::{is_identifier_part, is_identifier_start, ErrorCallback, Scanner};
-use crate::{Debug_, SyntaxKind};
+use crate::{Debug_, ScriptTarget, SourceTextAsChars, SyntaxKind};
 
 impl Scanner {
-    pub(super) fn scan_identifier(&self, start_character: char) -> Option<SyntaxKind> {
+    pub(super) fn scan_identifier(
+        &self,
+        start_character: char,
+        language_version: ScriptTarget,
+    ) -> Option<SyntaxKind> {
         let mut ch = start_character;
-        if is_identifier_start(ch) {
+        if is_identifier_start(ch, Some(language_version)) {
             self.set_pos(self.pos() + char_size(ch));
             loop {
                 if !(self.pos() < self.end()) {
                     break;
                 }
                 ch = code_point_at(self.text(), self.pos());
-                if !is_identifier_part(ch) {
+                if !is_identifier_part(ch, Some(language_version), None) {
                     break;
                 }
                 self.set_pos(self.pos() + char_size(ch));
             }
-            self.set_token_value(
-                self.text()
-                    .chars()
-                    .skip(self.token_pos())
-                    .take(self.pos() - self.token_pos())
-                    .collect::<String>(),
-            );
+            self.set_token_value(self.text_substring(self.token_pos(), self.pos()));
             return Some(self.get_identifier_token());
         }
         None
@@ -98,13 +96,16 @@ impl Scanner {
 
     pub fn set_text(
         &mut self,
-        new_text: Option<&str>,
+        new_text_as_chars: Option<SourceTextAsChars>,
+        new_text: Option<String>,
         start: Option<usize>,
         length: Option<usize>,
     ) {
-        let text = new_text.unwrap_or("");
-        self.set_text_(text);
-        self.set_end(length.map_or(text.len(), |length| start.unwrap() + length));
+        let text = new_text.unwrap_or_else(|| "".to_string());
+        let text_as_chars = new_text_as_chars.unwrap_or_else(|| vec![]);
+        let text_len = text.len();
+        self.set_text_(text_as_chars, text);
+        self.set_end(length.map_or(text_len, |length| start.unwrap() + length));
         self.set_text_pos(start.unwrap_or(0));
     }
 
@@ -121,15 +122,15 @@ impl Scanner {
     }
 }
 
-pub(super) fn code_point_at(s: &str, i: usize) -> char {
-    s.chars().nth(i).unwrap()
+pub(super) fn code_point_at(s: &SourceTextAsChars, i: usize) -> char {
+    s[i]
 }
 
 pub(super) fn char_size(ch: char) -> usize {
     1
 }
 
-pub(super) fn utf16_encode_as_string(code_point: u32) -> String {
+pub(crate) fn utf16_encode_as_string(code_point: u32) -> String {
     char::from_u32(code_point).unwrap().to_string()
 }
 
