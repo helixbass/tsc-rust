@@ -2,9 +2,10 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    find, is_jsdoc, is_jsdoc_type_tag, CharacterCodes, Debug_, Node, NodeFlags, NodeInterface,
-    SyntaxKind, TextSpan, __String, compare_diagnostics, is_block, is_module_block, is_source_file,
-    sort_and_deduplicate, Diagnostic, SortedArray,
+    find, is_jsdoc, is_jsdoc_type_tag, skip_outer_expressions, CharacterCodes, Debug_, Node,
+    NodeFlags, NodeInterface, OuterExpressionKinds, SyntaxKind, TextSpan, __String,
+    compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
+    Diagnostic, SortedArray,
 };
 
 pub fn sort_and_deduplicate_diagnostics(
@@ -152,8 +153,11 @@ pub fn is_member_name<TNode: NodeInterface>(node: &TNode) -> bool {
     node.kind() == SyntaxKind::Identifier || node.kind() == SyntaxKind::PrivateIdentifier
 }
 
-fn skip_partially_emitted_expressions<TNode: NodeInterface>(node: &TNode) -> Rc<Node> {
-    skip_outer_expressions(node, OuterExpressionKinds::PartiallyEmittedExpressions)
+fn skip_partially_emitted_expressions(node: &Node) -> Rc<Node> {
+    skip_outer_expressions(
+        node,
+        Some(OuterExpressionKinds::PartiallyEmittedExpressions),
+    )
 }
 
 pub fn is_literal_kind(kind: SyntaxKind) -> bool {
@@ -228,6 +232,10 @@ pub fn is_binding_pattern<TNode: NodeInterface>(node: &TNode) -> bool {
     false
 }
 
+pub(crate) fn is_left_hand_side_expression(node: &Node) -> bool {
+    is_left_hand_side_expression_kind(skip_partially_emitted_expressions(node).kind())
+}
+
 fn is_left_hand_side_expression_kind(kind: SyntaxKind) -> bool {
     match kind {
         SyntaxKind::ArrayLiteralExpression
@@ -247,7 +255,7 @@ fn is_unary_expression_kind(kind: SyntaxKind) -> bool {
     }
 }
 
-pub fn is_expression<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_expression(node: &Node) -> bool {
     is_expression_kind(skip_partially_emitted_expressions(node).kind())
 }
 
@@ -279,4 +287,11 @@ pub fn has_only_expression_initializer<TNode: NodeInterface>(node: &TNode) -> bo
         | SyntaxKind::EnumMember => true,
         _ => false,
     }
+}
+
+pub fn is_string_literal_like<TNode: NodeInterface>(node: &TNode) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+    )
 }

@@ -18,22 +18,22 @@ use local_macros::ast_type;
 pub struct BinaryExpression {
     pub _node: BaseNode,
     pub left: Rc<Node>,
-    pub operator_token: Box<Node>,
+    pub operator_token: Rc<Node>,
     pub right: Rc<Node>,
 }
 
 impl BinaryExpression {
     pub fn new(
         base_node: BaseNode,
-        left: Expression,
-        operator_token: Node,
-        right: Expression,
+        left: Rc<Node>,
+        operator_token: Rc<Node>,
+        right: Rc<Node>,
     ) -> Self {
         Self {
             _node: base_node,
-            left: left.into(),
-            operator_token: Box::new(operator_token),
-            right: right.into(),
+            left,
+            operator_token,
+            right,
         }
     }
 }
@@ -195,6 +195,28 @@ impl BigIntLiteral {
 
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression")]
+pub struct VoidExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*UnaryExpression*/>,
+}
+
+impl VoidExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for VoidExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
 pub struct TemplateExpression {
     _node: BaseNode,
     pub head: Rc<Node /*TemplateHead*/>,
@@ -284,6 +306,116 @@ impl ObjectLiteralExpression {
             _node: base_node,
             properties,
         }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct PropertyAccessExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*LeftHandSideExpression*/>,
+    pub question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+    pub name: Rc<Node /*MemberName*/>,
+}
+
+impl PropertyAccessExpression {
+    pub fn new(
+        base_node: BaseNode,
+        expression: Rc<Node>,
+        question_dot_token: Option<Rc<Node>>,
+        name: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            question_dot_token,
+            name,
+        }
+    }
+}
+
+impl HasExpressionInterface for PropertyAccessExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+impl NamedDeclarationInterface for PropertyAccessExpression {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct ElementAccessExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*LeftHandSideExpression*/>,
+    pub question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+    pub argument_expression: Rc<Node /*Expression*/>,
+}
+
+impl ElementAccessExpression {
+    pub fn new(
+        base_node: BaseNode,
+        expression: Rc<Node>,
+        question_dot_token: Option<Rc<Node>>,
+        argument_expression: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            question_dot_token,
+            argument_expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for ElementAccessExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct CallExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*LeftHandSideExpression*/>,
+    pub question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    pub arguments: Option<NodeArray /*<Expression>*/>,
+}
+
+impl CallExpression {
+    pub fn new(
+        base_node: BaseNode,
+        expression: Rc<Node>,
+        question_dot_token: Option<Rc<Node>>,
+        type_arguments: Option<NodeArray>,
+        arguments: Option<NodeArray>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            question_dot_token,
+            type_arguments,
+            arguments,
+        }
+    }
+}
+
+impl HasExpressionInterface for CallExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 
@@ -389,6 +521,16 @@ impl NamedDeclarationInterface for JsxAttribute {
     }
 }
 
+impl HasInitializerInterface for JsxAttribute {
+    fn maybe_initializer(&self) -> Option<Rc<Node>> {
+        self.initializer.clone()
+    }
+
+    fn set_initializer(&mut self, initializer: Rc<Node>) {
+        self.initializer = Some(initializer);
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub enum Statement {
@@ -404,6 +546,7 @@ pub enum Statement {
     ForStatement(ForStatement),
     ForInStatement(ForInStatement),
     ForOfStatement(ForOfStatement),
+    ModuleDeclaration(ModuleDeclaration),
 }
 
 #[derive(Debug)]
@@ -503,6 +646,16 @@ impl ForStatement {
     }
 }
 
+impl HasInitializerInterface for ForStatement {
+    fn maybe_initializer(&self) -> Option<Rc<Node>> {
+        self.initializer.clone()
+    }
+
+    fn set_initializer(&mut self, initializer: Rc<Node>) {
+        self.initializer = Some(initializer);
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "Statement")]
 pub struct ForInStatement {
@@ -515,6 +668,16 @@ pub struct ForInStatement {
 impl ForInStatement {
     pub fn new(base_node: BaseNode) -> Self {
         Self { _node: base_node }
+    }
+}
+
+impl HasInitializerInterface for ForInStatement {
+    fn maybe_initializer(&self) -> Option<Rc<Node>> {
+        Some(self.initializer.clone())
+    }
+
+    fn set_initializer(&mut self, initializer: Rc<Node>) {
+        self.initializer = initializer;
     }
 }
 
@@ -531,6 +694,16 @@ pub struct ForOfStatement {
 impl ForOfStatement {
     pub fn new(base_node: BaseNode) -> Self {
         Self { _node: base_node }
+    }
+}
+
+impl HasInitializerInterface for ForOfStatement {
+    fn maybe_initializer(&self) -> Option<Rc<Node>> {
+        Some(self.initializer.clone())
+    }
+
+    fn set_initializer(&mut self, initializer: Rc<Node>) {
+        self.initializer = initializer;
     }
 }
 
@@ -796,6 +969,18 @@ pub struct EnumMember {
     pub initializer: Option<Rc<Node /*Expression*/>>,
 }
 
+impl EnumMember {
+    pub fn new(
+        base_generic_named_declaration: BaseGenericNamedDeclaration,
+        type_: Rc<Node>,
+    ) -> Self {
+        Self {
+            _generic_named_declaration: base_generic_named_declaration,
+            type_,
+        }
+    }
+}
+
 impl NamedDeclarationInterface for EnumMember {
     fn maybe_name(&self) -> Option<Rc<Node>> {
         Some(self.name.clone())
@@ -820,15 +1005,35 @@ impl HasInitializerInterface for EnumMember {
     }
 }
 
-impl EnumMember {
-    pub fn new(
-        base_generic_named_declaration: BaseGenericNamedDeclaration,
-        type_: Rc<Node>,
-    ) -> Self {
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ModuleDeclaration {
+    _node: BaseNode,
+    pub name: Rc<Node /*ModuleName*/>,
+    pub body: Option<Rc<Node /*ModuleBody | JSDocNamespaceDeclaration*/>>,
+}
+
+impl ModuleDeclaration {
+    pub fn new(base_node: BaseNode, name: Rc<Node>, body: Option<Rc<Node>>) -> Self {
         Self {
-            _generic_named_declaration: base_generic_named_declaration,
-            type_,
+            _node: base_node,
+            name,
+            body,
         }
+    }
+}
+
+impl NamedDeclarationInterface for ModuleDeclaration {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
     }
 }
 
@@ -872,6 +1077,28 @@ impl TextRange for CommentRange {
 
     fn set_end(&self, end: isize) {
         self.end.set(end);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDoc {
+    _node: BaseNode,
+    pub tags: Option<NodeArray /*<JSDocTag>*/>,
+    pub comment: Option<StringOrNodeArray /*<JSDocComment>*/>,
+}
+
+impl JSDoc {
+    pub fn new(
+        base_node: BaseNode,
+        tags: Option<NodeArray>,
+        comment: Option<StringOrNodeArray>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            tags,
+            comment,
+        }
     }
 }
 

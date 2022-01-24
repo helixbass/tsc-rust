@@ -127,6 +127,20 @@ impl BitAndAssign for Ternary {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AssignmentDeclarationKind {
+    None,
+    ExportsProperty,
+    ModuleExports,
+    PrototypeProperty,
+    ThisProperty,
+    Property,
+    Prototype,
+    ObjectDefinePropertyValue,
+    ObjectDefinePropertyExports,
+    ObjectDefinePrototypeProperty,
+}
+
 #[derive(Clone, Debug)]
 pub struct DiagnosticMessage {
     pub key: &'static str,

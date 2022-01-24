@@ -5,6 +5,10 @@ use std::ptr;
 
 use crate::{Comparison, Debug_, SortedArray};
 
+pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
+    array.map_or(0, |array| array.len())
+}
+
 pub fn for_each<
     TCollection: IntoIterator,
     TReturn,
@@ -68,6 +72,19 @@ pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
 pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {
     // TODO: separate eg arrays_equal_by() helper taking equality_comparer callback and not imposing `Eq` bound?
     a.len() == b.len() && every(a, |item_a, i| *item_a == b[i])
+}
+
+pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+    array: Option<&[TItem]>,
+    mut predicate: TCallback,
+) -> Option<Vec<TItem>> {
+    array.map(|array| {
+        array
+            .into_iter()
+            .filter(|item| predicate(item))
+            .map(Clone::clone)
+            .collect()
+    })
 }
 
 pub fn map<
@@ -305,6 +322,11 @@ pub fn first_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
 
 pub fn last_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
     array.last()
+}
+
+pub fn last<TItem>(array: &[TItem]) -> &TItem {
+    Debug_.assert(!array.is_empty(), None);
+    array.last().unwrap()
 }
 
 pub fn binary_search<

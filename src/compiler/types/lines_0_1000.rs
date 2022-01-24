@@ -5,14 +5,16 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::{Rc, Weak};
 
 use super::{
-    BindingElement, Decorator, EnumMember, Expression, HasExpressionInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDocTag, JSDocTypeTag,
-    JsxAttribute, LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray,
-    NamedDeclarationInterface, NodeArray, ObjectLiteralExpression, ParameterDeclaration,
-    PropertyAssignment, PropertyDeclaration, QualifiedName, SignatureDeclarationBase, SourceFile,
-    Statement, Symbol, SymbolTable, TemplateSpan, TypeAliasDeclaration, TypeElement, TypeNode,
-    TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
-    VariableDeclarationList,
+    BinaryExpression, BindingElement, CallExpression, Decorator, ElementAccessExpression,
+    EnumMember, Expression, ExpressionStatement, HasExpressionInterface, HasTypeArgumentsInterface,
+    HasTypeParametersInterface, Identifier, JSDoc, JSDocTag, JSDocTypeTag, JsxAttribute,
+    LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, ModuleDeclaration,
+    NamedDeclarationInterface, NodeArray, NumericLiteral, ObjectLiteralExpression,
+    ParameterDeclaration, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
+    QualifiedName, SignatureDeclarationBase, SourceFile, Statement, Symbol, SymbolTable,
+    TemplateSpan, TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
+    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
+    VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -609,6 +611,7 @@ pub enum Node {
     PropertyDeclaration(PropertyDeclaration),
     EnumMember(EnumMember),
     JsxAttribute(JsxAttribute),
+    JSDoc(JSDoc),
 }
 
 impl Node {
@@ -772,6 +775,46 @@ impl Node {
 
     pub fn as_jsdoc_type_tag(&self) -> &JSDocTypeTag {
         enum_unwrapped!(self, [Node, JSDocTag, JSDocTypeTag])
+    }
+
+    pub fn as_jsdoc(&self) -> &JSDoc {
+        enum_unwrapped!(self, [Node, JSDoc])
+    }
+
+    pub fn as_binary_expression(&self) -> &BinaryExpression {
+        enum_unwrapped!(self, [Node, Expression, BinaryExpression])
+    }
+
+    pub fn as_module_declaration(&self) -> &ModuleDeclaration {
+        enum_unwrapped!(self, [Node, Statement, ModuleDeclaration])
+    }
+
+    pub fn as_variable_statement(&self) -> &VariableStatement {
+        enum_unwrapped!(self, [Node, Statement, VariableStatement])
+    }
+
+    pub fn as_expression_statement(&self) -> &ExpressionStatement {
+        enum_unwrapped!(self, [Node, Statement, ExpressionStatement])
+    }
+
+    pub fn as_call_expression(&self) -> &CallExpression {
+        enum_unwrapped!(self, [Node, Expression, CallExpression])
+    }
+
+    pub fn as_property_access_expression(&self) -> &PropertyAccessExpression {
+        enum_unwrapped!(self, [Node, Expression, PropertyAccessExpression])
+    }
+
+    pub fn as_element_access_expression(&self) -> &ElementAccessExpression {
+        enum_unwrapped!(self, [Node, Expression, ElementAccessExpression])
+    }
+
+    pub fn as_void_expression(&self) -> &VoidExpression {
+        enum_unwrapped!(self, [Node, Expression, VoidExpression])
+    }
+
+    pub fn as_numeric_literal(&self) -> &NumericLiteral {
+        enum_unwrapped!(self, [Node, Expression, LiteralLikeNode, NumericLiteral])
     }
 }
 

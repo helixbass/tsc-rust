@@ -13,9 +13,9 @@ use compiler::command_line_parser::{
 };
 pub use compiler::core::{
     add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key,
-    compare_strings_case_sensitive, compare_values, concatenate, every, find, first_defined,
-    first_or_undefined, for_each, insert_sorted, last_or_undefined, map, maybe_for_each,
-    range_equals, some, sort_and_deduplicate, trim_string_start,
+    compare_strings_case_sensitive, compare_values, concatenate, every, filter, find,
+    first_defined, first_or_undefined, for_each, insert_sorted, last, last_or_undefined, length,
+    map, maybe_for_each, range_equals, some, sort_and_deduplicate, trim_string_start,
 };
 pub use compiler::core_public::{Comparer, Comparison, MapLike, SortedArray};
 pub use compiler::debug::Debug_;
@@ -87,6 +87,7 @@ pub use compiler::factory::node_tests::{
     is_variable_declaration, is_variable_declaration_list, is_variable_statement,
     is_void_expression, is_while_statement, is_with_statement, is_yield_expression,
 };
+pub use compiler::factory::utilities::skip_outer_expressions;
 pub use compiler::parser::{create_source_file, for_each_child, MissingNode};
 pub use compiler::path::{normalize_path, to_path};
 pub use compiler::program::create_program;
@@ -110,41 +111,42 @@ pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
     maybe_text_char_at_index, rc_source_file_into_rc_node, text_char_at_index, text_len,
     text_str_num_chars, text_substring, ArrayLiteralExpression, ArrayTypeNode, AsExpression,
-    BaseBindingLikeDeclaration, BaseDiagnostic, BaseDiagnosticRelatedInformation,
-    BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
-    BaseInterfaceType, BaseIntrinsicType, BaseJSDocTag, BaseLiteralLikeNode, BaseLiteralType,
-    BaseNamedDeclaration, BaseNode, BaseObjectType, BaseSignatureDeclaration, BaseSymbol,
-    BaseTextRange, BaseTransientSymbol, BaseType, BaseUnionOrIntersectionType,
-    BaseVariableLikeDeclaration, BigIntLiteral, BigIntLiteralType, BinaryExpression,
-    BindingElement, BindingLikeDeclarationInterface, Block, CharacterCodes, CheckFlags,
-    CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
-    CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType,
-    CommandLineOptionOfListType, CommandLineOptionOfNumberType, CommandLineOptionOfStringType,
-    CommentDirective, CommentDirectiveType, CommentKind, CommentRange, CompilerHost,
-    CompilerOptions, CompilerOptionsValue, CreateProgramOptions, Decorator, Diagnostic,
-    DiagnosticCategory, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    AssignmentDeclarationKind, BaseBindingLikeDeclaration, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
+    BaseInterfaceOrClassLikeDeclaration, BaseInterfaceType, BaseIntrinsicType, BaseJSDocTag,
+    BaseLiteralLikeNode, BaseLiteralType, BaseNamedDeclaration, BaseNode, BaseObjectType,
+    BaseSignatureDeclaration, BaseSymbol, BaseTextRange, BaseTransientSymbol, BaseType,
+    BaseUnionOrIntersectionType, BaseVariableLikeDeclaration, BigIntLiteral, BigIntLiteralType,
+    BinaryExpression, BindingElement, BindingLikeDeclarationInterface, Block, CallExpression,
+    CharacterCodes, CheckFlags, CommandLineOption, CommandLineOptionBase,
+    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType,
+    CommandLineOptionOfCustomType, CommandLineOptionOfListType, CommandLineOptionOfNumberType,
+    CommandLineOptionOfStringType, CommentDirective, CommentDirectiveType, CommentKind,
+    CommentRange, CompilerHost, CompilerOptions, CompilerOptionsValue, CreateProgramOptions,
+    Decorator, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitHint, EmitTextWriter, EmptyStatement, EnumMember, ExitStatus, Expression,
-    ExpressionStatement, FreshableIntrinsicType, FunctionDeclaration, FunctionLikeDeclarationBase,
-    FunctionLikeDeclarationInterface, GenericNamedDeclarationInterface, HasExpressionInterface,
-    HasInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, Identifier, IfStatement, ImportsNotUsedAsValues,
-    InterfaceDeclaration, InterfaceType, InterfaceTypeWithDeclaredMembersInterface,
-    InternalSymbolName, IntersectionTypeNode, IntrinsicType, IntrinsicTypeInterface,
-    JSDocAugmentsTag, JSDocCallbackTag, JSDocEnumTag, JSDocImplementsTag, JSDocPropertyLikeTag,
-    JSDocReturnTag, JSDocSeeTag, JSDocTag, JSDocTagInterface, JSDocTemplateTag, JSDocThisTag,
-    JSDocTypeTag, JSDocTypedefTag, JsxAttribute, JsxEmit, KeywordTypeNode, LanguageVariant,
-    LineAndCharacter, ListFormat, LiteralLikeNode, LiteralLikeNodeInterface, LiteralType,
-    LiteralTypeInterface, LiteralTypeNode, ModifierFlags, ModuleKind, ModuleResolutionHost,
-    ModuleResolutionKind, ModuleSpecifierResolutionHost, NamedDeclarationInterface, NewLineKind,
-    Node, NodeArray, NodeArrayOrVec, NodeBuilderFlags, NodeCheckFlags, NodeFactory, NodeFlags,
-    NodeId, NodeInterface, NodeLinks, NonNullExpression, NumberLiteralType, NumericLiteral,
-    ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression, ObjectType,
-    ObjectTypeInterface, OuterExpressionKinds, ParameterDeclaration, ParenthesizedExpression,
-    ParenthesizerRules, ParsedCommandLine, PartiallyEmittedExpression, Path, PrefixUnaryExpression,
-    Printer, PrinterOptions, Program, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    PseudoBigInt, QualifiedName, ReadonlyTextRange, RelationComparisonResult,
+    ElementAccessExpression, EmitFlags, EmitHint, EmitTextWriter, EmptyStatement, EnumMember,
+    ExitStatus, Expression, ExpressionStatement, FreshableIntrinsicType, FunctionDeclaration,
+    FunctionLikeDeclarationBase, FunctionLikeDeclarationInterface,
+    GenericNamedDeclarationInterface, HasExpressionInterface, HasInitializerInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
+    IfStatement, ImportsNotUsedAsValues, InterfaceDeclaration, InterfaceType,
+    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, IntersectionTypeNode,
+    IntrinsicType, IntrinsicTypeInterface, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocEnumTag,
+    JSDocImplementsTag, JSDocPropertyLikeTag, JSDocReturnTag, JSDocSeeTag, JSDocTag,
+    JSDocTagInterface, JSDocTemplateTag, JSDocThisTag, JSDocTypeTag, JSDocTypedefTag, JsxAttribute,
+    JsxEmit, KeywordTypeNode, LanguageVariant, LineAndCharacter, ListFormat, LiteralLikeNode,
+    LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, LiteralTypeNode, ModifierFlags,
+    ModuleDeclaration, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
+    ModuleSpecifierResolutionHost, NamedDeclarationInterface, NewLineKind, Node, NodeArray,
+    NodeArrayOrVec, NodeBuilderFlags, NodeCheckFlags, NodeFactory, NodeFlags, NodeId,
+    NodeInterface, NodeLinks, NonNullExpression, NumberLiteralType, NumericLiteral, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectLiteralExpression, ObjectType, ObjectTypeInterface,
+    OuterExpressionKinds, ParameterDeclaration, ParenthesizedExpression, ParenthesizerRules,
+    ParsedCommandLine, PartiallyEmittedExpression, Path, PrefixUnaryExpression, Printer,
+    PrinterOptions, Program, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
+    PropertySignature, PseudoBigInt, QualifiedName, ReadonlyTextRange, RelationComparisonResult,
     ResolvableTypeInterface, ResolvedTypeInterface, ReturnStatement, ScriptTarget,
     ShorthandPropertyAssignment, SignatureDeclarationBase, SignatureDeclarationInterface,
     SourceFile, SourceFileLike, SourceTextAsChars, Statement, StringLiteral, StringLiteralType,
@@ -158,7 +160,7 @@ pub use compiler::types::{
     TypeReferenceNode, UnderscoreEscapedMap, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface, UnionReduction, UnionType, UnionTypeNode,
     VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, __String,
+    VariableStatement, VoidExpression, __String,
 };
 use compiler::types::{CommandLineOptionType, StringOrDiagnosticMessage};
 pub use compiler::utilities::{
@@ -176,13 +178,14 @@ pub use compiler::utilities::{
     set_text_range_pos_end, set_value_declaration, using_single_line_string_writer, Associativity,
     GetLiteralTextFlags, OperatorPrecedence,
 };
+use compiler::utilities_public::is_left_hand_side_expression;
 pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores, get_combined_node_flags,
-    get_effective_type_parameter_declarations, get_name_of_declaration, has_initializer,
-    has_jsdoc_nodes, has_only_expression_initializer, id_text, is_binding_pattern, is_expression,
-    is_function_like, is_function_or_module_block, is_literal_kind, is_member_name,
-    is_modifier_kind, is_template_literal_kind, sort_and_deduplicate_diagnostics,
-    unescape_leading_underscores,
+    get_effective_type_parameter_declarations, get_jsdoc_type_tag, get_name_of_declaration,
+    has_initializer, has_jsdoc_nodes, has_only_expression_initializer, id_text, is_binding_pattern,
+    is_expression, is_function_like, is_function_or_module_block, is_literal_kind, is_member_name,
+    is_modifier_kind, is_string_literal_like, is_template_literal_kind,
+    sort_and_deduplicate_diagnostics, unescape_leading_underscores,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;
