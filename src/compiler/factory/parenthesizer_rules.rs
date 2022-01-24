@@ -82,7 +82,7 @@ impl ParenthesizerRulesConcrete {
                         }
                     }
 
-                    let operand_associativity = get_expression_associativity(emitted_operand);
+                    let operand_associativity = get_expression_associativity(&emitted_operand);
                     operand_associativity == Associativity::Left
                 }
             }
