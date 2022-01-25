@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{Diagnostic, Node, SourceFile, Symbol, SymbolFlags, SymbolWriter};
+use super::{Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::SortedArray;
 
 pub struct Printer {

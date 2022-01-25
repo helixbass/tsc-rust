@@ -6,10 +6,10 @@ use std::rc::Rc;
 
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseTextRange,
-    BaseVariableLikeDeclaration, BindingLikeDeclarationInterface, Diagnostic, Expression,
-    FunctionDeclaration, HasInitializerInterface, HasTypeInterface, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, Path, StringLiteral, Symbol, SyntaxKind, TextRange,
-    TypeCheckerHost, VariableLikeDeclarationInterface,
+    BaseVariableLikeDeclaration, BindingLikeDeclarationInterface, Diagnostic, FunctionDeclaration,
+    HasInitializerInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray, Path,
+    StringLiteral, Symbol, SyntaxKind, TextRange, TypeCheckerHost,
+    VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
 

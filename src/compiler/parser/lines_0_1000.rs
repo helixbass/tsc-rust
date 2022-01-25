@@ -13,7 +13,7 @@ use crate::{
     Expression, FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
     HasTypeParametersInterface, Identifier, NamedDeclarationInterface, Node, NodeArray,
     NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
-    SignatureDeclarationInterface, SourceFile, SourceTextAsChars, Statement, SyntaxKind,
+    SignatureDeclarationInterface, SourceTextAsChars, Statement, SyntaxKind,
     TemplateLiteralLikeNode, TypeElement, TypeNode,
 };
 use local_macros::ast_type;

@@ -6,7 +6,7 @@ use crate::{
     get_literal_text, id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_,
     EmitHint, EmitTextWriter, Expression, GetLiteralTextFlags, HasTypeInterface, Identifier,
     ListFormat, LiteralLikeNode, LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, Printer, PrinterOptions, PropertySignature, SourceFile, Symbol, TypeElement,
+    NodeInterface, Printer, PrinterOptions, PropertySignature, Symbol, TypeElement,
     TypeLiteralNode, TypeNode, TypeReferenceNode, UnionTypeNode,
 };
 

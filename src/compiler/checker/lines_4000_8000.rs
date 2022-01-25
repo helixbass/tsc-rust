@@ -9,9 +9,9 @@ use crate::{
     using_single_line_string_writer, BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes,
     Debug_, EmitHint, EmitTextWriter, Expression, KeywordTypeNode, Node, NodeArray,
     NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions, ResolvableTypeInterface,
-    ResolvedTypeInterface, SourceFile, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface,
-    SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypeNode, TypeParameter, __String, create_printer, create_text_writer, factory,
+    ResolvedTypeInterface, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable,
+    SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypeNode, TypeParameter, __String, create_printer, create_text_writer, factory,
     get_object_flags, get_source_file_of_node, synthetic_factory,
 };
 

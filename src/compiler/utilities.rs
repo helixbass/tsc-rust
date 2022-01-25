@@ -35,8 +35,8 @@ use crate::{
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitTextWriter, Expression,
     LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
-    PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
+    PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, SortedArray, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 

@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
-use super::{DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, SourceFile, SyntaxKind};
+use super::{DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, SyntaxKind};
 use crate::{MapLike, NodeFactoryFlags, OptionsNameMap};
 use local_macros::{command_line_option_type, enum_unwrapped};
 
