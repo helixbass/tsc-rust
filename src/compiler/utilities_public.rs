@@ -93,6 +93,11 @@ pub fn id_text<TNode: NodeInterface>(
     )
 }
 
+pub(crate) fn is_named_declaration(node: &Node) -> bool {
+    node.maybe_as_named_declaration()
+        .map_or(false, |node| node.maybe_name().is_some())
+}
+
 fn get_non_assigned_name_of_declaration<TNode: NodeInterface>(
     declaration: &TNode,
 ) -> Option<Rc<Node>> {
@@ -287,6 +292,17 @@ pub fn is_modifier_kind(kind: SyntaxKind) -> bool {
             | SyntaxKind::ReadonlyKeyword
             | SyntaxKind::StaticKeyword
             | SyntaxKind::OverrideKeyword
+    )
+}
+
+pub fn is_property_name<TNode: NodeInterface>(node: &TNode) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::Identifier
+            | SyntaxKind::PrivateIdentifier
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::ComputedPropertyName
     )
 }
 

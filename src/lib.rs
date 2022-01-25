@@ -87,6 +87,9 @@ pub use compiler::factory::node_tests::{
     is_variable_declaration, is_variable_declaration_list, is_variable_statement,
     is_void_expression, is_while_statement, is_with_statement, is_yield_expression,
 };
+pub use compiler::factory::parenthesizer_rules::{
+    create_parenthesizer_rules, null_parenthesizer_rules,
+};
 pub use compiler::factory::utilities::skip_outer_expressions;
 pub use compiler::parser::{create_source_file, for_each_child, MissingNode};
 pub use compiler::path::{normalize_path, to_path};
@@ -109,22 +112,23 @@ pub use compiler::scanner::{
 };
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
-    maybe_text_char_at_index, rc_source_file_into_rc_node, text_char_at_index, text_len,
-    text_str_num_chars, text_substring, ArrayLiteralExpression, ArrayTypeNode, AsExpression,
-    AssignmentDeclarationKind, BaseBindingLikeDeclaration, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
-    BaseInterfaceOrClassLikeDeclaration, BaseInterfaceType, BaseIntrinsicType, BaseJSDocTag,
-    BaseLiteralLikeNode, BaseLiteralType, BaseNamedDeclaration, BaseNode, BaseObjectType,
-    BaseSignatureDeclaration, BaseSymbol, BaseTextRange, BaseTransientSymbol, BaseType,
-    BaseUnionOrIntersectionType, BaseVariableLikeDeclaration, BigIntLiteral, BigIntLiteralType,
-    BinaryExpression, BindingElement, BindingLikeDeclarationInterface, Block, CallExpression,
-    CharacterCodes, CheckFlags, CommandLineOption, CommandLineOptionBase,
-    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType,
-    CommandLineOptionOfCustomType, CommandLineOptionOfListType, CommandLineOptionOfNumberType,
-    CommandLineOptionOfStringType, CommentDirective, CommentDirectiveType, CommentKind,
-    CommentRange, CompilerHost, CompilerOptions, CompilerOptionsValue, CreateProgramOptions,
-    Decorator, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    maybe_text_char_at_index, rc_source_file_into_rc_node, str_to_source_text_as_chars,
+    text_char_at_index, text_len, text_str_num_chars, text_substring, ArrayLiteralExpression,
+    ArrayTypeNode, AsExpression, AssignmentDeclarationKind, BaseBindingLikeDeclaration,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseFunctionLikeDeclaration,
+    BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration, BaseInterfaceType,
+    BaseIntrinsicType, BaseJSDocTag, BaseLiteralLikeNode, BaseLiteralType, BaseNamedDeclaration,
+    BaseNode, BaseObjectType, BaseSignatureDeclaration, BaseSymbol, BaseTextRange,
+    BaseTransientSymbol, BaseType, BaseUnionOrIntersectionType, BaseVariableLikeDeclaration,
+    BigIntLiteral, BigIntLiteralType, BinaryExpression, BindingElement,
+    BindingLikeDeclarationInterface, Block, CallExpression, CharacterCodes, CheckFlags,
+    CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
+    CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType,
+    CommandLineOptionOfListType, CommandLineOptionOfNumberType, CommandLineOptionOfStringType,
+    CommentDirective, CommentDirectiveType, CommentKind, CommentRange, CompilerHost,
+    CompilerOptions, CompilerOptionsValue, CreateProgramOptions, Decorator, Diagnostic,
+    DiagnosticCategory, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     ElementAccessExpression, EmitFlags, EmitHint, EmitTextWriter, EmptyStatement, EnumMember,
     ExitStatus, Expression, ExpressionStatement, FreshableIntrinsicType, FunctionDeclaration,
@@ -154,13 +158,13 @@ pub use compiler::types::{
     SymbolFormatFlags, SymbolId, SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker,
     SymbolWriter, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode,
     TemplateLiteralLikeNodeInterface, TemplateSpan, Ternary, TextRange, TextSpan, TokenFlags,
-    TransientSymbol, TransientSymbolInterface, TsConfigOnlyOption, Type, TypeAliasDeclaration,
-    TypeAssertion, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeFormatFlags, TypeId,
-    TypeInterface, TypeLiteralNode, TypeMapper, TypeNode, TypeParameter, TypeParameterDeclaration,
-    TypePredicateNode, TypeReference, TypeReferenceNode, UnderscoreEscapedMap,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
-    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression, __String,
+    TransformFlags, TransientSymbol, TransientSymbolInterface, TsConfigOnlyOption, Type,
+    TypeAliasDeclaration, TypeAssertion, TypeChecker, TypeCheckerHost, TypeElement, TypeFlags,
+    TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper, TypeNode, TypeParameter,
+    TypeParameterDeclaration, TypePredicateNode, TypeReference, TypeReferenceNode,
+    UnderscoreEscapedMap, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
+    UnionReduction, UnionType, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
+    VariableLikeDeclarationInterface, VariableStatement, VoidExpression, __String,
 };
 use compiler::types::{CommandLineOptionType, StringOrDiagnosticMessage};
 pub use compiler::utilities::{
@@ -185,12 +189,12 @@ pub use compiler::utilities_public::{
     get_jsdoc_type_parameter_tags, get_jsdoc_type_tag, get_name_of_declaration, has_initializer,
     has_jsdoc_nodes, has_only_expression_initializer, id_text, is_binding_pattern, is_expression,
     is_function_like, is_function_or_module_block, is_literal_kind, is_member_name,
-    is_modifier_kind, is_string_literal_like, is_template_literal_kind,
+    is_modifier_kind, is_property_name, is_string_literal_like, is_template_literal_kind,
     sort_and_deduplicate_diagnostics, unescape_leading_underscores,
 };
 use compiler::utilities_public::{
     get_jsdoc_parameter_tags_no_cache, get_jsdoc_type_parameter_tags_no_cache,
-    is_left_hand_side_expression, skip_partially_emitted_expressions,
+    is_left_hand_side_expression, is_named_declaration, skip_partially_emitted_expressions,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;

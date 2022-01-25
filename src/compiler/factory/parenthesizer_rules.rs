@@ -228,6 +228,10 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete {
     }
 }
 
+pub fn null_parenthesizer_rules() -> NullParenthesizerRules {
+    NullParenthesizerRules::new()
+}
+
 pub struct NullParenthesizerRules {}
 
 impl NullParenthesizerRules {

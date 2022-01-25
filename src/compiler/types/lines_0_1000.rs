@@ -13,7 +13,7 @@ use super::{
     NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, PropertyAccessExpression,
     PropertyAssignment, PropertyDeclaration, QualifiedName, ShorthandPropertyAssignment,
     SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
-    SymbolTable, TemplateSpan, TypeAliasDeclaration, TypeElement, TypeNode,
+    SymbolTable, TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeElement, TypeNode,
     TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
     VariableDeclarationList, VariableStatement, VoidExpression,
 };
@@ -568,6 +568,9 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn kind(&self) -> SyntaxKind;
     fn flags(&self) -> NodeFlags;
     fn set_flags(&self, flags: NodeFlags);
+    fn transform_flags(&self) -> TransformFlags;
+    fn set_transform_flags(&mut self, flags: TransformFlags);
+    fn add_transform_flags(&mut self, flags: TransformFlags);
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>>;
     fn set_decorators(&self, decorators: Option<NodeArray>);
     fn maybe_modifiers(&self) -> Option<&NodeArray>;
@@ -623,26 +626,23 @@ impl Node {
         rc
     }
 
-    pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
+    pub fn maybe_as_named_declaration(&self) -> Option<&dyn NamedDeclarationInterface> {
         match self {
-            Node::TypeParameterDeclaration(type_parameter_declaration) => {
-                type_parameter_declaration
-            }
-            Node::VariableDeclaration(variable_declaration) => variable_declaration,
-            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
-                interface_declaration
-            }
-            Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
-                type_alias_declaration
-            }
-            Node::TypeElement(type_element) => type_element,
-            Node::PropertyAssignment(property_assignment) => property_assignment,
-            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
-                function_declaration
-            }
-            Node::ParameterDeclaration(parameter_declaration) => parameter_declaration,
-            _ => panic!("Expected named declaration"),
+            Node::TypeParameterDeclaration(node) => Some(node),
+            Node::VariableDeclaration(node) => Some(node),
+            Node::Statement(Statement::InterfaceDeclaration(node)) => Some(node),
+            Node::Statement(Statement::TypeAliasDeclaration(node)) => Some(node),
+            Node::TypeElement(node) => Some(node),
+            Node::PropertyAssignment(node) => Some(node),
+            Node::Statement(Statement::FunctionDeclaration(node)) => Some(node),
+            Node::ParameterDeclaration(node) => Some(node),
+            _ => None,
         }
+    }
+
+    pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
+        self.maybe_as_named_declaration()
+            .expect("Expected named declaration")
     }
 
     pub fn as_member_name(&self) -> &dyn MemberNameInterface {
@@ -687,7 +687,8 @@ impl Node {
     }
 
     pub fn as_has_initializer(&self) -> &dyn HasInitializerInterface {
-        self.maybe_as_has_initializer().unwrap()
+        self.maybe_as_has_initializer()
+            .expect("Expected has initializer")
     }
 
     pub fn as_has_type_parameters(&self) -> &dyn HasTypeParametersInterface {
@@ -848,6 +849,7 @@ pub struct BaseNode {
     _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
     flags: Cell<NodeFlags>,
+    transform_flags: TransformFlags,
     pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
     pub modifiers: Option<ModifiersArray>,
     pub id: Cell<Option<NodeId>>,
@@ -861,11 +863,18 @@ pub struct BaseNode {
 }
 
 impl BaseNode {
-    pub fn new(kind: SyntaxKind, flags: NodeFlags, pos: isize, end: isize) -> Self {
+    pub fn new(
+        kind: SyntaxKind,
+        flags: NodeFlags,
+        transform_flags: TransformFlags,
+        pos: isize,
+        end: isize,
+    ) -> Self {
         Self {
             _node_wrapper: RefCell::new(None),
             kind,
             flags: Cell::new(flags),
+            transform_flags,
             decorators: RefCell::new(None),
             modifiers: None,
             id: Cell::new(None),
@@ -904,6 +913,18 @@ impl NodeInterface for BaseNode {
 
     fn set_flags(&self, flags: NodeFlags) {
         self.flags.set(flags);
+    }
+
+    fn transform_flags(&self) -> TransformFlags {
+        self.transform_flags
+    }
+
+    fn set_transform_flags(&mut self, flags: TransformFlags) {
+        self.transform_flags = flags;
+    }
+
+    fn add_transform_flags(&mut self, flags: TransformFlags) {
+        self.transform_flags |= flags;
     }
 
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>> {

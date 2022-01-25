@@ -113,7 +113,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         type_count: Cell::new(0),
 
-        empty_symbols: Rc::new(RefCell::new(create_symbol_table())),
+        empty_symbols: Rc::new(RefCell::new(create_symbol_table(None))),
 
         compiler_options,
         strict_null_checks: true,
@@ -126,7 +126,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         node_builder: create_node_builder(),
 
-        globals: RefCell::new(create_symbol_table()),
+        globals: RefCell::new(create_symbol_table(None)),
 
         string_literal_types: RefCell::new(HashMap::new()),
         number_literal_types: RefCell::new(HashMap::new()),

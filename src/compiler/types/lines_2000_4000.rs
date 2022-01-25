@@ -1505,6 +1505,10 @@ impl NamedDeclarationInterface for JSDocPropertyLikeTag {
 
 pub type SourceTextAsChars = Vec<char>;
 
+pub fn str_to_source_text_as_chars(str_: &str) -> SourceTextAsChars {
+    str_.chars().collect()
+}
+
 pub fn text_len(text: &SourceTextAsChars) -> usize {
     text.len()
 }

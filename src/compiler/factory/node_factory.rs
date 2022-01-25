@@ -1,23 +1,28 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::borrow::Borrow;
+use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
 use crate::{
-    create_base_node_factory, escape_leading_underscores, is_omitted_expression, last_or_undefined,
-    pseudo_big_int_to_string, ArrayLiteralExpression, ArrayTypeNode, BaseBindingLikeDeclaration,
-    BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
-    BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
-    BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block,
-    EmptyStatement, Expression, ExpressionStatement, FunctionDeclaration, Identifier, IfStatement,
+    create_base_node_factory, create_parenthesizer_rules, escape_leading_underscores,
+    is_named_declaration, is_omitted_expression, is_property_name, last_or_undefined,
+    null_parenthesizer_rules, pseudo_big_int_to_string, ArrayLiteralExpression, ArrayTypeNode,
+    BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
+    BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
+    BaseNodeFactory, BaseNodeFactoryConcrete, BaseSignatureDeclaration,
+    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block, EmptyStatement,
+    Expression, ExpressionStatement, FunctionDeclaration, Identifier, IfStatement,
     InterfaceDeclaration, IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
-    PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement,
+    NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, ParenthesizerRules,
+    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement,
     ShorthandPropertyAssignment, SourceFile, Statement, StringLiteral, SyntaxKind,
-    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TypeAliasDeclaration,
-    TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode,
-    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TransformFlags,
+    TypeAliasDeclaration, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode,
+    TypeReferenceNode, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
+    VariableStatement,
 };
 
 bitflags! {
@@ -31,8 +36,30 @@ bitflags! {
 }
 
 impl NodeFactory {
-    pub fn new(flags: NodeFactoryFlags) -> Self {
-        Self { flags }
+    pub fn new(flags: NodeFactoryFlags) -> Rc<Self> {
+        let factory_ = Rc::new(Self {
+            flags,
+            parenthesizer_rules: RefCell::new(None),
+        });
+        factory_.set_parenthesizer_rules(
+            /*memoize(*/
+            if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
+                Box::new(null_parenthesizer_rules())
+            } else {
+                Box::new(create_parenthesizer_rules(factory_))
+            },
+        );
+        factory_
+    }
+
+    fn set_parenthesizer_rules(&self, parenthesizer_rules: Box<dyn ParenthesizerRules>) {
+        *self.parenthesizer_rules.borrow_mut() = Some(parenthesizer_rules);
+    }
+
+    fn parenthesizer_rules(&self) -> Ref<Box<dyn ParenthesizerRules>> {
+        Ref::map(self.parenthesizer_rules.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
     }
 
     pub fn create_node_array<TElements: Into<NodeArrayOrVec>>(
@@ -390,6 +417,7 @@ impl NodeFactory {
         base_factory: &TBaseNodeFactory,
         modifiers: Option<NodeArray>,
         name: Rc<Node>,
+        question_token: Option<Rc<Node>>,
         type_: Option<Rc<Node>>,
     ) -> PropertySignature {
         let node = self.create_base_named_declaration(
@@ -399,7 +427,7 @@ impl NodeFactory {
             modifiers,
             Some(name),
         );
-        let node = PropertySignature::new(node, type_);
+        let node = PropertySignature::new(node, question_token, type_);
         node
     }
 
@@ -574,7 +602,7 @@ impl NodeFactory {
         &self,
         base_factory: &TBaseNodeFactory,
         operator: SyntaxKind,
-        operand: Expression,
+        operand: Rc<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::PrefixUnaryExpression);
         let node = PrefixUnaryExpression::new(node, operator, operand);
@@ -584,9 +612,9 @@ impl NodeFactory {
     pub fn create_binary_expression<TBaseNodeFactory: BaseNodeFactory>(
         &self,
         base_factory: &TBaseNodeFactory,
-        left: Expression,
-        operator: Node,
-        right: Expression,
+        left: Rc<Node /*Expression*/>,
+        operator: Rc<Node>,
+        right: Rc<Node /*Expression*/>,
     ) -> BinaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::BinaryExpression);
         let node = BinaryExpression::new(node, left, operator, right);
@@ -913,8 +941,85 @@ impl NodeFactory {
 
 pub fn create_node_factory(
     flags: NodeFactoryFlags, /*, baseFactory: BaseNodeFactory*/
-) -> NodeFactory {
+) -> Rc<NodeFactory> {
     NodeFactory::new(flags)
+}
+
+fn propagate_property_name_flags_of_child(
+    node: &Node, /*PropertyName*/
+    transform_flags: TransformFlags,
+) -> TransformFlags {
+    transform_flags | (node.transform_flags() & TransformFlags::PropertyNamePropagatingFlags)
+}
+
+fn propagate_child_flags<TNode: Borrow<Node>>(child: Option<TNode>) -> TransformFlags {
+    if child.is_none() {
+        return TransformFlags::None;
+    }
+    let child = child.unwrap().borrow();
+    let child_flags =
+        child.transform_flags() & !get_transform_flags_subtree_exclusions(child.kind());
+    if is_named_declaration(child) && is_property_name(&*child.as_named_declaration().name()) {
+        propagate_property_name_flags_of_child(&child.as_named_declaration().name(), child_flags)
+    } else {
+        child_flags
+    }
+}
+
+pub(crate) fn get_transform_flags_subtree_exclusions(kind: SyntaxKind) -> TransformFlags {
+    if kind >= SyntaxKind::FirstTypeNode && kind <= SyntaxKind::LastTypeNode {
+        return TransformFlags::TypeExcludes;
+    }
+
+    match kind {
+        SyntaxKind::CallExpression
+        | SyntaxKind::NewExpression
+        | SyntaxKind::ArrayLiteralExpression => TransformFlags::ArrayLiteralOrCallOrNewExcludes,
+        SyntaxKind::ModuleDeclaration => TransformFlags::ModuleExcludes,
+        SyntaxKind::Parameter => TransformFlags::ParameterExcludes,
+        SyntaxKind::ArrowFunction => TransformFlags::ArrowFunctionExcludes,
+        SyntaxKind::FunctionExpression | SyntaxKind::FunctionDeclaration => {
+            TransformFlags::FunctionExcludes
+        }
+        SyntaxKind::VariableDeclarationList => TransformFlags::VariableDeclarationListExcludes,
+        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => TransformFlags::ClassExcludes,
+        SyntaxKind::Constructor => TransformFlags::ConstructorExcludes,
+        SyntaxKind::PropertyDeclaration => TransformFlags::PropertyExcludes,
+        SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
+            TransformFlags::MethodOrAccessorExcludes
+        }
+        SyntaxKind::AnyKeyword
+        | SyntaxKind::NumberKeyword
+        | SyntaxKind::BigIntKeyword
+        | SyntaxKind::NeverKeyword
+        | SyntaxKind::StringKeyword
+        | SyntaxKind::ObjectKeyword
+        | SyntaxKind::BooleanKeyword
+        | SyntaxKind::SymbolKeyword
+        | SyntaxKind::VoidKeyword
+        | SyntaxKind::TypeParameter
+        | SyntaxKind::PropertySignature
+        | SyntaxKind::MethodSignature
+        | SyntaxKind::CallSignature
+        | SyntaxKind::ConstructSignature
+        | SyntaxKind::IndexSignature
+        | SyntaxKind::InterfaceDeclaration
+        | SyntaxKind::TypeAliasDeclaration => TransformFlags::TypeExcludes,
+        SyntaxKind::ObjectLiteralExpression => TransformFlags::ObjectLiteralExcludes,
+        SyntaxKind::CatchClause => TransformFlags::CatchClauseExcludes,
+        SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern => {
+            TransformFlags::BindingPatternExcludes
+        }
+        SyntaxKind::TypeAssertionExpression
+        | SyntaxKind::AsExpression
+        | SyntaxKind::PartiallyEmittedExpression
+        | SyntaxKind::ParenthesizedExpression
+        | SyntaxKind::SuperKeyword => TransformFlags::OuterExpressionExcludes,
+        SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+            TransformFlags::PropertyAccessExcludes
+        }
+        _ => TransformFlags::NodeExcludes,
+    }
 }
 
 thread_local! {
@@ -975,8 +1080,8 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
     }
 }
 
-lazy_static! {
-    pub static ref factory: NodeFactory =
+thread_local! {
+    pub static factory: Rc<NodeFactory> =
         create_node_factory(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess);
 }
 

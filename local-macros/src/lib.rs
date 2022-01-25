@@ -85,6 +85,18 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_flags(flags)
                     }
 
+                    fn transform_flags(&self) -> crate::TransformFlags {
+                        self.#first_field_name.transform_flags()
+                    }
+
+                    fn set_transform_flags(&mut self, flags: crate::TransformFlags) {
+                        self.#first_field_name.set_transform_flags(flags)
+                    }
+
+                    fn add_transform_flags(&mut self, flags: crate::TransformFlags) {
+                        self.#first_field_name.add_transform_flags(flags)
+                    }
+
                     fn maybe_decorators(&self) -> ::std::cell::Ref<::std::option::Option<crate::NodeArray>> {
                         self.#first_field_name.maybe_decorators()
                     }
@@ -372,6 +384,24 @@ fn get_ast_enum_interface_impl(
                     fn set_flags(&self, flags: crate::NodeFlags) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_flags(flags)),*
+                        }
+                    }
+
+                    fn transform_flags(&self) -> crate::TransformFlags {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.transform_flags()),*
+                        }
+                    }
+
+                    fn set_transform_flags(&mut self, flags: crate::TransformFlags) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_transform_flags(flags)),*
+                        }
+                    }
+
+                    fn add_transform_flags(&mut self, flags: crate::TransformFlags) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.add_transform_flags(flags)),*
                         }
                     }
 

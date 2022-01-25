@@ -211,6 +211,7 @@ impl ParserType {
         modifiers: Option<NodeArray>,
     ) -> TypeElement {
         let name = self.parse_property_name();
+        let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
         let node: TypeElement;
         if false {
             unimplemented!()
@@ -218,7 +219,13 @@ impl ParserType {
             let type_ = self.parse_type_annotation();
             node = self
                 .factory
-                .create_property_signature(self, modifiers, name.wrap(), type_.map(Into::into))
+                .create_property_signature(
+                    self,
+                    modifiers,
+                    name.wrap(),
+                    question_token.map(Into::into),
+                    type_.map(Into::into),
+                )
                 .into();
         }
         self.parse_type_member_semicolon();

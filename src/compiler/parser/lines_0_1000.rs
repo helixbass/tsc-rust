@@ -107,7 +107,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub static parse_node_factory: NodeFactory = create_node_factory(
+    pub static parse_node_factory: Rc<NodeFactory> = create_node_factory(
         NodeFactoryFlags::NoParenthesizerRules,
         /*parse_base_node_factory.with(|_parse_base_node_factory| _parse_base_node_factory)*/
     );
@@ -428,7 +428,7 @@ pub(super) struct ParserType {
     pub(super) PrivateIdentifierConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) TokenConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) SourceFileConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
-    pub(super) factory: NodeFactory,
+    pub(super) factory: Rc<NodeFactory>,
     pub(super) file_name: Option<String>,
     pub(super) source_text: Option<String>,
     pub(super) parse_diagnostics:

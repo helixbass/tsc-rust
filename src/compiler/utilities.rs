@@ -12,7 +12,7 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    add_range, filter, first_or_undefined, get_jsdoc_parameter_tags,
+    add_range, compute_line_starts, filter, first_or_undefined, get_jsdoc_parameter_tags,
     get_jsdoc_parameter_tags_no_cache, get_jsdoc_type_parameter_tags,
     get_jsdoc_type_parameter_tags_no_cache, has_initializer, has_jsdoc_nodes, id_text,
     is_binary_expression, is_call_expression, is_element_access_expression,
@@ -21,17 +21,18 @@ use crate::{
     is_object_literal_expression, is_parenthesized_expression, is_property_access_expression,
     is_source_file, is_string_literal_like, is_variable_statement, is_void_expression,
     is_white_space_like, last, length, module_resolution_option_declarations,
-    options_affecting_program_structure, skip_outer_expressions, text_substring,
-    AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface, CompilerOptions,
-    CompilerOptionsValue, ModifierFlags, ModuleKind, NodeArray, OuterExpressionKinds, ScriptTarget,
-    SourceFileLike, SourceTextAsChars, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan,
-    TypeFlags, UnderscoreEscapedMap, __String, compare_strings_case_sensitive, compare_values,
-    create_text_span_from_bounds, escape_leading_underscores, for_each, get_combined_node_flags,
-    get_name_of_declaration, insert_sorted, is_big_int_literal, is_member_name,
-    is_type_alias_declaration, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
-    BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic,
-    DiagnosticCollection, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    options_affecting_program_structure, skip_outer_expressions, str_to_source_text_as_chars,
+    text_substring, AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface,
+    CompilerOptions, CompilerOptionsValue, ModifierFlags, ModuleKind, NodeArray,
+    OuterExpressionKinds, ScriptTarget, SourceFileLike, SourceTextAsChars, SymbolTracker,
+    SymbolWriter, SyntaxKind, TextSpan, TransformFlags, TypeFlags, UnderscoreEscapedMap, __String,
+    compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
+    escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
+    insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
+    CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic, DiagnosticCollection,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitTextWriter, Expression,
     LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
     PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, SortedArray, SourceFile, Symbol,
@@ -1532,10 +1533,23 @@ fn escape_non_ascii_string(
     s.to_string()
 }
 
+thread_local! {
+    static indent_strings: Vec<&'static str> = vec!["", "    "];
+}
+
+pub fn get_indent_size() -> usize {
+    indent_strings.with(|indent_strings_| indent_strings_[1].len())
+}
+
 #[derive(Clone)]
 pub struct TextWriter {
     new_line: String,
     output: String,
+    indent: usize,
+    line_start: bool,
+    line_count: usize,
+    line_pos: usize,
+    has_trailing_comment: bool,
 }
 
 impl TextWriter {
@@ -1543,11 +1557,27 @@ impl TextWriter {
         Self {
             new_line: new_line.to_string(),
             output: String::new(),
+            indent: 0,
+            line_start: true,
+            line_count: 0,
+            line_pos: 0,
+            has_trailing_comment: false,
         }
     }
 
     fn push_output(&mut self, str: &str) {
         self.output.push_str(str);
+    }
+
+    fn update_line_count_and_pos_for(&mut self, s: &str) {
+        let line_starts_of_s = compute_line_starts(&str_to_source_text_as_chars(s));
+        if line_starts_of_s.len() > 1 {
+            self.line_count = self.line_count + line_starts_of_s.len() - 1;
+            self.line_pos = self.output.len() - s.len() + last(&line_starts_of_s);
+            self.line_start = (self.line_pos - self.output.len()) == 0;
+        } else {
+            self.line_start = false;
+        }
     }
 
     fn write_text(&mut self, s: &str) {
@@ -1558,12 +1588,40 @@ impl TextWriter {
 
     fn reset(&mut self) {
         self.output = String::new();
+        self.indent = 0;
+        self.line_start = true;
+        self.line_count = 0;
+        self.line_pos = 0;
+        self.has_trailing_comment = false;
     }
 }
 
 impl EmitTextWriter for TextWriter {
     fn write(&mut self, s: &str) {
         self.write_text(s);
+    }
+
+    fn write_comment(&mut self, s: &str) {
+        if !s.is_empty() {
+            self.has_trailing_comment = true;
+        }
+        self.write_text(s);
+    }
+
+    fn raw_write(&mut self, s: &str) {
+        // if (s!== undefined) {
+        self.push_output(s);
+        self.update_line_count_and_pos_for(s);
+        self.has_trailing_comment = false;
+        //}
+    }
+
+    fn write_literal(&mut self, s: &str) {
+        if
+        /*s && */
+        !s.is_empty() {
+            self.write(s);
+        }
     }
 
     fn write_trailing_semicolon(&mut self, text: &str) {
@@ -1573,10 +1631,68 @@ impl EmitTextWriter for TextWriter {
     fn get_text(&self) -> String {
         self.output.clone()
     }
+
+    fn get_text_pos(&self) -> usize {
+        self.output.len()
+    }
+
+    fn get_line(&self) -> usize {
+        self.line_count
+    }
+
+    fn get_column(&self) -> usize {
+        if self.line_start {
+            self.indent * get_indent_size()
+        } else {
+            self.output.len() - self.line_pos
+        }
+    }
+
+    fn get_indent(&self) -> usize {
+        self.indent
+    }
+
+    fn is_at_start_of_line(&self) -> bool {
+        self.line_start
+    }
+
+    fn has_trailing_comment(&self) -> bool {
+        self.has_trailing_comment
+    }
+
+    fn has_trailing_whitespace(&self) -> bool {
+        !self.output.is_empty() && is_white_space_like(self.output.chars().last().unwrap())
+    }
 }
 
 impl SymbolWriter for TextWriter {
+    fn write_line(&mut self, force: Option<bool>) {
+        let force = force.unwrap_or(false);
+        if !self.line_start || force {
+            self.push_output(&self.new_line);
+            self.line_count += 1;
+            self.line_start = true;
+            self.has_trailing_comment = false;
+        }
+    }
+
+    fn increase_indent(&mut self) {
+        self.indent += 1;
+    }
+
+    fn decrease_indent(&mut self) {
+        self.indent -= 1; // TODO: should use isize to avoid this crashing if misused?
+    }
+
     fn write_keyword(&mut self, text: &str) {
+        self.write(text);
+    }
+
+    fn write_operator(&mut self, text: &str) {
+        self.write(text);
+    }
+
+    fn write_parameter(&mut self, text: &str) {
         self.write(text);
     }
 
@@ -1787,17 +1903,17 @@ fn _Type(flags: TypeFlags) -> BaseType {
 
 #[allow(non_snake_case)]
 fn Node(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, NodeFlags::None, pos, end)
+    BaseNode::new(kind, NodeFlags::None, TransformFlags::None, pos, end)
 }
 
 #[allow(non_snake_case)]
 fn Token(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, NodeFlags::None, pos, end)
+    BaseNode::new(kind, NodeFlags::None, TransformFlags::None, pos, end)
 }
 
 #[allow(non_snake_case)]
 fn Identifier(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, NodeFlags::None, pos, end)
+    BaseNode::new(kind, NodeFlags::None, TransformFlags::None, pos, end)
 }
 
 pub struct ObjectAllocator {}

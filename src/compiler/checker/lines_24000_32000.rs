@@ -184,7 +184,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_object_literal(&self, node: &ObjectLiteralExpression) -> Rc<Type> {
-        let mut properties_table = create_symbol_table();
+        let mut properties_table = create_symbol_table(None);
         let mut properties_array: Vec<Rc<Symbol>> = vec![];
 
         let object_flags = self.fresh_object_literal_flag;

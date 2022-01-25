@@ -746,6 +746,77 @@ pub trait CompilerHost: ModuleResolutionHost {
 }
 
 bitflags! {
+    pub struct TransformFlags: u32 {
+        const None = 0;
+
+        const ContainsTypeScript = 1 << 0;
+
+        const ContainsJsx = 1 << 1;
+        const ContainsESNext = 1 << 2;
+        const ContainsES2021 = 1 << 3;
+        const ContainsES2020 = 1 << 4;
+        const ContainsES2019 = 1 << 5;
+        const ContainsES2018 = 1 << 6;
+        const ContainsES2017 = 1 << 7;
+        const ContainsES2016 = 1 << 8;
+        const ContainsES2015 = 1 << 9;
+        const ContainsGenerator = 1 << 10;
+        const ContainsDestructuringAssignment = 1 << 11;
+
+        const ContainsTypeScriptClassSyntax = 1 << 12;
+        const ContainsLexicalThis = 1 << 13;
+        const ContainsRestOrSpread = 1 << 14;
+        const ContainsObjectRestOrSpread = 1 << 15;
+        const ContainsComputedPropertyName = 1 << 16;
+        const ContainsBlockScopedBinding = 1 << 17;
+        const ContainsBindingPattern = 1 << 18;
+        const ContainsYield = 1 << 19;
+        const ContainsAwait = 1 << 20;
+        const ContainsHoistedDeclarationOrCompletion = 1 << 21;
+        const ContainsDynamicImport = 1 << 22;
+        const ContainsClassFields = 1 << 23;
+        const ContainsPossibleTopLevelAwait = 1 << 24;
+        const ContainsLexicalSuper = 1 << 25;
+        const ContainsUpdateExpressionForIdentifier = 1 << 26;
+        const HasComputedFlags = 1 << 29;
+
+        const AssertTypeScript = Self::ContainsTypeScript.bits;
+        const AssertJsx = Self::ContainsJsx.bits;
+        const AssertESNext = Self::ContainsESNext.bits;
+        const AssertES2021 = Self::ContainsES2021.bits;
+        const AssertES2020 = Self::ContainsES2020.bits;
+        const AssertES2019 = Self::ContainsES2019.bits;
+        const AssertES2018 = Self::ContainsES2018.bits;
+        const AssertES2017 = Self::ContainsES2017.bits;
+        const AssertES2016 = Self::ContainsES2016.bits;
+        const AssertES2015 = Self::ContainsES2015.bits;
+        const AssertGenerator = Self::ContainsGenerator.bits;
+        const AssertDestructuringAssignment = Self::ContainsDestructuringAssignment.bits;
+
+        const OuterExpressionExcludes = Self::HasComputedFlags.bits;
+        const PropertyAccessExcludes = Self::OuterExpressionExcludes.bits;
+        const NodeExcludes = Self::PropertyAccessExcludes.bits;
+        const ArrowFunctionExcludes = Self::NodeExcludes.bits | Self::ContainsTypeScriptClassSyntax.bits | Self::ContainsBlockScopedBinding.bits | Self::ContainsYield.bits | Self::ContainsAwait.bits | Self::ContainsHoistedDeclarationOrCompletion.bits | Self::ContainsBindingPattern.bits |  Self::ContainsObjectRestOrSpread.bits |  Self::ContainsPossibleTopLevelAwait.bits;
+        const FunctionExcludes = Self::NodeExcludes.bits | Self::ContainsTypeScriptClassSyntax.bits | Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits | Self::ContainsBlockScopedBinding.bits | Self::ContainsYield.bits | Self::ContainsAwait.bits |  Self::ContainsHoistedDeclarationOrCompletion.bits |  Self::ContainsBindingPattern.bits |  Self::ContainsObjectRestOrSpread.bits |  Self::ContainsPossibleTopLevelAwait.bits;
+        const ConstructorExcludes = Self::NodeExcludes.bits | Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits | Self::ContainsBlockScopedBinding.bits | Self::ContainsYield.bits | Self::ContainsAwait.bits |  Self::ContainsHoistedDeclarationOrCompletion.bits |  Self::ContainsBindingPattern.bits |  Self::ContainsObjectRestOrSpread.bits |  Self::ContainsPossibleTopLevelAwait.bits;
+        const MethodOrAccessorExcludes = Self::NodeExcludes.bits | Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits | Self::ContainsBlockScopedBinding.bits | Self::ContainsYield.bits | Self::ContainsAwait.bits |  Self::ContainsHoistedDeclarationOrCompletion.bits |  Self::ContainsBindingPattern.bits |  Self::ContainsObjectRestOrSpread.bits;
+        const PropertyExcludes = Self::NodeExcludes.bits | Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits;
+        const ClassExcludes = Self::NodeExcludes.bits | Self::ContainsTypeScriptClassSyntax.bits | Self::ContainsComputedPropertyName.bits;
+        const ModuleExcludes = Self::NodeExcludes.bits | Self::ContainsTypeScriptClassSyntax.bits | Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits | Self::ContainsBlockScopedBinding.bits | Self::ContainsHoistedDeclarationOrCompletion.bits | Self::ContainsPossibleTopLevelAwait.bits;
+        const TypeExcludes = !Self::ContainsTypeScript.bits;
+        const ObjectLiteralExcludes = Self::NodeExcludes.bits | Self::ContainsTypeScriptClassSyntax.bits | Self::ContainsComputedPropertyName.bits | Self::ContainsObjectRestOrSpread.bits;
+        const ArrayLiteralOrCallOrNewExcludes = Self::NodeExcludes.bits | Self::ContainsRestOrSpread.bits;
+        const VariableDeclarationListExcludes = Self::NodeExcludes.bits | Self::ContainsBindingPattern.bits | Self::ContainsObjectRestOrSpread.bits;
+        const ParameterExcludes = Self::NodeExcludes.bits;
+        const CatchClauseExcludes = Self::NodeExcludes.bits | Self::ContainsObjectRestOrSpread.bits;
+        const BindingPatternExcludes = Self::NodeExcludes.bits | Self::ContainsRestOrSpread.bits;
+        const ContainsLexicalThisOrSuper = Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits;
+
+        const PropertyNamePropagatingFlags = Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits;
+    }
+}
+
+bitflags! {
     pub struct EmitFlags: u32 {
         const None = 0;
         const NoAsciiEscaping = 1 << 24;
@@ -859,4 +930,5 @@ pub trait ParenthesizerRules {
 
 pub struct NodeFactory {
     pub flags: NodeFactoryFlags,
+    pub parenthesizer_rules: RefCell<Option<Box<dyn ParenthesizerRules>>>,
 }

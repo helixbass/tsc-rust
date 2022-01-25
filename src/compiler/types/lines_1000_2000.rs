@@ -175,6 +175,10 @@ impl BaseNamedDeclaration {
 }
 
 impl NamedDeclarationInterface for BaseNamedDeclaration {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        self.name.clone()
+    }
+
     fn name(&self) -> Rc<Node> {
         self.name.as_ref().unwrap().clone()
     }
