@@ -2,6 +2,7 @@
 
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
@@ -19,7 +20,7 @@ use super::{
 };
 use local_macros::{ast_type, enum_unwrapped};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Path(String);
 
 impl Path {
@@ -31,6 +32,14 @@ impl Path {
 impl ToString for Path {
     fn to_string(&self) -> String {
         self.0.clone()
+    }
+}
+
+impl Deref for Path {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

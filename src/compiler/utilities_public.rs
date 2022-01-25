@@ -10,6 +10,10 @@ use crate::{
     sort_and_deduplicate, Diagnostic, SortedArray,
 };
 
+pub fn is_external_module_name_relative(module_name: &str) -> bool {
+    path_is_relative(module_name) || is_rooted_disk_path(module_name)
+}
+
 pub fn sort_and_deduplicate_diagnostics(
     diagnostics: &[Rc<Diagnostic>],
 ) -> SortedArray<Rc<Diagnostic>> {
