@@ -46,7 +46,7 @@ impl NodeFactory {
             if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
                 Box::new(null_parenthesizer_rules())
             } else {
-                Box::new(create_parenthesizer_rules(factory_))
+                Box::new(create_parenthesizer_rules(factory_.clone()))
             },
         );
         factory_
@@ -777,7 +777,7 @@ impl NodeFactory {
         flags: Option<NodeFlags>,
     ) -> VariableDeclarationList {
         let flags = flags.unwrap_or(NodeFlags::None);
-        let mut node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
+        let node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
         node.set_flags(node.flags() & NodeFlags::BlockScoped);
         let node =
             VariableDeclarationList::new(node, self.create_node_array(Some(declarations), None));
@@ -890,7 +890,7 @@ impl NodeFactory {
             None,
             Some(name),
         );
-        let node = ShorthandPropertyAssignment::new(
+        let mut node = ShorthandPropertyAssignment::new(
             node,
             object_assignment_initializer.map(|object_assignment_initializer| {
                 self.parenthesizer_rules()
@@ -898,8 +898,11 @@ impl NodeFactory {
             }),
         );
         node.add_transform_flags(
-            propagate_child_flags(node.object_assignment_initializer)
-                | TransformFlags::ContainsES2015,
+            propagate_child_flags(
+                node.object_assignment_initializer
+                    .as_ref()
+                    .map(|rc| rc.clone()),
+            ) | TransformFlags::ContainsES2015,
         );
         node
     }
@@ -956,7 +959,8 @@ fn propagate_child_flags<TNode: Borrow<Node>>(child: Option<TNode>) -> Transform
     if child.is_none() {
         return TransformFlags::None;
     }
-    let child = child.unwrap().borrow();
+    let child = child.unwrap();
+    let child = child.borrow();
     let child_flags =
         child.transform_flags() & !get_transform_flags_subtree_exclusions(child.kind());
     if is_named_declaration(child) && is_property_name(&*child.as_named_declaration().name()) {

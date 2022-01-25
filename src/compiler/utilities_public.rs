@@ -118,7 +118,8 @@ fn get_jsdoc_parameter_tags_worker(
         let name = param_as_parameter_declaration
             .name()
             .as_identifier()
-            .escaped_text;
+            .escaped_text
+            .clone();
         return get_jsdoc_tags_worker(&param.parent(), no_cache)
             .into_iter()
             .filter(|tag| {
@@ -149,7 +150,7 @@ fn get_jsdoc_parameter_tags_worker(
             .filter(|tag| is_jsdoc_parameter_tag(&**tag))
             .collect();
         if i < param_tags.len() {
-            return vec![param_tags[i]];
+            return vec![param_tags[i].clone()];
         }
     }
     /*}*/
@@ -172,11 +173,12 @@ fn get_jsdoc_type_parameter_tags_worker(
     param: &Node, /*TypeParameterDeclaration*/
     no_cache: Option<bool>,
 ) -> Vec<Rc<Node /*JSDocTemplateTag*/>> {
-    let name = &param
+    let name = param
         .as_type_parameter_declaration()
         .name()
         .as_identifier()
-        .escaped_text;
+        .escaped_text
+        .clone();
     get_jsdoc_tags_worker(&param.parent(), no_cache)
         .into_iter()
         .filter(|tag| {
@@ -189,7 +191,7 @@ fn get_jsdoc_type_parameter_tags_worker(
                     .name()
                     .as_identifier()
                     .escaped_text
-                    == *name
+                    == name
             })
         })
         .collect()
@@ -228,6 +230,7 @@ fn get_jsdoc_tags_worker(node: &Node, no_cache: Option<bool>) -> Vec<Rc<Node /*J
             if is_jsdoc(&*j) {
                 j.as_jsdoc()
                     .tags
+                    .as_ref()
                     .map_or(vec![], |tags| tags.iter().map(Clone::clone).collect())
             } else {
                 vec![j]
@@ -242,7 +245,7 @@ fn get_jsdoc_tags_worker(node: &Node, no_cache: Option<bool>) -> Vec<Rc<Node /*J
 
 fn get_first_jsdoc_tag<TPredicate: FnMut(&Node /*JSDocTag*/) -> bool>(
     node: &Node,
-    predicate: TPredicate,
+    mut predicate: TPredicate,
     no_cache: Option<bool>,
 ) -> Option<Rc<Node>> {
     find(&get_jsdoc_tags_worker(node, no_cache), |element, _| {

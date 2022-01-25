@@ -7,10 +7,10 @@ mod rust_helpers;
 
 pub use compiler::binder::bind_source_file;
 pub use compiler::checker::{create_type_checker, NodeBuilder};
-pub use compiler::command_line_parser::parse_command_line;
 use compiler::command_line_parser::{
-    module_resolution_option_declarations, options_affecting_program_structure, OptionsNameMap,
+    module_resolution_option_declarations, options_affecting_program_structure,
 };
+pub use compiler::command_line_parser::{parse_command_line, OptionsNameMap};
 pub use compiler::core::{
     add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key,
     compare_strings_case_sensitive, compare_values, concatenate, every, filter, find,

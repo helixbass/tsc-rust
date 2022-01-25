@@ -29,7 +29,7 @@ impl ParserType {
             None
         };
 
-        let node = self.factory.create_type_parameter_declaration(
+        let mut node = self.factory.create_type_parameter_declaration(
             self,
             name.into(),
             constraint.map(Into::into),

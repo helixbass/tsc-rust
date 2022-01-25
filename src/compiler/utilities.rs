@@ -71,7 +71,7 @@ pub fn create_underscore_escaped_map<TValue>() -> UnderscoreEscapedMap<TValue> {
 // function hasEntries
 
 pub fn create_symbol_table(symbols: Option<&[Rc<Symbol>]>) -> SymbolTable {
-    let result = SymbolTable::new();
+    let mut result = SymbolTable::new();
     if let Some(symbols) = symbols {
         for symbol in symbols {
             result.insert(symbol.escaped_name().clone(), symbol.clone());
@@ -293,7 +293,7 @@ pub fn for_each_ancestor<
     TCallback: FnMut(&Node) -> TCallbackReturn,
 >(
     node: &Node,
-    callback: TCallback,
+    mut callback: TCallback,
 ) -> Option<TReturn> {
     let mut node = node.node_wrapper();
     loop {
@@ -956,7 +956,7 @@ pub fn get_single_variable_of_variable_statement(
 
 fn get_nested_module_declaration(node: &Node) -> Option<Rc<Node>> {
     if is_module_declaration(node)
-        && matches!(node.as_module_declaration().body, Some(body) if body.kind() == SyntaxKind::ModuleDeclaration)
+        && matches!(node.as_module_declaration().body.as_ref(), Some(body) if body.kind() == SyntaxKind::ModuleDeclaration)
     {
         node.as_module_declaration().body.clone()
     } else {
@@ -999,7 +999,7 @@ pub fn get_jsdoc_comments_and_tags(
     }
 
     let mut node: Option<Rc<Node>> = Some(host_node.node_wrapper());
-    while matches!(node, Some(node) if node.maybe_parent().is_some()) {
+    while matches!(node.as_ref(), Some(node) if node.maybe_parent().is_some()) {
         let node_present = node.clone().unwrap();
         if has_jsdoc_nodes(&*node_present) {
             if result.is_none() {
@@ -1063,7 +1063,7 @@ fn filter_owned_jsdoc_tags(
         let owned_tags = filter(js_doc.as_jsdoc().tags.as_deref(), |tag| {
             owns_jsdoc_tag(host_node, tag)
         });
-        return if match (js_doc.as_jsdoc().tags, owned_tags) {
+        return if match (js_doc.as_jsdoc().tags.as_ref(), owned_tags.as_ref()) {
             (Some(js_doc_tags), Some(owned_tags)) if js_doc_tags.len() == owned_tags.len() => true,
             (None, None) => true,
             _ => false,
@@ -1091,7 +1091,7 @@ fn owns_jsdoc_tag(host_node: &Node, tag: &Node /*JSDocTag*/) -> bool {
 pub fn get_next_jsdoc_comment_location(node: &Node) -> Option<Rc<Node>> {
     let parent = node.maybe_parent();
     if matches!(
-        parent,
+        parent.as_ref(),
         Some(parent) if parent.kind() == SyntaxKind::PropertyAssignment
             || parent.kind() == SyntaxKind::ExportAssignment
             || parent.kind() == SyntaxKind::PropertyDeclaration
@@ -1110,7 +1110,7 @@ pub fn get_next_jsdoc_comment_location(node: &Node) -> Option<Rc<Node>> {
     let parent = parent.unwrap();
     let grandparent = parent.maybe_parent();
     if matches!(
-        grandparent,
+        grandparent.as_ref(),
         Some(grandparent) if matches!(
             get_single_variable_of_variable_statement(&grandparent),
             Some(single_variable) if ptr::eq(
@@ -1128,7 +1128,7 @@ pub fn get_next_jsdoc_comment_location(node: &Node) -> Option<Rc<Node>> {
     let grandparent = grandparent.unwrap();
     let great_grandparent = grandparent.maybe_parent();
     if matches!(
-        great_grandparent,
+        great_grandparent.as_ref(),
         Some(great_grandparent) if get_single_variable_of_variable_statement(&great_grandparent).is_some()
             || matches!(
                 get_single_initializer_of_variable_statement_or_property_declaration(&great_grandparent),
@@ -1283,6 +1283,7 @@ pub fn get_operator_associativity(
             | SyntaxKind::QuestionQuestionEqualsToken => {
                 return Associativity::Right;
             }
+            _ => (),
         },
         _ => (),
     }
@@ -1678,7 +1679,7 @@ impl SymbolWriter for TextWriter {
     fn write_line(&mut self, force: Option<bool>) {
         let force = force.unwrap_or(false);
         if !self.line_start || force {
-            self.push_output(&self.new_line);
+            self.push_output(&self.new_line.clone());
             self.line_count += 1;
             self.line_start = true;
             self.has_trailing_comment = false;

@@ -856,11 +856,11 @@ thread_local! {
         CommandLineOptionOfCustomType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "jsx".to_string(),
-            type_: CommandLineOptionType::Map(
-                HashMap::from_iter(jsx_option_map.with(|jsx_option_map_|
+            type_: jsx_option_map.with(|jsx_option_map_| CommandLineOptionType::Map(
+                HashMap::from_iter(
                     jsx_option_map_.iter().map(|(key, value)| (*key, CommandLineOptionMapTypeValue::JsxEmit(*value)))
-               ))
-            ),
+               )
+            )),
             is_file_path: None,
             short_name: None,
             description: Some(Diagnostics::Specify_what_JSX_code_is_generated),
@@ -2971,7 +2971,7 @@ thread_local! {
         });
 }
 
-pub(crate) struct OptionsNameMap {
+pub struct OptionsNameMap {
     pub options_name_map: HashMap<String, Rc<CommandLineOption>>,
     pub short_option_names: HashMap<String, String>,
 }
