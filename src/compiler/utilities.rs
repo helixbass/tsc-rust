@@ -316,12 +316,16 @@ pub fn for_each_ancestor<
 }
 
 fn get_source_text_of_node_from_source_file<TNode: NodeInterface>(
-    source_file: &SourceFile,
+    source_file: &Node, /*SourceFile*/
     node: &TNode,
     include_trivia: Option<bool>,
 ) -> String {
     let include_trivia = include_trivia.unwrap_or(false);
-    get_text_of_node_from_source_text(source_file.text_as_chars(), node, Some(include_trivia))
+    get_text_of_node_from_source_text(
+        source_file.as_source_file().text_as_chars(),
+        node,
+        Some(include_trivia),
+    )
 }
 
 fn get_text_of_node_from_source_text<TNode: NodeInterface>(
@@ -373,9 +377,9 @@ bitflags! {
     }
 }
 
-pub fn get_literal_text<TSourceFileRef: Borrow<SourceFile>>(
+pub fn get_literal_text<TNodeRef: Borrow<Node>>(
     node: &LiteralLikeNode,
-    source_file: Option<TSourceFileRef>,
+    source_file: Option<TNodeRef /*SourceFile*/>,
     flags: GetLiteralTextFlags,
 ) -> String {
     if can_use_original_text(node, flags) {
@@ -479,7 +483,7 @@ pub fn get_full_width<TNode: NodeInterface>(node: &TNode) -> isize {
     node.end() - node.pos()
 }
 
-pub fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceFile> {
+pub fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*SourceFile*/> {
     if node.kind() == SyntaxKind::SourceFile {
         unimplemented!()
     }
@@ -487,7 +491,7 @@ pub fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<SourceF
     while parent.kind() != SyntaxKind::SourceFile {
         parent = parent.parent();
     }
-    parent.as_source_file().clone()
+    parent.clone()
 }
 
 pub fn node_is_missing<TNode: NodeInterface>(node: &TNode) -> bool {
@@ -513,16 +517,16 @@ pub fn create_diagnostic_for_node<TNode: NodeInterface>(
     args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node);
-    create_diagnostic_for_node_in_source_file(source_file, node, message, args)
+    create_diagnostic_for_node_in_source_file(&source_file, node, message, args)
 }
 
 fn create_diagnostic_for_node_in_source_file<TNode: NodeInterface>(
-    source_file: Rc<SourceFile>,
+    source_file: &Node, /*SourceFile*/
     node: &TNode,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
-    let span = get_error_span_for_node(source_file.clone(), node);
+    let span = get_error_span_for_node(source_file, node);
     create_file_diagnostic(source_file, span.start, span.length, message, args)
 }
 
@@ -532,9 +536,9 @@ pub fn create_diagnostic_for_node_from_message_chain<TNode: NodeInterface>(
     related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node);
-    let span = get_error_span_for_node(source_file.clone(), node);
+    let span = get_error_span_for_node(&source_file, node);
     create_file_diagnostic_from_message_chain(
-        source_file,
+        &source_file,
         span.start,
         span.length,
         message_chain,
@@ -543,7 +547,7 @@ pub fn create_diagnostic_for_node_from_message_chain<TNode: NodeInterface>(
 }
 
 fn create_file_diagnostic_from_message_chain(
-    file: Rc<SourceFile>,
+    file: &Node, /*SourceFile*/
     start: isize,
     length: isize,
     message_chain: DiagnosticMessageChain,
@@ -553,7 +557,7 @@ fn create_file_diagnostic_from_message_chain(
     DiagnosticWithLocation::new(BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
             message_chain.code,
-            Some(file),
+            Some(file.node_wrapper()),
             start,
             length,
             message_chain,
@@ -563,7 +567,7 @@ fn create_file_diagnostic_from_message_chain(
 }
 
 fn get_error_span_for_node<TNode: NodeInterface>(
-    source_file: Rc<SourceFile>,
+    source_file: &Node, /*SourceFile*/
     node: &TNode,
 ) -> TextSpan {
     let error_node = node;
@@ -573,7 +577,7 @@ fn get_error_span_for_node<TNode: NodeInterface>(
     create_text_span_from_bounds(pos, error_node.end())
 }
 
-pub fn is_external_or_common_js_module(file: &SourceFile) -> bool {
+pub fn is_external_or_common_js_module(file: &Node /*SourceFile*/) -> bool {
     false
 }
 
@@ -1478,7 +1482,7 @@ impl DiagnosticCollection {
     pub fn add(&mut self, diagnostic: Rc<Diagnostic>) {
         if let Some(diagnostics) = self
             .file_diagnostics
-            .get_mut(&*diagnostic.file().unwrap().file_name())
+            .get_mut(&*diagnostic.file().unwrap().as_source_file().file_name())
         {
             insert_sorted(
                 diagnostics,
@@ -1491,12 +1495,17 @@ impl DiagnosticCollection {
         }
         let diagnostics: SortedArray<Rc<Diagnostic>> = SortedArray::new(vec![]);
         self.file_diagnostics.insert(
-            diagnostic.file().unwrap().file_name().to_string(),
+            diagnostic
+                .file()
+                .unwrap()
+                .as_source_file()
+                .file_name()
+                .to_string(),
             diagnostics,
         );
         let diagnostics = self
             .file_diagnostics
-            .get_mut(&*diagnostic.file().unwrap().file_name())
+            .get_mut(&*diagnostic.file().unwrap().as_source_file().file_name())
             .unwrap();
         insert_sorted(
             diagnostics,
@@ -2000,17 +2009,18 @@ fn is_diagnostic_with_detached_location(
 
 pub fn attach_file_to_diagnostic(
     diagnostic: &DiagnosticWithDetachedLocation,
-    file: &Rc<SourceFile>,
+    file: &Node, /*SourceFile*/
 ) -> DiagnosticWithLocation {
-    let file_name = file.file_name();
-    let length: isize = file.text.len().try_into().unwrap();
+    let file_as_source_file = file.as_source_file();
+    let file_name = file_as_source_file.file_name();
+    let length: isize = file_as_source_file.text.len().try_into().unwrap();
     Debug_.assert_equal(&diagnostic.file_name, &*file_name, None, None);
     Debug_.assert_less_than_or_equal(diagnostic.start(), length);
     Debug_.assert_less_than_or_equal(diagnostic.start() + diagnostic.length(), length);
     let mut diagnostic_with_location = DiagnosticWithLocation::new(BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
             diagnostic.code(),
-            Some(file.clone()),
+            Some(file.node_wrapper()),
             diagnostic.start(),
             diagnostic.length(),
             diagnostic.message_text().clone(),
@@ -2047,7 +2057,7 @@ pub fn attach_file_to_diagnostic(
 
 pub fn attach_file_to_diagnostics(
     diagnostics: &[Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>],
-    file: &Rc<SourceFile>,
+    file: &Node, /*SourceFile*/
 ) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
     diagnostics
         .iter()
@@ -2061,7 +2071,7 @@ pub fn attach_file_to_diagnostics(
 }
 
 fn create_file_diagnostic(
-    file: Rc<SourceFile>,
+    file: &Node, /*SourceFile*/
     start: isize,
     length: isize,
     message: &DiagnosticMessage,
@@ -2076,7 +2086,13 @@ fn create_file_diagnostic(
     }
 
     DiagnosticWithLocation::new(BaseDiagnostic::new(
-        BaseDiagnosticRelatedInformation::new(message.code, Some(file), start, length, text),
+        BaseDiagnosticRelatedInformation::new(
+            message.code,
+            Some(file.node_wrapper()),
+            start,
+            length,
+            text,
+        ),
         None,
     ))
 }
@@ -2099,9 +2115,12 @@ fn get_diagnostic_file_path<
 >(
     diagnostic: &TDiagnosticRelatedInformation,
 ) -> Option<String> {
-    diagnostic
-        .file()
-        .and_then(|file| file.maybe_path().as_ref().map(|path| path.to_string()))
+    diagnostic.file().and_then(|file| {
+        file.as_source_file()
+            .maybe_path()
+            .as_ref()
+            .map(|path| path.to_string())
+    })
 }
 
 pub fn compare_diagnostics<TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface>(

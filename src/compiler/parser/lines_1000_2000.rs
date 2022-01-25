@@ -14,7 +14,7 @@ use crate::{
 use local_macros::enum_unwrapped;
 
 impl ParserType {
-    pub(super) fn parse_source_file_worker(&self) -> Rc<SourceFile> {
+    pub(super) fn parse_source_file_worker(&self) -> Rc<Node /*SourceFile*/> {
         self.next_token();
 
         let statements =
@@ -22,11 +22,13 @@ impl ParserType {
         Debug_.assert(matches!(self.token(), SyntaxKind::EndOfFileToken), None);
 
         let source_file = self.create_source_file(self.file_name(), statements);
-        let source_file = Rc::new(source_file);
-        source_file.set_parse_diagnostics(attach_file_to_diagnostics(
-            &*self.parse_diagnostics(),
-            &source_file,
-        ));
+        let source_file: Rc<Node> = source_file.into();
+        source_file
+            .as_source_file()
+            .set_parse_diagnostics(attach_file_to_diagnostics(
+                &*self.parse_diagnostics(),
+                &source_file,
+            ));
 
         source_file
     }

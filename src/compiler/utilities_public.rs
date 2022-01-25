@@ -3,7 +3,7 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    find, get_jsdoc_comments_and_tags, is_identifier, is_jsdoc, is_jsdoc_parameter_tag,
+    find, flat_map, get_jsdoc_comments_and_tags, is_identifier, is_jsdoc, is_jsdoc_parameter_tag,
     is_jsdoc_template_tag, is_jsdoc_type_tag, skip_outer_expressions, CharacterCodes, Debug_,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OuterExpressionKinds, SyntaxKind,
     TextSpan, __String, compare_diagnostics, is_block, is_module_block, is_source_file,
@@ -224,9 +224,11 @@ fn get_jsdoc_tags_worker(node: &Node, no_cache: Option<bool>) -> Vec<Rc<Node /*J
             comments.len() < 2 || !Rc::ptr_eq(&comments[0], &comments[1]),
             None,
         );
-        tags = Some(flat_map(comments, |j| {
-            if is_jsdoc(j) {
-                j.as_jsdoc().tags
+        tags = Some(flat_map(Some(comments), |j, _| {
+            if is_jsdoc(&*j) {
+                j.as_jsdoc()
+                    .tags
+                    .map_or(vec![], |tags| tags.iter().map(Clone::clone).collect())
             } else {
                 vec![j]
             }

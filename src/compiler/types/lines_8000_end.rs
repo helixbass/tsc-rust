@@ -9,7 +9,7 @@ use super::{Diagnostic, Node, SourceFile, Symbol, SymbolFlags, SymbolWriter};
 use crate::SortedArray;
 
 pub struct Printer {
-    pub current_source_file: Option<Rc<SourceFile>>,
+    pub current_source_file: Option<Rc<Node /*SourceFile*/>>,
     pub writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
     pub write: fn(&Printer, &str),
 }

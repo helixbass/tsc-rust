@@ -608,7 +608,7 @@ pub enum Node {
     Statement(Statement),
     TypeElement(TypeElement),
     PropertyAssignment(PropertyAssignment),
-    SourceFile(Rc<SourceFile>),
+    SourceFile(SourceFile),
     QualifiedName(QualifiedName),
     JSDocTag(JSDocTag),
     BindingElement(BindingElement),
@@ -755,7 +755,7 @@ impl Node {
         enum_unwrapped!(self, [Node, PropertyAssignment])
     }
 
-    pub fn as_source_file(&self) -> &Rc<SourceFile> {
+    pub fn as_source_file(&self) -> &SourceFile {
         enum_unwrapped!(self, [Node, SourceFile])
     }
 

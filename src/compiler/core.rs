@@ -106,6 +106,27 @@ pub fn map<
     result
 }
 
+pub fn flat_map<
+    TCollection: IntoIterator,
+    TReturn: Clone,
+    TCallback: FnMut(TCollection::Item, usize) -> Vec<TReturn>, /* | undefined */
+>(
+    array: Option<TCollection>,
+    mut mapfn: TCallback,
+) -> Vec<TReturn> {
+    let mut result: Option<Vec<_>> = None;
+    if let Some(array) = array {
+        let mut some_result = vec![];
+        for (i, item) in array.into_iter().enumerate() {
+            let v = mapfn(item, i);
+            /*some_result = */
+            add_range(&mut some_result, Some(&v), None, None);
+        }
+        result = Some(some_result);
+    }
+    result.unwrap_or(vec![])
+}
+
 pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(
     array: Option<&[TItem]>,
     predicate: Option<TPredicate>,

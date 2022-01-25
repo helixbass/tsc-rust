@@ -434,20 +434,22 @@ impl HasExpressionInterface for CallExpression {
 pub struct NewExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
-    pub type_arguments: Option<NodeArray/*<TypeNode>*/>,
-    pub arguments: Option<NodeArray/*<Expression>*/>,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    pub arguments: Option<NodeArray /*<Expression>*/>,
 }
 
 impl NewExpression {
-    pub fn new(base_node: BaseNode,
-               expression: Rc<Node>,
-    type_arguments: Option<NodeArray>*/>,
-    arguments: Option<NodeArray>*/>,
-               ) -> Self {
+    pub fn new(
+        base_node: BaseNode,
+        expression: Rc<Node>,
+        type_arguments: Option<NodeArray>,
+        arguments: Option<NodeArray>,
+    ) -> Self {
         Self {
             _node: base_node,
             expression,
-            type_arguments, arguments
+            type_arguments,
+            arguments,
         }
     }
 }
@@ -1543,7 +1545,7 @@ pub trait SourceFileLike {
 }
 
 #[derive(Debug)]
-#[ast_type(impl_from = false)]
+#[ast_type]
 pub struct SourceFile {
     _node: BaseNode,
     _symbols_without_a_symbol_table_strong_references: RefCell<Vec<Rc<Symbol>>>,
@@ -1640,20 +1642,6 @@ impl SourceFileLike for SourceFile {
     ) -> Option<usize> {
         None
     }
-}
-
-// impl From<Rc<SourceFile>> for Rc<Node> {
-//     fn from(source_file: Rc<SourceFile>) -> Self {
-//         let rc = Rc::new(Node::SourceFile(source_file));
-//         rc.set_node_wrapper(rc.clone());
-//         rc
-//     }
-// }
-
-pub fn rc_source_file_into_rc_node(source_file: Rc<SourceFile>) -> Rc<Node> {
-    let rc = Rc::new(Node::SourceFile(source_file));
-    rc.set_node_wrapper(rc.clone());
-    rc
 }
 
 #[derive(Clone, Debug)]

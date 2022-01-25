@@ -237,7 +237,7 @@ impl TypeChecker {
         };
         let options = PrinterOptions {};
         let mut printer = create_printer(options);
-        let source_file: Option<Rc<SourceFile>> =
+        let source_file: Option<Rc<Node /*SourceFile*/>> =
             if let Some(enclosing_declaration) = enclosing_declaration {
                 let enclosing_declaration = enclosing_declaration.borrow();
                 Some(get_source_file_of_node(enclosing_declaration))

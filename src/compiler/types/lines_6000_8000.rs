@@ -18,7 +18,7 @@ pub struct PluginImport {
 pub enum CompilerOptionsValue {
     Bool(Option<bool>),
     String(Option<String>),
-    SourceFile(Option<Rc<SourceFile>>),
+    SourceFile(Option<Rc<Node /*SourceFile*/>>),
     ImportsNotUsedAsValues(Option<ImportsNotUsedAsValues>),
     JsxEmit(Option<JsxEmit>),
     VecString(Option<Vec<String>>),
@@ -117,7 +117,7 @@ pub struct CompilerOptions {
     pub charset: Option<String>,
     pub check_js: Option<bool>,
     pub(crate) config_file_path: Option<String>,
-    pub(crate) config_file: Option<Rc<SourceFile /*TsConfigSourceFile*/>>,
+    pub(crate) config_file: Option<Rc<Node /*TsConfigSourceFile*/>>,
     pub declaration: Option<bool>,
     pub declaration_map: Option<bool>,
     pub emit_declaration_only: Option<bool>,
@@ -740,7 +740,7 @@ pub trait ModuleResolutionHost {
 }
 
 pub trait CompilerHost: ModuleResolutionHost {
-    fn get_source_file(&self, file_name: &str) -> Option<Rc<SourceFile>>;
+    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>>;
     fn get_current_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
 }

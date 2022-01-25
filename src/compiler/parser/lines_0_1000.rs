@@ -410,7 +410,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
     }
 }
 
-pub fn create_source_file(file_name: &str, source_text: &str) -> Rc<SourceFile> {
+pub fn create_source_file(file_name: &str, source_text: &str) -> Rc<Node /*SourceFile*/> {
     Parser().parse_source_file(file_name, source_text)
 }
 
@@ -623,7 +623,7 @@ impl ParserType {
         &mut self,
         file_name: &str,
         source_text: &str,
-    ) -> Rc<SourceFile> {
+    ) -> Rc<Node /*SourceFile*/> {
         self.initialize_state(file_name, source_text);
         self.parse_source_file_worker()
     }
