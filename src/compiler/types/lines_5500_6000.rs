@@ -1,18 +1,21 @@
 #![allow(non_upper_case_globals)]
 
-use std::cell::{RefCell, RefMut};
+use bitflags::bitflags;
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
-use super::{BaseType, Node, Symbol, SymbolTable, Type, TypeChecker};
+use super::{BaseType, Node, SourceFile, Symbol, SymbolTable, Type, TypeChecker, TypePredicate};
 use local_macros::{enum_unwrapped, type_type};
 
 pub trait ResolvedTypeInterface {
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
     fn properties(&self) -> RefMut<Vec<Rc<Symbol>>>;
     fn set_properties(&self, properties: Vec<Rc<Symbol>>);
+    fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
+    fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
 }
 
 #[derive(Clone, Debug)]
@@ -20,6 +23,8 @@ pub trait ResolvedTypeInterface {
 pub struct TypeParameter {
     _type: BaseType,
     pub constraint: RefCell<Option<Weak<Type>>>, // TODO: is it correct that this is weak?
+    pub target: Option<Rc<Type /*TypeParameter*/>>,
+    pub mapper: RefCell<Option<TypeMapper>>,
     pub is_this_type: Option<bool>,
 }
 
@@ -28,8 +33,112 @@ impl TypeParameter {
         Self {
             _type: base_type,
             constraint: RefCell::new(None),
+            target: None,
+            mapper: RefCell::new(None),
             is_this_type: None,
         }
+    }
+
+    pub fn maybe_constraint(&self) -> Option<Rc<Type>> {
+        self.constraint.borrow().map(|weak| weak.upgrade().unwrap())
+    }
+
+    pub fn set_constraint(&self, constraint: Rc<Type>) {
+        *self.constraint.borrow_mut() = Some(Rc::downgrade(&constraint));
+    }
+
+    pub fn maybe_mapper(&self) -> Ref<Option<TypeMapper>> {
+        self.mapper.borrow()
+    }
+
+    pub fn set_mapper(&self, mapper: TypeMapper) {
+        *self.mapper.borrow_mut() = Some(mapper);
+    }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum SignatureKind {
+    Call,
+    Construct,
+}
+
+bitflags! {
+    pub struct SignatureFlags: u32 {
+        const None = 0;
+
+        const HasRestParameter = 1 << 0;
+        const HasLiteralTypes = 1 << 1;
+        const Abstract = 1 << 2;
+
+        const IsInnerCallChain = 1 << 3;
+        const IsOuterCallChain = 1 << 4;
+        const IsUntypedSignatureInJSFile = 1 << 5;
+
+        const PropagatingFlags = Self::HasRestParameter.bits | Self::HasLiteralTypes.bits | Self::Abstract.bits | Self::IsUntypedSignatureInJSFile.bits;
+
+        const CallChainFlags = Self::IsInnerCallChain.bits | Self::IsOuterCallChain.bits;
+    }
+}
+
+#[derive(Debug)]
+pub struct Signature {
+    pub flags: SignatureFlags,
+    pub declaration: Option<Rc<Node /*SignatureDeclaration | JSDocSignature*/>>,
+    pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    parameters: Option<Vec<Rc<Symbol>>>,
+    pub this_parameter: Option<Rc<Symbol>>,
+    pub resolved_return_type: RefCell<Option<Rc<Type>>>,
+    pub resolved_type_predicate: Option<TypePredicate>,
+    min_argument_count: Option<usize>,
+    pub resolved_min_argument_count: Cell<Option<usize>>,
+    pub target: Option<Rc<Signature>>,
+    pub mapper: Option<TypeMapper>,
+}
+
+impl Signature {
+    pub fn new(flags: SignatureFlags) -> Self {
+        Self {
+            flags,
+            declaration: None,
+            type_parameters: None,
+            parameters: None,
+            this_parameter: None,
+            resolved_return_type: RefCell::new(None),
+            resolved_type_predicate: None,
+            min_argument_count: None,
+            resolved_min_argument_count: Cell::new(None),
+            target: None,
+            mapper: None,
+        }
+    }
+
+    pub fn parameters(&self) -> &[Rc<Symbol>] {
+        self.parameters.as_ref().unwrap()
+    }
+
+    pub fn set_parameters(&mut self, parameters: Vec<Rc<Symbol>>) {
+        self.parameters = Some(parameters);
+    }
+
+    pub fn min_argument_count(&self) -> usize {
+        self.min_argument_count.unwrap()
+    }
+
+    pub fn set_min_argument_count(&mut self, min_argument_count: usize) {
+        self.min_argument_count = Some(min_argument_count);
+    }
+
+    pub fn maybe_resolved_min_argument_count(&self) -> Option<usize> {
+        self.resolved_min_argument_count.get()
+    }
+
+    pub fn resolved_min_argument_count(&self) -> usize {
+        self.resolved_min_argument_count.get().unwrap()
+    }
+
+    pub fn set_resolved_min_argument_count(&self, min_argument_count: usize) {
+        self.resolved_min_argument_count
+            .set(Some(min_argument_count));
     }
 }
 

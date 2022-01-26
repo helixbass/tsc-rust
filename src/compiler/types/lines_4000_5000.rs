@@ -79,6 +79,16 @@ pub enum UnionReduction {
 }
 
 bitflags! {
+    pub struct ContextFlags: u32 {
+        const None = 0;
+        const Signature = 1 << 0;
+        const NoConstraints = 1 << 1;
+        const Completions = 1 << 2;
+        const SkipBindingPatters = 1 << 3;
+    }
+}
+
+bitflags! {
     pub struct NodeBuilderFlags: u32 {
         const None = 0;
         const NoTruncation = 1 << 0;
@@ -165,6 +175,8 @@ pub trait SymbolWriter: SymbolTracker {
     fn decrease_indent(&mut self);
     fn clear(&mut self);
 }
+
+pub type TypePredicate = ();
 
 bitflags! {
     pub struct SymbolFlags: u32 {

@@ -402,7 +402,7 @@ pub struct CallExpression {
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
     pub question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
     pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
-    pub arguments: Option<NodeArray /*<Expression>*/>,
+    pub arguments: NodeArray, /*<Expression>*/
 }
 
 impl CallExpression {
@@ -411,7 +411,7 @@ impl CallExpression {
         expression: Rc<Node>,
         question_dot_token: Option<Rc<Node>>,
         type_arguments: Option<NodeArray>,
-        arguments: Option<NodeArray>,
+        arguments: NodeArray,
     ) -> Self {
         Self {
             _node: base_node,

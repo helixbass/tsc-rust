@@ -59,7 +59,7 @@ impl TypeChecker {
         symbol: &Symbol,
     ) -> BaseObjectType {
         let mut type_ = self.create_type(TypeFlags::Object);
-        type_.set_symbol(symbol.symbol_wrapper());
+        type_.set_symbol(Some(symbol.symbol_wrapper()));
         let type_ = BaseObjectType::new(type_, object_flags);
         type_
     }
@@ -71,7 +71,7 @@ impl TypeChecker {
         let mut type_ = self.create_type(TypeFlags::TypeParameter);
         if let Some(symbol) = symbol {
             let symbol = symbol.borrow();
-            type_.set_symbol(symbol.symbol_wrapper());
+            type_.set_symbol(Some(symbol.symbol_wrapper()));
         }
         let type_ = TypeParameter::new(type_);
         type_
@@ -129,7 +129,7 @@ impl TypeChecker {
         members: Rc<RefCell<SymbolTable>>,
     ) /*-> BaseObjectType*/
     {
-        type_.resolve(members.clone(), vec![]);
+        type_.resolve(members.clone(), vec![], vec![], vec![]); // TODO: this is wrong
         if true {
             type_.set_properties(self.get_named_members(&*(*members).borrow()));
         }

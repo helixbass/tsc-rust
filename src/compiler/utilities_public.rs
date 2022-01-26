@@ -4,9 +4,10 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    find, flat_map, get_emit_script_target, get_jsdoc_comments_and_tags, is_identifier, is_jsdoc,
-    is_jsdoc_parameter_tag, is_jsdoc_template_tag, is_jsdoc_type_tag, is_rooted_disk_path,
-    path_is_relative, skip_outer_expressions, CharacterCodes, CompilerOptions, Debug_,
+    find, flat_map, get_emit_script_target, get_jsdoc_comments_and_tags,
+    is_class_static_block_declaration, is_identifier, is_jsdoc, is_jsdoc_parameter_tag,
+    is_jsdoc_template_tag, is_jsdoc_type_tag, is_rooted_disk_path, path_is_relative,
+    skip_outer_expressions, CharacterCodes, CompilerOptions, Debug_, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OuterExpressionKinds, ScriptTarget,
     SyntaxKind, TextChangeRange, TextRange, TextSpan, __String, compare_diagnostics, is_block,
     is_module_block, is_source_file, sort_and_deduplicate, Diagnostic, SortedArray,
@@ -242,6 +243,42 @@ fn get_combined_flags<TNode: NodeInterface, TCallback: FnMut(&Node) -> NodeFlags
 
 pub fn get_combined_node_flags<TNode: NodeInterface>(node: &TNode) -> NodeFlags {
     get_combined_flags(node, |n| n.flags())
+}
+
+pub enum FindAncestorCallbackReturn {
+    Bool(bool),
+    Quit,
+}
+
+impl From<bool> for FindAncestorCallbackReturn {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
+pub fn find_ancestor<
+    TNodeRef: Borrow<Node>,
+    TCallbackReturn: Into<FindAncestorCallbackReturn>,
+    TCallback: FnMut(&Node) -> TCallbackReturn,
+>(
+    node: Option<TNodeRef>,
+    callback: TCallback,
+) -> Option<Rc<Node>> {
+    let mut node = node.map(|node| node.borrow().node_wrapper());
+    while let Some(rc_node_ref) = node.as_ref() {
+        let result = callback(&**rc_node_ref).into();
+        match result {
+            FindAncestorCallbackReturn::Quit => {
+                return None;
+            }
+            FindAncestorCallbackReturn::Bool(result) if result => {
+                return node;
+            }
+            _ => (),
+        }
+        node = rc_node_ref.maybe_parent();
+    }
+    None
 }
 
 pub fn escape_leading_underscores(identifier: &str) -> __String {
@@ -502,6 +539,18 @@ pub fn is_property_name<TNode: NodeInterface>(node: &TNode) -> bool {
 
 pub fn is_function_like<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
     node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
+}
+
+pub fn is_function_like_or_class_static_block_declaration<TNodeRef: Borrow<Node>>(
+    node: Option<TNodeRef>,
+) -> bool {
+    match node {
+        Some(node) => {
+            let node = node.borrow();
+            is_function_like_kind(node.kind()) || is_class_static_block_declaration(node)
+        }
+        None => false,
+    }
 }
 
 fn is_function_like_declaration_kind(kind: SyntaxKind) -> bool {

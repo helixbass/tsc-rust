@@ -194,7 +194,7 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_symbol.is_none() {
-            links_ref.resolved_symbol = Some(if !node_is_missing(node) {
+            links_ref.resolved_symbol = Some(if !node_is_missing(Some(node.node_wrapper())) {
                 self.resolve_name(
                     Some(node),
                     &node.escaped_text,
