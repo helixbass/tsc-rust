@@ -632,12 +632,12 @@ lazy_static! {
 }
 
 lazy_static! {
-    pub(super) static ref comment_directive_regex_single_line: Regex =
+    pub(super) static ref comment_directive_reg_ex_single_line: Regex =
         Regex::new(r"^///?\s*@(ts-expect-error|ts-ignore)").unwrap();
 }
 
 lazy_static! {
-    pub(super) static ref comment_directive_regex_multi_line: Regex =
+    pub(super) static ref comment_directive_reg_ex_multi_line: Regex =
         Regex::new(r"^(?:/|\*)*\s*@(ts-expect-error|ts-ignore)").unwrap();
 }
 

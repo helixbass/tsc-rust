@@ -1,14 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use regex::Regex;
-use std::cell::RefCell;
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 
 use super::{code_point_at, is_line_break, is_unicode_identifier_start, is_white_space_like};
 use crate::{
     maybe_text_char_at_index, position_is_synthesized, text_char_at_index, text_len,
-    text_substring, CharacterCodes, CommentKind, CommentRange, Debug_, DiagnosticMessage,
-    Diagnostics, LanguageVariant, ScriptTarget, SourceTextAsChars, SyntaxKind, TokenFlags,
+    text_substring, CharacterCodes, CommentDirective, CommentKind, CommentRange, Debug_,
+    DiagnosticMessage, Diagnostics, LanguageVariant, ScriptTarget, SourceTextAsChars, SyntaxKind,
+    TokenFlags,
 };
 
 pub(super) fn is_digit(ch: char) -> bool {
@@ -152,7 +153,8 @@ pub(crate) fn skip_trivia(
                     pos = scan_conflict_marker_trivia(
                         text,
                         pos,
-                        Option::<fn(&DiagnosticMessage, Option<usize>, Option<usize>)>::None,
+                        // Option::<fn(&DiagnosticMessage, Option<usize>, Option<usize>)>::None,
+                        |_, _, _| {},
                     );
                     can_consume_star = false;
                     continue;
@@ -191,7 +193,7 @@ pub(super) const fn merge_conflict_marker_length() -> usize {
     7
 }
 
-fn is_conflict_marker_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
+pub(super) fn is_conflict_marker_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
     // Debug_.assert(pos >= 0);
 
     if pos == 0 || matches!(maybe_text_char_at_index(text, pos - 1), Some(ch) if is_line_break(ch))
@@ -215,18 +217,21 @@ fn is_conflict_marker_trivia(text: &SourceTextAsChars, pos: usize) -> bool {
     false
 }
 
-fn scan_conflict_marker_trivia<TError: FnMut(&DiagnosticMessage, Option<usize>, Option<usize>)>(
+pub(super) fn scan_conflict_marker_trivia<
+    TError: FnOnce(&DiagnosticMessage, Option<usize>, Option<usize>),
+>(
     text: &SourceTextAsChars,
     mut pos: usize,
-    error: Option<TError>,
+    // error: Option<TError>,
+    error: TError,
 ) -> usize {
-    if let Some(mut error) = error {
-        error(
-            &Diagnostics::Merge_conflict_marker_encountered,
-            Some(pos),
-            Some(merge_conflict_marker_length()),
-        );
-    }
+    // if let Some(mut error) = error {
+    error(
+        &Diagnostics::Merge_conflict_marker_encountered,
+        Some(pos),
+        Some(merge_conflict_marker_length()),
+    );
+    // }
 
     let ch = text_char_at_index(text, pos);
     let len = text_len(text);
@@ -653,13 +658,26 @@ pub fn is_identifier_text(
     true
 }
 
-pub fn create_scanner(language_version: ScriptTarget, skip_trivia: bool) -> Scanner {
-    Scanner::new(language_version, skip_trivia)
+pub fn create_scanner(
+    language_version: ScriptTarget,
+    skip_trivia: bool,
+    language_variant: Option<LanguageVariant>,
+    text_initial_as_chars: Option<SourceTextAsChars>,
+    text_initial: Option<String>,
+    /*onError?: ErrorCallback,*/ start: Option<usize>,
+    length: Option<usize>,
+) -> Scanner {
+    let mut scanner = Scanner::new(language_version, skip_trivia, language_variant);
+    scanner.set_text(text_initial_as_chars, text_initial, start, length);
+    /*if Debug.isDebugging {
+    Object.defineProperty(scanner, "__debugShowCurrentPositionInText"*/
+    scanner
 }
 
 pub struct Scanner /*<'on_error>*/ {
     pub(super) language_version: ScriptTarget,
     pub(super) skip_trivia: bool,
+    pub(super) language_variant: Option<LanguageVariant>,
     // on_error: Option<ErrorCallback<'on_error>>,
     pub(super) text: Option<SourceTextAsChars>,
     pub(super) text_str: Option<String>,
@@ -670,13 +688,20 @@ pub struct Scanner /*<'on_error>*/ {
     pub(super) token: RefCell<Option<SyntaxKind>>,
     pub(super) token_value: RefCell<Option<String>>,
     pub(super) token_flags: RefCell<Option<TokenFlags>>,
+    pub(super) comment_directives: RefCell<Option<Vec<CommentDirective>>>,
+    pub(super) in_jsdoc_type: Cell<isize>,
 }
 
 impl Scanner {
-    pub(super) fn new(language_version: ScriptTarget, skip_trivia: bool) -> Self {
+    pub(super) fn new(
+        language_version: ScriptTarget,
+        skip_trivia: bool,
+        language_variant: Option<LanguageVariant>,
+    ) -> Self {
         Scanner {
             language_version,
             skip_trivia,
+            language_variant,
             // on_error: None,
             text: None,
             text_str: None,
@@ -687,6 +712,8 @@ impl Scanner {
             token: RefCell::new(None),
             token_value: RefCell::new(None),
             token_flags: RefCell::new(None),
+            comment_directives: RefCell::new(None),
+            in_jsdoc_type: Cell::new(0),
         }
     }
 
@@ -772,6 +799,10 @@ impl Scanner {
         *self.token_value.borrow_mut() = Some(token_value);
     }
 
+    pub(super) fn set_maybe_token_value(&self, token_value: Option<String>) {
+        *self.token_value.borrow_mut() = token_value;
+    }
+
     pub(super) fn token_flags(&self) -> TokenFlags {
         self.token_flags.borrow().unwrap()
     }
@@ -784,12 +815,24 @@ impl Scanner {
         self.set_token_flags(self.token_flags() | flag);
     }
 
+    pub(super) fn maybe_comment_directives(&self) -> RefMut<Option<Vec<CommentDirective>>> {
+        self.comment_directives.borrow_mut()
+    }
+
+    pub(super) fn in_jsdoc_type(&self) -> isize {
+        self.in_jsdoc_type.get()
+    }
+
     pub fn get_start_pos(&self) -> usize {
         self.start_pos()
     }
 
     pub fn get_text_pos(&self) -> usize {
         self.pos()
+    }
+
+    pub fn get_token(&self) -> SyntaxKind {
+        self.token()
     }
 
     pub fn get_token_pos(&self) -> usize {
@@ -804,18 +847,40 @@ impl Scanner {
         self.token_value()
     }
 
+    pub fn has_unicode_escape(&self) -> bool {
+        self.token_flags().intersects(TokenFlags::UnicodeEscape)
+    }
+
     pub fn has_extended_unicode_escape(&self) -> bool {
         self.token_flags()
             .intersects(TokenFlags::ExtendedUnicodeEscape)
+    }
+
+    pub fn has_preceding_line_break(&self) -> bool {
+        self.token_flags()
+            .intersects(TokenFlags::PrecedingLineBreak)
+    }
+
+    pub fn has_preceding_jsdoc_comment(&self) -> bool {
+        self.token_flags()
+            .intersects(TokenFlags::PrecedingJSDocComment)
+    }
+
+    pub fn is_identifier(&self) -> bool {
+        self.token() == SyntaxKind::Identifier || self.token() > SyntaxKind::LastReservedWord
+    }
+
+    pub fn is_reserved_word(&self) -> bool {
+        self.token() >= SyntaxKind::FirstReservedWord
+            && self.token() <= SyntaxKind::LastReservedWord
     }
 
     pub fn is_unterminated(&self) -> bool {
         self.token_flags().intersects(TokenFlags::Unterminated)
     }
 
-    pub fn has_preceding_line_break(&self) -> bool {
-        self.token_flags()
-            .intersects(TokenFlags::PrecedingLineBreak)
+    pub fn get_comment_directives(&self) -> Ref<Option<Vec<CommentDirective>>> {
+        self.comment_directives.borrow()
     }
 
     pub fn get_numeric_literal_flags(&self) -> TokenFlags {

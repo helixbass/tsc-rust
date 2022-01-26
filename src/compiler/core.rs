@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::ptr;
@@ -469,4 +470,11 @@ pub fn compare_values<TValue: Eq + Ord>(
 
 pub fn compare_strings_case_sensitive(a: Option<&str>, b: Option<&str>) -> Comparison {
     compare_comparable_values(a, b)
+}
+
+pub fn trim_string_start(s: &str) -> String {
+    lazy_static! {
+        static ref regex: Regex = Regex::new(r"^\s+").unwrap();
+    }
+    regex.replace_all(s, "").to_string()
 }

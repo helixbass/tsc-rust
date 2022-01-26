@@ -305,7 +305,15 @@ pub(super) struct ParserType {
 impl ParserType {
     pub(super) fn new() -> Self {
         ParserType {
-            scanner: RefCell::new(create_scanner(ScriptTarget::Latest, true)),
+            scanner: RefCell::new(create_scanner(
+                ScriptTarget::Latest,
+                true,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )),
             NodeConstructor: None,
             IdentifierConstructor: None,
             TokenConstructor: None,

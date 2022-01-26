@@ -43,12 +43,46 @@ pub trait TextRange {
     fn set_end(&self, end: isize);
 }
 
+#[derive(Clone, Debug)]
+pub struct BaseTextRange {
+    pos: Cell<isize>,
+    end: Cell<isize>,
+}
+
+impl BaseTextRange {
+    pub fn new(pos: isize, end: isize) -> Self {
+        Self {
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+        }
+    }
+}
+
+impl TextRange for BaseTextRange {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum SyntaxKind {
     Unknown,
     EndOfFileToken,
     SingleLineCommentTrivia,
     MultiLineCommentTrivia,
+    NewLineTrivia,
     WhitespaceTrivia,
     ShebangTrivia,
     ConflictMarkerTrivia,
