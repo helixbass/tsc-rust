@@ -7,8 +7,8 @@ use std::rc::Rc;
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseTextRange,
     BaseVariableLikeDeclaration, BindingLikeDeclarationInterface, Diagnostic, FunctionDeclaration,
-    HasInitializerInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray, Path,
-    StringLiteral, Symbol, SyntaxKind, TextRange, TypeCheckerHost,
+    HasInitializerInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, Path, StringLiteral, Symbol, SyntaxKind, TextRange, TypeCheckerHost,
     VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
@@ -948,6 +948,54 @@ impl ShorthandPropertyAssignment {
             equals_token: None,
             object_assignment_initializer,
         }
+    }
+}
+
+pub trait HasElementsInterface: NodeInterface {
+    fn elements(&self) -> &NodeArray;
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct ObjectBindingPattern {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<BindingElement>*/
+}
+
+impl ObjectBindingPattern {
+    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+        }
+    }
+}
+
+impl HasElementsInterface for ObjectBindingPattern {
+    fn elements(&self) -> &NodeArray {
+        &self.elements
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct ArrayBindingPattern {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<ArrayBindingElement>*/
+}
+
+impl ArrayBindingPattern {
+    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+        }
+    }
+}
+
+impl HasElementsInterface for ArrayBindingPattern {
+    fn elements(&self) -> &NodeArray {
+        &self.elements
     }
 }
 

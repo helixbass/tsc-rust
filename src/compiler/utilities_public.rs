@@ -1,16 +1,24 @@
+use regex::Regex;
+use serde_json;
 use std::borrow::Borrow;
 use std::cmp;
+use std::collections::HashMap;
+use std::ops::BitOrAssign;
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    find, flat_map, get_emit_script_target, get_jsdoc_comments_and_tags,
-    is_class_static_block_declaration, is_identifier, is_jsdoc, is_jsdoc_parameter_tag,
-    is_jsdoc_template_tag, is_jsdoc_type_tag, is_rooted_disk_path, path_is_relative,
-    skip_outer_expressions, CharacterCodes, CompilerOptions, Debug_, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OuterExpressionKinds, ScriptTarget,
-    SyntaxKind, TextChangeRange, TextRange, TextSpan, __String, compare_diagnostics, is_block,
-    is_module_block, is_source_file, sort_and_deduplicate, Diagnostic, SortedArray,
+    combine_paths, contains, create_compiler_diagnostic, every, find, flat_map, get_directory_path,
+    get_effective_modifier_flags, get_effective_modifier_flags_always_include_jsdoc,
+    get_emit_script_target, get_jsdoc_comments_and_tags, has_syntactic_modifier,
+    is_binding_element, is_class_static_block_declaration, is_identifier, is_jsdoc,
+    is_jsdoc_parameter_tag, is_jsdoc_template_tag, is_jsdoc_type_tag, is_omitted_expression,
+    is_rooted_disk_path, normalize_path, path_is_relative, set_localized_diagnostic_messages,
+    set_ui_locale, skip_outer_expressions, CharacterCodes, CompilerOptions, Debug_, Diagnostics,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OuterExpressionKinds,
+    Push, ScriptTarget, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
+    compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
+    Diagnostic, SortedArray,
 };
 
 pub fn is_external_module_name_relative(module_name: &str) -> bool {
@@ -190,7 +198,7 @@ pub fn get_type_parameter_owner(d: &Node /*Declaration*/) -> Option<Rc<Node>> {
         let mut current = Some(d.node_wrapper());
         while current.is_some() {
             let current_present = current.clone().unwrap();
-            if is_function_like(current)
+            if is_function_like(current.clone())
                 || is_class_like(&current_present)
                 || current_present.kind() == SyntaxKind::InterfaceDeclaration
             {
@@ -210,19 +218,43 @@ pub fn is_parameter_property_declaration(node: &Node, parent: &Node) -> bool {
 
 pub fn is_empty_binding_pattern(node: &Node /*BindingName*/) -> bool {
     if is_binding_pattern(node) {
-        return every(
-            &node.as_binding_pattern().elements,
-            is_empty_binding_element,
-        );
+        return every(node.as_has_elements().elements(), |element, _| {
+            is_empty_binding_element(element)
+        });
     }
     false
 }
 
-fn get_combined_flags<TNode: NodeInterface, TCallback: FnMut(&Node) -> NodeFlags>(
+pub fn is_empty_binding_element(node: &Node /*BindingElement*/) -> bool {
+    if is_omitted_expression(node) {
+        return true;
+    }
+    is_empty_binding_pattern(&node.as_named_declaration().name())
+}
+
+pub fn walk_up_binding_elements_and_patterns(binding: &Node /*BindingElement*/) -> Rc<Node> /*VariableDeclaration | ParameterDeclaration*/
+{
+    let mut node = binding.parent();
+    while is_binding_element(&*node.parent()) {
+        node = node.parent().parent();
+    }
+    node.parent()
+}
+
+fn get_combined_flags<
+    TNode: NodeInterface,
+    TFlags: BitOrAssign,
+    TGetFlags: FnMut(&Node) -> TFlags,
+>(
     node: &TNode,
-    mut get_flags: TCallback,
-) -> NodeFlags {
+    mut get_flags: TGetFlags,
+) -> TFlags {
     let mut node = Some(node.node_wrapper());
+    if is_binding_element(&**node.as_ref().unwrap()) {
+        node = Some(walk_up_binding_elements_and_patterns(
+            node.as_ref().unwrap(),
+        ));
+    }
     let mut flags = get_flags(node.as_ref().unwrap());
     if node.as_ref().unwrap().kind() == SyntaxKind::VariableDeclaration {
         node = node.as_ref().unwrap().maybe_parent();
@@ -241,8 +273,117 @@ fn get_combined_flags<TNode: NodeInterface, TCallback: FnMut(&Node) -> NodeFlags
     flags
 }
 
+pub fn get_combined_modifier_flags<TNode: NodeInterface>(
+    node: &TNode, /*Declaration*/
+) -> ModifierFlags {
+    get_combined_flags(node, get_effective_modifier_flags)
+}
+
+pub(crate) fn get_combined_node_flags_always_include_jsdoc<TNode: NodeInterface>(
+    node: &TNode, /*Declaration*/
+) -> ModifierFlags {
+    get_combined_flags(node, get_effective_modifier_flags_always_include_jsdoc)
+}
+
 pub fn get_combined_node_flags<TNode: NodeInterface>(node: &TNode) -> NodeFlags {
     get_combined_flags(node, |n| n.flags())
+}
+
+lazy_static! {
+    pub static ref supported_locale_directories: Vec<&'static str> = vec![
+        "cs", "de", "es", "fr", "it", "ja", "ko", "pl", "pt-br", "ru", "tr", "zh-cn", "zh-tw",
+    ];
+}
+
+pub fn validate_locale_and_set_language<TSys: System>(
+    locale: &str,
+    sys: &TSys,
+    mut errors: Option<&mut Push<Diagnostic>>,
+) {
+    let lower_case_locale = locale.to_lowercase();
+    lazy_static! {
+        static ref regex: Regex = Regex::new(r"^([a-z]+)([_\-]([a-z]+))?$").unwrap();
+    }
+    let match_result = regex.captures(&lower_case_locale);
+
+    if match_result.is_none() {
+        if let Some(errors) = errors {
+            errors.push(create_compiler_diagnostic(&Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1, Some(vec!["en".to_owned(), "ja-jp".to_owned()])).into());
+        }
+        return;
+    }
+    let match_result = match_result.unwrap();
+
+    let language = &match_result[1];
+    let territory = &match_result[3];
+
+    let lower_case_locale_str: &str = &lower_case_locale;
+    if contains(Some(&supported_locale_directories), &lower_case_locale_str)
+        && !try_set_language_and_territory(sys, language, Some(territory), &mut errors)
+    {
+        try_set_language_and_territory(sys, language, None, &mut errors);
+    }
+
+    set_ui_locale(Some(locale.to_owned()));
+}
+
+fn try_set_language_and_territory<TSys: System>(
+    sys: &TSys,
+    language: &str,
+    territory: Option<&str>,
+    errors: &mut Option<&mut Push<Diagnostic>>,
+) -> bool {
+    let compiler_file_path = normalize_path(&sys.get_executing_file_path());
+    let containing_directory_path = get_directory_path(&compiler_file_path);
+
+    let mut file_path = combine_paths(&containing_directory_path, &vec![Some(language)]);
+
+    if let Some(territory) = territory {
+        file_path = format!("{}-{}", file_path, territory);
+    }
+
+    file_path = sys.resolve_path(&combine_paths(
+        &file_path,
+        &vec![Some("diagnosticMessages.generated.json")],
+    ));
+
+    if !sys.file_exists(&file_path) {
+        return false;
+    }
+
+    let mut file_contents: Option<String> = Some("".to_owned());
+    file_contents = sys.read_file(&file_path);
+    if file_contents.is_none() {
+        if let Some(errors) = errors {
+            errors.push(
+                create_compiler_diagnostic(
+                    &Diagnostics::Unable_to_open_file_0,
+                    Some(vec![file_path]),
+                )
+                .into(),
+            );
+        }
+        return false;
+    }
+    let file_contents = file_contents.unwrap();
+    let parsed_file_contents: serde_json::Result<HashMap<String, String>> =
+        serde_json::from_str(&file_contents);
+    if parsed_file_contents.is_err() {
+        if let Some(errors) = errors {
+            errors.push(
+                create_compiler_diagnostic(
+                    &Diagnostics::Corrupted_locale_file_0,
+                    Some(vec![file_path]),
+                )
+                .into(),
+            );
+        }
+        return false;
+    }
+    let parsed_file_contents = parsed_file_contents.unwrap();
+    set_localized_diagnostic_messages(Some(parsed_file_contents));
+
+    true
 }
 
 pub enum FindAncestorCallbackReturn {
@@ -262,7 +403,7 @@ pub fn find_ancestor<
     TCallback: FnMut(&Node) -> TCallbackReturn,
 >(
     node: Option<TNodeRef>,
-    callback: TCallback,
+    mut callback: TCallback,
 ) -> Option<Rc<Node>> {
     let mut node = node.map(|node| node.borrow().node_wrapper());
     while let Some(rc_node_ref) = node.as_ref() {
@@ -584,6 +725,14 @@ pub fn is_function_or_module_block<TNode: NodeInterface>(node: &TNode) -> bool {
     is_source_file(node)
         || is_module_block(node)
         || is_block(node) && is_function_like(node.maybe_parent())
+}
+
+pub fn is_class_like(node: &Node) -> bool {
+    /*node &&*/
+    matches!(
+        node.kind(),
+        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+    )
 }
 
 pub fn is_binding_pattern<TNode: NodeInterface>(node: &TNode) -> bool {

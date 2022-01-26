@@ -6,12 +6,13 @@ use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BinaryExpression, BindingElement, CallExpression, Decorator, ElementAccessExpression,
-    EnumMember, Expression, ExpressionStatement, FunctionLikeDeclarationInterface,
-    HasExpressionInterface, HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier,
-    JSDoc, JSDocPropertyLikeTag, JSDocTag, JSDocTemplateTag, JSDocTypeTag, JsxAttribute,
-    LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, ModuleDeclaration,
-    NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral, ObjectLiteralExpression,
+    ArrayBindingPattern, BinaryExpression, BindingElement, CallExpression, Decorator,
+    ElementAccessExpression, EnumMember, Expression, ExpressionStatement,
+    FunctionLikeDeclarationInterface, HasElementsInterface, HasExpressionInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDoc, JSDocPropertyLikeTag,
+    JSDocTag, JSDocTemplateTag, JSDocTypeTag, JsxAttribute, LiteralLikeNodeInterface,
+    MemberNameInterface, ModifiersArray, ModuleDeclaration, NamedDeclarationInterface,
+    NewExpression, NodeArray, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
     ParameterDeclaration, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
     QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
     SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
@@ -563,6 +564,14 @@ bitflags! {
         const Deprecated = 1 << 13;
         const Override = 1 << 14;
         const HasComputedFlags = 1 << 29;
+
+        const AccessibilityModifier = Self::Public.bits | Self::Private.bits | Self::Protected.bits;
+        const ParameterPropertyModifier = Self::AccessibilityModifier.bits | Self::Readonly.bits | Self::Override.bits;
+        const NonPublicAccessibilityModifier = Self::Private.bits | Self::Protected.bits;
+
+        const TypeScriptModifier = Self::Ambient.bits | Self::Public.bits | Self::Private.bits | Self::Protected.bits | Self::Readonly.bits | Self::Abstract.bits | Self::Const.bits | Self::Override.bits;
+        const ExportDefault = Self::Export.bits | Self::Default.bits;
+        const All = Self::Export.bits | Self::Ambient.bits | Self::Public.bits | Self::Private.bits | Self::Protected.bits | Self::Static.bits | Self::Readonly.bits | Self::Abstract.bits | Self::Async.bits | Self::Default.bits | Self::Const.bits | Self::Deprecated.bits | Self::Override.bits;
     }
 }
 
@@ -632,6 +641,8 @@ pub enum Node {
     JsxAttribute(JsxAttribute),
     JSDoc(JSDoc),
     ShorthandPropertyAssignment(ShorthandPropertyAssignment),
+    ObjectBindingPattern(ObjectBindingPattern),
+    ArrayBindingPattern(ArrayBindingPattern),
 }
 
 impl Node {
@@ -775,6 +786,14 @@ impl Node {
     pub fn as_function_like_declaration(&self) -> &dyn FunctionLikeDeclarationInterface {
         self.maybe_as_function_like_declaration()
             .expect("Expected function like declaration")
+    }
+
+    pub fn as_has_elements(&self) -> &dyn HasElementsInterface {
+        match self {
+            Node::ObjectBindingPattern(node) => node,
+            Node::ArrayBindingPattern(node) => node,
+            _ => panic!("Expected has elements"),
+        }
     }
 
     pub fn as_expression(&self) -> &Expression {

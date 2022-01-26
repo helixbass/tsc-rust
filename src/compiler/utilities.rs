@@ -25,7 +25,7 @@ use crate::{
     options_affecting_program_structure, skip_outer_expressions, str_to_source_text_as_chars,
     text_substring, AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface,
     CompilerOptions, CompilerOptionsValue, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface,
+    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, MapLike,
     ModifierFlags, ModuleKind, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags,
     OuterExpressionKinds, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, ScriptTarget,
     Signature, SignatureFlags, SortedArray, SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags,
@@ -499,7 +499,8 @@ pub fn node_is_missing<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
     if node.is_none() {
         return false;
     }
-    let node = node.unwrap().borrow();
+    let node = node.unwrap();
+    let node = node.borrow();
     node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
 }
 
@@ -563,8 +564,8 @@ fn create_file_diagnostic_from_message_chain(
         BaseDiagnosticRelatedInformation::new(
             message_chain.code,
             Some(file.node_wrapper()),
-            start,
-            length,
+            Some(start),
+            Some(length),
             message_chain,
         ),
         related_information,
@@ -1222,7 +1223,8 @@ pub fn get_function_flags<TNodeRef: Borrow<Node>>(
     if node.is_none() {
         return FunctionFlags::Invalid;
     }
-    let node = node.unwrap().borrow();
+    let node = node.unwrap();
+    let node = node.borrow();
 
     let mut flags = FunctionFlags::Normal;
     match node.kind() {
@@ -1842,7 +1844,7 @@ pub fn get_effective_return_type_node(
     }
 }
 
-fn has_syntactic_modifier(node: &Node, flags: ModifierFlags) -> bool {
+pub fn has_syntactic_modifier(node: &Node, flags: ModifierFlags) -> bool {
     get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
 }
 
@@ -1872,7 +1874,15 @@ fn get_modifier_flags_worker(
         & !(ModifierFlags::HasComputedFlags | ModifierFlags::HasComputedJSDocModifiers)
 }
 
-fn get_syntactic_modifier_flags(node: &Node) -> ModifierFlags {
+pub fn get_effective_modifier_flags(node: &Node) -> ModifierFlags {
+    get_modifier_flags_worker(node, true, None)
+}
+
+pub fn get_effective_modifier_flags_always_include_jsdoc(node: &Node) -> ModifierFlags {
+    get_modifier_flags_worker(node, true, Some(true))
+}
+
+pub fn get_syntactic_modifier_flags(node: &Node) -> ModifierFlags {
     get_modifier_flags_worker(node, false, None)
 }
 
@@ -2119,6 +2129,16 @@ fn format_string_from_args(text: &str, args: Vec<String>) -> String {
     .to_string()
 }
 
+thread_local! {
+    pub static localized_diagnostic_messages: RefCell<Option<MapLike<String>>> = RefCell::new(None);
+}
+
+pub(crate) fn set_localized_diagnostic_messages(messages: Option<MapLike<String>>) {
+    localized_diagnostic_messages.with(|localized_diagnostic_messages_| {
+        *localized_diagnostic_messages_.borrow_mut() = messages;
+    })
+}
+
 fn get_locale_specific_message(message: &DiagnosticMessage) -> String {
     message.message.to_string()
 }
@@ -2140,7 +2160,13 @@ pub fn create_detached_diagnostic(
 
     DiagnosticWithDetachedLocation::new(
         BaseDiagnostic::new(
-            BaseDiagnosticRelatedInformation::new(message.code, None, start, length, text),
+            BaseDiagnosticRelatedInformation::new(
+                message.code,
+                None,
+                Some(start),
+                Some(length),
+                text,
+            ),
             None,
         ),
         file_name.to_string(),
@@ -2170,8 +2196,8 @@ pub fn attach_file_to_diagnostic(
         BaseDiagnosticRelatedInformation::new(
             diagnostic.code(),
             Some(file.node_wrapper()),
-            diagnostic.start(),
-            diagnostic.length(),
+            Some(diagnostic.start()),
+            Some(diagnostic.length()),
             diagnostic.message_text().clone(),
         ),
         None,
@@ -2238,12 +2264,30 @@ fn create_file_diagnostic(
         BaseDiagnosticRelatedInformation::new(
             message.code,
             Some(file.node_wrapper()),
-            start,
-            length,
+            Some(start),
+            Some(length),
             text,
         ),
         None,
     ))
+}
+
+pub fn create_compiler_diagnostic(
+    message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
+) -> BaseDiagnostic {
+    let mut text = get_locale_specific_message(message);
+
+    if let Some(args) = args {
+        if !args.is_empty() {
+            text = format_string_from_args(&text, args);
+        }
+    }
+
+    BaseDiagnostic::new(
+        BaseDiagnosticRelatedInformation::new(message.code, None, None, None, text),
+        None,
+    )
 }
 
 pub fn chain_diagnostic_messages(

@@ -46,6 +46,8 @@ impl<TItem> Deref for SortedArray<TItem> {
     }
 }
 
+pub type Push<TItem> = Vec<TItem>;
+
 // pub trait ReadonlyCollection<TKey> {
 //     fn size(&self) -> usize;
 //     fh has(&self, key: &TKey) -> bool;
