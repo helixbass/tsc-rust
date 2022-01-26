@@ -76,9 +76,16 @@ pub trait SymbolTracker {
     fn report_non_serializable_property(&mut self, property_name: &str) {}
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct TextSpan {
     pub start: isize,
     pub length: isize,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct TextChangeRange {
+    pub span: TextSpan,
+    pub new_length: isize,
 }
 
 #[derive(Debug)]
