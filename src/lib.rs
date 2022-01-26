@@ -13,9 +13,12 @@ use compiler::command_line_parser::{
 pub use compiler::command_line_parser::{parse_command_line, OptionsNameMap};
 pub use compiler::core::{
     add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key,
-    compare_strings_case_sensitive, compare_values, concatenate, every, filter, find,
-    first_defined, first_or_undefined, flat_map, for_each, insert_sorted, last, last_or_undefined,
-    length, map, maybe_for_each, range_equals, some, sort_and_deduplicate, trim_string_start,
+    compare_strings_case_insensitive, compare_strings_case_sensitive,
+    compare_strings_case_sensitive_maybe, compare_values, concatenate, ends_with,
+    equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, filter,
+    find, first_defined, first_or_undefined, flat_map, for_each, get_string_comparer,
+    insert_sorted, last, last_or_undefined, length, map, maybe_for_each, range_equals, some,
+    sort_and_deduplicate, starts_with, string_contains, trim_string_start, GetCanonicalFileName,
 };
 pub use compiler::core_public::{Comparer, Comparison, MapLike, SortedArray};
 pub use compiler::debug::Debug_;
@@ -92,7 +95,22 @@ pub use compiler::factory::parenthesizer_rules::{
 };
 pub use compiler::factory::utilities::skip_outer_expressions;
 pub use compiler::parser::{create_source_file, for_each_child, MissingNode};
-pub use compiler::path::{normalize_path, to_path};
+pub use compiler::path::{
+    alt_directory_separator, change_any_extension, combine_paths, compare_paths,
+    compare_paths_case_insensitive, compare_paths_case_sensitive, contains_path,
+    convert_to_relative_path, directory_separator, ensure_path_is_non_module_name,
+    ensure_trailing_directory_separator, file_extension_is, file_extension_is_one_of,
+    for_each_ancestor_directory, get_any_extension_from_path, get_base_file_name,
+    get_directory_path, get_normalized_absolute_path, get_normalized_absolute_path_without_root,
+    get_normalized_path_components, get_path_components, get_path_components_relative_to,
+    get_path_from_path_components, get_relative_path_from_directory, get_relative_path_from_file,
+    get_relative_path_to_directory_or_url, get_root_length, has_extension,
+    has_trailing_directory_separator, is_any_directory_separator, is_disk_path_root,
+    is_node_modules_directory, is_rooted_disk_path, is_url, normalize_path,
+    normalize_path_and_parts, normalize_slashes, path_is_absolute, path_is_bare_specifier,
+    path_is_relative, reduce_path_components, remove_trailing_directory_separator, resolve_path,
+    starts_with_directory, to_path,
+};
 pub use compiler::program::create_program;
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position, compute_line_starts,

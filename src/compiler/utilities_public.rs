@@ -4,11 +4,15 @@ use std::rc::Rc;
 
 use crate::{
     find, flat_map, get_jsdoc_comments_and_tags, is_identifier, is_jsdoc, is_jsdoc_parameter_tag,
-    is_jsdoc_template_tag, is_jsdoc_type_tag, skip_outer_expressions, CharacterCodes, Debug_,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OuterExpressionKinds, SyntaxKind,
-    TextSpan, __String, compare_diagnostics, is_block, is_module_block, is_source_file,
-    sort_and_deduplicate, Diagnostic, SortedArray,
+    is_jsdoc_template_tag, is_jsdoc_type_tag, is_rooted_disk_path, path_is_relative,
+    skip_outer_expressions, CharacterCodes, Debug_, NamedDeclarationInterface, Node, NodeFlags,
+    NodeInterface, OuterExpressionKinds, SyntaxKind, TextSpan, __String, compare_diagnostics,
+    is_block, is_module_block, is_source_file, sort_and_deduplicate, Diagnostic, SortedArray,
 };
+
+pub fn is_external_module_name_relative(module_name: &str) -> bool {
+    path_is_relative(module_name) || is_rooted_disk_path(module_name)
+}
 
 pub fn sort_and_deduplicate_diagnostics(
     diagnostics: &[Rc<Diagnostic>],

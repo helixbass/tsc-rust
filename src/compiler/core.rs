@@ -490,6 +490,18 @@ fn identity<TValue>(x: TValue) -> TValue {
     x
 }
 
+pub fn equate_values<TValue: PartialEq + ?Sized>(a: &TValue, b: &TValue) -> bool {
+    a == b
+}
+
+pub fn equate_strings_case_insensitive(a: &str, b: &str) -> bool {
+    a == b || a.to_uppercase() == b.to_uppercase()
+}
+
+pub fn equate_strings_case_sensitive(a: &str, b: &str) -> bool {
+    equate_values(a, b)
+}
+
 fn compare_comparable_values<TValue: Eq + Ord>(
     a: Option<TValue>, /*number | string | undefined*/
     b: Option<TValue>, /*number | string | undefined*/
@@ -522,8 +534,52 @@ pub fn compare_values<TValue: Eq + Ord>(
     compare_comparable_values(a, b)
 }
 
-pub fn compare_strings_case_sensitive(a: Option<&str>, b: Option<&str>) -> Comparison {
+pub fn compare_strings_case_insensitive(a: &str, b: &str) -> Comparison {
+    if a == b {
+        return Comparison::EqualTo;
+    }
+    // if (a === undefined) return Comparison.LessThan;
+    // if (b === undefined) return Comparison.GreaterThan;
+    let a = a.to_uppercase();
+    let b = b.to_uppercase();
+    if a < b {
+        Comparison::LessThan
+    } else if a > b {
+        Comparison::GreaterThan
+    } else {
+        Comparison::EqualTo
+    }
+}
+
+pub fn compare_strings_case_sensitive_maybe(a: Option<&str>, b: Option<&str>) -> Comparison {
     compare_comparable_values(a, b)
+}
+
+pub fn compare_strings_case_sensitive(a: &str, b: &str) -> Comparison {
+    compare_strings_case_sensitive_maybe(Some(a), Some(b))
+}
+
+pub fn get_string_comparer(ignore_case: Option<bool>) -> fn(&str, &str) -> Comparison {
+    let ignore_case = ignore_case.unwrap_or(false);
+    if ignore_case {
+        compare_strings_case_insensitive
+    } else {
+        compare_strings_case_sensitive
+    }
+}
+
+pub fn ends_with(str_: &str, suffix: &str) -> bool {
+    str_.ends_with(suffix)
+}
+
+pub fn string_contains(str_: &str, substring: &str) -> bool {
+    str_.find(substring).is_some()
+}
+
+pub type GetCanonicalFileName = fn(&str) -> String;
+
+pub fn starts_with(str_: &str, prefix: &str) -> bool {
+    str_.starts_with(prefix)
 }
 
 pub fn trim_string_start(s: &str) -> String {
