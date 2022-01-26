@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use regex::Regex;
 use std::borrow::Cow;
 use std::cmp;
@@ -10,16 +12,12 @@ use crate::{
     GetCanonicalFileName, Path,
 };
 
-#[allow(non_upper_case_globals)]
 pub const directory_separator: char = '/';
 
-#[allow(non_upper_case_globals)]
 pub const directory_separator_str: &str = "/";
 
-#[allow(non_upper_case_globals)]
 pub const alt_directory_separator: char = '\\';
 
-#[allow(non_upper_case_globals)]
 pub const url_scheme_separator: &str = "://";
 
 lazy_static! {
@@ -86,14 +84,14 @@ fn is_volume_character(char_code: char) -> bool {
 }
 
 fn get_file_url_volume_separator_end(url: &[char], start: usize) -> isize {
-    let ch0 = url.get(start).map(|ch| *ch);
+    let ch0 = url.get(start).copied();
     if matches!(ch0, Some(CharacterCodes::colon)) {
         return (start + 1).try_into().unwrap();
     }
     if matches!(ch0, Some(CharacterCodes::percent))
-        && matches!(url.get(start + 1).map(|ch| *ch), Some(CharacterCodes::_3))
+        && matches!(url.get(start + 1).copied(), Some(CharacterCodes::_3))
     {
-        let ch2 = url.get(start + 2).map(|ch| *ch);
+        let ch2 = url.get(start + 2).copied();
         if matches!(ch2, Some(CharacterCodes::a | CharacterCodes::A)) {
             return (start + 3).try_into().unwrap();
         }
@@ -110,7 +108,7 @@ fn get_encoded_root_length(path: &str) -> isize {
     let ch0 = path[0];
 
     if matches!(ch0, CharacterCodes::slash | CharacterCodes::backslash) {
-        if path.get(1).map(|ch| *ch) != Some(ch0) {
+        if path.get(1).copied() != Some(ch0) {
             return 1;
         }
 
@@ -133,9 +131,8 @@ fn get_encoded_root_length(path: &str) -> isize {
         return (p1 + 1).try_into().unwrap();
     }
 
-    if is_volume_character(ch0) && matches!(path.get(1).map(|ch| *ch), Some(CharacterCodes::colon))
-    {
-        let ch2 = path.get(2).map(|ch| *ch);
+    if is_volume_character(ch0) && matches!(path.get(1).copied(), Some(CharacterCodes::colon)) {
+        let ch2 = path.get(2).copied();
         if matches!(ch2, Some(CharacterCodes::slash | CharacterCodes::backslash)) {
             return 3;
         }
@@ -157,7 +154,7 @@ fn get_encoded_root_length(path: &str) -> isize {
             let scheme: String = path[0..scheme_end].iter().collect();
             let authority: String = path[authority_start..authority_end].iter().collect();
             if &scheme == "file"
-                && (&authority == "" || &authority == "localhost")
+                && (authority.is_empty() || &authority == "localhost")
                 && matches!(path.get(authority_end + 1), Some(ch) if is_volume_character(*ch))
             {
                 let volume_separator_end =
@@ -166,7 +163,7 @@ fn get_encoded_root_length(path: &str) -> isize {
                     let volume_separator_end_as_usize: usize =
                         volume_separator_end.try_into().unwrap();
                     if matches!(
-                        path.get(volume_separator_end_as_usize).map(|ch| *ch),
+                        path.get(volume_separator_end_as_usize).copied(),
                         Some(CharacterCodes::slash)
                     ) {
                         return !(volume_separator_end + 1);
@@ -184,7 +181,7 @@ fn get_encoded_root_length(path: &str) -> isize {
     0
 }
 
-fn get_root_length(path: &str) -> usize {
+pub fn get_root_length(path: &str) -> usize {
     let root_length = get_encoded_root_length(path);
     if root_length < 0 {
         (!root_length).try_into().unwrap()
@@ -198,7 +195,7 @@ pub fn get_directory_path(path: &str) -> String {
 
     let root_length = get_root_length(&path);
     if root_length == path.len() {
-        return path.to_string();
+        return path;
     }
 
     path = remove_trailing_directory_separator(&path);
@@ -302,7 +299,7 @@ pub fn get_any_extension_from_path(
 
 fn path_components(path: &str, root_length: usize) -> Vec<String> {
     let path: Vec<char> = path.chars().collect();
-    let root: String = path[0..root_length].into_iter().collect();
+    let root: String = path[0..root_length].iter().collect();
     let mut rest: Vec<String> = path[root_length..]
         .iter()
         .collect::<String>()
@@ -317,19 +314,19 @@ fn path_components(path: &str, root_length: usize) -> Vec<String> {
     ret
 }
 
-fn get_path_components(path: &str, current_directory: Option<&str>) -> Vec<String> {
+pub fn get_path_components(path: &str, current_directory: Option<&str>) -> Vec<String> {
     let current_directory = current_directory.unwrap_or("");
-    let path = combine_paths(current_directory, &[Some(&path)]);
+    let path = combine_paths(current_directory, &[Some(path)]);
     path_components(&path, get_root_length(&path))
 }
 
-pub fn get_path_from_path_components(path_components: &Vec<String>) -> String {
-    if path_components.len() == 0 {
+pub fn get_path_from_path_components(path_components: &[String]) -> String {
+    if path_components.is_empty() {
         return "".into();
     }
 
     let first = &path_components[0];
-    let root = if first.len() > 0 {
+    let root = if !first.is_empty() {
         ensure_trailing_directory_separator(first)
     } else {
         first.to_string()
@@ -340,11 +337,11 @@ pub fn get_path_from_path_components(path_components: &Vec<String>) -> String {
 }
 
 pub fn normalize_slashes(path: &str) -> String {
-    let index = path.find("\\");
+    let index = path.find('\\');
     if index.is_none() {
         return path.to_string();
     }
-    let index = index.unwrap();
+    let _index = index.unwrap();
     // backslashRegExp.lastIndex = index;
     backslash_reg_exp
         .replace_all(path, directory_separator_str)
@@ -356,7 +353,7 @@ pub fn reduce_path_components(components: &[String]) -> Vec<String> {
         return vec![];
     }
     let mut reduced = vec![components[0].clone()];
-    for (i, component) in components.iter().enumerate().take(1) {
+    for component in components.iter().take(1) {
         if component.is_empty() {
             continue;
         }
@@ -412,11 +409,11 @@ pub fn resolve_path(path: &str, paths: &[Option<&str>]) -> String {
     )
 }
 
-fn get_normalized_path_components(path: &str, current_directory: Option<&str>) -> Vec<String> {
+pub fn get_normalized_path_components(path: &str, current_directory: Option<&str>) -> Vec<String> {
     reduce_path_components(&get_path_components(path, current_directory))
 }
 
-fn get_normalized_absolute_path(file_name: &str, current_directory: Option<&str>) -> String {
+pub fn get_normalized_absolute_path(file_name: &str, current_directory: Option<&str>) -> String {
     get_path_from_path_components(&get_normalized_path_components(
         file_name,
         current_directory,
@@ -497,7 +494,7 @@ pub struct PathAndParts {
 pub fn normalize_path_and_parts(path: &str) -> PathAndParts {
     let path = normalize_slashes(path);
     let parts = reduce_path_components(&get_path_components(&path, None));
-    let root = parts.iter().next().unwrap().clone();
+    let root = parts[0].clone();
     let parts: Vec<String> = parts.iter().skip(1).map(Clone::clone).collect();
     if !parts.is_empty() {
         let joined_parts = format!("{}{}", root, parts.join(directory_separator_str));
