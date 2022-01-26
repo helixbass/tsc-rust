@@ -13,9 +13,12 @@ use compiler::command_line_parser::{
 pub use compiler::command_line_parser::{parse_command_line, OptionsNameMap};
 pub use compiler::core::{
     add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key,
-    compare_strings_case_sensitive, compare_values, concatenate, every, filter, find,
-    first_defined, first_or_undefined, flat_map, for_each, insert_sorted, last, last_or_undefined,
-    length, map, maybe_for_each, range_equals, some, sort_and_deduplicate, trim_string_start,
+    compare_strings_case_insensitive, compare_strings_case_sensitive,
+    compare_strings_case_sensitive_maybe, compare_values, concatenate, ends_with,
+    equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, filter,
+    find, first_defined, first_or_undefined, flat_map, for_each, get_string_comparer,
+    insert_sorted, last, last_or_undefined, length, map, maybe_for_each, range_equals, some,
+    sort_and_deduplicate, starts_with, string_contains, trim_string_start, GetCanonicalFileName,
 };
 pub use compiler::core_public::{Comparer, Comparison, MapLike, SortedArray};
 pub use compiler::debug::Debug_;
@@ -92,7 +95,7 @@ pub use compiler::factory::parenthesizer_rules::{
 };
 pub use compiler::factory::utilities::skip_outer_expressions;
 pub use compiler::parser::{create_source_file, for_each_child, MissingNode};
-pub use compiler::path::{normalize_path, to_path};
+pub use compiler::path::{is_rooted_disk_path, normalize_path, path_is_relative, to_path};
 pub use compiler::program::create_program;
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position, compute_line_starts,

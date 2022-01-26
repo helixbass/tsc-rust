@@ -259,7 +259,7 @@ fn to_path(helper_context: &mut CreateProgramHelperContext, file_name: &str) -> 
     to_path_helper(
         file_name,
         Some(helper_context.current_directory),
-        &mut |file_name| get_canonical_file_name(helper_context, file_name),
+        |file_name| get_canonical_file_name(helper_context, file_name),
     )
 }
 

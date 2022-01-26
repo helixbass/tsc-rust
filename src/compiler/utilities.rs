@@ -12,12 +12,12 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    add_range, compute_line_starts, filter, first_or_undefined, get_jsdoc_parameter_tags,
-    get_jsdoc_parameter_tags_no_cache, get_jsdoc_type_parameter_tags,
-    get_jsdoc_type_parameter_tags_no_cache, has_initializer, has_jsdoc_nodes, id_text,
-    is_binary_expression, is_call_expression, is_element_access_expression,
-    is_expression_statement, is_identifier, is_jsdoc, is_jsdoc_type_tag,
-    is_left_hand_side_expression, is_module_declaration, is_numeric_literal,
+    add_range, compare_strings_case_sensitive_maybe, compute_line_starts, filter,
+    first_or_undefined, get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache,
+    get_jsdoc_type_parameter_tags, get_jsdoc_type_parameter_tags_no_cache, has_initializer,
+    has_jsdoc_nodes, id_text, is_binary_expression, is_call_expression,
+    is_element_access_expression, is_expression_statement, is_identifier, is_jsdoc,
+    is_jsdoc_type_tag, is_left_hand_side_expression, is_module_declaration, is_numeric_literal,
     is_object_literal_expression, is_parenthesized_expression, is_property_access_expression,
     is_source_file, is_string_literal_like, is_variable_statement, is_void_expression,
     is_white_space_like, last, length, module_resolution_option_declarations,
@@ -2149,7 +2149,7 @@ fn compare_diagnostics_skip_related_information<
     d1: &TDiagnosticRelatedInformation,
     d2: &TDiagnosticRelatedInformation,
 ) -> Comparison {
-    let mut compared = compare_strings_case_sensitive(
+    let mut compared = compare_strings_case_sensitive_maybe(
         get_diagnostic_file_path(d1).as_deref(),
         get_diagnostic_file_path(d2).as_deref(),
     );
@@ -2214,7 +2214,7 @@ fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic) -> Comparison {
 fn compare_message_text(t1: &DiagnosticMessageText, t2: &DiagnosticMessageText) -> Comparison {
     if let DiagnosticMessageText::String(t1) = t1 {
         if let DiagnosticMessageText::String(t2) = t2 {
-            return compare_strings_case_sensitive(Some(t1), Some(t2));
+            return compare_strings_case_sensitive(t1, t2);
         }
     }
     if matches!(t1, DiagnosticMessageText::String(_)) {
@@ -2225,7 +2225,7 @@ fn compare_message_text(t1: &DiagnosticMessageText, t2: &DiagnosticMessageText) 
     }
     let t1 = enum_unwrapped!(t1, [DiagnosticMessageText, DiagnosticMessageChain]);
     let t2 = enum_unwrapped!(t2, [DiagnosticMessageText, DiagnosticMessageChain]);
-    let mut res = compare_strings_case_sensitive(Some(&t1.message_text), Some(&t2.message_text));
+    let mut res = compare_strings_case_sensitive(&t1.message_text, &t2.message_text);
     if res != Comparison::EqualTo {
         return res;
     }
