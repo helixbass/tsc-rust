@@ -34,6 +34,16 @@ impl __String {
     pub fn chars(&self) -> std::str::Chars {
         self.0.chars()
     }
+
+    // TODO: should implement via Deref instead?
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    // TODO: should implement via some trait?
+    pub fn eq_str(&self, str: &str) -> bool {
+        &self.0 == str
+    }
 }
 
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;

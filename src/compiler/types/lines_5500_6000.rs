@@ -236,6 +236,20 @@ impl BitAndAssign for Ternary {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AssignmentDeclarationKind {
+    None,
+    ExportsProperty,
+    ModuleExports,
+    PrototypeProperty,
+    ThisProperty,
+    Property,
+    Prototype,
+    ObjectDefinePropertyValue,
+    ObjectDefinePropertyExports,
+    ObjectDefinePrototypeProperty,
+}
+
 #[derive(Clone, Debug)]
 pub struct DiagnosticMessage {
     pub key: &'static str,
@@ -308,7 +322,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
         self._diagnostic_related_information.code()
     }
 
-    fn file(&self) -> Option<Rc<SourceFile>> {
+    fn file(&self) -> Option<Rc<Node>> {
         self._diagnostic_related_information.file()
     }
 
@@ -354,7 +368,7 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
         }
     }
 
-    fn file(&self) -> Option<Rc<SourceFile>> {
+    fn file(&self) -> Option<Rc<Node>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
                 diagnostic_with_location.file()
@@ -447,7 +461,7 @@ impl From<DiagnosticMessageChain> for DiagnosticMessageText {
 pub trait DiagnosticRelatedInformationInterface {
     fn maybe_as_diagnostic(&self) -> Option<&Diagnostic>;
     fn code(&self) -> u32;
-    fn file(&self) -> Option<Rc<SourceFile>>;
+    fn file(&self) -> Option<Rc<Node>>;
     fn start(&self) -> isize;
     fn length(&self) -> isize;
     fn message_text(&self) -> &DiagnosticMessageText;
@@ -493,7 +507,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
         }
     }
 
-    fn file(&self) -> Option<Rc<SourceFile>> {
+    fn file(&self) -> Option<Rc<Node>> {
         match self {
             DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
                 base_diagnostic_related_information,
@@ -533,7 +547,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
 #[derive(Clone, Debug)]
 pub struct BaseDiagnosticRelatedInformation {
     code: u32,
-    file: Option<Weak<SourceFile>>,
+    file: Option<Weak<Node /*SourceFile*/>>,
     start: isize,
     length: isize,
     message_text: DiagnosticMessageText,
@@ -542,7 +556,7 @@ pub struct BaseDiagnosticRelatedInformation {
 impl BaseDiagnosticRelatedInformation {
     pub fn new<TDiagnosticMessageText: Into<DiagnosticMessageText>>(
         code: u32,
-        file: Option<Rc<SourceFile>>,
+        file: Option<Rc<Node>>,
         start: isize,
         length: isize,
         message_text: TDiagnosticMessageText,
@@ -566,7 +580,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
         self.code
     }
 
-    fn file(&self) -> Option<Rc<SourceFile>> {
+    fn file(&self) -> Option<Rc<Node>> {
         self.file.as_ref().map(|weak| weak.upgrade().unwrap())
     }
 
@@ -595,7 +609,7 @@ impl DiagnosticWithLocation {
         }
     }
 
-    pub fn file_unwrapped(&self) -> Rc<SourceFile> {
+    pub fn file_unwrapped(&self) -> Rc<Node> {
         self.file().unwrap()
     }
 }
@@ -609,7 +623,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
         self._diagnostic.code()
     }
 
-    fn file(&self) -> Option<Rc<SourceFile>> {
+    fn file(&self) -> Option<Rc<Node>> {
         self._diagnostic.file()
     }
 
@@ -678,7 +692,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
         self._diagnostic.code()
     }
 
-    fn file(&self) -> Option<Rc<SourceFile>> {
+    fn file(&self) -> Option<Rc<Node>> {
         self._diagnostic.file()
     }
 
@@ -721,4 +735,12 @@ pub enum DiagnosticCategory {
     Error,
     Suggestion,
     Message,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModuleResolutionKind {
+    Classic = 1,
+    NodeJs = 2,
+    Node12 = 3,
+    NodeNext = 99,
 }

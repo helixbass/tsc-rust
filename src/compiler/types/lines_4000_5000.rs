@@ -6,9 +6,9 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseType, DiagnosticCollection, ModuleSpecifierResolutionHost, Node, NodeId, NodeLinks,
-    ObjectFlags, RelationComparisonResult, Signature, SignatureFlags, SymbolTable, SymbolTracker,
-    Type, TypeFlags, TypeMapper, __String,
+    BaseType, CompilerOptions, DiagnosticCollection, ModuleSpecifierResolutionHost, Node, NodeId,
+    NodeLinks, ObjectFlags, RelationComparisonResult, Signature, SignatureFlags, SymbolTable,
+    SymbolTracker, Type, TypeFlags, TypeMapper, __String,
 };
 use crate::{NodeBuilder, Number};
 use local_macros::symbol_type;
@@ -26,6 +26,7 @@ pub enum ExitStatus {
 }
 
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
+    fn get_compiler_options(&self) -> Rc<CompilerOptions>;
     fn get_source_files(&self) -> Vec<Rc<Node>>;
 }
 
@@ -39,6 +40,7 @@ pub struct TypeChecker {
     pub Signature: fn(SignatureFlags) -> Signature,
     pub(crate) type_count: Cell<u32>,
     pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
+    pub(crate) compiler_options: Rc<CompilerOptions>,
     pub strict_null_checks: bool,
     pub no_implicit_any: bool,
     pub fresh_object_literal_flag: ObjectFlags,
@@ -170,11 +172,16 @@ bitflags! {
 
 pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
+    fn write_operator(&mut self, text: &str);
     fn write_punctuation(&mut self, text: &str);
     fn write_space(&mut self, text: &str);
     fn write_string_literal(&mut self, text: &str);
+    fn write_parameter(&mut self, text: &str);
     fn write_property(&mut self, text: &str);
     fn write_symbol(&mut self, text: &str, symbol: &Symbol);
+    fn write_line(&mut self, force: Option<bool>);
+    fn increase_indent(&mut self);
+    fn decrease_indent(&mut self);
     fn clear(&mut self);
 }
 

@@ -7,13 +7,14 @@ use std::rc::Rc;
 
 use crate::{
     append_if_unique, filter, get_effective_return_type_node,
-    get_effective_type_parameter_declarations, is_binding_pattern, node_is_missing, Signature,
-    SignatureFlags, SignatureKind, UnionType, __String, binary_search_copy_key, compare_values,
-    concatenate, get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
-    ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference,
-    TypeReferenceNode, UnionReduction, UnionTypeNode,
+    get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
+    node_is_missing, Signature, SignatureFlags, SignatureKind, UnionType, __String,
+    binary_search_copy_key, compare_values, concatenate, get_name_of_declaration, get_object_flags,
+    map, unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType,
+    DiagnosticMessage, Diagnostics, Expression, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode, UnionReduction,
+    UnionTypeNode,
 };
 
 impl TypeChecker {

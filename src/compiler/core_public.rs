@@ -1,4 +1,7 @@
+use std::collections::HashMap;
 use std::ops::Deref;
+
+pub type MapLike<TValue> = HashMap<String, TValue>;
 
 #[derive(Debug)]
 pub struct SortedArray<TItem> {
@@ -42,6 +45,12 @@ impl<TItem> Deref for SortedArray<TItem> {
         &self._vec
     }
 }
+
+// pub trait ReadonlyCollection<TKey> {
+//     fn size(&self) -> usize;
+//     fh has(&self, key: &TKey) -> bool;
+//     fn keys(&self) ->
+// }
 
 pub type Comparer<TValue> = fn(a: TValue, b: TValue) -> Comparison;
 // pub trait Comparer<TValue>: Fn(TValue, TValue) -> Comparison + 'static {}

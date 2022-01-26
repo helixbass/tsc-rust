@@ -13,10 +13,29 @@ impl ParserType {
     pub(super) fn parse_type_parameter(&self) -> TypeParameterDeclaration {
         let pos = self.get_node_pos();
         let name = self.parse_identifier(None, None);
+        let mut constraint: Option<TypeNode> = None;
+        let mut expression: Option<Expression> = None;
+        if self.parse_optional(SyntaxKind::ExtendsKeyword) {
+            if self.is_start_of_type(None) || !self.is_start_of_expression() {
+                constraint = Some(self.parse_type());
+            } else {
+                expression = Some(self.parse_unary_expression_or_higher());
+            }
+        }
 
-        let node = self
-            .factory
-            .create_type_parameter_declaration(self, name.into());
+        let default_type = if self.parse_optional(SyntaxKind::EqualsToken) {
+            Some(self.parse_type())
+        } else {
+            None
+        };
+
+        let mut node = self.factory.create_type_parameter_declaration(
+            self,
+            name.into(),
+            constraint.map(Into::into),
+            default_type.map(Into::into),
+        );
+        node.expression = expression.map(Into::into);
         self.finish_node(node, pos, None)
     }
 
@@ -192,6 +211,7 @@ impl ParserType {
         modifiers: Option<NodeArray>,
     ) -> TypeElement {
         let name = self.parse_property_name();
+        let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
         let node: TypeElement;
         if false {
             unimplemented!()
@@ -199,7 +219,13 @@ impl ParserType {
             let type_ = self.parse_type_annotation();
             node = self
                 .factory
-                .create_property_signature(self, modifiers, name.wrap(), type_.map(Into::into))
+                .create_property_signature(
+                    self,
+                    modifiers,
+                    name.wrap(),
+                    question_token.map(Into::into),
+                    type_.map(Into::into),
+                )
                 .into();
         }
         self.parse_type_member_semicolon();

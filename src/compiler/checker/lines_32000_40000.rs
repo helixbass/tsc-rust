@@ -9,7 +9,7 @@ use crate::{
     get_effective_initializer, is_binding_element, is_function_or_module_block,
     is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, ArrayTypeNode, Block,
     DiagnosticMessage, Diagnostics, Expression, ExpressionStatement, FunctionDeclaration,
-    HasTypeParametersInterface, IfStatement, InterfaceDeclaration, LiteralLikeNode,
+    FunctionFlags, HasTypeParametersInterface, IfStatement, InterfaceDeclaration, LiteralLikeNode,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement,
     SymbolInterface, SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration, TypeChecker,

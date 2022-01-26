@@ -138,7 +138,7 @@ impl TypeChecker {
 
         if has_only_expression_initializer(declaration)
             && declaration
-                .as_has_expression_initializer()
+                .as_has_initializer()
                 .maybe_initializer()
                 .is_some()
         {
@@ -475,7 +475,7 @@ impl TypeChecker {
         mapper: &TypeMapper,
         mapping_this_only: bool,
     ) -> SymbolTable {
-        let mut result = create_symbol_table();
+        let mut result = create_symbol_table(None);
         for symbol in symbols {
             result.insert(
                 symbol.escaped_name().clone(),

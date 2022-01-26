@@ -5,14 +5,14 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    Signature, TypeNode, __String, create_printer, create_text_writer, factory, get_object_flags,
-    get_source_file_of_node, get_synthetic_factory, is_expression, is_identifier_text,
-    unescape_leading_underscores, using_single_line_string_writer, BaseIntrinsicType,
-    BaseNodeFactorySynthetic, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint,
-    EmitTextWriter, Expression, KeywordTypeNode, Node, NodeArray, NodeBuilderFlags, NodeInterface,
-    ObjectFlags, PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface, SourceFile,
-    Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter,
+    get_emit_script_target, is_expression, is_identifier_text, unescape_leading_underscores,
+    using_single_line_string_writer, BaseIntrinsicType, BaseNodeFactorySynthetic, BaseObjectType,
+    BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter, Expression, KeywordTypeNode, Node,
+    NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions,
+    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SourceFile, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeFormatFlags, TypeInterface, TypeNode, TypeParameter, __String, create_printer,
+    create_text_writer, factory, get_object_flags, get_source_file_of_node, synthetic_factory,
 };
 
 impl TypeChecker {
@@ -71,7 +71,7 @@ impl TypeChecker {
         let mut type_ = self.create_type(TypeFlags::TypeParameter);
         if let Some(symbol) = symbol {
             let symbol = symbol.borrow();
-            type_.set_symbol(symbol.symbol_wrapper());
+            type_.set_symbol(Some(symbol.symbol_wrapper()));
         }
         let type_ = TypeParameter::new(type_);
         type_
@@ -246,7 +246,7 @@ impl TypeChecker {
         };
         let options = PrinterOptions {};
         let mut printer = create_printer(options);
-        let source_file: Option<Rc<SourceFile>> =
+        let source_file: Option<Rc<Node /*SourceFile*/>> =
             if let Some(enclosing_declaration) = enclosing_declaration {
                 let enclosing_declaration = enclosing_declaration.borrow();
                 Some(get_source_file_of_node(enclosing_declaration))
@@ -326,15 +326,11 @@ pub(super) fn create_node_builder() -> NodeBuilder {
 }
 
 #[derive(Debug)]
-pub struct NodeBuilder {
-    synthetic_factory: BaseNodeFactorySynthetic,
-}
+pub struct NodeBuilder {}
 
 impl NodeBuilder {
     pub fn new() -> Self {
-        Self {
-            synthetic_factory: get_synthetic_factory(),
-        }
+        Self {}
     }
 
     pub fn type_to_type_node(
@@ -387,107 +383,126 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
     ) -> TypeNode {
         if type_.flags().intersects(TypeFlags::String) {
-            return Into::<KeywordTypeNode>::into(
-                factory
-                    .create_keyword_type_node(&self.synthetic_factory, SyntaxKind::StringKeyword),
-            )
+            return Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_.create_keyword_type_node(synthetic_factory_, SyntaxKind::StringKeyword)
+                })
+            }))
             .into();
         }
         if type_.flags().intersects(TypeFlags::Number) {
-            return Into::<KeywordTypeNode>::into(
-                factory
-                    .create_keyword_type_node(&self.synthetic_factory, SyntaxKind::NumberKeyword),
-            )
+            return Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_.create_keyword_type_node(synthetic_factory_, SyntaxKind::NumberKeyword)
+                })
+            }))
             .into();
         }
         if type_.flags().intersects(TypeFlags::BigInt) {
-            return Into::<KeywordTypeNode>::into(
-                factory
-                    .create_keyword_type_node(&self.synthetic_factory, SyntaxKind::BigIntKeyword),
-            )
+            return Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_.create_keyword_type_node(synthetic_factory_, SyntaxKind::BigIntKeyword)
+                })
+            }))
             .into();
         }
         if type_.flags().intersects(TypeFlags::Boolean) {
-            return Into::<KeywordTypeNode>::into(
-                factory
-                    .create_keyword_type_node(&self.synthetic_factory, SyntaxKind::BooleanKeyword),
-            )
+            return Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_keyword_type_node(synthetic_factory_, SyntaxKind::BooleanKeyword)
+                })
+            }))
             .into();
         }
         if type_.flags().intersects(TypeFlags::StringLiteral) {
-            return factory
-                .create_literal_type_node(
-                    &self.synthetic_factory,
-                    factory
-                        .create_string_literal(
-                            &self.synthetic_factory,
-                            type_.as_string_literal_type().value.clone(),
-                            Some(
-                                context.flags.intersects(
-                                    NodeBuilderFlags::UseSingleQuotesForStringLiteralType,
-                                ),
-                            ),
-                            None,
+            return synthetic_factory
+                .with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_.create_literal_type_node(
+                            synthetic_factory_,
+                            factory_
+                                .create_string_literal(
+                                    synthetic_factory_,
+                                    type_.as_string_literal_type().value.clone(),
+                                    Some(context.flags.intersects(
+                                        NodeBuilderFlags::UseSingleQuotesForStringLiteralType,
+                                    )),
+                                    None,
+                                )
+                                .into(),
                         )
-                        .into(),
-                )
+                    })
+                })
                 .into();
         }
         if type_.flags().intersects(TypeFlags::NumberLiteral) {
             let value = type_.as_number_literal_type().value.value();
-            return factory
-                .create_literal_type_node(
-                    &self.synthetic_factory,
-                    if value < 0.0 {
-                        factory
-                            .create_prefix_unary_expression(
-                                &self.synthetic_factory,
-                                SyntaxKind::MinusToken,
-                                factory
+            return synthetic_factory
+                .with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_.create_literal_type_node(
+                            synthetic_factory_,
+                            if value < 0.0 {
+                                factory_
+                                    .create_prefix_unary_expression(
+                                        synthetic_factory_,
+                                        SyntaxKind::MinusToken,
+                                        factory_
+                                            .create_numeric_literal(
+                                                synthetic_factory_,
+                                                (-value).to_string(),
+                                                None,
+                                            )
+                                            .into(),
+                                    )
+                                    .into()
+                            } else {
+                                factory_
                                     .create_numeric_literal(
-                                        &self.synthetic_factory,
-                                        (-value).to_string(),
+                                        synthetic_factory_,
+                                        value.to_string(),
                                         None,
                                     )
-                                    .into(),
-                            )
-                            .into()
-                    } else {
-                        factory
-                            .create_numeric_literal(
-                                &self.synthetic_factory,
-                                value.to_string(),
-                                None,
-                            )
-                            .into()
-                    },
-                )
+                                    .into()
+                            },
+                        )
+                    })
+                })
                 .into();
         }
         if type_.flags().intersects(TypeFlags::BigIntLiteral) {
-            return factory
-                .create_literal_type_node(
-                    &self.synthetic_factory,
-                    factory
-                        .create_big_int_literal(
-                            &self.synthetic_factory,
-                            type_.as_big_int_literal_type().value.clone(),
+            return synthetic_factory
+                .with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_.create_literal_type_node(
+                            synthetic_factory_,
+                            factory_
+                                .create_big_int_literal(
+                                    synthetic_factory_,
+                                    type_.as_big_int_literal_type().value.clone(),
+                                )
+                                .into(),
                         )
-                        .into(),
-                )
+                    })
+                })
                 .into();
         }
         if type_.flags().intersects(TypeFlags::BooleanLiteral) {
-            return factory
-                .create_literal_type_node(
-                    &self.synthetic_factory,
-                    if type_.as_intrinsic_type().intrinsic_name() == "true" {
-                        factory.create_true(&self.synthetic_factory)
-                    } else {
-                        factory.create_false(&self.synthetic_factory)
-                    }
-                    .into(),
-                )
+            return synthetic_factory
+                .with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_.create_literal_type_node(
+                            synthetic_factory_,
+                            if type_.as_intrinsic_type().intrinsic_name() == "true" {
+                                factory_.create_true(synthetic_factory_)
+                            } else {
+                                factory_.create_false(synthetic_factory_)
+                            }
+                            .into(),
+                        )
+                    })
+                })
                 .into();
         }
 
@@ -522,9 +537,18 @@ impl NodeBuilder {
             if let Some(type_nodes) = type_nodes {
                 if !type_nodes.is_empty() {
                     return if type_.flags().intersects(TypeFlags::Union) {
-                        factory.create_union_type_node(&self.synthetic_factory, type_nodes)
+                        synthetic_factory.with(|synthetic_factory_| {
+                            factory.with(|factory_| {
+                                factory_.create_union_type_node(synthetic_factory_, type_nodes)
+                            })
+                        })
                     } else {
-                        factory.create_intersection_type_node(&self.synthetic_factory, type_nodes)
+                        synthetic_factory.with(|synthetic_factory_| {
+                            factory.with(|factory_| {
+                                factory_
+                                    .create_intersection_type_node(synthetic_factory_, type_nodes)
+                            })
+                        })
                     };
                 }
             }
@@ -581,7 +605,9 @@ impl NodeBuilder {
         let resolved = type_checker.resolve_structured_type_members(type_);
 
         let members = self.create_type_nodes_from_resolved_type(type_checker, context, &resolved);
-        let type_literal_node = factory.create_type_literal_node(&self.synthetic_factory, members);
+        let type_literal_node = synthetic_factory.with(|synthetic_factory_| {
+            factory.with(|factory_| factory_.create_type_literal_node(synthetic_factory_, members))
+        });
         type_literal_node.into()
     }
 
@@ -622,7 +648,17 @@ impl NodeBuilder {
         } else {
             type_checker.get_non_missing_type_of_symbol(property_symbol)
         };
-        let property_name = self.get_property_name_node_for_symbol(property_symbol, context);
+        let property_name =
+            self.get_property_name_node_for_symbol(type_checker, property_symbol, context);
+        let optional_token = if property_symbol.flags().intersects(SymbolFlags::Optional) {
+            synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    Some(factory_.create_token(synthetic_factory_, SyntaxKind::QuestionToken))
+                })
+            })
+        } else {
+            None
+        };
         if false {
             unimplemented!()
         } else {
@@ -643,12 +679,17 @@ impl NodeBuilder {
             }
 
             let modifiers = if false { unimplemented!() } else { None };
-            let property_signature = factory.create_property_signature(
-                &self.synthetic_factory,
-                modifiers,
-                property_name,
-                Some(property_type_node.into()),
-            );
+            let property_signature = synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_.create_property_signature(
+                        synthetic_factory_,
+                        modifiers,
+                        property_name,
+                        optional_token.map(Into::into),
+                        Some(property_type_node.into()),
+                    )
+                })
+            });
 
             type_elements.push(property_signature.into());
         }
@@ -725,8 +766,16 @@ impl NodeBuilder {
             //     unimplemented!()
             // };
             let last_type_args: Option<NodeArray> = None;
-            factory
-                .create_type_reference_node(&self.synthetic_factory, entity_name, last_type_args)
+            synthetic_factory
+                .with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_.create_type_reference_node(
+                            synthetic_factory_,
+                            entity_name,
+                            last_type_args,
+                        )
+                    })
+                })
                 .into()
         }
     }
@@ -752,7 +801,9 @@ impl NodeBuilder {
         }
         let symbol_name = symbol_name.unwrap();
 
-        let identifier = factory.create_identifier(&self.synthetic_factory, &symbol_name);
+        let identifier = synthetic_factory.with(|synthetic_factory_| {
+            factory.with(|factory_| factory_.create_identifier(synthetic_factory_, &symbol_name))
+        });
         identifier.set_symbol(symbol);
 
         identifier.into()
@@ -772,6 +823,7 @@ impl NodeBuilder {
 
     fn get_property_name_node_for_symbol(
         &self,
+        type_checker: &TypeChecker,
         symbol: &Symbol,
         context: &NodeBuilderContext,
     ) -> Rc<Node> {
@@ -779,6 +831,7 @@ impl NodeBuilder {
         let string_named = false;
         let raw_name = unescape_leading_underscores(symbol.escaped_name());
         self.create_property_name_node_for_identifier_or_literal(
+            type_checker,
             raw_name,
             Some(string_named),
             Some(single_quote),
@@ -787,12 +840,19 @@ impl NodeBuilder {
 
     fn create_property_name_node_for_identifier_or_literal(
         &self,
+        type_checker: &TypeChecker,
         name: String,
         string_named: Option<bool>,
         single_quote: Option<bool>,
     ) -> Rc<Node> {
-        if is_identifier_text(&name) {
-            factory.create_identifier(&self.synthetic_factory, &name)
+        if is_identifier_text(
+            &name,
+            Some(get_emit_script_target(&type_checker.compiler_options)),
+            None,
+        ) {
+            synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| factory_.create_identifier(synthetic_factory_, &name))
+            })
         } else {
             unimplemented!()
         }
@@ -811,7 +871,10 @@ impl NodeBuilder {
         let symbol_name = type_checker.get_name_of_symbol_as_written(symbol, Some(context));
 
         if index == 0 || false {
-            let identifier = factory.create_identifier(&self.synthetic_factory, &symbol_name);
+            let identifier = synthetic_factory.with(|synthetic_factory_| {
+                factory
+                    .with(|factory_| factory_.create_identifier(synthetic_factory_, &symbol_name))
+            });
             identifier.set_symbol(symbol.symbol_wrapper());
             return identifier.into();
         } else {

@@ -93,6 +93,18 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_modifier_flags_cache(flags)
                     }
 
+                    fn transform_flags(&self) -> crate::TransformFlags {
+                        self.#first_field_name.transform_flags()
+                    }
+
+                    fn set_transform_flags(&mut self, flags: crate::TransformFlags) {
+                        self.#first_field_name.set_transform_flags(flags)
+                    }
+
+                    fn add_transform_flags(&mut self, flags: crate::TransformFlags) {
+                        self.#first_field_name.add_transform_flags(flags)
+                    }
+
                     fn maybe_decorators(&self) -> ::std::cell::Ref<::std::option::Option<crate::NodeArray>> {
                         self.#first_field_name.maybe_decorators()
                     }
@@ -152,6 +164,22 @@ fn get_ast_struct_interface_impl(
                     fn set_locals(&self, locals: ::std::option::Option<crate::SymbolTable>) {
                         self.#first_field_name.set_locals(locals)
                     }
+
+                    fn maybe_js_doc(&self) -> ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>> {
+                        self.#first_field_name.maybe_js_doc()
+                    }
+
+                    fn set_js_doc(&self, js_doc: ::std::vec::Vec<::std::rc::Rc<crate::Node>>) {
+                        self.#first_field_name.set_js_doc(js_doc)
+                    }
+
+                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>> {
+                        self.#first_field_name.maybe_js_doc_cache()
+                    }
+
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::vec::Vec<::std::rc::Rc<crate::Node>>) {
+                        self.#first_field_name.set_js_doc_cache(js_doc_cache)
+                    }
                 }
             }
         }
@@ -179,6 +207,10 @@ fn get_ast_struct_interface_impl(
         "NamedDeclarationInterface" => {
             quote! {
                 impl crate::NamedDeclarationInterface for #ast_type_name {
+                    fn maybe_name(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self.#first_field_name.maybe_name()
+                    }
+
                     fn name(&self) -> ::std::rc::Rc<crate::Node> {
                         self.#first_field_name.name()
                     }
@@ -198,9 +230,9 @@ fn get_ast_struct_interface_impl(
                 }
             }
         }
-        "HasExpressionInitializerInterface" => {
+        "HasInitializerInterface" => {
             quote! {
-                impl crate::HasExpressionInitializerInterface for #ast_type_name {
+                impl crate::HasInitializerInterface for #ast_type_name {
                     fn maybe_initializer(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
                         self.#first_field_name.maybe_initializer()
                     }
@@ -307,6 +339,19 @@ fn get_ast_struct_interface_impl(
                 }
             }
         }
+        "JSDocTagInterface" => {
+            quote! {
+                impl crate::JSDocTagInterface for #ast_type_name {
+                    fn tag_name(&self) -> ::std::rc::Rc<crate::Node> {
+                        self.#first_field_name.tag_name()
+                    }
+
+                    fn maybe_comment(&self) -> ::std::option::Option<&crate::StringOrNodeArray> {
+                        self.#first_field_name.maybe_comment()
+                    }
+                }
+            }
+        }
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
@@ -359,6 +404,24 @@ fn get_ast_enum_interface_impl(
                     fn set_modifier_flags_cache(&self, flags: crate::ModifierFlags) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_modifier_flags_cache(flags)),*
+                        }
+                    }
+
+                    fn transform_flags(&self) -> crate::TransformFlags {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.transform_flags()),*
+                        }
+                    }
+
+                    fn set_transform_flags(&mut self, flags: crate::TransformFlags) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_transform_flags(flags)),*
+                        }
+                    }
+
+                    fn add_transform_flags(&mut self, flags: crate::TransformFlags) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.add_transform_flags(flags)),*
                         }
                     }
 
@@ -451,6 +514,30 @@ fn get_ast_enum_interface_impl(
                             #(#ast_type_name::#variant_names(nested) => nested.set_locals(locals)),*
                         }
                     }
+
+                    fn maybe_js_doc(&self) -> ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_js_doc()),*
+                        }
+                    }
+
+                    fn set_js_doc(&self, js_doc: ::std::vec::Vec<::std::rc::Rc<crate::Node>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_js_doc(js_doc)),*
+                        }
+                    }
+
+                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_js_doc_cache()),*
+                        }
+                    }
+
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::vec::Vec<::std::rc::Rc<crate::Node>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_js_doc_cache(js_doc_cache)),*
+                        }
+                    }
                 }
             }
         }
@@ -521,6 +608,12 @@ fn get_ast_enum_interface_impl(
         "NamedDeclarationInterface" => {
             quote! {
                 impl crate::NamedDeclarationInterface for #ast_type_name {
+                    fn maybe_name(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_name()),*
+                        }
+                    }
+
                     fn name(&self) -> ::std::rc::Rc<crate::Node> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.name()),*
@@ -620,6 +713,23 @@ fn get_ast_enum_interface_impl(
                     fn set_type(&mut self, type_: ::std::rc::Rc<crate::Node>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_type(type_)),*
+                        }
+                    }
+                }
+            }
+        }
+        "JSDocTagInterface" => {
+            quote! {
+                impl crate::JSDocTagInterface for #ast_type_name {
+                    fn tag_name(&self) -> ::std::rc::Rc<crate::Node> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.tag_name()),*
+                        }
+                    }
+
+                    fn maybe_comment(&self) -> ::std::option::Option<&crate::StringOrNodeArray> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_comment()),*
                         }
                     }
                 }
@@ -1677,6 +1787,412 @@ pub fn symbol_type(attr: TokenStream, item: TokenStream) -> TokenStream {
         #item_as_proc_macro2_token_stream
 
         #symbol_interface_implementation
+
+        #into_implementations
+    }
+    .into()
+}
+
+#[derive(Debug, FromMeta)]
+struct CommandLineOptionTypeArgs {
+    #[darling(default)]
+    ancestors: Option<String>,
+    #[darling(default)]
+    impl_from: Option<bool>,
+    #[darling(default)]
+    interfaces: Option<String>,
+}
+
+impl CommandLineOptionTypeArgs {
+    fn ancestors_vec(&self) -> Vec<String> {
+        let mut vec = self.ancestors.as_ref().map_or_else(
+            || vec![],
+            |ancestors_str| {
+                ancestors_str
+                    .split(",")
+                    .into_iter()
+                    .map(|chunk| chunk.trim().to_string())
+                    .collect()
+            },
+        );
+        vec.push("CommandLineOption".to_string());
+        vec
+    }
+
+    fn should_impl_from(&self) -> bool {
+        self.impl_from.unwrap_or(true)
+    }
+
+    fn interfaces_vec(&self) -> Vec<String> {
+        let mut vec = vec!["CommandLineOptionInterface".to_string()];
+        if let Some(interfaces_str) = self.interfaces.as_ref() {
+            vec.append(
+                &mut interfaces_str
+                    .split(",")
+                    .into_iter()
+                    .map(|chunk| chunk.trim().to_string())
+                    .collect(),
+            );
+        }
+        vec
+    }
+}
+
+fn get_command_line_option_struct_interface_impl(
+    interface_name: &str,
+    first_field_name: &Ident,
+    command_line_option_type_name: &Ident,
+) -> TokenStream2 {
+    match interface_name {
+        "CommandLineOptionInterface" => {
+            quote! {
+                impl crate::CommandLineOptionInterface for #command_line_option_type_name {
+                    fn command_line_option_wrapper(&self) -> ::std::rc::Rc<crate::CommandLineOption> {
+                        self.#first_field_name.command_line_option_wrapper()
+                    }
+
+                    fn set_command_line_option_wrapper(&self, wrapper: ::std::rc::Rc<crate::CommandLineOption>) {
+                        self.#first_field_name.set_command_line_option_wrapper(wrapper)
+                    }
+
+                    fn name(&self) -> &str {
+                        self.#first_field_name.name()
+                    }
+
+                    fn type_(&self) -> &crate::CommandLineOptionType {
+                        self.#first_field_name.type_()
+                    }
+
+                    fn is_file_path(&self) -> bool {
+                        self.#first_field_name.is_file_path()
+                    }
+
+                    fn maybe_short_name(&self) -> ::std::option::Option<&str> {
+                        self.#first_field_name.maybe_short_name()
+                    }
+
+                    fn maybe_description(&self) -> ::std::option::Option<&crate::DiagnosticMessage> {
+                        self.#first_field_name.maybe_description()
+                    }
+
+                    fn maybe_default_value_description(&self) -> ::std::option::Option<&crate::StringOrDiagnosticMessage> {
+                        self.#first_field_name.maybe_default_value_description()
+                    }
+
+                    fn maybe_param_type(&self) -> ::std::option::Option<&crate::DiagnosticMessage> {
+                        self.#first_field_name.maybe_param_type()
+                    }
+
+                    fn is_tsconfig_only(&self) -> bool {
+                        self.#first_field_name.is_tsconfig_only()
+                    }
+
+                    fn is_command_line_only(&self) -> bool {
+                        self.#first_field_name.is_command_line_only()
+                    }
+
+                    fn show_in_simplified_help_view(&self) -> bool {
+                        self.#first_field_name.show_in_simplified_help_view()
+                    }
+
+                    fn maybe_category(&self) -> ::std::option::Option<&crate::DiagnosticMessage> {
+                        self.#first_field_name.maybe_category()
+                    }
+
+                    fn strict_flag(&self) -> bool {
+                        self.#first_field_name.strict_flag()
+                    }
+
+                    fn affects_source_file(&self) -> bool {
+                        self.#first_field_name.affects_source_file()
+                    }
+
+                    fn affects_module_resolution(&self) -> bool {
+                        self.#first_field_name.affects_module_resolution()
+                    }
+
+                    fn affects_bind_diagnostics(&self) -> bool {
+                        self.#first_field_name.affects_bind_diagnostics()
+                    }
+
+                    fn affects_semantic_diagnostics(&self) -> bool {
+                        self.#first_field_name.affects_semantic_diagnostics()
+                    }
+
+                    fn affects_emit(&self) -> bool {
+                        self.#first_field_name.affects_emit()
+                    }
+
+                    fn affects_program_structure(&self) -> bool {
+                        self.#first_field_name.affects_program_structure()
+                    }
+
+                    fn transpile_option_value(&self) -> bool {
+                        self.#first_field_name.transpile_option_value()
+                    }
+                }
+            }
+        }
+        _ => panic!("Unknown interface: {}", interface_name),
+    }
+}
+
+fn get_command_line_option_enum_interface_impl(
+    interface_name: &str,
+    variant_names: &[&Ident],
+    command_line_option_type_name: &Ident,
+) -> TokenStream2 {
+    match interface_name {
+        "CommandLineOptionInterface" => {
+            quote! {
+                impl crate::CommandLineOptionInterface for #command_line_option_type_name {
+                    fn command_line_option_wrapper(&self) -> ::std::rc::Rc<crate::CommandLineOption> {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.command_line_option_wrapper()),*
+                        }
+                    }
+
+                    fn set_command_line_option_wrapper(&self, wrapper: ::std::rc::Rc<crate::CommandLineOption>) {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.set_command_line_option_wrapper(wrapper)),*
+                        }
+                    }
+
+                    fn name(&self) -> &str {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.name()),*
+                        }
+                    }
+
+                    fn type_(&self) -> &crate::CommandLineOptionType {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.type_()),*
+                        }
+                    }
+
+                    fn is_file_path(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.is_file_path()),*
+                        }
+                    }
+
+                    fn maybe_short_name(&self) -> ::std::option::Option<&str> {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_short_name()),*
+                        }
+                    }
+
+                    fn maybe_description(&self) -> ::std::option::Option<&crate::DiagnosticMessage> {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_description()),*
+                        }
+                    }
+
+                    fn maybe_default_value_description(&self) -> ::std::option::Option<&crate::StringOrDiagnosticMessage> {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_default_value_description()),*
+                        }
+                    }
+
+                    fn maybe_param_type(&self) -> ::std::option::Option<&crate::DiagnosticMessage> {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_param_type()),*
+                        }
+                    }
+
+                    fn is_tsconfig_only(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.is_tsconfig_only()),*
+                        }
+                    }
+
+                    fn is_command_line_only(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.is_command_line_only()),*
+                        }
+                    }
+
+                    fn show_in_simplified_help_view(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.show_in_simplified_help_view()),*
+                        }
+                    }
+
+                    fn maybe_category(&self) -> ::std::option::Option<&crate::DiagnosticMessage> {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_category()),*
+                        }
+                    }
+
+                    fn strict_flag(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.strict_flag()),*
+                        }
+                    }
+
+                    fn affects_source_file(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.affects_source_file()),*
+                        }
+                    }
+
+                    fn affects_module_resolution(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.affects_module_resolution()),*
+                        }
+                    }
+
+                    fn affects_bind_diagnostics(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.affects_bind_diagnostics()),*
+                        }
+                    }
+
+                    fn affects_semantic_diagnostics(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.affects_semantic_diagnostics()),*
+                        }
+                    }
+
+                    fn affects_emit(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.affects_emit()),*
+                        }
+                    }
+
+                    fn affects_program_structure(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.affects_program_structure()),*
+                        }
+                    }
+
+                    fn transpile_option_value(&self) -> bool {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.transpile_option_value()),*
+                        }
+                    }
+                }
+            }
+        }
+        _ => panic!("Unknown interface: {}", interface_name),
+    }
+}
+
+#[proc_macro_attribute]
+pub fn command_line_option_type(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let item_for_parsing = item.clone();
+    let DeriveInput {
+        ident: command_line_option_type_name,
+        data,
+        ..
+    } = parse_macro_input!(item_for_parsing);
+
+    let attr_args = parse_macro_input!(attr as AttributeArgs);
+    let args = match CommandLineOptionTypeArgs::from_list(&attr_args) {
+        Ok(args) => args,
+        Err(error) => {
+            return TokenStream::from(error.write_errors());
+        }
+    };
+
+    let interfaces_implementation = match data {
+        Struct(struct_) => {
+            let first_field_name = match struct_.fields {
+                Fields::Named(FieldsNamed { named, .. }) => named
+                    .iter()
+                    .nth(0)
+                    .expect("Expected at least one struct field")
+                    .ident
+                    .clone()
+                    .expect("Expected ident"),
+                _ => panic!("Expected named fields"),
+            };
+
+            let mut interface_impls: TokenStream2 = quote! {};
+            for interface in args.interfaces_vec() {
+                let interface_impl = get_command_line_option_struct_interface_impl(
+                    &interface,
+                    &first_field_name,
+                    &command_line_option_type_name,
+                );
+                interface_impls = quote! {
+                    #interface_impls
+
+                    #interface_impl
+                };
+            }
+
+            interface_impls
+        }
+        Enum(DataEnum { variants, .. }) => {
+            let variant_names = variants
+                .iter()
+                .map(|variant| &variant.ident)
+                .collect::<Vec<_>>();
+
+            let mut interface_impls: TokenStream2 = quote! {};
+            for interface in args.interfaces_vec() {
+                let interface_impl = get_command_line_option_enum_interface_impl(
+                    &interface,
+                    &variant_names,
+                    &command_line_option_type_name,
+                );
+                interface_impls = quote! {
+                    #interface_impls
+
+                    #interface_impl
+                };
+            }
+
+            interface_impls
+        }
+        _ => panic!("Expected struct or enum"),
+    };
+
+    let into_implementations = if args.should_impl_from() {
+        let mut construct_variant = quote! {
+            concrete
+        };
+        let mut previous_variant_name = command_line_option_type_name.clone();
+        let mut into_implementations = quote! {};
+        for ancestor in args.ancestors_vec() {
+            let ancestor_ident = Ident::new(&ancestor, previous_variant_name.span());
+            construct_variant = quote! {
+                crate::#ancestor_ident::#previous_variant_name(#construct_variant)
+            };
+            into_implementations = quote! {
+                #into_implementations
+
+                impl ::std::convert::From<#command_line_option_type_name> for crate::#ancestor_ident {
+                    fn from(concrete: #command_line_option_type_name) -> Self {
+                        #construct_variant
+                    }
+                }
+            };
+            previous_variant_name = ancestor_ident;
+        }
+
+        quote! {
+            #into_implementations
+
+            impl ::std::convert::From<#command_line_option_type_name> for ::std::rc::Rc<crate::CommandLineOption> {
+                fn from(concrete: #command_line_option_type_name) -> Self {
+                    let rc = ::std::rc::Rc::new(#construct_variant);
+                    crate::CommandLineOptionInterface::set_command_line_option_wrapper(&*rc, rc.clone());
+                    rc
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    let item_as_proc_macro2_token_stream = proc_macro2::TokenStream::from(item);
+
+    quote! {
+        #item_as_proc_macro2_token_stream
+
+        #interfaces_implementation
 
         #into_implementations
     }

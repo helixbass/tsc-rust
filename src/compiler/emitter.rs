@@ -6,7 +6,7 @@ use crate::{
     get_literal_text, id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_,
     EmitHint, EmitTextWriter, Expression, GetLiteralTextFlags, HasTypeInterface, Identifier,
     ListFormat, LiteralLikeNode, LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, Printer, PrinterOptions, PropertySignature, SourceFile, Symbol, TypeElement,
+    NodeInterface, Printer, PrinterOptions, PropertySignature, Symbol, TypeElement,
     TypeLiteralNode, TypeNode, TypeReferenceNode, UnionTypeNode,
 };
 
@@ -46,7 +46,7 @@ impl Printer {
         &mut self,
         hint: EmitHint,
         node: &TNode,
-        source_file: Option<Rc<SourceFile>>,
+        source_file: Option<Rc<Node /*SourceFile*/>>,
         output: Rc<RefCell<dyn EmitTextWriter>>,
     ) {
         let previous_writer = self.maybe_writer();
@@ -60,7 +60,7 @@ impl Printer {
         &mut self,
         hint: EmitHint,
         node: &TNode,
-        source_file: Option<Rc<SourceFile>>,
+        source_file: Option<Rc<Node /*SourceFile*/>>,
     ) {
         if let Some(source_file) = source_file {
             self.set_source_file(Some(source_file));
@@ -69,7 +69,7 @@ impl Printer {
         self.pipeline_emit(hint, node);
     }
 
-    fn set_source_file(&mut self, source_file: Option<Rc<SourceFile>>) {
+    fn set_source_file(&mut self, source_file: Option<Rc<Node /*SourceFile*/>>) {
         self.current_source_file = source_file;
     }
 

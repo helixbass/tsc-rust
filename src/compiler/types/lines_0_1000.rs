@@ -2,20 +2,26 @@
 
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    Decorator, Expression, FunctionLikeDeclarationInterface, HasTypeArgumentsInterface,
-    HasTypeParametersInterface, Identifier, LiteralLikeNodeInterface, MemberNameInterface,
-    ModifiersArray, NamedDeclarationInterface, NodeArray, ObjectLiteralExpression,
-    ParameterDeclaration, PropertyAssignment, SignatureDeclarationBase,
+    BinaryExpression, BindingElement, CallExpression, Decorator, ElementAccessExpression,
+    EnumMember, Expression, ExpressionStatement, FunctionLikeDeclarationInterface,
+    HasExpressionInterface, HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier,
+    JSDoc, JSDocPropertyLikeTag, JSDocTag, JSDocTemplateTag, JSDocTypeTag, JsxAttribute,
+    LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, ModuleDeclaration,
+    NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral, ObjectLiteralExpression,
+    ParameterDeclaration, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
+    QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
     SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
-    TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
+    TransformFlags, TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
     UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
+    VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Path(String);
 
 impl Path {
@@ -30,11 +36,59 @@ impl ToString for Path {
     }
 }
 
+impl Deref for Path {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 pub trait ReadonlyTextRange {
     fn pos(&self) -> isize;
     fn set_pos(&self, pos: isize);
     fn end(&self) -> isize;
     fn set_end(&self, end: isize);
+}
+
+pub trait TextRange {
+    fn pos(&self) -> isize;
+    fn set_pos(&self, pos: isize);
+    fn end(&self) -> isize;
+    fn set_end(&self, end: isize);
+}
+
+#[derive(Clone, Debug)]
+pub struct BaseTextRange {
+    pos: Cell<isize>,
+    end: Cell<isize>,
+}
+
+impl BaseTextRange {
+    pub fn new(pos: isize, end: isize) -> Self {
+        Self {
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+        }
+    }
+}
+
+impl TextRange for BaseTextRange {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -43,6 +97,7 @@ pub enum SyntaxKind {
     EndOfFileToken,
     SingleLineCommentTrivia,
     MultiLineCommentTrivia,
+    NewLineTrivia,
     WhitespaceTrivia,
     ShebangTrivia,
     ConflictMarkerTrivia,
@@ -74,6 +129,8 @@ pub enum SyntaxKind {
     GreaterThanEqualsToken,
     EqualsEqualsToken,
     ExclamationEqualsToken,
+    EqualsEqualsEqualsToken,
+    ExclamationEqualsEqualsToken,
     EqualsGreaterThanToken,
     PlusToken,
     MinusToken,
@@ -446,15 +503,44 @@ bitflags! {
         const Let = 1 << 0;
         const Const = 1 << 1;
         const NestedNamespace = 1 << 2;
+        const Synthesized = 1 << 3;
+        const Namespace = 1 << 4;
+        const OptionalChain = 1 << 5;
+        const ExportContext = 1 << 6;
+        const ContainsThis = 1 << 7;
+        const HasImplicitReturn = 1 << 8;
+        const HasExplicitReturn = 1 << 9;
+        const GlobalAugmentation = 1 << 10;
+        const HasAsyncFunctions = 1 << 11;
         const DisallowInContext = 1 << 12;
         const YieldContext = 1 << 13;
         const DecoratorContext = 1 << 14;
         const AwaitContext = 1 << 15;
+        const ThisNodeHasError = 1 << 16;
+        const JavaScriptFile = 1 << 17;
+        const ThisNodeOrAnySubNodesHasError = 1 << 18;
+        const HasAggregatedChildData = 1 << 19;
+
+        const PossiblyContainsDynamicImport = 1 << 20;
+        const PossiblyContainsImportMeta = 1 << 21;
+
+        const JSDoc = 1 << 21;
         const Ambient = 1 << 23;
+        const InWithStatement = 1 << 24;
+        const JsonFile = 1 << 25;
+        const TypeCached = 1 << 26;
+        const Deprecated = 1 << 27;
 
         const BlockScoped = Self::Let.bits | Self::Const.bits;
 
+        const ReachabilityCheckFlags = Self::HasImplicitReturn.bits | Self::HasExplicitReturn.bits;
+        const ReachabilityAndEmitFlags = Self::ReachabilityCheckFlags.bits | Self::HasAsyncFunctions.bits;
+
+        const ContextFlags = Self::DisallowInContext.bits | Self::YieldContext.bits | Self::DecoratorContext.bits | Self::AwaitContext.bits | Self::JavaScriptFile.bits | Self::InWithStatement.bits | Self::Ambient.bits;
+
         const TypeExcludesFlags = Self::YieldContext.bits | Self::AwaitContext.bits;
+
+        const PermanentlySetIncrementalFlags = Self::PossiblyContainsDynamicImport.bits | Self::PossiblyContainsImportMeta.bits;
     }
 }
 
@@ -497,6 +583,9 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_modifier_flags_cache(&self, flags: ModifierFlags);
     fn flags(&self) -> NodeFlags;
     fn set_flags(&self, flags: NodeFlags);
+    fn transform_flags(&self) -> TransformFlags;
+    fn set_transform_flags(&mut self, flags: TransformFlags);
+    fn add_transform_flags(&mut self, flags: TransformFlags);
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>>;
     fn set_decorators(&self, decorators: Option<NodeArray>);
     fn maybe_modifiers(&self) -> Option<&NodeArray>;
@@ -512,6 +601,10 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
     fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: Option<SymbolTable>);
+    fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
+    fn set_js_doc(&self, js_doc: Vec<Rc<Node /*JSDoc*/>>);
+    fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
+    fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node /*JSDocTag*/>>);
 }
 
 #[derive(Debug)]
@@ -530,7 +623,15 @@ pub enum Node {
     Statement(Statement),
     TypeElement(TypeElement),
     PropertyAssignment(PropertyAssignment),
-    SourceFile(Rc<SourceFile>),
+    SourceFile(SourceFile),
+    QualifiedName(QualifiedName),
+    JSDocTag(JSDocTag),
+    BindingElement(BindingElement),
+    PropertyDeclaration(PropertyDeclaration),
+    EnumMember(EnumMember),
+    JsxAttribute(JsxAttribute),
+    JSDoc(JSDoc),
+    ShorthandPropertyAssignment(ShorthandPropertyAssignment),
 }
 
 impl Node {
@@ -540,26 +641,23 @@ impl Node {
         rc
     }
 
-    pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
+    pub fn maybe_as_named_declaration(&self) -> Option<&dyn NamedDeclarationInterface> {
         match self {
-            Node::TypeParameterDeclaration(type_parameter_declaration) => {
-                type_parameter_declaration
-            }
-            Node::VariableDeclaration(variable_declaration) => variable_declaration,
-            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
-                interface_declaration
-            }
-            Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
-                type_alias_declaration
-            }
-            Node::TypeElement(type_element) => type_element,
-            Node::PropertyAssignment(property_assignment) => property_assignment,
-            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
-                function_declaration
-            }
-            Node::ParameterDeclaration(parameter_declaration) => parameter_declaration,
-            _ => panic!("Expected named declaration"),
+            Node::TypeParameterDeclaration(node) => Some(node),
+            Node::VariableDeclaration(node) => Some(node),
+            Node::Statement(Statement::InterfaceDeclaration(node)) => Some(node),
+            Node::Statement(Statement::TypeAliasDeclaration(node)) => Some(node),
+            Node::TypeElement(node) => Some(node),
+            Node::PropertyAssignment(node) => Some(node),
+            Node::Statement(Statement::FunctionDeclaration(node)) => Some(node),
+            Node::ParameterDeclaration(node) => Some(node),
+            _ => None,
         }
+    }
+
+    pub fn as_named_declaration(&self) -> &dyn NamedDeclarationInterface {
+        self.maybe_as_named_declaration()
+            .expect("Expected named declaration")
     }
 
     pub fn as_member_name(&self) -> &dyn MemberNameInterface {
@@ -590,26 +688,26 @@ impl Node {
         }
     }
 
-    pub fn as_has_expression_initializer(&self) -> &dyn HasExpressionInitializerInterface {
+    pub fn maybe_as_has_initializer(&self) -> Option<&dyn HasInitializerInterface> {
         match self {
-            Node::VariableDeclaration(variable_declaration) => variable_declaration,
-            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
-                property_signature
-            }
-            _ => panic!("Expected has expression initializer"),
+            Node::VariableDeclaration(node) => Some(node),
+            Node::ParameterDeclaration(node) => Some(node),
+            Node::BindingElement(node) => Some(node),
+            Node::TypeElement(TypeElement::PropertySignature(node)) => Some(node),
+            Node::PropertyDeclaration(node) => Some(node),
+            Node::PropertyAssignment(node) => Some(node),
+            Node::EnumMember(node) => Some(node),
+            Node::Statement(Statement::ForStatement(node)) => Some(node),
+            Node::Statement(Statement::ForInStatement(node)) => Some(node),
+            Node::Statement(Statement::ForOfStatement(node)) => Some(node),
+            Node::JsxAttribute(node) => Some(node),
+            _ => None,
         }
     }
 
-    pub fn maybe_as_has_expression_initializer(
-        &self,
-    ) -> Option<&dyn HasExpressionInitializerInterface> {
-        match self {
-            Node::VariableDeclaration(variable_declaration) => Some(variable_declaration),
-            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
-                Some(property_signature)
-            }
-            _ => None,
-        }
+    pub fn as_has_initializer(&self) -> &dyn HasInitializerInterface {
+        self.maybe_as_has_initializer()
+            .expect("Expected has initializer")
     }
 
     pub fn as_has_type_parameters(&self) -> &dyn HasTypeParametersInterface {
@@ -641,11 +739,20 @@ impl Node {
         }
     }
 
+    pub fn as_has_expression(&self) -> &dyn HasExpressionInterface {
+        match self {
+            Node::Expression(Expression::ParenthesizedExpression(node)) => node,
+            Node::Expression(Expression::TypeAssertion(node)) => node,
+            Node::Expression(Expression::AsExpression(node)) => node,
+            Node::Expression(Expression::NonNullExpression(node)) => node,
+            Node::Expression(Expression::PartiallyEmittedExpression(node)) => node,
+            _ => panic!("Expected has expression"),
+        }
+    }
+
     pub fn as_signature_declaration(&self) -> &dyn SignatureDeclarationInterface {
         match self {
-            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
-                function_declaration
-            }
+            Node::Statement(Statement::FunctionDeclaration(node)) => node,
             _ => panic!("Expected signature declaration"),
         }
     }
@@ -687,7 +794,7 @@ impl Node {
         enum_unwrapped!(self, [Node, PropertyAssignment])
     }
 
-    pub fn as_source_file(&self) -> &Rc<SourceFile> {
+    pub fn as_source_file(&self) -> &SourceFile {
         enum_unwrapped!(self, [Node, SourceFile])
     }
 
@@ -714,6 +821,66 @@ impl Node {
     pub fn as_template_span(&self) -> &TemplateSpan {
         enum_unwrapped!(self, [Node, TemplateSpan])
     }
+
+    pub fn as_jsdoc_type_tag(&self) -> &JSDocTypeTag {
+        enum_unwrapped!(self, [Node, JSDocTag, JSDocTypeTag])
+    }
+
+    pub fn as_jsdoc(&self) -> &JSDoc {
+        enum_unwrapped!(self, [Node, JSDoc])
+    }
+
+    pub fn as_binary_expression(&self) -> &BinaryExpression {
+        enum_unwrapped!(self, [Node, Expression, BinaryExpression])
+    }
+
+    pub fn as_module_declaration(&self) -> &ModuleDeclaration {
+        enum_unwrapped!(self, [Node, Statement, ModuleDeclaration])
+    }
+
+    pub fn as_variable_statement(&self) -> &VariableStatement {
+        enum_unwrapped!(self, [Node, Statement, VariableStatement])
+    }
+
+    pub fn as_expression_statement(&self) -> &ExpressionStatement {
+        enum_unwrapped!(self, [Node, Statement, ExpressionStatement])
+    }
+
+    pub fn as_call_expression(&self) -> &CallExpression {
+        enum_unwrapped!(self, [Node, Expression, CallExpression])
+    }
+
+    pub fn as_property_access_expression(&self) -> &PropertyAccessExpression {
+        enum_unwrapped!(self, [Node, Expression, PropertyAccessExpression])
+    }
+
+    pub fn as_element_access_expression(&self) -> &ElementAccessExpression {
+        enum_unwrapped!(self, [Node, Expression, ElementAccessExpression])
+    }
+
+    pub fn as_void_expression(&self) -> &VoidExpression {
+        enum_unwrapped!(self, [Node, Expression, VoidExpression])
+    }
+
+    pub fn as_numeric_literal(&self) -> &NumericLiteral {
+        enum_unwrapped!(self, [Node, Expression, LiteralLikeNode, NumericLiteral])
+    }
+
+    pub fn as_parameter_declaration(&self) -> &ParameterDeclaration {
+        enum_unwrapped!(self, [Node, ParameterDeclaration])
+    }
+
+    pub fn as_jsdoc_property_like_tag(&self) -> &JSDocPropertyLikeTag {
+        enum_unwrapped!(self, [Node, JSDocTag, JSDocPropertyLikeTag])
+    }
+
+    pub fn as_jsdoc_template_tag(&self) -> &JSDocTemplateTag {
+        enum_unwrapped!(self, [Node, JSDocTag, JSDocTemplateTag])
+    }
+
+    pub fn as_new_expression(&self) -> &NewExpression {
+        enum_unwrapped!(self, [Node, Expression, NewExpression])
+    }
 }
 
 #[derive(Debug)]
@@ -722,6 +889,7 @@ pub struct BaseNode {
     pub kind: SyntaxKind,
     flags: Cell<NodeFlags>,
     modifier_flags_cache: Cell<ModifierFlags>,
+    transform_flags: TransformFlags,
     pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
     pub modifiers: Option<ModifiersArray>,
     pub id: Cell<Option<NodeId>>,
@@ -730,15 +898,24 @@ pub struct BaseNode {
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RefCell<Option<SymbolTable>>,
+    js_doc: RefCell<Option<Vec<Weak<Node>>>>,
+    js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
 }
 
 impl BaseNode {
-    pub fn new(kind: SyntaxKind, flags: NodeFlags, pos: isize, end: isize) -> Self {
+    pub fn new(
+        kind: SyntaxKind,
+        flags: NodeFlags,
+        transform_flags: TransformFlags,
+        pos: isize,
+        end: isize,
+    ) -> Self {
         Self {
             _node_wrapper: RefCell::new(None),
             kind,
             flags: Cell::new(flags),
             modifier_flags_cache: Cell::new(ModifierFlags::None),
+            transform_flags,
             decorators: RefCell::new(None),
             modifiers: None,
             id: Cell::new(None),
@@ -747,6 +924,8 @@ impl BaseNode {
             end: Cell::new(end),
             symbol: RefCell::new(None),
             locals: RefCell::new(None),
+            js_doc: RefCell::new(None),
+            js_doc_cache: RefCell::new(None),
         }
     }
 }
@@ -783,6 +962,18 @@ impl NodeInterface for BaseNode {
 
     fn set_modifier_flags_cache(&self, flags: ModifierFlags) {
         self.modifier_flags_cache.set(flags);
+    }
+
+    fn transform_flags(&self) -> TransformFlags {
+        self.transform_flags
+    }
+
+    fn set_transform_flags(&mut self, flags: TransformFlags) {
+        self.transform_flags = flags;
+    }
+
+    fn add_transform_flags(&mut self, flags: TransformFlags) {
+        self.transform_flags |= flags;
     }
 
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>> {
@@ -850,6 +1041,29 @@ impl NodeInterface for BaseNode {
     fn set_locals(&self, locals: Option<SymbolTable>) {
         *self.locals.borrow_mut() = locals;
     }
+
+    fn maybe_js_doc(&self) -> Option<Vec<Rc<Node>>> {
+        self.js_doc
+            .borrow()
+            .clone()
+            .map(|vec| vec.iter().map(|weak| weak.upgrade().unwrap()).collect())
+    }
+
+    fn set_js_doc(&self, js_doc: Vec<Rc<Node>>) {
+        *self.js_doc.borrow_mut() = Some(js_doc.iter().map(|rc| Rc::downgrade(rc)).collect());
+    }
+
+    fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node>>> {
+        self.js_doc_cache
+            .borrow()
+            .clone()
+            .map(|vec| vec.iter().map(|weak| weak.upgrade().unwrap()).collect())
+    }
+
+    fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node>>) {
+        *self.js_doc_cache.borrow_mut() =
+            Some(js_doc_cache.iter().map(|rc| Rc::downgrade(rc)).collect());
+    }
 }
 
 impl ReadonlyTextRange for BaseNode {
@@ -889,7 +1103,7 @@ pub trait HasTypeInterface {
     fn set_type(&mut self, type_: Rc<Node>);
 }
 
-pub trait HasExpressionInitializerInterface {
+pub trait HasInitializerInterface {
     fn maybe_initializer(&self) -> Option<Rc<Node>>;
     fn set_initializer(&mut self, initializer: Rc<Node>);
 }

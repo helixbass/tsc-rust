@@ -4,13 +4,13 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{signature_has_rest_parameter, CheckMode, MinArgumentCountFlags};
+use super::{signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, WideningKind};
 use crate::{
-    is_function_expression_or_arrow_function, is_import_call, is_object_literal_method,
-    ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature, SignatureFlags, UnionReduction,
-    __String, create_symbol_table, get_effective_type_annotation_node, get_function_flags,
-    get_object_flags, has_initializer, is_object_literal_expression,
-    HasExpressionInitializerInterface, Identifier, Node, NodeInterface, ObjectFlags,
+    filter, is_function_expression_or_arrow_function, is_import_call, is_object_literal_method,
+    ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature, SignatureFlags, SignatureKind,
+    UnionReduction, __String, create_symbol_table, get_effective_type_annotation_node,
+    get_function_flags, get_object_flags, has_initializer, is_object_literal_expression,
+    HasInitializerInterface, Identifier, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ObjectLiteralExpression, PropertyAssignment, Symbol, SymbolInterface,
     SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
@@ -275,7 +275,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_object_literal(&self, node: &ObjectLiteralExpression) -> Rc<Type> {
-        let mut properties_table = create_symbol_table();
+        let mut properties_table = create_symbol_table(None);
         let mut properties_array: Vec<Rc<Symbol>> = vec![];
 
         let object_flags = self.fresh_object_literal_flag;
@@ -566,13 +566,25 @@ impl TypeChecker {
 
         if return_type.is_some() || yield_type.is_some() || next_type.is_some() {
             if let Some(yield_type) = yield_type {
-                self.report_errors_from_widening(func, yield_type, WideningKind::GeneratorYield);
+                self.report_errors_from_widening(
+                    func,
+                    &yield_type,
+                    Some(WideningKind::GeneratorYield),
+                );
             }
             if let Some(return_type) = return_type {
-                self.report_errors_from_widening(func, return_type, WideningKind::FunctionReturn);
+                self.report_errors_from_widening(
+                    func,
+                    &return_type,
+                    Some(WideningKind::FunctionReturn),
+                );
             }
             if let Some(next_type) = next_type {
-                self.report_errors_from_widening(func, next_type, WideningKind::GeneratorNext);
+                self.report_errors_from_widening(
+                    func,
+                    &next_type,
+                    Some(WideningKind::GeneratorNext),
+                );
             }
 
             if matches!(return_type, Some(return_type) if self.is_unit_type(&return_type))

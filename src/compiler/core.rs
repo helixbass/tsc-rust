@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::ptr;
@@ -5,10 +6,7 @@ use std::ptr;
 use crate::{Comparison, Debug_, SortedArray};
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
-    match array {
-        Some(array) => array.len(),
-        None => 0,
-    }
+    array.map_or(0, |array| array.len())
 }
 
 pub fn for_each<
@@ -60,6 +58,35 @@ pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .all(|(index, value)| predicate(value, index))
 }
 
+pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: &[TItem],
+    mut predicate: TCallback,
+) -> Option<&TItem> {
+    array
+        .into_iter()
+        .enumerate()
+        .find(|(index, value)| predicate(value, *index))
+        .map(|(_, value)| value)
+}
+
+pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {
+    // TODO: separate eg arrays_equal_by() helper taking equality_comparer callback and not imposing `Eq` bound?
+    a.len() == b.len() && every(a, |item_a, i| *item_a == b[i])
+}
+
+pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+    array: Option<&[TItem]>,
+    mut predicate: TCallback,
+) -> Option<Vec<TItem>> {
+    array.map(|array| {
+        array
+            .into_iter()
+            .filter(|item| predicate(item))
+            .map(Clone::clone)
+            .collect()
+    })
+}
+
 pub fn map<
     TCollection: IntoIterator,
     TReturn,
@@ -77,6 +104,27 @@ pub fn map<
         result = Some(some_result);
     }
     result
+}
+
+pub fn flat_map<
+    TCollection: IntoIterator,
+    TReturn: Clone,
+    TCallback: FnMut(TCollection::Item, usize) -> Vec<TReturn>, /* | undefined */
+>(
+    array: Option<TCollection>,
+    mut mapfn: TCallback,
+) -> Vec<TReturn> {
+    let mut result: Option<Vec<_>> = None;
+    if let Some(array) = array {
+        let mut some_result = vec![];
+        for (i, item) in array.into_iter().enumerate() {
+            let v = mapfn(item, i);
+            /*some_result = */
+            add_range(&mut some_result, Some(&v), None, None);
+        }
+        result = Some(some_result);
+    }
+    result.unwrap_or(vec![])
 }
 
 pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(
@@ -297,6 +345,11 @@ pub fn last_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
     array.last()
 }
 
+pub fn last<TItem>(array: &[TItem]) -> &TItem {
+    Debug_.assert(!array.is_empty(), None);
+    array.last().unwrap()
+}
+
 pub fn binary_search<
     TKey,
     TItem,
@@ -437,6 +490,18 @@ fn identity<TValue>(x: TValue) -> TValue {
     x
 }
 
+pub fn equate_values<TValue: PartialEq + ?Sized>(a: &TValue, b: &TValue) -> bool {
+    a == b
+}
+
+pub fn equate_strings_case_insensitive(a: &str, b: &str) -> bool {
+    a == b || a.to_uppercase() == b.to_uppercase()
+}
+
+pub fn equate_strings_case_sensitive(a: &str, b: &str) -> bool {
+    equate_values(a, b)
+}
+
 fn compare_comparable_values<TValue: Eq + Ord>(
     a: Option<TValue>, /*number | string | undefined*/
     b: Option<TValue>, /*number | string | undefined*/
@@ -469,6 +534,57 @@ pub fn compare_values<TValue: Eq + Ord>(
     compare_comparable_values(a, b)
 }
 
-pub fn compare_strings_case_sensitive(a: Option<&str>, b: Option<&str>) -> Comparison {
+pub fn compare_strings_case_insensitive(a: &str, b: &str) -> Comparison {
+    if a == b {
+        return Comparison::EqualTo;
+    }
+    // if (a === undefined) return Comparison.LessThan;
+    // if (b === undefined) return Comparison.GreaterThan;
+    let a = a.to_uppercase();
+    let b = b.to_uppercase();
+    if a < b {
+        Comparison::LessThan
+    } else if a > b {
+        Comparison::GreaterThan
+    } else {
+        Comparison::EqualTo
+    }
+}
+
+pub fn compare_strings_case_sensitive_maybe(a: Option<&str>, b: Option<&str>) -> Comparison {
     compare_comparable_values(a, b)
+}
+
+pub fn compare_strings_case_sensitive(a: &str, b: &str) -> Comparison {
+    compare_strings_case_sensitive_maybe(Some(a), Some(b))
+}
+
+pub fn get_string_comparer(ignore_case: Option<bool>) -> fn(&str, &str) -> Comparison {
+    let ignore_case = ignore_case.unwrap_or(false);
+    if ignore_case {
+        compare_strings_case_insensitive
+    } else {
+        compare_strings_case_sensitive
+    }
+}
+
+pub fn ends_with(str_: &str, suffix: &str) -> bool {
+    str_.ends_with(suffix)
+}
+
+pub fn string_contains(str_: &str, substring: &str) -> bool {
+    str_.find(substring).is_some()
+}
+
+pub type GetCanonicalFileName = fn(&str) -> String;
+
+pub fn starts_with(str_: &str, prefix: &str) -> bool {
+    str_.starts_with(prefix)
+}
+
+pub fn trim_string_start(s: &str) -> String {
+    lazy_static! {
+        static ref regex: Regex = Regex::new(r"^\s+").unwrap();
+    }
+    regex.replace_all(s, "").to_string()
 }

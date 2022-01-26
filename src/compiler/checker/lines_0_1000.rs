@@ -120,6 +120,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     host: &TTypeCheckerHost,
     produce_diagnostics: bool,
 ) -> TypeChecker {
+    let compiler_options = host.get_compiler_options();
     let mut type_checker = TypeChecker {
         _types_needing_strong_references: RefCell::new(vec![]),
         produce_diagnostics,
@@ -129,8 +130,9 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         type_count: Cell::new(0),
 
-        empty_symbols: Rc::new(RefCell::new(create_symbol_table())),
+        empty_symbols: Rc::new(RefCell::new(create_symbol_table(None))),
 
+        compiler_options,
         strict_null_checks: true,
         no_implicit_any: true,
         fresh_object_literal_flag: if false {
@@ -142,7 +144,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         node_builder: create_node_builder(),
 
-        globals: RefCell::new(create_symbol_table()),
+        globals: RefCell::new(create_symbol_table(None)),
 
         string_literal_types: RefCell::new(HashMap::new()),
         number_literal_types: RefCell::new(HashMap::new()),
