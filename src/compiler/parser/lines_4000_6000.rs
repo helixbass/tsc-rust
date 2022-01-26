@@ -1,5 +1,7 @@
 #![allow(non_upper_case_globals)]
 
+use std::rc::Rc;
+
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_binary_operator_precedence, ArrayLiteralExpression, BinaryExpression, Block,
@@ -148,7 +150,7 @@ impl ParserType {
         get_binary_operator_precedence(self.token()) > OperatorPrecedence::Comma
     }
 
-    pub(super) fn make_binary_expression<TNode: Into<Node>>(
+    pub(super) fn make_binary_expression<TNode: Into<Rc<Node>>>(
         &self,
         left: Expression,
         operator_token: TNode,
@@ -156,8 +158,12 @@ impl ParserType {
         pos: isize,
     ) -> BinaryExpression {
         self.finish_node(
-            self.factory
-                .create_binary_expression(self, left, operator_token.into(), right),
+            self.factory.create_binary_expression(
+                self,
+                left.into(),
+                operator_token.into(),
+                right.into(),
+            ),
             pos,
             None,
         )
@@ -187,7 +193,7 @@ impl ParserType {
             return self
                 .finish_node(
                     self.factory
-                        .create_prefix_unary_expression(self, operator, operand),
+                        .create_prefix_unary_expression(self, operator, operand.into()),
                     pos,
                     None,
                 )

@@ -169,7 +169,7 @@ impl BinderType {
         ) {
             let mut members = symbol.maybe_members();
             if members.is_none() {
-                *members = Some(Rc::new(RefCell::new(create_symbol_table())));
+                *members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
             }
         }
 
@@ -225,7 +225,7 @@ impl BinderType {
             self.set_container(Some(node.node_wrapper()));
             self.set_block_scope_container(Some(node.node_wrapper()));
             if container_flags.intersects(ContainerFlags::HasLocals) {
-                self.container().set_locals(Some(create_symbol_table()));
+                self.container().set_locals(Some(create_symbol_table(None)));
             }
         } else if container_flags.intersects(ContainerFlags::IsBlockScopedContainer) {
             self.set_block_scope_container(Some(node.node_wrapper()));
@@ -274,7 +274,11 @@ impl BinderType {
     }
 
     fn bind_each_child(&self, node: &Node) {
-        for_each_child(node, |node| self.bind(node), |nodes| self.bind_each(nodes));
+        for_each_child(
+            node,
+            |node| self.bind(Some(node)),
+            |nodes| self.bind_each(nodes),
+        );
     }
 
     fn bind_children(&self, node: &Node) {
@@ -470,7 +474,7 @@ impl BinderType {
         {
             let mut block_scope_container_locals = block_scope_container.maybe_locals();
             if block_scope_container_locals.is_none() {
-                *block_scope_container_locals = Some(create_symbol_table());
+                *block_scope_container_locals = Some(create_symbol_table(None));
             }
         }
         self.declare_symbol(

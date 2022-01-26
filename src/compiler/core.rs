@@ -5,6 +5,10 @@ use std::ptr;
 
 use crate::{Comparison, Debug_, SortedArray};
 
+pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
+    array.map_or(0, |array| array.len())
+}
+
 pub fn for_each<
     TCollection: IntoIterator,
     TReturn,
@@ -54,9 +58,33 @@ pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .all(|(index, value)| predicate(value, index))
 }
 
+pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: &[TItem],
+    mut predicate: TCallback,
+) -> Option<&TItem> {
+    array
+        .into_iter()
+        .enumerate()
+        .find(|(index, value)| predicate(value, *index))
+        .map(|(_, value)| value)
+}
+
 pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {
     // TODO: separate eg arrays_equal_by() helper taking equality_comparer callback and not imposing `Eq` bound?
     a.len() == b.len() && every(a, |item_a, i| *item_a == b[i])
+}
+
+pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+    array: Option<&[TItem]>,
+    mut predicate: TCallback,
+) -> Option<Vec<TItem>> {
+    array.map(|array| {
+        array
+            .into_iter()
+            .filter(|item| predicate(item))
+            .map(Clone::clone)
+            .collect()
+    })
 }
 
 pub fn map<
@@ -76,6 +104,27 @@ pub fn map<
         result = Some(some_result);
     }
     result
+}
+
+pub fn flat_map<
+    TCollection: IntoIterator,
+    TReturn: Clone,
+    TCallback: FnMut(TCollection::Item, usize) -> Vec<TReturn>, /* | undefined */
+>(
+    array: Option<TCollection>,
+    mut mapfn: TCallback,
+) -> Vec<TReturn> {
+    let mut result: Option<Vec<_>> = None;
+    if let Some(array) = array {
+        let mut some_result = vec![];
+        for (i, item) in array.into_iter().enumerate() {
+            let v = mapfn(item, i);
+            /*some_result = */
+            add_range(&mut some_result, Some(&v), None, None);
+        }
+        result = Some(some_result);
+    }
+    result.unwrap_or(vec![])
 }
 
 pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(
@@ -294,6 +343,11 @@ pub fn first_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
 
 pub fn last_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
     array.last()
+}
+
+pub fn last<TItem>(array: &[TItem]) -> &TItem {
+    Debug_.assert(!array.is_empty(), None);
+    array.last().unwrap()
 }
 
 pub fn binary_search<

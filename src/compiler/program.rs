@@ -2,9 +2,9 @@ use std::rc::Rc;
 
 use crate::{
     concatenate, create_source_file, create_type_checker, for_each, get_sys, normalize_path,
-    rc_source_file_into_rc_node, to_path as to_path_helper, CompilerHost, CompilerOptions,
-    CreateProgramOptions, Diagnostic, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node,
-    Path, Program, SourceFile, StructureIsReused, System, TypeChecker, TypeCheckerHost,
+    to_path as to_path_helper, CompilerHost, CompilerOptions, CreateProgramOptions, Diagnostic,
+    ModuleResolutionHost, ModuleSpecifierResolutionHost, Node, Path, Program, SourceFile,
+    StructureIsReused, System, TypeChecker, TypeCheckerHost,
 };
 
 fn create_compiler_host() -> impl CompilerHost {
@@ -22,7 +22,7 @@ impl ModuleResolutionHost for CompilerHostConcrete {
 }
 
 impl CompilerHost for CompilerHostConcrete {
-    fn get_source_file(&self, file_name: &str) -> Option<Rc<SourceFile>> {
+    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
         let text = self.read_file(file_name);
         text.map(|text| create_source_file(file_name, &text))
     }
@@ -247,9 +247,9 @@ fn find_source_file_worker(
     let file = helper_context.host.get_source_file(file_name);
 
     file.map(|file| {
-        file.set_file_name(file_name.to_string());
-        file.set_path(_path);
-        let file: Rc<Node> = rc_source_file_into_rc_node(file);
+        let file_as_source_file = file.as_source_file();
+        file_as_source_file.set_file_name(file_name.to_string());
+        file_as_source_file.set_path(_path);
         helper_context.processing_other_files.push(file.clone());
         file
     })

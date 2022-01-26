@@ -7,8 +7,8 @@ use std::rc::Rc;
 use super::CheckMode;
 use crate::{
     __String, create_symbol_table, get_effective_type_annotation_node, get_object_flags,
-    has_initializer, is_object_literal_expression, HasExpressionInitializerInterface, Identifier,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
+    has_initializer, is_object_literal_expression, HasInitializerInterface, Identifier, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
     PropertyAssignment, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface,
 };
@@ -184,7 +184,7 @@ impl TypeChecker {
     }
 
     pub(super) fn check_object_literal(&self, node: &ObjectLiteralExpression) -> Rc<Type> {
-        let mut properties_table = create_symbol_table();
+        let mut properties_table = create_symbol_table(None);
         let mut properties_array: Vec<Rc<Symbol>> = vec![];
 
         let object_flags = self.fresh_object_literal_flag;

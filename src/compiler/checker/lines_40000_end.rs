@@ -95,7 +95,7 @@ impl TypeChecker {
         }
 
         for file in host.get_source_files() {
-            if !is_external_or_common_js_module(file.as_source_file()) {
+            if !is_external_or_common_js_module(&file) {
                 self.merge_symbol_table(&mut *self.globals(), &*file.locals(), None);
             }
         }

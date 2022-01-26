@@ -5,6 +5,7 @@ use crate::{object_allocator, BaseNode, SyntaxKind};
 pub trait BaseNodeFactory {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode;
     fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode;
+    fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode;
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode;
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode;
 }
@@ -18,6 +19,7 @@ pub fn create_base_node_factory() -> BaseNodeFactoryConcrete {
 pub struct BaseNodeFactoryConcrete {
     SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
     IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    PrivateIdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
     TokenConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
     NodeConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
 }
@@ -27,6 +29,7 @@ impl BaseNodeFactoryConcrete {
         Self {
             SourceFileConstructor: RefCell::new(None),
             IdentifierConstructor: RefCell::new(None),
+            PrivateIdentifierConstructor: RefCell::new(None),
             TokenConstructor: RefCell::new(None),
             NodeConstructor: RefCell::new(None),
         }
@@ -49,6 +52,15 @@ impl BaseNodeFactory for BaseNodeFactoryConcrete {
             *IdentifierConstructor = Some(object_allocator.get_identifier_constructor());
         }
         (IdentifierConstructor.unwrap())(kind, -1, -1)
+    }
+
+    fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
+        let mut PrivateIdentifierConstructor = self.PrivateIdentifierConstructor.borrow_mut();
+        if PrivateIdentifierConstructor.is_none() {
+            *PrivateIdentifierConstructor =
+                Some(object_allocator.get_private_identifier_constructor());
+        }
+        (PrivateIdentifierConstructor.unwrap())(kind, -1, -1)
     }
 
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
