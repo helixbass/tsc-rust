@@ -1058,13 +1058,91 @@ pub fn get_all_jsdoc_tags_of_kind(node: &Node, kind: SyntaxKind) -> Vec<Rc<Node 
         .collect()
 }
 
+pub fn get_text_of_jsdoc_comment<TComment: Into<StringOrNodeArray>>(
+    comment: Option<TComment>,
+) -> Option<String> {
+    match comment {
+        Some(StringOrNodeArray::String(comment)) => Some(comment),
+        Some(StringOrNodeArray::NodeArray(comment)) => Some(
+            comment
+                .iter()
+                .map(|c| {
+                    if c.kind() == SyntaxKind::JSDocText {
+                        c.as_jsdoc_text().text.clone()
+                    } else {
+                        let c_as_jsdoc_link_like = c.as_jsdoc_link_like();
+                        format!(
+                            "{{@link {}{}}}",
+                            if let Some(c_name) = c_as_jsdoc_link_like.maybe_name() {
+                                format!("{} ", entity_name_to_string(&c_name))
+                            } else {
+                                "".to_owned()
+                            },
+                            c_as_jsdoc_link_like.text
+                        )
+                    }
+                })
+                .join(""),
+        ),
+        _ => None,
+    }
+}
+
 pub fn get_effective_type_parameter_declarations(
     node: &Node,
 ) -> Vec<Rc<Node /*TypeParameterDeclaration*/>> {
+    if is_jsdoc_signature(node) {
+        return vec![];
+    }
+    if is_jsdoc_type_alias(node) {
+        Debug_.assert(node.parent().kind() == SyntaxKind::JSDocComment, None);
+        return flat_map(&node.parent().as_jsdoc_comment().tags, |tag, _| {
+            if is_jsdoc_template_tag(tag) {
+                tag.as_jsdoc_template_tag().type_parameters
+            } else {
+                /*None*/
+                vec![]
+            }
+        });
+    }
     if let Some(type_parameters) = node.as_has_type_parameters().maybe_type_parameters() {
         return type_parameters.into();
     }
+    if is_in_js_file(node) {
+        let decls = get_jsdoc_type_parameter_declarations(node);
+        if !decls.is_empty() {
+            return decls;
+        }
+        let type_tag = get_jsdoc_type(node);
+        if let Some(type_tag) = type_tag {
+            if is_function_type_node(type_tag) {
+                let type_tag_as_function_type_node = type_tag.as_function_type_node();
+                if let Some(type_tag_type_parameters) =
+                    type_tag_as_function_type_node.type_parameters.as_ref()
+                {
+                    return type_tag_type_parameters.clone();
+                }
+            }
+        }
+    }
     vec![]
+}
+
+pub fn get_effective_constraint_of_type_parameter(
+    node: &Node, /*TypeParameterDeclaration*/
+) -> Option<Rc<Node /*TypeNode*/>> {
+    if let Some(node_constraint) = node.as_type_parameter_declaration().constraint.as_ref() {
+        return Some(node_constraint.clone());
+    }
+    if is_jsdoc_template_tag(&*node.parent()) {
+        let node_parent_as_jsdoc_template_tag = node.parent().as_jsdoc_template_tag();
+        if !node_parent_as_jsdoc_template_tag.type_parameters.is_empty()
+            && ptr::eq(node, &*node_parent_as_jsdoc_template_tag.type_parameters[0])
+        {
+            return node_parent_as_jsdoc_template_tag.constraint.clone();
+        }
+    }
+    None
 }
 
 pub fn is_member_name(node: &Node) -> bool {
