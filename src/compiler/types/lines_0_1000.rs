@@ -10,15 +10,16 @@ use super::{
     ElementAccessExpression, EnumMember, ExportAssignment, Expression, ExpressionStatement,
     FunctionLikeDeclarationInterface, HasElementsInterface, HasExpressionInterface,
     HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDoc, JSDocPropertyLikeTag,
-    JSDocTag, JSDocTemplateTag, JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement,
-    LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, ModuleDeclaration,
-    NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral, ObjectBindingPattern,
-    ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression, PropertyAccessExpression,
-    PropertyAssignment, PropertyDeclaration, QualifiedName, ShorthandPropertyAssignment,
-    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
-    SymbolTable, TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeElement, TypeNode,
-    TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
-    VariableDeclarationList, VariableStatement, VoidExpression,
+    JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag,
+    JsxAttribute, LabeledStatement, LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray,
+    ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral,
+    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
+    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, QualifiedName,
+    ShorthandPropertyAssignment, SignatureDeclarationBase, SignatureDeclarationInterface,
+    SourceFile, Statement, Symbol, SymbolTable, TemplateSpan, TransformFlags, TypeAliasDeclaration,
+    TypeElement, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
+    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
+    VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -916,6 +917,18 @@ impl Node {
 
     pub fn as_prefix_unary_expression(&self) -> &PrefixUnaryExpression {
         enum_unwrapped!(self, [Node, Expression, PrefixUnaryExpression])
+    }
+
+    pub fn as_jsdoc_type_expression(&self) -> &JSDocTypeExpression {
+        enum_unwrapped!(self, [Node, TypeNode, JSDocTypeExpression])
+    }
+
+    pub fn as_jsdoc_return_tag(&self) -> &JSDocReturnTag {
+        enum_unwrapped!(self, [Node, JSDocTag, JSDocReturnTag])
+    }
+
+    pub fn as_type_literal_node(&self) -> &TypeLiteralNode {
+        enum_unwrapped!(self, [Node, TypeNode, TypeLiteralNode])
     }
 }
 

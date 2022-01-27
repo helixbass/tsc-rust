@@ -6,9 +6,10 @@ use std::rc::Rc;
 use super::{
     ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseLiteralLikeNode,
     BaseNode, BinaryExpression, CallExpression, ElementAccessExpression, HasExpressionInterface,
-    HasInitializerInterface, HasTypeInterface, LiteralLikeNode, NewExpression, Node, NodeInterface,
-    NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression,
-    SyntaxKind, TemplateExpression, TypeAssertion, VoidExpression, __String,
+    HasInitializerInterface, HasTypeInterface, JSDocTypeExpression, LiteralLikeNode, NewExpression,
+    Node, NodeInterface, NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression,
+    PropertyAccessExpression, SyntaxKind, TemplateExpression, TypeAssertion, VoidExpression,
+    __String,
 };
 use local_macros::ast_type;
 
@@ -490,6 +491,7 @@ pub enum TypeNode {
     TypePredicateNode(TypePredicateNode),
     TypeLiteralNode(TypeLiteralNode),
     ArrayTypeNode(ArrayTypeNode),
+    JSDocTypeExpression(JSDocTypeExpression),
 }
 
 #[derive(Debug)]

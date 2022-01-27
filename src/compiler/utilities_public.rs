@@ -13,11 +13,15 @@ use crate::{
     get_effective_modifier_flags_always_include_jsdoc,
     get_element_or_property_access_argument_expression_or_name, get_emit_script_target,
     get_jsdoc_comments_and_tags, has_syntactic_modifier, is_access_expression, is_arrow_function,
-    is_bindable_static_element_access_expression, is_binding_element, is_class_expression,
-    is_class_static_block_declaration, is_function_expression, is_identifier, is_jsdoc,
-    is_jsdoc_augments_tag, is_jsdoc_implements_tag, is_jsdoc_parameter_tag, is_jsdoc_signature,
-    is_jsdoc_template_tag, is_jsdoc_type_literal, is_jsdoc_type_tag, is_omitted_expression,
-    is_private_identifier, is_property_declaration, is_rooted_disk_path, is_variable_statement,
+    is_bindable_static_element_access_expression, is_binding_element,
+    is_call_signature_declaration, is_class_expression, is_class_static_block_declaration,
+    is_function_expression, is_function_type_node, is_identifier, is_jsdoc, is_jsdoc_augments_tag,
+    is_jsdoc_class_tag, is_jsdoc_deprecated_tag, is_jsdoc_enum_tag, is_jsdoc_function_type,
+    is_jsdoc_implements_tag, is_jsdoc_override_tag, is_jsdoc_parameter_tag, is_jsdoc_private_tag,
+    is_jsdoc_protected_tag, is_jsdoc_public_tag, is_jsdoc_readonly_tag, is_jsdoc_return_tag,
+    is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_this_tag, is_jsdoc_type_literal,
+    is_jsdoc_type_tag, is_omitted_expression, is_parameter, is_private_identifier,
+    is_property_declaration, is_rooted_disk_path, is_type_literal_node, is_variable_statement,
     is_white_space_like, normalize_path, path_is_relative, set_localized_diagnostic_messages,
     set_ui_locale, skip_outer_expressions, some, AssignmentDeclarationKind, CharacterCodes,
     CompilerOptions, Debug_, Diagnostics, Expression, ModifierFlags, NamedDeclarationInterface,
@@ -223,7 +227,7 @@ pub fn is_parameter_property_declaration(node: &Node, parent: &Node) -> bool {
 }
 
 pub fn is_empty_binding_pattern(node: &Node /*BindingName*/) -> bool {
-    if is_binding_pattern(node) {
+    if is_binding_pattern(Some(node)) {
         return every(node.as_has_elements().elements(), |element, _| {
             is_empty_binding_element(element)
         });
@@ -603,7 +607,7 @@ fn name_for_nameless_jsdoc_typedef(
 fn get_declaration_identifier(
     node: &Node, /*Declaration | Expression*/
 ) -> Option<Rc<Node /*Identifier*/>> {
-    let name = get_name_of_declaration(node);
+    let name = get_name_of_declaration(Some(node));
     name.filter(|name| is_identifier(&**name))
 }
 
@@ -673,7 +677,7 @@ fn get_non_assigned_name_of_declaration(
                 AssignmentDeclarationKind::ObjectDefinePropertyValue
                 | AssignmentDeclarationKind::ObjectDefinePropertyExports
                 | AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
-                    return expr.as_call_expression().arguments[1].clone();
+                    return Some(expr.as_call_expression().arguments[1].clone());
                 }
                 _ => {
                     return None;
@@ -956,7 +960,7 @@ pub fn get_jsdoc_type_tag(node: &Node) -> Option<Rc<Node /*JSDocTypeTag*/>> {
 pub fn get_jsdoc_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
     let mut tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag, None);
     if tag.is_none() && is_parameter(node) {
-        tag = find(&get_jsdoc_parameter_tags(node), |tag| {
+        tag = find(&get_jsdoc_parameter_tags(node), |tag, _| {
             tag.as_jsdoc_property_like_tag().type_expression.is_some()
         });
     }
@@ -972,7 +976,12 @@ pub fn get_jsdoc_return_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
         if let Some(return_tag_as_jsdoc_return_tag_type_expression) =
             return_tag_as_jsdoc_return_tag.type_expression.as_ref()
         {
-            return Some(return_tag_as_jsdoc_return_tag_type_expression.type_.clone());
+            return Some(
+                return_tag_as_jsdoc_return_tag_type_expression
+                    .as_jsdoc_type_expression()
+                    .type_
+                    .clone(),
+            );
         }
     }
     let type_tag = get_jsdoc_type_tag(node);
@@ -984,10 +993,9 @@ pub fn get_jsdoc_return_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
             .as_jsdoc_type_expression()
             .type_;
         if is_type_literal_node(&**type_) {
-            let sig = find(
-                &type_.as_type_literal_node().members,
-                is_call_signature_declaration,
-            );
+            let sig = find(&type_.as_type_literal_node().members, |node, _| {
+                is_call_signature_declaration(node)
+            });
             return sig.map(|sig| sig.as_signature_declaration().maybe_type());
         }
         if is_function_type_node(&**type_) || is_jsdoc_function_type(&**type_) {

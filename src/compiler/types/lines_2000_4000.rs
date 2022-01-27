@@ -1253,6 +1253,32 @@ impl TextRange for CommentRange {
 }
 
 #[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct JSDocTypeExpression {
+    _node: BaseNode,
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl JSDocTypeExpression {
+    pub fn new(base_node: BaseNode, type_: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for JSDocTypeExpression {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = type_;
+    }
+}
+
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDoc {
     _node: BaseNode,
