@@ -10,15 +10,15 @@ use super::{
     ElementAccessExpression, EnumMember, ExportAssignment, Expression, ExpressionStatement,
     FunctionLikeDeclarationInterface, HasElementsInterface, HasExpressionInterface,
     HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDoc, JSDocPropertyLikeTag,
-    JSDocTag, JSDocTemplateTag, JSDocTypeTag, JSDocTypedefTag, JsxAttribute,
+    JSDocTag, JSDocTemplateTag, JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement,
     LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, ModuleDeclaration,
     NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral, ObjectBindingPattern,
-    ObjectLiteralExpression, ParameterDeclaration, PropertyAccessExpression, PropertyAssignment,
-    PropertyDeclaration, QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
-    TransformFlags, TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
-    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
-    VariableStatement, VoidExpression,
+    ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression, PropertyAccessExpression,
+    PropertyAssignment, PropertyDeclaration, QualifiedName, ShorthandPropertyAssignment,
+    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
+    SymbolTable, TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeElement, TypeNode,
+    TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
+    VariableDeclarationList, VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -908,6 +908,14 @@ impl Node {
 
     pub fn as_export_assignment(&self) -> &ExportAssignment {
         enum_unwrapped!(self, [Node, Statement, ExportAssignment])
+    }
+
+    pub fn as_labeled_statement(&self) -> &LabeledStatement {
+        enum_unwrapped!(self, [Node, Statement, LabeledStatement])
+    }
+
+    pub fn as_prefix_unary_expression(&self) -> &PrefixUnaryExpression {
+        enum_unwrapped!(self, [Node, Expression, PrefixUnaryExpression])
     }
 }
 
