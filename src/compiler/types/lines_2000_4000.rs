@@ -588,6 +588,8 @@ pub enum Statement {
     ForInStatement(ForInStatement),
     ForOfStatement(ForOfStatement),
     ModuleDeclaration(ModuleDeclaration),
+    LabeledStatement(LabeledStatement),
+    ExportAssignment(ExportAssignment),
 }
 
 #[derive(Debug)]
@@ -794,6 +796,24 @@ impl ReturnStatement {
         Self {
             _node: base_node,
             expression,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct LabeledStatement {
+    _node: BaseNode,
+    pub label: Rc<Node /*Identifier*/>,
+    pub statement: Rc<Node /*Statement*/>,
+}
+
+impl LabeledStatement {
+    pub fn new(base_node: BaseNode, label: Rc<Node>, statement: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            label,
+            statement,
         }
     }
 }
@@ -1170,6 +1190,25 @@ impl NamedDeclarationInterface for ModuleDeclaration {
     }
 }
 
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ExportAssignment {
+    _node: BaseNode,
+    pub is_export_equals: Option<bool>,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+// TODO: should implement HasExpressionInterface for ExportAssignment?
+impl ExportAssignment {
+    pub fn new(base_node: BaseNode, name: Rc<Node>, body: Option<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+            body,
+        }
+    }
+}
+
 pub type CommentKind = SyntaxKind; /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
 
 pub struct CommentRange {
@@ -1421,7 +1460,7 @@ impl JSDocReturnTag {
 #[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
 pub struct JSDocTypeTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    type_expression: Rc<Node /*JSDocTypeExpression*/>,
+    pub type_expression: Rc<Node /*JSDocTypeExpression*/>,
 }
 
 impl JSDocTypeTag {

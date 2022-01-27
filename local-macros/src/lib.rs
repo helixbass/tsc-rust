@@ -141,6 +141,10 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_parent(parent)
                     }
 
+                    fn maybe_original(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self.#first_field_name.maybe_original()
+                    }
+
                     fn maybe_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
                         self.#first_field_name.maybe_symbol()
                     }
@@ -476,6 +480,12 @@ fn get_ast_enum_interface_impl(
                     fn set_parent(&self, parent: ::std::rc::Rc<crate::Node>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_parent(parent)),*
+                        }
+                    }
+
+                    fn maybe_original(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_original()),*
                         }
                     }
 

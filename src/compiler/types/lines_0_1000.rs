@@ -7,14 +7,14 @@ use std::rc::{Rc, Weak};
 
 use super::{
     ArrayBindingPattern, BinaryExpression, BindingElement, CallExpression, Decorator,
-    ElementAccessExpression, EnumMember, Expression, ExpressionStatement,
+    ElementAccessExpression, EnumMember, ExportAssignment, Expression, ExpressionStatement,
     FunctionLikeDeclarationInterface, HasElementsInterface, HasExpressionInterface,
     HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDoc, JSDocPropertyLikeTag,
-    JSDocTag, JSDocTemplateTag, JSDocTypeTag, JsxAttribute, LiteralLikeNodeInterface,
-    MemberNameInterface, ModifiersArray, ModuleDeclaration, NamedDeclarationInterface,
-    NewExpression, NodeArray, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
-    ParameterDeclaration, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
-    QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
+    JSDocTag, JSDocTemplateTag, JSDocTypeTag, JSDocTypedefTag, JsxAttribute,
+    LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, ModuleDeclaration,
+    NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral, ObjectBindingPattern,
+    ObjectLiteralExpression, ParameterDeclaration, PropertyAccessExpression, PropertyAssignment,
+    PropertyDeclaration, QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
     SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
     TransformFlags, TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
     UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
@@ -604,6 +604,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_parent(&self) -> Option<Rc<Node>>;
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
+    fn maybe_original(&self) -> Option<Rc<Node>>;
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
@@ -900,6 +901,14 @@ impl Node {
     pub fn as_new_expression(&self) -> &NewExpression {
         enum_unwrapped!(self, [Node, Expression, NewExpression])
     }
+
+    pub fn as_jsdoc_typedef_tag(&self) -> &JSDocTypedefTag {
+        enum_unwrapped!(self, [Node, JSDocTag, JSDocTypedefTag])
+    }
+
+    pub fn as_export_assignment(&self) -> &ExportAssignment {
+        enum_unwrapped!(self, [Node, Statement, ExportAssignment])
+    }
 }
 
 #[derive(Debug)]
@@ -913,6 +922,7 @@ pub struct BaseNode {
     pub modifiers: Option<ModifiersArray>,
     pub id: Cell<Option<NodeId>>,
     pub parent: RefCell<Option<Weak<Node>>>,
+    pub original: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<isize>,
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
@@ -939,6 +949,7 @@ impl BaseNode {
             modifiers: None,
             id: Cell::new(None),
             parent: RefCell::new(None),
+            original: RefCell::new(None),
             pos: Cell::new(pos),
             end: Cell::new(end),
             symbol: RefCell::new(None),
@@ -1032,6 +1043,13 @@ impl NodeInterface for BaseNode {
 
     fn set_parent(&self, parent: Rc<Node>) {
         *self.parent.borrow_mut() = Some(Rc::downgrade(&parent));
+    }
+
+    fn maybe_original(&self) -> Option<Rc<Node>> {
+        self.original
+            .borrow()
+            .as_ref()
+            .map(|weak| weak.upgrade().unwrap())
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
