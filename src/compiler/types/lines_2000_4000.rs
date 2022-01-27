@@ -1280,6 +1280,24 @@ impl HasTypeInterface for JSDocTypeExpression {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct JSDocMemberName {
+    _node: BaseNode,
+    pub left: Rc<Node /*EntityName | JSDocMemberName*/>,
+    pub right: Rc<Node /*Identifier*/>,
+}
+
+impl JSDocMemberName {
+    pub fn new(base_node: BaseNode, left: Rc<Node>, right: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            left,
+            right,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JSDoc {
     _node: BaseNode,
     pub tags: Option<NodeArray /*<JSDocTag>*/>,

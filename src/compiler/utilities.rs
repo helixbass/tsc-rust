@@ -2,7 +2,7 @@
 
 use bitflags::bitflags;
 use regex::{Captures, Regex};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp;
 use std::cmp::Ordering;
@@ -20,24 +20,25 @@ use crate::{
     is_function_like_or_class_static_block_declaration, is_identifier, is_jsdoc,
     is_jsdoc_signature, is_jsdoc_type_tag, is_left_hand_side_expression, is_module_declaration,
     is_numeric_literal, is_object_literal_expression, is_parenthesized_expression,
-    is_property_access_expression, is_source_file, is_string_literal_like, is_variable_statement,
-    is_void_expression, is_white_space_like, last, length, module_resolution_option_declarations,
-    options_affecting_program_structure, skip_outer_expressions, str_to_source_text_as_chars,
-    text_substring, AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface,
-    CompilerOptions, CompilerOptionsValue, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, MapLike,
-    ModifierFlags, ModuleKind, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags,
-    OuterExpressionKinds, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, ScriptTarget,
-    Signature, SignatureFlags, SortedArray, SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan,
-    TransformFlags, TransientSymbolInterface, Type, TypeFlags, TypeInterface, UnderscoreEscapedMap,
-    __String, compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
-    escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
-    insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
-    CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic, DiagnosticCollection,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    is_private_identifier, is_property_access_expression, is_source_file, is_string_literal_like,
+    is_variable_statement, is_void_expression, is_white_space_like, last, length,
+    module_resolution_option_declarations, options_affecting_program_structure,
+    skip_outer_expressions, str_to_source_text_as_chars, text_substring, AssignmentDeclarationKind,
+    CommandLineOption, CommandLineOptionInterface, CompilerOptions, CompilerOptionsValue,
+    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitTextWriter, Expression,
+    LiteralLikeNode, LiteralLikeNodeInterface, MapLike, ModifierFlags, ModuleKind, Node, NodeArray,
+    NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds, PrefixUnaryExpression,
+    PseudoBigInt, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SortedArray,
+    SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TransformFlags, TransientSymbolInterface,
+    Type, TypeFlags, TypeInterface, UnderscoreEscapedMap, __String, compare_strings_case_sensitive,
+    compare_values, create_text_span_from_bounds, escape_leading_underscores, for_each,
+    get_combined_node_flags, get_name_of_declaration, insert_sorted, is_big_int_literal,
+    is_member_name, is_type_alias_declaration, skip_trivia, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags,
+    Comparison, Debug_, Diagnostic, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -517,6 +518,55 @@ pub fn declaration_name_to_string<TNode: NodeInterface>(name: Option<&TNode>) ->
     }
 }
 
+pub fn entity_name_to_string(
+    name: &Node, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
+) -> Cow<'static, str> {
+    match name.kind() {
+        SyntaxKind::ThisKeyword => "this".into(),
+        SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => {
+            if get_full_width(name) == 0 {
+                id_text(name).into()
+            } else {
+                get_text_of_node(name, None).into()
+            }
+        }
+        SyntaxKind::QualifiedName => {
+            let name_as_qualified_name = name.as_qualified_name();
+            format!(
+                "{}.{}",
+                entity_name_to_string(&name_as_qualified_name.left),
+                entity_name_to_string(&name_as_qualified_name.right)
+            )
+            .into()
+        }
+        SyntaxKind::PropertyAccessExpression => {
+            let name_as_property_access_expression = name.as_property_access_expression();
+            if is_identifier(&*name_as_property_access_expression.name)
+                || is_private_identifier(&*name_as_property_access_expression.name)
+            {
+                format!(
+                    "{}.{}",
+                    entity_name_to_string(&name_as_property_access_expression.expression),
+                    entity_name_to_string(&name_as_property_access_expression.name)
+                )
+                .into()
+            } else {
+                Debug_.assert_never(name_as_property_access_expression.name, None)
+            }
+        }
+        SyntaxKind::JSDocMemberName => {
+            let name_as_jsdoc_member_name = name.as_jsdoc_member_name();
+            format!(
+                "{}{}",
+                entity_name_to_string(&name_as_jsdoc_member_name.left),
+                entity_name_to_string(&name_as_jsdoc_member_name.right)
+            )
+            .into()
+        }
+        _ => Debug_.assert_never(name, None),
+    }
+}
+
 pub fn create_diagnostic_for_node<TNode: NodeInterface>(
     node: &TNode,
     message: &DiagnosticMessage,
@@ -906,7 +956,7 @@ pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode
     symbol.set_value_declaration(node.node_wrapper());
 }
 
-fn is_jsdoc_type_alias<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_jsdoc_type_alias<TNode: NodeInterface>(node: &TNode) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocEnumTag

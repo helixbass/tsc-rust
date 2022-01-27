@@ -9,17 +9,17 @@ use super::{
     ArrayBindingPattern, BinaryExpression, BindingElement, CallExpression, Decorator,
     ElementAccessExpression, EnumMember, ExportAssignment, Expression, ExpressionStatement,
     FunctionLikeDeclarationInterface, HasElementsInterface, HasExpressionInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDoc, JSDocPropertyLikeTag,
-    JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag,
-    JsxAttribute, LabeledStatement, LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray,
-    ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral,
-    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
-    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, QualifiedName,
-    ShorthandPropertyAssignment, SignatureDeclarationBase, SignatureDeclarationInterface,
-    SourceFile, Statement, Symbol, SymbolTable, TemplateSpan, TransformFlags, TypeAliasDeclaration,
-    TypeElement, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
-    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
-    VariableStatement, VoidExpression,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDoc, JSDocMemberName,
+    JSDocPropertyLikeTag, JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocTypeExpression,
+    JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement, LiteralLikeNodeInterface,
+    MemberNameInterface, ModifiersArray, ModuleDeclaration, NamedDeclarationInterface,
+    NewExpression, NodeArray, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
+    ParameterDeclaration, PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment,
+    PropertyDeclaration, QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
+    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
+    TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode,
+    TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
+    VariableDeclarationList, VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -645,6 +645,7 @@ pub enum Node {
     ShorthandPropertyAssignment(ShorthandPropertyAssignment),
     ObjectBindingPattern(ObjectBindingPattern),
     ArrayBindingPattern(ArrayBindingPattern),
+    JSDocMemberName(JSDocMemberName),
 }
 
 impl Node {
@@ -929,6 +930,14 @@ impl Node {
 
     pub fn as_type_literal_node(&self) -> &TypeLiteralNode {
         enum_unwrapped!(self, [Node, TypeNode, TypeLiteralNode])
+    }
+
+    pub fn as_jsdoc_member_name(&self) -> &JSDocMemberName {
+        enum_unwrapped!(self, [Node, JSDocMemberName])
+    }
+
+    pub fn as_qualified_name(&self) -> &QualifiedName {
+        enum_unwrapped!(self, [Node, QualifiedName])
     }
 }
 

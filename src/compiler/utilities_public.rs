@@ -1,6 +1,6 @@
 use regex::Regex;
 use serde_json;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cmp;
 use std::collections::HashMap;
 use std::ops::BitOrAssign;
@@ -8,27 +8,27 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    combine_paths, contains, create_compiler_diagnostic, every, find, flat_map,
-    get_assignment_declaration_kind, get_directory_path, get_effective_modifier_flags,
+    combine_paths, contains, create_compiler_diagnostic, entity_name_to_string, every, find,
+    flat_map, get_assignment_declaration_kind, get_directory_path, get_effective_modifier_flags,
     get_effective_modifier_flags_always_include_jsdoc,
     get_element_or_property_access_argument_expression_or_name, get_emit_script_target,
     get_jsdoc_comments_and_tags, has_syntactic_modifier, is_access_expression, is_arrow_function,
     is_bindable_static_element_access_expression, is_binding_element,
     is_call_signature_declaration, is_class_expression, is_class_static_block_declaration,
-    is_function_expression, is_function_type_node, is_identifier, is_jsdoc, is_jsdoc_augments_tag,
-    is_jsdoc_class_tag, is_jsdoc_deprecated_tag, is_jsdoc_enum_tag, is_jsdoc_function_type,
-    is_jsdoc_implements_tag, is_jsdoc_override_tag, is_jsdoc_parameter_tag, is_jsdoc_private_tag,
-    is_jsdoc_protected_tag, is_jsdoc_public_tag, is_jsdoc_readonly_tag, is_jsdoc_return_tag,
-    is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_this_tag, is_jsdoc_type_literal,
-    is_jsdoc_type_tag, is_omitted_expression, is_parameter, is_private_identifier,
-    is_property_declaration, is_rooted_disk_path, is_type_literal_node, is_variable_statement,
-    is_white_space_like, normalize_path, path_is_relative, set_localized_diagnostic_messages,
-    set_ui_locale, skip_outer_expressions, some, AssignmentDeclarationKind, CharacterCodes,
-    CompilerOptions, Debug_, Diagnostics, Expression, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Statement, Symbol,
-    SymbolInterface, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
-    compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
-    Diagnostic, SortedArray,
+    is_function_expression, is_function_type_node, is_identifier, is_in_js_file, is_jsdoc,
+    is_jsdoc_augments_tag, is_jsdoc_class_tag, is_jsdoc_deprecated_tag, is_jsdoc_enum_tag,
+    is_jsdoc_function_type, is_jsdoc_implements_tag, is_jsdoc_override_tag, is_jsdoc_parameter_tag,
+    is_jsdoc_private_tag, is_jsdoc_protected_tag, is_jsdoc_public_tag, is_jsdoc_readonly_tag,
+    is_jsdoc_return_tag, is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_this_tag,
+    is_jsdoc_type_alias, is_jsdoc_type_literal, is_jsdoc_type_tag, is_omitted_expression,
+    is_parameter, is_private_identifier, is_property_declaration, is_rooted_disk_path,
+    is_type_literal_node, is_variable_statement, is_white_space_like, normalize_path,
+    path_is_relative, set_localized_diagnostic_messages, set_ui_locale, skip_outer_expressions,
+    some, AssignmentDeclarationKind, CharacterCodes, CompilerOptions, Debug_, Diagnostics,
+    Expression, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Statement, Symbol, SymbolInterface,
+    SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String, compare_diagnostics,
+    is_block, is_module_block, is_source_file, sort_and_deduplicate, Diagnostic, SortedArray,
 };
 
 pub fn is_external_module_name_relative(module_name: &str) -> bool {
@@ -994,9 +994,9 @@ pub fn get_jsdoc_return_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
             .type_;
         if is_type_literal_node(&**type_) {
             let sig = find(&type_.as_type_literal_node().members, |node, _| {
-                is_call_signature_declaration(node)
+                is_call_signature_declaration(&**node)
             });
-            return sig.map(|sig| sig.as_signature_declaration().maybe_type());
+            return sig.and_then(|sig| sig.as_signature_declaration().maybe_type());
         }
         if is_function_type_node(&**type_) || is_jsdoc_function_type(&**type_) {
             return type_.as_has_type().maybe_type();
@@ -1066,32 +1066,54 @@ pub fn get_all_jsdoc_tags_of_kind(node: &Node, kind: SyntaxKind) -> Vec<Rc<Node 
         .collect()
 }
 
-pub fn get_text_of_jsdoc_comment<TComment: Into<StringOrNodeArray>>(
+#[derive(Debug)]
+pub enum StrOrNodeArrayRef<'a> {
+    Str(&'a str),
+    NodeArray(&'a NodeArray),
+}
+
+impl<'a> From<&'a str> for StrOrNodeArrayRef<'a> {
+    fn from(value: &'a str) -> Self {
+        Self::Str(value)
+    }
+}
+
+impl<'a> From<&'a NodeArray> for StrOrNodeArrayRef<'a> {
+    fn from(value: &'a NodeArray) -> Self {
+        Self::NodeArray(value)
+    }
+}
+
+pub fn get_text_of_jsdoc_comment<'a, TComment: Into<StrOrNodeArrayRef<'a>>>(
     comment: Option<TComment>,
-) -> Option<String> {
+) -> Option<Cow<'a, str>> {
     match comment {
-        Some(StringOrNodeArray::String(comment)) => Some(comment),
-        Some(StringOrNodeArray::NodeArray(comment)) => Some(
-            comment
-                .iter()
-                .map(|c| {
-                    if c.kind() == SyntaxKind::JSDocText {
-                        c.as_jsdoc_text().text.clone()
-                    } else {
-                        let c_as_jsdoc_link_like = c.as_jsdoc_link_like();
-                        format!(
-                            "{{@link {}{}}}",
-                            if let Some(c_name) = c_as_jsdoc_link_like.maybe_name() {
-                                format!("{} ", entity_name_to_string(&c_name))
-                            } else {
-                                "".to_owned()
-                            },
-                            c_as_jsdoc_link_like.text
-                        )
-                    }
-                })
-                .join(""),
-        ),
+        Some(comment) => match comment.into() {
+            StrOrNodeArrayRef::Str(comment) => Some(comment.into()),
+            StrOrNodeArrayRef::NodeArray(comment) => Some(
+                comment
+                    .iter()
+                    .map(|c| {
+                        if c.kind() == SyntaxKind::JSDocText {
+                            c.as_jsdoc_text().text.clone()
+                        } else {
+                            let c_as_jsdoc_link_like = c.as_jsdoc_link_like();
+                            format!(
+                                "{{@link {}{}}}",
+                                if let Some(c_name) = c_as_jsdoc_link_like.maybe_name() {
+                                    format!("{} ", entity_name_to_string(&c_name))
+                                } else {
+                                    "".to_owned()
+                                },
+                                c_as_jsdoc_link_like.text
+                            )
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("")
+                    .into(),
+            ),
+        },
         _ => None,
     }
 }
@@ -1116,14 +1138,14 @@ pub fn get_effective_type_parameter_declarations(
     if let Some(type_parameters) = node.as_has_type_parameters().maybe_type_parameters() {
         return type_parameters.into();
     }
-    if is_in_js_file(node) {
+    if is_in_js_file(Some(node)) {
         let decls = get_jsdoc_type_parameter_declarations(node);
         if !decls.is_empty() {
             return decls;
         }
         let type_tag = get_jsdoc_type(node);
         if let Some(type_tag) = type_tag {
-            if is_function_type_node(type_tag) {
+            if is_function_type_node(&*type_tag) {
                 let type_tag_as_function_type_node = type_tag.as_function_type_node();
                 if let Some(type_tag_type_parameters) =
                     type_tag_as_function_type_node.type_parameters.as_ref()
