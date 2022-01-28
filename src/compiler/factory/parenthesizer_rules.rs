@@ -5,9 +5,10 @@ use std::rc::Rc;
 use crate::{
     compare_values, get_expression_associativity, get_expression_precedence,
     get_leftmost_expression, get_operator_associativity, get_operator_precedence,
-    is_binary_expression, is_comma_sequence, is_literal_kind, skip_partially_emitted_expressions,
-    Associativity, BaseNodeFactory, Comparison, Node, NodeArray, NodeFactory, NodeInterface,
-    OperatorPrecedence, ParenthesizerRules, SyntaxKind,
+    is_binary_expression, is_comma_sequence, is_left_hand_side_expression, is_literal_kind,
+    set_text_range, skip_partially_emitted_expressions, Associativity, BaseNodeFactory, Comparison,
+    Node, NodeArray, NodeFactory, NodeInterface, OperatorPrecedence, ParenthesizerRules,
+    SyntaxKind,
 };
 
 pub fn create_parenthesizer_rules<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -289,7 +290,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
     ) -> Rc<Node> {
-        expression.node_wrapper()
+        let leftmost_expr = get_leftmost_expression(expression, true);
+        match leftmost_expr.kind() {
+            SyntaxKind::CallExpression => {
+                return self
+                    .factory
+                    .create_parenthesized_expression(base_node_factory, expression.node_wrapper())
+                    .into();
+            }
+
+            SyntaxKind::NewExpression => {
+                return if leftmost_expr.as_new_expression().arguments.is_none() {
+                    self.factory
+                        .create_parenthesized_expression(
+                            base_node_factory,
+                            expression.node_wrapper(),
+                        )
+                        .into()
+                } else {
+                    expression.node_wrapper()
+                };
+            }
+            _ => (),
+        }
+
+        self.parenthesize_left_side_of_access(base_node_factory, expression)
     }
 
     fn parenthesize_left_side_of_access(
@@ -297,7 +322,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
     ) -> Rc<Node> {
-        expression.node_wrapper()
+        let emitted_expression = skip_partially_emitted_expressions(expression);
+        if is_left_hand_side_expression(&emitted_expression)
+            && (emitted_expression.kind() != SyntaxKind::NewExpression
+                || emitted_expression.as_new_expression().arguments.is_some())
+        {
+            return expression.node_wrapper();
+        }
+
+        set_text_range(
+            &*Into::<Rc<Node>>::into(
+                self.factory
+                    .create_parenthesized_expression(base_node_factory, expression.node_wrapper()),
+            ),
+            Some(expression),
+        )
+        .node_wrapper()
     }
 
     fn parenthesize_operand_of_postfix_unary(

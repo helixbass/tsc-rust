@@ -2878,21 +2878,17 @@ pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
     )
 }
 
-fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &mut TRange, pos: isize) -> &mut TRange {
+fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize) -> &TRange {
     range.set_pos(pos);
     range
 }
 
-fn set_text_range_end<TRange: ReadonlyTextRange>(range: &mut TRange, end: isize) -> &mut TRange {
+fn set_text_range_end<TRange: ReadonlyTextRange>(range: &TRange, end: isize) -> &TRange {
     range.set_end(end);
     range
 }
 
-pub fn set_text_range_pos_end<TRange: ReadonlyTextRange>(
-    range: &mut TRange,
-    pos: isize,
-    end: isize,
-) {
+pub fn set_text_range_pos_end<TRange: ReadonlyTextRange>(range: &TRange, pos: isize, end: isize) {
     set_text_range_end(set_text_range_pos(range, pos), end);
 }
 
