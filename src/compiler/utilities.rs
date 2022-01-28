@@ -16,7 +16,7 @@ use crate::{
     first_or_undefined, flat_map, get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache,
     get_jsdoc_tags, get_jsdoc_type_parameter_tags, get_jsdoc_type_parameter_tags_no_cache,
     has_initializer, has_jsdoc_nodes, id_text, is_binary_expression, is_call_expression,
-    is_element_access_expression, is_expression_statement,
+    is_element_access_expression, is_export_declaration, is_expression_statement, is_function_like,
     is_function_like_or_class_static_block_declaration, is_identifier, is_jsdoc,
     is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_tag, is_left_hand_side_expression,
     is_module_declaration, is_numeric_literal, is_object_literal_expression,
@@ -468,6 +468,16 @@ fn is_catch_clause_variable_declaration_or_binding_element<TNode: NodeInterface>
         && node.parent().kind() == SyntaxKind::CatchClause
 }
 
+pub fn is_ambient_module(node: &Node) -> bool {
+    is_module_declaration(node)
+        && (node.as_module_declaration().name.kind() == SyntaxKind::StringLiteral
+            || is_global_scope_augmentation(node))
+}
+
+pub fn is_global_scope_augmentation(node: &Node /*ModuleDeclaration*/) -> bool {
+    node.flags().intersects(NodeFlags::GlobalAugmentation)
+}
+
 pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWriter>>)>(
     action: TAction,
 ) -> String {
@@ -503,6 +513,17 @@ pub fn node_is_missing<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
     let node = node.unwrap();
     let node = node.borrow();
     node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
+}
+
+pub fn is_any_import_syntax(node: &Node) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration
+    )
+}
+
+pub fn is_any_import_or_re_export(node: &Node) -> bool {
+    is_any_import_syntax(node) || is_export_declaration(node)
 }
 
 pub fn declaration_name_to_string<TNode: NodeInterface>(name: Option<&TNode>) -> String {
@@ -674,6 +695,11 @@ pub fn is_variable_like<TNode: NodeInterface>(node: &TNode) -> bool {
         _ => false,
     }
     /*}*/
+}
+
+pub fn is_function_block(node: &Node) -> bool {
+    /*node &&*/
+    node.kind() == SyntaxKind::Block && is_function_like(node.maybe_parent())
 }
 
 pub fn is_in_js_file<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
@@ -1974,7 +2000,7 @@ pub fn modifiers_to_flags(modifiers: Option<&NodeArray /*Modifier[]*/>) -> Modif
     flags
 }
 
-fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
+pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
     match token {
         SyntaxKind::StaticKeyword => ModifierFlags::Static,
         SyntaxKind::PublicKeyword => ModifierFlags::Public,
@@ -2111,6 +2137,32 @@ pub fn get_object_flags(type_: &Type) -> ObjectFlags {
     } else {
         ObjectFlags::None
     }
+}
+
+pub fn is_type_node_kind(kind: SyntaxKind) -> bool {
+    kind >= SyntaxKind::FirstTypeNode && kind <= SyntaxKind::LastTypeNode
+        || matches!(
+            kind,
+            SyntaxKind::AnyKeyword
+                | SyntaxKind::UnknownKeyword
+                | SyntaxKind::NumberKeyword
+                | SyntaxKind::BigIntKeyword
+                | SyntaxKind::ObjectKeyword
+                | SyntaxKind::BooleanKeyword
+                | SyntaxKind::StringKeyword
+                | SyntaxKind::SymbolKeyword
+                | SyntaxKind::VoidKeyword
+                | SyntaxKind::UndefinedKeyword
+                | SyntaxKind::NeverKeyword
+                | SyntaxKind::ExpressionWithTypeArguments
+                | SyntaxKind::JSDocAllType
+                | SyntaxKind::JSDocUnknownType
+                | SyntaxKind::JSDocNullableType
+                | SyntaxKind::JSDocNonNullableType
+                | SyntaxKind::JSDocOptionalType
+                | SyntaxKind::JSDocFunctionType
+                | SyntaxKind::JSDocVariadicType
+        )
 }
 
 pub fn is_access_expression<TNode: NodeInterface>(node: &TNode) -> bool {

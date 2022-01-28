@@ -612,6 +612,11 @@ pub enum Statement {
     ModuleDeclaration(ModuleDeclaration),
     LabeledStatement(LabeledStatement),
     ExportAssignment(ExportAssignment),
+    ImportEqualsDeclaration(ImportEqualsDeclaration),
+    ImportClause(ImportClause),
+    ExportDeclaration(ExportDeclaration),
+    ImportSpecifier(ImportSpecifier),
+    ExportSpecifier(ExportSpecifier),
 }
 
 #[derive(Debug)]
@@ -1212,6 +1217,207 @@ impl NamedDeclarationInterface for ModuleDeclaration {
     }
 }
 
+pub trait HasIsTypeOnlyInterface {
+    fn is_type_only(&self) -> bool;
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement", interfaces = "NamedDeclarationInterface")]
+pub struct ImportEqualsDeclaration {
+    _named_declaration: BaseNamedDeclaration,
+    pub is_type_only: bool,
+    pub module_reference: Rc<Node /*ModuleReference*/>,
+}
+
+impl ImportEqualsDeclaration {
+    pub fn new(
+        base_named_declaration: BaseNamedDeclaration,
+        is_type_only: bool,
+        module_reference: Rc<Node>,
+    ) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+            is_type_only,
+            module_reference,
+        }
+    }
+}
+
+impl HasIsTypeOnlyInterface for ImportEqualsDeclaration {
+    fn is_type_only(&self) -> bool {
+        self.is_type_only
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ImportClause {
+    _node: BaseNode,
+    pub is_type_only: bool,
+    pub name: Option<Rc<Node /*Identifier*/>>,
+    pub named_bindings: Option<Rc<Node /*NamedImportBindings*/>>,
+}
+
+impl ImportClause {
+    pub fn new(
+        base_node: BaseNode,
+        is_type_only: bool,
+        name: Option<Rc<Node>>,
+        named_bindings: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            is_type_only,
+            name,
+            named_bindings,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for ImportClause {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        self.name.clone()
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone().unwrap()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = Some(name);
+    }
+}
+
+impl HasIsTypeOnlyInterface for ImportClause {
+    fn is_type_only(&self) -> bool {
+        self.is_type_only
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ExportDeclaration {
+    _node: BaseNode,
+    pub is_type_only: bool,
+    pub export_clause: Option<Rc<Node /*NamedExportBindings*/>>,
+    pub module_specifier: Option<Rc<Node /*Expression*/>>,
+    pub assert_clause: Option<Rc<Node /*AssertClause*/>>,
+}
+
+impl ExportDeclaration {
+    pub fn new(
+        base_node: BaseNode,
+        is_type_only: bool,
+        export_clause: Option<Rc<Node>>,
+        module_specifier: Option<Rc<Node>>,
+        assert_clause: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            is_type_only,
+            export_clause,
+            module_specifier,
+            assert_clause,
+        }
+    }
+}
+
+impl HasIsTypeOnlyInterface for ExportDeclaration {
+    fn is_type_only(&self) -> bool {
+        self.is_type_only
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ImportSpecifier {
+    _node: BaseNode,
+    pub property_name: Option<Rc<Node /*Identifier*/>>,
+    pub name: Rc<Node /*Identifier*/>,
+    pub is_type_only: bool,
+}
+
+impl ImportSpecifier {
+    pub fn new(
+        base_node: BaseNode,
+        property_name: Option<Rc<Node>>,
+        name: Rc<Node>,
+        is_type_only: bool,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            property_name,
+            name,
+            is_type_only,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for ImportSpecifier {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
+impl HasIsTypeOnlyInterface for ImportSpecifier {
+    fn is_type_only(&self) -> bool {
+        self.is_type_only
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ExportSpecifier {
+    _node: BaseNode,
+    pub is_type_only: bool,
+    pub property_name: Option<Rc<Node /*Identifier*/>>,
+    pub name: Rc<Node /*Identifier*/>,
+}
+
+impl ExportSpecifier {
+    pub fn new(
+        base_node: BaseNode,
+        is_type_only: bool,
+        property_name: Option<Rc<Node>>,
+        name: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            is_type_only,
+            property_name,
+            name,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for ExportSpecifier {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
+impl HasIsTypeOnlyInterface for ExportSpecifier {
+    fn is_type_only(&self) -> bool {
+        self.is_type_only
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "Statement")]
 pub struct ExportAssignment {
@@ -1222,11 +1428,11 @@ pub struct ExportAssignment {
 
 // TODO: should implement HasExpressionInterface for ExportAssignment?
 impl ExportAssignment {
-    pub fn new(base_node: BaseNode, name: Rc<Node>, body: Option<Rc<Node>>) -> Self {
+    pub fn new(base_node: BaseNode, is_export_equals: Option<bool>, expression: Rc<Node>) -> Self {
         Self {
             _node: base_node,
-            name,
-            body,
+            is_export_equals,
+            expression,
         }
     }
 }

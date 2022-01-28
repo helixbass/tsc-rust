@@ -9,19 +9,19 @@ use super::{
     ArrayBindingPattern, BinaryExpression, BindingElement, CallExpression, Decorator,
     ElementAccessExpression, EnumMember, ExportAssignment, Expression, ExpressionStatement,
     FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
-    HasExpressionInterface, HasQuestionDotTokenInterface, HasTypeArgumentsInterface,
-    HasTypeParametersInterface, Identifier, JSDoc, JSDocLink, JSDocLinkCode,
-    JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag,
-    JSDocTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag,
-    JsxAttribute, LabeledStatement, LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray,
-    ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral,
-    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
-    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, QualifiedName,
-    ShorthandPropertyAssignment, SignatureDeclarationBase, SignatureDeclarationInterface,
-    SourceFile, Statement, Symbol, SymbolTable, TemplateSpan, TransformFlags, TypeAliasDeclaration,
-    TypeElement, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypeReferenceNode,
-    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
-    VariableStatement, VoidExpression,
+    HasExpressionInterface, HasIsTypeOnlyInterface, HasQuestionDotTokenInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDoc, JSDocLink,
+    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag,
+    JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeTag,
+    JSDocTypedefTag, JsxAttribute, LabeledStatement, LiteralLikeNodeInterface, MemberNameInterface,
+    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray,
+    NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration,
+    PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
+    QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
+    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
+    TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode,
+    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
+    VariableDeclaration, VariableDeclarationList, VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -820,6 +820,17 @@ impl Node {
             Node::Expression(Expression::ElementAccessExpression(node)) => node,
             Node::Expression(Expression::CallExpression(node)) => node,
             _ => panic!("Expected has question dot token"),
+        }
+    }
+
+    pub fn as_has_is_type_only(&self) -> &dyn HasIsTypeOnlyInterface {
+        match self {
+            Node::Statement(Statement::ImportEqualsDeclaration(node)) => node,
+            Node::Statement(Statement::ImportClause(node)) => node,
+            Node::Statement(Statement::ExportDeclaration(node)) => node,
+            Node::Statement(Statement::ImportSpecifier(node)) => node,
+            Node::Statement(Statement::ExportSpecifier(node)) => node,
+            _ => panic!("Expected has is type only"),
         }
     }
 
