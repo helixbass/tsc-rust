@@ -12,23 +12,24 @@ use crate::{
     flat_map, get_assignment_declaration_kind, get_directory_path, get_effective_modifier_flags,
     get_effective_modifier_flags_always_include_jsdoc,
     get_element_or_property_access_argument_expression_or_name, get_emit_script_target,
-    get_jsdoc_comments_and_tags, has_syntactic_modifier, is_access_expression, is_arrow_function,
-    is_bindable_static_element_access_expression, is_binding_element,
-    is_call_signature_declaration, is_class_expression, is_class_static_block_declaration,
-    is_function_expression, is_function_type_node, is_identifier, is_in_js_file, is_jsdoc,
-    is_jsdoc_augments_tag, is_jsdoc_class_tag, is_jsdoc_deprecated_tag, is_jsdoc_enum_tag,
-    is_jsdoc_function_type, is_jsdoc_implements_tag, is_jsdoc_override_tag, is_jsdoc_parameter_tag,
-    is_jsdoc_private_tag, is_jsdoc_protected_tag, is_jsdoc_public_tag, is_jsdoc_readonly_tag,
-    is_jsdoc_return_tag, is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_this_tag,
-    is_jsdoc_type_alias, is_jsdoc_type_literal, is_jsdoc_type_tag, is_omitted_expression,
-    is_parameter, is_private_identifier, is_property_declaration, is_rooted_disk_path,
-    is_type_literal_node, is_variable_statement, is_white_space_like, normalize_path,
-    path_is_relative, set_localized_diagnostic_messages, set_ui_locale, skip_outer_expressions,
-    some, AssignmentDeclarationKind, CharacterCodes, CompilerOptions, Debug_, Diagnostics,
-    Expression, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
-    NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Statement, Symbol, SymbolInterface,
-    SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String, compare_diagnostics,
-    is_block, is_module_block, is_source_file, sort_and_deduplicate, Diagnostic, SortedArray,
+    get_jsdoc_comments_and_tags, get_jsdoc_type_parameter_declarations, has_syntactic_modifier,
+    is_access_expression, is_arrow_function, is_bindable_static_element_access_expression,
+    is_binding_element, is_call_signature_declaration, is_class_expression,
+    is_class_static_block_declaration, is_function_expression, is_function_type_node,
+    is_identifier, is_in_js_file, is_jsdoc, is_jsdoc_augments_tag, is_jsdoc_class_tag,
+    is_jsdoc_deprecated_tag, is_jsdoc_enum_tag, is_jsdoc_function_type, is_jsdoc_implements_tag,
+    is_jsdoc_override_tag, is_jsdoc_parameter_tag, is_jsdoc_private_tag, is_jsdoc_protected_tag,
+    is_jsdoc_public_tag, is_jsdoc_readonly_tag, is_jsdoc_return_tag, is_jsdoc_signature,
+    is_jsdoc_template_tag, is_jsdoc_this_tag, is_jsdoc_type_alias, is_jsdoc_type_literal,
+    is_jsdoc_type_tag, is_omitted_expression, is_parameter, is_private_identifier,
+    is_property_declaration, is_rooted_disk_path, is_type_literal_node, is_variable_statement,
+    is_white_space_like, normalize_path, path_is_relative, set_localized_diagnostic_messages,
+    set_ui_locale, skip_outer_expressions, some, AssignmentDeclarationKind, CharacterCodes,
+    CompilerOptions, Debug_, Diagnostics, Expression, ModifierFlags, NamedDeclarationInterface,
+    Node, NodeArray, NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Statement,
+    Symbol, SymbolInterface, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
+    compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
+    Diagnostic, SortedArray,
 };
 
 pub fn is_external_module_name_relative(module_name: &str) -> bool {
@@ -1105,7 +1106,7 @@ pub fn get_text_of_jsdoc_comment<'a, TComment: Into<StrOrNodeArrayRef<'a>>>(
                                 } else {
                                     "".to_owned()
                                 },
-                                c_as_jsdoc_link_like.text
+                                c_as_jsdoc_link_like.text()
                             )
                         }
                     })
@@ -1126,9 +1127,9 @@ pub fn get_effective_type_parameter_declarations(
     }
     if is_jsdoc_type_alias(node) {
         Debug_.assert(node.parent().kind() == SyntaxKind::JSDocComment, None);
-        return flat_map(&node.parent().as_jsdoc_comment().tags, |tag, _| {
-            if is_jsdoc_template_tag(tag) {
-                tag.as_jsdoc_template_tag().type_parameters
+        return flat_map(node.parent().as_jsdoc().tags.as_ref(), |tag, _| {
+            if is_jsdoc_template_tag(&**tag) {
+                tag.as_jsdoc_template_tag().type_parameters.to_vec()
             } else {
                 /*None*/
                 vec![]
@@ -1148,7 +1149,7 @@ pub fn get_effective_type_parameter_declarations(
             if is_function_type_node(&*type_tag) {
                 let type_tag_as_function_type_node = type_tag.as_function_type_node();
                 if let Some(type_tag_type_parameters) =
-                    type_tag_as_function_type_node.type_parameters.as_ref()
+                    type_tag_as_function_type_node.maybe_type_parameters()
                 {
                     return type_tag_type_parameters.clone();
                 }

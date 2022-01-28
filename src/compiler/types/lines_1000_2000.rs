@@ -34,6 +34,10 @@ impl NodeArray {
     pub fn len(&self) -> usize {
         self._nodes.len()
     }
+
+    pub fn to_vec(&self) -> Vec<Rc<Node>> {
+        self._nodes.clone()
+    }
 }
 
 impl Default for NodeArray {
@@ -492,6 +496,7 @@ pub enum TypeNode {
     TypeLiteralNode(TypeLiteralNode),
     ArrayTypeNode(ArrayTypeNode),
     JSDocTypeExpression(JSDocTypeExpression),
+    FunctionTypeNode(FunctionTypeNode),
 }
 
 #[derive(Debug)]
@@ -509,6 +514,23 @@ impl KeywordTypeNode {
 impl From<BaseNode> for KeywordTypeNode {
     fn from(base_node: BaseNode) -> Self {
         KeywordTypeNode::new(base_node)
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "TypeNode",
+    interfaces = "NamedDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
+)]
+pub struct FunctionTypeNode {
+    _signature_declaration: BaseSignatureDeclaration,
+}
+
+impl FunctionTypeNode {
+    pub fn new(base_signature_declaration: BaseSignatureDeclaration) -> Self {
+        Self {
+            _signature_declaration: base_signature_declaration,
+        }
     }
 }
 

@@ -8,17 +8,18 @@ use std::rc::{Rc, Weak};
 use super::{
     ArrayBindingPattern, BinaryExpression, BindingElement, CallExpression, Decorator,
     ElementAccessExpression, EnumMember, ExportAssignment, Expression, ExpressionStatement,
-    FunctionLikeDeclarationInterface, HasElementsInterface, HasExpressionInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDoc, JSDocMemberName,
-    JSDocPropertyLikeTag, JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocTypeExpression,
-    JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement, LiteralLikeNodeInterface,
-    MemberNameInterface, ModifiersArray, ModuleDeclaration, NamedDeclarationInterface,
-    NewExpression, NodeArray, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
-    ParameterDeclaration, PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment,
-    PropertyDeclaration, QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
-    TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode,
-    TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
+    FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
+    HasExpressionInterface, HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier,
+    JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName,
+    JSDocPropertyLikeTag, JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocText,
+    JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement,
+    LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, ModuleDeclaration,
+    NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral, ObjectBindingPattern,
+    ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression, PropertyAccessExpression,
+    PropertyAssignment, PropertyDeclaration, QualifiedName, ShorthandPropertyAssignment,
+    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
+    SymbolTable, TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode,
+    TypeNode, TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
     VariableDeclarationList, VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
@@ -646,6 +647,10 @@ pub enum Node {
     ObjectBindingPattern(ObjectBindingPattern),
     ArrayBindingPattern(ArrayBindingPattern),
     JSDocMemberName(JSDocMemberName),
+    JSDocText(JSDocText),
+    JSDocLink(JSDocLink),
+    JSDocLinkCode(JSDocLinkCode),
+    JSDocLinkPlain(JSDocLinkPlain),
 }
 
 impl Node {
@@ -799,6 +804,15 @@ impl Node {
         }
     }
 
+    pub fn as_jsdoc_link_like(&self) -> &dyn JSDocLinkLikeInterface {
+        match self {
+            Node::JSDocLink(node) => node,
+            Node::JSDocLinkCode(node) => node,
+            Node::JSDocLinkPlain(node) => node,
+            _ => panic!("Expected JSDoc link like"),
+        }
+    }
+
     pub fn as_expression(&self) -> &Expression {
         // node_unwrapped!(self, Expression)
         enum_unwrapped!(self, [Node, Expression])
@@ -938,6 +952,14 @@ impl Node {
 
     pub fn as_qualified_name(&self) -> &QualifiedName {
         enum_unwrapped!(self, [Node, QualifiedName])
+    }
+
+    pub fn as_jsdoc_text(&self) -> &JSDocText {
+        enum_unwrapped!(self, [Node, JSDocText])
+    }
+
+    pub fn as_function_type_node(&self) -> &FunctionTypeNode {
+        enum_unwrapped!(self, [Node, TypeNode, FunctionTypeNode])
     }
 }
 

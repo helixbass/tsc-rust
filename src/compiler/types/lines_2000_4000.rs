@@ -1340,6 +1340,111 @@ pub trait JSDocTagInterface {
     fn maybe_comment(&self) -> Option<&StringOrNodeArray /*<JSDocComment>*/>;
 }
 
+pub trait JSDocLinkLikeInterface {
+    fn maybe_name(&self) -> Option<Rc<Node>>;
+    fn text(&self) -> &str;
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocLink {
+    _node: BaseNode,
+    pub name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
+    pub text: String,
+}
+
+impl JSDocLink {
+    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: String) -> Self {
+        Self {
+            _node: base_node,
+            name,
+            text,
+        }
+    }
+}
+
+impl JSDocLinkLikeInterface for JSDocLink {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        self.name.clone()
+    }
+
+    fn text(&self) -> &str {
+        &self.text
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocLinkCode {
+    _node: BaseNode,
+    pub name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
+    pub text: String,
+}
+
+impl JSDocLinkCode {
+    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: String) -> Self {
+        Self {
+            _node: base_node,
+            name,
+            text,
+        }
+    }
+}
+
+impl JSDocLinkLikeInterface for JSDocLinkCode {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        self.name.clone()
+    }
+
+    fn text(&self) -> &str {
+        &self.text
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocLinkPlain {
+    _node: BaseNode,
+    pub name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
+    pub text: String,
+}
+
+impl JSDocLinkPlain {
+    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: String) -> Self {
+        Self {
+            _node: base_node,
+            name,
+            text,
+        }
+    }
+}
+
+impl JSDocLinkLikeInterface for JSDocLinkPlain {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        self.name.clone()
+    }
+
+    fn text(&self) -> &str {
+        &self.text
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocText {
+    _node: BaseNode,
+    pub text: String,
+}
+
+impl JSDocText {
+    pub fn new(base_node: BaseNode, text: String) -> Self {
+        Self {
+            _node: base_node,
+            text,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum StringOrNodeArray {
     String(String),
