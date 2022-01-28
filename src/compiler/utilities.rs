@@ -2183,6 +2183,55 @@ pub fn is_access_expression(node: &Node) -> bool {
     )
 }
 
+pub fn get_leftmost_expression(
+    node: &Node, /*Expression*/
+    stop_at_call_expressions: bool,
+) -> Rc<Node /*Expression*/> {
+    let mut node = node.node_wrapper();
+    loop {
+        match node.kind() {
+            SyntaxKind::PostfixUnaryExpression => {
+                node = node.as_postfix_unary_expression().operand.clone();
+                continue;
+            }
+
+            SyntaxKind::BinaryExpression => {
+                node = node.as_binary_expression().left.clone();
+                continue;
+            }
+
+            SyntaxKind::ConditionalExpression => {
+                node = node.as_conditional_expression().condition.clone();
+                continue;
+            }
+
+            SyntaxKind::TaggedTemplateExpression => {
+                node = node.as_tagged_template_expression().tag.clone();
+                continue;
+            }
+
+            SyntaxKind::CallExpression => {
+                if stop_at_call_expressions {
+                    return node;
+                }
+                node = node.as_has_expression().expression();
+                continue;
+            }
+            SyntaxKind::AsExpression
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::NonNullExpression
+            | SyntaxKind::PartiallyEmittedExpression => {
+                node = node.as_has_expression().expression();
+                continue;
+            }
+            _ => (),
+        }
+
+        return node;
+    }
+}
+
 #[allow(non_snake_case)]
 fn Symbol(flags: SymbolFlags, name: __String) -> BaseSymbol {
     BaseSymbol::new(flags, name)

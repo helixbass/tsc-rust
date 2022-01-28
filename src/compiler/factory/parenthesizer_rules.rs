@@ -4,10 +4,10 @@ use std::rc::Rc;
 
 use crate::{
     compare_values, get_expression_associativity, get_expression_precedence,
-    get_operator_associativity, get_operator_precedence, is_binary_expression, is_comma_sequence,
-    is_literal_kind, skip_partially_emitted_expressions, Associativity, BaseNodeFactory,
-    Comparison, Node, NodeArray, NodeFactory, NodeInterface, OperatorPrecedence,
-    ParenthesizerRules, SyntaxKind,
+    get_leftmost_expression, get_operator_associativity, get_operator_precedence,
+    is_binary_expression, is_comma_sequence, is_literal_kind, skip_partially_emitted_expressions,
+    Associativity, BaseNodeFactory, Comparison, Node, NodeArray, NodeFactory, NodeInterface,
+    OperatorPrecedence, ParenthesizerRules, SyntaxKind,
 };
 
 pub fn create_parenthesizer_rules<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -250,7 +250,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         branch: &Node,
     ) -> Rc<Node> {
-        branch.node_wrapper()
+        let emitted_expression = skip_partially_emitted_expressions(branch);
+        if is_comma_sequence(&emitted_expression) {
+            self.factory
+                .create_parenthesized_expression(base_node_factory, branch.node_wrapper())
+                .into()
+        } else {
+            branch.node_wrapper()
+        }
     }
 
     fn parenthesize_expression_of_export_default(
@@ -258,7 +265,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
     ) -> Rc<Node> {
-        expression.node_wrapper()
+        let check = skip_partially_emitted_expressions(expression);
+        let mut needs_parens = is_comma_sequence(&check);
+        if !needs_parens {
+            match get_leftmost_expression(&check, false).kind() {
+                SyntaxKind::ClassExpression | SyntaxKind::FunctionExpression => {
+                    needs_parens = true;
+                }
+                _ => (),
+            }
+        }
+        if needs_parens {
+            self.factory
+                .create_parenthesized_expression(base_node_factory, expression.node_wrapper())
+                .into()
+        } else {
+            expression.node_wrapper()
+        }
     }
 
     fn parenthesize_expression_of_new(

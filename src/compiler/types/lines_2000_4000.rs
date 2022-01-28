@@ -7,9 +7,9 @@ use std::rc::Rc;
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseTextRange,
     BaseVariableLikeDeclaration, BindingLikeDeclarationInterface, Diagnostic, FunctionDeclaration,
-    HasInitializerInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, Path, StringLiteral, Symbol, SyntaxKind, TextRange, TypeCheckerHost,
-    VariableLikeDeclarationInterface,
+    HasInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Path, StringLiteral, Symbol,
+    SyntaxKind, TextRange, TypeCheckerHost, VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
 
@@ -45,6 +45,37 @@ impl BinaryExpression {
 
     pub fn set_cached_literal_kind(&self, cached_literal_kind: SyntaxKind) {
         self.cached_literal_kind.set(Some(cached_literal_kind));
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct ConditionalExpression {
+    pub _node: BaseNode,
+    pub condition: Rc<Node /*Expression*/>,
+    pub question_token: Rc<Node /*QuestionToken*/>,
+    pub when_true: Rc<Node /*Expression*/>,
+    pub colon_token: Rc<Node /*ColonToken*/>,
+    pub when_false: Rc<Node /*Expression*/>,
+}
+
+impl ConditionalExpression {
+    pub fn new(
+        base_node: BaseNode,
+        condition: Rc<Node>,
+        question_token: Rc<Node>,
+        when_true: Rc<Node>,
+        colon_token: Rc<Node>,
+        when_false: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            condition,
+            question_token,
+            when_true,
+            colon_token,
+            when_false,
+        }
     }
 }
 
@@ -479,6 +510,40 @@ impl NewExpression {
 impl HasExpressionInterface for NewExpression {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct TaggedTemplateExpression {
+    _node: BaseNode,
+    pub tag: Rc<Node /*LeftHandSideExpression*/>,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    pub template: Rc<Node /*TemplateLiteral*/>,
+    pub(crate) question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+}
+
+impl TaggedTemplateExpression {
+    pub fn new(
+        base_node: BaseNode,
+        tag: Rc<Node>,
+        type_arguments: Option<NodeArray>,
+        template: Rc<Node>,
+        question_dot_token: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            tag,
+            type_arguments,
+            template,
+            question_dot_token,
+        }
+    }
+}
+
+impl HasTypeArgumentsInterface for TaggedTemplateExpression {
+    fn maybe_type_arguments(&self) -> Option<&NodeArray> {
+        self.type_arguments.as_ref()
     }
 }
 

@@ -7,23 +7,23 @@ use std::rc::{Rc, Weak};
 
 use super::{
     ArrayBindingPattern, ArrayTypeNode, BinaryExpression, BindingElement, Block, CallExpression,
-    Decorator, ElementAccessExpression, EnumMember, ExportAssignment, Expression,
-    ExpressionStatement, FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
-    HasExpressionInterface, HasIsTypeOnlyInterface, HasQuestionDotTokenInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, IfStatement,
-    InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
-    JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocText,
-    JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement,
-    LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface, ModifiersArray,
-    ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral,
-    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
-    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateExpression,
-    TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode,
-    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
-    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression,
+    ConditionalExpression, Decorator, ElementAccessExpression, EnumMember, ExportAssignment,
+    Expression, ExpressionStatement, FunctionLikeDeclarationInterface, FunctionTypeNode,
+    HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
+    HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
+    Identifier, IfStatement, InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode,
+    JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag,
+    JSDocTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag,
+    JsxAttribute, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface,
+    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray,
+    NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration,
+    PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment,
+    PropertyDeclaration, PropertySignature, QualifiedName, ShorthandPropertyAssignment,
+    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
+    SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateSpan, TransformFlags,
+    TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
+    TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
+    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -1028,6 +1028,18 @@ impl Node {
 
     pub fn as_union_type_node(&self) -> &UnionTypeNode {
         enum_unwrapped!(self, [Node, TypeNode, UnionTypeNode])
+    }
+
+    pub fn as_postfix_unary_expression(&self) -> &PostfixUnaryExpression {
+        enum_unwrapped!(self, [Node, Expression, PostfixUnaryExpression])
+    }
+
+    pub fn as_conditional_expression(&self) -> &ConditionalExpression {
+        enum_unwrapped!(self, [Node, Expression, ConditionalExpression])
+    }
+
+    pub fn as_tagged_template_expression(&self) -> &TaggedTemplateExpression {
+        enum_unwrapped!(self, [Node, Expression, TaggedTemplateExpression])
     }
 }
 
