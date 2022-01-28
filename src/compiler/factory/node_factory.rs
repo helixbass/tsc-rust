@@ -843,7 +843,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 self.parenthesizer_rules()
                     .parenthesize_expression_for_disallowed_comma(
                         base_factory,
-                        object_assignment_initializer,
+                        &object_assignment_initializer,
                     )
             }),
         );

@@ -5,6 +5,12 @@ use crate::{
     OuterExpressionKinds, SyntaxKind,
 };
 
+pub fn is_comma_sequence(node: &Node /*Expression*/) -> bool {
+    node.kind() == SyntaxKind::BinaryExpression
+        && node.as_binary_expression().operator_token.kind() == SyntaxKind::CommaToken
+        || node.kind() == SyntaxKind::CommaListExpression
+}
+
 pub fn is_jsdoc_type_assertion(node: &Node) -> bool {
     is_parenthesized_expression(node)
         && is_in_js_file(Some(node))
