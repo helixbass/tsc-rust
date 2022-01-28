@@ -6,22 +6,24 @@ use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    ArrayBindingPattern, BinaryExpression, BindingElement, CallExpression, Decorator,
-    ElementAccessExpression, EnumMember, ExportAssignment, Expression, ExpressionStatement,
-    FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
+    ArrayBindingPattern, ArrayTypeNode, BinaryExpression, BindingElement, Block, CallExpression,
+    Decorator, ElementAccessExpression, EnumMember, ExportAssignment, Expression,
+    ExpressionStatement, FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
     HasExpressionInterface, HasIsTypeOnlyInterface, HasQuestionDotTokenInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDoc, JSDocLink,
-    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag,
-    JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeTag,
-    JSDocTypedefTag, JsxAttribute, LabeledStatement, LiteralLikeNodeInterface, MemberNameInterface,
-    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray,
-    NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration,
-    PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, IfStatement,
+    InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
+    JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocText,
+    JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement,
+    LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface, ModifiersArray,
+    ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral,
+    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
+    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
     QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
-    TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode,
+    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateExpression,
+    TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode,
     TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
-    VariableDeclaration, VariableDeclarationList, VariableStatement, VoidExpression,
+    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -834,6 +836,15 @@ impl Node {
         }
     }
 
+    pub fn as_variable_like_declaration(&self) -> &dyn VariableLikeDeclarationInterface {
+        match self {
+            Node::PropertyDeclaration(node) => node,
+            Node::VariableDeclaration(node) => node,
+            Node::ParameterDeclaration(node) => node,
+            _ => panic!("Expected variable like declaration"),
+        }
+    }
+
     pub fn as_expression(&self) -> &Expression {
         // node_unwrapped!(self, Expression)
         enum_unwrapped!(self, [Node, Expression])
@@ -985,6 +996,38 @@ impl Node {
 
     pub fn as_type_reference_node(&self) -> &TypeReferenceNode {
         enum_unwrapped!(self, [Node, TypeNode, TypeReferenceNode])
+    }
+
+    pub fn as_block(&self) -> &Block {
+        enum_unwrapped!(self, [Node, Statement, Block])
+    }
+
+    pub fn as_property_signature(&self) -> &PropertySignature {
+        enum_unwrapped!(self, [Node, TypeElement, PropertySignature])
+    }
+
+    pub fn as_literal_type_node(&self) -> &LiteralTypeNode {
+        enum_unwrapped!(self, [Node, TypeNode, LiteralTypeNode])
+    }
+
+    pub fn as_interface_declaration(&self) -> &InterfaceDeclaration {
+        enum_unwrapped!(self, [Node, Statement, InterfaceDeclaration])
+    }
+
+    pub fn as_if_statement(&self) -> &IfStatement {
+        enum_unwrapped!(self, [Node, Statement, IfStatement])
+    }
+
+    pub fn as_array_type_node(&self) -> &ArrayTypeNode {
+        enum_unwrapped!(self, [Node, TypeNode, ArrayTypeNode])
+    }
+
+    pub fn as_template_expression(&self) -> &TemplateExpression {
+        enum_unwrapped!(self, [Node, Expression, TemplateExpression])
+    }
+
+    pub fn as_union_type_node(&self) -> &UnionTypeNode {
+        enum_unwrapped!(self, [Node, TypeNode, UnionTypeNode])
     }
 }
 

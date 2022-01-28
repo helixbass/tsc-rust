@@ -4,10 +4,9 @@ use std::rc::Rc;
 
 use crate::{
     get_literal_text, id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_,
-    EmitHint, EmitTextWriter, Expression, GetLiteralTextFlags, HasTypeInterface, Identifier,
-    ListFormat, LiteralLikeNode, LiteralTypeNode, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, Printer, PrinterOptions, PropertySignature, Symbol, TypeElement,
-    TypeLiteralNode, TypeNode, TypeReferenceNode, UnionTypeNode,
+    EmitHint, EmitTextWriter, Expression, GetLiteralTextFlags, HasTypeInterface, ListFormat,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, PrinterOptions, Symbol,
+    TypeElement, TypeNode,
 };
 
 #[derive(PartialEq, Eq)]
@@ -42,10 +41,10 @@ impl Printer {
         }
     }
 
-    pub fn write_node<TNode: NodeInterface>(
+    pub fn write_node(
         &mut self,
         hint: EmitHint,
-        node: &TNode,
+        node: &Node,
         source_file: Option<Rc<Node /*SourceFile*/>>,
         output: Rc<RefCell<dyn EmitTextWriter>>,
     ) {
@@ -56,12 +55,7 @@ impl Printer {
         self.set_writer(previous_writer);
     }
 
-    fn print<TNode: NodeInterface>(
-        &mut self,
-        hint: EmitHint,
-        node: &TNode,
-        source_file: Option<Rc<Node /*SourceFile*/>>,
-    ) {
+    fn print(&mut self, hint: EmitHint, node: &Node, source_file: Option<Rc<Node /*SourceFile*/>>) {
         if let Some(source_file) = source_file {
             self.set_source_file(Some(source_file));
         }
@@ -89,21 +83,21 @@ impl Printer {
         self.pipeline_emit(EmitHint::Unspecified, node);
     }
 
-    fn emit_expression<TNode: NodeInterface>(&mut self, node: &TNode /*Expression*/) {
+    fn emit_expression(&mut self, node: &Node /*Expression*/) {
         self.pipeline_emit(EmitHint::Expression, node);
     }
 
-    fn pipeline_emit<TNode: NodeInterface>(&mut self, emit_hint: EmitHint, node: &TNode) {
+    fn pipeline_emit(&mut self, emit_hint: EmitHint, node: &Node) {
         let pipeline_phase = self.get_pipeline_phase(PipelinePhase::Notification, emit_hint, node);
         pipeline_phase(self, emit_hint, node);
     }
 
-    fn get_pipeline_phase<TNode: NodeInterface>(
+    fn get_pipeline_phase(
         &self,
         phase: PipelinePhase,
         emit_hint: EmitHint,
-        node: &TNode,
-    ) -> fn(&mut Printer, EmitHint, &TNode) {
+        node: &Node,
+    ) -> fn(&mut Printer, EmitHint, &Node) {
         if phase == PipelinePhase::Notification {
             if false {
                 unimplemented!()
@@ -115,7 +109,7 @@ impl Printer {
         Debug_.assert_never(phase, None);
     }
 
-    fn pipeline_emit_with_hint<TNode: NodeInterface>(&mut self, hint: EmitHint, node: &TNode) {
+    fn pipeline_emit_with_hint(&mut self, hint: EmitHint, node: &Node) {
         if false {
             unimplemented!()
         } else {
@@ -123,53 +117,44 @@ impl Printer {
         }
     }
 
-    fn pipeline_emit_with_hint_worker<TNode: NodeInterface>(
-        &mut self,
-        mut hint: EmitHint,
-        node: &TNode,
-    ) {
-        let node = node.node_wrapper();
+    fn pipeline_emit_with_hint_worker(&mut self, mut hint: EmitHint, node: &Node) {
         if hint == EmitHint::Unspecified {
-            match &*node {
-                Node::Expression(Expression::Identifier(identifier)) => {
-                    return self.emit_identifier(identifier)
+            match node {
+                Node::Expression(Expression::Identifier(_)) => return self.emit_identifier(node),
+                Node::TypeElement(TypeElement::PropertySignature(_)) => {
+                    return self.emit_property_signature(node)
                 }
-                Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
-                    return self.emit_property_signature(property_signature)
+                Node::TypeNode(TypeNode::TypeReferenceNode(_)) => {
+                    return self.emit_type_reference(node)
                 }
-                Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
-                    return self.emit_type_reference(type_reference_node)
+                Node::TypeNode(TypeNode::TypeLiteralNode(_)) => {
+                    return self.emit_type_literal(node)
                 }
-                Node::TypeNode(TypeNode::TypeLiteralNode(type_literal_node)) => {
-                    return self.emit_type_literal(type_literal_node)
-                }
-                Node::TypeNode(TypeNode::UnionTypeNode(union_type_node)) => {
-                    return self.emit_union_type(union_type_node)
-                }
-                Node::TypeNode(TypeNode::LiteralTypeNode(literal_type_node)) => {
-                    return self.emit_literal_type(literal_type_node)
+                Node::TypeNode(TypeNode::UnionTypeNode(_)) => return self.emit_union_type(node),
+                Node::TypeNode(TypeNode::LiteralTypeNode(_)) => {
+                    return self.emit_literal_type(node)
                 }
                 _ => (),
             }
-            if is_expression(&*node) {
+            if is_expression(node) {
                 hint = EmitHint::Expression;
             }
         }
         if hint == EmitHint::Expression {
-            match &*node {
-                Node::Expression(Expression::LiteralLikeNode(literal_like_node)) => {
-                    return self.emit_literal(literal_like_node, false);
+            match node {
+                Node::Expression(Expression::LiteralLikeNode(_)) => {
+                    return self.emit_literal(node, false);
                 }
                 _ => (),
             }
         }
         if is_keyword(node.kind()) {
-            return self.write_token_node(&*node, Printer::write_keyword);
+            return self.write_token_node(node, Printer::write_keyword);
         }
         unimplemented!();
     }
 
-    fn emit_literal(&self, node: &LiteralLikeNode, jsx_attribute_escape: bool) {
+    fn emit_literal(&self, node: &Node /*LiteralLikeNode*/, jsx_attribute_escape: bool) {
         let text = self.get_literal_text_of_node(node);
         if false {
             unimplemented!()
@@ -178,7 +163,7 @@ impl Printer {
         }
     }
 
-    fn emit_identifier(&self, node: &Identifier) {
+    fn emit_identifier(&self, node: &Node /*Identifier*/) {
         let text_of_node = self.get_text_of_node(node, Some(false));
         if let Some(symbol) = node.maybe_symbol() {
             self.write_symbol(&text_of_node, &symbol);
@@ -187,17 +172,21 @@ impl Printer {
         }
     }
 
-    fn emit_property_signature(&mut self, node: &PropertySignature) {
-        self.emit_node_with_writer(Some(&*node.name()), Printer::write_property);
-        self.emit_type_annotation(node.maybe_type());
+    fn emit_property_signature(&mut self, node: &Node /*PropertySignature*/) {
+        let node_as_property_signature = node.as_property_signature();
+        self.emit_node_with_writer(
+            Some(&*node_as_property_signature.name()),
+            Printer::write_property,
+        );
+        self.emit_type_annotation(node_as_property_signature.maybe_type());
         self.write_trailing_semicolon();
     }
 
-    fn emit_type_reference(&mut self, node: &TypeReferenceNode) {
-        self.emit(Some(&*node.type_name));
+    fn emit_type_reference(&mut self, node: &Node /*TypeReferenceNode*/) {
+        self.emit(Some(&*node.as_type_reference_node().type_name));
     }
 
-    fn emit_type_literal(&mut self, node: &TypeLiteralNode) {
+    fn emit_type_literal(&mut self, node: &Node /*TypeLiteralNode*/) {
         self.write_punctuation("{");
         let flags = if true {
             ListFormat::SingleLineTypeLiteralMembers
@@ -206,22 +195,22 @@ impl Printer {
         };
         self.emit_list(
             Some(node),
-            Some(&node.members),
+            Some(&node.as_type_literal_node().members),
             flags | ListFormat::NoSpaceIfEmpty,
         );
         self.write_punctuation("}");
     }
 
-    fn emit_union_type(&mut self, node: &UnionTypeNode) {
+    fn emit_union_type(&mut self, node: &Node /*UnionTypeNode*/) {
         self.emit_list(
             Some(node),
-            Some(&node.types),
+            Some(&node.as_union_or_intersection_type_node().types()),
             ListFormat::UnionTypeConstituents,
         );
     }
 
-    fn emit_literal_type(&mut self, node: &LiteralTypeNode) {
-        self.emit_expression(&*node.literal);
+    fn emit_literal_type(&mut self, node: &Node /*LiteralTypeNode*/) {
+        self.emit_expression(&*node.as_literal_type_node().literal);
     }
 
     fn emit_node_with_writer(&mut self, node: Option<&Node>, writer: fn(&Printer, &str)) {
@@ -261,19 +250,19 @@ impl Printer {
         }
     }
 
-    fn emit_list<TNode: NodeInterface>(
+    fn emit_list<TNode: Borrow<Node>>(
         &mut self,
-        parent_node: Option<&TNode>,
+        parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
     ) {
         self.emit_node_list(Printer::emit, parent_node, children, format, None, None);
     }
 
-    fn emit_node_list<TNode: NodeInterface>(
+    fn emit_node_list<TNode: Borrow<Node>>(
         &mut self,
         emit: fn(&mut Printer, Option<&Node>),
-        parent_node: Option<&TNode>,
+        parent_node: Option<TNode>,
         children: Option<&NodeArray>,
         format: ListFormat,
         start: Option<usize>,
@@ -360,15 +349,11 @@ impl Printer {
         self.writer_().write_property(s);
     }
 
-    fn write_token_node<TNode: NodeInterface>(&self, node: &TNode, writer: fn(&Printer, &str)) {
+    fn write_token_node(&self, node: &Node, writer: fn(&Printer, &str)) {
         writer(self, token_to_string(node.kind()).unwrap());
     }
 
-    fn get_text_of_node<TNode: NodeInterface>(
-        &self,
-        node: &TNode,
-        include_trivia: Option<bool>,
-    ) -> String {
+    fn get_text_of_node(&self, node: &Node, include_trivia: Option<bool>) -> String {
         if false {
             unimplemented!()
         } else if (is_identifier(node) || false) && true {
@@ -378,7 +363,7 @@ impl Printer {
         unimplemented!()
     }
 
-    fn get_literal_text_of_node(&self, node: &LiteralLikeNode) -> String {
+    fn get_literal_text_of_node(&self, node: &Node) -> String {
         let flags = GetLiteralTextFlags::None;
 
         get_literal_text(node, self.current_source_file.clone(), flags)

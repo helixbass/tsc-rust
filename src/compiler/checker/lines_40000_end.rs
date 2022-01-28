@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, for_each, is_external_or_common_js_module, Diagnostic, Node, NodeInterface,
-    NumericLiteral, SourceFile, Statement, TypeChecker, TypeCheckerHost, TypeElement, TypeNode,
+    SourceFile, Statement, TypeChecker, TypeCheckerHost, TypeElement, TypeNode,
 };
 
 impl TypeChecker {
@@ -18,38 +18,28 @@ impl TypeChecker {
 
     pub(super) fn check_source_element_worker(&mut self, node: &Node) {
         match node {
-            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
-                self.check_property_signature(property_signature)
+            Node::TypeElement(TypeElement::PropertySignature(_)) => {
+                self.check_property_signature(node)
             }
-            Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
-                self.check_type_reference_node(type_reference_node)
-            }
+            Node::TypeNode(TypeNode::TypeReferenceNode(_)) => self.check_type_reference_node(node),
             Node::TypeNode(TypeNode::KeywordTypeNode(_))
             | Node::TypeNode(TypeNode::LiteralTypeNode(_)) => (),
-            Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => {
-                self.check_array_type(array_type_node)
-            }
+            Node::TypeNode(TypeNode::ArrayTypeNode(_)) => self.check_array_type(node),
             Node::TypeNode(TypeNode::UnionTypeNode(_)) => {
-                self.check_union_or_intersection_type(&*node)
+                self.check_union_or_intersection_type(node)
             }
-            Node::Statement(Statement::Block(block)) => self.check_block(block),
-            Node::Statement(Statement::VariableStatement(variable_statement)) => {
-                self.check_variable_statement(variable_statement)
+            Node::Statement(Statement::Block(_)) => self.check_block(node),
+            Node::Statement(Statement::VariableStatement(_)) => self.check_variable_statement(node),
+            Node::Statement(Statement::ExpressionStatement(_)) => {
+                self.check_expression_statement(node)
             }
-            Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
-                self.check_expression_statement(expression_statement)
+            Node::Statement(Statement::IfStatement(_)) => self.check_if_statement(node),
+            Node::VariableDeclaration(_) => self.check_variable_declaration(node),
+            Node::Statement(Statement::InterfaceDeclaration(_)) => {
+                self.check_interface_declaration(node)
             }
-            Node::Statement(Statement::IfStatement(if_statement)) => {
-                self.check_if_statement(if_statement)
-            }
-            Node::VariableDeclaration(variable_declaration) => {
-                self.check_variable_declaration(variable_declaration)
-            }
-            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
-                self.check_interface_declaration(interface_declaration)
-            }
-            Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
-                self.check_type_alias_declaration(type_alias_declaration)
+            Node::Statement(Statement::TypeAliasDeclaration(_)) => {
+                self.check_type_alias_declaration(node)
             }
             _ => unimplemented!("{:?}", node.kind()),
         };
@@ -103,7 +93,10 @@ impl TypeChecker {
         // self.global_array_type = self.get_global_type(__String::new("Array".to_string()));
     }
 
-    pub(super) fn check_grammar_numeric_literal(&self, node: &NumericLiteral) -> bool {
+    pub(super) fn check_grammar_numeric_literal(
+        &self,
+        node: &Node, /*NumericLiteral*/
+    ) -> bool {
         false
     }
 }

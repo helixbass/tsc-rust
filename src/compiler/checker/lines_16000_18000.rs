@@ -7,12 +7,12 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
-    get_check_flags, pseudo_big_int_to_string, ArrayTypeNode, BaseLiteralType, BigIntLiteralType,
-    CheckFlags, Debug_, DiagnosticMessage, Expression, LiteralTypeInterface, LiteralTypeNode,
-    NamedDeclarationInterface, Node, NodeInterface, Number, NumberLiteralType,
-    ObjectLiteralExpression, PseudoBigInt, RelationComparisonResult, StringLiteralType, Symbol,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, TypeNode, UnionOrIntersectionType,
+    get_check_flags, pseudo_big_int_to_string, BaseLiteralType, BigIntLiteralType, CheckFlags,
+    Debug_, DiagnosticMessage, Expression, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression, PseudoBigInt,
+    RelationComparisonResult, StringLiteralType, Symbol, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode,
+    UnionOrIntersectionType,
 };
 use local_macros::enum_unwrapped;
 
@@ -154,15 +154,19 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_type_from_literal_type_node(&self, node: &LiteralTypeNode) -> Rc<Type> {
-        if node.literal.kind() == SyntaxKind::NullKeyword {
+    pub(super) fn get_type_from_literal_type_node(
+        &self,
+        node: &Node, /*LiteralTypeNode*/
+    ) -> Rc<Type> {
+        let node_as_literal_type_node = node.as_literal_type_node();
+        if node_as_literal_type_node.literal.kind() == SyntaxKind::NullKeyword {
             unimplemented!()
         }
         let links = self.get_node_links(node);
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_type.is_none() {
             links_ref.resolved_type = Some(self.get_regular_type_of_literal_type(
-                &self.check_expression(node.literal.as_expression(), None),
+                &self.check_expression(&node_as_literal_type_node.literal, None),
             ));
         }
         links_ref.resolved_type.clone().unwrap()
@@ -170,9 +174,9 @@ impl TypeChecker {
 
     pub(super) fn get_array_element_type_node(
         &self,
-        node: &ArrayTypeNode,
+        node: &Node, /*ArrayTypeNode*/
     ) -> Option<Rc<Node /*TypeNode*/>> {
-        Some(node.element_type.clone())
+        Some(node.as_array_type_node().element_type.clone())
     }
 
     pub(super) fn get_type_from_type_node(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
@@ -180,27 +184,24 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
-        let node = node.as_type_node();
         match node {
-            TypeNode::KeywordTypeNode(_) => match node.kind() {
+            Node::TypeNode(TypeNode::KeywordTypeNode(_)) => match node.kind() {
                 SyntaxKind::StringKeyword => self.string_type(),
                 SyntaxKind::NumberKeyword => self.number_type(),
                 SyntaxKind::BigIntKeyword => self.bigint_type(),
                 SyntaxKind::BooleanKeyword => self.boolean_type(),
                 _ => unimplemented!(),
             },
-            TypeNode::LiteralTypeNode(literal_type_node) => {
-                self.get_type_from_literal_type_node(literal_type_node)
+            Node::TypeNode(TypeNode::LiteralTypeNode(_)) => {
+                self.get_type_from_literal_type_node(node)
             }
-            TypeNode::TypeReferenceNode(type_reference_node) => {
-                self.get_type_from_type_reference(type_reference_node)
+            Node::TypeNode(TypeNode::TypeReferenceNode(_)) => {
+                self.get_type_from_type_reference(node)
             }
-            TypeNode::ArrayTypeNode(array_type_node) => {
-                self.get_type_from_array_or_tuple_type_node(array_type_node)
+            Node::TypeNode(TypeNode::ArrayTypeNode(_)) => {
+                self.get_type_from_array_or_tuple_type_node(node)
             }
-            TypeNode::UnionTypeNode(union_type_node) => {
-                self.get_type_from_union_type_node(union_type_node)
-            }
+            Node::TypeNode(TypeNode::UnionTypeNode(_)) => self.get_type_from_union_type_node(node),
             _ => unimplemented!(),
         }
     }
@@ -487,7 +488,7 @@ impl TypeChecker {
         source_prop_type: &Type,
     ) -> Rc<Type> {
         self.check_expression_for_mutable_location(
-            next.as_expression(),
+            next,
             Some(CheckMode::Contextual),
             Some(source_prop_type),
         )

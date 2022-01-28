@@ -36,13 +36,13 @@ impl TypeChecker {
         diagnostic
     }
 
-    pub(super) fn error_and_maybe_suggest_await<TNode: NodeInterface>(
+    pub(super) fn error_and_maybe_suggest_await(
         &self,
-        location: &TNode,
+        location: &Node,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Rc<Diagnostic> {
-        let diagnostic = self.error(Some(location.node_wrapper()), message, args);
+        let diagnostic = self.error(Some(location), message, args);
         diagnostic
     }
 
@@ -89,10 +89,7 @@ impl TypeChecker {
         symbol_links
     }
 
-    pub(super) fn get_node_links<TNode: NodeInterface>(
-        &self,
-        node: &TNode,
-    ) -> Rc<RefCell<NodeLinks>> {
+    pub(super) fn get_node_links(&self, node: &Node) -> Rc<RefCell<NodeLinks>> {
         let id = get_node_id(node);
         let mut node_links_table = self.node_links.borrow_mut();
         if let Some(node_links) = node_links_table.get(&id) {

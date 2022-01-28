@@ -69,14 +69,14 @@ impl TypeChecker {
         if let Some(declarations) = &*symbol.maybe_declarations() {
             if !declarations.is_empty() {
                 let declaration = first_defined(declarations, |d, _| {
-                    if get_name_of_declaration(&**d).is_some() {
+                    if get_name_of_declaration(Some(&**d)).is_some() {
                         Some(d)
                     } else {
                         None
                     }
                 });
                 let name = if let Some(declaration) = declaration {
-                    get_name_of_declaration(&**declaration)
+                    get_name_of_declaration(Some(&**declaration))
                 } else {
                     None
                 };
@@ -195,14 +195,12 @@ impl TypeChecker {
         let type_: Rc<Type>;
         if false {
             unimplemented!()
-        } else if is_property_assignment(&*declaration) {
+        } else if is_property_assignment(&declaration) {
             type_ = self
-                .try_get_type_from_effective_type_node(&*declaration)
-                .unwrap_or_else(|| {
-                    self.check_property_assignment(declaration.as_property_assignment(), None)
-                });
-        } else if is_property_signature(&*declaration) || is_variable_declaration(&*declaration) {
-            type_ = self.get_widened_type_for_variable_like_declaration(&*declaration);
+                .try_get_type_from_effective_type_node(&declaration)
+                .unwrap_or_else(|| self.check_property_assignment(&declaration, None));
+        } else if is_property_signature(&declaration) || is_variable_declaration(&declaration) {
+            type_ = self.get_widened_type_for_variable_like_declaration(&declaration);
         } else {
             unimplemented!()
         }
@@ -490,10 +488,7 @@ impl TypeChecker {
             .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
     }
 
-    pub(super) fn has_bindable_name<TNode: NodeInterface>(
-        &self,
-        node: &TNode, /*Declaration*/
-    ) -> bool {
+    pub(super) fn has_bindable_name(&self, node: &Node /*Declaration*/) -> bool {
         !has_dynamic_name(node) || unimplemented!()
     }
 

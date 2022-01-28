@@ -222,15 +222,15 @@ pub use compiler::utilities_public::{
     create_text_span_from_bounds, escape_leading_underscores, find_ancestor,
     get_combined_node_flags, get_effective_type_parameter_declarations, get_jsdoc_parameter_tags,
     get_jsdoc_tags, get_jsdoc_type_parameter_tags, get_jsdoc_type_tag, get_name_of_declaration,
-    has_initializer, has_jsdoc_nodes, has_only_expression_initializer, id_text, is_binding_pattern,
-    is_expression, is_function_like, is_function_like_or_class_static_block_declaration,
-    is_function_or_module_block, is_literal_kind, is_member_name, is_modifier_kind,
-    is_property_name, is_string_literal_like, is_template_literal_kind,
+    has_jsdoc_nodes, has_only_expression_initializer, id_text, is_binding_pattern, is_expression,
+    is_function_like, is_literal_kind, is_member_name, is_property_name, is_string_literal_like,
     sort_and_deduplicate_diagnostics, unescape_leading_underscores,
 };
 use compiler::utilities_public::{
-    get_jsdoc_parameter_tags_no_cache, get_jsdoc_type_parameter_tags_no_cache,
-    is_left_hand_side_expression, is_named_declaration, skip_partially_emitted_expressions,
+    get_jsdoc_parameter_tags_no_cache, get_jsdoc_type_parameter_tags_no_cache, has_initializer,
+    is_function_like_or_class_static_block_declaration, is_function_or_module_block,
+    is_left_hand_side_expression, is_modifier_kind, is_named_declaration, is_template_literal_kind,
+    skip_partially_emitted_expressions,
 };
 pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
 pub use execute_command_line::execute_command_line::execute_command_line;

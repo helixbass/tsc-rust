@@ -289,19 +289,17 @@ fn get_combined_flags<
     flags
 }
 
-pub fn get_combined_modifier_flags<TNode: NodeInterface>(
-    node: &TNode, /*Declaration*/
-) -> ModifierFlags {
+pub fn get_combined_modifier_flags(node: &Node /*Declaration*/) -> ModifierFlags {
     get_combined_flags(node, get_effective_modifier_flags)
 }
 
-pub(crate) fn get_combined_node_flags_always_include_jsdoc<TNode: NodeInterface>(
-    node: &TNode, /*Declaration*/
+pub(crate) fn get_combined_node_flags_always_include_jsdoc(
+    node: &Node, /*Declaration*/
 ) -> ModifierFlags {
     get_combined_flags(node, get_effective_modifier_flags_always_include_jsdoc)
 }
 
-pub fn get_combined_node_flags<TNode: NodeInterface>(node: &TNode) -> NodeFlags {
+pub fn get_combined_node_flags(node: &Node) -> NodeFlags {
     get_combined_flags(node, |n| n.flags())
 }
 
@@ -968,7 +966,8 @@ pub fn get_jsdoc_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
     if tag.is_none() && is_parameter(node) {
         tag = find(&get_jsdoc_parameter_tags(node), |tag, _| {
             tag.as_jsdoc_property_like_tag().type_expression.is_some()
-        });
+        })
+        .map(Clone::clone);
     }
 
     tag.and_then(|tag| tag.as_jsdoc_property_like_tag().type_expression)
@@ -1441,7 +1440,7 @@ pub fn is_entity_name(node: &Node) -> bool {
     )
 }
 
-pub fn is_property_name<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_property_name(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::Identifier
@@ -2105,7 +2104,7 @@ pub fn is_get_accessor(node: &Node) -> bool {
     node.kind() == SyntaxKind::GetAccessor
 }
 
-pub fn has_jsdoc_nodes<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn has_jsdoc_nodes(node: &Node) -> bool {
     node.maybe_js_doc().map_or(false, |jsdoc| !jsdoc.is_empty())
 }
 
@@ -2121,7 +2120,7 @@ pub(crate) fn has_initializer(node: &Node) -> bool {
         .is_some()
 }
 
-pub fn has_only_expression_initializer<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn has_only_expression_initializer(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::VariableDeclaration
@@ -2178,7 +2177,7 @@ pub(crate) fn guess_indentation(lines: &[&str]) -> Option<usize> {
     }
 }
 
-pub fn is_string_literal_like<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_string_literal_like(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral

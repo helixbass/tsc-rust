@@ -6,14 +6,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    FunctionDeclaration, ParameterDeclaration, Symbol, SymbolTable, SyntaxKind,
-    VariableDeclaration, __String, append_if_unique, create_symbol_table, for_each, for_each_child,
-    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, is_binding_pattern,
-    is_block_or_catch_scoped, is_class_static_block_declaration, is_function_like,
-    is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
-    Expression, ExpressionStatement, IfStatement, InternalSymbolName, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, ObjectLiteralExpression, PropertySignature, Statement,
-    SymbolFlags, SymbolInterface, TypeElement, TypeParameterDeclaration,
+    Symbol, SymbolTable, SyntaxKind, __String, append_if_unique, create_symbol_table, for_each,
+    for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
+    is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
+    is_function_like, is_property_name_literal, object_allocator, set_parent,
+    set_value_declaration, BaseSymbol, Expression, ExpressionStatement, IfStatement,
+    InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Statement,
+    SymbolFlags, SymbolInterface, TypeElement,
 };
 
 bitflags! {
@@ -146,10 +145,10 @@ impl BinderType {
         self.Symbol()(flags, name).into()
     }
 
-    fn add_declaration_to_symbol<TNode: NodeInterface>(
+    fn add_declaration_to_symbol(
         &self,
         symbol: &Symbol,
-        node: &TNode, /*Declaration*/
+        node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
     ) {
         symbol.set_flags(symbol.flags() | symbol_flags);
@@ -178,8 +177,8 @@ impl BinderType {
         }
     }
 
-    fn get_declaration_name<TNode: NodeInterface>(&self, node: &TNode) -> Option<__String> {
-        let name = get_name_of_declaration(node);
+    fn get_declaration_name(&self, node: &Node) -> Option<__String> {
+        let name = get_name_of_declaration(Some(node));
         if let Some(name) = name {
             return if is_property_name_literal(&*name) {
                 Some(get_escaped_text_of_identifier_or_literal(&*name))
@@ -190,11 +189,11 @@ impl BinderType {
         unimplemented!()
     }
 
-    fn declare_symbol<TSymbolRef: Borrow<Symbol>, TNode: NodeInterface>(
+    fn declare_symbol<TSymbolRef: Borrow<Symbol>>(
         &self,
         symbol_table: &mut SymbolTable,
         parent: Option<TSymbolRef>,
-        node: &TNode, /*Declaration*/
+        node: &Node, /*Declaration*/
         includes: SymbolFlags,
         excludes: SymbolFlags,
     ) -> Rc<Symbol> {
@@ -393,9 +392,9 @@ impl BinderType {
         ContainerFlags::None
     }
 
-    fn declare_symbol_and_add_to_symbol_table<TNode: NodeInterface>(
+    fn declare_symbol_and_add_to_symbol_table(
         &self,
-        node: &TNode, /*Declaration*/
+        node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
@@ -423,9 +422,9 @@ impl BinderType {
         }
     }
 
-    fn declare_source_file_member<TNode: NodeInterface>(
+    fn declare_source_file_member(
         &self,
-        node: &TNode, /*Declaration*/
+        node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Rc<Symbol> {
@@ -442,7 +441,7 @@ impl BinderType {
         }
     }
 
-    fn bind_object_literal_expression(&self, node: &ObjectLiteralExpression) {
+    fn bind_object_literal_expression(&self, node: &Node /*ObjectLiteralExpression*/) {
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::ObjectLiteral,
@@ -450,9 +449,9 @@ impl BinderType {
         );
     }
 
-    fn bind_anonymous_declaration<TNode: NodeInterface>(
+    fn bind_anonymous_declaration(
         &self,
-        node: &TNode,
+        node: &Node,
         symbol_flags: SymbolFlags,
         name: __String,
     ) -> Rc<Symbol> {
@@ -464,9 +463,9 @@ impl BinderType {
         symbol
     }
 
-    fn bind_block_scoped_declaration<TNode: NodeInterface>(
+    fn bind_block_scoped_declaration(
         &self,
-        node: &TNode, /*Declaration*/
+        node: &Node, /*Declaration*/
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) {
@@ -510,40 +509,31 @@ impl BinderType {
     }
 
     fn bind_worker(&self, node: &Node) {
-        match &*node {
-            Node::TypeParameterDeclaration(type_parameter_declaration) => {
-                self.bind_type_parameter(type_parameter_declaration)
+        match node {
+            Node::TypeParameterDeclaration(_) => self.bind_type_parameter(node),
+            Node::ParameterDeclaration(_) => self.bind_parameter(node),
+            Node::VariableDeclaration(_) => self.bind_variable_declaration_or_binding_element(node),
+            Node::TypeElement(TypeElement::PropertySignature(_)) => self.bind_property_worker(node),
+            Node::PropertyAssignment(_) => self.bind_property_or_method_or_accessor(
+                node,
+                SymbolFlags::Property,
+                SymbolFlags::PropertyExcludes,
+            ),
+            Node::Statement(Statement::FunctionDeclaration(_)) => {
+                self.bind_function_declaration(node)
             }
-            Node::ParameterDeclaration(parameter_declaration) => {
-                self.bind_parameter(parameter_declaration)
+            Node::Expression(Expression::ObjectLiteralExpression(_)) => {
+                self.bind_object_literal_expression(node)
             }
-            Node::VariableDeclaration(variable_declaration) => {
-                self.bind_variable_declaration_or_binding_element(variable_declaration)
-            }
-            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
-                self.bind_property_worker(property_signature)
-            }
-            Node::PropertyAssignment(property_assignment) => self
-                .bind_property_or_method_or_accessor(
-                    property_assignment,
-                    SymbolFlags::Property,
-                    SymbolFlags::PropertyExcludes,
-                ),
-            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
-                self.bind_function_declaration(function_declaration)
-            }
-            Node::Expression(Expression::ObjectLiteralExpression(object_literal_expression)) => {
-                self.bind_object_literal_expression(object_literal_expression)
-            }
-            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => self
+            Node::Statement(Statement::InterfaceDeclaration(_)) => self
                 .bind_block_scoped_declaration(
-                    interface_declaration,
+                    node,
                     SymbolFlags::Interface,
                     SymbolFlags::InterfaceExcludes,
                 ),
-            Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => self
+            Node::Statement(Statement::TypeAliasDeclaration(_)) => self
                 .bind_block_scoped_declaration(
-                    type_alias_declaration,
+                    node,
                     SymbolFlags::TypeAlias,
                     SymbolFlags::TypeAliasExcludes,
                 ),
@@ -551,7 +541,7 @@ impl BinderType {
         }
     }
 
-    fn bind_property_worker(&self, node: &PropertySignature) {
+    fn bind_property_worker(&self, node: &Node /*PropertySignature*/) {
         self.bind_property_or_method_or_accessor(
             node,
             SymbolFlags::Property
@@ -564,8 +554,12 @@ impl BinderType {
         )
     }
 
-    fn bind_variable_declaration_or_binding_element(&self, node: &VariableDeclaration) {
-        if !is_binding_pattern(&*node.name()) {
+    fn bind_variable_declaration_or_binding_element(
+        &self,
+        node: &Node, /*VariableDeclaration*/
+    ) {
+        let node_as_variable_declaration = node.as_variable_declaration();
+        if !is_binding_pattern(Some(node_as_variable_declaration.name())) {
             if false {
                 unimplemented!()
             } else if is_block_or_catch_scoped(node) {
@@ -584,8 +578,8 @@ impl BinderType {
         }
     }
 
-    fn bind_parameter(&self, node: &ParameterDeclaration) {
-        if is_binding_pattern(&*node.name()) {
+    fn bind_parameter(&self, node: &Node /*ParameterDeclaration*/) {
+        if is_binding_pattern(Some(node.as_parameter_declaration().name())) {
             unimplemented!()
         } else {
             self.declare_symbol_and_add_to_symbol_table(
@@ -596,7 +590,7 @@ impl BinderType {
         }
     }
 
-    fn bind_function_declaration(&self, node: &FunctionDeclaration) {
+    fn bind_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
         if false {
             unimplemented!()
         } else {
@@ -608,9 +602,9 @@ impl BinderType {
         }
     }
 
-    fn bind_property_or_method_or_accessor<TNode: NodeInterface>(
+    fn bind_property_or_method_or_accessor(
         &self,
-        node: &TNode,
+        node: &Node,
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) {
@@ -621,7 +615,7 @@ impl BinderType {
         }
     }
 
-    fn bind_type_parameter(&self, node: &TypeParameterDeclaration) {
+    fn bind_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
         if false {
             unimplemented!()
         } else {

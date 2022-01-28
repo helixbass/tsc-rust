@@ -7,11 +7,10 @@ use std::rc::Rc;
 
 use crate::{
     UnionType, __String, binary_search_copy_key, compare_values, concatenate,
-    get_name_of_declaration, get_object_flags, map, unescape_leading_underscores, ArrayTypeNode,
+    get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
     BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node, NodeInterface,
     ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode,
-    UnionReduction, UnionTypeNode,
+    TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, UnionReduction,
 };
 
 impl TypeChecker {
@@ -137,9 +136,9 @@ impl TypeChecker {
         (*resolved_type_arguments).clone().unwrap()
     }
 
-    pub(super) fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
+    pub(super) fn get_type_from_class_or_interface_reference(
         &self,
-        node: &TNode,
+        node: &Node,
         symbol: &Symbol,
     ) -> Rc<Type> {
         let type_ =
@@ -171,11 +170,11 @@ impl TypeChecker {
 
     pub(super) fn get_type_reference_name(
         &self,
-        node: &TypeReferenceNode,
+        node: &Node, /*TypeReferenceNode*/
     ) -> Option<Rc<Node /*EntityNameOrEntityNameExpression*/>> {
         match node.kind() {
             SyntaxKind::TypeReference => {
-                return Some(node.type_name.clone());
+                return Some(node.as_type_reference_node().type_name.clone());
             }
             SyntaxKind::ExpressionWithTypeArguments => unimplemented!(),
             _ => (),
@@ -185,7 +184,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_type_reference_name(
         &self,
-        type_reference: &TypeReferenceNode,
+        type_reference: &Node, /*TypeReferenceNode*/
         meaning: SymbolFlags,
         ignore_errors: Option<bool>,
     ) -> Rc<Symbol> {
@@ -207,11 +206,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_type_reference_type<TNode: NodeInterface>(
-        &self,
-        node: &TNode,
-        symbol: &Symbol,
-    ) -> Rc<Type> {
+    pub(super) fn get_type_reference_type(&self, node: &Node, symbol: &Symbol) -> Rc<Type> {
         if ptr::eq(symbol, Rc::as_ptr(&self.unknown_symbol())) {
             unimplemented!()
         }
@@ -236,21 +231,21 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn check_no_type_arguments<TNode: NodeInterface>(
+    pub(super) fn check_no_type_arguments(
         &self,
-        node: &TNode, /*NodeWithTypeArguments*/
+        node: &Node, /*NodeWithTypeArguments*/
         symbol: &Symbol,
     ) -> bool {
-        if let Some(type_arguments) = (*node.node_wrapper())
-            .as_has_type_arguments()
-            .maybe_type_arguments()
-        {
+        if let Some(type_arguments) = node.as_has_type_arguments().maybe_type_arguments() {
             unimplemented!()
         }
         true
     }
 
-    pub(super) fn get_type_from_type_reference(&self, node: &TypeReferenceNode) -> Rc<Type> {
+    pub(super) fn get_type_from_type_reference(
+        &self,
+        node: &Node, /*TypeReferenceNode*/
+    ) -> Rc<Type> {
         let mut symbol: Option<Rc<Symbol>> = None;
         let mut type_: Option<Rc<Type>> = None;
         let meaning = SymbolFlags::Type;
@@ -323,7 +318,7 @@ impl TypeChecker {
 
     pub(super) fn get_array_or_tuple_target_type(
         &self,
-        node: &ArrayTypeNode,
+        node: &Node, /*ArrayTypeNode*/
     ) -> Rc<Type /*GenericType*/> {
         let element_type = self.get_array_element_type_node(node);
         if let Some(element_type) = element_type {
@@ -332,14 +327,19 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn get_type_from_array_or_tuple_type_node(&self, node: &ArrayTypeNode) -> Rc<Type> {
+    pub(super) fn get_type_from_array_or_tuple_type_node(
+        &self,
+        node: &Node, /*ArrayTypeNode*/
+    ) -> Rc<Type> {
+        let node_as_array_type_node = node.as_array_type_node();
         let target = self.get_array_or_tuple_target_type(node);
         if false {
             unimplemented!()
         } else if false {
             unimplemented!()
         } else {
-            let element_types = vec![self.get_type_from_type_node(&*node.element_type)];
+            let element_types =
+                vec![self.get_type_from_type_node(&*node_as_array_type_node.element_type)];
             return self.create_normalized_type_reference(&target, Some(element_types));
         }
     }
@@ -487,14 +487,18 @@ impl TypeChecker {
         type_.unwrap()
     }
 
-    pub(super) fn get_type_from_union_type_node(&self, node: &UnionTypeNode) -> Rc<Type> {
+    pub(super) fn get_type_from_union_type_node(
+        &self,
+        node: &Node, /*UnionTypeNode*/
+    ) -> Rc<Type> {
+        let node_as_union_type_node = node.as_union_type_node();
         let links = self.get_node_links(node);
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_type.is_none() {
             // let alias_symbol = self.get_alias_symbol_for_type_node(node);
             links_ref.resolved_type = Some(
                 self.get_union_type(
-                    map(Some(&node.types), |type_, _| {
+                    map(Some(&node_as_union_type_node.types), |type_, _| {
                         self.get_type_from_type_node(type_)
                     })
                     .unwrap(),
@@ -530,7 +534,7 @@ impl TypeChecker {
                     .maybe_value_declaration()
                     .as_ref()
                     .and_then(|value_declaration| {
-                        get_name_of_declaration(&*value_declaration.upgrade().unwrap())
+                        get_name_of_declaration(Some(&*value_declaration.upgrade().unwrap()))
                     });
                 type_ = if false {
                     unimplemented!()

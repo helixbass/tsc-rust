@@ -5,8 +5,8 @@ use std::rc::Rc;
 
 use crate::{
     every, for_each, get_object_flags, is_write_only_access, node_is_missing, Debug_,
-    DiagnosticMessage, Diagnostics, Identifier, Node, NodeInterface, ObjectFlags, Symbol,
-    SymbolFlags, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -190,16 +190,16 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_resolved_symbol(&self, node: &Identifier) -> Rc<Symbol> {
+    pub(super) fn get_resolved_symbol(&self, node: &Node /*Identifier*/) -> Rc<Symbol> {
         let links = self.get_node_links(node);
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_symbol.is_none() {
-            links_ref.resolved_symbol = Some(if !node_is_missing(Some(node.node_wrapper())) {
+            links_ref.resolved_symbol = Some(if !node_is_missing(Some(node)) {
                 self.resolve_name(
                     Some(node),
-                    &node.escaped_text,
+                    &node.as_identifier().escaped_text,
                     SymbolFlags::Value | SymbolFlags::ExportValue,
-                    Some(self.get_cannot_find_name_diagnostic_for_name(&*node.node_wrapper())),
+                    Some(self.get_cannot_find_name_diagnostic_for_name(node)),
                     Some(node.node_wrapper()),
                     !is_write_only_access(node),
                     Some(false),

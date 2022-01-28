@@ -1,4 +1,3 @@
-use regex::Regex;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
