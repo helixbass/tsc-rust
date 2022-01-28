@@ -133,7 +133,7 @@ pub fn text_span_intersection(span1: &TextSpan, span2: &TextSpan) -> Option<Text
     }
 }
 
-fn create_text_span(start: isize, length: isize) -> TextSpan {
+pub fn create_text_span(start: isize, length: isize) -> TextSpan {
     if start < 0 {
         panic!("start < 0");
     }
@@ -656,7 +656,7 @@ pub(crate) fn is_named_declaration(node: &Node) -> bool {
         .map_or(false, |node| node.maybe_name().is_some())
 }
 
-fn get_non_assigned_name_of_declaration(
+pub(crate) fn get_non_assigned_name_of_declaration(
     declaration: &Node, /*Declaration | Expression*/
 ) -> Option<Rc<Node /*DeclarationName*/>> {
     match declaration.kind() {
@@ -1542,7 +1542,7 @@ pub fn is_class_like(node: &Node) -> bool {
     )
 }
 
-pub(crate) fn is_accessor(node: &Node) -> bool {
+pub fn is_accessor(node: &Node) -> bool {
     /*node && */
     matches!(
         node.kind(),
@@ -2108,7 +2108,7 @@ pub fn is_get_accessor(node: &Node) -> bool {
     node.kind() == SyntaxKind::GetAccessor
 }
 
-pub fn has_jsdoc_nodes(node: &Node) -> bool {
+pub(crate) fn has_jsdoc_nodes(node: &Node) -> bool {
     node.maybe_js_doc().map_or(false, |jsdoc| !jsdoc.is_empty())
 }
 
