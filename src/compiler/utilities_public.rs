@@ -30,9 +30,9 @@ use crate::{
     is_variable_statement, is_white_space_like, modifier_to_flag, normalize_path, path_is_relative,
     set_localized_diagnostic_messages, set_ui_locale, skip_outer_expressions, some,
     AssignmentDeclarationKind, CharacterCodes, CompilerOptions, Debug_, Diagnostics, Expression,
-    HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Statement, Symbol,
-    SymbolInterface, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
+    GeneratedIdentifierFlags, HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface,
+    Node, NodeArray, NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Statement,
+    Symbol, SymbolInterface, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
     compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
     Diagnostic, SortedArray,
 };
@@ -531,6 +531,7 @@ pub fn id_text(identifier_or_private_name: &Node, /*Identifier | PrivateIdentifi
 pub fn symbol_name(symbol: &Symbol) -> String {
     match symbol
         .maybe_value_declaration()
+        .as_ref()
         .map(|weak| weak.upgrade().unwrap())
     {
         Some(symbol_value_declaration)
@@ -604,6 +605,7 @@ fn name_for_nameless_jsdoc_typedef(
                 return get_declaration_identifier(&host_node.statement);
             }
         }
+        _ => (),
     }
     None
 }
@@ -712,6 +714,7 @@ fn get_non_assigned_name_of_declaration(
                 );
             }
         }
+        _ => (),
     }
     declaration.as_named_declaration().maybe_name()
 }
@@ -970,7 +973,7 @@ pub fn get_jsdoc_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
         .map(Clone::clone);
     }
 
-    tag.and_then(|tag| tag.as_jsdoc_property_like_tag().type_expression)
+    tag.and_then(|tag| tag.as_jsdoc_property_like_tag().type_expression.clone())
         .map(|type_expression| type_expression.as_jsdoc_type_expression().type_.clone())
 }
 
@@ -1056,7 +1059,7 @@ fn get_first_jsdoc_tag<TPredicate: FnMut(&Node /*JSDocTag*/) -> bool>(
 
 pub fn get_all_jsdoc_tags<TPredicate: FnMut(&Node /*JSDocTag*/) -> bool>(
     node: &Node,
-    predicate: TPredicate,
+    mut predicate: TPredicate,
 ) -> Vec<Rc<Node>> {
     get_jsdoc_tags(node)
         .into_iter()
@@ -1170,7 +1173,8 @@ pub fn get_effective_constraint_of_type_parameter(
         return Some(node_constraint.clone());
     }
     if is_jsdoc_template_tag(&*node.parent()) {
-        let node_parent_as_jsdoc_template_tag = node.parent().as_jsdoc_template_tag();
+        let node_parent = node.parent();
+        let node_parent_as_jsdoc_template_tag = node_parent.as_jsdoc_template_tag();
         if !node_parent_as_jsdoc_template_tag.type_parameters.is_empty()
             && ptr::eq(node, &*node_parent_as_jsdoc_template_tag.type_parameters[0])
         {
@@ -2155,7 +2159,7 @@ pub(crate) fn guess_indentation(lines: &[&str]) -> Option<usize> {
             continue;
         }
         let mut i = 0;
-        let line_chars = line.chars();
+        let mut line_chars = line.chars();
         while i < indentation {
             let ch = line_chars.next();
             if !matches!(ch, Some(ch) if is_white_space_like(ch)) {

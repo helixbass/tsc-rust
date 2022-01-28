@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use bitflags::bitflags;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -104,11 +105,28 @@ impl From<Vec<Rc<Node>>> for NodeArrayOrVec {
     }
 }
 
+bitflags! {
+    pub struct GeneratedIdentifierFlags: u32 {
+        const None = 0;
+        const Auto = 1;
+        const Loop = 2;
+        const Unique = 3;
+        const Node = 4;
+        const KindMask = 7;
+
+        const ReservedInNestedScopes = 1 << 3;
+        const Optimistic = 1 << 4;
+        const FileLevel = 1 << 5;
+        const AllowNameSubstitution = 1 << 6;
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression")]
 pub struct Identifier {
     _node: BaseNode,
     pub escaped_text: __String,
+    auto_generate_flags: Option<GeneratedIdentifierFlags>,
 }
 
 impl Identifier {
@@ -116,7 +134,12 @@ impl Identifier {
         Self {
             _node: base_node,
             escaped_text,
+            auto_generate_flags: None,
         }
+    }
+
+    pub fn maybe_auto_generate_flags(&self) -> Option<GeneratedIdentifierFlags> {
+        self.auto_generate_flags.clone()
     }
 }
 

@@ -452,6 +452,10 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
         | Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::BigIntLiteral(_))) => {
             node.as_literal_like_node().text().to_string()
         }
+        _ => Debug_.fail(Some(&format!(
+            "Literal kind '{:?}' not accounted for.",
+            node.kind()
+        ))),
     }
 }
 
@@ -585,7 +589,7 @@ pub fn entity_name_to_string(
                 )
                 .into()
             } else {
-                Debug_.assert_never(name_as_property_access_expression.name, None)
+                Debug_.assert_never(&name_as_property_access_expression.name, None)
             }
         }
         SyntaxKind::JSDocMemberName => {
