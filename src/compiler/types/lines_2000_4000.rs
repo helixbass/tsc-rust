@@ -319,6 +319,10 @@ impl ObjectLiteralExpression {
     }
 }
 
+pub trait HasQuestionDotTokenInterface {
+    fn maybe_question_dot_token(&self) -> Option<Rc<Node>>;
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression")]
 pub struct PropertyAccessExpression {
@@ -364,6 +368,12 @@ impl NamedDeclarationInterface for PropertyAccessExpression {
     }
 }
 
+impl HasQuestionDotTokenInterface for PropertyAccessExpression {
+    fn maybe_question_dot_token(&self) -> Option<Rc<Node>> {
+        self.question_dot_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression")]
 pub struct ElementAccessExpression {
@@ -392,6 +402,12 @@ impl ElementAccessExpression {
 impl HasExpressionInterface for ElementAccessExpression {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+impl HasQuestionDotTokenInterface for ElementAccessExpression {
+    fn maybe_question_dot_token(&self) -> Option<Rc<Node>> {
+        self.question_dot_token.clone()
     }
 }
 
@@ -426,6 +442,12 @@ impl CallExpression {
 impl HasExpressionInterface for CallExpression {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+impl HasQuestionDotTokenInterface for CallExpression {
+    fn maybe_question_dot_token(&self) -> Option<Rc<Node>> {
+        self.question_dot_token.clone()
     }
 }
 

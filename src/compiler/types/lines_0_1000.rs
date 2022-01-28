@@ -9,18 +9,19 @@ use super::{
     ArrayBindingPattern, BinaryExpression, BindingElement, CallExpression, Decorator,
     ElementAccessExpression, EnumMember, ExportAssignment, Expression, ExpressionStatement,
     FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
-    HasExpressionInterface, HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier,
-    JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName,
-    JSDocPropertyLikeTag, JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocText,
-    JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement,
-    LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray, ModuleDeclaration,
-    NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral, ObjectBindingPattern,
-    ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression, PropertyAccessExpression,
-    PropertyAssignment, PropertyDeclaration, QualifiedName, ShorthandPropertyAssignment,
-    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
-    SymbolTable, TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode,
-    TypeNode, TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
-    VariableDeclarationList, VariableStatement, VoidExpression,
+    HasExpressionInterface, HasQuestionDotTokenInterface, HasTypeArgumentsInterface,
+    HasTypeParametersInterface, Identifier, JSDoc, JSDocLink, JSDocLinkCode,
+    JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag,
+    JSDocTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag,
+    JsxAttribute, LabeledStatement, LiteralLikeNodeInterface, MemberNameInterface, ModifiersArray,
+    ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral,
+    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
+    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, QualifiedName,
+    ShorthandPropertyAssignment, SignatureDeclarationBase, SignatureDeclarationInterface,
+    SourceFile, Statement, Symbol, SymbolTable, TemplateSpan, TransformFlags, TypeAliasDeclaration,
+    TypeElement, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypeReferenceNode,
+    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
+    VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -813,6 +814,15 @@ impl Node {
         }
     }
 
+    pub fn as_has_question_dot_token(&self) -> &dyn HasQuestionDotTokenInterface {
+        match self {
+            Node::Expression(Expression::PropertyAccessExpression(node)) => node,
+            Node::Expression(Expression::ElementAccessExpression(node)) => node,
+            Node::Expression(Expression::CallExpression(node)) => node,
+            _ => panic!("Expected has question dot token"),
+        }
+    }
+
     pub fn as_expression(&self) -> &Expression {
         // node_unwrapped!(self, Expression)
         enum_unwrapped!(self, [Node, Expression])
@@ -960,6 +970,10 @@ impl Node {
 
     pub fn as_function_type_node(&self) -> &FunctionTypeNode {
         enum_unwrapped!(self, [Node, TypeNode, FunctionTypeNode])
+    }
+
+    pub fn as_type_reference_node(&self) -> &TypeReferenceNode {
+        enum_unwrapped!(self, [Node, TypeNode, TypeReferenceNode])
     }
 }
 
