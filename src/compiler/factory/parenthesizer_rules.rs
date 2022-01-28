@@ -6,9 +6,9 @@ use crate::{
     compare_values, get_expression_associativity, get_expression_precedence,
     get_leftmost_expression, get_operator_associativity, get_operator_precedence,
     is_binary_expression, is_comma_sequence, is_left_hand_side_expression, is_literal_kind,
-    set_text_range, skip_partially_emitted_expressions, Associativity, BaseNodeFactory, Comparison,
-    Node, NodeArray, NodeFactory, NodeInterface, OperatorPrecedence, ParenthesizerRules,
-    SyntaxKind,
+    is_unary_expression, set_text_range, skip_partially_emitted_expressions, Associativity,
+    BaseNodeFactory, Comparison, Node, NodeArray, NodeFactory, NodeInterface, OperatorPrecedence,
+    ParenthesizerRules, SyntaxKind,
 };
 
 pub fn create_parenthesizer_rules<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -345,7 +345,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         operand: &Node,
     ) -> Rc<Node> {
-        operand.node_wrapper()
+        if is_left_hand_side_expression(operand) {
+            operand.node_wrapper()
+        } else {
+            set_text_range(
+                &*Into::<Rc<Node>>::into(
+                    self.factory
+                        .create_parenthesized_expression(base_node_factory, operand.node_wrapper()),
+                ),
+                Some(operand),
+            )
+            .node_wrapper()
+        }
     }
 
     fn parenthesize_operand_of_prefix_unary(
@@ -353,7 +364,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         operand: &Node,
     ) -> Rc<Node> {
-        operand.node_wrapper()
+        if is_unary_expression(operand) {
+            operand.node_wrapper()
+        } else {
+            set_text_range(
+                &*Into::<Rc<Node>>::into(
+                    self.factory
+                        .create_parenthesized_expression(base_node_factory, operand.node_wrapper()),
+                ),
+                Some(operand),
+            )
+            .node_wrapper()
+        }
     }
 
     fn parenthesize_expressions_of_comma_delimited_list(
