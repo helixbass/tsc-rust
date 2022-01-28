@@ -16,9 +16,9 @@ use crate::{
     Expression, ExpressionStatement, FunctionDeclaration, Identifier, IfStatement,
     InterfaceDeclaration, IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, ParenthesizerRules,
-    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement,
-    ShorthandPropertyAssignment, SourceFile, Statement, StringLiteral, SyntaxKind,
+    NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, ParenthesizedExpression,
+    ParenthesizerRules, PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt,
+    ReturnStatement, ShorthandPropertyAssignment, SourceFile, Statement, StringLiteral, SyntaxKind,
     TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TransformFlags,
     TypeAliasDeclaration, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode,
     TypeReferenceNode, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
@@ -35,7 +35,7 @@ bitflags! {
     }
 }
 
-impl NodeFactory {
+impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
     pub fn new(flags: NodeFactoryFlags) -> Rc<Self> {
         let factory_ = Rc::new(Self {
             flags,
@@ -52,11 +52,14 @@ impl NodeFactory {
         factory_
     }
 
-    fn set_parenthesizer_rules(&self, parenthesizer_rules: Box<dyn ParenthesizerRules>) {
+    fn set_parenthesizer_rules(
+        &self,
+        parenthesizer_rules: Box<dyn ParenthesizerRules<TBaseNodeFactory>>,
+    ) {
         *self.parenthesizer_rules.borrow_mut() = Some(parenthesizer_rules);
     }
 
-    fn parenthesizer_rules(&self) -> Ref<Box<dyn ParenthesizerRules>> {
+    fn parenthesizer_rules(&self) -> Ref<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
         Ref::map(self.parenthesizer_rules.borrow(), |option| {
             option.as_ref().unwrap()
         })
@@ -77,15 +80,11 @@ impl NodeFactory {
         }
     }
 
-    fn create_base_node<TBaseNodeFactory: BaseNodeFactory>(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        kind: SyntaxKind,
-    ) -> BaseNode {
+    fn create_base_node(&self, base_factory: &TBaseNodeFactory, kind: SyntaxKind) -> BaseNode {
         base_factory.create_base_node(kind)
     }
 
-    fn create_base_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    fn create_base_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -98,7 +97,7 @@ impl NodeFactory {
         node
     }
 
-    fn create_base_named_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    fn create_base_named_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -110,10 +109,7 @@ impl NodeFactory {
         BaseNamedDeclaration::new(node, name)
     }
 
-    fn create_base_generic_named_declaration<
-        TBaseNodeFactory: BaseNodeFactory,
-        TTypeParameters: Into<NodeArrayOrVec>,
-    >(
+    fn create_base_generic_named_declaration<TTypeParameters: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -128,10 +124,7 @@ impl NodeFactory {
         node
     }
 
-    fn create_base_interface_or_class_like_declaration<
-        TBaseNodeFactory: BaseNodeFactory,
-        TTypeParameters: Into<NodeArrayOrVec>,
-    >(
+    fn create_base_interface_or_class_like_declaration<TTypeParameters: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -152,7 +145,7 @@ impl NodeFactory {
         node
     }
 
-    fn create_base_signature_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    fn create_base_signature_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -176,7 +169,7 @@ impl NodeFactory {
         node
     }
 
-    fn create_base_function_like_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    fn create_base_function_like_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -202,7 +195,7 @@ impl NodeFactory {
         node
     }
 
-    fn create_base_binding_like_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    fn create_base_binding_like_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -216,7 +209,7 @@ impl NodeFactory {
         BaseBindingLikeDeclaration::new(node, initializer)
     }
 
-    fn create_base_variable_like_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    fn create_base_variable_like_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -237,7 +230,7 @@ impl NodeFactory {
         BaseVariableLikeDeclaration::new(node, type_)
     }
 
-    fn create_base_literal<TBaseNodeFactory: BaseNodeFactory>(
+    fn create_base_literal(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -247,7 +240,7 @@ impl NodeFactory {
         BaseLiteralLikeNode::new(node, value)
     }
 
-    pub fn create_numeric_literal<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_numeric_literal(
         &self,
         base_factory: &TBaseNodeFactory,
         value: String,
@@ -258,10 +251,7 @@ impl NodeFactory {
         NumericLiteral::new(node)
     }
 
-    pub fn create_big_int_literal<
-        TBaseNodeFactory: BaseNodeFactory,
-        TPseudoBigIntOrString: Into<PseudoBigIntOrString>,
-    >(
+    pub fn create_big_int_literal<TPseudoBigIntOrString: Into<PseudoBigIntOrString>>(
         &self,
         base_factory: &TBaseNodeFactory,
         value: TPseudoBigIntOrString,
@@ -280,7 +270,7 @@ impl NodeFactory {
         BigIntLiteral::new(node)
     }
 
-    pub fn create_base_string_literal<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_base_string_literal(
         &self,
         base_factory: &TBaseNodeFactory,
         text: String,
@@ -290,7 +280,7 @@ impl NodeFactory {
         StringLiteral::new(node, is_single_quote)
     }
 
-    pub fn create_string_literal<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_string_literal(
         &self,
         base_factory: &TBaseNodeFactory,
         text: String,
@@ -302,7 +292,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_literal_like_node<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_literal_like_node(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind, /*LiteralToken["kind"] | SyntaxKind.JsxTextAllWhiteSpaces*/
@@ -320,57 +310,35 @@ impl NodeFactory {
         }
     }
 
-    fn create_base_identifier<TBaseNodeFactory: BaseNodeFactory>(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        text: &str,
-    ) -> Identifier {
+    fn create_base_identifier(&self, base_factory: &TBaseNodeFactory, text: &str) -> Identifier {
         let node = base_factory.create_base_identifier_node(SyntaxKind::Identifier);
         let node = Identifier::new(node, escape_leading_underscores(text));
         node
     }
 
-    pub fn create_identifier<TBaseNodeFactory: BaseNodeFactory>(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        text: &str,
-    ) -> Identifier {
+    pub fn create_identifier(&self, base_factory: &TBaseNodeFactory, text: &str) -> Identifier {
         let node = self.create_base_identifier(base_factory, text);
         node
     }
 
-    pub fn create_base_token<TBaseNodeFactory: BaseNodeFactory>(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        kind: SyntaxKind,
-    ) -> BaseNode {
+    pub fn create_base_token(&self, base_factory: &TBaseNodeFactory, kind: SyntaxKind) -> BaseNode {
         base_factory.create_base_token_node(kind)
     }
 
-    pub fn create_token<TBaseNodeFactory: BaseNodeFactory>(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        token: SyntaxKind,
-    ) -> BaseNode {
+    pub fn create_token(&self, base_factory: &TBaseNodeFactory, token: SyntaxKind) -> BaseNode {
         let node = self.create_base_token(base_factory, token);
         node
     }
 
-    pub fn create_true<TBaseNodeFactory: BaseNodeFactory>(
-        &self,
-        base_factory: &TBaseNodeFactory,
-    ) -> BaseNode {
+    pub fn create_true(&self, base_factory: &TBaseNodeFactory) -> BaseNode {
         self.create_token(base_factory, SyntaxKind::TrueKeyword)
     }
 
-    pub fn create_false<TBaseNodeFactory: BaseNodeFactory>(
-        &self,
-        base_factory: &TBaseNodeFactory,
-    ) -> BaseNode {
+    pub fn create_false(&self, base_factory: &TBaseNodeFactory) -> BaseNode {
         self.create_token(base_factory, SyntaxKind::FalseKeyword)
     }
 
-    pub fn create_type_parameter_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_type_parameter_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
         name: Rc<Node>,
@@ -388,7 +356,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_parameter_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_parameter_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
         decorators: Option<NodeArray>,
@@ -412,7 +380,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_property_signature<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_property_signature(
         &self,
         base_factory: &TBaseNodeFactory,
         modifiers: Option<NodeArray>,
@@ -431,7 +399,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_keyword_type_node<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_keyword_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
         token: SyntaxKind,
@@ -439,7 +407,7 @@ impl NodeFactory {
         self.create_token(base_factory, token)
     }
 
-    pub fn create_type_predicate_node<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_type_predicate_node(
         &self,
         base_factory: &TBaseNodeFactory,
         asserts_modifier: Option<Rc<Node>>,
@@ -451,10 +419,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_type_reference_node<
-        TBaseNodeFactory: BaseNodeFactory,
-        TTypeArguments: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_type_reference_node<TTypeArguments: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         type_name: Rc<Node>,
@@ -469,7 +434,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_type_literal_node<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_type_literal_node(
         &self,
         base_factory: &TBaseNodeFactory,
         members: Option<Vec<Rc<Node>>>,
@@ -479,7 +444,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_array_type_node<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_array_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
         element_type: Rc<Node>,
@@ -489,10 +454,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_union_or_intersection_type_node<
-        TBaseNodeFactory: BaseNodeFactory,
-        TElements: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_union_or_intersection_type_node<TElements: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind, /*SyntaxKind.UnionType | SyntaxKind.IntersectionType*/
@@ -510,10 +472,7 @@ impl NodeFactory {
         }
     }
 
-    pub fn create_union_type_node<
-        TBaseNodeFactory: BaseNodeFactory,
-        TElements: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_union_type_node<TElements: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         types: TElements, /*<TypeNode>*/
@@ -521,10 +480,7 @@ impl NodeFactory {
         self.create_union_or_intersection_type_node(base_factory, SyntaxKind::UnionType, types)
     }
 
-    pub fn create_intersection_type_node<
-        TBaseNodeFactory: BaseNodeFactory,
-        TElements: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_intersection_type_node<TElements: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         types: TElements, /*<TypeNode>*/
@@ -536,7 +492,7 @@ impl NodeFactory {
         )
     }
 
-    pub fn create_literal_type_node<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_literal_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
         literal: Rc<Node>,
@@ -546,7 +502,7 @@ impl NodeFactory {
         node
     }
 
-    fn create_base_expression<TBaseNodeFactory: BaseNodeFactory>(
+    fn create_base_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -555,10 +511,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_array_literal_expression<
-        TBaseNodeFactory: BaseNodeFactory,
-        TElements: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_array_literal_expression<TElements: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         elements: Option<TElements>, /*Expression*/
@@ -585,10 +538,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_object_literal_expression<
-        TBaseNodeFactory: BaseNodeFactory,
-        TProperties: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_object_literal_expression<TProperties: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         properties: Option<TProperties>, /*ObjectLiteralElementLike*/
@@ -598,7 +548,17 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_prefix_unary_expression<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_parenthesized_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> ParenthesizedExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::ParenthesizedExpression);
+        let node = ParenthesizedExpression::new(node, expression);
+        node
+    }
+
+    pub fn create_prefix_unary_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         operator: SyntaxKind,
@@ -609,7 +569,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_binary_expression<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_binary_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         left: Rc<Node /*Expression*/>,
@@ -621,10 +581,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_template_expression<
-        TBaseNodeFactory: BaseNodeFactory,
-        TTemplateSpans: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_template_expression<TTemplateSpans: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         head: Rc<Node /*TemplateHead*/>,
@@ -639,7 +596,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_template_literal_like_node<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_template_literal_like_node(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
@@ -658,7 +615,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_template_span<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_template_span(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression*/>,
@@ -669,7 +626,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_block<TBaseNodeFactory: BaseNodeFactory, TStatements: Into<NodeArrayOrVec>>(
+    pub fn create_block<TStatements: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         statements: TStatements, /*Statement*/
@@ -684,7 +641,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_variable_statement<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_variable_statement(
         &self,
         base_factory: &TBaseNodeFactory,
         modifiers: Option<NodeArray>,
@@ -700,16 +657,13 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_empty_statement<TBaseNodeFactory: BaseNodeFactory>(
-        &self,
-        base_factory: &TBaseNodeFactory,
-    ) -> EmptyStatement {
+    pub fn create_empty_statement(&self, base_factory: &TBaseNodeFactory) -> EmptyStatement {
         EmptyStatement {
             _node: self.create_base_node(base_factory, SyntaxKind::EmptyStatement),
         }
     }
 
-    pub fn create_expression_statement<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_expression_statement(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Expression,
@@ -720,7 +674,7 @@ impl NodeFactory {
         )
     }
 
-    pub fn create_if_statement<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_if_statement(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Expression,
@@ -738,7 +692,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_return_statement<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_return_statement(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Option<Rc<Node>>,
@@ -748,7 +702,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_variable_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_variable_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
         name: Option<Rc<Node>>,
@@ -767,10 +721,7 @@ impl NodeFactory {
         VariableDeclaration::new(node)
     }
 
-    pub fn create_variable_declaration_list<
-        TBaseNodeFactory: BaseNodeFactory,
-        TDeclarations: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_variable_declaration_list<TDeclarations: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         declarations: TDeclarations,
@@ -784,7 +735,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_function_declaration<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_function_declaration(
         &self,
         base_factory: &TBaseNodeFactory,
         decorators: Option<NodeArray>,
@@ -812,7 +763,6 @@ impl NodeFactory {
     }
 
     pub fn create_interface_declaration<
-        TBaseNodeFactory: BaseNodeFactory,
         TMembers: Into<NodeArrayOrVec>,
         TTypeParameters: Into<NodeArrayOrVec>,
     >(
@@ -836,10 +786,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_type_alias_declaration<
-        TBaseNodeFactory: BaseNodeFactory,
-        TTypeParameters: Into<NodeArrayOrVec>,
-    >(
+    pub fn create_type_alias_declaration<TTypeParameters: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         decorators: Option<NodeArray>,
@@ -860,7 +807,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_property_assignment<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_property_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
         name: Rc<Node>,
@@ -877,7 +824,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_shorthand_property_assignment<TBaseNodeFactory: BaseNodeFactory>(
+    pub fn create_shorthand_property_assignment(
         &self,
         base_factory: &TBaseNodeFactory,
         name: Rc<Node>,
@@ -894,7 +841,10 @@ impl NodeFactory {
             node,
             object_assignment_initializer.map(|object_assignment_initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(object_assignment_initializer)
+                    .parenthesize_expression_for_disallowed_comma(
+                        base_factory,
+                        object_assignment_initializer,
+                    )
             }),
         );
         node.add_transform_flags(
@@ -907,7 +857,7 @@ impl NodeFactory {
         node
     }
 
-    pub fn create_source_file<TBaseNodeFactory: BaseNodeFactory, TNodes: Into<NodeArrayOrVec>>(
+    pub fn create_source_file<TNodes: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         statements: TNodes,
@@ -942,9 +892,9 @@ impl NodeFactory {
     }
 }
 
-pub fn create_node_factory(
+pub fn create_node_factory<TBaseNodeFactory: 'static + BaseNodeFactory>(
     flags: NodeFactoryFlags, /*, baseFactory: BaseNodeFactory*/
-) -> Rc<NodeFactory> {
+) -> Rc<NodeFactory<TBaseNodeFactory>> {
     NodeFactory::new(flags)
 }
 
@@ -1085,8 +1035,8 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
 }
 
 thread_local! {
-    pub static factory: Rc<NodeFactory> =
-        create_node_factory(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess);
+    pub static factory: Rc<NodeFactory<BaseNodeFactorySynthetic>> =
+        create_node_factory::<BaseNodeFactorySynthetic>(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess);
 }
 
 pub enum PseudoBigIntOrString {

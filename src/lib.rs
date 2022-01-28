@@ -95,7 +95,7 @@ pub use compiler::factory::parenthesizer_rules::{
     create_parenthesizer_rules, null_parenthesizer_rules,
 };
 pub use compiler::factory::utilities::skip_outer_expressions;
-pub use compiler::parser::{create_source_file, for_each_child, MissingNode};
+pub use compiler::parser::{create_source_file, for_each_child, MissingNode, ParserType};
 pub use compiler::path::{
     alt_directory_separator, change_any_extension, combine_paths, compare_paths,
     compare_paths_case_insensitive, compare_paths_case_sensitive, contains_path,

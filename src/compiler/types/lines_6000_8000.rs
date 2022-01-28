@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, SyntaxKind};
-use crate::{MapLike, NodeFactoryFlags, OptionsNameMap};
+use crate::{BaseNodeFactory, MapLike, NodeFactoryFlags, OptionsNameMap};
 use local_macros::{command_line_option_type, enum_unwrapped};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -844,91 +844,110 @@ bitflags! {
     }
 }
 
-pub trait ParenthesizerRules {
+pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory> {
     // fn get_parenthesize_left_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     // fn get_parenthesize_right_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     fn parenthesize_left_side_of_binary(
         &self,
+        base_factory: &TBaseNodeFactory,
         binary_operator: SyntaxKind,
         left_side: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*Expression*/>;
     fn parenthesize_right_side_of_binary(
         &self,
+        base_factory: &TBaseNodeFactory,
         binary_operator: SyntaxKind,
         left_side: Option<Rc<Node /*Expression*/>>,
         right_side: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*Expression*/>;
     fn parenthesize_expression_of_computed_property_name(
         &self,
+        base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*Expression*/>;
     fn parenthesize_condition_of_conditional_expression(
         &self,
+        base_factory: &TBaseNodeFactory,
         condition: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*Expression*/>;
     fn parenthesize_branch_of_conditional_expression(
         &self,
+        base_factory: &TBaseNodeFactory,
         branch: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*Expression*/>;
     fn parenthesize_expression_of_export_default(
         &self,
+        base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*Expression*/>;
     fn parenthesize_expression_of_new(
         &self,
+        base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*LeftHandSideExpression*/>;
     fn parenthesize_left_side_of_access(
         &self,
+        base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*LeftHandSideExpression*/>;
     fn parenthesize_operand_of_postfix_unary(
         &self,
+        base_factory: &TBaseNodeFactory,
         operand: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*LeftHandSideExpression*/>;
     fn parenthesize_operand_of_prefix_unary(
         &self,
+        base_factory: &TBaseNodeFactory,
         operand: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*UnaryExpression*/>;
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
+        base_factory: &TBaseNodeFactory,
         elements: NodeArray, /*<Expression>*/
     ) -> NodeArray /*<Expression>*/;
     fn parenthesize_expression_for_disallowed_comma(
         &self,
+        base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*Expression*/>;
     fn parenthesize_expression_of_expression_statement(
         &self,
+        base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression*/>,
     ) -> Rc<Node /*Expression*/>;
     fn parenthesize_concise_body_of_arrow_function(
         &self,
+        base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression | ConciseBody*/>,
     ) -> Rc<Node /*Expression | ConciseBody*/>;
     fn parenthesize_member_of_conditional_type(
         &self,
+        base_factory: &TBaseNodeFactory,
         member: Rc<Node /*TypeNode*/>,
     ) -> Rc<Node /*TypeNode*/>;
     fn parenthesize_member_of_element_type(
         &self,
+        base_factory: &TBaseNodeFactory,
         member: Rc<Node /*TypeNode*/>,
     ) -> Rc<Node /*TypeNode*/>;
     fn parenthesize_element_type_of_array_type(
         &self,
+        base_factory: &TBaseNodeFactory,
         member: Rc<Node /*TypeNode*/>,
     ) -> Rc<Node /*TypeNode*/>;
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
+        base_factory: &TBaseNodeFactory,
         members: NodeArray, /*<TypeNode>*/
     ) -> NodeArray /*<TypeNode>*/;
     fn parenthesize_type_arguments(
         &self,
+        base_factory: &TBaseNodeFactory,
         type_parameters: Option<NodeArray /*<TypeNode>*/>,
     ) -> Option<NodeArray /*<TypeNode>*/>;
 }
 
-pub struct NodeFactory {
+pub struct NodeFactory<TBaseNodeFactory> {
     pub flags: NodeFactoryFlags,
-    pub parenthesizer_rules: RefCell<Option<Box<dyn ParenthesizerRules>>>,
+    pub parenthesizer_rules: RefCell<Option<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>>,
 }
