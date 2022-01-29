@@ -637,9 +637,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node_as_call_expression = node.as_call_expression();
         if is_call_chain(node) {
             return self.update_call_chain(
+                base_factory,
                 node,
                 expression,
-                &node_as_call_expression.question_dot_token,
+                node_as_call_expression.question_dot_token.clone(),
                 type_arguments,
                 arguments_array,
             );
@@ -669,6 +670,105 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 self.create_call_expression(
                     base_factory,
                     expression.node_wrapper(),
+                    type_arguments.map(|type_arguments| type_arguments.to_vec()),
+                    arguments_array.to_vec(),
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
+    pub fn create_call_chain(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+        question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+        type_arguments: Option<Vec<Rc<Node /*TypeNode*/>>>,
+        arguments_array: Vec<Rc<Node /*expression*/>>,
+    ) -> CallExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::CallExpression);
+        node.set_flags(node.flags() | NodeFlags::OptionalChain);
+        let node = CallExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_left_side_of_access(base_factory, &expression),
+            question_dot_token,
+            self.as_node_array(type_arguments),
+            self.parenthesizer_rules()
+                .parenthesize_expressions_of_comma_delimited_list(
+                    base_factory,
+                    self.create_node_array(Some(arguments_array), None),
+                ),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(node.question_dot_token)
+                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_children_flags(Some(&node.arguments))
+                | TransformFlags::ContainsES2020,
+        );
+        if node.type_arguments.is_some() {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        if is_super_property(&node.expression) {
+            node.add_transform_flags(TransformFlags::ContainsLexicalThis);
+        }
+        node
+    }
+
+    pub fn update_call_chain(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,       /*CallExpression*/
+        expression: &Node, /*Expression*/
+        question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+        type_arguments: Option<&[Rc<Node /*TypeNode*/>]>,
+        arguments_array: &[Rc<Node /*expression*/>],
+    ) -> Rc<Node /*CallExpression*/> {
+        Debug_.assert(
+            node.flags().intersects(NodeFlags::OptionalChain),
+            Some("Cannot update a CallExpression using updateCallChain. Use updateCall instead"),
+        );
+        let node_as_call_expression = node.as_call_expression();
+        if !ptr::eq(&*node_as_call_expression.expression, expression)
+            || !match (
+                node_as_call_expression.question_dot_token.as_ref(),
+                question_dot_token.as_ref(),
+            ) {
+                (Some(node_question_dot_token), Some(question_dot_token)) => {
+                    Rc::ptr_eq(node_question_dot_token, question_dot_token)
+                }
+                (None, None) => true,
+                _ => false,
+            }
+            || !match (
+                node_as_call_expression.type_arguments.as_ref(),
+                type_arguments,
+            ) {
+                (Some(node_type_arguments), Some(type_arguments)) => {
+                    node_type_arguments.len() == type_arguments.len()
+                        && node_type_arguments.iter().enumerate().all(
+                            |(index, node_type_argument)| {
+                                Rc::ptr_eq(node_type_argument, &type_arguments[index])
+                            },
+                        )
+                }
+                (None, None) => true,
+                _ => false,
+            }
+            || !(node_as_call_expression.arguments.len() == arguments_array.len()
+                && node_as_call_expression.arguments.iter().enumerate().all(
+                    |(index, node_argument)| Rc::ptr_eq(node_argument, &arguments_array[index]),
+                ))
+        {
+            self.update(
+                self.create_call_chain(
+                    base_factory,
+                    expression.node_wrapper(),
+                    question_dot_token,
                     type_arguments.map(|type_arguments| type_arguments.to_vec()),
                     arguments_array.to_vec(),
                 )
