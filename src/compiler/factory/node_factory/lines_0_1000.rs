@@ -17,6 +17,20 @@ use crate::{
     NumericLiteral, ParenthesizerRules, ReadonlyTextRange, StringLiteral, SyntaxKind, TokenFlags,
 };
 
+thread_local! {
+    pub(super) static next_auto_generate_id: RefCell<usize> = RefCell::new(0);
+}
+
+pub(super) fn get_next_auto_generate_id() -> usize {
+    next_auto_generate_id.with(|_next_auto_generate_id| *_next_auto_generate_id.borrow())
+}
+
+pub(super) fn increment_next_auto_generate_id() {
+    next_auto_generate_id.with(|_next_auto_generate_id| {
+        *_next_auto_generate_id.borrow_mut() += 1;
+    });
+}
+
 bitflags! {
     pub struct NodeFactoryFlags: u32 {
         const None = 0;
