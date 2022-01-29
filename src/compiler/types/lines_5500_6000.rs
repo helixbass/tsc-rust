@@ -1,18 +1,21 @@
 #![allow(non_upper_case_globals)]
 
-use std::cell::{RefCell, RefMut};
+use bitflags::bitflags;
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
-use super::{BaseType, Node, Symbol, SymbolTable, Type, TypeChecker};
+use super::{BaseType, Node, Symbol, SymbolTable, Type, TypeChecker, TypePredicate};
 use local_macros::{enum_unwrapped, type_type};
 
 pub trait ResolvedTypeInterface {
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
     fn properties(&self) -> RefMut<Vec<Rc<Symbol>>>;
     fn set_properties(&self, properties: Vec<Rc<Symbol>>);
+    fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
+    fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
 }
 
 #[derive(Clone, Debug)]
@@ -20,6 +23,8 @@ pub trait ResolvedTypeInterface {
 pub struct TypeParameter {
     _type: BaseType,
     pub constraint: RefCell<Option<Weak<Type>>>, // TODO: is it correct that this is weak?
+    pub target: Option<Rc<Type /*TypeParameter*/>>,
+    pub mapper: RefCell<Option<TypeMapper>>,
     pub is_this_type: Option<bool>,
 }
 
@@ -28,8 +33,115 @@ impl TypeParameter {
         Self {
             _type: base_type,
             constraint: RefCell::new(None),
+            target: None,
+            mapper: RefCell::new(None),
             is_this_type: None,
         }
+    }
+
+    pub fn maybe_constraint(&self) -> Option<Rc<Type>> {
+        self.constraint
+            .borrow()
+            .as_ref()
+            .map(|weak| weak.upgrade().unwrap())
+    }
+
+    pub fn set_constraint(&self, constraint: Rc<Type>) {
+        *self.constraint.borrow_mut() = Some(Rc::downgrade(&constraint));
+    }
+
+    pub fn maybe_mapper(&self) -> Ref<Option<TypeMapper>> {
+        self.mapper.borrow()
+    }
+
+    pub fn set_mapper(&self, mapper: TypeMapper) {
+        *self.mapper.borrow_mut() = Some(mapper);
+    }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum SignatureKind {
+    Call,
+    Construct,
+}
+
+bitflags! {
+    pub struct SignatureFlags: u32 {
+        const None = 0;
+
+        const HasRestParameter = 1 << 0;
+        const HasLiteralTypes = 1 << 1;
+        const Abstract = 1 << 2;
+
+        const IsInnerCallChain = 1 << 3;
+        const IsOuterCallChain = 1 << 4;
+        const IsUntypedSignatureInJSFile = 1 << 5;
+
+        const PropagatingFlags = Self::HasRestParameter.bits | Self::HasLiteralTypes.bits | Self::Abstract.bits | Self::IsUntypedSignatureInJSFile.bits;
+
+        const CallChainFlags = Self::IsInnerCallChain.bits | Self::IsOuterCallChain.bits;
+    }
+}
+
+#[derive(Debug)]
+pub struct Signature {
+    pub flags: SignatureFlags,
+    pub declaration: Option<Rc<Node /*SignatureDeclaration | JSDocSignature*/>>,
+    pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    parameters: Option<Vec<Rc<Symbol>>>,
+    pub this_parameter: Option<Rc<Symbol>>,
+    pub resolved_return_type: RefCell<Option<Rc<Type>>>,
+    pub resolved_type_predicate: Option<TypePredicate>,
+    min_argument_count: Option<usize>,
+    pub resolved_min_argument_count: Cell<Option<usize>>,
+    pub target: Option<Rc<Signature>>,
+    pub mapper: Option<TypeMapper>,
+}
+
+impl Signature {
+    pub fn new(flags: SignatureFlags) -> Self {
+        Self {
+            flags,
+            declaration: None,
+            type_parameters: None,
+            parameters: None,
+            this_parameter: None,
+            resolved_return_type: RefCell::new(None),
+            resolved_type_predicate: None,
+            min_argument_count: None,
+            resolved_min_argument_count: Cell::new(None),
+            target: None,
+            mapper: None,
+        }
+    }
+
+    pub fn parameters(&self) -> &[Rc<Symbol>] {
+        self.parameters.as_ref().unwrap()
+    }
+
+    pub fn set_parameters(&mut self, parameters: Vec<Rc<Symbol>>) {
+        self.parameters = Some(parameters);
+    }
+
+    pub fn min_argument_count(&self) -> usize {
+        self.min_argument_count.unwrap()
+    }
+
+    pub fn set_min_argument_count(&mut self, min_argument_count: usize) {
+        self.min_argument_count = Some(min_argument_count);
+    }
+
+    pub fn maybe_resolved_min_argument_count(&self) -> Option<usize> {
+        self.resolved_min_argument_count.get()
+    }
+
+    pub fn resolved_min_argument_count(&self) -> usize {
+        self.resolved_min_argument_count.get().unwrap()
+    }
+
+    pub fn set_resolved_min_argument_count(&self, min_argument_count: usize) {
+        self.resolved_min_argument_count
+            .set(Some(min_argument_count));
     }
 }
 
@@ -170,6 +282,7 @@ impl DiagnosticMessageChain {
 pub enum Diagnostic {
     DiagnosticWithLocation(DiagnosticWithLocation),
     DiagnosticWithDetachedLocation(DiagnosticWithDetachedLocation),
+    BaseDiagnostic(BaseDiagnostic),
 }
 
 impl Diagnostic {
@@ -217,8 +330,16 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
         self._diagnostic_related_information.file()
     }
 
+    fn maybe_start(&self) -> Option<isize> {
+        self._diagnostic_related_information.maybe_start()
+    }
+
     fn start(&self) -> isize {
         self._diagnostic_related_information.start()
+    }
+
+    fn maybe_length(&self) -> Option<isize> {
+        self._diagnostic_related_information.maybe_length()
     }
 
     fn length(&self) -> isize {
@@ -243,6 +364,18 @@ impl DiagnosticInterface for BaseDiagnostic {
     }
 }
 
+impl From<BaseDiagnostic> for Diagnostic {
+    fn from(base_diagnostic: BaseDiagnostic) -> Self {
+        Diagnostic::BaseDiagnostic(base_diagnostic)
+    }
+}
+
+impl From<BaseDiagnostic> for DiagnosticRelatedInformation {
+    fn from(base_diagnostic: BaseDiagnostic) -> Self {
+        DiagnosticRelatedInformation::Diagnostic(Diagnostic::BaseDiagnostic(base_diagnostic))
+    }
+}
+
 impl DiagnosticRelatedInformationInterface for Diagnostic {
     fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
         Some(self)
@@ -250,56 +383,57 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
 
     fn code(&self) -> u32 {
         match self {
-            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
-                diagnostic_with_location.code()
-            }
-            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
-                diagnostic_with_detached_location.code()
-            }
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.code(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.code(),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.code(),
         }
     }
 
     fn file(&self) -> Option<Rc<Node>> {
         match self {
-            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
-                diagnostic_with_location.file()
-            }
-            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
-                diagnostic_with_detached_location.file()
-            }
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.file(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.file(),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.file(),
+        }
+    }
+
+    fn maybe_start(&self) -> Option<isize> {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.maybe_start(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.maybe_start(),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.maybe_start(),
         }
     }
 
     fn start(&self) -> isize {
         match self {
-            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
-                diagnostic_with_location.start()
-            }
-            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
-                diagnostic_with_detached_location.start()
-            }
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.start(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.start(),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.start(),
+        }
+    }
+
+    fn maybe_length(&self) -> Option<isize> {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.maybe_length(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.maybe_length(),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.maybe_length(),
         }
     }
 
     fn length(&self) -> isize {
         match self {
-            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
-                diagnostic_with_location.length()
-            }
-            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
-                diagnostic_with_detached_location.length()
-            }
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.length(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.length(),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.length(),
         }
     }
 
     fn message_text(&self) -> &DiagnosticMessageText {
         match self {
-            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
-                diagnostic_with_location.message_text()
-            }
-            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
-                diagnostic_with_detached_location.message_text()
-            }
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.message_text(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.message_text(),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.message_text(),
         }
     }
 }
@@ -307,12 +441,13 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
 impl DiagnosticInterface for Diagnostic {
     fn maybe_related_information(&self) -> Option<&[Rc<DiagnosticRelatedInformation>]> {
         match self {
-            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
-                diagnostic_with_location.maybe_related_information()
+            Diagnostic::DiagnosticWithLocation(diagnostic) => {
+                diagnostic.maybe_related_information()
             }
-            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
-                diagnostic_with_detached_location.maybe_related_information()
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => {
+                diagnostic.maybe_related_information()
             }
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.maybe_related_information(),
         }
     }
 
@@ -321,11 +456,14 @@ impl DiagnosticInterface for Diagnostic {
         related_information: Vec<Rc<DiagnosticRelatedInformation>>,
     ) {
         match self {
-            Diagnostic::DiagnosticWithLocation(diagnostic_with_location) => {
-                diagnostic_with_location.set_related_information(related_information)
+            Diagnostic::DiagnosticWithLocation(diagnostic) => {
+                diagnostic.set_related_information(related_information)
             }
-            Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location) => {
-                diagnostic_with_detached_location.set_related_information(related_information)
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => {
+                diagnostic.set_related_information(related_information)
+            }
+            Diagnostic::BaseDiagnostic(diagnostic) => {
+                diagnostic.set_related_information(related_information)
             }
         }
     }
@@ -353,7 +491,9 @@ pub trait DiagnosticRelatedInformationInterface {
     fn maybe_as_diagnostic(&self) -> Option<&Diagnostic>;
     fn code(&self) -> u32;
     fn file(&self) -> Option<Rc<Node>>;
+    fn maybe_start(&self) -> Option<isize>;
     fn start(&self) -> isize;
+    fn maybe_length(&self) -> Option<isize>;
     fn length(&self) -> isize;
     fn message_text(&self) -> &DiagnosticMessageText;
 }
@@ -407,12 +547,30 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
         }
     }
 
+    fn maybe_start(&self) -> Option<isize> {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.maybe_start(),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.maybe_start(),
+        }
+    }
+
     fn start(&self) -> isize {
         match self {
             DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
                 base_diagnostic_related_information,
             ) => base_diagnostic_related_information.start(),
             DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.start(),
+        }
+    }
+
+    fn maybe_length(&self) -> Option<isize> {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.maybe_length(),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.maybe_length(),
         }
     }
 
@@ -439,8 +597,8 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
 pub struct BaseDiagnosticRelatedInformation {
     code: u32,
     file: Option<Weak<Node /*SourceFile*/>>,
-    start: isize,
-    length: isize,
+    start: Option<isize>,
+    length: Option<isize>,
     message_text: DiagnosticMessageText,
 }
 
@@ -448,8 +606,8 @@ impl BaseDiagnosticRelatedInformation {
     pub fn new<TDiagnosticMessageText: Into<DiagnosticMessageText>>(
         code: u32,
         file: Option<Rc<Node>>,
-        start: isize,
-        length: isize,
+        start: Option<isize>,
+        length: Option<isize>,
         message_text: TDiagnosticMessageText,
     ) -> Self {
         Self {
@@ -475,12 +633,20 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
         self.file.as_ref().map(|weak| weak.upgrade().unwrap())
     }
 
-    fn start(&self) -> isize {
+    fn maybe_start(&self) -> Option<isize> {
         self.start
     }
 
-    fn length(&self) -> isize {
+    fn start(&self) -> isize {
+        self.start.unwrap()
+    }
+
+    fn maybe_length(&self) -> Option<isize> {
         self.length
+    }
+
+    fn length(&self) -> isize {
+        self.length.unwrap()
     }
 
     fn message_text(&self) -> &DiagnosticMessageText {
@@ -518,8 +684,16 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
         self._diagnostic.file()
     }
 
+    fn maybe_start(&self) -> Option<isize> {
+        self._diagnostic.maybe_start()
+    }
+
     fn start(&self) -> isize {
         self._diagnostic.start()
+    }
+
+    fn maybe_length(&self) -> Option<isize> {
+        self._diagnostic.maybe_length()
     }
 
     fn length(&self) -> isize {
@@ -587,8 +761,16 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
         self._diagnostic.file()
     }
 
+    fn maybe_start(&self) -> Option<isize> {
+        self._diagnostic.maybe_start()
+    }
+
     fn start(&self) -> isize {
         self._diagnostic.start()
+    }
+
+    fn maybe_length(&self) -> Option<isize> {
+        self._diagnostic.maybe_length()
     }
 
     fn length(&self) -> isize {

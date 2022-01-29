@@ -6,10 +6,10 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseInterfaceType, BigIntLiteralType, InterfaceType, LiteralType, NumberLiteralType,
-    ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface, ResolvedTypeInterface,
-    StringLiteralType, Symbol, TypeParameter, TypeReference, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface,
+    BaseInterfaceType, BigIntLiteralType, InterfaceType, InterfaceTypeWithDeclaredMembersInterface,
+    LiteralType, NumberLiteralType, ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface,
+    ResolvedTypeInterface, Signature, StringLiteralType, Symbol, TypeParameter, TypeReference,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
 };
 use crate::WeakSelf;
 use local_macros::{enum_unwrapped, type_type};
@@ -60,6 +60,7 @@ bitflags! {
 pub struct NodeLinks {
     pub flags: NodeCheckFlags,
     pub resolved_type: Option<Rc<Type>>,
+    pub resolved_signature: Option<Rc<Signature>>,
     pub resolved_symbol: Option<Rc<Symbol>>,
 }
 
@@ -69,6 +70,7 @@ impl NodeLinks {
             flags: NodeCheckFlags::None,
             resolved_type: None,
             resolved_symbol: None,
+            resolved_signature: None,
         }
     }
 }
@@ -181,6 +183,15 @@ impl Type {
         }
     }
 
+    pub fn as_interface_type_with_declared_members(
+        &self,
+    ) -> &dyn InterfaceTypeWithDeclaredMembersInterface {
+        match self {
+            Type::ObjectType(ObjectType::InterfaceType(interface_type)) => interface_type,
+            _ => panic!("Expected interface type with declared members"),
+        }
+    }
+
     pub fn as_base_interface_type(&self) -> &BaseInterfaceType {
         enum_unwrapped!(self, [Type, ObjectType, InterfaceType, BaseInterfaceType])
     }
@@ -233,7 +244,8 @@ pub trait TypeInterface {
     fn id(&self) -> TypeId;
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
-    fn set_symbol(&mut self, symbol: Rc<Symbol>);
+    fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>);
+    fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>>;
 }
 
 #[derive(Clone, Debug)]
@@ -242,6 +254,7 @@ pub struct BaseType {
     pub flags: TypeFlags,
     pub id: Option<TypeId>,
     symbol: Option<Rc<Symbol>>,
+    alias_symbol: Option<Rc<Symbol>>,
 }
 
 impl BaseType {
@@ -251,6 +264,7 @@ impl BaseType {
             flags,
             id: None,
             symbol: None,
+            alias_symbol: None,
         }
     }
 }
@@ -285,8 +299,12 @@ impl TypeInterface for BaseType {
         self.symbol.as_ref().unwrap().clone()
     }
 
-    fn set_symbol(&mut self, symbol: Rc<Symbol>) {
-        self.symbol = Some(symbol);
+    fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>) {
+        self.symbol = symbol;
+    }
+
+    fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>> {
+        self.alias_symbol.as_ref().map(Clone::clone)
     }
 }
 

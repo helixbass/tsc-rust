@@ -12,31 +12,32 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    add_range, compare_strings_case_sensitive_maybe, compute_line_starts, filter,
+    add_range, compare_strings_case_sensitive_maybe, compute_line_starts, filter, find_ancestor,
     first_or_undefined, get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache,
     get_jsdoc_type_parameter_tags, get_jsdoc_type_parameter_tags_no_cache, has_initializer,
     has_jsdoc_nodes, id_text, is_binary_expression, is_call_expression,
-    is_element_access_expression, is_expression_statement, is_identifier, is_jsdoc,
-    is_jsdoc_type_tag, is_left_hand_side_expression, is_module_declaration, is_numeric_literal,
-    is_object_literal_expression, is_parenthesized_expression, is_property_access_expression,
-    is_source_file, is_string_literal_like, is_variable_statement, is_void_expression,
-    is_white_space_like, last, length, module_resolution_option_declarations,
+    is_element_access_expression, is_expression_statement,
+    is_function_like_or_class_static_block_declaration, is_identifier, is_jsdoc,
+    is_jsdoc_signature, is_jsdoc_type_tag, is_left_hand_side_expression, is_module_declaration,
+    is_numeric_literal, is_object_literal_expression, is_parenthesized_expression,
+    is_property_access_expression, is_source_file, is_string_literal_like, is_variable_statement,
+    is_void_expression, is_white_space_like, last, length, module_resolution_option_declarations,
     options_affecting_program_structure, skip_outer_expressions, str_to_source_text_as_chars,
     text_substring, AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface,
-    CompilerOptions, CompilerOptionsValue, ModifierFlags, ModuleKind, NodeArray,
-    OuterExpressionKinds, ScriptTarget, SourceFileLike, SourceTextAsChars, SymbolTracker,
-    SymbolWriter, SyntaxKind, TextSpan, TransformFlags, TypeFlags, UnderscoreEscapedMap, __String,
-    compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
+    CompilerOptions, CompilerOptionsValue, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
+    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, MapLike,
+    ModifierFlags, ModuleKind, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags,
+    OuterExpressionKinds, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, ScriptTarget,
+    Signature, SignatureFlags, SortedArray, SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan,
+    TransformFlags, TransientSymbolInterface, Type, TypeFlags, TypeInterface, UnderscoreEscapedMap,
+    __String, compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
     escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
     insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
     CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic, DiagnosticCollection,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, EmitFlags, EmitTextWriter, Expression,
-    LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeFlags, NodeInterface, ObjectFlags,
-    PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, SortedArray, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, TransientSymbolInterface, Type, TypeInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -334,7 +335,7 @@ fn get_text_of_node_from_source_text<TNode: NodeInterface>(
     include_trivia: Option<bool>,
 ) -> String {
     let include_trivia = include_trivia.unwrap_or(false);
-    if node_is_missing(node) {
+    if node_is_missing(Some(node.node_wrapper())) {
         return "".to_string();
     }
 
@@ -494,7 +495,12 @@ pub fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*
     parent.clone()
 }
 
-pub fn node_is_missing<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn node_is_missing<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
+    if node.is_none() {
+        return false;
+    }
+    let node = node.unwrap();
+    let node = node.borrow();
     node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
 }
 
@@ -558,8 +564,8 @@ fn create_file_diagnostic_from_message_chain(
         BaseDiagnosticRelatedInformation::new(
             message_chain.code,
             Some(file.node_wrapper()),
-            start,
-            length,
+            Some(start),
+            Some(length),
             message_chain,
         ),
         related_information,
@@ -579,6 +585,29 @@ fn get_error_span_for_node<TNode: NodeInterface>(
 
 pub fn is_external_or_common_js_module(file: &Node /*SourceFile*/) -> bool {
     false
+}
+
+pub fn is_import_call(n: &Node) -> bool {
+    match n {
+        Node::Expression(Expression::CallExpression(call_expression)) => {
+            call_expression.expression.kind() == SyntaxKind::ImportKeyword
+        }
+        _ => false,
+    }
+}
+
+pub fn is_object_literal_method<TNode: NodeInterface>(node: &TNode) -> bool {
+    /*node &&*/
+    node.kind() == SyntaxKind::MethodDeclaration
+        && node.parent().kind() == SyntaxKind::ObjectLiteralExpression
+}
+
+pub fn get_containing_function_or_class_static_block<TNode: NodeInterface>(
+    node: &TNode,
+) -> Option<Rc<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
+    find_ancestor(node.maybe_parent(), |node: &Node| {
+        is_function_like_or_class_static_block_declaration(Some(node))
+    })
 }
 
 pub fn is_variable_like<TNode: NodeInterface>(node: &TNode) -> bool {
@@ -655,10 +684,10 @@ pub fn get_assignment_declaration_kind(
 
 pub fn is_bindable_object_define_property_call(expr: &Node /*CallExpression*/) -> bool {
     let expr = expr.as_call_expression();
-    if !length(expr.arguments.as_deref()) == 3 {
+    if !length(Some(&expr.arguments)) == 3 {
         return false;
     }
-    let expr_arguments = expr.arguments.as_deref().unwrap();
+    let expr_arguments = &expr.arguments;
     if !is_property_access_expression(&*expr.expression) {
         return false;
     }
@@ -739,7 +768,7 @@ fn get_assignment_declaration_kind_worker(
             return AssignmentDeclarationKind::None;
         }
         let expr_as_bindable_object_define_property_call_arguments =
-            expr.as_call_expression().arguments.as_deref().unwrap();
+            &expr.as_call_expression().arguments;
         let entity_name = &expr_as_bindable_object_define_property_call_arguments[0];
         if is_exports_identifier(entity_name) || is_module_exports_access_expression(entity_name) {
             return AssignmentDeclarationKind::ObjectDefinePropertyExports;
@@ -1176,6 +1205,60 @@ pub fn skip_parentheses(node: &Node, exclude_jsdoc_type_assertions: Option<bool>
 
 pub fn is_keyword(token: SyntaxKind) -> bool {
     SyntaxKind::FirstKeyword <= token && token <= SyntaxKind::LastKeyword
+}
+
+bitflags! {
+    pub struct FunctionFlags: u32 {
+        const Normal = 0;
+        const Generator = 1 << 0;
+        const Async = 1 << 1;
+        const Invalid = 1 << 2;
+        const AsyncGenerator = Self::Async.bits | Self::Generator.bits;
+    }
+}
+
+pub fn get_function_flags<TNodeRef: Borrow<Node>>(
+    node: Option<TNodeRef /*SignatureDeclaration*/>,
+) -> FunctionFlags {
+    if node.is_none() {
+        return FunctionFlags::Invalid;
+    }
+    let node = node.unwrap();
+    let node = node.borrow();
+
+    let mut flags = FunctionFlags::Normal;
+    match node.kind() {
+        SyntaxKind::FunctionDeclaration
+        | SyntaxKind::FunctionExpression
+        | SyntaxKind::MethodDeclaration => {
+            if node
+                .as_function_like_declaration()
+                .maybe_asterisk_token()
+                .is_some()
+            {
+                flags |= FunctionFlags::Generator;
+            }
+            if has_syntactic_modifier(node, ModifierFlags::Async) {
+                flags |= FunctionFlags::Async;
+            }
+        }
+        SyntaxKind::ArrowFunction => {
+            if has_syntactic_modifier(node, ModifierFlags::Async) {
+                flags |= FunctionFlags::Async;
+            }
+        }
+        _ => (),
+    }
+
+    if node
+        .maybe_as_function_like_declaration()
+        .and_then(|node| node.maybe_body())
+        .is_none()
+    {
+        flags |= FunctionFlags::Invalid;
+    }
+
+    flags
 }
 
 pub fn is_string_or_numeric_literal_like<TNode: NodeInterface>(node: &TNode) -> bool {
@@ -1745,6 +1828,72 @@ pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeN
     type_
 }
 
+pub fn get_effective_return_type_node(
+    node: &Node, /*SignatureDeclaration | JSDocSignature*/
+) -> Option<Rc<Node /*TypeNode*/>> {
+    if is_jsdoc_signature(node) {
+        unimplemented!()
+    } else {
+        node.as_signature_declaration().maybe_type().or_else(|| {
+            if false {
+                unimplemented!()
+            } else {
+                None
+            }
+        })
+    }
+}
+
+pub fn has_syntactic_modifier(node: &Node, flags: ModifierFlags) -> bool {
+    get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
+}
+
+fn get_selected_syntactic_modifier_flags(node: &Node, flags: ModifierFlags) -> ModifierFlags {
+    get_syntactic_modifier_flags(node) & flags
+}
+
+fn get_modifier_flags_worker(
+    node: &Node,
+    include_jsdoc: bool,
+    always_include_jsdoc: Option<bool>,
+) -> ModifierFlags {
+    if node.kind() >= SyntaxKind::FirstToken && node.kind() <= SyntaxKind::LastToken {
+        return ModifierFlags::None;
+    }
+
+    if !node
+        .modifier_flags_cache()
+        .intersects(ModifierFlags::HasComputedFlags)
+    {
+        node.set_modifier_flags_cache(
+            get_syntactic_modifier_flags_no_cache(node) | ModifierFlags::HasComputedFlags,
+        );
+    }
+
+    node.modifier_flags_cache()
+        & !(ModifierFlags::HasComputedFlags | ModifierFlags::HasComputedJSDocModifiers)
+}
+
+pub fn get_effective_modifier_flags(node: &Node) -> ModifierFlags {
+    get_modifier_flags_worker(node, true, None)
+}
+
+pub fn get_effective_modifier_flags_always_include_jsdoc(node: &Node) -> ModifierFlags {
+    get_modifier_flags_worker(node, true, Some(true))
+}
+
+pub fn get_syntactic_modifier_flags(node: &Node) -> ModifierFlags {
+    get_modifier_flags_worker(node, false, None)
+}
+
+fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
+    let mut flags = modifiers_to_flags(node.maybe_modifiers());
+    if node.flags().intersects(NodeFlags::NestedNamespace) || false {
+        flags |= ModifierFlags::Export;
+    }
+    flags
+}
+
 pub fn modifiers_to_flags(modifiers: Option<&NodeArray /*Modifier[]*/>) -> ModifierFlags {
     let mut flags = ModifierFlags::None;
     if let Some(modifiers) = modifiers {
@@ -1912,6 +2061,11 @@ fn _Type(flags: TypeFlags) -> BaseType {
 }
 
 #[allow(non_snake_case)]
+fn _Signature(flags: SignatureFlags) -> Signature {
+    Signature::new(flags)
+}
+
+#[allow(non_snake_case)]
 fn Node(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
     BaseNode::new(kind, NodeFlags::None, TransformFlags::None, pos, end)
 }
@@ -1956,6 +2110,10 @@ impl ObjectAllocator {
     pub fn get_type_constructor(&self) -> fn(TypeFlags) -> BaseType {
         _Type
     }
+
+    pub fn get_signature_constructor(&self) -> fn(SignatureFlags) -> Signature {
+        _Signature
+    }
 }
 
 lazy_static! {
@@ -1969,6 +2127,16 @@ fn format_string_from_args(text: &str, args: Vec<String>) -> String {
         Debug_.check_defined(args.get(index), None)
     })
     .to_string()
+}
+
+thread_local! {
+    pub static localized_diagnostic_messages: RefCell<Option<MapLike<String>>> = RefCell::new(None);
+}
+
+pub(crate) fn set_localized_diagnostic_messages(messages: Option<MapLike<String>>) {
+    localized_diagnostic_messages.with(|localized_diagnostic_messages_| {
+        *localized_diagnostic_messages_.borrow_mut() = messages;
+    })
 }
 
 fn get_locale_specific_message(message: &DiagnosticMessage) -> String {
@@ -1992,7 +2160,13 @@ pub fn create_detached_diagnostic(
 
     DiagnosticWithDetachedLocation::new(
         BaseDiagnostic::new(
-            BaseDiagnosticRelatedInformation::new(message.code, None, start, length, text),
+            BaseDiagnosticRelatedInformation::new(
+                message.code,
+                None,
+                Some(start),
+                Some(length),
+                text,
+            ),
             None,
         ),
         file_name.to_string(),
@@ -2022,8 +2196,8 @@ pub fn attach_file_to_diagnostic(
         BaseDiagnosticRelatedInformation::new(
             diagnostic.code(),
             Some(file.node_wrapper()),
-            diagnostic.start(),
-            diagnostic.length(),
+            Some(diagnostic.start()),
+            Some(diagnostic.length()),
             diagnostic.message_text().clone(),
         ),
         None,
@@ -2090,12 +2264,30 @@ fn create_file_diagnostic(
         BaseDiagnosticRelatedInformation::new(
             message.code,
             Some(file.node_wrapper()),
-            start,
-            length,
+            Some(start),
+            Some(length),
             text,
         ),
         None,
     ))
+}
+
+pub fn create_compiler_diagnostic(
+    message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
+) -> BaseDiagnostic {
+    let mut text = get_locale_specific_message(message);
+
+    if let Some(args) = args {
+        if !args.is_empty() {
+            text = format_string_from_args(&text, args);
+        }
+    }
+
+    BaseDiagnostic::new(
+        BaseDiagnosticRelatedInformation::new(message.code, None, None, None, text),
+        None,
+    )
 }
 
 pub fn chain_diagnostic_messages(
@@ -2527,4 +2719,11 @@ pub fn set_parent<TNode: NodeInterface>(child: &TNode, parent: Option<Rc<Node>>)
         child.set_parent(parent.clone());
     }
     child
+}
+
+pub fn is_function_expression_or_arrow_function<TNode: NodeInterface>(node: &TNode) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+    )
 }

@@ -31,7 +31,7 @@ impl TypeChecker {
     ) -> Option<Rc<Symbol>> {
         let ignore_errors = ignore_errors.unwrap_or(false);
         let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);
-        if node_is_missing(name) {
+        if node_is_missing(Some(name)) {
             return None;
         }
 

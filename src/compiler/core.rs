@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::ptr;
@@ -67,6 +68,10 @@ pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .enumerate()
         .find(|(index, value)| predicate(value, *index))
         .map(|(_, value)| value)
+}
+
+pub fn contains<TItem: Eq>(array: Option<&[TItem]>, value: &TItem) -> bool {
+    array.map_or(false, |array| array.iter().any(|item| item == value))
 }
 
 pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {
@@ -566,6 +571,30 @@ pub fn get_string_comparer(ignore_case: Option<bool>) -> fn(&str, &str) -> Compa
     } else {
         compare_strings_case_sensitive
     }
+}
+
+thread_local! {
+    static ui_comparer_case_sensitive: RefCell<Option<fn(&str, &str) -> Comparison/*Comparer<string>*/>> = RefCell::new(None);
+}
+
+thread_local! {
+    static ui_locale: RefCell<Option<String>> = RefCell::new(None);
+}
+
+pub fn get_ui_locale() -> Option<String> {
+    ui_locale.with(|ui_locale_| ui_locale_.borrow().clone())
+}
+
+pub fn set_ui_locale(value: Option<String>) {
+    ui_locale.with(|ui_locale_| {
+        let mut ui_locale_ = ui_locale_.borrow_mut();
+        if &*ui_locale_ != &value {
+            *ui_locale_ = value;
+            ui_comparer_case_sensitive.with(|ui_comparer_case_sensitive_| {
+                *ui_comparer_case_sensitive_.borrow_mut() = None;
+            })
+        }
+    })
 }
 
 pub fn ends_with(str_: &str, suffix: &str) -> bool {

@@ -6,17 +6,19 @@ use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BinaryExpression, BindingElement, CallExpression, Decorator, ElementAccessExpression,
-    EnumMember, Expression, ExpressionStatement, HasExpressionInterface, HasTypeArgumentsInterface,
-    HasTypeParametersInterface, Identifier, JSDoc, JSDocPropertyLikeTag, JSDocTag,
-    JSDocTemplateTag, JSDocTypeTag, JsxAttribute, LiteralLikeNodeInterface, MemberNameInterface,
-    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray,
-    NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, PropertyAccessExpression,
-    PropertyAssignment, PropertyDeclaration, QualifiedName, ShorthandPropertyAssignment,
-    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
-    SymbolTable, TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeElement, TypeNode,
-    TypeParameterDeclaration, UnionOrIntersectionTypeNodeInterface, VariableDeclaration,
-    VariableDeclarationList, VariableStatement, VoidExpression,
+    ArrayBindingPattern, BinaryExpression, BindingElement, CallExpression, Decorator,
+    ElementAccessExpression, EnumMember, Expression, ExpressionStatement,
+    FunctionLikeDeclarationInterface, HasElementsInterface, HasExpressionInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDoc, JSDocPropertyLikeTag,
+    JSDocTag, JSDocTemplateTag, JSDocTypeTag, JsxAttribute, LiteralLikeNodeInterface,
+    MemberNameInterface, ModifiersArray, ModuleDeclaration, NamedDeclarationInterface,
+    NewExpression, NodeArray, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
+    ParameterDeclaration, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
+    QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
+    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
+    TransformFlags, TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
+    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
+    VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -557,8 +559,19 @@ bitflags! {
         const Async = 1 << 8;
         const Default = 1 << 9;
         const Const = 1 << 11;
+        const HasComputedJSDocModifiers = 1 << 12;
 
+        const Deprecated = 1 << 13;
         const Override = 1 << 14;
+        const HasComputedFlags = 1 << 29;
+
+        const AccessibilityModifier = Self::Public.bits | Self::Private.bits | Self::Protected.bits;
+        const ParameterPropertyModifier = Self::AccessibilityModifier.bits | Self::Readonly.bits | Self::Override.bits;
+        const NonPublicAccessibilityModifier = Self::Private.bits | Self::Protected.bits;
+
+        const TypeScriptModifier = Self::Ambient.bits | Self::Public.bits | Self::Private.bits | Self::Protected.bits | Self::Readonly.bits | Self::Abstract.bits | Self::Const.bits | Self::Override.bits;
+        const ExportDefault = Self::Export.bits | Self::Default.bits;
+        const All = Self::Export.bits | Self::Ambient.bits | Self::Public.bits | Self::Private.bits | Self::Protected.bits | Self::Static.bits | Self::Readonly.bits | Self::Abstract.bits | Self::Async.bits | Self::Default.bits | Self::Const.bits | Self::Deprecated.bits | Self::Override.bits;
     }
 }
 
@@ -575,6 +588,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn node_wrapper(&self) -> Rc<Node>;
     fn set_node_wrapper(&self, wrapper: Rc<Node>);
     fn kind(&self) -> SyntaxKind;
+    fn modifier_flags_cache(&self) -> ModifierFlags;
+    fn set_modifier_flags_cache(&self, flags: ModifierFlags);
     fn flags(&self) -> NodeFlags;
     fn set_flags(&self, flags: NodeFlags);
     fn transform_flags(&self) -> TransformFlags;
@@ -626,6 +641,8 @@ pub enum Node {
     JsxAttribute(JsxAttribute),
     JSDoc(JSDoc),
     ShorthandPropertyAssignment(ShorthandPropertyAssignment),
+    ObjectBindingPattern(ObjectBindingPattern),
+    ArrayBindingPattern(ArrayBindingPattern),
 }
 
 impl Node {
@@ -674,6 +691,10 @@ impl Node {
             Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
                 Some(property_signature)
             }
+            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+                Some(function_declaration)
+            }
+            Node::ParameterDeclaration(parameter_declaration) => Some(parameter_declaration),
             _ => None,
         }
     }
@@ -744,6 +765,34 @@ impl Node {
         match self {
             Node::Statement(Statement::FunctionDeclaration(node)) => node,
             _ => panic!("Expected signature declaration"),
+        }
+    }
+
+    pub fn as_has_type(&self) -> &dyn HasTypeInterface {
+        self.maybe_as_has_type().expect("Expected has type")
+    }
+
+    pub fn maybe_as_function_like_declaration(
+        &self,
+    ) -> Option<&dyn FunctionLikeDeclarationInterface> {
+        match self {
+            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+                Some(function_declaration)
+            }
+            _ => None,
+        }
+    }
+
+    pub fn as_function_like_declaration(&self) -> &dyn FunctionLikeDeclarationInterface {
+        self.maybe_as_function_like_declaration()
+            .expect("Expected function like declaration")
+    }
+
+    pub fn as_has_elements(&self) -> &dyn HasElementsInterface {
+        match self {
+            Node::ObjectBindingPattern(node) => node,
+            Node::ArrayBindingPattern(node) => node,
+            _ => panic!("Expected has elements"),
         }
     }
 
@@ -858,6 +907,7 @@ pub struct BaseNode {
     _node_wrapper: RefCell<Option<Weak<Node>>>,
     pub kind: SyntaxKind,
     flags: Cell<NodeFlags>,
+    modifier_flags_cache: Cell<ModifierFlags>,
     transform_flags: TransformFlags,
     pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
     pub modifiers: Option<ModifiersArray>,
@@ -883,6 +933,7 @@ impl BaseNode {
             _node_wrapper: RefCell::new(None),
             kind,
             flags: Cell::new(flags),
+            modifier_flags_cache: Cell::new(ModifierFlags::None),
             transform_flags,
             decorators: RefCell::new(None),
             modifiers: None,
@@ -922,6 +973,14 @@ impl NodeInterface for BaseNode {
 
     fn set_flags(&self, flags: NodeFlags) {
         self.flags.set(flags);
+    }
+
+    fn modifier_flags_cache(&self) -> ModifierFlags {
+        self.modifier_flags_cache.get()
+    }
+
+    fn set_modifier_flags_cache(&self, flags: ModifierFlags) {
+        self.modifier_flags_cache.set(flags);
     }
 
     fn transform_flags(&self) -> TransformFlags {

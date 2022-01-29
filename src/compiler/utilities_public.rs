@@ -1,13 +1,24 @@
+use regex::Regex;
+use serde_json;
 use std::borrow::Borrow;
+use std::cmp;
+use std::collections::HashMap;
+use std::ops::BitOrAssign;
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    find, flat_map, get_jsdoc_comments_and_tags, is_identifier, is_jsdoc, is_jsdoc_parameter_tag,
-    is_jsdoc_template_tag, is_jsdoc_type_tag, is_rooted_disk_path, path_is_relative,
-    skip_outer_expressions, CharacterCodes, Debug_, NamedDeclarationInterface, Node, NodeFlags,
-    NodeInterface, OuterExpressionKinds, SyntaxKind, TextSpan, __String, compare_diagnostics,
-    is_block, is_module_block, is_source_file, sort_and_deduplicate, Diagnostic, SortedArray,
+    combine_paths, contains, create_compiler_diagnostic, every, find, flat_map, get_directory_path,
+    get_effective_modifier_flags, get_effective_modifier_flags_always_include_jsdoc,
+    get_emit_script_target, get_jsdoc_comments_and_tags, has_syntactic_modifier,
+    is_binding_element, is_class_static_block_declaration, is_identifier, is_jsdoc,
+    is_jsdoc_parameter_tag, is_jsdoc_template_tag, is_jsdoc_type_tag, is_omitted_expression,
+    is_rooted_disk_path, normalize_path, path_is_relative, set_localized_diagnostic_messages,
+    set_ui_locale, skip_outer_expressions, CharacterCodes, CompilerOptions, Debug_, Diagnostics,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OuterExpressionKinds,
+    Push, ScriptTarget, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
+    compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
+    Diagnostic, SortedArray,
 };
 
 pub fn is_external_module_name_relative(module_name: &str) -> bool {
@@ -24,7 +35,96 @@ pub fn sort_and_deduplicate_diagnostics(
     )
 }
 
+pub fn get_default_lib_file_name(options: &CompilerOptions) -> &'static str {
+    match get_emit_script_target(options) {
+        ScriptTarget::ESNext => "lib.esnext.full.d.ts",
+        ScriptTarget::ES2021 => "lib.es2021.full.d.ts",
+        ScriptTarget::ES2020 => "lib.es2020.full.d.ts",
+        ScriptTarget::ES2019 => "lib.es2019.full.d.ts",
+        ScriptTarget::ES2018 => "lib.es2018.full.d.ts",
+        ScriptTarget::ES2017 => "lib.es2017.full.d.ts",
+        ScriptTarget::ES2016 => "lib.es2016.full.d.ts",
+        ScriptTarget::ES2015 => "lib.es6.d.ts",
+        _ => "lib.d.ts",
+    }
+}
+
+pub fn text_span_end(span: &TextSpan) -> isize {
+    span.start + span.length
+}
+
+pub fn text_span_is_empty(span: &TextSpan) -> bool {
+    span.length == 0
+}
+
+pub fn text_span_contains_position(span: &TextSpan, position: isize) -> bool {
+    position >= span.start && position < text_span_end(span)
+}
+
+pub(crate) fn text_range_contains_position_inclusive<TSpan: TextRange>(
+    span: &TSpan,
+    position: isize,
+) -> bool {
+    position >= span.pos() && position <= span.end()
+}
+
+pub fn text_span_contains_text_span(span: &TextSpan, other: &TextSpan) -> bool {
+    other.start >= span.start && text_span_end(other) <= text_span_end(span)
+}
+
+pub fn text_span_overlaps_with(span: &TextSpan, other: &TextSpan) -> bool {
+    text_span_overlap(span, other).is_some()
+}
+
+pub fn text_span_overlap(span1: &TextSpan, span2: &TextSpan) -> Option<TextSpan> {
+    let overlap = text_span_intersection(span1, span2);
+    match overlap {
+        Some(overlap) if overlap.length == 0 => None,
+        _ => overlap,
+    }
+}
+
+pub fn text_span_intersects_with_text_span(span: &TextSpan, other: &TextSpan) -> bool {
+    decoded_text_span_intersects_with(span.start, span.length, other.start, other.length)
+}
+
+pub fn text_span_intersects_with(span: &TextSpan, start: isize, length: isize) -> bool {
+    decoded_text_span_intersects_with(span.start, span.length, start, length)
+}
+
+pub fn decoded_text_span_intersects_with(
+    start1: isize,
+    length1: isize,
+    start2: isize,
+    length2: isize,
+) -> bool {
+    let end1 = start1 + length1;
+    let end2 = start2 + length2;
+    start2 <= end1 && end2 >= start1
+}
+
+pub fn text_span_intersects_with_position(span: &TextSpan, position: isize) -> bool {
+    position <= text_span_end(span) && position >= span.start
+}
+
+pub fn text_span_intersection(span1: &TextSpan, span2: &TextSpan) -> Option<TextSpan> {
+    let start = cmp::max(span1.start, span2.start);
+    let end = cmp::min(text_span_end(span1), text_span_end(span2));
+    if start <= end {
+        Some(create_text_span_from_bounds(start, end))
+    } else {
+        None
+    }
+}
+
 fn create_text_span(start: isize, length: isize) -> TextSpan {
+    if start < 0 {
+        panic!("start < 0");
+    }
+    if length < 0 {
+        panic!("length < 0");
+    }
+
     TextSpan { start, length }
 }
 
@@ -32,11 +132,129 @@ pub fn create_text_span_from_bounds(start: isize, end: isize) -> TextSpan {
     create_text_span(start, end - start)
 }
 
-fn get_combined_flags<TNode: NodeInterface, TCallback: FnMut(&Node) -> NodeFlags>(
+pub fn text_change_range_new_span(range: &TextChangeRange) -> TextSpan {
+    create_text_span(range.span.start, range.new_length)
+}
+
+pub fn text_change_range_is_unchanged(range: &TextChangeRange) -> bool {
+    text_span_is_empty(&range.span) && range.new_length == 0
+}
+
+pub fn create_text_change_range(span: TextSpan, new_length: isize) -> TextChangeRange {
+    if new_length < 0 {
+        panic!("newLength < 0");
+    }
+
+    TextChangeRange { span, new_length }
+}
+
+lazy_static! {
+    pub static ref unchanged_text_change_range: TextChangeRange =
+        create_text_change_range(create_text_span(0, 0), 0);
+}
+
+pub fn collapse_text_change_ranges_across_multiple_versions(
+    changes: &[TextChangeRange],
+) -> TextChangeRange {
+    if changes.is_empty() {
+        let unchanged_text_change_range_ref: &TextChangeRange = &unchanged_text_change_range;
+        return *unchanged_text_change_range_ref;
+    }
+
+    if changes.len() == 1 {
+        return changes[0];
+    }
+
+    let change0 = changes[0];
+
+    let mut old_start_n = change0.span.start;
+    let mut old_end_n = text_span_end(&change0.span);
+    let mut new_end_n = old_start_n + change0.new_length;
+
+    for next_change in changes.iter().skip(1) {
+        let old_start_1 = old_start_n;
+        let old_end_1 = old_end_n;
+        let new_end_1 = new_end_n;
+
+        let old_start_2 = next_change.span.start;
+        let old_end_2 = text_span_end(&next_change.span);
+        let new_end_2 = old_start_2 + next_change.new_length;
+
+        old_start_n = cmp::min(old_start_1, old_start_2);
+        old_end_n = cmp::max(old_end_1, old_end_1 + (old_end_2 - new_end_1));
+        new_end_n = cmp::max(new_end_2, old_end_2 + (new_end_1 - old_end_2));
+    }
+
+    create_text_change_range(
+        create_text_span_from_bounds(old_start_n, old_end_n),
+        new_end_n - old_start_n,
+    )
+}
+
+pub fn get_type_parameter_owner(d: &Node /*Declaration*/) -> Option<Rc<Node>> {
+    if
+    /*d && */
+    d.kind() == SyntaxKind::TypeParameter {
+        let mut current = Some(d.node_wrapper());
+        while current.is_some() {
+            let current_present = current.clone().unwrap();
+            if is_function_like(current.clone())
+                || is_class_like(&current_present)
+                || current_present.kind() == SyntaxKind::InterfaceDeclaration
+            {
+                return current;
+            }
+            current = current_present.maybe_parent();
+        }
+    }
+    None
+}
+
+// export type ParameterPropertyDeclaration = ParameterDeclaration & { parent: ConstructorDeclaration, name: Identifier };
+pub fn is_parameter_property_declaration(node: &Node, parent: &Node) -> bool {
+    has_syntactic_modifier(node, ModifierFlags::ParameterPropertyModifier)
+        && parent.kind() == SyntaxKind::Constructor
+}
+
+pub fn is_empty_binding_pattern(node: &Node /*BindingName*/) -> bool {
+    if is_binding_pattern(node) {
+        return every(node.as_has_elements().elements(), |element, _| {
+            is_empty_binding_element(element)
+        });
+    }
+    false
+}
+
+pub fn is_empty_binding_element(node: &Node /*BindingElement*/) -> bool {
+    if is_omitted_expression(node) {
+        return true;
+    }
+    is_empty_binding_pattern(&node.as_named_declaration().name())
+}
+
+pub fn walk_up_binding_elements_and_patterns(binding: &Node /*BindingElement*/) -> Rc<Node> /*VariableDeclaration | ParameterDeclaration*/
+{
+    let mut node = binding.parent();
+    while is_binding_element(&*node.parent()) {
+        node = node.parent().parent();
+    }
+    node.parent()
+}
+
+fn get_combined_flags<
+    TNode: NodeInterface,
+    TFlags: BitOrAssign,
+    TGetFlags: FnMut(&Node) -> TFlags,
+>(
     node: &TNode,
-    mut get_flags: TCallback,
-) -> NodeFlags {
+    mut get_flags: TGetFlags,
+) -> TFlags {
     let mut node = Some(node.node_wrapper());
+    if is_binding_element(&**node.as_ref().unwrap()) {
+        node = Some(walk_up_binding_elements_and_patterns(
+            node.as_ref().unwrap(),
+        ));
+    }
     let mut flags = get_flags(node.as_ref().unwrap());
     if node.as_ref().unwrap().kind() == SyntaxKind::VariableDeclaration {
         node = node.as_ref().unwrap().maybe_parent();
@@ -55,8 +273,153 @@ fn get_combined_flags<TNode: NodeInterface, TCallback: FnMut(&Node) -> NodeFlags
     flags
 }
 
+pub fn get_combined_modifier_flags<TNode: NodeInterface>(
+    node: &TNode, /*Declaration*/
+) -> ModifierFlags {
+    get_combined_flags(node, get_effective_modifier_flags)
+}
+
+pub(crate) fn get_combined_node_flags_always_include_jsdoc<TNode: NodeInterface>(
+    node: &TNode, /*Declaration*/
+) -> ModifierFlags {
+    get_combined_flags(node, get_effective_modifier_flags_always_include_jsdoc)
+}
+
 pub fn get_combined_node_flags<TNode: NodeInterface>(node: &TNode) -> NodeFlags {
     get_combined_flags(node, |n| n.flags())
+}
+
+lazy_static! {
+    pub static ref supported_locale_directories: Vec<&'static str> = vec![
+        "cs", "de", "es", "fr", "it", "ja", "ko", "pl", "pt-br", "ru", "tr", "zh-cn", "zh-tw",
+    ];
+}
+
+pub fn validate_locale_and_set_language<TSys: System>(
+    locale: &str,
+    sys: &TSys,
+    mut errors: Option<&mut Push<Diagnostic>>,
+) {
+    let lower_case_locale = locale.to_lowercase();
+    lazy_static! {
+        static ref regex: Regex = Regex::new(r"^([a-z]+)([_\-]([a-z]+))?$").unwrap();
+    }
+    let match_result = regex.captures(&lower_case_locale);
+
+    if match_result.is_none() {
+        if let Some(errors) = errors {
+            errors.push(create_compiler_diagnostic(&Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1, Some(vec!["en".to_owned(), "ja-jp".to_owned()])).into());
+        }
+        return;
+    }
+    let match_result = match_result.unwrap();
+
+    let language = &match_result[1];
+    let territory = &match_result[3];
+
+    let lower_case_locale_str: &str = &lower_case_locale;
+    if contains(Some(&supported_locale_directories), &lower_case_locale_str)
+        && !try_set_language_and_territory(sys, language, Some(territory), &mut errors)
+    {
+        try_set_language_and_territory(sys, language, None, &mut errors);
+    }
+
+    set_ui_locale(Some(locale.to_owned()));
+}
+
+fn try_set_language_and_territory<TSys: System>(
+    sys: &TSys,
+    language: &str,
+    territory: Option<&str>,
+    errors: &mut Option<&mut Push<Diagnostic>>,
+) -> bool {
+    let compiler_file_path = normalize_path(&sys.get_executing_file_path());
+    let containing_directory_path = get_directory_path(&compiler_file_path);
+
+    let mut file_path = combine_paths(&containing_directory_path, &vec![Some(language)]);
+
+    if let Some(territory) = territory {
+        file_path = format!("{}-{}", file_path, territory);
+    }
+
+    file_path = sys.resolve_path(&combine_paths(
+        &file_path,
+        &vec![Some("diagnosticMessages.generated.json")],
+    ));
+
+    if !sys.file_exists(&file_path) {
+        return false;
+    }
+
+    let mut file_contents: Option<String> = Some("".to_owned());
+    file_contents = sys.read_file(&file_path);
+    if file_contents.is_none() {
+        if let Some(errors) = errors {
+            errors.push(
+                create_compiler_diagnostic(
+                    &Diagnostics::Unable_to_open_file_0,
+                    Some(vec![file_path]),
+                )
+                .into(),
+            );
+        }
+        return false;
+    }
+    let file_contents = file_contents.unwrap();
+    let parsed_file_contents: serde_json::Result<HashMap<String, String>> =
+        serde_json::from_str(&file_contents);
+    if parsed_file_contents.is_err() {
+        if let Some(errors) = errors {
+            errors.push(
+                create_compiler_diagnostic(
+                    &Diagnostics::Corrupted_locale_file_0,
+                    Some(vec![file_path]),
+                )
+                .into(),
+            );
+        }
+        return false;
+    }
+    let parsed_file_contents = parsed_file_contents.unwrap();
+    set_localized_diagnostic_messages(Some(parsed_file_contents));
+
+    true
+}
+
+pub enum FindAncestorCallbackReturn {
+    Bool(bool),
+    Quit,
+}
+
+impl From<bool> for FindAncestorCallbackReturn {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
+pub fn find_ancestor<
+    TNodeRef: Borrow<Node>,
+    TCallbackReturn: Into<FindAncestorCallbackReturn>,
+    TCallback: FnMut(&Node) -> TCallbackReturn,
+>(
+    node: Option<TNodeRef>,
+    mut callback: TCallback,
+) -> Option<Rc<Node>> {
+    let mut node = node.map(|node| node.borrow().node_wrapper());
+    while let Some(rc_node_ref) = node.as_ref() {
+        let result = callback(&**rc_node_ref).into();
+        match result {
+            FindAncestorCallbackReturn::Quit => {
+                return None;
+            }
+            FindAncestorCallbackReturn::Bool(result) if result => {
+                return node;
+            }
+            _ => (),
+        }
+        node = rc_node_ref.maybe_parent();
+    }
+    None
 }
 
 pub fn escape_leading_underscores(identifier: &str) -> __String {
@@ -319,6 +682,18 @@ pub fn is_function_like<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool 
     node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
 }
 
+pub fn is_function_like_or_class_static_block_declaration<TNodeRef: Borrow<Node>>(
+    node: Option<TNodeRef>,
+) -> bool {
+    match node {
+        Some(node) => {
+            let node = node.borrow();
+            is_function_like_kind(node.kind()) || is_class_static_block_declaration(node)
+        }
+        None => false,
+    }
+}
+
 fn is_function_like_declaration_kind(kind: SyntaxKind) -> bool {
     matches!(
         kind,
@@ -350,6 +725,14 @@ pub fn is_function_or_module_block<TNode: NodeInterface>(node: &TNode) -> bool {
     is_source_file(node)
         || is_module_block(node)
         || is_block(node) && is_function_like(node.maybe_parent())
+}
+
+pub fn is_class_like(node: &Node) -> bool {
+    /*node &&*/
+    matches!(
+        node.kind(),
+        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+    )
 }
 
 pub fn is_binding_pattern<TNode: NodeInterface>(node: &TNode) -> bool {
