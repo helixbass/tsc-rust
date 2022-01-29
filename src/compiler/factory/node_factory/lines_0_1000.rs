@@ -1,35 +1,20 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::borrow::Borrow;
-use std::cell::{Ref, RefCell, RefMut};
-use std::collections::HashMap;
-use std::ptr;
+use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
 use super::{
     aggregate_children_flags, update_with_original, update_without_original, PseudoBigIntOrString,
 };
 use crate::{
-    add_range, append_if_unique, create_base_node_factory, create_parenthesizer_rules,
-    escape_leading_underscores, is_call_chain, is_import_keyword, is_named_declaration,
-    is_omitted_expression, is_outer_expression, is_property_name, is_super_property,
-    last_or_undefined, null_parenthesizer_rules, pseudo_big_int_to_string, set_text_range,
-    ArrayLiteralExpression, ArrayTypeNode, BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration,
+    create_parenthesizer_rules, escape_leading_underscores, null_parenthesizer_rules,
+    pseudo_big_int_to_string, BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration,
     BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode,
-    BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
-    BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block,
-    CallExpression, Debug_, EmitFlags, EmitNode, EmptyStatement, Expression, ExpressionStatement,
-    FunctionDeclaration, Identifier, IfStatement, InterfaceDeclaration, IntersectionTypeNode,
-    LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
-    OuterExpressionKinds, ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
-    ParenthesizerRules, PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt,
-    ReadonlyTextRange, ReturnStatement, ShorthandPropertyAssignment, SourceFile, SourceMapRange,
-    Statement, StringLiteral, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateSpan, TokenFlags, TransformFlags, TypeAliasDeclaration, TypeLiteralNode, TypeNode,
-    TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
-    VariableDeclaration, VariableDeclarationList, VariableStatement,
+    BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
+    BaseVariableLikeDeclaration, BigIntLiteral, Debug_, Identifier, LiteralLikeNode,
+    LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    NumericLiteral, ParenthesizerRules, ReadonlyTextRange, StringLiteral, SyntaxKind, TokenFlags,
 };
 
 bitflags! {
