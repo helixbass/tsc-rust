@@ -17,7 +17,7 @@ pub use compiler::core::{
     compare_strings_case_sensitive_maybe, compare_values, concatenate, contains, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, filter,
     find, first_defined, first_or_undefined, flat_map, for_each, get_string_comparer,
-    insert_sorted, last, last_or_undefined, length, map, maybe_for_each, range_equals,
+    insert_sorted, last, last_or_undefined, length, map, maybe_for_each, range_equals, same_map,
     set_ui_locale, some, sort_and_deduplicate, starts_with, string_contains, trim_string_start,
     GetCanonicalFileName,
 };

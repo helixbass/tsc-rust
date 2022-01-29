@@ -6,9 +6,9 @@ use crate::{
     compare_values, get_expression_associativity, get_expression_precedence,
     get_leftmost_expression, get_operator_associativity, get_operator_precedence,
     is_binary_expression, is_comma_sequence, is_left_hand_side_expression, is_literal_kind,
-    is_unary_expression, set_text_range, skip_partially_emitted_expressions, Associativity,
-    BaseNodeFactory, Comparison, Node, NodeArray, NodeFactory, NodeInterface, OperatorPrecedence,
-    ParenthesizerRules, SyntaxKind,
+    is_unary_expression, same_map, set_text_range, skip_partially_emitted_expressions,
+    Associativity, BaseNodeFactory, Comparison, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, OperatorPrecedence, ParenthesizerRules, SyntaxKind,
 };
 
 pub fn create_parenthesizer_rules<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -383,7 +383,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         elements: NodeArray,
     ) -> NodeArray {
-        elements
+        let result = same_map(Some(&elements), |element, _| {
+            self.parenthesize_expression_for_disallowed_comma(base_node_factory, element)
+        });
+        let mut node_array = self
+            .factory
+            .create_node_array(result, Some(elements.has_trailing_comma));
+        set_text_range(&mut node_array, Some(&elements));
+        node_array
     }
 
     fn parenthesize_expression_for_disallowed_comma(
@@ -437,9 +444,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
         base_node_factory: &TBaseNodeFactory,
-        members: NodeArray,
+        members: NodeArrayOrVec,
     ) -> NodeArray {
-        members
+        match members {
+            NodeArrayOrVec::NodeArray(members) => members,
+            NodeArrayOrVec::Vec(_) => {
+                panic!("Expected NodeArray")
+            }
+        }
     }
 
     fn parenthesize_type_arguments(
@@ -613,9 +625,14 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
         base_node_factory: &TBaseNodeFactory,
-        members: NodeArray,
+        members: NodeArrayOrVec,
     ) -> NodeArray {
-        members
+        match members {
+            NodeArrayOrVec::NodeArray(members) => members,
+            NodeArrayOrVec::Vec(_) => {
+                panic!("Expected NodeArray")
+            }
+        }
     }
 
     fn parenthesize_type_arguments(

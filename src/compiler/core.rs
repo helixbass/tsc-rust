@@ -111,6 +111,23 @@ pub fn map<
     result
 }
 
+// TODO: this currently just mimics map(), I think could do the intended avoiding allocation by
+// returning Cow?
+pub fn same_map<TItem: Clone, TCallback: FnMut(&TItem, usize) -> TItem>(
+    array: Option<&[TItem]>,
+    mut f: TCallback,
+) -> Option<Vec<TItem>> {
+    let mut result: Option<Vec<_>> = None;
+    if let Some(array) = array {
+        let mut some_result = vec![];
+        for (i, item) in array.into_iter().enumerate() {
+            some_result.push(f(item, i));
+        }
+        result = Some(some_result);
+    }
+    result
+}
+
 pub fn flat_map<
     TCollection: IntoIterator,
     TReturn: Clone,

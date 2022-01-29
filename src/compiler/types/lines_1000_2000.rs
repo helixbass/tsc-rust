@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::cell::Cell;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -9,21 +10,36 @@ use super::{
     BaseNode, BinaryExpression, CallExpression, ConditionalExpression, ElementAccessExpression,
     HasExpressionInterface, HasInitializerInterface, HasTypeInterface, JSDocTypeExpression,
     LiteralLikeNode, NewExpression, Node, NodeInterface, NonNullExpression,
-    ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression, SyntaxKind,
-    TaggedTemplateExpression, TemplateExpression, TypeAssertion, VoidExpression, __String,
+    ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression, ReadonlyTextRange,
+    SyntaxKind, TaggedTemplateExpression, TemplateExpression, TransformFlags, TypeAssertion,
+    VoidExpression, __String,
 };
 use local_macros::ast_type;
 
 #[derive(Clone, Debug)]
 pub struct NodeArray {
     _nodes: Vec<Rc<Node>>,
+    pos: Cell<isize>,
+    end: Cell<isize>,
+    pub has_trailing_comma: bool,
+    pub(crate) transform_flags: Option<TransformFlags>,
     pub is_missing_list: bool,
 }
 
 impl NodeArray {
-    pub fn new(nodes: Vec<Rc<Node>>) -> Self {
+    pub fn new(
+        nodes: Vec<Rc<Node>>,
+        pos: isize,
+        end: isize,
+        has_trailing_comma: bool,
+        transform_flags: Option<TransformFlags>,
+    ) -> Self {
         NodeArray {
             _nodes: nodes,
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+            has_trailing_comma,
+            transform_flags,
             is_missing_list: false,
         }
     }
@@ -41,11 +57,29 @@ impl NodeArray {
     }
 }
 
-impl Default for NodeArray {
-    fn default() -> Self {
-        Self::new(vec![])
+impl ReadonlyTextRange for NodeArray {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
     }
 }
+
+// impl Default for NodeArray {
+//     fn default() -> Self {
+//         Self::new(vec![])
+//     }
+// }
 
 impl From<&NodeArray> for Vec<Rc<Node>> {
     fn from(node_array: &NodeArray) -> Self {

@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+use crate::NodeArray;
+
 pub struct DebugType {}
 
 impl DebugType {
@@ -59,6 +61,10 @@ impl DebugType {
     pub fn assert_never<TValue>(&self, value: TValue, message: Option<&str>) -> ! {
         let message = message.unwrap_or("Illegal value:");
         self.fail(Some(message));
+    }
+
+    pub fn attach_node_array_debug_info(&self, array: &mut NodeArray) {
+        // TODO: implement this?
     }
 }
 

@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
-use super::{DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, SyntaxKind};
+use super::{DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{BaseNodeFactory, MapLike, NodeFactoryFlags, OptionsNameMap};
 use local_macros::{command_line_option_type, enum_unwrapped};
 
@@ -938,7 +938,7 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory> {
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
         base_factory: &TBaseNodeFactory,
-        members: NodeArray, /*<TypeNode>*/
+        members: NodeArrayOrVec, /*<TypeNode>*/
     ) -> NodeArray /*<TypeNode>*/;
     fn parenthesize_type_arguments(
         &self,

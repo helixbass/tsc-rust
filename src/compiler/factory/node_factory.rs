@@ -12,17 +12,17 @@ use crate::{
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
     BaseNodeFactory, BaseNodeFactoryConcrete, BaseSignatureDeclaration,
-    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block, EmptyStatement,
+    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block, Debug_, EmptyStatement,
     Expression, ExpressionStatement, FunctionDeclaration, Identifier, IfStatement,
     InterfaceDeclaration, IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
     LiteralTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
     NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, ParenthesizedExpression,
     ParenthesizerRules, PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt,
-    ReturnStatement, ShorthandPropertyAssignment, SourceFile, Statement, StringLiteral, SyntaxKind,
-    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TransformFlags,
-    TypeAliasDeclaration, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode,
-    TypeReferenceNode, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    ReadonlyTextRange, ReturnStatement, ShorthandPropertyAssignment, SourceFile, Statement,
+    StringLiteral, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode, TemplateSpan,
+    TokenFlags, TransformFlags, TypeAliasDeclaration, TypeLiteralNode, TypeNode,
+    TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
+    VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 bitflags! {
@@ -70,13 +70,43 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         elements: Option<TElements>,
         has_trailing_comma: Option<bool>,
     ) -> NodeArray {
+        let elements_is_none = elements.is_none();
         let elements = match elements {
             None => NodeArrayOrVec::Vec(vec![]),
             Some(elements) => elements.into(),
         };
         match elements {
-            NodeArrayOrVec::NodeArray(node_array) => node_array,
-            NodeArrayOrVec::Vec(elements) => NodeArray::new(elements),
+            NodeArrayOrVec::NodeArray(mut elements) => {
+                if match has_trailing_comma {
+                    None => true,
+                    Some(has_trailing_comma) => elements.has_trailing_comma == has_trailing_comma,
+                } {
+                    if elements.transform_flags.is_none() {
+                        aggregate_children_flags(&mut elements);
+                    }
+                    Debug_.attach_node_array_debug_info(&mut elements);
+                    return elements;
+                }
+
+                let mut array = NodeArray::new(
+                    elements.to_vec(),
+                    elements.pos(),
+                    elements.end(),
+                    has_trailing_comma.unwrap(),
+                    elements.transform_flags,
+                );
+                Debug_.attach_node_array_debug_info(&mut array);
+                array
+            }
+            NodeArrayOrVec::Vec(elements) => {
+                // let length = elements.len();
+                let array = /*length >= 1 && length <= 4 ? elements.slice() :*/ elements;
+                let mut array =
+                    NodeArray::new(array, -1, -1, has_trailing_comma.unwrap_or(false), None);
+                aggregate_children_flags(&mut array);
+                Debug_.attach_node_array_debug_info(&mut array);
+                array
+            }
         }
     }
 
@@ -461,10 +491,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         types: TElements, /*<TypeNode>*/
     ) -> TypeNode {
         let node = self.create_base_node(base_factory, kind);
-        let types = match types.into() {
-            NodeArrayOrVec::NodeArray(node_array) => node_array,
-            NodeArrayOrVec::Vec(types) => NodeArray::new(types),
-        };
+        let types = self
+            .parenthesizer_rules()
+            .parenthesize_constituent_types_of_union_or_intersection_type(
+                base_factory,
+                types.into(),
+            );
         match kind {
             SyntaxKind::UnionType => UnionTypeNode::new(node, types).into(),
             SyntaxKind::IntersectionType => IntersectionTypeNode::new(node, types).into(),
@@ -517,23 +549,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         elements: Option<TElements>, /*Expression*/
     ) -> ArrayLiteralExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ArrayLiteralExpression);
-        let elements_as_node_array = elements.map(|elements| match elements.into() {
-            NodeArrayOrVec::NodeArray(node_array) => node_array,
-            NodeArrayOrVec::Vec(elements) => NodeArray::new(elements),
+        let elements = elements.map(|elements| match elements.into() {
+            NodeArrayOrVec::NodeArray(node_array) => node_array.to_vec(),
+            NodeArrayOrVec::Vec(elements) => elements,
         });
-        let has_trailing_comma = {
-            let last_element = elements_as_node_array
-                .as_deref()
-                .and_then(|elements_as_node_array| last_or_undefined(elements_as_node_array));
-            last_element.and_then(|last_element| {
-                if is_omitted_expression(&**last_element) {
-                    Some(true)
-                } else {
-                    None
-                }
-            })
-        };
-        let elements_array = self.create_node_array(elements_as_node_array, has_trailing_comma);
+        let last_element = elements
+            .as_ref()
+            .and_then(|elements| last_or_undefined(&elements));
+        let has_trailing_comma = last_element.and_then(|last_element| {
+            if is_omitted_expression(last_element) {
+                Some(true)
+            } else {
+                None
+            }
+        });
+        let elements_array = self.create_node_array(elements, has_trailing_comma);
         let node = ArrayLiteralExpression::new(node, elements_array);
         node
     }
@@ -918,6 +948,14 @@ fn propagate_child_flags<TNode: Borrow<Node>>(child: Option<TNode>) -> Transform
     } else {
         child_flags
     }
+}
+
+fn aggregate_children_flags(children: &mut NodeArray) {
+    let mut subtree_flags = TransformFlags::None;
+    for child in children.iter() {
+        subtree_flags |= propagate_child_flags(Some(&**child));
+    }
+    children.transform_flags = Some(subtree_flags);
 }
 
 pub(crate) fn get_transform_flags_subtree_exclusions(kind: SyntaxKind) -> TransformFlags {
