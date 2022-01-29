@@ -10,9 +10,9 @@ use std::rc::Rc;
 use crate::{
     add_range, append_if_unique, create_base_node_factory, create_parenthesizer_rules,
     escape_leading_underscores, is_call_chain, is_import_keyword, is_named_declaration,
-    is_omitted_expression, is_property_name, is_super_property, last_or_undefined,
-    null_parenthesizer_rules, pseudo_big_int_to_string, set_text_range, ArrayLiteralExpression,
-    ArrayTypeNode, BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration,
+    is_omitted_expression, is_outer_expression, is_property_name, is_super_property,
+    last_or_undefined, null_parenthesizer_rules, pseudo_big_int_to_string, set_text_range,
+    ArrayLiteralExpression, ArrayTypeNode, BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration,
     BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode,
     BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block,
@@ -20,13 +20,13 @@ use crate::{
     FunctionDeclaration, Identifier, IfStatement, InterfaceDeclaration, IntersectionTypeNode,
     LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
-    ParameterDeclaration, ParenthesizedExpression, ParenthesizerRules, PrefixUnaryExpression,
-    PropertyAssignment, PropertySignature, PseudoBigInt, ReadonlyTextRange, ReturnStatement,
-    ShorthandPropertyAssignment, SourceFile, SourceMapRange, Statement, StringLiteral, SyntaxKind,
-    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TransformFlags,
-    TypeAliasDeclaration, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode,
-    TypeReferenceNode, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    OuterExpressionKinds, ParameterDeclaration, ParenthesizedExpression, ParenthesizerRules,
+    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, ReadonlyTextRange,
+    ReturnStatement, ShorthandPropertyAssignment, SourceFile, SourceMapRange, Statement,
+    StringLiteral, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode, TemplateSpan,
+    TokenFlags, TransformFlags, TypeAliasDeclaration, TypeLiteralNode, TypeNode,
+    TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
+    VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 bitflags! {
@@ -598,7 +598,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         arguments_array: Vec<Rc<Node /*expression*/>>,
     ) -> CallExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::CallExpression);
-        let node = CallExpression::new(
+        let mut node = CallExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(base_factory, &expression),
@@ -691,7 +691,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> CallExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::CallExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
-        let node = CallExpression::new(
+        let mut node = CallExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(base_factory, &expression),
@@ -705,7 +705,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
-                | propagate_child_flags(node.question_dot_token)
+                | propagate_child_flags(node.question_dot_token.clone())
                 | propagate_children_flags(node.type_arguments.as_ref())
                 | propagate_children_flags(Some(&node.arguments))
                 | TransformFlags::ContainsES2020,
@@ -1104,6 +1104,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {
+        unimplemented!()
+    }
+
+    pub fn restore_outer_expressions<TOuterExpression: Borrow<Node>>(
+        &self,
+        outer_expression: Option<TOuterExpression /*Expression*/>,
+        inner_expression: &Node, /*Expression*/
+        kinds: Option<OuterExpressionKinds>,
+    ) -> Rc<Node /*Expression*/> {
+        let kinds = kinds.unwrap_or(OuterExpressionKinds::All);
+        if let Some(outer_expression) = outer_expression.filter(|outer_expression| {
+            let outer_expression = outer_expression.borrow();
+            is_outer_expression(outer_expression, Some(kinds))
+                && !self.is_ignorable_paren(outer_expression)
+        }) {
+            unimplemented!()
+        }
+        inner_expression.node_wrapper()
+    }
+
     fn as_node_array<TArray: Into<NodeArrayOrVec>>(
         &self,
         array: Option<TArray>,
@@ -1139,7 +1160,7 @@ fn update_without_original(updated: Rc<Node>, original: &Node) -> Rc<Node> {
 
 fn update_with_original(updated: Rc<Node>, original: &Node) -> Rc<Node> {
     if !ptr::eq(&*updated, original) {
-        set_original_node(updated, Some(original.node_wrapper()));
+        set_original_node(updated.clone(), Some(original.node_wrapper()));
         set_text_range(&*updated, Some(original));
     }
     updated
@@ -1322,7 +1343,7 @@ pub fn set_original_node(node: Rc<Node>, original: Option<Rc<Node>>) -> Rc<Node>
     if let Some(original) = original {
         let emit_node = original.maybe_emit_node();
         if let Some(emit_node) = emit_node.as_ref() {
-            let node_emit_node = node.maybe_emit_node();
+            let mut node_emit_node = node.maybe_emit_node();
             if node_emit_node.is_none() {
                 *node_emit_node = Some(Default::default());
             }

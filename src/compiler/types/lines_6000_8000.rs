@@ -869,7 +869,7 @@ pub enum StringOrUsize {
 }
 
 #[derive(Debug)]
-pub(crate) struct EmitNode {
+pub struct EmitNode {
     pub annotated_nodes: Option<Vec<Rc<Node>>>,
     pub flags: Option<EmitFlags>,
     pub leading_comments: Option<Vec<Rc<SynthesizedComment>>>,
@@ -906,25 +906,25 @@ impl Default for EmitNode {
 }
 
 #[derive(Debug)]
-pub(crate) enum SnippetElement {
+pub enum SnippetElement {
     TabStop(TabStop),
     Placeholder(Placeholder),
 }
 
 #[derive(Debug)]
-pub(crate) struct TabStop {
+pub struct TabStop {
     pub kind: SnippetKind,
     pub order: usize,
 }
 
 #[derive(Debug)]
-pub(crate) struct Placeholder {
+pub struct Placeholder {
     pub kind: SnippetKind,
     pub order: usize,
 }
 
 #[derive(Debug)]
-pub(crate) enum SnippetKind {
+pub enum SnippetKind {
     TabStop,
     Placeholder,
     Choice,

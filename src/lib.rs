@@ -94,7 +94,9 @@ pub use compiler::factory::node_tests::{
 pub use compiler::factory::parenthesizer_rules::{
     create_parenthesizer_rules, null_parenthesizer_rules,
 };
-pub use compiler::factory::utilities::{is_comma_sequence, skip_outer_expressions};
+pub use compiler::factory::utilities::{
+    is_comma_sequence, is_outer_expression, skip_outer_expressions,
+};
 pub use compiler::factory::utilities_public::set_text_range;
 pub use compiler::parser::{create_source_file, for_each_child, MissingNode, ParserType};
 pub use compiler::path::{

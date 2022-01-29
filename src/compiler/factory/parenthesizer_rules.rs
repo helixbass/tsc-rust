@@ -449,9 +449,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
                     &emitted_expression_as_call_expression.arguments,
                 );
                 return self.factory.restore_outer_expressions(
-                    expression,
-                    updated,
-                    OuterExpressionKinds::PartiallyEmittedExpressions,
+                    Some(expression),
+                    &updated,
+                    Some(OuterExpressionKinds::PartiallyEmittedExpressions),
                 );
             }
         }

@@ -173,11 +173,11 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_locals(locals)
                     }
 
-                    fn maybe_emit_node(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::EmitNode>>> {
+                    fn maybe_emit_node(&self) -> ::std::cell::RefMut<::std::option::Option<crate::EmitNode>> {
                         self.#first_field_name.maybe_emit_node()
                     }
 
-                    fn set_emit_node(&self, emit_node: ::std::option::Option<::std::rc::Rc<crate::EmitNode>>) {
+                    fn set_emit_node(&self, emit_node: ::std::option::Option<crate::EmitNode>) {
                         self.#first_field_name.set_emit_node(emit_node)
                     }
 
@@ -543,13 +543,13 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_emit_node(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::EmitNode>>> {
+                    fn maybe_emit_node(&self) -> ::std::cell::RefMut<::std::option::Option<crate::EmitNode>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_emit_node()),*
                         }
                     }
 
-                    fn set_emit_node(&self, emit_node: ::std::option::Option<::std::rc::Rc<crate::EmitNode>>) {
+                    fn set_emit_node(&self, emit_node: ::std::option::Option<crate::EmitNode>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_emit_node(emit_node)),*
                         }
