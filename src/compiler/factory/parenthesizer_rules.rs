@@ -5,11 +5,11 @@ use std::rc::Rc;
 use crate::{
     compare_values, get_expression_associativity, get_expression_precedence,
     get_leftmost_expression, get_operator_associativity, get_operator_precedence,
-    is_binary_expression, is_call_expression, is_comma_sequence, is_left_hand_side_expression,
-    is_literal_kind, is_unary_expression, same_map, set_text_range,
-    skip_partially_emitted_expressions, Associativity, BaseNodeFactory, Comparison, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, OperatorPrecedence,
-    OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
+    is_binary_expression, is_block, is_call_expression, is_comma_sequence,
+    is_function_or_constructor_type_node, is_left_hand_side_expression, is_literal_kind,
+    is_unary_expression, same_map, set_text_range, skip_partially_emitted_expressions, some,
+    Associativity, BaseNodeFactory, Comparison, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, OperatorPrecedence, OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
 };
 
 pub fn create_parenthesizer_rules<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -172,6 +172,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRulesConcrete<TBa
                 .into()
         } else {
             operand.node_wrapper()
+        }
+    }
+
+    fn parenthesize_ordinal_type_argument(
+        &self,
+        base_node_factory: &TBaseNodeFactory,
+        node: &Node, /*TypeNode*/
+        i: usize,
+    ) -> Rc<Node /*TypeNode*/> {
+        if i == 0
+            && is_function_or_constructor_type_node(node)
+            && node
+                .as_has_type_parameters()
+                .maybe_type_parameters()
+                .is_some()
+        {
+            self.factory
+                .create_parenthesized_type(base_node_factory, node.node_wrapper())
+                .into()
+        } else {
+            node.node_wrapper()
         }
     }
 }
@@ -479,9 +500,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
     fn parenthesize_concise_body_of_arrow_function(
         &self,
         base_node_factory: &TBaseNodeFactory,
-        expression: &Node,
+        body: &Node,
     ) -> Rc<Node> {
-        expression.node_wrapper()
+        if !is_block(body)
+            && (is_comma_sequence(body)
+                || get_leftmost_expression(body, false).kind()
+                    == SyntaxKind::ObjectLiteralExpression)
+        {
+            return set_text_range(
+                &*Into::<Rc<Node>>::into(
+                    self.factory
+                        .create_parenthesized_expression(base_node_factory, body.node_wrapper()),
+                ),
+                Some(body),
+            )
+            .node_wrapper();
+        }
+
+        body.node_wrapper()
     }
 
     fn parenthesize_member_of_conditional_type(
@@ -489,7 +525,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         member: &Node,
     ) -> Rc<Node> {
-        member.node_wrapper()
+        if member.kind() == SyntaxKind::ConditionalType {
+            self.factory
+                .create_parenthesized_type(base_node_factory, member.node_wrapper())
+                .into()
+        } else {
+            member.node_wrapper()
+        }
     }
 
     fn parenthesize_member_of_element_type(
@@ -497,7 +539,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         member: &Node,
     ) -> Rc<Node> {
-        member.node_wrapper()
+        match member.kind() {
+            SyntaxKind::UnionType
+            | SyntaxKind::IntersectionType
+            | SyntaxKind::FunctionType
+            | SyntaxKind::ConstructorType => self
+                .factory
+                .create_parenthesized_type(base_node_factory, member.node_wrapper())
+                .into(),
+            _ => self.parenthesize_member_of_conditional_type(base_node_factory, member),
+        }
     }
 
     fn parenthesize_element_type_of_array_type(
@@ -505,7 +556,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         member: &Node,
     ) -> Rc<Node> {
-        member.node_wrapper()
+        match member.kind() {
+            SyntaxKind::TypeQuery | SyntaxKind::TypeOperator | SyntaxKind::InferType => self
+                .factory
+                .create_parenthesized_type(base_node_factory, member.node_wrapper())
+                .into(),
+            _ => self.parenthesize_member_of_element_type(base_node_factory, member),
+        }
     }
 
     fn parenthesize_constituent_types_of_union_or_intersection_type(
@@ -513,20 +570,39 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         members: NodeArrayOrVec,
     ) -> NodeArray {
-        match members {
-            NodeArrayOrVec::NodeArray(members) => members,
-            NodeArrayOrVec::Vec(_) => {
-                panic!("Expected NodeArray")
-            }
-        }
+        let members = match members {
+            NodeArrayOrVec::NodeArray(members) => members.to_vec(),
+            NodeArrayOrVec::Vec(members) => members,
+        };
+        self.factory.create_node_array(
+            same_map(Some(&members), |member, _| {
+                self.parenthesize_member_of_element_type(base_node_factory, member)
+            }),
+            None,
+        )
     }
 
     fn parenthesize_type_arguments(
         &self,
         base_node_factory: &TBaseNodeFactory,
-        type_parameters: Option<NodeArray>,
+        type_arguments: Option<NodeArray>,
     ) -> Option<NodeArray> {
-        type_parameters
+        if some(
+            type_arguments.as_deref(),
+            Option::<fn(&Rc<Node>) -> bool>::None,
+        ) {
+            return Some(self.factory.create_node_array(
+                same_map(type_arguments.as_deref(), |type_arguments, index| {
+                    self.parenthesize_ordinal_type_argument(
+                        base_node_factory,
+                        type_arguments,
+                        index,
+                    )
+                }),
+                None,
+            ));
+        }
+        None
     }
 }
 

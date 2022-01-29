@@ -554,6 +554,7 @@ pub enum TypeNode {
     ArrayTypeNode(ArrayTypeNode),
     JSDocTypeExpression(JSDocTypeExpression),
     FunctionTypeNode(FunctionTypeNode),
+    ParenthesizedTypeNode(ParenthesizedTypeNode),
 }
 
 #[derive(Debug)]
@@ -725,6 +726,32 @@ impl IntersectionTypeNode {
 impl UnionOrIntersectionTypeNodeInterface for IntersectionTypeNode {
     fn types(&self) -> &NodeArray {
         &self.types
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct ParenthesizedTypeNode {
+    _node: BaseNode,
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl ParenthesizedTypeNode {
+    pub fn new(base_node: BaseNode, type_: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for ParenthesizedTypeNode {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = type_;
     }
 }
 

@@ -20,11 +20,11 @@ use crate::{
     FunctionDeclaration, Identifier, IfStatement, InterfaceDeclaration, IntersectionTypeNode,
     LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
-    OuterExpressionKinds, ParameterDeclaration, ParenthesizedExpression, ParenthesizerRules,
-    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, ReadonlyTextRange,
-    ReturnStatement, ShorthandPropertyAssignment, SourceFile, SourceMapRange, Statement,
-    StringLiteral, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode, TemplateSpan,
-    TokenFlags, TransformFlags, TypeAliasDeclaration, TypeLiteralNode, TypeNode,
+    OuterExpressionKinds, ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
+    ParenthesizerRules, PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt,
+    ReadonlyTextRange, ReturnStatement, ShorthandPropertyAssignment, SourceFile, SourceMapRange,
+    Statement, StringLiteral, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode,
+    TemplateSpan, TokenFlags, TransformFlags, TypeAliasDeclaration, TypeLiteralNode, TypeNode,
     TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
     VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
@@ -534,6 +534,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             SyntaxKind::IntersectionType,
             types,
         )
+    }
+
+    pub fn create_parenthesized_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Rc<Node>,
+    ) -> ParenthesizedTypeNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::ParenthesizedType);
+        let mut node = ParenthesizedTypeNode::new(node, type_);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
     }
 
     pub fn create_literal_type_node(
