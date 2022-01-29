@@ -1,14 +1,16 @@
 #![allow(non_upper_case_globals)]
 
+use bitflags::bitflags;
 use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
     ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseLiteralLikeNode,
     BaseNode, BinaryExpression, CallExpression, ElementAccessExpression, HasExpressionInterface,
-    HasInitializerInterface, HasTypeInterface, LiteralLikeNode, NewExpression, Node, NodeInterface,
-    NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression,
-    SyntaxKind, TemplateExpression, TypeAssertion, VoidExpression, __String,
+    HasInitializerInterface, HasTypeInterface, JSDocTypeExpression, LiteralLikeNode, NewExpression,
+    Node, NodeInterface, NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression,
+    PropertyAccessExpression, SyntaxKind, TemplateExpression, TypeAssertion, VoidExpression,
+    __String,
 };
 use local_macros::ast_type;
 
@@ -32,6 +34,10 @@ impl NodeArray {
 
     pub fn len(&self) -> usize {
         self._nodes.len()
+    }
+
+    pub fn to_vec(&self) -> Vec<Rc<Node>> {
+        self._nodes.clone()
     }
 }
 
@@ -99,11 +105,28 @@ impl From<Vec<Rc<Node>>> for NodeArrayOrVec {
     }
 }
 
+bitflags! {
+    pub struct GeneratedIdentifierFlags: u32 {
+        const None = 0;
+        const Auto = 1;
+        const Loop = 2;
+        const Unique = 3;
+        const Node = 4;
+        const KindMask = 7;
+
+        const ReservedInNestedScopes = 1 << 3;
+        const Optimistic = 1 << 4;
+        const FileLevel = 1 << 5;
+        const AllowNameSubstitution = 1 << 6;
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression")]
 pub struct Identifier {
     _node: BaseNode,
     pub escaped_text: __String,
+    auto_generate_flags: Option<GeneratedIdentifierFlags>,
 }
 
 impl Identifier {
@@ -111,7 +134,12 @@ impl Identifier {
         Self {
             _node: base_node,
             escaped_text,
+            auto_generate_flags: None,
         }
+    }
+
+    pub fn maybe_auto_generate_flags(&self) -> Option<GeneratedIdentifierFlags> {
+        self.auto_generate_flags.clone()
     }
 }
 
@@ -490,6 +518,8 @@ pub enum TypeNode {
     TypePredicateNode(TypePredicateNode),
     TypeLiteralNode(TypeLiteralNode),
     ArrayTypeNode(ArrayTypeNode),
+    JSDocTypeExpression(JSDocTypeExpression),
+    FunctionTypeNode(FunctionTypeNode),
 }
 
 #[derive(Debug)]
@@ -507,6 +537,23 @@ impl KeywordTypeNode {
 impl From<BaseNode> for KeywordTypeNode {
     fn from(base_node: BaseNode) -> Self {
         KeywordTypeNode::new(base_node)
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "TypeNode",
+    interfaces = "NamedDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
+)]
+pub struct FunctionTypeNode {
+    _signature_declaration: BaseSignatureDeclaration,
+}
+
+impl FunctionTypeNode {
+    pub fn new(base_signature_declaration: BaseSignatureDeclaration) -> Self {
+        Self {
+            _signature_declaration: base_signature_declaration,
+        }
     }
 }
 

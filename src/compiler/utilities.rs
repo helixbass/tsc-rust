@@ -2,7 +2,7 @@
 
 use bitflags::bitflags;
 use regex::{Captures, Regex};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::cmp;
 use std::cmp::Ordering;
@@ -13,15 +13,16 @@ use std::rc::Rc;
 
 use crate::{
     add_range, compare_strings_case_sensitive_maybe, compute_line_starts, filter, find_ancestor,
-    first_or_undefined, get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache,
-    get_jsdoc_type_parameter_tags, get_jsdoc_type_parameter_tags_no_cache, has_initializer,
-    has_jsdoc_nodes, id_text, is_binary_expression, is_call_expression,
-    is_element_access_expression, is_expression_statement,
+    first_or_undefined, flat_map, get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache,
+    get_jsdoc_tags, get_jsdoc_type_parameter_tags, get_jsdoc_type_parameter_tags_no_cache,
+    has_initializer, has_jsdoc_nodes, id_text, is_binary_expression, is_call_expression,
+    is_element_access_expression, is_export_declaration, is_expression_statement, is_function_like,
     is_function_like_or_class_static_block_declaration, is_identifier, is_jsdoc,
-    is_jsdoc_signature, is_jsdoc_type_tag, is_left_hand_side_expression, is_module_declaration,
-    is_numeric_literal, is_object_literal_expression, is_parenthesized_expression,
-    is_property_access_expression, is_source_file, is_string_literal_like, is_variable_statement,
-    is_void_expression, is_white_space_like, last, length, module_resolution_option_declarations,
+    is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_tag, is_left_hand_side_expression,
+    is_module_declaration, is_numeric_literal, is_object_literal_expression,
+    is_parenthesized_expression, is_private_identifier, is_property_access_expression,
+    is_source_file, is_string_literal_like, is_variable_statement, is_void_expression,
+    is_white_space_like, last, length, module_resolution_option_declarations,
     options_affecting_program_structure, skip_outer_expressions, str_to_source_text_as_chars,
     text_substring, AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface,
     CompilerOptions, CompilerOptionsValue, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
@@ -316,9 +317,9 @@ pub fn for_each_ancestor<
     }
 }
 
-fn get_source_text_of_node_from_source_file<TNode: NodeInterface>(
+fn get_source_text_of_node_from_source_file(
     source_file: &Node, /*SourceFile*/
-    node: &TNode,
+    node: &Node,
     include_trivia: Option<bool>,
 ) -> String {
     let include_trivia = include_trivia.unwrap_or(false);
@@ -329,13 +330,13 @@ fn get_source_text_of_node_from_source_file<TNode: NodeInterface>(
     )
 }
 
-fn get_text_of_node_from_source_text<TNode: NodeInterface>(
+fn get_text_of_node_from_source_text(
     source_text: &SourceTextAsChars,
-    node: &TNode,
+    node: &Node,
     include_trivia: Option<bool>,
 ) -> String {
     let include_trivia = include_trivia.unwrap_or(false);
-    if node_is_missing(Some(node.node_wrapper())) {
+    if node_is_missing(Some(node)) {
         return "".to_string();
     }
 
@@ -355,7 +356,7 @@ fn get_text_of_node_from_source_text<TNode: NodeInterface>(
     text
 }
 
-fn get_text_of_node<TNode: NodeInterface>(node: &TNode, include_trivia: Option<bool>) -> String {
+fn get_text_of_node(node: &Node, include_trivia: Option<bool>) -> String {
     let include_trivia = include_trivia.unwrap_or(false);
     get_source_text_of_node_from_source_file(
         &*get_source_file_of_node(node),
@@ -364,7 +365,7 @@ fn get_text_of_node<TNode: NodeInterface>(node: &TNode, include_trivia: Option<b
     )
 }
 
-fn get_emit_flags<TNode: NodeInterface>(node: &TNode) -> EmitFlags {
+fn get_emit_flags(node: &Node) -> EmitFlags {
     EmitFlags::None
 }
 
@@ -379,7 +380,7 @@ bitflags! {
 }
 
 pub fn get_literal_text<TNodeRef: Borrow<Node>>(
-    node: &LiteralLikeNode,
+    node: &Node, /*LiteralLikeNode*/
     source_file: Option<TNodeRef /*SourceFile*/>,
     flags: GetLiteralTextFlags,
 ) -> String {
@@ -388,7 +389,9 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
     }
 
     match node {
-        LiteralLikeNode::StringLiteral(node) => {
+        Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::StringLiteral(
+            node_as_string_literal,
+        ))) => {
             let escape_text = if flags.intersects(GetLiteralTextFlags::JsxAttributeEscape) {
                 unimplemented!()
             } else if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
@@ -398,19 +401,27 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
             } else {
                 escape_non_ascii_string
             };
-            if matches!(node.single_quote, Some(true)) {
+            if matches!(node_as_string_literal.single_quote, Some(true)) {
                 format!(
                     "'{}'",
-                    escape_text(node.text(), Some(CharacterCodes::single_quote))
+                    escape_text(
+                        node_as_string_literal.text(),
+                        Some(CharacterCodes::single_quote)
+                    )
                 )
             } else {
                 format!(
                     "\"{}\"",
-                    escape_text(node.text(), Some(CharacterCodes::double_quote))
+                    escape_text(
+                        node_as_string_literal.text(),
+                        Some(CharacterCodes::double_quote)
+                    )
                 )
             }
         }
-        LiteralLikeNode::TemplateLiteralLikeNode(node) => {
+        Node::Expression(Expression::LiteralLikeNode(
+            LiteralLikeNode::TemplateLiteralLikeNode(node_as_template_literal_like_node),
+        )) => {
             let escape_text = if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
                 || get_emit_flags(node).intersects(EmitFlags::NoAsciiEscaping)
             {
@@ -419,12 +430,15 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 escape_non_ascii_string
             };
 
-            let raw_text = node.raw_text.clone().unwrap_or_else(|| {
-                escape_template_substitution(&escape_text(
-                    node.text(),
-                    Some(CharacterCodes::backtick),
-                ))
-            });
+            let raw_text = node_as_template_literal_like_node
+                .raw_text
+                .clone()
+                .unwrap_or_else(|| {
+                    escape_template_substitution(&escape_text(
+                        node_as_template_literal_like_node.text(),
+                        Some(CharacterCodes::backtick),
+                    ))
+                });
 
             match node.kind() {
                 SyntaxKind::NoSubstitutionTemplateLiteral => format!("`{}`", raw_text),
@@ -434,17 +448,22 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 _ => panic!("Unexpected TemplateLiteralLikeNode kind"),
             }
         }
-        LiteralLikeNode::NumericLiteral(_) | LiteralLikeNode::BigIntLiteral(_) => {
-            node.text().to_string()
+        Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::NumericLiteral(_)))
+        | Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::BigIntLiteral(_))) => {
+            node.as_literal_like_node().text().to_string()
         }
+        _ => Debug_.fail(Some(&format!(
+            "Literal kind '{:?}' not accounted for.",
+            node.kind()
+        ))),
     }
 }
 
-fn can_use_original_text(node: &LiteralLikeNode, flags: GetLiteralTextFlags) -> bool {
+fn can_use_original_text(node: &Node /*LiteralLikeNode*/, flags: GetLiteralTextFlags) -> bool {
     if node_is_synthesized(node)
         || node.maybe_parent().is_none()
         || flags.intersects(GetLiteralTextFlags::TerminateUnterminatedLiterals)
-            && matches!(node.is_unterminated(), Some(true))
+            && matches!(node.as_literal_like_node().is_unterminated(), Some(true))
     {
         return false;
     }
@@ -452,19 +471,27 @@ fn can_use_original_text(node: &LiteralLikeNode, flags: GetLiteralTextFlags) -> 
     !is_big_int_literal(node)
 }
 
-pub fn is_block_or_catch_scoped<TNode: NodeInterface>(
-    declaration: &TNode, /*Declaration*/
-) -> bool {
+pub fn is_block_or_catch_scoped(declaration: &Node /*Declaration*/) -> bool {
     get_combined_node_flags(declaration).intersects(NodeFlags::BlockScoped)
         || is_catch_clause_variable_declaration_or_binding_element(declaration)
 }
 
-fn is_catch_clause_variable_declaration_or_binding_element<TNode: NodeInterface>(
-    declaration: &TNode, /*Declaration*/
+fn is_catch_clause_variable_declaration_or_binding_element(
+    declaration: &Node, /*Declaration*/
 ) -> bool {
     let node = get_root_declaration(declaration);
     node.kind() == SyntaxKind::VariableDeclaration
         && node.parent().kind() == SyntaxKind::CatchClause
+}
+
+pub fn is_ambient_module(node: &Node) -> bool {
+    is_module_declaration(node)
+        && (node.as_module_declaration().name.kind() == SyntaxKind::StringLiteral
+            || is_global_scope_augmentation(node))
+}
+
+pub fn is_global_scope_augmentation(node: &Node /*ModuleDeclaration*/) -> bool {
+    node.flags().intersects(NodeFlags::GlobalAugmentation)
 }
 
 pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWriter>>)>(
@@ -480,11 +507,11 @@ pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWr
     ret
 }
 
-pub fn get_full_width<TNode: NodeInterface>(node: &TNode) -> isize {
+pub fn get_full_width(node: &Node) -> isize {
     node.end() - node.pos()
 }
 
-pub fn get_source_file_of_node<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*SourceFile*/> {
+pub fn get_source_file_of_node(node: &Node) -> Rc<Node /*SourceFile*/> {
     if node.kind() == SyntaxKind::SourceFile {
         unimplemented!()
     }
@@ -504,10 +531,22 @@ pub fn node_is_missing<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
     node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
 }
 
-pub fn declaration_name_to_string<TNode: NodeInterface>(name: Option<&TNode>) -> String {
+pub fn is_any_import_syntax(node: &Node) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration
+    )
+}
+
+pub fn is_any_import_or_re_export(node: &Node) -> bool {
+    is_any_import_syntax(node) || is_export_declaration(node)
+}
+
+pub fn declaration_name_to_string<TNodeRef: Borrow<Node>>(name: Option<TNodeRef>) -> String {
     match name {
         None => "(Missing)".to_string(),
         Some(name) => {
+            let name = name.borrow();
             if get_full_width(name) == 0 {
                 "(Missing)".to_string()
             } else {
@@ -517,8 +556,57 @@ pub fn declaration_name_to_string<TNode: NodeInterface>(name: Option<&TNode>) ->
     }
 }
 
-pub fn create_diagnostic_for_node<TNode: NodeInterface>(
-    node: &TNode,
+pub fn entity_name_to_string(
+    name: &Node, /*EntityNameOrEntityNameExpression | JSDocMemberName | JsxTagNameExpression | PrivateIdentifier*/
+) -> Cow<'static, str> {
+    match name.kind() {
+        SyntaxKind::ThisKeyword => "this".into(),
+        SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => {
+            if get_full_width(name) == 0 {
+                id_text(name).into()
+            } else {
+                get_text_of_node(name, None).into()
+            }
+        }
+        SyntaxKind::QualifiedName => {
+            let name_as_qualified_name = name.as_qualified_name();
+            format!(
+                "{}.{}",
+                entity_name_to_string(&name_as_qualified_name.left),
+                entity_name_to_string(&name_as_qualified_name.right)
+            )
+            .into()
+        }
+        SyntaxKind::PropertyAccessExpression => {
+            let name_as_property_access_expression = name.as_property_access_expression();
+            if is_identifier(&*name_as_property_access_expression.name)
+                || is_private_identifier(&*name_as_property_access_expression.name)
+            {
+                format!(
+                    "{}.{}",
+                    entity_name_to_string(&name_as_property_access_expression.expression),
+                    entity_name_to_string(&name_as_property_access_expression.name)
+                )
+                .into()
+            } else {
+                Debug_.assert_never(&name_as_property_access_expression.name, None)
+            }
+        }
+        SyntaxKind::JSDocMemberName => {
+            let name_as_jsdoc_member_name = name.as_jsdoc_member_name();
+            format!(
+                "{}{}",
+                entity_name_to_string(&name_as_jsdoc_member_name.left),
+                entity_name_to_string(&name_as_jsdoc_member_name.right)
+            )
+            .into()
+        }
+        _ => Debug_.assert_never(name, None),
+    }
+}
+
+pub fn create_diagnostic_for_node(
+    node: &Node,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
@@ -526,9 +614,9 @@ pub fn create_diagnostic_for_node<TNode: NodeInterface>(
     create_diagnostic_for_node_in_source_file(&source_file, node, message, args)
 }
 
-fn create_diagnostic_for_node_in_source_file<TNode: NodeInterface>(
+fn create_diagnostic_for_node_in_source_file(
     source_file: &Node, /*SourceFile*/
-    node: &TNode,
+    node: &Node,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
@@ -536,8 +624,8 @@ fn create_diagnostic_for_node_in_source_file<TNode: NodeInterface>(
     create_file_diagnostic(source_file, span.start, span.length, message, args)
 }
 
-pub fn create_diagnostic_for_node_from_message_chain<TNode: NodeInterface>(
-    node: &TNode,
+pub fn create_diagnostic_for_node_from_message_chain(
+    node: &Node,
     message_chain: DiagnosticMessageChain,
     related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
@@ -572,10 +660,7 @@ fn create_file_diagnostic_from_message_chain(
     ))
 }
 
-fn get_error_span_for_node<TNode: NodeInterface>(
-    source_file: &Node, /*SourceFile*/
-    node: &TNode,
-) -> TextSpan {
+fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -> TextSpan {
     let error_node = node;
 
     let pos = error_node.pos();
@@ -596,21 +681,21 @@ pub fn is_import_call(n: &Node) -> bool {
     }
 }
 
-pub fn is_object_literal_method<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_object_literal_method(node: &Node) -> bool {
     /*node &&*/
     node.kind() == SyntaxKind::MethodDeclaration
         && node.parent().kind() == SyntaxKind::ObjectLiteralExpression
 }
 
-pub fn get_containing_function_or_class_static_block<TNode: NodeInterface>(
-    node: &TNode,
+pub fn get_containing_function_or_class_static_block(
+    node: &Node,
 ) -> Option<Rc<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
     find_ancestor(node.maybe_parent(), |node: &Node| {
         is_function_like_or_class_static_block_declaration(Some(node))
     })
 }
 
-pub fn is_variable_like<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_variable_like(node: &Node) -> bool {
     /* if node {*/
     match node.kind() {
         SyntaxKind::BindingElement
@@ -626,16 +711,19 @@ pub fn is_variable_like<TNode: NodeInterface>(node: &TNode) -> bool {
     /*}*/
 }
 
+pub fn is_function_block(node: &Node) -> bool {
+    /*node &&*/
+    node.kind() == SyntaxKind::Block && is_function_like(node.maybe_parent())
+}
+
 pub fn is_in_js_file<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
     node.map_or(false, |node| {
         node.borrow().flags().intersects(NodeFlags::JavaScriptFile)
     })
 }
 
-pub fn get_effective_initializer<TNode: NodeInterface>(
-    node: &TNode, /*HasExpressionInitializer*/
-) -> Option<Rc<Node>> {
-    node.node_wrapper().as_has_initializer().maybe_initializer()
+pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> Option<Rc<Node>> {
+    node.as_has_initializer().maybe_initializer()
 }
 
 pub fn get_right_most_assigned_expression(node: &Node, /*Expression*/) -> Rc<Node /*Expression*/> {
@@ -897,7 +985,7 @@ pub fn get_initializer_of_binary_expression(
     expr.as_binary_expression().right.clone()
 }
 
-pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode) {
+pub fn set_value_declaration(symbol: &Symbol, node: &Node) {
     {
         if !(symbol.maybe_value_declaration().is_none()) {
             return;
@@ -906,14 +994,14 @@ pub fn set_value_declaration<TNode: NodeInterface>(symbol: &Symbol, node: &TNode
     symbol.set_value_declaration(node.node_wrapper());
 }
 
-fn is_jsdoc_type_alias<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_jsdoc_type_alias(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocEnumTag
     )
 }
 
-pub fn is_type_alias<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_type_alias(node: &Node) -> bool {
     is_jsdoc_type_alias(node) || is_type_alias_declaration(node)
 }
 
@@ -1173,7 +1261,7 @@ pub fn get_next_jsdoc_comment_location(node: &Node) -> Option<Rc<Node>> {
     None
 }
 
-fn walk_up<TNode: NodeInterface>(node: &TNode, kind: SyntaxKind) -> Option<Rc<Node>> {
+fn walk_up(node: &Node, kind: SyntaxKind) -> Option<Rc<Node>> {
     let mut node = Some(node.node_wrapper());
     loop {
         if let Some(node_present) = node.as_ref() {
@@ -1189,7 +1277,7 @@ fn walk_up<TNode: NodeInterface>(node: &TNode, kind: SyntaxKind) -> Option<Rc<No
     node
 }
 
-fn walk_up_parenthesized_expressions<TNode: NodeInterface>(node: &TNode) -> Option<Rc<Node>> {
+fn walk_up_parenthesized_expressions(node: &Node) -> Option<Rc<Node>> {
     walk_up(node, SyntaxKind::ParenthesizedExpression)
 }
 
@@ -1261,14 +1349,14 @@ pub fn get_function_flags<TNodeRef: Borrow<Node>>(
     flags
 }
 
-pub fn is_string_or_numeric_literal_like<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_string_or_numeric_literal_like(node: &Node) -> bool {
     is_string_literal_like(node) || is_numeric_literal(node)
 }
 
-pub fn has_dynamic_name<TNode: NodeInterface>(declaration: &TNode /*Declaration*/) -> bool {
-    let name = get_name_of_declaration(declaration);
+pub fn has_dynamic_name(declaration: &Node /*Declaration*/) -> bool {
+    let name = get_name_of_declaration(Some(declaration));
     if let Some(name) = name {
-        is_dynamic_name(&*name)
+        is_dynamic_name(&name)
     } else {
         false
     }
@@ -1278,7 +1366,7 @@ fn is_dynamic_name(name: &Node /*DeclarationName*/) -> bool {
     false
 }
 
-pub fn is_property_name_literal<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_property_name_literal(node: &Node) -> bool {
     match node.kind() {
         SyntaxKind::Identifier
         | SyntaxKind::StringLiteral
@@ -1288,15 +1376,15 @@ pub fn is_property_name_literal<TNode: NodeInterface>(node: &TNode) -> bool {
     }
 }
 
-pub fn get_escaped_text_of_identifier_or_literal<TNode: NodeInterface>(node: &TNode) -> __String {
-    if is_member_name(&*node) {
-        node.node_wrapper().as_member_name().escaped_text()
+pub fn get_escaped_text_of_identifier_or_literal(node: &Node) -> __String {
+    if is_member_name(node) {
+        node.as_member_name().escaped_text()
     } else {
-        escape_leading_underscores(node.node_wrapper().as_literal_like_node().text())
+        escape_leading_underscores(node.as_literal_like_node().text())
     }
 }
 
-fn get_root_declaration<TNode: NodeInterface>(node: &TNode) -> Rc<Node> {
+fn get_root_declaration(node: &Node) -> Rc<Node> {
     let mut node = node.node_wrapper();
     while node.kind() == SyntaxKind::BindingElement {
         node = node.parent().parent();
@@ -1844,6 +1932,26 @@ pub fn get_effective_return_type_node(
     }
 }
 
+pub fn get_jsdoc_type_parameter_declarations(
+    node: &Node, /*DeclarationWithTypeParameters*/
+) -> Vec<Rc<Node /*TypeParameterDeclaration*/>> {
+    flat_map(Some(get_jsdoc_tags(node)), |tag, _| {
+        if is_non_type_alias_template(&tag) {
+            tag.as_jsdoc_template_tag().type_parameters.to_vec()
+        } else {
+            vec![]
+        }
+    })
+}
+
+pub fn is_non_type_alias_template(tag: &Node /*JSDocTag*/) -> bool {
+    is_jsdoc_template_tag(tag)
+        && !(tag.parent().kind() == SyntaxKind::JSDocComment
+            && tag.parent().as_jsdoc().tags.as_ref().map_or(false, |tags| {
+                tags.iter().any(|tag| is_jsdoc_type_alias(&**tag))
+            }))
+}
+
 pub fn has_syntactic_modifier(node: &Node, flags: ModifierFlags) -> bool {
     get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
 }
@@ -1904,7 +2012,7 @@ pub fn modifiers_to_flags(modifiers: Option<&NodeArray /*Modifier[]*/>) -> Modif
     flags
 }
 
-fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
+pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
     match token {
         SyntaxKind::StaticKeyword => ModifierFlags::Static,
         SyntaxKind::PublicKeyword => ModifierFlags::Public,
@@ -1943,10 +2051,9 @@ pub fn is_entity_name_expression(node: &Node) -> bool {
     node.kind() == SyntaxKind::Identifier || is_property_access_entity_name_expression(node)
 }
 
-pub fn get_first_identifier<TNode: NodeInterface>(node: &TNode) -> Rc<Node /*Identifier*/> {
-    let wrapper = node.node_wrapper();
-    match &*wrapper {
-        Node::Expression(Expression::Identifier(_)) => wrapper,
+pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
+    match node {
+        Node::Expression(Expression::Identifier(_)) => node.node_wrapper(),
         _ => unimplemented!(),
     }
 }
@@ -1975,11 +2082,11 @@ pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
     }
 }
 
-pub fn is_write_only_access<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_write_only_access(node: &Node) -> bool {
     access_kind(node) == AccessKind::Write
 }
 
-fn is_write_access<TNode: NodeInterface>(node: &TNode) -> bool {
+fn is_write_access(node: &Node) -> bool {
     access_kind(node) != AccessKind::Read
 }
 
@@ -1990,7 +2097,7 @@ enum AccessKind {
     ReadWrite,
 }
 
-fn access_kind<TNode: NodeInterface>(node: &TNode) -> AccessKind {
+fn access_kind(node: &Node) -> AccessKind {
     let parent = node.maybe_parent();
     if parent.is_none() {
         return AccessKind::Read;
@@ -2043,7 +2150,33 @@ pub fn get_object_flags(type_: &Type) -> ObjectFlags {
     }
 }
 
-pub fn is_access_expression<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_type_node_kind(kind: SyntaxKind) -> bool {
+    kind >= SyntaxKind::FirstTypeNode && kind <= SyntaxKind::LastTypeNode
+        || matches!(
+            kind,
+            SyntaxKind::AnyKeyword
+                | SyntaxKind::UnknownKeyword
+                | SyntaxKind::NumberKeyword
+                | SyntaxKind::BigIntKeyword
+                | SyntaxKind::ObjectKeyword
+                | SyntaxKind::BooleanKeyword
+                | SyntaxKind::StringKeyword
+                | SyntaxKind::SymbolKeyword
+                | SyntaxKind::VoidKeyword
+                | SyntaxKind::UndefinedKeyword
+                | SyntaxKind::NeverKeyword
+                | SyntaxKind::ExpressionWithTypeArguments
+                | SyntaxKind::JSDocAllType
+                | SyntaxKind::JSDocUnknownType
+                | SyntaxKind::JSDocNullableType
+                | SyntaxKind::JSDocNonNullableType
+                | SyntaxKind::JSDocOptionalType
+                | SyntaxKind::JSDocFunctionType
+                | SyntaxKind::JSDocVariadicType
+        )
+}
+
+pub fn is_access_expression(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
@@ -2714,14 +2847,14 @@ pub fn set_text_range_pos_end<TRange: ReadonlyTextRange>(
     set_text_range_end(set_text_range_pos(range, pos), end);
 }
 
-pub fn set_parent<TNode: NodeInterface>(child: &TNode, parent: Option<Rc<Node>>) -> &TNode {
+pub fn set_parent(child: &Node, parent: Option<Rc<Node>>) -> &Node {
     if let Some(parent) = parent {
         child.set_parent(parent.clone());
     }
     child
 }
 
-pub fn is_function_expression_or_arrow_function<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn is_function_expression_or_arrow_function(node: &Node) -> bool {
     matches!(
         node.kind(),
         SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction

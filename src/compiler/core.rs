@@ -1,4 +1,4 @@
-use regex::Regex;
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
@@ -588,7 +588,7 @@ pub fn get_ui_locale() -> Option<String> {
 pub fn set_ui_locale(value: Option<String>) {
     ui_locale.with(|ui_locale_| {
         let mut ui_locale_ = ui_locale_.borrow_mut();
-        if &*ui_locale_ != &value {
+        if *ui_locale_ != value {
             *ui_locale_ = value;
             ui_comparer_case_sensitive.with(|ui_comparer_case_sensitive_| {
                 *ui_comparer_case_sensitive_.borrow_mut() = None;
@@ -611,9 +611,90 @@ pub fn starts_with(str_: &str, prefix: &str) -> bool {
     str_.starts_with(prefix)
 }
 
-pub fn trim_string_start(s: &str) -> String {
-    lazy_static! {
-        static ref regex: Regex = Regex::new(r"^\s+").unwrap();
+pub fn fill<TItem, TCallback: FnMut(usize) -> TItem>(
+    length: usize,
+    mut cb: TCallback,
+) -> Vec<TItem> {
+    let mut result = Vec::with_capacity(length);
+    for i in 0..length {
+        result[i] = cb(i);
     }
-    regex.replace_all(s, "").to_string()
+    result
+}
+
+pub fn cartesian_product<TItem: Clone>(arrays: &[Vec<TItem>]) -> Vec<Vec<TItem>> {
+    let mut result = vec![];
+    cartesian_product_worker(arrays, &mut result, None, 0);
+    result
+}
+
+fn cartesian_product_worker<TItem: Clone>(
+    arrays: &[Vec<TItem>],
+    result: &mut Vec<Vec<TItem>>,
+    outer: Option<&[TItem]>,
+    index: usize,
+) {
+    for element in &arrays[index] {
+        let mut inner: Vec<TItem>;
+        match outer {
+            Some(outer) => {
+                inner = outer.iter().map(Clone::clone).collect();
+                inner.push(element.clone());
+            }
+            None => {
+                inner = vec![element.clone()];
+            }
+        }
+        if index == arrays.len() - 1 {
+            result.push(inner);
+        } else {
+            cartesian_product_worker(arrays, result, Some(&inner), index + 1);
+        }
+    }
+}
+
+pub fn pad_left<'str>(
+    s: &'str str,
+    length: usize,
+    pad_string: Option<&str /*" " | "0"*/>,
+) -> Cow<'str, str> {
+    let pad_string = pad_string.unwrap_or(" ");
+    if length <= s.len() {
+        Cow::Borrowed(s)
+    } else {
+        Cow::Owned(format!("{}{}", pad_string.repeat(length - s.len()), s))
+    }
+}
+
+pub fn pad_right(s: &str, length: usize /*, padString: " " = " "*/) -> Cow<str> {
+    let pad_string = " ";
+    if length <= s.len() {
+        Cow::Borrowed(s)
+    } else {
+        Cow::Owned(format!("{}{}", s, pad_string.repeat(length - s.len())))
+    }
+}
+
+pub fn take_while<TItem, TPredicate: FnMut(&TItem) -> bool>(
+    array: &[TItem],
+    mut predicate: TPredicate,
+) -> &[TItem] {
+    let len = array.len();
+    let mut index = 0;
+    while index < len && predicate(&array[index]) {
+        index += 1;
+    }
+    &array[0..index]
+}
+
+pub fn trim_string(s: &str) -> &str {
+    s.trim()
+}
+
+pub fn trim_string_end(s: &str) -> &str {
+    s.trim_end()
+}
+
+pub fn trim_string_start(s: &str) -> &str {
+    s.trim_start()
 }

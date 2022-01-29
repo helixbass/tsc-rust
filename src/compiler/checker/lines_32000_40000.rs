@@ -1,25 +1,23 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
 use super::CheckMode;
 use crate::{
     for_each, get_combined_node_flags, get_effective_initializer, is_binding_element,
     is_function_or_module_block, is_private_identifier, map, maybe_for_each, parse_pseudo_big_int,
-    ArrayTypeNode, Block, DiagnosticMessage, Diagnostics, Expression, ExpressionStatement,
-    HasTypeParametersInterface, IfStatement, InterfaceDeclaration, LiteralLikeNode,
+    DiagnosticMessage, Diagnostics, Expression, HasTypeParametersInterface, LiteralLikeNode,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, SymbolInterface,
-    SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration, TypeChecker, TypeFlags,
-    TypeInterface, TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeInterface,
-    VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
+    PseudoBigInt, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
     pub(super) fn check_arithmetic_operand_type(
         &self,
-        operand: /*&Node*/ &Expression,
+        operand: &Node, /*Expression*/
         type_: &Type,
         diagnostic: &DiagnosticMessage,
     ) -> bool {
@@ -30,12 +28,16 @@ impl TypeChecker {
         true
     }
 
-    pub(super) fn check_prefix_unary_expression(&self, node: &PrefixUnaryExpression) -> Rc<Type> {
-        let operand_expression = node.operand.as_expression();
-        let operand_type = self.check_expression(operand_expression, None);
-        match node.operator {
+    pub(super) fn check_prefix_unary_expression(
+        &self,
+        node: &Node, /*PrefixUnaryExpression*/
+    ) -> Rc<Type> {
+        let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
+        let operand = &node_as_prefix_unary_expression.operand;
+        let operand_type = self.check_expression(operand, None);
+        match node_as_prefix_unary_expression.operator {
             SyntaxKind::PlusPlusToken => {
-                self.check_arithmetic_operand_type(operand_expression, &operand_type, &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type);
+                self.check_arithmetic_operand_type(operand, &operand_type, &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type);
                 return self.get_unary_result_type(&operand_type);
             }
             _ => {
@@ -62,12 +64,19 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_template_expression(&self, node: &TemplateExpression) -> Rc<Type> {
-        let mut texts = vec![node.head.as_literal_like_node().text()];
+    pub(super) fn check_template_expression(
+        &self,
+        node: &Node, /*TemplateExpression*/
+    ) -> Rc<Type> {
+        let node_as_template_expression = node.as_template_expression();
+        let mut texts = vec![node_as_template_expression
+            .head
+            .as_literal_like_node()
+            .text()];
         let mut types = vec![];
-        for span in node.template_spans.iter() {
+        for span in node_as_template_expression.template_spans.iter() {
             let span = span.as_template_span();
-            let type_ = self.check_expression(&span.expression.as_expression(), None);
+            let type_ = self.check_expression(&span.expression, None);
             texts.push(span.literal.as_literal_like_node().text());
             types.push(
                 if self.is_type_assignable_to(&type_, &self.template_constraint_type()) {
@@ -86,7 +95,7 @@ impl TypeChecker {
 
     pub(super) fn check_expression_cached(
         &self,
-        node: &Expression,
+        node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         let links = self.get_node_links(node);
@@ -110,14 +119,13 @@ impl TypeChecker {
         contextual_type: Option<TTypeRef>,
     ) -> Rc<Type> {
         let initializer = get_effective_initializer(declaration).unwrap();
-        let initializer_as_expression = initializer.as_expression();
         let type_ = self
-            .get_quick_type_of_expression(initializer_as_expression)
+            .get_quick_type_of_expression(&initializer)
             .unwrap_or_else(|| {
                 if let Some(contextual_type) = contextual_type {
                     unimplemented!()
                 } else {
-                    self.check_expression_cached(initializer_as_expression, None)
+                    self.check_expression_cached(&initializer, None)
                 }
             });
         if false {
@@ -183,7 +191,7 @@ impl TypeChecker {
 
     pub(super) fn check_expression_for_mutable_location<TTypeRef: Borrow<Type>>(
         &self,
-        node: &Expression,
+        node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
         contextual_type: Option<TTypeRef>,
     ) -> Rc<Type> {
@@ -207,17 +215,20 @@ impl TypeChecker {
 
     pub(super) fn check_property_assignment(
         &self,
-        node: &PropertyAssignment,
+        node: &Node, /*PropertyAssignment*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         self.check_expression_for_mutable_location(
-            node.initializer.as_expression(),
+            &node.as_property_assignment().initializer,
             check_mode,
             Option::<&Type>::None,
         )
     }
 
-    pub(super) fn get_quick_type_of_expression(&self, node: &Expression) -> Option<Rc<Type>> {
+    pub(super) fn get_quick_type_of_expression(
+        &self,
+        node: &Node, /*Expression*/
+    ) -> Option<Rc<Type>> {
         let expr = node;
         if false {
             unimplemented!()
@@ -235,7 +246,7 @@ impl TypeChecker {
 
     pub(super) fn check_expression(
         &self,
-        node: &Expression,
+        node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         self.check_expression_worker(node, check_mode)
@@ -243,41 +254,49 @@ impl TypeChecker {
 
     pub(super) fn check_expression_worker(
         &self,
-        node: &Expression,
+        node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         match node {
-            Expression::Identifier(identifier) => self.check_identifier(identifier, check_mode),
-            Expression::TokenExpression(token_expression) => match token_expression.kind() {
-                SyntaxKind::TrueKeyword => self.true_type(),
-                _ => unimplemented!(),
-            },
-            Expression::ObjectLiteralExpression(object_literal_expression) => {
-                self.check_object_literal(object_literal_expression)
+            Node::Expression(Expression::Identifier(_)) => self.check_identifier(node, check_mode),
+            Node::Expression(Expression::TokenExpression(token_expression)) => {
+                match token_expression.kind() {
+                    SyntaxKind::TrueKeyword => self.true_type(),
+                    _ => unimplemented!(),
+                }
             }
-            Expression::PrefixUnaryExpression(prefix_unary_expression) => {
-                self.check_prefix_unary_expression(prefix_unary_expression)
+            Node::Expression(Expression::ObjectLiteralExpression(_)) => {
+                self.check_object_literal(node)
             }
-            // Expression::BinaryExpression(binary_expression) => {
-            //     return self.check_binary_expression(binary_expression);
+            Node::Expression(Expression::PrefixUnaryExpression(_)) => {
+                self.check_prefix_unary_expression(node)
+            }
+            // Node::Expression(Expression::BinaryExpression(_)) => {
+            //     return self.check_binary_expression(node);
             // }
-            Expression::LiteralLikeNode(LiteralLikeNode::TemplateLiteralLikeNode(
-                template_literal_like_node,
+            Node::Expression(Expression::LiteralLikeNode(
+                LiteralLikeNode::TemplateLiteralLikeNode(template_literal_like_node),
             )) => {
                 let type_: Rc<Type> =
                     self.get_string_literal_type(template_literal_like_node.text());
                 self.get_fresh_type_of_literal_type(&type_)
             }
-            Expression::LiteralLikeNode(LiteralLikeNode::StringLiteral(string_literal)) => {
+            Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::StringLiteral(
+                string_literal,
+            ))) => {
                 let type_: Rc<Type> = self.get_string_literal_type(string_literal.text());
                 self.get_fresh_type_of_literal_type(&type_)
             }
-            Expression::LiteralLikeNode(LiteralLikeNode::NumericLiteral(numeric_literal)) => {
-                self.check_grammar_numeric_literal(numeric_literal);
+            Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::NumericLiteral(
+                numeric_literal,
+            ))) => {
+                self.check_grammar_numeric_literal(node);
                 let type_: Rc<Type> = self.get_number_literal_type(numeric_literal.text().into());
                 self.get_fresh_type_of_literal_type(&type_)
             }
-            Expression::LiteralLikeNode(LiteralLikeNode::BigIntLiteral(big_int_literal)) => {
+            Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::BigIntLiteral(
+                big_int_literal,
+            ))) => {
                 let type_: Rc<Type> = self
                     .get_big_int_literal_type(PseudoBigInt::new(
                         false,
@@ -286,23 +305,23 @@ impl TypeChecker {
                     .into();
                 self.get_fresh_type_of_literal_type(&type_)
             }
-            Expression::TemplateExpression(template_expression) => {
-                self.check_template_expression(template_expression)
+            Node::Expression(Expression::TemplateExpression(_)) => {
+                self.check_template_expression(node)
             }
             _ => unimplemented!(),
         }
     }
 
-    pub(super) fn check_type_parameter(&self, node: &TypeParameterDeclaration) {
+    pub(super) fn check_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
         // TODO
     }
 
-    pub(super) fn check_property_declaration(&mut self, node: &PropertySignature) {
+    pub(super) fn check_property_declaration(&mut self, node: &Node /*PropertySignature*/) {
         self.check_variable_like_declaration(node);
     }
 
-    pub(super) fn check_property_signature(&mut self, node: &PropertySignature) {
-        if is_private_identifier(&*node.name()) {
+    pub(super) fn check_property_signature(&mut self, node: &Node /*PropertySignature*/) {
+        if is_private_identifier(&*node.as_property_signature().name()) {
             self.error(
                 Some(node.node_wrapper()),
                 &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
@@ -327,16 +346,19 @@ impl TypeChecker {
         .unwrap()
     }
 
-    pub(super) fn check_type_reference_node(&mut self, node: &TypeReferenceNode) {
-        maybe_for_each(node.type_arguments.as_ref(), |type_argument, _| {
-            self.check_source_element(Some(&**type_argument));
-            Option::<()>::None
-        });
+    pub(super) fn check_type_reference_node(&mut self, node: &Node /*TypeReferenceNode*/) {
+        maybe_for_each(
+            node.as_type_reference_node().type_arguments.as_ref(),
+            |type_argument, _| {
+                self.check_source_element(Some(&**type_argument));
+                Option::<()>::None
+            },
+        );
         let type_ = self.get_type_from_type_reference(node);
     }
 
-    pub(super) fn check_array_type(&mut self, node: &ArrayTypeNode) {
-        self.check_source_element(Some(&*node.element_type));
+    pub(super) fn check_array_type(&mut self, node: &Node /*ArrayTypeNode*/) {
+        self.check_source_element(Some(&*node.as_array_type_node().element_type));
     }
 
     pub(super) fn check_union_or_intersection_type(
@@ -353,14 +375,15 @@ impl TypeChecker {
         self.get_type_from_type_node(node);
     }
 
-    pub(super) fn check_block(&mut self, node: &Block) {
+    pub(super) fn check_block(&mut self, node: &Node /*Block*/) {
+        let node_as_block = node.as_block();
         if is_function_or_module_block(node) {
-            for_each(&node.statements, |statement, _| {
+            for_each(&node_as_block.statements, |statement, _| {
                 self.check_source_element(Some(statement.clone()));
                 Option::<()>::None
             });
         } else {
-            for_each(&node.statements, |statement, _| {
+            for_each(&node_as_block.statements, |statement, _| {
                 self.check_source_element(Some(statement.clone()));
                 Option::<()>::None
             });
@@ -371,34 +394,30 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn check_variable_like_declaration<TNode: VariableLikeDeclarationInterface>(
-        &mut self,
-        node: &TNode,
-    ) {
+    pub(super) fn check_variable_like_declaration(&mut self, node: &Node) {
+        let node_as_variable_like_declaration = node.as_variable_like_declaration();
         if !is_binding_element(node) {
-            self.check_source_element(node.maybe_type());
+            self.check_source_element(node_as_variable_like_declaration.maybe_type());
         }
 
         let symbol = self.get_symbol_of_node(node).unwrap();
 
         let type_ = self.convert_auto_to_any(&self.get_type_of_symbol(&*symbol));
         let value_declaration = symbol.maybe_value_declaration();
-        let wrapper = node.node_wrapper();
         if value_declaration.is_some()
-            && Rc::ptr_eq(
-                &wrapper,
-                &value_declaration.as_ref().unwrap().upgrade().unwrap(),
+            && ptr::eq(
+                node,
+                &*value_declaration.as_ref().unwrap().upgrade().unwrap(),
             )
         {
             let initializer = get_effective_initializer(node);
             if let Some(initializer) = initializer {
                 if true {
-                    let initializer_type =
-                        self.check_expression_cached(initializer.as_expression(), None);
+                    let initializer_type = self.check_expression_cached(&initializer, None);
                     self.check_type_assignable_to_and_optionally_elaborate(
                         &initializer_type,
                         &type_,
-                        Some(&*wrapper),
+                        Some(node),
                         Some(initializer.as_expression()),
                         None,
                     );
@@ -409,13 +428,14 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_variable_declaration(&mut self, node: &VariableDeclaration) {
+    pub(super) fn check_variable_declaration(&mut self, node: &Node /*VariableDeclaration*/) {
         self.check_variable_like_declaration(node);
     }
 
-    pub(super) fn check_variable_statement(&mut self, node: &VariableStatement) {
+    pub(super) fn check_variable_statement(&mut self, node: &Node /*VariableStatement*/) {
         for_each(
             &node
+                .as_variable_statement()
                 .declaration_list
                 .as_variable_declaration_list()
                 .declarations,
@@ -423,34 +443,31 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn check_expression_statement(&mut self, node: &ExpressionStatement) {
-        let expression = node.expression.as_expression();
+    pub(super) fn check_expression_statement(&mut self, node: &Node /*ExpressionStatement*/) {
+        let expression = &node.as_expression_statement().expression;
         self.check_expression(expression, None);
     }
 
-    pub(super) fn check_if_statement(&mut self, node: &IfStatement) {
-        let type_ = self.check_truthiness_expression(node.expression.as_expression(), None);
-        self.check_source_element(Some(&*node.then_statement));
+    pub(super) fn check_if_statement(&mut self, node: &Node /*IfStatement*/) {
+        let node_as_if_statement = node.as_if_statement();
+        let type_ = self.check_truthiness_expression(&node_as_if_statement.expression, None);
+        self.check_source_element(Some(&*node_as_if_statement.then_statement));
 
-        if node.then_statement.kind() == SyntaxKind::EmptyStatement {
+        if node_as_if_statement.then_statement.kind() == SyntaxKind::EmptyStatement {
             self.error(
-                Some(&*node.then_statement),
+                Some(&*node_as_if_statement.then_statement),
                 &Diagnostics::The_body_of_an_if_statement_cannot_be_the_empty_statement,
                 None,
             );
         }
 
-        self.check_source_element(node.else_statement.clone());
+        self.check_source_element(node_as_if_statement.else_statement.clone());
     }
 
-    pub(super) fn check_truthiness_of_type<TNode: NodeInterface>(
-        &self,
-        type_: &Type,
-        node: &TNode,
-    ) -> Rc<Type> {
+    pub(super) fn check_truthiness_of_type(&self, type_: &Type, node: &Node) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Void) {
             self.error(
-                Some(node.node_wrapper()),
+                Some(node),
                 &Diagnostics::An_expression_of_type_void_cannot_be_tested_for_truthiness,
                 None,
             );
@@ -461,7 +478,7 @@ impl TypeChecker {
 
     pub(super) fn check_truthiness_expression(
         &self,
-        node: &Expression,
+        node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         self.check_truthiness_of_type(&self.check_expression(node, check_mode), node)
@@ -473,25 +490,33 @@ impl TypeChecker {
     ) {
         if let Some(type_parameter_declarations) = type_parameter_declarations {
             for node in type_parameter_declarations {
-                self.check_type_parameter(node.as_type_parameter_declaration());
+                self.check_type_parameter(&node);
             }
         }
     }
 
-    pub(super) fn check_interface_declaration(&mut self, node: &InterfaceDeclaration) {
-        self.check_type_parameters(node.maybe_type_parameters());
-        for_each(&node.members, |member, _| {
+    pub(super) fn check_interface_declaration(
+        &mut self,
+        node: &Node, /*InterfaceDeclaration*/
+    ) {
+        let node_as_interface_declaration = node.as_interface_declaration();
+        self.check_type_parameters(node_as_interface_declaration.maybe_type_parameters());
+        for_each(&node_as_interface_declaration.members, |member, _| {
             self.check_source_element(Some(&**member));
             Option::<()>::None
         });
     }
 
-    pub(super) fn check_type_alias_declaration(&mut self, node: &TypeAliasDeclaration) {
-        self.check_type_parameters(node.maybe_type_parameters());
+    pub(super) fn check_type_alias_declaration(
+        &mut self,
+        node: &Node, /*TypeAliasDeclaration*/
+    ) {
+        let node_as_type_alias_declaration = node.as_type_alias_declaration();
+        self.check_type_parameters(node_as_type_alias_declaration.maybe_type_parameters());
         if false {
             unimplemented!()
         } else {
-            self.check_source_element(Some(&*node.type_));
+            self.check_source_element(Some(&*node_as_type_alias_declaration.type_));
         }
     }
 }

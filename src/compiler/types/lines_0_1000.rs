@@ -6,18 +6,23 @@ use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    ArrayBindingPattern, BinaryExpression, BindingElement, CallExpression, Decorator,
-    ElementAccessExpression, EnumMember, Expression, ExpressionStatement,
-    FunctionLikeDeclarationInterface, HasElementsInterface, HasExpressionInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, JSDoc, JSDocPropertyLikeTag,
-    JSDocTag, JSDocTemplateTag, JSDocTypeTag, JsxAttribute, LiteralLikeNodeInterface,
-    MemberNameInterface, ModifiersArray, ModuleDeclaration, NamedDeclarationInterface,
-    NewExpression, NodeArray, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
-    ParameterDeclaration, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
+    ArrayBindingPattern, ArrayTypeNode, BinaryExpression, BindingElement, Block, CallExpression,
+    Decorator, ElementAccessExpression, EnumMember, ExportAssignment, Expression,
+    ExpressionStatement, FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
+    HasExpressionInterface, HasIsTypeOnlyInterface, HasQuestionDotTokenInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, IfStatement,
+    InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
+    JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocText,
+    JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement,
+    LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface, ModifiersArray,
+    ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral,
+    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
+    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
     QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateSpan,
-    TransformFlags, TypeAliasDeclaration, TypeElement, TypeNode, TypeParameterDeclaration,
-    UnionOrIntersectionTypeNodeInterface, VariableDeclaration, VariableDeclarationList,
+    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateExpression,
+    TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode,
+    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
+    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
     VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
@@ -604,6 +609,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_parent(&self) -> Option<Rc<Node>>;
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
+    fn maybe_original(&self) -> Option<Rc<Node>>;
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
@@ -643,6 +649,11 @@ pub enum Node {
     ShorthandPropertyAssignment(ShorthandPropertyAssignment),
     ObjectBindingPattern(ObjectBindingPattern),
     ArrayBindingPattern(ArrayBindingPattern),
+    JSDocMemberName(JSDocMemberName),
+    JSDocText(JSDocText),
+    JSDocLink(JSDocLink),
+    JSDocLinkCode(JSDocLinkCode),
+    JSDocLinkPlain(JSDocLinkPlain),
 }
 
 impl Node {
@@ -796,6 +807,44 @@ impl Node {
         }
     }
 
+    pub fn as_jsdoc_link_like(&self) -> &dyn JSDocLinkLikeInterface {
+        match self {
+            Node::JSDocLink(node) => node,
+            Node::JSDocLinkCode(node) => node,
+            Node::JSDocLinkPlain(node) => node,
+            _ => panic!("Expected JSDoc link like"),
+        }
+    }
+
+    pub fn as_has_question_dot_token(&self) -> &dyn HasQuestionDotTokenInterface {
+        match self {
+            Node::Expression(Expression::PropertyAccessExpression(node)) => node,
+            Node::Expression(Expression::ElementAccessExpression(node)) => node,
+            Node::Expression(Expression::CallExpression(node)) => node,
+            _ => panic!("Expected has question dot token"),
+        }
+    }
+
+    pub fn as_has_is_type_only(&self) -> &dyn HasIsTypeOnlyInterface {
+        match self {
+            Node::Statement(Statement::ImportEqualsDeclaration(node)) => node,
+            Node::Statement(Statement::ImportClause(node)) => node,
+            Node::Statement(Statement::ExportDeclaration(node)) => node,
+            Node::Statement(Statement::ImportSpecifier(node)) => node,
+            Node::Statement(Statement::ExportSpecifier(node)) => node,
+            _ => panic!("Expected has is type only"),
+        }
+    }
+
+    pub fn as_variable_like_declaration(&self) -> &dyn VariableLikeDeclarationInterface {
+        match self {
+            Node::PropertyDeclaration(node) => node,
+            Node::VariableDeclaration(node) => node,
+            Node::ParameterDeclaration(node) => node,
+            _ => panic!("Expected variable like declaration"),
+        }
+    }
+
     pub fn as_expression(&self) -> &Expression {
         // node_unwrapped!(self, Expression)
         enum_unwrapped!(self, [Node, Expression])
@@ -900,6 +949,86 @@ impl Node {
     pub fn as_new_expression(&self) -> &NewExpression {
         enum_unwrapped!(self, [Node, Expression, NewExpression])
     }
+
+    pub fn as_jsdoc_typedef_tag(&self) -> &JSDocTypedefTag {
+        enum_unwrapped!(self, [Node, JSDocTag, JSDocTypedefTag])
+    }
+
+    pub fn as_export_assignment(&self) -> &ExportAssignment {
+        enum_unwrapped!(self, [Node, Statement, ExportAssignment])
+    }
+
+    pub fn as_labeled_statement(&self) -> &LabeledStatement {
+        enum_unwrapped!(self, [Node, Statement, LabeledStatement])
+    }
+
+    pub fn as_prefix_unary_expression(&self) -> &PrefixUnaryExpression {
+        enum_unwrapped!(self, [Node, Expression, PrefixUnaryExpression])
+    }
+
+    pub fn as_jsdoc_type_expression(&self) -> &JSDocTypeExpression {
+        enum_unwrapped!(self, [Node, TypeNode, JSDocTypeExpression])
+    }
+
+    pub fn as_jsdoc_return_tag(&self) -> &JSDocReturnTag {
+        enum_unwrapped!(self, [Node, JSDocTag, JSDocReturnTag])
+    }
+
+    pub fn as_type_literal_node(&self) -> &TypeLiteralNode {
+        enum_unwrapped!(self, [Node, TypeNode, TypeLiteralNode])
+    }
+
+    pub fn as_jsdoc_member_name(&self) -> &JSDocMemberName {
+        enum_unwrapped!(self, [Node, JSDocMemberName])
+    }
+
+    pub fn as_qualified_name(&self) -> &QualifiedName {
+        enum_unwrapped!(self, [Node, QualifiedName])
+    }
+
+    pub fn as_jsdoc_text(&self) -> &JSDocText {
+        enum_unwrapped!(self, [Node, JSDocText])
+    }
+
+    pub fn as_function_type_node(&self) -> &FunctionTypeNode {
+        enum_unwrapped!(self, [Node, TypeNode, FunctionTypeNode])
+    }
+
+    pub fn as_type_reference_node(&self) -> &TypeReferenceNode {
+        enum_unwrapped!(self, [Node, TypeNode, TypeReferenceNode])
+    }
+
+    pub fn as_block(&self) -> &Block {
+        enum_unwrapped!(self, [Node, Statement, Block])
+    }
+
+    pub fn as_property_signature(&self) -> &PropertySignature {
+        enum_unwrapped!(self, [Node, TypeElement, PropertySignature])
+    }
+
+    pub fn as_literal_type_node(&self) -> &LiteralTypeNode {
+        enum_unwrapped!(self, [Node, TypeNode, LiteralTypeNode])
+    }
+
+    pub fn as_interface_declaration(&self) -> &InterfaceDeclaration {
+        enum_unwrapped!(self, [Node, Statement, InterfaceDeclaration])
+    }
+
+    pub fn as_if_statement(&self) -> &IfStatement {
+        enum_unwrapped!(self, [Node, Statement, IfStatement])
+    }
+
+    pub fn as_array_type_node(&self) -> &ArrayTypeNode {
+        enum_unwrapped!(self, [Node, TypeNode, ArrayTypeNode])
+    }
+
+    pub fn as_template_expression(&self) -> &TemplateExpression {
+        enum_unwrapped!(self, [Node, Expression, TemplateExpression])
+    }
+
+    pub fn as_union_type_node(&self) -> &UnionTypeNode {
+        enum_unwrapped!(self, [Node, TypeNode, UnionTypeNode])
+    }
 }
 
 #[derive(Debug)]
@@ -913,6 +1042,7 @@ pub struct BaseNode {
     pub modifiers: Option<ModifiersArray>,
     pub id: Cell<Option<NodeId>>,
     pub parent: RefCell<Option<Weak<Node>>>,
+    pub original: RefCell<Option<Weak<Node>>>,
     pub pos: Cell<isize>,
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
@@ -939,6 +1069,7 @@ impl BaseNode {
             modifiers: None,
             id: Cell::new(None),
             parent: RefCell::new(None),
+            original: RefCell::new(None),
             pos: Cell::new(pos),
             end: Cell::new(end),
             symbol: RefCell::new(None),
@@ -1032,6 +1163,13 @@ impl NodeInterface for BaseNode {
 
     fn set_parent(&self, parent: Rc<Node>) {
         *self.parent.borrow_mut() = Some(Rc::downgrade(&parent));
+    }
+
+    fn maybe_original(&self) -> Option<Rc<Node>> {
+        self.original
+            .borrow()
+            .as_ref()
+            .map(|weak| weak.upgrade().unwrap())
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {

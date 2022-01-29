@@ -2,21 +2,21 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use super::CheckMode;
 use crate::{
     __String, create_symbol_table, get_effective_type_annotation_node, get_object_flags,
-    has_initializer, is_object_literal_expression, HasInitializerInterface, Identifier, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
-    PropertyAssignment, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    has_initializer, is_object_literal_expression, HasInitializerInterface, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
     pub(super) fn check_identifier(
         &self,
-        node: &Identifier,
+        node: &Node, /*Identifier*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         let symbol = self.get_resolved_symbol(node);
@@ -46,16 +46,16 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_contextual_type_for_initializer_expression<TNode: NodeInterface>(
+    pub(super) fn get_contextual_type_for_initializer_expression(
         &self,
-        node: &TNode,
+        node: &Node,
     ) -> Option<Rc<Type>> {
         let parent = node.parent();
-        let declaration = parent.as_variable_declaration();
-        if has_initializer(declaration)
-            && Rc::ptr_eq(
-                &node.node_wrapper(),
-                &declaration.maybe_initializer().unwrap(),
+        let parent_as_variable_declaration = parent.as_variable_declaration();
+        if has_initializer(&parent)
+            && ptr::eq(
+                node,
+                &*parent_as_variable_declaration.maybe_initializer().unwrap(),
             )
         {
             let result = self.get_contextual_type_for_variable_like_declaration(&*parent);
@@ -99,10 +99,9 @@ impl TypeChecker {
 
     pub(super) fn get_contextual_type_for_object_literal_element(
         &self,
-        element: &PropertyAssignment,
+        element: &Node, /*PropertyAssignment*/
     ) -> Option<Rc<Type>> {
         let parent = element.parent();
-        let object_literal = parent.as_object_literal_expression();
         // let property_assignment_type = if is_property_assignment(element) {
         // } else {
         //     None
@@ -110,7 +109,7 @@ impl TypeChecker {
         // if property_assignment_type.is_some() {
         //     return property_assignment_type;
         // }
-        let type_ = self.get_apparent_type_of_contextual_type(object_literal);
+        let type_ = self.get_apparent_type_of_contextual_type(&parent);
         if let Some(type_) = type_ {
             if self.has_bindable_name(element) {
                 return self.get_type_of_property_of_contextual_type(
@@ -123,9 +122,9 @@ impl TypeChecker {
         None
     }
 
-    pub(super) fn get_apparent_type_of_contextual_type<TNode: NodeInterface>(
+    pub(super) fn get_apparent_type_of_contextual_type(
         &self,
-        node: &TNode, /*Expression | MethodDeclaration*/
+        node: &Node, /*Expression | MethodDeclaration*/
     ) -> Option<Rc<Type>> {
         let contextual_type = if false {
             unimplemented!()
@@ -167,29 +166,30 @@ impl TypeChecker {
         contextual_type.map(|contextual_type| contextual_type.borrow().type_wrapper())
     }
 
-    pub(super) fn get_contextual_type<TNode: NodeInterface>(
-        &self,
-        node: &TNode, /*Expression*/
-    ) -> Option<Rc<Type>> {
+    pub(super) fn get_contextual_type(&self, node: &Node /*Expression*/) -> Option<Rc<Type>> {
         let parent = node.parent();
         match &*parent {
-            Node::VariableDeclaration(variable_declaration) => {
+            Node::VariableDeclaration(_) => {
                 self.get_contextual_type_for_initializer_expression(node)
             }
-            Node::PropertyAssignment(property_assignment) => {
-                self.get_contextual_type_for_object_literal_element(property_assignment)
+            Node::PropertyAssignment(_) => {
+                self.get_contextual_type_for_object_literal_element(node)
             }
             _ => unimplemented!(),
         }
     }
 
-    pub(super) fn check_object_literal(&self, node: &ObjectLiteralExpression) -> Rc<Type> {
+    pub(super) fn check_object_literal(
+        &self,
+        node: &Node, /*ObjectLiteralExpression*/
+    ) -> Rc<Type> {
+        let node_as_object_literal_expression = node.as_object_literal_expression();
         let mut properties_table = create_symbol_table(None);
         let mut properties_array: Vec<Rc<Symbol>> = vec![];
 
         let object_flags = self.fresh_object_literal_flag;
 
-        for member_decl in &node.properties {
+        for member_decl in &node_as_object_literal_expression.properties {
             let member = self.get_symbol_of_node(&**member_decl).unwrap();
             if member_decl.kind() == SyntaxKind::PropertyAssignment {
             } else {

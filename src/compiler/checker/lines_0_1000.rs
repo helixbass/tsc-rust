@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use super::create_node_builder;
 use crate::{
-    __String, create_diagnostic_collection, create_symbol_table, object_allocator,
+    Node, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
     DiagnosticCollection, FreshableIntrinsicType, NodeId, NodeInterface, Number, ObjectFlags,
     Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker,
     TypeCheckerHost, TypeFlags,
@@ -92,7 +92,7 @@ pub(super) fn get_symbol_id(symbol: &Symbol) -> SymbolId {
     symbol.id()
 }
 
-pub(super) fn get_node_id<TNode: NodeInterface>(node: &TNode) -> NodeId {
+pub(super) fn get_node_id(node: &Node) -> NodeId {
     if node.maybe_id().is_none() {
         node.set_id(get_next_node_id());
         increment_next_node_id();

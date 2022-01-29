@@ -37,7 +37,7 @@ impl TypeChecker {
 
         let symbol: Option<Rc<Symbol>>;
         match name {
-            Node::Expression(Expression::Identifier(name)) => {
+            Node::Expression(Expression::Identifier(name_as_identifier)) => {
                 let message = if false {
                     unimplemented!()
                 } else {
@@ -47,7 +47,7 @@ impl TypeChecker {
                     if false { unimplemented!() } else { None };
                 symbol = self.get_merged_symbol(self.resolve_name(
                     Some(name),
-                    &name.escaped_text,
+                    &name_as_identifier.escaped_text,
                     meaning,
                     if ignore_errors || symbol_from_js_prototype.is_some() {
                         None
@@ -82,10 +82,7 @@ impl TypeChecker {
         symbol.map(|symbol| symbol.borrow().symbol_wrapper())
     }
 
-    pub(super) fn get_symbol_of_node<TNode: NodeInterface>(
-        &self,
-        node: &TNode,
-    ) -> Option<Rc<Symbol>> {
+    pub(super) fn get_symbol_of_node(&self, node: &Node) -> Option<Rc<Symbol>> {
         self.get_merged_symbol(node.maybe_symbol())
     }
 }

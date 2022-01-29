@@ -319,6 +319,10 @@ impl ObjectLiteralExpression {
     }
 }
 
+pub trait HasQuestionDotTokenInterface {
+    fn maybe_question_dot_token(&self) -> Option<Rc<Node>>;
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression")]
 pub struct PropertyAccessExpression {
@@ -364,6 +368,12 @@ impl NamedDeclarationInterface for PropertyAccessExpression {
     }
 }
 
+impl HasQuestionDotTokenInterface for PropertyAccessExpression {
+    fn maybe_question_dot_token(&self) -> Option<Rc<Node>> {
+        self.question_dot_token.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression")]
 pub struct ElementAccessExpression {
@@ -392,6 +402,12 @@ impl ElementAccessExpression {
 impl HasExpressionInterface for ElementAccessExpression {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+impl HasQuestionDotTokenInterface for ElementAccessExpression {
+    fn maybe_question_dot_token(&self) -> Option<Rc<Node>> {
+        self.question_dot_token.clone()
     }
 }
 
@@ -426,6 +442,12 @@ impl CallExpression {
 impl HasExpressionInterface for CallExpression {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+impl HasQuestionDotTokenInterface for CallExpression {
+    fn maybe_question_dot_token(&self) -> Option<Rc<Node>> {
+        self.question_dot_token.clone()
     }
 }
 
@@ -588,6 +610,13 @@ pub enum Statement {
     ForInStatement(ForInStatement),
     ForOfStatement(ForOfStatement),
     ModuleDeclaration(ModuleDeclaration),
+    LabeledStatement(LabeledStatement),
+    ExportAssignment(ExportAssignment),
+    ImportEqualsDeclaration(ImportEqualsDeclaration),
+    ImportClause(ImportClause),
+    ExportDeclaration(ExportDeclaration),
+    ImportSpecifier(ImportSpecifier),
+    ExportSpecifier(ExportSpecifier),
 }
 
 #[derive(Debug)]
@@ -794,6 +823,24 @@ impl ReturnStatement {
         Self {
             _node: base_node,
             expression,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct LabeledStatement {
+    _node: BaseNode,
+    pub label: Rc<Node /*Identifier*/>,
+    pub statement: Rc<Node /*Statement*/>,
+}
+
+impl LabeledStatement {
+    pub fn new(base_node: BaseNode, label: Rc<Node>, statement: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            label,
+            statement,
         }
     }
 }
@@ -1170,6 +1217,226 @@ impl NamedDeclarationInterface for ModuleDeclaration {
     }
 }
 
+pub trait HasIsTypeOnlyInterface {
+    fn is_type_only(&self) -> bool;
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement", interfaces = "NamedDeclarationInterface")]
+pub struct ImportEqualsDeclaration {
+    _named_declaration: BaseNamedDeclaration,
+    pub is_type_only: bool,
+    pub module_reference: Rc<Node /*ModuleReference*/>,
+}
+
+impl ImportEqualsDeclaration {
+    pub fn new(
+        base_named_declaration: BaseNamedDeclaration,
+        is_type_only: bool,
+        module_reference: Rc<Node>,
+    ) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+            is_type_only,
+            module_reference,
+        }
+    }
+}
+
+impl HasIsTypeOnlyInterface for ImportEqualsDeclaration {
+    fn is_type_only(&self) -> bool {
+        self.is_type_only
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ImportClause {
+    _node: BaseNode,
+    pub is_type_only: bool,
+    pub name: Option<Rc<Node /*Identifier*/>>,
+    pub named_bindings: Option<Rc<Node /*NamedImportBindings*/>>,
+}
+
+impl ImportClause {
+    pub fn new(
+        base_node: BaseNode,
+        is_type_only: bool,
+        name: Option<Rc<Node>>,
+        named_bindings: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            is_type_only,
+            name,
+            named_bindings,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for ImportClause {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        self.name.clone()
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone().unwrap()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = Some(name);
+    }
+}
+
+impl HasIsTypeOnlyInterface for ImportClause {
+    fn is_type_only(&self) -> bool {
+        self.is_type_only
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ExportDeclaration {
+    _node: BaseNode,
+    pub is_type_only: bool,
+    pub export_clause: Option<Rc<Node /*NamedExportBindings*/>>,
+    pub module_specifier: Option<Rc<Node /*Expression*/>>,
+    pub assert_clause: Option<Rc<Node /*AssertClause*/>>,
+}
+
+impl ExportDeclaration {
+    pub fn new(
+        base_node: BaseNode,
+        is_type_only: bool,
+        export_clause: Option<Rc<Node>>,
+        module_specifier: Option<Rc<Node>>,
+        assert_clause: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            is_type_only,
+            export_clause,
+            module_specifier,
+            assert_clause,
+        }
+    }
+}
+
+impl HasIsTypeOnlyInterface for ExportDeclaration {
+    fn is_type_only(&self) -> bool {
+        self.is_type_only
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ImportSpecifier {
+    _node: BaseNode,
+    pub property_name: Option<Rc<Node /*Identifier*/>>,
+    pub name: Rc<Node /*Identifier*/>,
+    pub is_type_only: bool,
+}
+
+impl ImportSpecifier {
+    pub fn new(
+        base_node: BaseNode,
+        property_name: Option<Rc<Node>>,
+        name: Rc<Node>,
+        is_type_only: bool,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            property_name,
+            name,
+            is_type_only,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for ImportSpecifier {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
+impl HasIsTypeOnlyInterface for ImportSpecifier {
+    fn is_type_only(&self) -> bool {
+        self.is_type_only
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ExportSpecifier {
+    _node: BaseNode,
+    pub is_type_only: bool,
+    pub property_name: Option<Rc<Node /*Identifier*/>>,
+    pub name: Rc<Node /*Identifier*/>,
+}
+
+impl ExportSpecifier {
+    pub fn new(
+        base_node: BaseNode,
+        is_type_only: bool,
+        property_name: Option<Rc<Node>>,
+        name: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            is_type_only,
+            property_name,
+            name,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for ExportSpecifier {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
+impl HasIsTypeOnlyInterface for ExportSpecifier {
+    fn is_type_only(&self) -> bool {
+        self.is_type_only
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Statement")]
+pub struct ExportAssignment {
+    _node: BaseNode,
+    pub is_export_equals: Option<bool>,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+// TODO: should implement HasExpressionInterface for ExportAssignment?
+impl ExportAssignment {
+    pub fn new(base_node: BaseNode, is_export_equals: Option<bool>, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            is_export_equals,
+            expression,
+        }
+    }
+}
+
 pub type CommentKind = SyntaxKind; /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
 
 pub struct CommentRange {
@@ -1210,6 +1477,50 @@ impl TextRange for CommentRange {
 
     fn set_end(&self, end: isize) {
         self.end.set(end);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct JSDocTypeExpression {
+    _node: BaseNode,
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl JSDocTypeExpression {
+    pub fn new(base_node: BaseNode, type_: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for JSDocTypeExpression {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = type_;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocMemberName {
+    _node: BaseNode,
+    pub left: Rc<Node /*EntityName | JSDocMemberName*/>,
+    pub right: Rc<Node /*Identifier*/>,
+}
+
+impl JSDocMemberName {
+    pub fn new(base_node: BaseNode, left: Rc<Node>, right: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            left,
+            right,
+        }
     }
 }
 
@@ -1255,6 +1566,111 @@ pub enum JSDocTag {
 pub trait JSDocTagInterface {
     fn tag_name(&self) -> Rc<Node /*Identifier*/>;
     fn maybe_comment(&self) -> Option<&StringOrNodeArray /*<JSDocComment>*/>;
+}
+
+pub trait JSDocLinkLikeInterface {
+    fn maybe_name(&self) -> Option<Rc<Node>>;
+    fn text(&self) -> &str;
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocLink {
+    _node: BaseNode,
+    pub name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
+    pub text: String,
+}
+
+impl JSDocLink {
+    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: String) -> Self {
+        Self {
+            _node: base_node,
+            name,
+            text,
+        }
+    }
+}
+
+impl JSDocLinkLikeInterface for JSDocLink {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        self.name.clone()
+    }
+
+    fn text(&self) -> &str {
+        &self.text
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocLinkCode {
+    _node: BaseNode,
+    pub name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
+    pub text: String,
+}
+
+impl JSDocLinkCode {
+    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: String) -> Self {
+        Self {
+            _node: base_node,
+            name,
+            text,
+        }
+    }
+}
+
+impl JSDocLinkLikeInterface for JSDocLinkCode {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        self.name.clone()
+    }
+
+    fn text(&self) -> &str {
+        &self.text
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocLinkPlain {
+    _node: BaseNode,
+    pub name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
+    pub text: String,
+}
+
+impl JSDocLinkPlain {
+    pub fn new(base_node: BaseNode, name: Option<Rc<Node>>, text: String) -> Self {
+        Self {
+            _node: base_node,
+            name,
+            text,
+        }
+    }
+}
+
+impl JSDocLinkLikeInterface for JSDocLinkPlain {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        self.name.clone()
+    }
+
+    fn text(&self) -> &str {
+        &self.text
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocText {
+    _node: BaseNode,
+    pub text: String,
+}
+
+impl JSDocText {
+    pub fn new(base_node: BaseNode, text: String) -> Self {
+        Self {
+            _node: base_node,
+            text,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1421,7 +1837,7 @@ impl JSDocReturnTag {
 #[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
 pub struct JSDocTypeTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    type_expression: Rc<Node /*JSDocTypeExpression*/>,
+    pub type_expression: Rc<Node /*JSDocTypeExpression*/>,
 }
 
 impl JSDocTypeTag {
