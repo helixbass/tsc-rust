@@ -1,11 +1,14 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
-use super::{DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
+use super::{
+    BaseTextRange, DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, NodeArrayOrVec,
+    SyntaxKind, SynthesizedComment, TextRange,
+};
 use crate::{BaseNodeFactory, MapLike, NodeFactoryFlags, OptionsNameMap};
 use local_macros::{command_line_option_type, enum_unwrapped};
 
@@ -816,10 +819,231 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
+pub struct SourceMapRange {
+    pos: Cell<isize>,
+    end: Cell<isize>,
+    source: Option<SourceMapSource>,
+}
+
+impl SourceMapRange {
+    pub fn new(pos: isize, end: isize, source: Option<SourceMapSource>) -> Self {
+        Self {
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+            source,
+        }
+    }
+}
+
+impl TextRange for SourceMapRange {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
+    }
+}
+
+#[derive(Debug)]
+pub struct SourceMapSource {
+    pub file_name: String,
+    pub text: String,
+    pub(crate) line_map: Vec<usize>,
+    pub skip_trivia: Option<fn(usize) -> usize>,
+}
+
+#[derive(Clone, Debug)]
+pub enum StringOrUsize {
+    String(String),
+    Usize(usize),
+}
+
+#[derive(Debug)]
+pub(crate) struct EmitNode {
+    pub annotated_nodes: Option<Vec<Rc<Node>>>,
+    pub flags: Option<EmitFlags>,
+    pub leading_comments: Option<Vec<Rc<SynthesizedComment>>>,
+    pub trailing_comments: Option<Vec<Rc<SynthesizedComment>>>,
+    pub comment_range: Option<BaseTextRange>,
+    pub source_map_range: Option<Rc<SourceMapRange>>,
+    pub token_source_map_ranges: Option<HashMap<SyntaxKind, Option<Rc<SourceMapRange>>>>,
+    pub constant_value: Option<StringOrUsize>,
+    pub external_helpers_module_name: Option<Rc<Node /*Identifier*/>>,
+    pub external_helpers: Option<bool>,
+    pub helpers: Option<Vec<Rc<EmitHelper>>>,
+    pub starts_on_new_line: Option<bool>,
+    pub snippet_element: Option<SnippetElement>,
+}
+
+impl Default for EmitNode {
+    fn default() -> Self {
+        Self {
+            annotated_nodes: None,
+            flags: None,
+            leading_comments: None,
+            trailing_comments: None,
+            comment_range: None,
+            source_map_range: None,
+            token_source_map_ranges: None,
+            constant_value: None,
+            external_helpers_module_name: None,
+            external_helpers: None,
+            helpers: None,
+            starts_on_new_line: None,
+            snippet_element: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) enum SnippetElement {
+    TabStop(TabStop),
+    Placeholder(Placeholder),
+}
+
+#[derive(Debug)]
+pub(crate) struct TabStop {
+    pub kind: SnippetKind,
+    pub order: usize,
+}
+
+#[derive(Debug)]
+pub(crate) struct Placeholder {
+    pub kind: SnippetKind,
+    pub order: usize,
+}
+
+#[derive(Debug)]
+pub(crate) enum SnippetKind {
+    TabStop,
+    Placeholder,
+    Choice,
+    Variable,
+}
+
+pub trait EmitHelperBase {
+    fn name(&self) -> &str;
+    fn scoped(&self) -> bool;
+    fn text(&self) -> &str; // TODO: support callback value?
+    fn priority(&self) -> Option<usize>;
+    fn dependencies(&self) -> Option<&[Rc<EmitHelper>]>;
+}
+
+#[derive(Debug)]
+pub struct ScopedEmitHelper {
+    name: String,
+    scoped: bool, /*true*/
+    text: String,
+    priority: Option<usize>,
+    dependencies: Option<Vec<Rc<EmitHelper>>>,
+}
+
+impl EmitHelperBase for ScopedEmitHelper {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn scoped(&self) -> bool {
+        self.scoped
+    }
+
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    fn priority(&self) -> Option<usize> {
+        self.priority.clone()
+    }
+
+    fn dependencies(&self) -> Option<&[Rc<EmitHelper>]> {
+        self.dependencies.as_deref()
+    }
+}
+
+#[derive(Debug)]
+pub struct UnscopedEmitHelper {
+    name: String,
+    scoped: bool, /*false*/
+    text: String,
+    priority: Option<usize>,
+    dependencies: Option<Vec<Rc<EmitHelper>>>,
+    pub(crate) import_name: Option<String>,
+}
+
+impl EmitHelperBase for UnscopedEmitHelper {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn scoped(&self) -> bool {
+        self.scoped
+    }
+
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    fn priority(&self) -> Option<usize> {
+        self.priority.clone()
+    }
+
+    fn dependencies(&self) -> Option<&[Rc<EmitHelper>]> {
+        self.dependencies.as_deref()
+    }
+}
+
+#[derive(Debug)]
+pub enum EmitHelper {
+    ScopedEmitHelper(ScopedEmitHelper),
+    UnscopedEmitHelper(UnscopedEmitHelper),
+}
+
 bitflags! {
     pub struct EmitFlags: u32 {
         const None = 0;
+        const SingleLine = 1 << 0;
+        const AdviseOnEmitNode = 1 << 1;
+        const NoSubstitution = 1 << 2;
+        const CapturesThis = 1 << 3;
+        const NoLeadingSourceMap = 1 << 4;
+        const NoTrailingSourceMap = 1 << 5;
+        const NoSourceMap = Self::NoLeadingSourceMap.bits | Self::NoTrailingSourceMap.bits;
+        const NoNestedSourceMaps = 1 << 6;
+        const NoTokenLeadingSourceMaps = 1 << 7;
+        const NoTokenTrailingSourceMaps = 1 << 8;
+        const NoTokenSourceMaps = Self::NoTokenLeadingSourceMaps.bits | Self::NoTokenTrailingSourceMaps.bits;
+        const NoLeadingComments = 1 << 9;
+        const NoTrailingComments = 1 << 10;
+        const NoComments = Self::NoLeadingComments.bits | Self::NoTrailingComments.bits;
+        const NoNestedComments = 1 << 11;
+        const HelperName = 1 << 12;
+        const ExportName = 1 << 13;
+        const LocalName = 1 << 14;
+        const InternalName = 1 << 15;
+        const Indented = 1 << 16;
+        const NoIndentation = 1 << 17;
+        const AsyncFunctionBody = 1 << 18;
+        const ReuseTempVariableScope = 1 << 19;
+        const CustomPrologue = 1 << 20;
+        const NoHoisting = 1 << 21;
+        const HasEndOfDeclarationMarker = 1 << 22;
+        const Iterator = 1 << 23;
         const NoAsciiEscaping = 1 << 24;
+        const TypeScriptClassWrapper = 1 << 25;
+        const NeverApplyImportHelper = 1 << 26;
+        const IgnoreSourceNewlines = 1 << 27;
+        const Immutable = 1 << 28;
+        const IndirectCall = 1 << 29;
     }
 }
 

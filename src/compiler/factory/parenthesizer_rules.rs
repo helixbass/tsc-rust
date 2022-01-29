@@ -5,10 +5,11 @@ use std::rc::Rc;
 use crate::{
     compare_values, get_expression_associativity, get_expression_precedence,
     get_leftmost_expression, get_operator_associativity, get_operator_precedence,
-    is_binary_expression, is_comma_sequence, is_left_hand_side_expression, is_literal_kind,
-    is_unary_expression, same_map, set_text_range, skip_partially_emitted_expressions,
-    Associativity, BaseNodeFactory, Comparison, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, OperatorPrecedence, ParenthesizerRules, SyntaxKind,
+    is_binary_expression, is_call_expression, is_comma_sequence, is_left_hand_side_expression,
+    is_literal_kind, is_unary_expression, same_map, set_text_range,
+    skip_partially_emitted_expressions, Associativity, BaseNodeFactory, Comparison, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, OperatorPrecedence,
+    OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
 };
 
 pub fn create_parenthesizer_rules<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -398,7 +399,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
     ) -> Rc<Node> {
-        expression.node_wrapper()
+        let emitted_expression = skip_partially_emitted_expressions(expression);
+        let expression_precedence = get_expression_precedence(&emitted_expression);
+        let comma_precedence =
+            get_operator_precedence(SyntaxKind::BinaryExpression, SyntaxKind::CommaToken, None);
+        if expression_precedence > comma_precedence {
+            expression.node_wrapper()
+        } else {
+            set_text_range(
+                &*Into::<Rc<Node>>::into(
+                    self.factory.create_parenthesized_expression(
+                        base_node_factory,
+                        expression.node_wrapper(),
+                    ),
+                ),
+                Some(expression),
+            )
+            .node_wrapper()
+        }
     }
 
     fn parenthesize_expression_of_expression_statement(
@@ -406,6 +424,55 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         base_node_factory: &TBaseNodeFactory,
         expression: &Node,
     ) -> Rc<Node> {
+        let emitted_expression = skip_partially_emitted_expressions(expression);
+        if is_call_expression(&emitted_expression) {
+            let emitted_expression_as_call_expression = emitted_expression.as_call_expression();
+            let callee = &emitted_expression_as_call_expression.expression;
+            let kind = skip_partially_emitted_expressions(callee).kind();
+            if matches!(
+                kind,
+                SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+            ) {
+                let updated = self.factory.update_call_expression(
+                    base_node_factory,
+                    &emitted_expression,
+                    set_text_range(
+                        &*Into::<Rc<Node>>::into(self.factory.create_parenthesized_expression(
+                            base_node_factory,
+                            callee.node_wrapper(),
+                        )),
+                        Some(&**callee),
+                    ),
+                    emitted_expression_as_call_expression
+                        .type_arguments
+                        .as_deref(),
+                    &emitted_expression_as_call_expression.arguments,
+                );
+                return self.factory.restore_outer_expressions(
+                    expression,
+                    updated,
+                    OuterExpressionKinds::PartiallyEmittedExpressions,
+                );
+            }
+        }
+
+        let leftmost_expression_kind = get_leftmost_expression(&emitted_expression, false).kind();
+        if matches!(
+            leftmost_expression_kind,
+            SyntaxKind::ObjectLiteralExpression | SyntaxKind::FunctionExpression
+        ) {
+            return set_text_range(
+                &*Into::<Rc<Node>>::into(
+                    self.factory.create_parenthesized_expression(
+                        base_node_factory,
+                        expression.node_wrapper(),
+                    ),
+                ),
+                Some(expression),
+            )
+            .node_wrapper();
+        }
+
         expression.node_wrapper()
     }
 

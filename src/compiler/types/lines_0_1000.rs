@@ -7,9 +7,9 @@ use std::rc::{Rc, Weak};
 
 use super::{
     ArrayBindingPattern, ArrayTypeNode, BinaryExpression, BindingElement, Block, CallExpression,
-    ConditionalExpression, Decorator, ElementAccessExpression, EnumMember, ExportAssignment,
-    Expression, ExpressionStatement, FunctionLikeDeclarationInterface, FunctionTypeNode,
-    HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
+    ConditionalExpression, Decorator, ElementAccessExpression, EmitNode, EnumMember,
+    ExportAssignment, Expression, ExpressionStatement, FunctionLikeDeclarationInterface,
+    FunctionTypeNode, HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
     Identifier, IfStatement, InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode,
     JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag,
@@ -610,12 +610,15 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
     fn maybe_original(&self) -> Option<Rc<Node>>;
+    fn set_original(&self, original: Option<Rc<Node>>);
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
     fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
     fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: Option<SymbolTable>);
+    fn maybe_emit_node(&self) -> RefMut<Option<Rc<EmitNode>>>;
+    fn set_emit_node(&self, emit_node: Option<Rc<EmitNode>>);
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Vec<Rc<Node /*JSDoc*/>>);
     fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
@@ -1059,6 +1062,7 @@ pub struct BaseNode {
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RefCell<Option<SymbolTable>>,
+    emit_node: RefCell<Option<Rc<EmitNode>>>,
     js_doc: RefCell<Option<Vec<Weak<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
 }
@@ -1086,6 +1090,7 @@ impl BaseNode {
             end: Cell::new(end),
             symbol: RefCell::new(None),
             locals: RefCell::new(None),
+            emit_node: RefCell::new(None),
             js_doc: RefCell::new(None),
             js_doc_cache: RefCell::new(None),
         }
@@ -1184,6 +1189,10 @@ impl NodeInterface for BaseNode {
             .map(|weak| weak.upgrade().unwrap())
     }
 
+    fn set_original(&self, original: Option<Rc<Node>>) {
+        *self.original.borrow_mut() = original.map(|rc| Rc::downgrade(&rc));
+    }
+
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         self.symbol
             .borrow()
@@ -1209,6 +1218,14 @@ impl NodeInterface for BaseNode {
 
     fn set_locals(&self, locals: Option<SymbolTable>) {
         *self.locals.borrow_mut() = locals;
+    }
+
+    fn maybe_emit_node(&self) -> RefMut<Option<Rc<EmitNode>>> {
+        self.emit_node.borrow_mut()
+    }
+
+    fn set_emit_node(&self, emit_node: Option<Rc<EmitNode>>) {
+        *self.emit_node.borrow_mut() = emit_node;
     }
 
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node>>> {

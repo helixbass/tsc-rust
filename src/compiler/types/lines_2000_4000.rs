@@ -1545,6 +1545,33 @@ impl TextRange for CommentRange {
     }
 }
 
+// TODO: should eg implement a CommentRangeInterface for CommentRange + SynthesizedComment?
+#[derive(Debug)]
+pub struct SynthesizedComment {
+    has_trailing_new_line: Option<bool>,
+    kind: CommentKind,
+    text: String,
+    has_leading_new_line: Option<bool>,
+}
+
+impl TextRange for SynthesizedComment {
+    fn pos(&self) -> isize {
+        -1
+    }
+
+    fn set_pos(&self, pos: isize) {
+        panic!("Shouldn't call set_pos() on a SynthesizedComment")
+    }
+
+    fn end(&self) -> isize {
+        -1
+    }
+
+    fn set_end(&self, end: isize) {
+        panic!("Shouldn't call set_end() on a SynthesizedComment")
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "TypeNode")]
 pub struct JSDocTypeExpression {

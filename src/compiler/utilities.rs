@@ -695,6 +695,13 @@ pub fn get_containing_function_or_class_static_block(
     })
 }
 
+pub fn is_super_property(node: &Node) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+    ) && node.as_has_expression().expression().kind() == SyntaxKind::SuperKeyword
+}
+
 pub fn is_variable_like(node: &Node) -> bool {
     /* if node {*/
     match node.kind() {

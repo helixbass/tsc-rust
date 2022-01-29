@@ -2,27 +2,31 @@
 
 use bitflags::bitflags;
 use std::borrow::Borrow;
-use std::cell::{Ref, RefCell};
+use std::cell::{Ref, RefCell, RefMut};
+use std::collections::HashMap;
+use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    create_base_node_factory, create_parenthesizer_rules, escape_leading_underscores,
-    is_named_declaration, is_omitted_expression, is_property_name, last_or_undefined,
-    null_parenthesizer_rules, pseudo_big_int_to_string, ArrayLiteralExpression, ArrayTypeNode,
-    BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
-    BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
-    BaseNodeFactory, BaseNodeFactoryConcrete, BaseSignatureDeclaration,
-    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block, Debug_, EmptyStatement,
-    Expression, ExpressionStatement, FunctionDeclaration, Identifier, IfStatement,
-    InterfaceDeclaration, IntersectionTypeNode, LiteralLikeNode, LiteralLikeNodeInterface,
-    LiteralTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    NumericLiteral, ObjectLiteralExpression, ParameterDeclaration, ParenthesizedExpression,
-    ParenthesizerRules, PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt,
-    ReadonlyTextRange, ReturnStatement, ShorthandPropertyAssignment, SourceFile, Statement,
-    StringLiteral, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode, TemplateSpan,
-    TokenFlags, TransformFlags, TypeAliasDeclaration, TypeLiteralNode, TypeNode,
-    TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
-    VariableDeclaration, VariableDeclarationList, VariableStatement,
+    add_range, append_if_unique, create_base_node_factory, create_parenthesizer_rules,
+    escape_leading_underscores, is_call_chain, is_import_keyword, is_named_declaration,
+    is_omitted_expression, is_property_name, is_super_property, last_or_undefined,
+    null_parenthesizer_rules, pseudo_big_int_to_string, set_text_range, ArrayLiteralExpression,
+    ArrayTypeNode, BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration,
+    BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode,
+    BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Block,
+    CallExpression, Debug_, EmitFlags, EmitNode, EmptyStatement, Expression, ExpressionStatement,
+    FunctionDeclaration, Identifier, IfStatement, InterfaceDeclaration, IntersectionTypeNode,
+    LiteralLikeNode, LiteralLikeNodeInterface, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, NumericLiteral, ObjectLiteralExpression,
+    ParameterDeclaration, ParenthesizedExpression, ParenthesizerRules, PrefixUnaryExpression,
+    PropertyAssignment, PropertySignature, PseudoBigInt, ReadonlyTextRange, ReturnStatement,
+    ShorthandPropertyAssignment, SourceFile, SourceMapRange, Statement, StringLiteral, SyntaxKind,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TokenFlags, TransformFlags,
+    TypeAliasDeclaration, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode,
+    TypeReferenceNode, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
+    VariableStatement,
 };
 
 bitflags! {
@@ -50,6 +54,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             },
         );
         factory_
+    }
+
+    fn update(&self, updated: Rc<Node>, original: &Node) -> Rc<Node> {
+        if self.flags.intersects(NodeFactoryFlags::NoOriginalNode) {
+            update_without_original(updated, original)
+        } else {
+            update_with_original(updated, original)
+        }
     }
 
     fn set_parenthesizer_rules(
@@ -578,6 +590,96 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn create_call_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+        type_arguments: Option<Vec<Rc<Node /*TypeNode*/>>>,
+        arguments_array: Vec<Rc<Node /*expression*/>>,
+    ) -> CallExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::CallExpression);
+        let node = CallExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_left_side_of_access(base_factory, &expression),
+            None,
+            self.as_node_array(type_arguments),
+            self.parenthesizer_rules()
+                .parenthesize_expressions_of_comma_delimited_list(
+                    base_factory,
+                    self.create_node_array(Some(arguments_array), None),
+                ),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_children_flags(Some(&node.arguments)),
+        );
+        if node.type_arguments.is_some() {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        if is_import_keyword(&node.expression) {
+            node.add_transform_flags(TransformFlags::ContainsDynamicImport);
+        } else if is_super_property(&node.expression) {
+            node.add_transform_flags(TransformFlags::ContainsLexicalThis);
+        }
+        node
+    }
+
+    pub fn update_call_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node,       /*CallExpression*/
+        expression: &Node, /*Expression*/
+        type_arguments: Option<&[Rc<Node /*TypeNode*/>]>,
+        arguments_array: &[Rc<Node /*expression*/>],
+    ) -> Rc<Node /*CallExpression*/> {
+        let node_as_call_expression = node.as_call_expression();
+        if is_call_chain(node) {
+            return self.update_call_chain(
+                node,
+                expression,
+                &node_as_call_expression.question_dot_token,
+                type_arguments,
+                arguments_array,
+            );
+        }
+        if !ptr::eq(&*node_as_call_expression.expression, expression)
+            || !match (
+                node_as_call_expression.type_arguments.as_ref(),
+                type_arguments,
+            ) {
+                (Some(node_type_arguments), Some(type_arguments)) => {
+                    node_type_arguments.len() == type_arguments.len()
+                        && node_type_arguments.iter().enumerate().all(
+                            |(index, node_type_argument)| {
+                                Rc::ptr_eq(node_type_argument, &type_arguments[index])
+                            },
+                        )
+                }
+                (None, None) => true,
+                _ => false,
+            }
+            || !(node_as_call_expression.arguments.len() == arguments_array.len()
+                && node_as_call_expression.arguments.iter().enumerate().all(
+                    |(index, node_argument)| Rc::ptr_eq(node_argument, &arguments_array[index]),
+                ))
+        {
+            self.update(
+                self.create_call_expression(
+                    base_factory,
+                    expression.node_wrapper(),
+                    type_arguments.map(|type_arguments| type_arguments.to_vec()),
+                    arguments_array.to_vec(),
+                )
+                .into(),
+                node,
+            )
+        } else {
+            node.node_wrapper()
+        }
+    }
+
     pub fn create_parenthesized_expression(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -928,6 +1030,21 @@ pub fn create_node_factory<TBaseNodeFactory: 'static + BaseNodeFactory>(
     NodeFactory::new(flags)
 }
 
+fn update_without_original(updated: Rc<Node>, original: &Node) -> Rc<Node> {
+    if !ptr::eq(&*updated, original) {
+        set_text_range(&*updated, Some(original));
+    }
+    updated
+}
+
+fn update_with_original(updated: Rc<Node>, original: &Node) -> Rc<Node> {
+    if !ptr::eq(&*updated, original) {
+        set_original_node(updated, Some(original.node_wrapper()));
+        set_text_range(&*updated, Some(original));
+    }
+    updated
+}
+
 fn propagate_property_name_flags_of_child(
     node: &Node, /*PropertyName*/
     transform_flags: TransformFlags,
@@ -948,6 +1065,12 @@ fn propagate_child_flags<TNode: Borrow<Node>>(child: Option<TNode>) -> Transform
     } else {
         child_flags
     }
+}
+
+fn propagate_children_flags(children: Option<&NodeArray>) -> TransformFlags {
+    children.map_or(TransformFlags::None, |children| {
+        children.transform_flags.unwrap()
+    })
 }
 
 fn aggregate_children_flags(children: &mut NodeArray) {
@@ -1092,4 +1215,101 @@ impl From<String> for PseudoBigIntOrString {
     fn from(string: String) -> Self {
         PseudoBigIntOrString::String(string)
     }
+}
+
+pub fn set_original_node(node: Rc<Node>, original: Option<Rc<Node>>) -> Rc<Node> {
+    node.set_original(original.clone());
+    if let Some(original) = original {
+        let emit_node = original.maybe_emit_node();
+        if let Some(emit_node) = emit_node.as_ref() {
+            let node_emit_node = node.maybe_emit_node();
+            if node_emit_node.is_none() {
+                *node_emit_node = Some(Default::default());
+            }
+            merge_emit_node(
+                emit_node,
+                &mut *RefMut::map(node_emit_node, |option| option.as_mut().unwrap()),
+            );
+            // node.set_emit_node(node_emit_node);
+        }
+    }
+    node
+}
+
+fn merge_emit_node(
+    source_emit_node: &EmitNode,
+    dest_emit_node: /*Option<*/ &mut EmitNode, /*>*/
+) /*-> EmitNode*/
+{
+    let flags = source_emit_node.flags.as_ref();
+    let leading_comments = source_emit_node.leading_comments.as_ref();
+    let trailing_comments = source_emit_node.trailing_comments.as_ref();
+    let comment_range = source_emit_node.comment_range.as_ref();
+    let source_map_range = source_emit_node.source_map_range.as_ref();
+    let token_source_map_ranges = source_emit_node.token_source_map_ranges.as_ref();
+    let constant_value = source_emit_node.constant_value.as_ref();
+    let helpers = source_emit_node.helpers.as_ref();
+    let starts_on_new_line = source_emit_node.starts_on_new_line.as_ref();
+    if let Some(leading_comments) = leading_comments {
+        let mut new_leading_comments = leading_comments.to_vec();
+        add_range(
+            &mut new_leading_comments,
+            dest_emit_node.leading_comments.as_deref(),
+            None,
+            None,
+        );
+        dest_emit_node.leading_comments = Some(new_leading_comments);
+    }
+    if let Some(trailing_comments) = trailing_comments {
+        let mut new_trailing_comments = trailing_comments.to_vec();
+        add_range(
+            &mut new_trailing_comments,
+            dest_emit_node.trailing_comments.as_deref(),
+            None,
+            None,
+        );
+        dest_emit_node.trailing_comments = Some(new_trailing_comments);
+    }
+    // TODO: should this technically also check "truthiness" of flags?
+    if let Some(flags) = flags {
+        dest_emit_node.flags = Some(*flags & !EmitFlags::Immutable);
+    }
+    if comment_range.is_some() {
+        dest_emit_node.comment_range = comment_range.map(Clone::clone);
+    }
+    if source_map_range.is_some() {
+        dest_emit_node.source_map_range = source_map_range.map(Clone::clone);
+    }
+    if let Some(token_source_map_ranges) = token_source_map_ranges {
+        dest_emit_node.token_source_map_ranges = Some(merge_token_source_map_ranges(
+            token_source_map_ranges,
+            dest_emit_node.token_source_map_ranges.as_ref(),
+        ));
+    }
+    if constant_value.is_some() {
+        dest_emit_node.constant_value = constant_value.map(Clone::clone);
+    }
+    if let Some(helpers) = helpers {
+        let mut dest_emit_node_helpers = dest_emit_node.helpers.clone();
+        for helper in helpers {
+            dest_emit_node_helpers = Some(append_if_unique(dest_emit_node_helpers, helper.clone()));
+        }
+        dest_emit_node.helpers = dest_emit_node_helpers;
+    }
+    if starts_on_new_line.is_some() {
+        dest_emit_node.starts_on_new_line = starts_on_new_line.map(Clone::clone);
+    }
+    // return destEmitNode
+}
+
+fn merge_token_source_map_ranges(
+    source_ranges: &HashMap<SyntaxKind, Option<Rc<SourceMapRange>>>,
+    dest_ranges: Option<&HashMap<SyntaxKind, Option<Rc<SourceMapRange>>>>,
+) -> HashMap<SyntaxKind, Option<Rc<SourceMapRange>>> {
+    let mut dest_ranges =
+        dest_ranges.map_or_else(|| HashMap::new(), |dest_ranges| dest_ranges.clone());
+    for (key, value) in source_ranges {
+        dest_ranges.insert(*key, value.clone());
+    }
+    dest_ranges
 }
