@@ -695,6 +695,13 @@ pub fn get_containing_function_or_class_static_block(
     })
 }
 
+pub fn is_super_property(node: &Node) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+    ) && node.as_has_expression().expression().kind() == SyntaxKind::SuperKeyword
+}
+
 pub fn is_variable_like(node: &Node) -> bool {
     /* if node {*/
     match node.kind() {
@@ -2183,6 +2190,55 @@ pub fn is_access_expression(node: &Node) -> bool {
     )
 }
 
+pub fn get_leftmost_expression(
+    node: &Node, /*Expression*/
+    stop_at_call_expressions: bool,
+) -> Rc<Node /*Expression*/> {
+    let mut node = node.node_wrapper();
+    loop {
+        match node.kind() {
+            SyntaxKind::PostfixUnaryExpression => {
+                node = node.as_postfix_unary_expression().operand.clone();
+                continue;
+            }
+
+            SyntaxKind::BinaryExpression => {
+                node = node.as_binary_expression().left.clone();
+                continue;
+            }
+
+            SyntaxKind::ConditionalExpression => {
+                node = node.as_conditional_expression().condition.clone();
+                continue;
+            }
+
+            SyntaxKind::TaggedTemplateExpression => {
+                node = node.as_tagged_template_expression().tag.clone();
+                continue;
+            }
+
+            SyntaxKind::CallExpression => {
+                if stop_at_call_expressions {
+                    return node;
+                }
+                node = node.as_has_expression().expression();
+                continue;
+            }
+            SyntaxKind::AsExpression
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::NonNullExpression
+            | SyntaxKind::PartiallyEmittedExpression => {
+                node = node.as_has_expression().expression();
+                continue;
+            }
+            _ => (),
+        }
+
+        return node;
+    }
+}
+
 #[allow(non_snake_case)]
 fn Symbol(flags: SymbolFlags, name: __String) -> BaseSymbol {
     BaseSymbol::new(flags, name)
@@ -2829,21 +2885,17 @@ pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
     )
 }
 
-fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &mut TRange, pos: isize) -> &mut TRange {
+fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize) -> &TRange {
     range.set_pos(pos);
     range
 }
 
-fn set_text_range_end<TRange: ReadonlyTextRange>(range: &mut TRange, end: isize) -> &mut TRange {
+fn set_text_range_end<TRange: ReadonlyTextRange>(range: &TRange, end: isize) -> &TRange {
     range.set_end(end);
     range
 }
 
-pub fn set_text_range_pos_end<TRange: ReadonlyTextRange>(
-    range: &mut TRange,
-    pos: isize,
-    end: isize,
-) {
+pub fn set_text_range_pos_end<TRange: ReadonlyTextRange>(range: &TRange, pos: isize, end: isize) {
     set_text_range_end(set_text_range_pos(range, pos), end);
 }
 

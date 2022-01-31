@@ -7,23 +7,23 @@ use std::rc::{Rc, Weak};
 
 use super::{
     ArrayBindingPattern, ArrayTypeNode, BinaryExpression, BindingElement, Block, CallExpression,
-    Decorator, ElementAccessExpression, EnumMember, ExportAssignment, Expression,
-    ExpressionStatement, FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
-    HasExpressionInterface, HasIsTypeOnlyInterface, HasQuestionDotTokenInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, IfStatement,
-    InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
-    JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocText,
-    JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement,
-    LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface, ModifiersArray,
-    ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral,
-    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, PrefixUnaryExpression,
-    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable, TemplateExpression,
-    TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode,
-    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
-    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression,
+    ConditionalExpression, Decorator, ElementAccessExpression, EmitNode, EnumMember,
+    ExportAssignment, Expression, ExpressionStatement, FunctionLikeDeclarationInterface,
+    FunctionTypeNode, HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
+    HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
+    Identifier, IfStatement, InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode,
+    JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag,
+    JSDocTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag,
+    JsxAttribute, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface,
+    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray,
+    NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration,
+    PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment,
+    PropertyDeclaration, PropertySignature, QualifiedName, ShorthandPropertyAssignment,
+    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
+    SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateSpan, TransformFlags,
+    TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
+    TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
+    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -610,12 +610,15 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn parent(&self) -> Rc<Node>;
     fn set_parent(&self, parent: Rc<Node>);
     fn maybe_original(&self) -> Option<Rc<Node>>;
+    fn set_original(&self, original: Option<Rc<Node>>);
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
     fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
     fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: Option<SymbolTable>);
+    fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>>;
+    fn set_emit_node(&self, emit_node: Option<EmitNode>);
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Vec<Rc<Node /*JSDoc*/>>);
     fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
@@ -1029,6 +1032,18 @@ impl Node {
     pub fn as_union_type_node(&self) -> &UnionTypeNode {
         enum_unwrapped!(self, [Node, TypeNode, UnionTypeNode])
     }
+
+    pub fn as_postfix_unary_expression(&self) -> &PostfixUnaryExpression {
+        enum_unwrapped!(self, [Node, Expression, PostfixUnaryExpression])
+    }
+
+    pub fn as_conditional_expression(&self) -> &ConditionalExpression {
+        enum_unwrapped!(self, [Node, Expression, ConditionalExpression])
+    }
+
+    pub fn as_tagged_template_expression(&self) -> &TaggedTemplateExpression {
+        enum_unwrapped!(self, [Node, Expression, TaggedTemplateExpression])
+    }
 }
 
 #[derive(Debug)]
@@ -1047,6 +1062,7 @@ pub struct BaseNode {
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RefCell<Option<SymbolTable>>,
+    emit_node: RefCell<Option<EmitNode>>,
     js_doc: RefCell<Option<Vec<Weak<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
 }
@@ -1074,6 +1090,7 @@ impl BaseNode {
             end: Cell::new(end),
             symbol: RefCell::new(None),
             locals: RefCell::new(None),
+            emit_node: RefCell::new(None),
             js_doc: RefCell::new(None),
             js_doc_cache: RefCell::new(None),
         }
@@ -1172,6 +1189,10 @@ impl NodeInterface for BaseNode {
             .map(|weak| weak.upgrade().unwrap())
     }
 
+    fn set_original(&self, original: Option<Rc<Node>>) {
+        *self.original.borrow_mut() = original.map(|rc| Rc::downgrade(&rc));
+    }
+
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
         self.symbol
             .borrow()
@@ -1197,6 +1218,14 @@ impl NodeInterface for BaseNode {
 
     fn set_locals(&self, locals: Option<SymbolTable>) {
         *self.locals.borrow_mut() = locals;
+    }
+
+    fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>> {
+        self.emit_node.borrow_mut()
+    }
+
+    fn set_emit_node(&self, emit_node: Option<EmitNode>) {
+        *self.emit_node.borrow_mut() = emit_node;
     }
 
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node>>> {

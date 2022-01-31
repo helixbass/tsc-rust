@@ -412,7 +412,7 @@ impl ParserType {
         &self,
         operator: SyntaxKind, /*SyntaxKind.BarToken | SyntaxKind.AmpersandToken*/
         parse_constituent_type: fn(&ParserType) -> TypeNode,
-        create_type_node: fn(&NodeFactory, &ParserType, NodeArray) -> TReturn,
+        create_type_node: fn(&NodeFactory<ParserType>, &ParserType, NodeArray) -> TReturn,
     ) -> TypeNode {
         let pos = self.get_node_pos();
         let is_union_type = operator == SyntaxKind::BarToken;

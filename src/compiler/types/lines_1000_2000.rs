@@ -1,29 +1,45 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::cell::Cell;
 use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
     ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseLiteralLikeNode,
-    BaseNode, BinaryExpression, CallExpression, ElementAccessExpression, HasExpressionInterface,
-    HasInitializerInterface, HasTypeInterface, JSDocTypeExpression, LiteralLikeNode, NewExpression,
-    Node, NodeInterface, NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression,
-    PropertyAccessExpression, SyntaxKind, TemplateExpression, TypeAssertion, VoidExpression,
-    __String,
+    BaseNode, BinaryExpression, CallExpression, ConditionalExpression, ElementAccessExpression,
+    HasExpressionInterface, HasInitializerInterface, HasTypeInterface, JSDocTypeExpression,
+    LiteralLikeNode, NewExpression, Node, NodeInterface, NonNullExpression,
+    ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression, ReadonlyTextRange,
+    SyntaxKind, TaggedTemplateExpression, TemplateExpression, TransformFlags, TypeAssertion,
+    VoidExpression, __String,
 };
 use local_macros::ast_type;
 
 #[derive(Clone, Debug)]
 pub struct NodeArray {
     _nodes: Vec<Rc<Node>>,
+    pos: Cell<isize>,
+    end: Cell<isize>,
+    pub has_trailing_comma: bool,
+    pub(crate) transform_flags: Option<TransformFlags>,
     pub is_missing_list: bool,
 }
 
 impl NodeArray {
-    pub fn new(nodes: Vec<Rc<Node>>) -> Self {
+    pub fn new(
+        nodes: Vec<Rc<Node>>,
+        pos: isize,
+        end: isize,
+        has_trailing_comma: bool,
+        transform_flags: Option<TransformFlags>,
+    ) -> Self {
         NodeArray {
             _nodes: nodes,
+            pos: Cell::new(pos),
+            end: Cell::new(end),
+            has_trailing_comma,
+            transform_flags,
             is_missing_list: false,
         }
     }
@@ -41,11 +57,29 @@ impl NodeArray {
     }
 }
 
-impl Default for NodeArray {
-    fn default() -> Self {
-        Self::new(vec![])
+impl ReadonlyTextRange for NodeArray {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
     }
 }
+
+// impl Default for NodeArray {
+//     fn default() -> Self {
+//         Self::new(vec![])
+//     }
+// }
 
 impl From<&NodeArray> for Vec<Rc<Node>> {
     fn from(node_array: &NodeArray) -> Self {
@@ -520,6 +554,7 @@ pub enum TypeNode {
     ArrayTypeNode(ArrayTypeNode),
     JSDocTypeExpression(JSDocTypeExpression),
     FunctionTypeNode(FunctionTypeNode),
+    ParenthesizedTypeNode(ParenthesizedTypeNode),
 }
 
 #[derive(Debug)]
@@ -696,6 +731,32 @@ impl UnionOrIntersectionTypeNodeInterface for IntersectionTypeNode {
 
 #[derive(Debug)]
 #[ast_type(ancestors = "TypeNode")]
+pub struct ParenthesizedTypeNode {
+    _node: BaseNode,
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl ParenthesizedTypeNode {
+    pub fn new(base_node: BaseNode, type_: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for ParenthesizedTypeNode {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = type_;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
 pub struct LiteralTypeNode {
     _node: BaseNode,
     pub literal: Rc<Node>, // TODO: should be weak?
@@ -751,6 +812,8 @@ pub enum Expression {
     VoidExpression(VoidExpression),
     NewExpression(NewExpression),
     PostfixUnaryExpression(PostfixUnaryExpression),
+    ConditionalExpression(ConditionalExpression),
+    TaggedTemplateExpression(TaggedTemplateExpression),
 }
 
 impl From<BaseNode> for Expression {

@@ -145,6 +145,10 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_original()
                     }
 
+                    fn set_original(&self, original: ::std::option::Option<::std::rc::Rc<crate::Node>>) {
+                        self.#first_field_name.set_original(original)
+                    }
+
                     fn maybe_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
                         self.#first_field_name.maybe_symbol()
                     }
@@ -167,6 +171,14 @@ fn get_ast_struct_interface_impl(
 
                     fn set_locals(&self, locals: ::std::option::Option<crate::SymbolTable>) {
                         self.#first_field_name.set_locals(locals)
+                    }
+
+                    fn maybe_emit_node(&self) -> ::std::cell::RefMut<::std::option::Option<crate::EmitNode>> {
+                        self.#first_field_name.maybe_emit_node()
+                    }
+
+                    fn set_emit_node(&self, emit_node: ::std::option::Option<crate::EmitNode>) {
+                        self.#first_field_name.set_emit_node(emit_node)
                     }
 
                     fn maybe_js_doc(&self) -> ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>> {
@@ -489,6 +501,12 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
+                    fn set_original(&self, original: ::std::option::Option<::std::rc::Rc<crate::Node>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_original(original)),*
+                        }
+                    }
+
                     fn maybe_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_symbol()),*
@@ -522,6 +540,18 @@ fn get_ast_enum_interface_impl(
                     fn set_locals(&self, locals: ::std::option::Option<crate::SymbolTable>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_locals(locals)),*
+                        }
+                    }
+
+                    fn maybe_emit_node(&self) -> ::std::cell::RefMut<::std::option::Option<crate::EmitNode>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_emit_node()),*
+                        }
+                    }
+
+                    fn set_emit_node(&self, emit_node: ::std::option::Option<crate::EmitNode>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_emit_node(emit_node)),*
                         }
                     }
 

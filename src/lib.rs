@@ -17,7 +17,7 @@ pub use compiler::core::{
     compare_strings_case_sensitive_maybe, compare_values, concatenate, contains, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, filter,
     find, first_defined, first_or_undefined, flat_map, for_each, get_string_comparer,
-    insert_sorted, last, last_or_undefined, length, map, maybe_for_each, range_equals,
+    insert_sorted, last, last_or_undefined, length, map, maybe_for_each, range_equals, same_map,
     set_ui_locale, some, sort_and_deduplicate, starts_with, string_contains, trim_string_start,
     GetCanonicalFileName,
 };
@@ -94,8 +94,11 @@ pub use compiler::factory::node_tests::{
 pub use compiler::factory::parenthesizer_rules::{
     create_parenthesizer_rules, null_parenthesizer_rules,
 };
-pub use compiler::factory::utilities::skip_outer_expressions;
-pub use compiler::parser::{create_source_file, for_each_child, MissingNode};
+pub use compiler::factory::utilities::{
+    is_comma_sequence, is_outer_expression, skip_outer_expressions,
+};
+pub use compiler::factory::utilities_public::set_text_range;
+pub use compiler::parser::{create_source_file, for_each_child, MissingNode, ParserType};
 pub use compiler::path::{
     alt_directory_separator, change_any_extension, combine_paths, compare_paths,
     compare_paths_case_insensitive, compare_paths_case_sensitive, contains_path,
@@ -144,10 +147,10 @@ pub use compiler::types::{
     CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType,
     CommandLineOptionOfCustomType, CommandLineOptionOfListType, CommandLineOptionOfNumberType,
     CommandLineOptionOfStringType, CommentDirective, CommentDirectiveType, CommentKind,
-    CommentRange, CompilerHost, CompilerOptions, CompilerOptionsValue, ContextFlags,
-    CreateProgramOptions, Decorator, Diagnostic, DiagnosticCategory, DiagnosticCollection,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    CommentRange, CompilerHost, CompilerOptions, CompilerOptionsValue, ConditionalExpression,
+    ContextFlags, CreateProgramOptions, Decorator, Diagnostic, DiagnosticCategory,
+    DiagnosticCollection, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, ElementAccessExpression, EmitFlags,
     EmitHint, EmitTextWriter, EmptyStatement, EnumMember, ExitStatus, ExportAssignment,
     ExportDeclaration, ExportSpecifier, Expression, ExpressionStatement, FreshableIntrinsicType,
@@ -171,27 +174,28 @@ pub use compiler::types::{
     NodeInterface, NodeLinks, NonNullExpression, NumberLiteralType, NumericLiteral,
     ObjectBindingPattern, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
     ObjectType, ObjectTypeInterface, OuterExpressionKinds, ParameterDeclaration,
-    ParenthesizedExpression, ParenthesizerRules, ParsedCommandLine, PartiallyEmittedExpression,
-    Path, PostfixUnaryExpression, PrefixUnaryExpression, Printer, PrinterOptions, Program,
-    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    PseudoBigInt, QualifiedName, ReadonlyTextRange, RelationComparisonResult,
+    ParenthesizedExpression, ParenthesizedTypeNode, ParenthesizerRules, ParsedCommandLine,
+    PartiallyEmittedExpression, Path, PostfixUnaryExpression, PrefixUnaryExpression, Printer,
+    PrinterOptions, Program, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
+    PropertySignature, PseudoBigInt, QualifiedName, ReadonlyTextRange, RelationComparisonResult,
     ResolvableTypeInterface, ResolvedTypeInterface, ReturnStatement, ScriptTarget,
     ShorthandPropertyAssignment, Signature, SignatureDeclarationBase,
     SignatureDeclarationInterface, SignatureFlags, SignatureKind, SourceFile, SourceFileLike,
-    SourceTextAsChars, Statement, StringLiteral, StringLiteralType, StringOrNodeArray,
-    StructureIsReused, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface,
-    SymbolLinks, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TemplateExpression,
-    TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface, TemplateSpan, Ternary,
-    TextChangeRange, TextRange, TextSpan, TokenFlags, TransformFlags, TransientSymbol,
-    TransientSymbolInterface, TsConfigOnlyOption, Type, TypeAliasDeclaration, TypeAssertion,
-    TypeChecker, TypeCheckerHost, TypeElement, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
-    TypeLiteralNode, TypeMapper, TypeNode, TypeParameter, TypeParameterDeclaration, TypePredicate,
-    TypePredicateNode, TypeReference, TypeReferenceNode, UnderscoreEscapedMap,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
-    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    SourceMapRange, SourceTextAsChars, Statement, StringLiteral, StringLiteralType,
+    StringOrNodeArray, StructureIsReused, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
+    SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind,
+    SynthesizedComment, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
+    TemplateLiteralLikeNodeInterface, TemplateSpan, Ternary, TextChangeRange, TextRange, TextSpan,
+    TokenFlags, TransformFlags, TransientSymbol, TransientSymbolInterface, TsConfigOnlyOption,
+    Type, TypeAliasDeclaration, TypeAssertion, TypeChecker, TypeCheckerHost, TypeElement,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper, TypeNode,
+    TypeParameter, TypeParameterDeclaration, TypePredicate, TypePredicateNode, TypeReference,
+    TypeReferenceNode, UnderscoreEscapedMap, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, UnionReduction, UnionType, UnionTypeNode,
+    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
     VariableStatement, VoidExpression, __String,
 };
-use compiler::types::{CommandLineOptionType, StringOrDiagnosticMessage};
+use compiler::types::{CommandLineOptionType, EmitNode, StringOrDiagnosticMessage};
 use compiler::utilities::set_localized_diagnostic_messages;
 pub use compiler::utilities::{
     attach_file_to_diagnostics, chain_diagnostic_messages, compare_diagnostics,
@@ -206,17 +210,18 @@ pub use compiler::utilities::{
     get_emit_script_target, get_escaped_text_of_identifier_or_literal,
     get_expression_associativity, get_expression_precedence, get_first_identifier, get_full_width,
     get_function_flags, get_jsdoc_comments_and_tags, get_jsdoc_type_parameter_declarations,
-    get_literal_text, get_object_flags, get_operator_associativity, get_operator_precedence,
-    get_source_file_of_node, get_syntactic_modifier_flags, has_dynamic_name,
-    has_syntactic_modifier, is_access_expression, is_ambient_module, is_any_import_or_re_export,
-    is_bindable_static_element_access_expression, is_block_or_catch_scoped,
-    is_external_or_common_js_module, is_function_block, is_function_expression_or_arrow_function,
-    is_import_call, is_in_js_file, is_jsdoc_type_alias, is_keyword, is_object_literal_method,
-    is_property_name_literal, is_type_alias, is_type_node_kind, is_write_only_access,
-    modifier_to_flag, modifiers_to_flags, node_is_missing, object_allocator, parse_pseudo_big_int,
-    position_is_synthesized, pseudo_big_int_to_string, set_parent, set_text_range_pos_end,
-    set_value_declaration, using_single_line_string_writer, Associativity, FunctionFlags,
-    GetLiteralTextFlags, OperatorPrecedence,
+    get_leftmost_expression, get_literal_text, get_object_flags, get_operator_associativity,
+    get_operator_precedence, get_source_file_of_node, get_syntactic_modifier_flags,
+    has_dynamic_name, has_syntactic_modifier, is_access_expression, is_ambient_module,
+    is_any_import_or_re_export, is_bindable_static_element_access_expression,
+    is_block_or_catch_scoped, is_external_or_common_js_module, is_function_block,
+    is_function_expression_or_arrow_function, is_import_call, is_in_js_file, is_jsdoc_type_alias,
+    is_keyword, is_object_literal_method, is_property_name_literal, is_super_property,
+    is_type_alias, is_type_node_kind, is_write_only_access, modifier_to_flag, modifiers_to_flags,
+    node_is_missing, object_allocator, parse_pseudo_big_int, position_is_synthesized,
+    pseudo_big_int_to_string, set_parent, set_text_range_pos_end, set_value_declaration,
+    using_single_line_string_writer, Associativity, FunctionFlags, GetLiteralTextFlags,
+    OperatorPrecedence,
 };
 pub use compiler::utilities_public::{
     collapse_text_change_ranges_across_multiple_versions, create_text_change_range,

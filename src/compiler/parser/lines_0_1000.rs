@@ -107,7 +107,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub static parse_node_factory: Rc<NodeFactory> = create_node_factory(
+    pub static parse_node_factory: Rc<NodeFactory<ParserType>> = create_node_factory::<ParserType>(
         NodeFactoryFlags::NoParenthesizerRules,
         /*parse_base_node_factory.with(|_parse_base_node_factory| _parse_base_node_factory)*/
     );
@@ -421,14 +421,14 @@ pub enum MissingNode {
 }
 
 #[allow(non_snake_case)]
-pub(super) struct ParserType {
+pub struct ParserType {
     pub(super) scanner: RefCell<Scanner>,
     pub(super) NodeConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) IdentifierConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) PrivateIdentifierConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) TokenConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) SourceFileConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
-    pub(super) factory: Rc<NodeFactory>,
+    pub(super) factory: Rc<NodeFactory<ParserType>>,
     pub(super) file_name: Option<String>,
     pub(super) source_text: Option<String>,
     pub(super) parse_diagnostics:
