@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::{
-    is_block, set_text_range, BaseNodeFactory, Node, NodeConverters, NodeFactory, NodeInterface,
+    get_starts_on_new_line, is_block, set_original_node, set_starts_on_new_line, set_text_range,
+    BaseNodeFactory, Debug_, FunctionLikeDeclarationInterface, HasTypeInterface,
+    HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeConverters, NodeFactory,
+    NodeInterface, SignatureDeclarationInterface,
 };
 
 pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -50,7 +53,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         base_factory: &TBaseNodeFactory,
         node: &Node, /*FunctionDeclaration*/
     ) -> Rc<Node /*FunctionExpression*/> {
-        unimplemented!()
+        let node_as_function_declaration = node.as_function_declaration();
+        if node_as_function_declaration.maybe_body().is_none() {
+            Debug_.fail(Some("Cannot convert a FunctionDeclaration without a body"));
+        }
+        let updated: Rc<Node> = self
+            .factory
+            .create_function_expression(
+                base_factory,
+                node_as_function_declaration
+                    .maybe_modifiers()
+                    .map(Clone::clone),
+                node_as_function_declaration.maybe_asterisk_token(),
+                node_as_function_declaration.maybe_name(),
+                node_as_function_declaration
+                    .maybe_type_parameters()
+                    .map(Clone::clone),
+                node_as_function_declaration.parameters().clone(),
+                node_as_function_declaration.maybe_type(),
+                node_as_function_declaration.maybe_body(),
+            )
+            .into();
+        set_original_node(updated.clone(), Some(node.node_wrapper()));
+        let updated = set_text_range(&*updated, Some(node)).node_wrapper();
+        if get_starts_on_new_line(node) {
+            set_starts_on_new_line(&updated, true);
+        }
+        updated
     }
 
     fn convert_to_array_assignment_element(

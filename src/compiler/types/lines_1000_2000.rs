@@ -8,8 +8,8 @@ use std::rc::Rc;
 use super::{
     ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseLiteralLikeNode,
     BaseNode, BinaryExpression, CallExpression, ConditionalExpression, ElementAccessExpression,
-    HasExpressionInterface, HasInitializerInterface, HasTypeInterface, JSDocTypeExpression,
-    LiteralLikeNode, NewExpression, Node, NodeInterface, NonNullExpression,
+    FunctionExpression, HasExpressionInterface, HasInitializerInterface, HasTypeInterface,
+    JSDocTypeExpression, LiteralLikeNode, NewExpression, Node, NodeInterface, NonNullExpression,
     ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression, ReadonlyTextRange,
     SyntaxKind, TaggedTemplateExpression, TemplateExpression, TransformFlags, TypeAssertion,
     VoidExpression, __String,
@@ -814,6 +814,7 @@ pub enum Expression {
     PostfixUnaryExpression(PostfixUnaryExpression),
     ConditionalExpression(ConditionalExpression),
     TaggedTemplateExpression(TaggedTemplateExpression),
+    FunctionExpression(FunctionExpression),
 }
 
 impl From<BaseNode> for Expression {

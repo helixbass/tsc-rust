@@ -8,19 +8,20 @@ use std::rc::{Rc, Weak};
 use super::{
     ArrayBindingPattern, ArrayTypeNode, BinaryExpression, BindingElement, Block, CallExpression,
     ConditionalExpression, Decorator, ElementAccessExpression, EmitNode, EnumMember,
-    ExportAssignment, Expression, ExpressionStatement, FunctionLikeDeclarationInterface,
-    FunctionTypeNode, HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
-    HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
-    Identifier, IfStatement, InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode,
-    JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag,
-    JSDocTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag,
-    JsxAttribute, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface,
-    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray,
-    NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration,
-    PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment,
-    PropertyDeclaration, PropertySignature, QualifiedName, ShorthandPropertyAssignment,
-    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, Statement, Symbol,
-    SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateSpan, TransformFlags,
+    ExportAssignment, Expression, ExpressionStatement, FunctionDeclaration,
+    FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
+    HasExpressionInterface, HasIsTypeOnlyInterface, HasQuestionDotTokenInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, IfStatement,
+    InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
+    JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocText,
+    JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement,
+    LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface, ModifiersArray,
+    ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral,
+    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, PostfixUnaryExpression,
+    PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
+    PropertySignature, QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
+    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable,
+    TaggedTemplateExpression, TemplateExpression, TemplateSpan, TransformFlags,
     TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
     TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
     VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
@@ -1043,6 +1044,10 @@ impl Node {
 
     pub fn as_tagged_template_expression(&self) -> &TaggedTemplateExpression {
         enum_unwrapped!(self, [Node, Expression, TaggedTemplateExpression])
+    }
+
+    pub fn as_function_declaration(&self) -> &FunctionDeclaration {
+        enum_unwrapped!(self, [Node, Statement, FunctionDeclaration])
     }
 }
 

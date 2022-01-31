@@ -5,9 +5,9 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
-    BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseTextRange,
-    BaseVariableLikeDeclaration, BindingLikeDeclarationInterface, Diagnostic, FunctionDeclaration,
-    HasInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseNamedDeclaration, BaseNode,
+    BaseTextRange, BaseVariableLikeDeclaration, BindingLikeDeclarationInterface, Diagnostic,
+    FunctionDeclaration, HasInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Path, StringLiteral, Symbol,
     SyntaxKind, TextRange, TypeCheckerHost, VariableLikeDeclarationInterface,
 };
@@ -75,6 +75,23 @@ impl ConditionalExpression {
             when_true,
             colon_token,
             when_false,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "Expression",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct FunctionExpression {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+}
+
+impl FunctionExpression {
+    pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
         }
     }
 }

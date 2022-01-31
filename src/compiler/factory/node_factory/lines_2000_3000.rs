@@ -7,10 +7,10 @@ use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     is_call_chain, is_import_keyword, is_omitted_expression, is_super_property, last_or_undefined,
     ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
-    CallExpression, Debug_, LiteralTypeNode, Node, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
-    PrefixUnaryExpression, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode, TokenFlags,
-    TransformFlags,
+    CallExpression, Debug_, FunctionExpression, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
+    ParenthesizedTypeNode, PrefixUnaryExpression, SyntaxKind, TemplateExpression,
+    TemplateLiteralLikeNode, TokenFlags, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -277,6 +277,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_expression(base_factory, SyntaxKind::ParenthesizedExpression);
         let node = ParenthesizedExpression::new(node, expression);
         node
+    }
+
+    pub fn create_function_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        modifiers: Option<NodeArray>,
+        asterisk_token: Option<Rc<Node>>,
+        name: Option<Rc<Node>>,
+        type_parameters: Option<NodeArray>,
+        parameters: NodeArray,
+        type_: Option<Rc<Node>>,
+        body: Option<Rc<Node>>,
+    ) -> FunctionExpression {
+        let mut node = self.create_base_function_like_declaration(
+            base_factory,
+            SyntaxKind::FunctionExpression,
+            None,
+            modifiers,
+            name,
+            type_parameters,
+            Some(parameters),
+            type_,
+            body,
+        );
+        node.asterisk_token = asterisk_token;
+        FunctionExpression::new(node)
     }
 
     pub fn create_prefix_unary_expression(
