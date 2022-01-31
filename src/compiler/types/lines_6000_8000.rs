@@ -1171,7 +1171,52 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory> {
     ) -> Option<NodeArray /*<TypeNode>*/>;
 }
 
+pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory> {
+    fn convert_to_function_block(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ConciseBody*/
+        multi_line: Option<bool>,
+    ) -> Rc<Node /*Block*/>;
+    fn convert_to_function_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*FunctionDeclaration*/
+    ) -> Rc<Node /*FunctionExpression*/>;
+    fn convert_to_array_assignment_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        element: &Node, /*ArrayBindingOrAssignmentElement*/
+    ) -> Rc<Node /*Expression*/>;
+    fn convert_to_object_assigment_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        element: &Node, /*ObjectBindingOrAssignmentElement*/
+    ) -> Rc<Node /*ObjectLiteralElementLike*/>;
+    fn convert_to_assignment_pattern(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*BindingOrAssignmentPattern*/
+    ) -> Rc<Node /*AssignmentPattern*/>;
+    fn convert_to_object_assignment_pattern(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ObjectBindingOrAssignmentPattern*/
+    ) -> Rc<Node /*ObjectLiteralExpression*/>;
+    fn convert_to_array_assignment_pattern(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ArrayBindingOrAssignmentPattern*/
+    ) -> Rc<Node /*ArrayLiteralExpression*/>;
+    fn convert_to_assignment_element_target(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*BindingOrAssignmentElementTarget*/
+    ) -> Rc<Node /*Expression*/>;
+}
+
 pub struct NodeFactory<TBaseNodeFactory> {
     pub flags: NodeFactoryFlags,
     pub parenthesizer_rules: RefCell<Option<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>>,
+    pub converters: RefCell<Option<Box<dyn NodeConverters<TBaseNodeFactory>>>>,
 }
