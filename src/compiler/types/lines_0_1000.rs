@@ -1049,6 +1049,10 @@ impl Node {
     pub fn as_function_declaration(&self) -> &FunctionDeclaration {
         enum_unwrapped!(self, [Node, Statement, FunctionDeclaration])
     }
+
+    pub fn as_binding_element(&self) -> &BindingElement {
+        enum_unwrapped!(self, [Node, BindingElement])
+    }
 }
 
 #[derive(Debug)]

@@ -11,8 +11,8 @@ use super::{
     FunctionExpression, HasExpressionInterface, HasInitializerInterface, HasTypeInterface,
     JSDocTypeExpression, LiteralLikeNode, NewExpression, Node, NodeInterface, NonNullExpression,
     ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression, ReadonlyTextRange,
-    SyntaxKind, TaggedTemplateExpression, TemplateExpression, TransformFlags, TypeAssertion,
-    VoidExpression, __String,
+    SpreadElement, SyntaxKind, TaggedTemplateExpression, TemplateExpression, TransformFlags,
+    TypeAssertion, VoidExpression, __String,
 };
 use local_macros::ast_type;
 
@@ -815,6 +815,7 @@ pub enum Expression {
     ConditionalExpression(ConditionalExpression),
     TaggedTemplateExpression(TaggedTemplateExpression),
     FunctionExpression(FunctionExpression),
+    SpreadElement(SpreadElement),
 }
 
 impl From<BaseNode> for Expression {

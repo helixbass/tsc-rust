@@ -9,7 +9,7 @@ use crate::{
     ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
     CallExpression, Debug_, FunctionExpression, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
-    ParenthesizedTypeNode, PrefixUnaryExpression, SyntaxKind, TemplateExpression,
+    ParenthesizedTypeNode, PrefixUnaryExpression, SpreadElement, SyntaxKind, TemplateExpression,
     TemplateLiteralLikeNode, TokenFlags, TransformFlags,
 };
 
@@ -358,6 +358,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node,
             raw_text,
             Some(template_flags & TokenFlags::TemplateLiteralLikeFlags),
+        );
+        node
+    }
+
+    pub fn create_spread_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> SpreadElement {
+        let node = self.create_base_expression(base_factory, SyntaxKind::SpreadElement);
+        let mut node = SpreadElement::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expression_for_disallowed_comma(base_factory, &expression),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | TransformFlags::ContainsES2015
+                | TransformFlags::ContainsRestOrSpread,
         );
         node
     }

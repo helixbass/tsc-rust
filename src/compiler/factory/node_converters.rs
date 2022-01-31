@@ -2,8 +2,9 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::{
-    get_starts_on_new_line, is_block, set_original_node, set_starts_on_new_line, set_text_range,
-    BaseNodeFactory, Debug_, FunctionLikeDeclarationInterface, HasTypeInterface,
+    cast, get_starts_on_new_line, is_binding_element, is_block, is_expression, is_identifier,
+    set_original_node, set_starts_on_new_line, set_text_range, BaseNodeFactory, Debug_,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
     HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeConverters, NodeFactory,
     NodeInterface, SignatureDeclarationInterface,
 };
@@ -87,7 +88,42 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ArrayBindingOrAssignmentElement*/
     ) -> Rc<Node /*Expression*/> {
-        unimplemented!()
+        if is_binding_element(element) {
+            let element_as_binding_element = element.as_binding_element();
+            if element_as_binding_element.dot_dot_dot_token.is_some() {
+                Debug_.assert_node(
+                    Some(element_as_binding_element.name()),
+                    Some(is_identifier),
+                    None,
+                );
+                let ret = self
+                    .factory
+                    .create_spread_element(base_factory, element_as_binding_element.name());
+                let ret =
+                    set_text_range(&*Into::<Rc<Node>>::into(ret), Some(element)).node_wrapper();
+                set_original_node(ret.clone(), Some(element.node_wrapper()));
+                return ret;
+            }
+            let expression = self.convert_to_assignment_element_target(
+                base_factory,
+                &element_as_binding_element.name(),
+            );
+            return match element_as_binding_element.maybe_initializer() {
+                Some(element_initializer) => {
+                    let ret = self.factory.create_assignment(
+                        base_factory,
+                        expression,
+                        element_initializer,
+                    );
+                    let ret =
+                        set_text_range(&*Into::<Rc<Node>>::into(ret), Some(element)).node_wrapper();
+                    set_original_node(ret.clone(), Some(element.node_wrapper()));
+                    return ret;
+                }
+                None => expression,
+            };
+        }
+        cast(Some(element), is_expression).node_wrapper()
     }
 
     fn convert_to_object_assigment_element(

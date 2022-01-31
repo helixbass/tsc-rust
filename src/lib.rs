@@ -12,14 +12,14 @@ use compiler::command_line_parser::{
 };
 pub use compiler::command_line_parser::{parse_command_line, OptionsNameMap};
 pub use compiler::core::{
-    add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key,
+    add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key, cast,
     compare_strings_case_insensitive, compare_strings_case_sensitive,
     compare_strings_case_sensitive_maybe, compare_values, concatenate, contains, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, filter,
     find, first_defined, first_or_undefined, flat_map, for_each, get_string_comparer,
     insert_sorted, last, last_or_undefined, length, map, maybe_for_each, range_equals, same_map,
     set_ui_locale, some, sort_and_deduplicate, starts_with, string_contains, trim_string_start,
-    GetCanonicalFileName,
+    AssertionLevel, GetCanonicalFileName,
 };
 pub use compiler::core_public::{Comparer, Comparison, MapLike, Push, SortedArray};
 pub use compiler::debug::Debug_;
@@ -185,7 +185,7 @@ pub use compiler::types::{
     ResolvableTypeInterface, ResolvedTypeInterface, ReturnStatement, ScriptTarget,
     ShorthandPropertyAssignment, Signature, SignatureDeclarationBase,
     SignatureDeclarationInterface, SignatureFlags, SignatureKind, SourceFile, SourceFileLike,
-    SourceMapRange, SourceTextAsChars, Statement, StringLiteral, StringLiteralType,
+    SourceMapRange, SourceTextAsChars, SpreadElement, Statement, StringLiteral, StringLiteralType,
     StringOrNodeArray, StructureIsReused, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
     SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind,
     SynthesizedComment, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,

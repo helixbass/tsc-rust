@@ -353,6 +353,28 @@ impl ArrayLiteralExpression {
 
 #[derive(Debug)]
 #[ast_type(ancestors = "Expression")]
+pub struct SpreadElement {
+    _node: BaseNode,
+    pub expression: Rc<Node /*<Expression>*/>,
+}
+
+impl SpreadElement {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for SpreadElement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
 pub struct ObjectLiteralExpression {
     _node: BaseNode,
     pub properties: NodeArray, /*<ObjectLiteralElementLike>*/
