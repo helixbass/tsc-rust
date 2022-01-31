@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use crate::{BaseNodeFactory, Node, NodeConverters, NodeFactory};
+use crate::{
+    is_block, set_text_range, BaseNodeFactory, Node, NodeConverters, NodeFactory, NodeInterface,
+};
 
 pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory>(
     factory: Rc<NodeFactory<TBaseNodeFactory>>,
@@ -28,7 +30,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         node: &Node, /*ConciseBody*/
         multi_line: Option<bool>,
     ) -> Rc<Node /*Block*/> {
-        unimplemented!()
+        if is_block(node) {
+            return node.node_wrapper();
+        }
+        let return_statement = self
+            .factory
+            .create_return_statement(base_factory, Some(node.node_wrapper()));
+        let return_statement =
+            set_text_range(&*Into::<Rc<Node>>::into(return_statement), Some(node)).node_wrapper();
+        let body = self
+            .factory
+            .create_block(base_factory, vec![return_statement], multi_line);
+        let body = set_text_range(&*Into::<Rc<Node>>::into(body), Some(node)).node_wrapper();
+        body
     }
 
     fn convert_to_function_expression(
