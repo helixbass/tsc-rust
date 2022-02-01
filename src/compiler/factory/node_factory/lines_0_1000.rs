@@ -15,10 +15,11 @@ use crate::{
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
-    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Debug_, Identifier,
-    LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters,
-    NodeFactory, NodeInterface, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
-    PrefixUnaryExpression, ReadonlyTextRange, StringLiteral, SyntaxKind, TokenFlags,
+    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Debug_,
+    HasTypeParametersInterface, Identifier, LiteralLikeNode, LiteralLikeNodeInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, NumericLiteral,
+    ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, ReadonlyTextRange,
+    StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
 };
 
 thread_local! {
@@ -752,18 +753,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub(crate) fn create_base_generic_named_declaration<TTypeParameters: Into<NodeArrayOrVec>>(
+    pub(crate) fn create_base_generic_named_declaration<
+        TName: Into<StringOrRcNode>,
+        TTypeParameters: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-        name: Option<Rc<Node>>,
+        name: Option<TName>,
         type_parameters: Option<TTypeParameters>,
     ) -> BaseGenericNamedDeclaration {
         let node =
             self.create_base_named_declaration(base_factory, kind, decorators, modifiers, name);
-        let node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
+        let mut node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
+        node.add_transform_flags(propagate_children_flags(node.maybe_type_parameters()));
+        if node.maybe_type_parameters().is_some() {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
         node
     }
 
