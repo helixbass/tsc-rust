@@ -925,13 +925,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub(crate) fn create_base_variable_like_declaration(
+    pub(crate) fn create_base_variable_like_declaration<TName: Into<StringOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-        name: Option<Rc<Node>>,
+        name: Option<TName>,
         type_: Option<Rc<Node>>,
         initializer: Option<Rc<Node>>,
     ) -> BaseVariableLikeDeclaration {
@@ -943,7 +943,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             name,
             initializer,
         );
-        BaseVariableLikeDeclaration::new(node, type_)
+        let type_is_some = type_.is_some();
+        let mut node = BaseVariableLikeDeclaration::new(node, type_);
+        node.add_transform_flags(propagate_child_flags(node.maybe_type()));
+        if type_is_some {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        node
     }
 
     pub(crate) fn create_base_literal(
