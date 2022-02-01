@@ -6,7 +6,7 @@ use crate::{
     is_object_literal_element_like, set_original_node, set_starts_on_new_line, set_text_range,
     BaseNodeFactory, Debug_, FunctionLikeDeclarationInterface, HasInitializerInterface,
     HasTypeInterface, HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeConverters,
-    NodeFactory, NodeInterface, SignatureDeclarationInterface,
+    NodeFactory, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
 };
 
 pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -193,7 +193,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentPattern*/
     ) -> Rc<Node /*AssignmentPattern*/> {
-        unimplemented!()
+        match node.kind() {
+            SyntaxKind::ArrayBindingPattern | SyntaxKind::ArrayLiteralExpression => {
+                self.convert_to_array_assignment_pattern(base_factory, node)
+            }
+            SyntaxKind::ObjectBindingPattern | SyntaxKind::ObjectLiteralExpression => {
+                self.convert_to_object_assignment_pattern(base_factory, node)
+            }
+            _ => panic!("Unexpected kind"),
+        }
     }
 
     fn convert_to_object_assignment_pattern(
