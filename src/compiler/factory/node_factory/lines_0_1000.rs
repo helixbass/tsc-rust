@@ -12,10 +12,10 @@ use crate::{
     null_node_converters, null_parenthesizer_rules, pseudo_big_int_to_string,
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
-    BaseNodeFactory, BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral, Debug_,
-    Identifier, LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeConverters, NodeFactory, NodeInterface, NumericLiteral, ParenthesizerRules,
-    ReadonlyTextRange, StringLiteral, SyntaxKind, TokenFlags,
+    BaseNodeFactory, BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral,
+    BinaryExpression, Debug_, Identifier, LiteralLikeNode, LiteralLikeNodeInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, NumericLiteral,
+    ParenthesizerRules, ReadonlyTextRange, StringLiteral, SyntaxKind, TokenFlags,
 };
 
 thread_local! {
@@ -104,6 +104,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
 
     pub(crate) fn converters(&self) -> Ref<Box<dyn NodeConverters<TBaseNodeFactory>>> {
         Ref::map(self.converters.borrow(), |option| option.as_ref().unwrap())
+    }
+
+    pub fn create_assignment(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::EqualsToken, right)
     }
 
     pub fn create_node_array<TElements: Into<NodeArrayOrVec>>(

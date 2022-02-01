@@ -9,8 +9,8 @@ use crate::{
     ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
     CallExpression, Debug_, FunctionExpression, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
-    ParenthesizedTypeNode, PrefixUnaryExpression, SpreadElement, SyntaxKind, TemplateExpression,
-    TemplateLiteralLikeNode, TokenFlags, TransformFlags,
+    ParenthesizedTypeNode, PrefixUnaryExpression, SpreadElement, SyntaxKind, SyntaxKindOrRcNode,
+    TemplateExpression, TemplateLiteralLikeNode, TokenFlags, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -316,15 +316,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_binary_expression(
+    pub fn create_binary_expression<TOperator: Into<SyntaxKindOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
         left: Rc<Node /*Expression*/>,
-        operator: Rc<Node>,
+        operator: TOperator,
         right: Rc<Node /*Expression*/>,
     ) -> BinaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::BinaryExpression);
-        let node = BinaryExpression::new(node, left, operator, right);
+        let operator_token = self.as_token(base_factory, operator.into());
+        let operator_kind = operator_token.kind();
+        let node = BinaryExpression::new(node, left, operator_token, right);
         node
     }
 

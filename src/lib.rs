@@ -32,7 +32,7 @@ use compiler::factory::emit_node::{get_starts_on_new_line, set_starts_on_new_lin
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{
     create_node_factory, factory, set_original_node, synthetic_factory, BaseNodeFactorySynthetic,
-    NodeFactoryFlags,
+    NodeFactoryFlags, SyntaxKindOrRcNode,
 };
 pub use compiler::factory::node_tests::{
     is_abstract_modifier, is_array_binding_pattern, is_array_literal_expression,

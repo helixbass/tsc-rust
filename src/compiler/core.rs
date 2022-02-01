@@ -508,13 +508,9 @@ fn binary_search_key_copy_key<
     !low
 }
 
-pub fn cast<'value, TIn, TInRef: Borrow<TIn> + 'value, TTest: FnOnce(&TIn) -> bool>(
-    value: Option<TInRef>,
-    test: TTest,
-) -> &'value TIn {
+pub fn cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: Option<TIn>, test: TTest) -> TIn {
     if let Some(value) = value {
-        let value = value.borrow();
-        if test(value) {
+        if test(&value) {
             return value;
         }
     }

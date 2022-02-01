@@ -123,7 +123,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 None => expression,
             };
         }
-        cast(Some(element), is_expression).node_wrapper()
+        cast(Some(element), |element| is_expression(element)).node_wrapper()
     }
 
     fn convert_to_object_assigment_element(

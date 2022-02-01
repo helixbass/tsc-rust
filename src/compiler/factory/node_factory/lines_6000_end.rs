@@ -26,12 +26,40 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name
     }
 
+    pub(super) fn as_token(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        value: SyntaxKindOrRcNode,
+    ) -> Rc<Node> {
+        match value {
+            SyntaxKindOrRcNode::SyntaxKind(value) => self.create_token(base_factory, value).into(),
+            SyntaxKindOrRcNode::RcNode(value) => value,
+        }
+    }
+
     pub(super) fn as_embedded_statement(&self, statement: Option<Rc<Node>>) -> Option<Rc<Node>> {
         if false {
             unimplemented!()
         } else {
             statement
         }
+    }
+}
+
+pub enum SyntaxKindOrRcNode {
+    SyntaxKind(SyntaxKind),
+    RcNode(Rc<Node>),
+}
+
+impl From<SyntaxKind> for SyntaxKindOrRcNode {
+    fn from(value: SyntaxKind) -> Self {
+        Self::SyntaxKind(value)
+    }
+}
+
+impl From<Rc<Node>> for SyntaxKindOrRcNode {
+    fn from(value: Rc<Node>) -> Self {
+        Self::RcNode(value)
     }
 }
 
