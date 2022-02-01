@@ -1242,6 +1242,38 @@ impl InterfaceOrClassLikeDeclarationInterface for BaseInterfaceOrClassLikeDeclar
     }
 }
 
+pub trait ClassLikeDeclarationInterface {
+    fn members(&self) -> &NodeArray;
+}
+
+#[derive(Debug)]
+#[ast_type(
+    impl_from = false,
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface"
+)]
+pub struct ClassLikeDeclarationBase {
+    _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration,
+    members: NodeArray, /*<ClassElement>*/
+}
+
+impl ClassLikeDeclarationBase {
+    pub fn new(
+        base_interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration,
+        members: NodeArray,
+    ) -> Self {
+        Self {
+            _interface_or_class_like_declaration: base_interface_or_class_like_declaration,
+            members,
+        }
+    }
+}
+
+impl ClassLikeDeclarationInterface for ClassLikeDeclarationBase {
+    fn members(&self) -> &NodeArray {
+        &self.members
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(
     ancestors = "Statement",

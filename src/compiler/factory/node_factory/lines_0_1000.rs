@@ -15,12 +15,13 @@ use crate::{
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
-    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Debug_,
-    FunctionLikeDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceOrClassLikeDeclarationInterface, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, NumericLiteral,
-    ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, ReadonlyTextRange,
-    SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
+    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, ClassLikeDeclarationBase,
+    ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface, HasTypeInterface,
+    HasTypeParametersInterface, Identifier, InterfaceOrClassLikeDeclarationInterface,
+    LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters,
+    NodeFactory, NodeInterface, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
+    PrefixUnaryExpression, ReadonlyTextRange, SignatureDeclarationInterface, StringLiteral,
+    SyntaxKind, TokenFlags, TransformFlags,
 };
 
 thread_local! {
@@ -874,6 +875,37 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node =
             BaseInterfaceOrClassLikeDeclaration::new(node, self.as_node_array(heritage_clauses));
         node.add_transform_flags(propagate_children_flags(node.maybe_heritage_clauses()));
+        node
+    }
+
+    pub(crate) fn create_base_class_like_declaration<
+        TName: Into<StringOrRcNode>,
+        TTypeParameters: Into<NodeArrayOrVec>,
+        THeritageClauses: Into<NodeArrayOrVec>,
+        TMembers: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        name: Option<TName>,
+        type_parameters: Option<TTypeParameters>,
+        heritage_clauses: Option<THeritageClauses>,
+        members: TMembers,
+    ) -> ClassLikeDeclarationBase {
+        let node = self.create_base_interface_or_class_like_declaration(
+            base_factory,
+            kind,
+            decorators,
+            modifiers,
+            name,
+            type_parameters,
+            heritage_clauses,
+        );
+        let mut node =
+            ClassLikeDeclarationBase::new(node, self.create_node_array(Some(members), None));
+        node.add_transform_flags(propagate_children_flags(Some(node.members())));
         node
     }
 
