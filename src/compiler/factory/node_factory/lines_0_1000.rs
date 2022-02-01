@@ -5,11 +5,12 @@ use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
 use super::{
-    aggregate_children_flags, propagate_children_flags, update_with_original,
-    update_without_original, PseudoBigIntOrString,
+    aggregate_children_flags, propagate_child_flags, propagate_children_flags,
+    propagate_identifier_name_flags, update_with_original, update_without_original,
+    PseudoBigIntOrString,
 };
 use crate::{
-    create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
+    create_node_converters, create_parenthesizer_rules, escape_leading_underscores, is_identifier,
     null_node_converters, null_parenthesizer_rules, pseudo_big_int_to_string,
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
@@ -720,16 +721,35 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub(crate) fn create_base_named_declaration(
+    pub(crate) fn create_base_named_declaration<TName: Into<StringOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-        name: Option<Rc<Node>>,
+        name: Option<TName>,
     ) -> BaseNamedDeclaration {
         let node = self.create_base_declaration(base_factory, kind, decorators, modifiers);
-        BaseNamedDeclaration::new(node, name)
+        let name = self.as_name(base_factory, name);
+        let mut node = BaseNamedDeclaration::new(node, name.clone());
+
+        if let Some(name) = name {
+            match node.kind() {
+                SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::PropertyAssignment => {
+                    if is_identifier(&name) {
+                        node.add_transform_flags(propagate_identifier_name_flags(&name));
+                    }
+                }
+                _ => {
+                    node.add_transform_flags(propagate_child_flags(Some(&*name)));
+                }
+            }
+        }
+        node
     }
 
     pub(crate) fn create_base_generic_named_declaration<TTypeParameters: Into<NodeArrayOrVec>>(
@@ -957,5 +977,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_token(&self, base_factory: &TBaseNodeFactory, token: SyntaxKind) -> BaseNode {
         let node = self.create_base_token(base_factory, token);
         node
+    }
+}
+
+pub enum StringOrRcNode {
+    String(String),
+    RcNode(Rc<Node>),
+}
+
+impl From<String> for StringOrRcNode {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Rc<Node>> for StringOrRcNode {
+    fn from(value: Rc<Node>) -> Self {
+        Self::RcNode(value)
     }
 }

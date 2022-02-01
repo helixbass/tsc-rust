@@ -108,7 +108,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, SyntaxKind::TypeReference);
         let node = TypeReferenceNode::new(
             node,
-            self.as_name(type_name),
+            self.as_name(base_factory, Some(type_name)).unwrap(),
             type_arguments.map(|type_arguments| self.create_node_array(Some(type_arguments), None)),
         );
         node

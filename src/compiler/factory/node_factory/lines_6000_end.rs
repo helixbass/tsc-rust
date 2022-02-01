@@ -11,7 +11,7 @@ use crate::{
     add_range, append_if_unique, create_base_node_factory, is_named_declaration, is_property_name,
     set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, Debug_, EmitFlags,
     EmitNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt,
-    SourceMapRange, SyntaxKind, TransformFlags,
+    SourceMapRange, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -22,8 +22,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         array.map(|array| self.create_node_array(Some(array), None))
     }
 
-    pub(super) fn as_name(&self, name: Rc<Node>) -> Rc<Node> {
-        name
+    pub(super) fn as_name<TName: Into<StringOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Option<TName>,
+    ) -> Option<Rc<Node>> {
+        name.map(|name| match name.into() {
+            StringOrRcNode::String(name) => self.create_identifier(base_factory, &name).into(),
+            StringOrRcNode::RcNode(name) => name,
+        })
     }
 
     pub(super) fn as_token(
@@ -103,6 +110,10 @@ pub(super) fn get_default_tag_name_for_kind(kind: SyntaxKind) -> &'static str {
             Debug_.format_syntax_kind(Some(kind))
         ))),
     }
+}
+
+pub(super) fn propagate_identifier_name_flags(node: &Node /*Identifier*/) -> TransformFlags {
+    propagate_child_flags(Some(node)) & !TransformFlags::ContainsPossibleTopLevelAwait
 }
 
 pub(super) fn propagate_property_name_flags_of_child(
