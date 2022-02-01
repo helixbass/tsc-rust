@@ -1058,6 +1058,10 @@ impl Node {
     pub fn as_object_binding_pattern(&self) -> &ObjectBindingPattern {
         enum_unwrapped!(self, [Node, ObjectBindingPattern])
     }
+
+    pub fn as_array_binding_pattern(&self) -> &ArrayBindingPattern {
+        enum_unwrapped!(self, [Node, ArrayBindingPattern])
+    }
 }
 
 #[derive(Debug)]

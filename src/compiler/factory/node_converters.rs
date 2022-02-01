@@ -2,9 +2,10 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::{
-    cast, get_starts_on_new_line, is_binding_element, is_block, is_expression, is_identifier,
-    is_object_binding_pattern, is_object_literal_element_like, is_object_literal_expression, map,
-    set_original_node, set_starts_on_new_line, set_text_range, BaseNodeFactory, Debug_,
+    cast, get_starts_on_new_line, is_array_binding_pattern, is_array_literal_expression,
+    is_binding_element, is_block, is_expression, is_identifier, is_object_binding_pattern,
+    is_object_literal_element_like, is_object_literal_expression, map, set_original_node,
+    set_starts_on_new_line, set_text_range, BaseNodeFactory, Debug_,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
     HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeConverters, NodeFactory,
     NodeInterface, SignatureDeclarationInterface, SyntaxKind,
@@ -231,7 +232,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ArrayBindingOrAssignmentPattern*/
     ) -> Rc<Node /*ArrayLiteralExpression*/> {
-        unimplemented!()
+        if is_array_binding_pattern(node) {
+            let node_as_array_binding_pattern = node.as_array_binding_pattern();
+            let ret = self.factory.create_array_literal_expression(
+                base_factory,
+                map(
+                    Some(&node_as_array_binding_pattern.elements),
+                    |element, _| self.convert_to_array_assignment_element(base_factory, element),
+                ),
+            );
+            let ret = set_text_range(&*Into::<Rc<Node>>::into(ret), Some(node)).node_wrapper();
+            set_original_node(ret.clone(), Some(node.node_wrapper()));
+            return ret;
+        }
+        cast(Some(node), |node| is_array_literal_expression(node)).node_wrapper()
     }
 
     fn convert_to_assignment_element_target(
