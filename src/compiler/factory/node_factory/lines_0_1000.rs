@@ -15,11 +15,12 @@ use crate::{
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
-    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Debug_, HasTypeInterface,
-    HasTypeParametersInterface, Identifier, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, NumericLiteral,
-    ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, ReadonlyTextRange,
-    SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
+    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Debug_,
+    FunctionLikeDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
+    LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters,
+    NodeFactory, NodeInterface, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
+    PrefixUnaryExpression, ReadonlyTextRange, SignatureDeclarationInterface, StringLiteral,
+    SyntaxKind, TokenFlags, TransformFlags,
 };
 
 thread_local! {
@@ -810,6 +811,44 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub(crate) fn create_base_function_like_declaration<
+        TName: Into<StringOrRcNode>,
+        TTypeParameters: Into<NodeArrayOrVec>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        name: Option<TName>,
+        type_parameters: Option<TTypeParameters>,
+        parameters: Option<TParameters>,
+        type_: Option<Rc<Node>>,
+        body: Option<Rc<Node>>,
+    ) -> BaseFunctionLikeDeclaration {
+        let node = self.create_base_signature_declaration(
+            base_factory,
+            kind,
+            decorators,
+            modifiers,
+            name,
+            type_parameters,
+            parameters,
+            type_,
+        );
+        let body_is_none = body.is_none();
+        let mut node = BaseFunctionLikeDeclaration::new(node, body);
+        node.add_transform_flags(
+            propagate_child_flags(node.maybe_body())
+                & !TransformFlags::ContainsPossibleTopLevelAwait,
+        );
+        if body_is_none {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        node
+    }
+
     pub(crate) fn create_base_interface_or_class_like_declaration<
         TTypeParameters: Into<NodeArrayOrVec>,
     >(
@@ -830,32 +869,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_parameters,
         );
         let node = BaseInterfaceOrClassLikeDeclaration::new(node);
-        node
-    }
-
-    pub(crate) fn create_base_function_like_declaration(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        kind: SyntaxKind,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
-        name: Option<Rc<Node>>,
-        type_parameters: Option<NodeArray>,
-        parameters: Option<NodeArray>,
-        type_: Option<Rc<Node>>,
-        body: Option<Rc<Node>>,
-    ) -> BaseFunctionLikeDeclaration {
-        let node = self.create_base_signature_declaration(
-            base_factory,
-            kind,
-            decorators,
-            modifiers,
-            name,
-            type_parameters,
-            parameters,
-            type_,
-        );
-        let node = BaseFunctionLikeDeclaration::new(node, body);
         node
     }
 
