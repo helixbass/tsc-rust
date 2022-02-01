@@ -16,12 +16,12 @@ use crate::{
     BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
     BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, ClassLikeDeclarationBase,
-    ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface, HasTypeInterface,
-    HasTypeParametersInterface, Identifier, InterfaceOrClassLikeDeclarationInterface,
-    LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters,
-    NodeFactory, NodeInterface, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
-    PrefixUnaryExpression, ReadonlyTextRange, SignatureDeclarationInterface, StringLiteral,
-    SyntaxKind, TokenFlags, TransformFlags,
+    ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
+    InterfaceOrClassLikeDeclarationInterface, LiteralLikeNode, LiteralLikeNodeInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, NumericLiteral,
+    ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, ReadonlyTextRange,
+    SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
 };
 
 thread_local! {
@@ -909,18 +909,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub(crate) fn create_base_binding_like_declaration(
+    pub(crate) fn create_base_binding_like_declaration<TName: Into<StringOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-        name: Option<Rc<Node>>,
+        name: Option<TName>,
         initializer: Option<Rc<Node>>,
     ) -> BaseBindingLikeDeclaration {
         let node =
             self.create_base_named_declaration(base_factory, kind, decorators, modifiers, name);
-        BaseBindingLikeDeclaration::new(node, initializer)
+        let mut node = BaseBindingLikeDeclaration::new(node, initializer);
+        node.add_transform_flags(propagate_child_flags(node.maybe_initializer()));
+        node
     }
 
     pub(crate) fn create_base_variable_like_declaration(
