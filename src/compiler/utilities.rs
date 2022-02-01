@@ -365,7 +365,7 @@ fn get_text_of_node(node: &Node, include_trivia: Option<bool>) -> String {
     )
 }
 
-fn get_emit_flags(node: &Node) -> EmitFlags {
+pub fn get_emit_flags(node: &Node) -> EmitFlags {
     EmitFlags::None
 }
 

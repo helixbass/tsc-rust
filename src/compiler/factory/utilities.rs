@@ -1,9 +1,13 @@
 use std::rc::Rc;
 
 use crate::{
-    get_jsdoc_type_tag, is_in_js_file, is_parenthesized_expression, Node, NodeInterface,
-    OuterExpressionKinds, SyntaxKind,
+    get_emit_flags, get_jsdoc_type_tag, is_in_js_file, is_parenthesized_expression, EmitFlags,
+    Node, NodeInterface, OuterExpressionKinds, SyntaxKind,
 };
+
+pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
+    get_emit_flags(node).intersects(EmitFlags::LocalName)
+}
 
 pub fn is_comma_sequence(node: &Node /*Expression*/) -> bool {
     node.kind() == SyntaxKind::BinaryExpression

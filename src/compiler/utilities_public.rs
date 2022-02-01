@@ -957,7 +957,7 @@ pub fn get_jsdoc_template_tag(node: &Node) -> Option<Rc<Node /*JSDocTemplateTag*
 
 pub fn get_jsdoc_type_tag(node: &Node) -> Option<Rc<Node /*JSDocTypeTag*/>> {
     let tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag, None);
-    // if matches!(tag, Some(tag) if matches!(tag.as_jsdoc_type_tag().type_expression, Some(type_expression) /*if type_expression.type_.is_some()*/))
+    // if matches!(tag, Some(tag) if matches!(tag.as_jsdoc_type_like_tag().type_expression, Some(type_expression) /*if type_expression.type_.is_some()*/))
     if tag.is_some() {
         return tag;
     }
@@ -980,9 +980,10 @@ pub fn get_jsdoc_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
 pub fn get_jsdoc_return_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
     let return_tag = get_jsdoc_return_tag(node);
     if let Some(return_tag) = return_tag {
-        let return_tag_as_jsdoc_return_tag = return_tag.as_jsdoc_return_tag();
-        if let Some(return_tag_as_jsdoc_return_tag_type_expression) =
-            return_tag_as_jsdoc_return_tag.type_expression.as_ref()
+        let return_tag_as_jsdoc_return_tag = return_tag.as_jsdoc_type_like_tag();
+        if let Some(return_tag_as_jsdoc_return_tag_type_expression) = return_tag_as_jsdoc_return_tag
+            .maybe_type_expression()
+            .as_ref()
         {
             return Some(
                 return_tag_as_jsdoc_return_tag_type_expression
@@ -995,11 +996,8 @@ pub fn get_jsdoc_return_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
     let type_tag = get_jsdoc_type_tag(node);
     if let Some(type_tag) = type_tag {
         // && typeTag.typeExpression
-        let type_ = &type_tag
-            .as_jsdoc_type_tag()
-            .type_expression
-            .as_jsdoc_type_expression()
-            .type_;
+        let type_tag_type_expression = &type_tag.as_jsdoc_type_like_tag().type_expression();
+        let type_ = &type_tag_type_expression.as_jsdoc_type_expression().type_;
         if is_type_literal_node(&**type_) {
             let sig = find(&type_.as_type_literal_node().members, |node, _| {
                 is_call_signature_declaration(&**node)

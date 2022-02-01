@@ -5,17 +5,19 @@ use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
 use super::{
-    aggregate_children_flags, update_with_original, update_without_original, PseudoBigIntOrString,
+    aggregate_children_flags, propagate_children_flags, update_with_original,
+    update_without_original, PseudoBigIntOrString,
 };
 use crate::{
     create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
     null_node_converters, null_parenthesizer_rules, pseudo_big_int_to_string,
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
-    BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
-    BaseNodeFactory, BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral,
-    BinaryExpression, Debug_, Identifier, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, NumericLiteral,
-    ParenthesizerRules, ReadonlyTextRange, StringLiteral, SyntaxKind, TokenFlags,
+    BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
+    BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
+    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Debug_, Identifier,
+    LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters,
+    NodeFactory, NodeInterface, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
+    PrefixUnaryExpression, ReadonlyTextRange, StringLiteral, SyntaxKind, TokenFlags,
 };
 
 thread_local! {
@@ -95,6 +97,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         })
     }
 
+    pub fn parenthesizer(&self) -> Ref<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
+        self.parenthesizer_rules()
+    }
+
     pub(crate) fn set_converters(
         &self,
         node_converters: Box<dyn NodeConverters<TBaseNodeFactory>>,
@@ -102,8 +108,245 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         *self.converters.borrow_mut() = Some(node_converters);
     }
 
-    pub(crate) fn converters(&self) -> Ref<Box<dyn NodeConverters<TBaseNodeFactory>>> {
+    pub fn converters(&self) -> Ref<Box<dyn NodeConverters<TBaseNodeFactory>>> {
         Ref::map(self.converters.borrow(), |option| option.as_ref().unwrap())
+    }
+
+    pub fn create_jsdoc_all_type(&self, base_factory: &TBaseNodeFactory) -> BaseNode {
+        self.create_jsdoc_primary_type_worker(base_factory, SyntaxKind::JSDocAllType)
+    }
+
+    pub fn create_jsdoc_unknown_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+    ) -> BaseJSDocUnaryType {
+        self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocUnknownType, type_)
+    }
+
+    pub fn create_jsdoc_non_nullable_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+    ) -> BaseJSDocUnaryType {
+        self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocNonNullableType, type_)
+    }
+
+    pub fn create_jsdoc_nullable_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+    ) -> BaseJSDocUnaryType {
+        self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocNullableType, type_)
+    }
+
+    pub fn create_jsdoc_optional_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+    ) -> BaseJSDocUnaryType {
+        self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocOptionalType, type_)
+    }
+
+    pub fn create_jsdoc_variadic_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+    ) -> BaseJSDocUnaryType {
+        self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocVariadicType, type_)
+    }
+
+    pub fn create_jsdoc_namepath_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+    ) -> BaseJSDocUnaryType {
+        self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocNamepathType, type_)
+    }
+
+    pub fn create_jsdoc_type_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTypeLikeTag {
+        self.create_jsdoc_type_like_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocTypeTag,
+            tag_name,
+            type_expression,
+            comment,
+        )
+    }
+
+    pub fn create_jsdoc_return_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTypeLikeTag {
+        self.create_jsdoc_type_like_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocReturnTag,
+            tag_name,
+            type_expression,
+            comment,
+        )
+    }
+
+    pub fn create_jsdoc_this_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTypeLikeTag {
+        self.create_jsdoc_type_like_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocThisTag,
+            tag_name,
+            type_expression,
+            comment,
+        )
+    }
+
+    pub fn create_jsdoc_enum_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTypeLikeTag {
+        self.create_jsdoc_type_like_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocEnumTag,
+            tag_name,
+            type_expression,
+            comment,
+        )
+    }
+
+    pub fn create_jsdoc_author_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTag {
+        self.create_jsdoc_simple_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocAuthorTag,
+            tag_name,
+            comment,
+        )
+    }
+
+    pub fn create_jsdoc_class_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTag {
+        self.create_jsdoc_simple_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocClassTag,
+            tag_name,
+            comment,
+        )
+    }
+
+    pub fn create_jsdoc_public_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTag {
+        self.create_jsdoc_simple_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocPublicTag,
+            tag_name,
+            comment,
+        )
+    }
+
+    pub fn create_jsdoc_private_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTag {
+        self.create_jsdoc_simple_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocPrivateTag,
+            tag_name,
+            comment,
+        )
+    }
+
+    pub fn create_jsdoc_protected_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTag {
+        self.create_jsdoc_simple_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocProtectedTag,
+            tag_name,
+            comment,
+        )
+    }
+
+    pub fn create_jsdoc_readonly_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTag {
+        self.create_jsdoc_simple_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocReadonlyTag,
+            tag_name,
+            comment,
+        )
+    }
+
+    pub fn create_jsdoc_override_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTag {
+        self.create_jsdoc_simple_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocOverrideTag,
+            tag_name,
+            comment,
+        )
+    }
+
+    pub fn create_jsdoc_deprecated_tag(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        comment: Option<NodeArray /*<JSDocComment>*/>,
+    ) -> BaseJSDocTag {
+        self.create_jsdoc_simple_tag_worker(
+            base_factory,
+            SyntaxKind::JSDocDeprecatedTag,
+            tag_name,
+            comment,
+        )
+    }
+
+    pub fn create_comma(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::CommaToken, right)
     }
 
     pub fn create_assignment(
@@ -113,6 +356,295 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         right: Rc<Node /*Expression*/>,
     ) -> BinaryExpression {
         self.create_binary_expression(base_factory, left, SyntaxKind::EqualsToken, right)
+    }
+
+    pub fn create_logical_or(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::BarBarToken, right)
+    }
+
+    pub fn create_logical_and(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(
+            base_factory,
+            left,
+            SyntaxKind::AmpersandAmpersandToken,
+            right,
+        )
+    }
+
+    pub fn create_bitwise_or(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::BarToken, right)
+    }
+
+    pub fn create_bitwise_xor(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::CaretToken, right)
+    }
+
+    pub fn create_bitwise_and(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::AmpersandToken, right)
+    }
+
+    pub fn create_strict_equality(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(
+            base_factory,
+            left,
+            SyntaxKind::EqualsEqualsEqualsToken,
+            right,
+        )
+    }
+
+    pub fn create_strict_inequality(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(
+            base_factory,
+            left,
+            SyntaxKind::ExclamationEqualsEqualsToken,
+            right,
+        )
+    }
+
+    pub fn create_equality(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::EqualsEqualsToken, right)
+    }
+
+    pub fn create_inequality(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(
+            base_factory,
+            left,
+            SyntaxKind::ExclamationEqualsToken,
+            right,
+        )
+    }
+
+    pub fn create_less_than(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::LessThanToken, right)
+    }
+
+    pub fn create_less_than_equals(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::LessThanEqualsToken, right)
+    }
+
+    pub fn create_greater_than(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::GreaterThanToken, right)
+    }
+
+    pub fn create_greater_than_equals(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(
+            base_factory,
+            left,
+            SyntaxKind::GreaterThanEqualsToken,
+            right,
+        )
+    }
+
+    pub fn create_left_shift(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::LessThanLessThanToken, right)
+    }
+
+    pub fn create_right_shift(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(
+            base_factory,
+            left,
+            SyntaxKind::GreaterThanGreaterThanToken,
+            right,
+        )
+    }
+
+    pub fn create_unsigned_right_shift(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(
+            base_factory,
+            left,
+            SyntaxKind::GreaterThanGreaterThanGreaterThanToken,
+            right,
+        )
+    }
+
+    pub fn create_add(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::PlusToken, right)
+    }
+
+    pub fn create_subtract(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::MinusToken, right)
+    }
+
+    pub fn create_multiply(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::AsteriskToken, right)
+    }
+
+    pub fn create_divide(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::SlashToken, right)
+    }
+
+    pub fn create_modulo(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::PercentToken, right)
+    }
+
+    pub fn create_exponent(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::AsteriskAsteriskToken, right)
+    }
+
+    pub fn create_prefix_plus(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operand: Rc<Node /*Expression*/>,
+    ) -> PrefixUnaryExpression {
+        self.create_prefix_unary_expression(base_factory, SyntaxKind::MinusToken, operand)
+    }
+
+    pub fn create_prefix_increment(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operand: Rc<Node /*Expression*/>,
+    ) -> PrefixUnaryExpression {
+        self.create_prefix_unary_expression(base_factory, SyntaxKind::PlusPlusToken, operand)
+    }
+
+    pub fn create_prefix_decrement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operand: Rc<Node /*Expression*/>,
+    ) -> PrefixUnaryExpression {
+        self.create_prefix_unary_expression(base_factory, SyntaxKind::MinusMinusToken, operand)
+    }
+
+    pub fn create_bitwise_not(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operand: Rc<Node /*Expression*/>,
+    ) -> PrefixUnaryExpression {
+        self.create_prefix_unary_expression(base_factory, SyntaxKind::TildeToken, operand)
+    }
+
+    pub fn create_logical_not(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operand: Rc<Node /*Expression*/>,
+    ) -> PrefixUnaryExpression {
+        self.create_prefix_unary_expression(base_factory, SyntaxKind::ExclamationToken, operand)
+    }
+
+    pub fn create_postfix_increment(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operand: Rc<Node /*Expression*/>,
+    ) -> PostfixUnaryExpression {
+        self.create_postfix_unary_expression(base_factory, operand, SyntaxKind::PlusPlusToken)
+    }
+
+    pub fn create_postfix_decrement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operand: Rc<Node /*Expression*/>,
+    ) -> PostfixUnaryExpression {
+        self.create_postfix_unary_expression(base_factory, operand, SyntaxKind::MinusMinusToken)
     }
 
     pub fn create_node_array<TElements: Into<NodeArrayOrVec>>(
@@ -178,6 +710,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = self.create_base_node(base_factory, kind);
         node.set_decorators(self.as_node_array(decorators));
         node.modifiers = self.as_node_array(modifiers);
+        let flags = propagate_children_flags(node.maybe_decorators().as_ref())
+            | propagate_children_flags(node.modifiers.as_ref());
+        node.add_transform_flags(flags);
+        // node.symbol = undefined!;
+        // node.localSymbol = undefined!;
+        // node.locals = undefined!;
+        // node.nextContainer = undefined!;
         node
     }
 

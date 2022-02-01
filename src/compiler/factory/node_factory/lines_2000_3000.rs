@@ -5,11 +5,12 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_call_chain, is_import_keyword, is_omitted_expression, is_super_property, last_or_undefined,
-    ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
-    CallExpression, Debug_, FunctionExpression, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
-    ParenthesizedTypeNode, PrefixUnaryExpression, SpreadElement, SyntaxKind, SyntaxKindOrRcNode,
+    is_call_chain, is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
+    is_omitted_expression, is_super_property, last_or_undefined, ArrayLiteralExpression,
+    BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, CallExpression, Debug_,
+    FunctionExpression, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
+    PostfixUnaryExpression, PrefixUnaryExpression, SpreadElement, SyntaxKind, SyntaxKindOrRcNode,
     TemplateExpression, TemplateLiteralLikeNode, TokenFlags, TransformFlags,
 };
 
@@ -313,6 +314,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> PrefixUnaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::PrefixUnaryExpression);
         let node = PrefixUnaryExpression::new(node, operator, operand);
+        node
+    }
+
+    pub fn create_postfix_unary_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operand: Rc<Node /*Expression*/>,
+        operator: SyntaxKind,
+    ) -> PostfixUnaryExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::PostfixUnaryExpression);
+        let mut node = PostfixUnaryExpression::new(node, operand, operator);
+        node.add_transform_flags(propagate_child_flags(Some(&*node.operand)));
+        if is_identifier(&node.operand)
+            && !is_generated_identifier(&node.operand)
+            && !is_local_name(&node.operand)
+        {
+            node.add_transform_flags(TransformFlags::ContainsUpdateExpressionForIdentifier);
+        }
         node
     }
 

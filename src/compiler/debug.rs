@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::cell::Cell;
 use std::fmt;
 
-use crate::{AssertionLevel, Node, NodeArray};
+use crate::{AssertionLevel, Node, NodeArray, SyntaxKind};
 
 enum AssertionKeys {
     AssertNode,
@@ -106,6 +106,10 @@ impl DebugType {
                 Some(message.unwrap_or("Unexpected node.")),
             );
         }
+    }
+
+    pub fn format_syntax_kind(&self, kind: Option<SyntaxKind>) -> String {
+        format!("{:?}", kind)
     }
 
     pub fn attach_node_array_debug_info(&self, array: &mut NodeArray) {

@@ -9,9 +9,9 @@ use std::rc::Rc;
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
     add_range, append_if_unique, create_base_node_factory, is_named_declaration, is_property_name,
-    set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, EmitFlags, EmitNode, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt, SourceMapRange,
-    SyntaxKind, TransformFlags,
+    set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, Debug_, EmitFlags,
+    EmitNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt,
+    SourceMapRange, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -76,6 +76,33 @@ pub(super) fn update_with_original(updated: Rc<Node>, original: &Node) -> Rc<Nod
         set_text_range(&*updated, Some(original));
     }
     updated
+}
+
+pub(super) fn get_default_tag_name_for_kind(kind: SyntaxKind) -> &'static str {
+    match kind {
+        SyntaxKind::JSDocTypeTag => "type",
+        SyntaxKind::JSDocReturnTag => "returns",
+        SyntaxKind::JSDocThisTag => "this",
+        SyntaxKind::JSDocEnumTag => "enum",
+        SyntaxKind::JSDocAuthorTag => "author",
+        SyntaxKind::JSDocClassTag => "class",
+        SyntaxKind::JSDocPublicTag => "public",
+        SyntaxKind::JSDocPrivateTag => "private",
+        SyntaxKind::JSDocProtectedTag => "protected",
+        SyntaxKind::JSDocReadonlyTag => "readonly",
+        SyntaxKind::JSDocOverrideTag => "override",
+        SyntaxKind::JSDocTemplateTag => "template",
+        SyntaxKind::JSDocTypedefTag => "typedef",
+        SyntaxKind::JSDocParameterTag => "parameter",
+        SyntaxKind::JSDocPropertyTag => "prop",
+        SyntaxKind::JSDocCallbackTag => "callback",
+        SyntaxKind::JSDocAugmentsTag => "augments",
+        SyntaxKind::JSDocImplementsTag => "implements",
+        _ => Debug_.fail(Some(&format!(
+            "Unsupported kind: {}",
+            Debug_.format_syntax_kind(Some(kind))
+        ))),
+    }
 }
 
 pub(super) fn propagate_property_name_flags_of_child(

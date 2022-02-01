@@ -6,13 +6,13 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
-    ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseLiteralLikeNode,
-    BaseNode, BinaryExpression, CallExpression, ConditionalExpression, ElementAccessExpression,
-    FunctionExpression, HasExpressionInterface, HasInitializerInterface, HasTypeInterface,
-    JSDocTypeExpression, LiteralLikeNode, NewExpression, Node, NodeInterface, NonNullExpression,
-    ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression, ReadonlyTextRange,
-    SpreadElement, SyntaxKind, TaggedTemplateExpression, TemplateExpression, TransformFlags,
-    TypeAssertion, VoidExpression, __String,
+    ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseJSDocUnaryType,
+    BaseLiteralLikeNode, BaseNode, BinaryExpression, CallExpression, ConditionalExpression,
+    ElementAccessExpression, FunctionExpression, HasExpressionInterface, HasInitializerInterface,
+    HasTypeInterface, JSDocTypeExpression, LiteralLikeNode, NewExpression, Node, NodeInterface,
+    NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression,
+    ReadonlyTextRange, SpreadElement, SyntaxKind, TaggedTemplateExpression, TemplateExpression,
+    TransformFlags, TypeAssertion, VoidExpression, __String,
 };
 use local_macros::ast_type;
 
@@ -555,6 +555,7 @@ pub enum TypeNode {
     JSDocTypeExpression(JSDocTypeExpression),
     FunctionTypeNode(FunctionTypeNode),
     ParenthesizedTypeNode(ParenthesizedTypeNode),
+    BaseJSDocUnaryType(BaseJSDocUnaryType),
 }
 
 #[derive(Debug)]

@@ -1680,6 +1680,32 @@ impl JSDocMemberName {
 }
 
 #[derive(Debug)]
+#[ast_type(ancestors = "TypeNode")]
+pub struct BaseJSDocUnaryType {
+    _node: BaseNode,
+    pub type_: Option<Rc<Node /*TypeNode*/>>,
+}
+
+impl BaseJSDocUnaryType {
+    pub fn new(base_node: BaseNode, type_: Option<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for BaseJSDocUnaryType {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = Some(type_);
+    }
+}
+
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDoc {
     _node: BaseNode,
@@ -1707,12 +1733,9 @@ pub enum JSDocTag {
     BaseJSDocTag(BaseJSDocTag),
     JSDocAugmentsTag(JSDocAugmentsTag),
     JSDocImplementsTag(JSDocImplementsTag),
-    JSDocEnumTag(JSDocEnumTag),
-    JSDocThisTag(JSDocThisTag),
+    BaseJSDocTypeLikeTag(BaseJSDocTypeLikeTag),
     JSDocTemplateTag(JSDocTemplateTag),
     JSDocSeeTag(JSDocSeeTag),
-    JSDocReturnTag(JSDocReturnTag),
-    JSDocTypeTag(JSDocTypeTag),
     JSDocTypedefTag(JSDocTypedefTag),
     JSDocCallbackTag(JSDocCallbackTag),
     JSDocPropertyLikeTag(JSDocPropertyLikeTag),
@@ -1834,6 +1857,18 @@ pub enum StringOrNodeArray {
     NodeArray(NodeArray),
 }
 
+impl From<String> for StringOrNodeArray {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<NodeArray> for StringOrNodeArray {
+    fn from(value: NodeArray) -> Self {
+        Self::NodeArray(value)
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "JSDocTag")]
 pub struct BaseJSDocTag {
@@ -1902,15 +1937,20 @@ impl JSDocImplementsTag {
     }
 }
 
-#[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
-pub struct JSDocEnumTag {
-    _base_jsdoc_tag: BaseJSDocTag,
-    pub type_expression: Rc<Node /*JSDocTypeExpression*/>,
+pub trait JSDocTypeLikeTagInterface: JSDocTagInterface {
+    fn maybe_type_expression(&self) -> Option<Rc<Node>>;
+    fn type_expression(&self) -> Rc<Node>;
 }
 
-impl JSDocEnumTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Rc<Node>) -> Self {
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct BaseJSDocTypeLikeTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+}
+
+impl BaseJSDocTypeLikeTag {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Option<Rc<Node>>) -> Self {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
             type_expression,
@@ -1918,19 +1958,13 @@ impl JSDocEnumTag {
     }
 }
 
-#[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
-pub struct JSDocThisTag {
-    _base_jsdoc_tag: BaseJSDocTag,
-    pub type_expression: Rc<Node /*JSDocTypeExpression*/>,
-}
+impl JSDocTypeLikeTagInterface for BaseJSDocTypeLikeTag {
+    fn maybe_type_expression(&self) -> Option<Rc<Node>> {
+        self.type_expression.clone()
+    }
 
-impl JSDocThisTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Rc<Node>) -> Self {
-        Self {
-            _base_jsdoc_tag: base_jsdoc_tag,
-            type_expression,
-        }
+    fn type_expression(&self) -> Rc<Node> {
+        self.type_expression.clone().unwrap()
     }
 }
 
@@ -1968,38 +2002,6 @@ impl JSDocSeeTag {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
             name,
-        }
-    }
-}
-
-#[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
-pub struct JSDocReturnTag {
-    _base_jsdoc_tag: BaseJSDocTag,
-    pub type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
-}
-
-impl JSDocReturnTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Option<Rc<Node>>) -> Self {
-        Self {
-            _base_jsdoc_tag: base_jsdoc_tag,
-            type_expression,
-        }
-    }
-}
-
-#[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
-pub struct JSDocTypeTag {
-    _base_jsdoc_tag: BaseJSDocTag,
-    pub type_expression: Rc<Node /*JSDocTypeExpression*/>,
-}
-
-impl JSDocTypeTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Rc<Node>) -> Self {
-        Self {
-            _base_jsdoc_tag: base_jsdoc_tag,
-            type_expression,
         }
     }
 }

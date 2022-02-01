@@ -13,18 +13,19 @@ use super::{
     HasExpressionInterface, HasIsTypeOnlyInterface, HasQuestionDotTokenInterface,
     HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, IfStatement,
     InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
-    JSDocMemberName, JSDocPropertyLikeTag, JSDocReturnTag, JSDocTag, JSDocTemplateTag, JSDocText,
-    JSDocTypeExpression, JSDocTypeTag, JSDocTypedefTag, JsxAttribute, LabeledStatement,
-    LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface, ModifiersArray,
-    ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray, NumericLiteral,
-    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, PostfixUnaryExpression,
-    PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
-    PropertySignature, QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, SpreadAssignment, Statement, Symbol, SymbolTable,
-    TaggedTemplateExpression, TemplateExpression, TemplateSpan, TransformFlags,
-    TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
-    TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
+    JSDocMemberName, JSDocPropertyLikeTag, JSDocTag, JSDocTemplateTag, JSDocText,
+    JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag, JsxAttribute,
+    LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface,
+    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray,
+    NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration,
+    PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment,
+    PropertyDeclaration, PropertySignature, QualifiedName, ShorthandPropertyAssignment,
+    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, SpreadAssignment,
+    Statement, Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateSpan,
+    TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode,
+    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
+    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -850,6 +851,13 @@ impl Node {
         }
     }
 
+    pub fn as_jsdoc_type_like_tag(&self) -> &dyn JSDocTypeLikeTagInterface {
+        match self {
+            Node::JSDocTag(JSDocTag::BaseJSDocTypeLikeTag(node)) => node,
+            _ => panic!("Expected JSDoc type like tag"),
+        }
+    }
+
     pub fn as_expression(&self) -> &Expression {
         // node_unwrapped!(self, Expression)
         enum_unwrapped!(self, [Node, Expression])
@@ -893,10 +901,6 @@ impl Node {
 
     pub fn as_template_span(&self) -> &TemplateSpan {
         enum_unwrapped!(self, [Node, TemplateSpan])
-    }
-
-    pub fn as_jsdoc_type_tag(&self) -> &JSDocTypeTag {
-        enum_unwrapped!(self, [Node, JSDocTag, JSDocTypeTag])
     }
 
     pub fn as_jsdoc(&self) -> &JSDoc {
@@ -973,10 +977,6 @@ impl Node {
 
     pub fn as_jsdoc_type_expression(&self) -> &JSDocTypeExpression {
         enum_unwrapped!(self, [Node, TypeNode, JSDocTypeExpression])
-    }
-
-    pub fn as_jsdoc_return_tag(&self) -> &JSDocReturnTag {
-        enum_unwrapped!(self, [Node, JSDocTag, JSDocReturnTag])
     }
 
     pub fn as_type_literal_node(&self) -> &TypeLiteralNode {
