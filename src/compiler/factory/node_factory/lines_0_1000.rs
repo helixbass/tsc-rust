@@ -956,10 +956,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        value: String,
+        text: String,
     ) -> BaseLiteralLikeNode {
         let node = self.create_base_token(base_factory, kind);
-        BaseLiteralLikeNode::new(node, value)
+        BaseLiteralLikeNode::new(node, text)
     }
 
     pub fn create_numeric_literal(
