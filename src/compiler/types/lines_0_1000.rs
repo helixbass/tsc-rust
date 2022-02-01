@@ -1054,6 +1054,10 @@ impl Node {
     pub fn as_binding_element(&self) -> &BindingElement {
         enum_unwrapped!(self, [Node, BindingElement])
     }
+
+    pub fn as_object_binding_pattern(&self) -> &ObjectBindingPattern {
+        enum_unwrapped!(self, [Node, ObjectBindingPattern])
+    }
 }
 
 #[derive(Debug)]

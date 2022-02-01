@@ -3,10 +3,11 @@ use std::rc::Rc;
 
 use crate::{
     cast, get_starts_on_new_line, is_binding_element, is_block, is_expression, is_identifier,
-    is_object_literal_element_like, set_original_node, set_starts_on_new_line, set_text_range,
-    BaseNodeFactory, Debug_, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeConverters,
-    NodeFactory, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
+    is_object_binding_pattern, is_object_literal_element_like, is_object_literal_expression, map,
+    set_original_node, set_starts_on_new_line, set_text_range, BaseNodeFactory, Debug_,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
+    HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeConverters, NodeFactory,
+    NodeInterface, SignatureDeclarationInterface, SyntaxKind,
 };
 
 pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -126,7 +127,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         cast(Some(element), |element| is_expression(element)).node_wrapper()
     }
 
-    fn convert_to_object_assigment_element(
+    fn convert_to_object_assignment_element(
         &self,
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ObjectBindingOrAssignmentElement*/
@@ -209,7 +210,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         base_factory: &TBaseNodeFactory,
         node: &Node, /*ObjectBindingOrAssignmentPattern*/
     ) -> Rc<Node /*ObjectLiteralExpression*/> {
-        unimplemented!()
+        if is_object_binding_pattern(node) {
+            let node_as_object_binding_pattern = node.as_object_binding_pattern();
+            let ret = self.factory.create_object_literal_expression(
+                base_factory,
+                map(
+                    Some(&node_as_object_binding_pattern.elements),
+                    |element, _| self.convert_to_object_assignment_element(base_factory, element),
+                ),
+            );
+            let ret = set_text_range(&*Into::<Rc<Node>>::into(ret), Some(node)).node_wrapper();
+            set_original_node(ret.clone(), Some(node.node_wrapper()));
+            return ret;
+        }
+        cast(Some(node), |node| is_object_literal_expression(node)).node_wrapper()
     }
 
     fn convert_to_array_assignment_pattern(
@@ -274,7 +288,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
         unimplemented!()
     }
 
-    fn convert_to_object_assigment_element(
+    fn convert_to_object_assignment_element(
         &self,
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ObjectBindingOrAssignmentElement*/

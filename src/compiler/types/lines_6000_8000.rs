@@ -1188,7 +1188,7 @@ pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory> {
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ArrayBindingOrAssignmentElement*/
     ) -> Rc<Node /*Expression*/>;
-    fn convert_to_object_assigment_element(
+    fn convert_to_object_assignment_element(
         &self,
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ObjectBindingOrAssignmentElement*/
