@@ -15,11 +15,11 @@ use crate::{
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
-    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Debug_,
+    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Debug_, HasTypeInterface,
     HasTypeParametersInterface, Identifier, LiteralLikeNode, LiteralLikeNodeInterface, Node,
     NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, NumericLiteral,
     ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, ReadonlyTextRange,
-    StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
+    SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
 };
 
 thread_local! {
@@ -775,6 +775,41 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub(crate) fn create_base_signature_declaration<
+        TName: Into<StringOrRcNode>,
+        TTypeParameters: Into<NodeArrayOrVec>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        name: Option<TName>,
+        type_parameters: Option<TTypeParameters>,
+        parameters: Option<TParameters>,
+        type_: Option<Rc<Node>>,
+    ) -> BaseSignatureDeclaration {
+        let node = self.create_base_generic_named_declaration(
+            base_factory,
+            kind,
+            decorators,
+            modifiers,
+            name,
+            type_parameters,
+        );
+        let mut node =
+            BaseSignatureDeclaration::new(node, self.create_node_array(parameters, None), type_);
+        node.add_transform_flags(
+            propagate_children_flags(Some(node.parameters()))
+                | propagate_child_flags(node.maybe_type()),
+        );
+        if node.maybe_type().is_some() {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        node
+    }
+
     pub(crate) fn create_base_interface_or_class_like_declaration<
         TTypeParameters: Into<NodeArrayOrVec>,
     >(
@@ -795,30 +830,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_parameters,
         );
         let node = BaseInterfaceOrClassLikeDeclaration::new(node);
-        node
-    }
-
-    pub(crate) fn create_base_signature_declaration(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        kind: SyntaxKind,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
-        name: Option<Rc<Node>>,
-        type_parameters: Option<NodeArray>,
-        parameters: Option<NodeArray>,
-        type_: Option<Rc<Node>>,
-    ) -> BaseSignatureDeclaration {
-        let node = self.create_base_generic_named_declaration(
-            base_factory,
-            kind,
-            decorators,
-            modifiers,
-            name,
-            type_parameters,
-        );
-        let node =
-            BaseSignatureDeclaration::new(node, self.create_node_array(parameters, None), type_);
         node
     }
 
