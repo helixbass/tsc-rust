@@ -1102,6 +1102,30 @@ impl ShorthandPropertyAssignment {
     }
 }
 
+#[derive(Debug)]
+#[ast_type]
+pub struct SpreadAssignment {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+// TODO: should implement NamedDeclarationInterface for SpreadAssignment since it extends
+// NamedDeclaration (even though it appears to never have a populated name field?
+impl SpreadAssignment {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for SpreadAssignment {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
 pub trait HasElementsInterface: NodeInterface {
     fn elements(&self) -> &NodeArray;
 }

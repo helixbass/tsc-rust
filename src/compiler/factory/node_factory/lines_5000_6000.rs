@@ -6,8 +6,8 @@ use std::rc::Rc;
 use super::propagate_child_flags;
 use crate::{
     is_outer_expression, BaseNodeFactory, Node, NodeArrayOrVec, NodeFactory, NodeInterface,
-    OuterExpressionKinds, PropertyAssignment, ShorthandPropertyAssignment, SourceFile, SyntaxKind,
-    TransformFlags,
+    OuterExpressionKinds, PropertyAssignment, ShorthandPropertyAssignment, SourceFile,
+    SpreadAssignment, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -57,6 +57,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     .as_ref()
                     .map(|rc| rc.clone()),
             ) | TransformFlags::ContainsES2015,
+        );
+        node
+    }
+
+    pub fn create_spread_assignment(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> SpreadAssignment {
+        let node = self.create_base_node(base_factory, SyntaxKind::SpreadAssignment);
+        let mut node = SpreadAssignment::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expression_for_disallowed_comma(base_factory, &expression),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(node.expression.clone()))
+                | TransformFlags::ContainsES2018
+                | TransformFlags::ContainsObjectRestOrSpread,
         );
         node
     }

@@ -3,10 +3,10 @@ use std::rc::Rc;
 
 use crate::{
     cast, get_starts_on_new_line, is_binding_element, is_block, is_expression, is_identifier,
-    set_original_node, set_starts_on_new_line, set_text_range, BaseNodeFactory, Debug_,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
-    HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeConverters, NodeFactory,
-    NodeInterface, SignatureDeclarationInterface,
+    is_object_literal_element_like, set_original_node, set_starts_on_new_line, set_text_range,
+    BaseNodeFactory, Debug_, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    HasTypeInterface, HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeConverters,
+    NodeFactory, NodeInterface, SignatureDeclarationInterface,
 };
 
 pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory>(
@@ -131,7 +131,61 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         base_factory: &TBaseNodeFactory,
         element: &Node, /*ObjectBindingOrAssignmentElement*/
     ) -> Rc<Node /*ObjectLiteralElementLike*/> {
-        unimplemented!()
+        if is_binding_element(element) {
+            let element_as_binding_element = element.as_binding_element();
+            if element_as_binding_element.dot_dot_dot_token.is_some() {
+                Debug_.assert_node(
+                    Some(element_as_binding_element.name()),
+                    Some(is_identifier),
+                    None,
+                );
+                let ret = self
+                    .factory
+                    .create_spread_assignment(base_factory, element_as_binding_element.name());
+                let ret =
+                    set_text_range(&*Into::<Rc<Node>>::into(ret), Some(element)).node_wrapper();
+                set_original_node(ret.clone(), Some(element.node_wrapper()));
+                return ret;
+            }
+            if let Some(element_property_name) = element_as_binding_element.property_name.as_ref() {
+                let expression = self.convert_to_assignment_element_target(
+                    base_factory,
+                    &element_as_binding_element.name(),
+                );
+                let ret = self.factory.create_property_assignment(
+                    base_factory,
+                    element_property_name.clone(),
+                    match element_as_binding_element.maybe_initializer() {
+                        Some(initializer) => self
+                            .factory
+                            .create_assignment(base_factory, expression, initializer)
+                            .into(),
+                        None => expression,
+                    },
+                );
+                let ret =
+                    set_text_range(&*Into::<Rc<Node>>::into(ret), Some(element)).node_wrapper();
+                set_original_node(ret.clone(), Some(element.node_wrapper()));
+                return ret;
+            }
+            Debug_.assert_node(
+                Some(element_as_binding_element.name()),
+                Some(is_identifier),
+                None,
+            );
+            let ret = self.factory.create_shorthand_property_assignment(
+                base_factory,
+                element_as_binding_element.name(),
+                element_as_binding_element.maybe_initializer(),
+            );
+            let ret = set_text_range(&*Into::<Rc<Node>>::into(ret), Some(element)).node_wrapper();
+            set_original_node(ret.clone(), Some(element.node_wrapper()));
+            return ret;
+        }
+        cast(Some(element), |element| {
+            is_object_literal_element_like(element)
+        })
+        .node_wrapper()
     }
 
     fn convert_to_assignment_pattern(

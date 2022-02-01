@@ -20,7 +20,7 @@ use super::{
     ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, PostfixUnaryExpression,
     PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
     PropertySignature, QualifiedName, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, Statement, Symbol, SymbolTable,
+    SignatureDeclarationInterface, SourceFile, SpreadAssignment, Statement, Symbol, SymbolTable,
     TaggedTemplateExpression, TemplateExpression, TemplateSpan, TransformFlags,
     TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
     TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
@@ -658,6 +658,7 @@ pub enum Node {
     JSDocLink(JSDocLink),
     JSDocLinkCode(JSDocLinkCode),
     JSDocLinkPlain(JSDocLinkPlain),
+    SpreadAssignment(SpreadAssignment),
 }
 
 impl Node {
