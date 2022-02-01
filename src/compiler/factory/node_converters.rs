@@ -3,9 +3,9 @@ use std::rc::Rc;
 
 use crate::{
     cast, get_starts_on_new_line, is_array_binding_pattern, is_array_literal_expression,
-    is_binding_element, is_block, is_expression, is_identifier, is_object_binding_pattern,
-    is_object_literal_element_like, is_object_literal_expression, map, set_original_node,
-    set_starts_on_new_line, set_text_range, BaseNodeFactory, Debug_,
+    is_binding_element, is_binding_pattern, is_block, is_expression, is_identifier,
+    is_object_binding_pattern, is_object_literal_element_like, is_object_literal_expression, map,
+    set_original_node, set_starts_on_new_line, set_text_range, BaseNodeFactory, Debug_,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
     HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeConverters, NodeFactory,
     NodeInterface, SignatureDeclarationInterface, SyntaxKind,
@@ -253,7 +253,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
         base_factory: &TBaseNodeFactory,
         node: &Node, /*BindingOrAssignmentElementTarget*/
     ) -> Rc<Node /*Expression*/> {
-        unimplemented!()
+        if is_binding_pattern(Some(node)) {
+            return self.convert_to_assignment_pattern(base_factory, node);
+        }
+        cast(Some(node), |node| is_expression(node)).node_wrapper()
     }
 }
 
