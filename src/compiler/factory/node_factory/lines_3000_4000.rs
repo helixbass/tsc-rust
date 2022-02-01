@@ -160,6 +160,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_interface_declaration<
         TMembers: Into<NodeArrayOrVec>,
         TTypeParameters: Into<NodeArrayOrVec>,
+        THeritageClauses: Into<NodeArrayOrVec>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -167,6 +168,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         modifiers: Option<NodeArray>,
         name: Rc<Node>,
         type_parameters: Option<TTypeParameters>,
+        heritage_clauses: Option<THeritageClauses>,
         members: TMembers,
     ) -> InterfaceDeclaration {
         let node = self.create_base_interface_or_class_like_declaration(
@@ -176,6 +178,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             modifiers,
             Some(name),
             type_parameters,
+            heritage_clauses,
         );
         let node = InterfaceDeclaration::new(node, self.create_node_array(Some(members), None));
         node

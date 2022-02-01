@@ -415,6 +415,10 @@ impl ParserType {
         list.map(|list| self.create_node_array(list, pos, None, None))
     }
 
+    pub(super) fn parse_heritage_clauses(&self) -> Option<NodeArray /*<HeritageClause>*/> {
+        None
+    }
+
     pub(super) fn parse_interface_declaration(
         &self,
         pos: isize,
@@ -424,6 +428,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None, None);
         let name = self.parse_identifier(None, None);
         let type_parameters = self.parse_type_parameters();
+        let heritage_clauses = self.parse_heritage_clauses();
         let members = self.parse_object_type_members();
         let node = self.factory.create_interface_declaration(
             self,
@@ -431,6 +436,7 @@ impl ParserType {
             modifiers,
             name.into(),
             type_parameters,
+            heritage_clauses,
             members,
         );
         self.finish_node(node, pos, None)

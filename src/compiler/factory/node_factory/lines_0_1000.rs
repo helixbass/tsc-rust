@@ -17,10 +17,10 @@ use crate::{
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
     BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, Debug_,
     FunctionLikeDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters,
-    NodeFactory, NodeInterface, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
-    PrefixUnaryExpression, ReadonlyTextRange, SignatureDeclarationInterface, StringLiteral,
-    SyntaxKind, TokenFlags, TransformFlags,
+    InterfaceOrClassLikeDeclarationInterface, LiteralLikeNode, LiteralLikeNodeInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, NumericLiteral,
+    ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, ReadonlyTextRange,
+    SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
 };
 
 thread_local! {
@@ -850,15 +850,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_interface_or_class_like_declaration<
+        TName: Into<StringOrRcNode>,
         TTypeParameters: Into<NodeArrayOrVec>,
+        THeritageClauses: Into<NodeArrayOrVec>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-        name: Option<Rc<Node>>,
+        name: Option<TName>,
         type_parameters: Option<TTypeParameters>,
+        heritage_clauses: Option<THeritageClauses>,
     ) -> BaseInterfaceOrClassLikeDeclaration {
         let node = self.create_base_generic_named_declaration(
             base_factory,
@@ -868,7 +871,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             name,
             type_parameters,
         );
-        let node = BaseInterfaceOrClassLikeDeclaration::new(node);
+        let mut node =
+            BaseInterfaceOrClassLikeDeclaration::new(node, self.as_node_array(heritage_clauses));
+        node.add_transform_flags(propagate_children_flags(node.maybe_heritage_clauses()));
         node
     }
 

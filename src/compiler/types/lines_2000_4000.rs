@@ -1210,6 +1210,10 @@ impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
 
 impl GenericNamedDeclarationInterface for BaseGenericNamedDeclaration {}
 
+pub trait InterfaceOrClassLikeDeclarationInterface {
+    fn maybe_heritage_clauses(&self) -> Option<&NodeArray>;
+}
+
 #[derive(Debug)]
 #[ast_type(
     impl_from = false,
@@ -1217,20 +1221,31 @@ impl GenericNamedDeclarationInterface for BaseGenericNamedDeclaration {}
 )]
 pub struct BaseInterfaceOrClassLikeDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
+    heritage_clauses: Option<NodeArray /*<HeritageClause>*/>,
 }
 
 impl BaseInterfaceOrClassLikeDeclaration {
-    pub fn new(base_generic_named_declaration: BaseGenericNamedDeclaration) -> Self {
+    pub fn new(
+        base_generic_named_declaration: BaseGenericNamedDeclaration,
+        heritage_clauses: Option<NodeArray>,
+    ) -> Self {
         Self {
             _generic_named_declaration: base_generic_named_declaration,
+            heritage_clauses,
         }
+    }
+}
+
+impl InterfaceOrClassLikeDeclarationInterface for BaseInterfaceOrClassLikeDeclaration {
+    fn maybe_heritage_clauses(&self) -> Option<&NodeArray> {
+        self.heritage_clauses.as_ref()
     }
 }
 
 #[derive(Debug)]
 #[ast_type(
     ancestors = "Statement",
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface"
 )]
 pub struct InterfaceDeclaration {
     _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration, /*name: Identifier*/

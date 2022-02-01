@@ -368,6 +368,15 @@ fn get_ast_struct_interface_impl(
                 }
             }
         }
+        "InterfaceOrClassLikeDeclarationInterface" => {
+            quote! {
+                impl crate::InterfaceOrClassLikeDeclarationInterface for #ast_type_name {
+                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<&crate::NodeArray> {
+                        self.#first_field_name.maybe_heritage_clauses()
+                    }
+                }
+            }
+        }
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
@@ -770,6 +779,17 @@ fn get_ast_enum_interface_impl(
                     fn maybe_comment(&self) -> ::std::option::Option<&crate::StringOrNodeArray> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_comment()),*
+                        }
+                    }
+                }
+            }
+        }
+        "InterfaceOrClassLikeDeclarationInterface" => {
+            quote! {
+                impl crate::InterfaceOrClassLikeDeclarationInterface for #ast_type_name {
+                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<&crate::NodeArray> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_heritage_clauses()),*
                         }
                     }
                 }
