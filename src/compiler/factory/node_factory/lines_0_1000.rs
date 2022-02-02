@@ -18,12 +18,12 @@ use crate::{
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
     BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, ClassLikeDeclarationBase,
     ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceOrClassLikeDeclarationInterface, LiteralLikeNodeInterface, Node, NodeArray,
-    NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, Number, NumericLiteral,
-    ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, ReadonlyTextRange,
-    RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags,
-    TransformFlags,
+    GeneratedIdentifierFlags, HasInitializerInterface, HasTypeInterface,
+    HasTypeParametersInterface, Identifier, InterfaceOrClassLikeDeclarationInterface,
+    LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory,
+    NodeInterface, Number, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
+    PrefixUnaryExpression, ReadonlyTextRange, RegularExpressionLiteral,
+    SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
 };
 
 thread_local! {
@@ -1106,6 +1106,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = base_factory.create_base_identifier_node(SyntaxKind::Identifier);
         let mut node = Identifier::new(node, escape_leading_underscores(text));
         node.original_keyword_kind = original_keyword_kind;
+        node
+    }
+
+    pub fn create_base_generated_identifier(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: &str,
+        auto_generate_flags: GeneratedIdentifierFlags,
+    ) -> Identifier {
+        let mut node = self.create_base_identifier(base_factory, text, None);
+        node.auto_generate_flags = Some(auto_generate_flags);
+        node.auto_generate_id = Some(get_next_auto_generate_id());
+        increment_next_auto_generate_id();
         node
     }
 

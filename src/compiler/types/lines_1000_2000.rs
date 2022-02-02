@@ -161,7 +161,8 @@ pub struct Identifier {
     _node: BaseNode,
     pub escaped_text: __String,
     pub original_keyword_kind: Option<SyntaxKind>,
-    auto_generate_flags: Option<GeneratedIdentifierFlags>,
+    pub(crate) auto_generate_flags: Option<GeneratedIdentifierFlags>,
+    pub(crate) auto_generate_id: Option<usize>,
     pub(crate) type_arguments: Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>,
 }
 
@@ -172,6 +173,7 @@ impl Identifier {
             escaped_text,
             original_keyword_kind: None,
             auto_generate_flags: None,
+            auto_generate_id: None,
             type_arguments: None,
         }
     }
