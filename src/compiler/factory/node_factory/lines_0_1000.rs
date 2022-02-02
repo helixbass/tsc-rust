@@ -1025,6 +1025,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> StringLiteral {
         let mut node = self.create_base_string_literal(base_factory, text, is_single_quote);
         node.set_has_extended_unicode_escape(has_extended_unicode_escape);
+        if matches!(has_extended_unicode_escape, Some(true)) {
+            node.add_transform_flags(TransformFlags::ContainsES2015);
+        }
         node
     }
 
