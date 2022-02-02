@@ -487,8 +487,8 @@ pub trait FunctionLikeDeclarationInterface {
 pub struct BaseFunctionLikeDeclaration {
     _signature_declaration: BaseSignatureDeclaration,
     pub asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
-    question_token: Option<Rc<Node /*QuestionToken*/>>,
-    exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+    pub exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
     body: Option<Rc<Node /*Block | Expression*/>>,
 }
 
@@ -555,6 +555,22 @@ impl MethodSignature {
         Self {
             _signature_declaration: signature_declaration,
             question_token,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct MethodDeclaration {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+}
+
+impl MethodDeclaration {
+    pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
         }
     }
 }

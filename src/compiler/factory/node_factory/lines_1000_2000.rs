@@ -6,11 +6,12 @@ use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
     has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
     is_this_identifier, modifiers_to_flags, ArrayTypeNode, BaseNode, BaseNodeFactory,
-    ComputedPropertyName, Decorator, HasInitializerInterface, IntersectionTypeNode,
-    MethodSignature, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature,
-    QualifiedName, StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode,
-    TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
+    ComputedPropertyName, Decorator, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    IntersectionTypeNode, MethodDeclaration, MethodSignature, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName, StringOrRcNode,
+    SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
+    TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -347,6 +348,61 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         let mut node = MethodSignature::new(node, question_token);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_method_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+        TTypeParameters: Into<NodeArrayOrVec>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
+        name: Option<TName>,
+        question_token: Option<Rc<Node /*QuestionToken*/>>,
+        type_parameters: Option<TTypeParameters>,
+        parameters: TParameters,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+        body: Option<Rc<Node /*Block*/>>,
+    ) -> MethodDeclaration {
+        let mut node = self.create_base_function_like_declaration(
+            base_factory,
+            SyntaxKind::MethodDeclaration,
+            decorators,
+            modifiers,
+            name,
+            type_parameters,
+            Some(parameters),
+            type_,
+            body,
+        );
+        let asterisk_token_is_some = asterisk_token.is_some();
+        let question_token_is_some = question_token.is_some();
+        node.asterisk_token = asterisk_token;
+        node.question_token = question_token;
+        let mut node = MethodDeclaration::new(node);
+        node.add_transform_flags(
+            propagate_child_flags(node.maybe_asterisk_token())
+                | propagate_child_flags(node.maybe_question_token())
+                | TransformFlags::ContainsES2015,
+        );
+        if question_token_is_some {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Async) {
+            if asterisk_token_is_some {
+                node.add_transform_flags(TransformFlags::ContainsES2018);
+            } else {
+                node.add_transform_flags(TransformFlags::ContainsES2017);
+            }
+        } else if asterisk_token_is_some {
+            node.add_transform_flags(TransformFlags::ContainsGenerator);
+        }
         node
     }
 
