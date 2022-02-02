@@ -799,11 +799,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_union_or_intersection_type_node<TElements: Into<NodeArrayOrVec>>(
+    pub fn create_union_or_intersection_type_node<TTypes: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind, /*SyntaxKind.UnionType | SyntaxKind.IntersectionType*/
-        types: TElements, /*<TypeNode>*/
+        types: TTypes,    /*<TypeNode>*/
     ) -> Node {
         let node = self.create_base_node(base_factory, kind);
         let types = self
@@ -812,11 +812,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 base_factory,
                 types.into(),
             );
-        match kind {
+        let mut node: Node = match kind {
             SyntaxKind::UnionType => UnionTypeNode::new(node, types).into(),
             SyntaxKind::IntersectionType => IntersectionTypeNode::new(node, types).into(),
             _ => panic!("Expected UnionType or IntersectionType"),
-        }
+        };
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
     }
 
     pub fn create_union_type_node<TElements: Into<NodeArrayOrVec>>(
