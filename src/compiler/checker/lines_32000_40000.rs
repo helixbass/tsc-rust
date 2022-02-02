@@ -8,9 +8,9 @@ use super::CheckMode;
 use crate::{
     for_each, get_combined_node_flags, get_effective_initializer, is_binding_element,
     is_function_or_module_block, is_private_identifier, map, maybe_for_each, parse_pseudo_big_int,
-    DiagnosticMessage, Diagnostics, Expression, HasTypeParametersInterface, LiteralLikeNode,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    PseudoBigInt, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    DiagnosticMessage, Diagnostics, HasTypeParametersInterface, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface,
 };
 
@@ -258,45 +258,31 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         match node {
-            Node::Expression(Expression::Identifier(_)) => self.check_identifier(node, check_mode),
-            Node::Expression(Expression::TokenExpression(token_expression)) => {
-                match token_expression.kind() {
-                    SyntaxKind::TrueKeyword => self.true_type(),
-                    _ => unimplemented!(),
-                }
-            }
-            Node::Expression(Expression::ObjectLiteralExpression(_)) => {
-                self.check_object_literal(node)
-            }
-            Node::Expression(Expression::PrefixUnaryExpression(_)) => {
-                self.check_prefix_unary_expression(node)
-            }
+            Node::Identifier(_) => self.check_identifier(node, check_mode),
+            Node::BaseNode(node_as_base_node) => match node_as_base_node.kind() {
+                SyntaxKind::TrueKeyword => self.true_type(),
+                _ => unimplemented!(),
+            },
+            Node::ObjectLiteralExpression(_) => self.check_object_literal(node),
+            Node::PrefixUnaryExpression(_) => self.check_prefix_unary_expression(node),
             // Node::Expression(Expression::BinaryExpression(_)) => {
             //     return self.check_binary_expression(node);
             // }
-            Node::Expression(Expression::LiteralLikeNode(
-                LiteralLikeNode::TemplateLiteralLikeNode(template_literal_like_node),
-            )) => {
+            Node::TemplateLiteralLikeNode(template_literal_like_node) => {
                 let type_: Rc<Type> =
                     self.get_string_literal_type(template_literal_like_node.text());
                 self.get_fresh_type_of_literal_type(&type_)
             }
-            Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::StringLiteral(
-                string_literal,
-            ))) => {
+            Node::StringLiteral(string_literal) => {
                 let type_: Rc<Type> = self.get_string_literal_type(string_literal.text());
                 self.get_fresh_type_of_literal_type(&type_)
             }
-            Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::NumericLiteral(
-                numeric_literal,
-            ))) => {
+            Node::NumericLiteral(numeric_literal) => {
                 self.check_grammar_numeric_literal(node);
                 let type_: Rc<Type> = self.get_number_literal_type(numeric_literal.text().into());
                 self.get_fresh_type_of_literal_type(&type_)
             }
-            Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::BigIntLiteral(
-                big_int_literal,
-            ))) => {
+            Node::BigIntLiteral(big_int_literal) => {
                 let type_: Rc<Type> = self
                     .get_big_int_literal_type(PseudoBigInt::new(
                         false,
@@ -305,10 +291,8 @@ impl TypeChecker {
                     .into();
                 self.get_fresh_type_of_literal_type(&type_)
             }
-            Node::Expression(Expression::TemplateExpression(_)) => {
-                self.check_template_expression(node)
-            }
-            _ => unimplemented!(),
+            Node::TemplateExpression(_) => self.check_template_expression(node),
+            _ => unimplemented!("{:#?}", node),
         }
     }
 
@@ -418,7 +402,7 @@ impl TypeChecker {
                         &initializer_type,
                         &type_,
                         Some(node),
-                        Some(initializer.as_expression()),
+                        Some(&*initializer),
                         None,
                     );
                 }

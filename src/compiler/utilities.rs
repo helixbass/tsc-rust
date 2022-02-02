@@ -26,19 +26,19 @@ use crate::{
     options_affecting_program_structure, skip_outer_expressions, str_to_source_text_as_chars,
     text_substring, AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface,
     CompilerOptions, CompilerOptionsValue, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, MapLike,
-    ModifierFlags, ModuleKind, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags,
-    OuterExpressionKinds, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, ScriptTarget,
-    Signature, SignatureFlags, SortedArray, SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan,
-    TransformFlags, TransientSymbolInterface, Type, TypeFlags, TypeInterface, UnderscoreEscapedMap,
-    __String, compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
-    escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
-    insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
-    CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic, DiagnosticCollection,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    EmitFlags, EmitTextWriter, LiteralLikeNodeInterface, MapLike, ModifierFlags, ModuleKind, Node,
+    NodeArray, NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds, PrefixUnaryExpression,
+    PseudoBigInt, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SortedArray,
+    SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TransformFlags, TransientSymbolInterface,
+    Type, TypeFlags, TypeInterface, UnderscoreEscapedMap, __String, compare_strings_case_sensitive,
+    compare_values, create_text_span_from_bounds, escape_leading_underscores, for_each,
+    get_combined_node_flags, get_name_of_declaration, insert_sorted, is_big_int_literal,
+    is_member_name, is_type_alias_declaration, skip_trivia, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags,
+    Comparison, Debug_, Diagnostic, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -389,9 +389,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
     }
 
     match node {
-        Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::StringLiteral(
-            node_as_string_literal,
-        ))) => {
+        Node::StringLiteral(node_as_string_literal) => {
             let escape_text = if flags.intersects(GetLiteralTextFlags::JsxAttributeEscape) {
                 unimplemented!()
             } else if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
@@ -419,9 +417,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 )
             }
         }
-        Node::Expression(Expression::LiteralLikeNode(
-            LiteralLikeNode::TemplateLiteralLikeNode(node_as_template_literal_like_node),
-        )) => {
+        Node::TemplateLiteralLikeNode(node_as_template_literal_like_node) => {
             let escape_text = if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
                 || get_emit_flags(node).intersects(EmitFlags::NoAsciiEscaping)
             {
@@ -448,8 +444,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 _ => panic!("Unexpected TemplateLiteralLikeNode kind"),
             }
         }
-        Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::NumericLiteral(_)))
-        | Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::BigIntLiteral(_))) => {
+        Node::NumericLiteral(_) | Node::BigIntLiteral(_) => {
             node.as_literal_like_node().text().to_string()
         }
         _ => Debug_.fail(Some(&format!(
@@ -674,7 +669,7 @@ pub fn is_external_or_common_js_module(file: &Node /*SourceFile*/) -> bool {
 
 pub fn is_import_call(n: &Node) -> bool {
     match n {
-        Node::Expression(Expression::CallExpression(call_expression)) => {
+        Node::CallExpression(call_expression) => {
             call_expression.expression.kind() == SyntaxKind::ImportKeyword
         }
         _ => false,
@@ -1485,11 +1480,9 @@ pub fn get_expression_precedence(expression: &Node) -> OperatorPrecedence {
 
 pub fn get_operator(expression: &Node) -> SyntaxKind {
     match expression {
-        Node::Expression(Expression::BinaryExpression(expression)) => {
-            expression.operator_token.kind()
-        }
-        Node::Expression(Expression::PrefixUnaryExpression(expression)) => expression.operator,
-        Node::Expression(Expression::PostfixUnaryExpression(expression)) => expression.operator,
+        Node::BinaryExpression(expression) => expression.operator_token.kind(),
+        Node::PrefixUnaryExpression(expression) => expression.operator,
+        Node::PostfixUnaryExpression(expression) => expression.operator,
         _ => expression.kind(),
     }
 }
@@ -2068,7 +2061,7 @@ pub fn is_entity_name_expression(node: &Node) -> bool {
 
 pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
     match node {
-        Node::Expression(Expression::Identifier(_)) => node.node_wrapper(),
+        Node::Identifier(_) => node.node_wrapper(),
         _ => unimplemented!(),
     }
 }
@@ -2135,10 +2128,7 @@ fn access_kind(node: &Node) -> AccessKind {
     match &*parent {
         /*ParenthesizedExpression*/
         /*PostfixUnaryExpression*/
-        Node::Expression(Expression::PrefixUnaryExpression(PrefixUnaryExpression {
-            operator,
-            ..
-        })) => {
+        Node::PrefixUnaryExpression(PrefixUnaryExpression { operator, .. }) => {
             if matches!(
                 operator,
                 SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
@@ -2148,11 +2138,11 @@ fn access_kind(node: &Node) -> AccessKind {
                 AccessKind::Read
             }
         }
-        Node::Expression(Expression::BinaryExpression(_)) => unimplemented!(),
+        Node::BinaryExpression(_) => unimplemented!(),
         /*PropertyAccessExpression*/
         /*PropertyAssignment*/
         /*ShorthandPropertyAssignment*/
-        Node::Expression(Expression::ArrayLiteralExpression(_)) => access_kind(&*parent),
+        Node::ArrayLiteralExpression(_) => access_kind(&*parent),
         _ => AccessKind::Read,
     }
 }

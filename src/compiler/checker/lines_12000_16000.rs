@@ -8,9 +8,9 @@ use std::rc::Rc;
 use crate::{
     UnionType, __String, binary_search_copy_key, compare_values, concatenate,
     get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
-    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Expression, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, UnionReduction,
+    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, UnionReduction,
 };
 
 impl TypeChecker {
@@ -513,7 +513,7 @@ impl TypeChecker {
         &self,
         name: &Node, /*PropertyName*/
     ) -> Rc<Type> {
-        if let Node::Expression(Expression::Identifier(identifier)) = name {
+        if let Node::Identifier(identifier) = name {
             self.get_string_literal_type(&unescape_leading_underscores(&identifier.escaped_text))
         } else {
             unimplemented!()

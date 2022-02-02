@@ -293,7 +293,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.is_unterminated()
                     }
 
-                    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>) {
+                    fn set_is_unterminated(&self, is_unterminated: Option<bool>) {
                         self.#first_field_name.set_is_unterminated(is_unterminated);
                     }
 
@@ -301,7 +301,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.has_extended_unicode_escape()
                     }
 
-                    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>) {
+                    fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>) {
                         self.#first_field_name.set_has_extended_unicode_escape(has_extended_unicode_escape);
                     }
                 }
@@ -634,7 +634,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>) {
+                    fn set_is_unterminated(&self, is_unterminated: Option<bool>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_is_unterminated(is_unterminated)),*
                         }
@@ -646,7 +646,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>) {
+                    fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_has_extended_unicode_escape(has_extended_unicode_escape)),*
                         }

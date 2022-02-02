@@ -19,8 +19,8 @@ use crate::{
     BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, ClassLikeDeclarationBase,
     ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface,
     HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceOrClassLikeDeclarationInterface, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, Number, NumericLiteral,
+    InterfaceOrClassLikeDeclarationInterface, LiteralLikeNodeInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, Number, NumericLiteral,
     ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, ReadonlyTextRange,
     RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags,
     TransformFlags,
@@ -1062,7 +1062,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind, /*LiteralToken["kind"] | SyntaxKind.JsxTextAllWhiteSpaces*/
         text: String,
-    ) -> LiteralLikeNode {
+    ) -> Node {
         match kind {
             SyntaxKind::NumericLiteral => self
                 .create_numeric_literal(base_factory, text, Some(TokenFlags::None))
@@ -1070,6 +1070,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             SyntaxKind::BigIntLiteral => self.create_big_int_literal(base_factory, text).into(),
             SyntaxKind::StringLiteral => self
                 .create_string_literal(base_factory, text, None, None)
+                .into(),
+            SyntaxKind::JsxText => self.create_jsx_text(base_factory, text, Some(false)).into(),
+            SyntaxKind::JsxTextAllWhiteSpaces => {
+                self.create_jsx_text(base_factory, text, Some(true)).into()
+            }
+            SyntaxKind::RegularExpressionLiteral => self
+                .create_regular_expression_literal(base_factory, text)
+                .into(),
+            SyntaxKind::NoSubstitutionTemplateLiteral => self
+                .create_template_literal_like_node(
+                    base_factory,
+                    kind,
+                    text,
+                    None,
+                    Some(TokenFlags::None),
+                )
                 .into(),
             _ => panic!("Unexpected kind"),
         }

@@ -22,7 +22,7 @@ impl ParserType {
                 self.parse_error_for_missing_semicolon_after(&expression);
             }
             self.factory
-                .create_expression_statement(self, expression)
+                .create_expression_statement(self, expression.wrap())
                 .into()
         };
         self.finish_node(node, pos, None)
@@ -221,7 +221,7 @@ impl ParserType {
             self,
             Some(name),
             type_.map(|type_| type_.into()),
-            initializer.map(|initializer| initializer.into()),
+            initializer.map(|initializer| initializer.wrap()),
         );
         self.finish_node(node, pos, None)
     }

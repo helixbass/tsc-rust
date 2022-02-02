@@ -4,9 +4,9 @@ use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    get_full_width, is_modifier_kind, some, token_to_string, Diagnostics, Expression,
-    KeywordTypeNode, LiteralTypeNode, Node, NodeArray, NodeFactory, ParameterDeclaration,
-    SyntaxKind, TypeElement, TypeNode, TypeParameterDeclaration,
+    get_full_width, is_modifier_kind, some, token_to_string, Diagnostics, KeywordTypeNode,
+    LiteralTypeNode, Node, NodeArray, NodeFactory, ParameterDeclaration, SyntaxKind, TypeElement,
+    TypeNode, TypeParameterDeclaration,
 };
 
 impl ParserType {
@@ -14,7 +14,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         let name = self.parse_identifier(None, None);
         let mut constraint: Option<TypeNode> = None;
-        let mut expression: Option<Expression> = None;
+        let mut expression: Option<Node> = None;
         if self.parse_optional(SyntaxKind::ExtendsKeyword) {
             if self.is_start_of_type(None) || !self.is_start_of_expression() {
                 constraint = Some(self.parse_type());
@@ -285,7 +285,7 @@ impl ParserType {
         if negative {
             self.next_token();
         }
-        let expression: Expression = match self.token() {
+        let expression: Node = match self.token() {
             SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword | SyntaxKind::NullKeyword => {
                 self.parse_token_node().into()
             }

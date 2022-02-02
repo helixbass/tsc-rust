@@ -6,26 +6,28 @@ use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    ArrayBindingPattern, ArrayTypeNode, BinaryExpression, BindingElement, Block, CallExpression,
-    ConditionalExpression, Decorator, ElementAccessExpression, EmitNode, EnumMember,
-    ExportAssignment, Expression, ExpressionStatement, FunctionDeclaration,
-    FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
-    HasExpressionInterface, HasIsTypeOnlyInterface, HasQuestionDotTokenInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, IfStatement,
-    InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
-    JSDocMemberName, JSDocPropertyLikeTag, JSDocTag, JSDocTemplateTag, JSDocText,
-    JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag, JsxAttribute,
-    LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface,
-    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray,
-    NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration,
-    PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment,
-    PropertyDeclaration, PropertySignature, QualifiedName, ShorthandPropertyAssignment,
-    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, SpreadAssignment,
-    Statement, Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateSpan,
-    TransformFlags, TypeAliasDeclaration, TypeElement, TypeLiteralNode, TypeNode,
-    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
-    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression,
+    ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, AsExpression, BigIntLiteral,
+    BinaryExpression, BindingElement, Block, CallExpression, ConditionalExpression, Decorator,
+    ElementAccessExpression, EmitNode, EnumMember, ExportAssignment, ExpressionStatement,
+    FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface, FunctionTypeNode,
+    HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
+    HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
+    Identifier, IfStatement, InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode,
+    JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocTag,
+    JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag,
+    JsxAttribute, JsxText, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode,
+    MemberNameInterface, ModifiersArray, ModuleDeclaration, NamedDeclarationInterface,
+    NewExpression, NodeArray, NonNullExpression, NumericLiteral, ObjectBindingPattern,
+    ObjectLiteralExpression, ParameterDeclaration, ParenthesizedExpression,
+    PartiallyEmittedExpression, PostfixUnaryExpression, PrefixUnaryExpression,
+    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
+    QualifiedName, RegularExpressionLiteral, ShorthandPropertyAssignment, SignatureDeclarationBase,
+    SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, Statement,
+    StringLiteral, Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression,
+    TemplateLiteralLikeNode, TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeAssertion,
+    TypeElement, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypeReferenceNode,
+    UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
+    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -638,7 +640,6 @@ pub enum Node {
     VariableDeclarationList(VariableDeclarationList),
     ParameterDeclaration(ParameterDeclaration),
     TypeNode(TypeNode),
-    Expression(Expression),
     TemplateSpan(TemplateSpan),
     Statement(Statement),
     TypeElement(TypeElement),
@@ -660,6 +661,33 @@ pub enum Node {
     JSDocLinkCode(JSDocLinkCode),
     JSDocLinkPlain(JSDocLinkPlain),
     SpreadAssignment(SpreadAssignment),
+    JsxText(JsxText),
+    PartiallyEmittedExpression(PartiallyEmittedExpression),
+    Identifier(Identifier),
+    PrefixUnaryExpression(PrefixUnaryExpression),
+    BinaryExpression(BinaryExpression),
+    TemplateExpression(TemplateExpression),
+    ParenthesizedExpression(ParenthesizedExpression),
+    ArrayLiteralExpression(ArrayLiteralExpression),
+    ObjectLiteralExpression(ObjectLiteralExpression),
+    AsExpression(AsExpression),
+    TypeAssertion(TypeAssertion),
+    NonNullExpression(NonNullExpression),
+    CallExpression(CallExpression),
+    PropertyAccessExpression(PropertyAccessExpression),
+    ElementAccessExpression(ElementAccessExpression),
+    VoidExpression(VoidExpression),
+    NewExpression(NewExpression),
+    PostfixUnaryExpression(PostfixUnaryExpression),
+    ConditionalExpression(ConditionalExpression),
+    TaggedTemplateExpression(TaggedTemplateExpression),
+    FunctionExpression(FunctionExpression),
+    SpreadElement(SpreadElement),
+    StringLiteral(StringLiteral),
+    TemplateLiteralLikeNode(TemplateLiteralLikeNode),
+    NumericLiteral(NumericLiteral),
+    BigIntLiteral(BigIntLiteral),
+    RegularExpressionLiteral(RegularExpressionLiteral),
 }
 
 impl Node {
@@ -690,14 +718,19 @@ impl Node {
 
     pub fn as_member_name(&self) -> &dyn MemberNameInterface {
         match self {
-            Node::Expression(Expression::Identifier(identifier)) => identifier,
+            Node::Identifier(identifier) => identifier,
             _ => panic!("Expected member name"),
         }
     }
 
     pub fn as_literal_like_node(&self) -> &dyn LiteralLikeNodeInterface {
         match self {
-            Node::Expression(Expression::LiteralLikeNode(literal_like_node)) => literal_like_node,
+            Node::StringLiteral(node) => node,
+            Node::TemplateLiteralLikeNode(node) => node,
+            Node::NumericLiteral(node) => node,
+            Node::BigIntLiteral(node) => node,
+            Node::RegularExpressionLiteral(node) => node,
+            Node::JsxText(node) => node,
             _ => panic!("Expected literal like node"),
         }
     }
@@ -769,11 +802,11 @@ impl Node {
 
     pub fn as_has_expression(&self) -> &dyn HasExpressionInterface {
         match self {
-            Node::Expression(Expression::ParenthesizedExpression(node)) => node,
-            Node::Expression(Expression::TypeAssertion(node)) => node,
-            Node::Expression(Expression::AsExpression(node)) => node,
-            Node::Expression(Expression::NonNullExpression(node)) => node,
-            Node::Expression(Expression::PartiallyEmittedExpression(node)) => node,
+            Node::ParenthesizedExpression(node) => node,
+            Node::TypeAssertion(node) => node,
+            Node::AsExpression(node) => node,
+            Node::NonNullExpression(node) => node,
+            Node::PartiallyEmittedExpression(node) => node,
             _ => panic!("Expected has expression"),
         }
     }
@@ -824,9 +857,9 @@ impl Node {
 
     pub fn as_has_question_dot_token(&self) -> &dyn HasQuestionDotTokenInterface {
         match self {
-            Node::Expression(Expression::PropertyAccessExpression(node)) => node,
-            Node::Expression(Expression::ElementAccessExpression(node)) => node,
-            Node::Expression(Expression::CallExpression(node)) => node,
+            Node::PropertyAccessExpression(node) => node,
+            Node::ElementAccessExpression(node) => node,
+            Node::CallExpression(node) => node,
             _ => panic!("Expected has question dot token"),
         }
     }
@@ -858,11 +891,6 @@ impl Node {
         }
     }
 
-    pub fn as_expression(&self) -> &Expression {
-        // node_unwrapped!(self, Expression)
-        enum_unwrapped!(self, [Node, Expression])
-    }
-
     pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
         enum_unwrapped!(self, [Node, VariableDeclarationList])
     }
@@ -884,11 +912,11 @@ impl Node {
     }
 
     pub fn as_object_literal_expression(&self) -> &ObjectLiteralExpression {
-        enum_unwrapped!(self, [Node, Expression, ObjectLiteralExpression])
+        enum_unwrapped!(self, [Node, ObjectLiteralExpression])
     }
 
     pub fn as_identifier(&self) -> &Identifier {
-        enum_unwrapped!(self, [Node, Expression, Identifier])
+        enum_unwrapped!(self, [Node, Identifier])
     }
 
     pub fn as_type_node(&self) -> &TypeNode {
@@ -908,7 +936,7 @@ impl Node {
     }
 
     pub fn as_binary_expression(&self) -> &BinaryExpression {
-        enum_unwrapped!(self, [Node, Expression, BinaryExpression])
+        enum_unwrapped!(self, [Node, BinaryExpression])
     }
 
     pub fn as_module_declaration(&self) -> &ModuleDeclaration {
@@ -924,23 +952,23 @@ impl Node {
     }
 
     pub fn as_call_expression(&self) -> &CallExpression {
-        enum_unwrapped!(self, [Node, Expression, CallExpression])
+        enum_unwrapped!(self, [Node, CallExpression])
     }
 
     pub fn as_property_access_expression(&self) -> &PropertyAccessExpression {
-        enum_unwrapped!(self, [Node, Expression, PropertyAccessExpression])
+        enum_unwrapped!(self, [Node, PropertyAccessExpression])
     }
 
     pub fn as_element_access_expression(&self) -> &ElementAccessExpression {
-        enum_unwrapped!(self, [Node, Expression, ElementAccessExpression])
+        enum_unwrapped!(self, [Node, ElementAccessExpression])
     }
 
     pub fn as_void_expression(&self) -> &VoidExpression {
-        enum_unwrapped!(self, [Node, Expression, VoidExpression])
+        enum_unwrapped!(self, [Node, VoidExpression])
     }
 
     pub fn as_numeric_literal(&self) -> &NumericLiteral {
-        enum_unwrapped!(self, [Node, Expression, LiteralLikeNode, NumericLiteral])
+        enum_unwrapped!(self, [Node, NumericLiteral])
     }
 
     pub fn as_parameter_declaration(&self) -> &ParameterDeclaration {
@@ -956,7 +984,7 @@ impl Node {
     }
 
     pub fn as_new_expression(&self) -> &NewExpression {
-        enum_unwrapped!(self, [Node, Expression, NewExpression])
+        enum_unwrapped!(self, [Node, NewExpression])
     }
 
     pub fn as_jsdoc_typedef_tag(&self) -> &JSDocTypedefTag {
@@ -972,7 +1000,7 @@ impl Node {
     }
 
     pub fn as_prefix_unary_expression(&self) -> &PrefixUnaryExpression {
-        enum_unwrapped!(self, [Node, Expression, PrefixUnaryExpression])
+        enum_unwrapped!(self, [Node, PrefixUnaryExpression])
     }
 
     pub fn as_jsdoc_type_expression(&self) -> &JSDocTypeExpression {
@@ -1028,7 +1056,7 @@ impl Node {
     }
 
     pub fn as_template_expression(&self) -> &TemplateExpression {
-        enum_unwrapped!(self, [Node, Expression, TemplateExpression])
+        enum_unwrapped!(self, [Node, TemplateExpression])
     }
 
     pub fn as_union_type_node(&self) -> &UnionTypeNode {
@@ -1036,15 +1064,15 @@ impl Node {
     }
 
     pub fn as_postfix_unary_expression(&self) -> &PostfixUnaryExpression {
-        enum_unwrapped!(self, [Node, Expression, PostfixUnaryExpression])
+        enum_unwrapped!(self, [Node, PostfixUnaryExpression])
     }
 
     pub fn as_conditional_expression(&self) -> &ConditionalExpression {
-        enum_unwrapped!(self, [Node, Expression, ConditionalExpression])
+        enum_unwrapped!(self, [Node, ConditionalExpression])
     }
 
     pub fn as_tagged_template_expression(&self) -> &TaggedTemplateExpression {
-        enum_unwrapped!(self, [Node, Expression, TaggedTemplateExpression])
+        enum_unwrapped!(self, [Node, TaggedTemplateExpression])
     }
 
     pub fn as_function_declaration(&self) -> &FunctionDeclaration {

@@ -8,7 +8,7 @@ use std::rc::Rc;
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
     get_check_flags, pseudo_big_int_to_string, BaseLiteralType, BigIntLiteralType, CheckFlags,
-    Debug_, DiagnosticMessage, Expression, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    Debug_, DiagnosticMessage, LiteralTypeInterface, NamedDeclarationInterface, Node,
     NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression, PseudoBigInt,
     RelationComparisonResult, StringLiteralType, Symbol, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode,
@@ -407,7 +407,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         error_node: Option<&Node>,
-        expr: Option<&Expression>,
+        expr: Option<&Node>,
         head_message: Option<DiagnosticMessage>,
     ) -> bool {
         self.check_type_related_to_and_optionally_elaborate(
@@ -426,7 +426,7 @@ impl TypeChecker {
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
         error_node: Option<&Node>,
-        expr: Option<&Expression>,
+        expr: Option<&Node>,
         head_message: Option<DiagnosticMessage>,
     ) -> bool {
         if self.is_type_related_to(source, target, relation) {
@@ -442,7 +442,7 @@ impl TypeChecker {
 
     pub(super) fn elaborate_error(
         &self,
-        node: Option<&Expression>,
+        node: Option<&Node>,
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
@@ -453,13 +453,8 @@ impl TypeChecker {
         }
         let node = node.unwrap();
         match node {
-            Expression::ObjectLiteralExpression(object_literal_expression) => {
-                return self.elaborate_object_literal(
-                    object_literal_expression,
-                    source,
-                    target,
-                    relation,
-                );
+            Node::ObjectLiteralExpression(node) => {
+                return self.elaborate_object_literal(node, source, target, relation);
             }
             _ => (),
         }

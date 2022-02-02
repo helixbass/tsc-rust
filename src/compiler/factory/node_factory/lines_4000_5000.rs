@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use super::get_default_tag_name_for_kind;
 use crate::{
-    BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, Node,
-    NodeFactory, StringOrNodeArray, SyntaxKind,
+    BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, JsxText,
+    Node, NodeFactory, NodeInterface, StringOrNodeArray, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -75,6 +75,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             comment,
         );
         let node = BaseJSDocTypeLikeTag::new(node, type_expression);
+        node
+    }
+
+    pub fn create_jsx_text(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: String,
+        contains_only_trivia_white_spaces: Option<bool>,
+    ) -> JsxText {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxText);
+        let mut node = JsxText::new(
+            node,
+            text,
+            contains_only_trivia_white_spaces.unwrap_or(false),
+        );
+        node.add_transform_flags(TransformFlags::ContainsJsx);
         node
     }
 }

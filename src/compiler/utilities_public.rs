@@ -29,7 +29,7 @@ use crate::{
     is_type_literal_node, is_type_node_kind, is_type_reference_node, is_variable_declaration_list,
     is_variable_statement, is_white_space_like, modifier_to_flag, normalize_path, path_is_relative,
     set_localized_diagnostic_messages, set_ui_locale, skip_outer_expressions, some,
-    AssignmentDeclarationKind, CharacterCodes, CompilerOptions, Debug_, Diagnostics, Expression,
+    AssignmentDeclarationKind, CharacterCodes, CompilerOptions, Debug_, Diagnostics,
     GeneratedIdentifierFlags, HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface,
     Node, NodeArray, NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Statement,
     Symbol, SymbolInterface, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
@@ -576,7 +576,7 @@ fn name_for_nameless_jsdoc_typedef(
         Node::Statement(Statement::ExpressionStatement(host_node)) => {
             let mut expr = host_node.expression.clone();
             match &*expr {
-                Node::Expression(Expression::BinaryExpression(expr_as_binary_expression))
+                Node::BinaryExpression(expr_as_binary_expression)
                     if expr_as_binary_expression.operator_token.kind()
                         == SyntaxKind::EqualsToken =>
                 {
@@ -585,10 +585,10 @@ fn name_for_nameless_jsdoc_typedef(
                 _ => (),
             }
             match &*expr {
-                Node::Expression(Expression::PropertyAccessExpression(expr)) => {
+                Node::PropertyAccessExpression(expr) => {
                     return Some(expr.name());
                 }
-                Node::Expression(Expression::ElementAccessExpression(expr)) => {
+                Node::ElementAccessExpression(expr) => {
                     let arg = expr.argument_expression.clone();
                     if is_identifier(&*arg) {
                         return Some(arg);
@@ -597,7 +597,7 @@ fn name_for_nameless_jsdoc_typedef(
                 _ => (),
             }
         }
-        Node::Expression(Expression::ParenthesizedExpression(host_node)) => {
+        Node::ParenthesizedExpression(host_node) => {
             return get_declaration_identifier(&host_node.expression);
         }
         Node::Statement(Statement::LabeledStatement(host_node)) => {
@@ -749,7 +749,7 @@ pub(crate) fn get_assigned_name(node: &Node) -> Option<Rc<Node /*DeclarationName
         Node::PropertyAssignment(_) | Node::BindingElement(_) => {
             return node_parent.as_named_declaration().maybe_name();
         }
-        Node::Expression(Expression::BinaryExpression(node_parent)) => {
+        Node::BinaryExpression(node_parent) => {
             if ptr::eq(node, &*node_parent.right) {
                 if is_identifier(&*node_parent.left) {
                     return Some(node_parent.left.clone());
@@ -1241,7 +1241,7 @@ pub(crate) fn is_outermost_optional_chain(node: &Node /*OptionalChain*/) -> bool
 
 pub fn is_nullish_coalesce(node: &Node) -> bool {
     match node {
-        Node::Expression(Expression::BinaryExpression(node)) => {
+        Node::BinaryExpression(node) => {
             node.operator_token.kind() == SyntaxKind::QuestionQuestionToken
         }
         _ => false,
@@ -1252,7 +1252,7 @@ pub fn is_const_type_reference(node: &Node) -> bool {
     // match node {
     //     Node::TypeNode(TypeNode::TypeReferenceNode(node)) => {
     //         match &*node.type_name {
-    //             Node::Expression(Expression::Identifier(type_name)) =>
+    //             Node::Identifier(type_name) =>
     //                 type_name.escaped_text.eq_str("const") && node.type_arguments.is_none(),
     //             _ => false,
     //         }

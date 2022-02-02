@@ -8,7 +8,7 @@ use crate::{
     attach_file_to_diagnostics, create_detached_diagnostic, is_modifier_kind,
     is_template_literal_kind, last_or_undefined, set_text_range_pos_end,
     token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, Expression, Identifier, Node, NodeArray,
+    DiagnosticRelatedInformationInterface, Diagnostics, Identifier, Node, NodeArray,
     NodeArrayOrVec, NodeFlags, NodeInterface, SourceFile, SyntaxKind,
 };
 use local_macros::enum_unwrapped;
@@ -312,7 +312,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_error_for_missing_semicolon_after(&self, node: &Expression) {
+    pub(super) fn parse_error_for_missing_semicolon_after(&self, node: &Node) {
         unimplemented!()
     }
 

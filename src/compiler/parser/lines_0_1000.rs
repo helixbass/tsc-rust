@@ -10,7 +10,7 @@ use super::{Parser, ParsingContext};
 use crate::{
     create_node_factory, create_scanner, maybe_text_char_at_index, normalize_path,
     object_allocator, BaseNode, BaseNodeFactory, CharacterCodes, Diagnostic, DiagnosticMessage,
-    Expression, FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
     HasTypeParametersInterface, Identifier, NamedDeclarationInterface, Node, NodeArray,
     NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
     SignatureDeclarationInterface, SourceTextAsChars, Statement, SyntaxKind,
@@ -314,21 +314,17 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
         Node::TypeNode(TypeNode::LiteralTypeNode(literal_type)) => {
             visit_node(&mut cb_node, Some(literal_type.literal.clone()))
         }
-        Node::Expression(Expression::ArrayLiteralExpression(array_literal_expression)) => {
-            visit_nodes(
-                &mut cb_node,
-                Some(&mut cb_nodes),
-                Some(&array_literal_expression.elements),
-            )
-        }
-        Node::Expression(Expression::ObjectLiteralExpression(object_literal_expression)) => {
-            visit_nodes(
-                &mut cb_node,
-                Some(&mut cb_nodes),
-                Some(&object_literal_expression.properties),
-            )
-        }
-        Node::Expression(Expression::PrefixUnaryExpression(prefix_unary_expression)) => {
+        Node::ArrayLiteralExpression(array_literal_expression) => visit_nodes(
+            &mut cb_node,
+            Some(&mut cb_nodes),
+            Some(&array_literal_expression.elements),
+        ),
+        Node::ObjectLiteralExpression(object_literal_expression) => visit_nodes(
+            &mut cb_node,
+            Some(&mut cb_nodes),
+            Some(&object_literal_expression.properties),
+        ),
+        Node::PrefixUnaryExpression(prefix_unary_expression) => {
             visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()))
         }
         Node::Statement(Statement::VariableStatement(variable_statement)) => {
@@ -394,7 +390,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             );
             visit_node(&mut cb_node, Some(type_alias_declaration.type_.clone()))
         }
-        Node::Expression(Expression::TemplateExpression(template_expression)) => {
+        Node::TemplateExpression(template_expression) => {
             visit_node(&mut cb_node, Some(&*template_expression.head));
             visit_nodes(
                 &mut cb_node,

@@ -10,9 +10,9 @@ use crate::{
     for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
     is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
     is_function_like, is_property_name_literal, object_allocator, set_parent,
-    set_value_declaration, BaseSymbol, Expression, ExpressionStatement, IfStatement,
-    InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Statement,
-    SymbolFlags, SymbolInterface, TypeElement,
+    set_value_declaration, BaseSymbol, ExpressionStatement, IfStatement, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Statement, SymbolFlags,
+    SymbolInterface, TypeElement,
 };
 
 bitflags! {
@@ -291,10 +291,10 @@ impl BinderType {
             Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
                 self.bind_expression_statement(expression_statement);
             }
-            Node::Expression(Expression::PrefixUnaryExpression(_)) => {
+            Node::PrefixUnaryExpression(_) => {
                 self.bind_prefix_unary_expression_flow(node);
             }
-            Node::Expression(Expression::BinaryExpression(_)) => unimplemented!(),
+            Node::BinaryExpression(_) => unimplemented!(),
             Node::VariableDeclaration(_) => {
                 self.bind_variable_declaration_flow(node);
             }
@@ -304,8 +304,8 @@ impl BinderType {
             Node::Statement(Statement::Block(block)) => {
                 self.bind_each_functions_first(&block.statements);
             }
-            Node::Expression(Expression::ArrayLiteralExpression(_))
-            | Node::Expression(Expression::ObjectLiteralExpression(_))
+            Node::ArrayLiteralExpression(_)
+            | Node::ObjectLiteralExpression(_)
             | Node::PropertyAssignment(_) => {
                 // self.set_in_assignment_pattern(save_in_assignment_pattern);
                 self.bind_each_child(node);
@@ -522,9 +522,7 @@ impl BinderType {
             Node::Statement(Statement::FunctionDeclaration(_)) => {
                 self.bind_function_declaration(node)
             }
-            Node::Expression(Expression::ObjectLiteralExpression(_)) => {
-                self.bind_object_literal_expression(node)
-            }
+            Node::ObjectLiteralExpression(_) => self.bind_object_literal_expression(node),
             Node::Statement(Statement::InterfaceDeclaration(_)) => self
                 .bind_block_scoped_declaration(
                     node,

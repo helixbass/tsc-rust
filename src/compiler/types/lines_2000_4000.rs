@@ -14,7 +14,7 @@ use super::{
 use local_macros::ast_type;
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct BinaryExpression {
     pub _node: BaseNode,
     pub left: Rc<Node>,
@@ -49,7 +49,7 @@ impl BinaryExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct ConditionalExpression {
     pub _node: BaseNode,
     pub condition: Rc<Node /*Expression*/>,
@@ -81,7 +81,6 @@ impl ConditionalExpression {
 
 #[derive(Debug)]
 #[ast_type(
-    ancestors = "Expression",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
 )]
 pub struct FunctionExpression {
@@ -101,8 +100,8 @@ impl FunctionExpression {
 pub struct BaseLiteralLikeNode {
     _node: BaseNode,
     text: String,
-    is_unterminated: Option<bool>,
-    has_extended_unicode_escape: Option<bool>,
+    is_unterminated: Cell<Option<bool>>,
+    has_extended_unicode_escape: Cell<Option<bool>>,
 }
 
 impl BaseLiteralLikeNode {
@@ -110,8 +109,8 @@ impl BaseLiteralLikeNode {
         Self {
             _node: base_node,
             text,
-            is_unterminated: None,
-            has_extended_unicode_escape: None,
+            is_unterminated: Cell::new(None),
+            has_extended_unicode_escape: Cell::new(None),
         }
     }
 }
@@ -122,45 +121,33 @@ impl LiteralLikeNodeInterface for BaseLiteralLikeNode {
     }
 
     fn is_unterminated(&self) -> Option<bool> {
-        self.is_unterminated
+        self.is_unterminated.get()
     }
 
-    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>) {
-        self.is_unterminated = is_unterminated;
+    fn set_is_unterminated(&self, is_unterminated: Option<bool>) {
+        self.is_unterminated.set(is_unterminated);
     }
 
     fn has_extended_unicode_escape(&self) -> Option<bool> {
-        self.has_extended_unicode_escape
+        self.has_extended_unicode_escape.get()
     }
 
-    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>) {
-        self.has_extended_unicode_escape = has_extended_unicode_escape;
+    fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>) {
+        self.has_extended_unicode_escape
+            .set(has_extended_unicode_escape);
     }
 }
 
 pub trait LiteralLikeNodeInterface {
     fn text(&self) -> &str;
     fn is_unterminated(&self) -> Option<bool>;
-    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>);
+    fn set_is_unterminated(&self, is_unterminated: Option<bool>);
     fn has_extended_unicode_escape(&self) -> Option<bool>;
-    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>);
+    fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>);
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression", interfaces = "LiteralLikeNodeInterface")]
-pub enum LiteralLikeNode {
-    StringLiteral(StringLiteral),
-    TemplateLiteralLikeNode(TemplateLiteralLikeNode),
-    NumericLiteral(NumericLiteral),
-    BigIntLiteral(BigIntLiteral),
-    RegularExpressionLiteral(RegularExpressionLiteral),
-}
-
-#[derive(Debug)]
-#[ast_type(
-    ancestors = "LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface"
-)]
+#[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct TemplateLiteralLikeNode {
     _literal_like_node: BaseLiteralLikeNode,
     pub raw_text: Option<String>,
@@ -197,10 +184,7 @@ pub trait TemplateLiteralLikeNodeInterface {
 }
 
 #[derive(Debug)]
-#[ast_type(
-    ancestors = "LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface"
-)]
+#[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct RegularExpressionLiteral {
     _literal_like_node: BaseLiteralLikeNode,
 }
@@ -236,10 +220,7 @@ bitflags! {
 }
 
 #[derive(Debug)]
-#[ast_type(
-    ancestors = "LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface"
-)]
+#[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct NumericLiteral {
     _literal_like_node: BaseLiteralLikeNode,
     pub(crate) numeric_literal_flags: TokenFlags,
@@ -258,10 +239,7 @@ impl NumericLiteral {
 }
 
 #[derive(Debug)]
-#[ast_type(
-    ancestors = "LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface"
-)]
+#[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct BigIntLiteral {
     _literal_like_node: BaseLiteralLikeNode,
 }
@@ -275,7 +253,7 @@ impl BigIntLiteral {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct VoidExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*UnaryExpression*/>,
@@ -297,7 +275,7 @@ impl HasExpressionInterface for VoidExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct TemplateExpression {
     _node: BaseNode,
     pub head: Rc<Node /*TemplateHead*/>,
@@ -337,7 +315,7 @@ pub trait HasExpressionInterface {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct ParenthesizedExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
@@ -359,7 +337,7 @@ impl HasExpressionInterface for ParenthesizedExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct ArrayLiteralExpression {
     _node: BaseNode,
     pub elements: NodeArray, /*<Expression>*/
@@ -375,7 +353,7 @@ impl ArrayLiteralExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct SpreadElement {
     _node: BaseNode,
     pub expression: Rc<Node /*<Expression>*/>,
@@ -397,7 +375,7 @@ impl HasExpressionInterface for SpreadElement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct ObjectLiteralExpression {
     _node: BaseNode,
     pub properties: NodeArray, /*<ObjectLiteralElementLike>*/
@@ -417,7 +395,7 @@ pub trait HasQuestionDotTokenInterface {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct PropertyAccessExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
@@ -468,7 +446,7 @@ impl HasQuestionDotTokenInterface for PropertyAccessExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct ElementAccessExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
@@ -505,7 +483,7 @@ impl HasQuestionDotTokenInterface for ElementAccessExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct CallExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
@@ -545,7 +523,7 @@ impl HasQuestionDotTokenInterface for CallExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct NewExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
@@ -576,7 +554,7 @@ impl HasExpressionInterface for NewExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct TaggedTemplateExpression {
     _node: BaseNode,
     pub tag: Rc<Node /*LeftHandSideExpression*/>,
@@ -610,7 +588,7 @@ impl HasTypeArgumentsInterface for TaggedTemplateExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct AsExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
@@ -634,7 +612,7 @@ impl HasExpressionInterface for AsExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct TypeAssertion {
     _node: BaseNode,
     pub type_: Rc<Node /*TypeNode*/>,
@@ -658,7 +636,7 @@ impl HasExpressionInterface for TypeAssertion {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct NonNullExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
@@ -718,6 +696,51 @@ impl HasInitializerInterface for JsxAttribute {
 
     fn set_initializer(&mut self, initializer: Rc<Node>) {
         self.initializer = Some(initializer);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxText {
+    _node: BaseNode,
+    pub text: String,
+    pub is_unterminated: Cell<Option<bool>>,
+    pub has_extended_unicode_escape: Cell<Option<bool>>,
+    pub contains_only_trivia_white_spaces: bool,
+}
+
+impl JsxText {
+    pub fn new(base_node: BaseNode, text: String, contains_only_trivia_white_spaces: bool) -> Self {
+        Self {
+            _node: base_node,
+            text,
+            is_unterminated: Cell::new(None),
+            has_extended_unicode_escape: Cell::new(None),
+            contains_only_trivia_white_spaces,
+        }
+    }
+}
+
+impl LiteralLikeNodeInterface for JsxText {
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    fn is_unterminated(&self) -> Option<bool> {
+        self.is_unterminated.get()
+    }
+
+    fn set_is_unterminated(&self, is_unterminated: Option<bool>) {
+        self.is_unterminated.set(is_unterminated);
+    }
+
+    fn has_extended_unicode_escape(&self) -> Option<bool> {
+        self.has_extended_unicode_escape.get()
+    }
+
+    fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>) {
+        self.has_extended_unicode_escape
+            .set(has_extended_unicode_escape);
     }
 }
 

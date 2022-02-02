@@ -7,12 +7,12 @@ use std::rc::Rc;
 use crate::{
     get_emit_script_target, is_expression, is_identifier_text, unescape_leading_underscores,
     using_single_line_string_writer, BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes,
-    Debug_, EmitHint, EmitTextWriter, Expression, KeywordTypeNode, Node, NodeArray,
-    NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions, ResolvableTypeInterface,
-    ResolvedTypeInterface, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable,
-    SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
-    TypeNode, TypeParameter, __String, create_printer, create_text_writer, factory,
-    get_object_flags, get_source_file_of_node, synthetic_factory,
+    Debug_, EmitHint, EmitTextWriter, KeywordTypeNode, Node, NodeArray, NodeBuilderFlags,
+    NodeInterface, ObjectFlags, PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface,
+    Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeNode,
+    TypeParameter, __String, create_printer, create_text_writer, factory, get_object_flags,
+    get_source_file_of_node, synthetic_factory,
 };
 
 impl TypeChecker {
@@ -343,7 +343,7 @@ impl NodeBuilder {
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Expression> {
+    ) -> Option<Node> {
         self.with_context(flags, tracker, |context| {
             self._symbol_to_expression(type_checker, symbol, context, meaning)
         })
@@ -806,7 +806,7 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
-    ) -> Expression {
+    ) -> Node {
         let chain = self.lookup_symbol_chain(symbol, context, meaning);
         let index = chain.len() - 1;
         self.create_expression_from_symbol_chain(type_checker, context, chain, index)
@@ -856,7 +856,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         chain: Vec<Rc<Symbol>>,
         index: usize,
-    ) -> Expression {
+    ) -> Node {
         let symbol = &*(&chain)[index];
 
         let symbol_name = type_checker.get_name_of_symbol_as_written(symbol, Some(context));

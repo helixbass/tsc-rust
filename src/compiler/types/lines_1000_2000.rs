@@ -9,10 +9,10 @@ use super::{
     ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseNode, BinaryExpression, CallExpression, ConditionalExpression,
     ElementAccessExpression, FunctionExpression, HasExpressionInterface, HasInitializerInterface,
-    HasTypeInterface, JSDocTypeExpression, LiteralLikeNode, NewExpression, Node, NodeInterface,
-    NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression,
-    ReadonlyTextRange, SpreadElement, SyntaxKind, TaggedTemplateExpression, TemplateExpression,
-    TransformFlags, TypeAssertion, VoidExpression, __String,
+    HasTypeInterface, JSDocTypeExpression, NewExpression, Node, NodeInterface, NonNullExpression,
+    ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression, ReadonlyTextRange,
+    SpreadElement, SyntaxKind, TaggedTemplateExpression, TemplateExpression, TransformFlags,
+    TypeAssertion, VoidExpression, __String,
 };
 use local_macros::ast_type;
 
@@ -156,7 +156,7 @@ bitflags! {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct Identifier {
     _node: BaseNode,
     pub escaped_text: __String,
@@ -773,10 +773,7 @@ impl LiteralTypeNode {
 }
 
 #[derive(Debug)]
-#[ast_type(
-    ancestors = "LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface"
-)]
+#[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct StringLiteral {
     _literal_like_node: BaseLiteralLikeNode,
     pub(crate) text_source_node:
@@ -796,40 +793,6 @@ impl StringLiteral {
 
 #[derive(Debug)]
 #[ast_type]
-pub enum Expression {
-    PartiallyEmittedExpression(PartiallyEmittedExpression),
-    TokenExpression(BaseNode),
-    Identifier(Identifier),
-    PrefixUnaryExpression(PrefixUnaryExpression),
-    BinaryExpression(BinaryExpression),
-    LiteralLikeNode(LiteralLikeNode),
-    TemplateExpression(TemplateExpression),
-    ParenthesizedExpression(ParenthesizedExpression),
-    ArrayLiteralExpression(ArrayLiteralExpression),
-    ObjectLiteralExpression(ObjectLiteralExpression),
-    AsExpression(AsExpression),
-    TypeAssertion(TypeAssertion),
-    NonNullExpression(NonNullExpression),
-    CallExpression(CallExpression),
-    PropertyAccessExpression(PropertyAccessExpression),
-    ElementAccessExpression(ElementAccessExpression),
-    VoidExpression(VoidExpression),
-    NewExpression(NewExpression),
-    PostfixUnaryExpression(PostfixUnaryExpression),
-    ConditionalExpression(ConditionalExpression),
-    TaggedTemplateExpression(TaggedTemplateExpression),
-    FunctionExpression(FunctionExpression),
-    SpreadElement(SpreadElement),
-}
-
-impl From<BaseNode> for Expression {
-    fn from(base_node: BaseNode) -> Self {
-        Expression::TokenExpression(base_node)
-    }
-}
-
-#[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
 pub struct PartiallyEmittedExpression {
     pub _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
@@ -851,7 +814,7 @@ impl HasExpressionInterface for PartiallyEmittedExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct PrefixUnaryExpression {
     pub _node: BaseNode,
     pub operator: SyntaxKind, /*PrefixUnaryOperator*/
@@ -869,7 +832,7 @@ impl PrefixUnaryExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct PostfixUnaryExpression {
     pub _node: BaseNode,
     pub operand: Rc<Node /*LeftHandSideExpression*/>,

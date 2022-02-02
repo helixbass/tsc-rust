@@ -3,9 +3,9 @@
 use std::rc::Rc;
 
 use crate::{
-    BaseNodeFactory, Block, EmptyStatement, Expression, ExpressionStatement, FunctionDeclaration,
-    IfStatement, InterfaceDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, ReturnStatement, Statement, SyntaxKind, TemplateSpan, TypeAliasDeclaration,
+    BaseNodeFactory, Block, EmptyStatement, ExpressionStatement, FunctionDeclaration, IfStatement,
+    InterfaceDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
+    ReturnStatement, Statement, SyntaxKind, TemplateSpan, TypeAliasDeclaration,
     VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
@@ -61,28 +61,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_expression_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Expression,
+        expression: Rc<Node>,
     ) -> ExpressionStatement {
         ExpressionStatement::new(
             self.create_base_node(base_factory, SyntaxKind::ExpressionStatement),
-            expression.into(),
+            expression,
         )
     }
 
     pub fn create_if_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Expression,
-        then_statement: Statement,
-        else_statement: Option<Statement>,
+        expression: Rc<Node /*Expression*/>,
+        then_statement: Rc<Node /*Statement*/>,
+        else_statement: Option<Rc<Node /*Statement*/>>,
     ) -> IfStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::IfStatement);
         let node = IfStatement::new(
             node,
-            expression.into(),
-            self.as_embedded_statement(Some(then_statement.into()))
-                .unwrap(),
-            self.as_embedded_statement(else_statement.map(|else_statement| else_statement.into())),
+            expression,
+            self.as_embedded_statement(Some(then_statement)).unwrap(),
+            self.as_embedded_statement(else_statement),
         );
         node
     }
