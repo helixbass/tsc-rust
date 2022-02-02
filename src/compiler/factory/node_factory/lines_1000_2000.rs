@@ -610,20 +610,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_keyword_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        token: SyntaxKind,
+        kind: SyntaxKind,
     ) -> BaseNode {
-        self.create_token(base_factory, token)
+        self.create_token(base_factory, kind)
     }
 
-    pub fn create_type_predicate_node(
+    pub fn create_type_predicate_node<TParameterName: Into<StringOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        asserts_modifier: Option<Rc<Node>>,
-        parameter_name: Rc<Node>,
-        type_: Option<Rc<Node>>,
+        asserts_modifier: Option<Rc<Node /*AssertsKeyword*/>>,
+        parameter_name: TParameterName,
+        type_: Option<Rc<Node /*TypeNode*/>>,
     ) -> TypePredicateNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypePredicate);
-        let node = TypePredicateNode::new(node, asserts_modifier, parameter_name, type_);
+        let mut node = TypePredicateNode::new(
+            node,
+            asserts_modifier,
+            self.as_name(base_factory, Some(parameter_name)).unwrap(),
+            type_,
+        );
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 

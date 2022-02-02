@@ -478,7 +478,7 @@ impl ParserType {
                     .create_type_predicate_node(
                         self,
                         None,
-                        type_predicate_variable.into(),
+                        Into::<Rc<Node>>::into(type_predicate_variable),
                         Some(type_.wrap()),
                     )
                     .into(),
