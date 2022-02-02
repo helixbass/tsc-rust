@@ -30,8 +30,8 @@ use super::{
     ReturnStatement, SetAccessorDeclaration, ShorthandPropertyAssignment, SignatureDeclarationBase,
     SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
     Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeAssertion, TypeElement,
-    TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode,
+    TemplateLiteralTypeSpan, TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeAssertion,
+    TypeElement, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode,
     UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
     VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
 };
@@ -735,6 +735,7 @@ pub enum Node {
     FunctionTypeNode(FunctionTypeNode),
     ParenthesizedTypeNode(ParenthesizedTypeNode),
     BaseJSDocUnaryType(BaseJSDocUnaryType),
+    TemplateLiteralTypeSpan(TemplateLiteralTypeSpan),
 }
 
 impl Node {

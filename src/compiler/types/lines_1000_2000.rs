@@ -984,6 +984,34 @@ impl StringLiteral {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct TemplateLiteralTypeSpan {
+    pub _node: BaseNode,
+    pub type_: Rc<Node /*TypeNode*/>,
+    pub literal: Rc<Node /*TemplateMiddle | TemplateTail*/>,
+}
+
+impl TemplateLiteralTypeSpan {
+    pub fn new(base_node: BaseNode, type_: Rc<Node>, literal: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+            literal,
+        }
+    }
+}
+
+impl HasTypeInterface for TemplateLiteralTypeSpan {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = type_;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct PartiallyEmittedExpression {
     pub _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,

@@ -12,8 +12,8 @@ use crate::{
     IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration, MethodSignature,
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
     NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName,
-    SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode,
-    TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
+    SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TemplateLiteralTypeSpan, TransformFlags,
+    TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -591,6 +591,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_,
         );
         let mut node = IndexSignatureDeclaration::new(node);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_template_literal_type_span(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Rc<Node /*TypeNode*/>,
+        literal: Rc<Node /*TemplateMiddle | TemplateTail*/>,
+    ) -> TemplateLiteralTypeSpan {
+        let node = self.create_base_node(base_factory, SyntaxKind::TemplateLiteralTypeSpan);
+        let mut node = TemplateLiteralTypeSpan::new(node, type_, literal);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
