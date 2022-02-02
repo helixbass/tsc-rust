@@ -4,10 +4,11 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
-    ArrayTypeNode, BaseNode, BaseNodeFactory, IntersectionTypeNode, ModifierFlags, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, ParameterDeclaration, PropertySignature,
-    QualifiedName, StringOrRcNode, SyntaxKind, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
-    TypePredicateNode, TypeReferenceNode, UnionTypeNode,
+    ArrayTypeNode, BaseNode, BaseNodeFactory, ComputedPropertyName, IntersectionTypeNode,
+    ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    ParameterDeclaration, PropertySignature, QualifiedName, StringOrRcNode, SyntaxKind,
+    TransformFlags, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode,
+    TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -127,6 +128,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             QualifiedName::new(node, left, self.as_name(base_factory, Some(right)).unwrap());
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.left)) | propagate_identifier_name_flags(&node.right),
+        );
+        node
+    }
+
+    pub fn create_computed_property_name(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> ComputedPropertyName {
+        let node = self.create_base_node(base_factory, SyntaxKind::ComputedPropertyName);
+        let mut node = ComputedPropertyName::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expression_of_computed_property_name(base_factory, &expression),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | TransformFlags::ContainsES2015
+                | TransformFlags::ContainsComputedPropertyName,
         );
         node
     }
