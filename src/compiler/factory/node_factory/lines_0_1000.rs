@@ -765,14 +765,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_generic_named_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
         TName: Into<StringOrRcNode>,
         TTypeParameters: Into<NodeArrayOrVec>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
         name: Option<TName>,
         type_parameters: Option<TTypeParameters>,
     ) -> BaseGenericNamedDeclaration {
@@ -787,6 +789,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_signature_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
         TName: Into<StringOrRcNode>,
         TTypeParameters: Into<NodeArrayOrVec>,
         TParameters: Into<NodeArrayOrVec>,
@@ -794,8 +798,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
         name: Option<TName>,
         type_parameters: Option<TTypeParameters>,
         parameters: Option<TParameters>,
@@ -822,6 +826,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_function_like_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
         TName: Into<StringOrRcNode>,
         TTypeParameters: Into<NodeArrayOrVec>,
         TParameters: Into<NodeArrayOrVec>,
@@ -829,8 +835,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
         name: Option<TName>,
         type_parameters: Option<TTypeParameters>,
         parameters: Option<TParameters>,
@@ -860,6 +866,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_interface_or_class_like_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
         TName: Into<StringOrRcNode>,
         TTypeParameters: Into<NodeArrayOrVec>,
         THeritageClauses: Into<NodeArrayOrVec>,
@@ -867,8 +875,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
         name: Option<TName>,
         type_parameters: Option<TTypeParameters>,
         heritage_clauses: Option<THeritageClauses>,
@@ -888,6 +896,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub(crate) fn create_base_class_like_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
         TName: Into<StringOrRcNode>,
         TTypeParameters: Into<NodeArrayOrVec>,
         THeritageClauses: Into<NodeArrayOrVec>,
@@ -896,8 +906,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
         name: Option<TName>,
         type_parameters: Option<TTypeParameters>,
         heritage_clauses: Option<THeritageClauses>,

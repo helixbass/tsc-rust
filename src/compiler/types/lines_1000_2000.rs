@@ -540,6 +540,27 @@ impl FunctionDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+)]
+pub struct MethodSignature {
+    _signature_declaration: BaseSignatureDeclaration,
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+}
+
+impl MethodSignature {
+    pub fn new(
+        signature_declaration: BaseSignatureDeclaration,
+        question_token: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _signature_declaration: signature_declaration,
+            question_token,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
 )]
 pub struct VariableDeclaration {

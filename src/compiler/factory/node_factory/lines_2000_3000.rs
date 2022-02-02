@@ -294,7 +294,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = self.create_base_function_like_declaration(
             base_factory,
             SyntaxKind::FunctionExpression,
-            None,
+            Option::<NodeArray>::None,
             modifiers,
             name,
             type_parameters,

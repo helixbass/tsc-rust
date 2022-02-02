@@ -18,7 +18,7 @@ use super::{
     JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag,
     JSDocTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
     JSDocTypedefTag, JsxAttribute, JsxText, LabeledStatement, LiteralLikeNodeInterface,
-    LiteralTypeNode, MemberNameInterface, ModifiersArray, ModuleDeclaration,
+    LiteralTypeNode, MemberNameInterface, MethodSignature, ModifiersArray, ModuleDeclaration,
     NamedDeclarationInterface, NewExpression, NodeArray, NonNullExpression, NumericLiteral,
     ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, ParenthesizedExpression,
     PartiallyEmittedExpression, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
@@ -712,6 +712,7 @@ pub enum Node {
     ExportSpecifier(ExportSpecifier),
     PrivateIdentifier(PrivateIdentifier),
     ComputedPropertyName(ComputedPropertyName),
+    MethodSignature(MethodSignature),
 }
 
 impl Node {
