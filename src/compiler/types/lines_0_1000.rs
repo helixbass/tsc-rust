@@ -32,7 +32,7 @@ use super::{
     SourceFile, SpreadAssignment, SpreadElement, StringLiteral, Symbol, SymbolTable,
     TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeSpan,
     TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeAssertion, TypeElement,
-    TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode,
+    TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode,
     UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
     VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
 };
@@ -738,6 +738,7 @@ pub enum Node {
     BaseJSDocUnaryType(BaseJSDocUnaryType),
     TemplateLiteralTypeSpan(TemplateLiteralTypeSpan),
     ConstructorTypeNode(ConstructorTypeNode),
+    TypeQueryNode(TypeQueryNode),
 }
 
 impl Node {

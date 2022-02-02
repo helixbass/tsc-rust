@@ -859,6 +859,22 @@ impl TypePredicateNode {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct TypeQueryNode {
+    _node: BaseNode,
+    pub expr_name: Rc<Node /*EntityName*/>,
+}
+
+impl TypeQueryNode {
+    pub fn new(base_node: BaseNode, expr_name: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expr_name,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct TypeLiteralNode {
     _node: BaseNode,
     pub members: NodeArray, /*<TypeElement>*/

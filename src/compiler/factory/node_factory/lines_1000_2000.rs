@@ -13,7 +13,7 @@ use crate::{
     MethodSignature, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature,
     QualifiedName, SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TemplateLiteralTypeSpan,
-    TransformFlags, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode,
+    TransformFlags, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
     TypeReferenceNode, UnionTypeNode,
 };
 
@@ -697,7 +697,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> ConstructorTypeNode {
         let node = self.create_base_signature_declaration(
             base_factory,
-            SyntaxKind::FunctionType,
+            SyntaxKind::ConstructorType,
             Option::<NodeArray>::None,
             modifiers,
             Option::<Rc<Node>>::None,
@@ -706,6 +706,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_,
         );
         let mut node = ConstructorTypeNode::new(node);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_type_query_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expr_name: Rc<Node /*EntityName*/>,
+    ) -> TypeQueryNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::TypeQuery);
+        let mut node = TypeQueryNode::new(node, expr_name);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
