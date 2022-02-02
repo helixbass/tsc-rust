@@ -594,6 +594,38 @@ impl ConstructorDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct GetAccessorDeclaration {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+}
+
+impl GetAccessorDeclaration {
+    pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct SetAccessorDeclaration {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+}
+
+impl SetAccessorDeclaration {
+    pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
 pub struct ClassStaticBlockDeclaration {

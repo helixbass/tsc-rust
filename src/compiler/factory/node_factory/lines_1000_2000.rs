@@ -7,11 +7,12 @@ use crate::{
     has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
     is_this_identifier, modifiers_to_flags, ArrayTypeNode, BaseNode, BaseNodeFactory,
     ClassStaticBlockDeclaration, ComputedPropertyName, ConstructorDeclaration, Decorator,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, IntersectionTypeNode,
-    MethodDeclaration, MethodSignature, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, ParameterDeclaration, PropertyDeclaration,
-    PropertySignature, QualifiedName, StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode,
-    TypeNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
+    FunctionLikeDeclarationInterface, GetAccessorDeclaration, HasInitializerInterface,
+    IntersectionTypeNode, MethodDeclaration, MethodSignature, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName, StringOrRcNode,
+    SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
+    TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -363,7 +364,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
         asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
-        name: Option<TName>,
+        name: TName,
         question_token: Option<Rc<Node /*QuestionToken*/>>,
         type_parameters: Option<TTypeParameters>,
         parameters: TParameters,
@@ -375,7 +376,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             SyntaxKind::MethodDeclaration,
             decorators,
             modifiers,
-            name,
+            Some(name),
             type_parameters,
             Some(parameters),
             type_,
@@ -457,6 +458,35 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = ConstructorDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsES2015);
         node
+    }
+
+    pub fn create_get_accessor_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        name: TName,
+        parameters: TParameters,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+        body: Option<Rc<Node /*Block*/>>,
+    ) -> GetAccessorDeclaration {
+        let node = self.create_base_function_like_declaration(
+            base_factory,
+            SyntaxKind::GetAccessor,
+            decorators,
+            modifiers,
+            Some(name),
+            Option::<NodeArray>::None,
+            Some(parameters),
+            type_,
+            body,
+        );
+        GetAccessorDeclaration::new(node)
     }
 
     pub fn create_keyword_type_node(
