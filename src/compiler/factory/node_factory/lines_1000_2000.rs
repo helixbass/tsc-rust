@@ -721,13 +721,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_type_literal_node(
+    pub fn create_type_literal_node<TMembers: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        members: Option<Vec<Rc<Node>>>,
+        members: Option<TMembers>,
     ) -> TypeLiteralNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypeLiteral);
-        let node = TypeLiteralNode::new(node, self.create_node_array(members, None));
+        let mut node = TypeLiteralNode::new(node, self.create_node_array(members, None));
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
