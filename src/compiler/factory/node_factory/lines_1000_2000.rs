@@ -243,11 +243,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_property_signature(
+    pub fn create_property_signature<
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
-        modifiers: Option<NodeArray>,
-        name: Rc<Node>,
+        modifiers: Option<TModifiers>,
+        name: TName,
         question_token: Option<Rc<Node>>,
         type_: Option<Rc<Node>>,
     ) -> PropertySignature {
@@ -258,7 +261,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             modifiers,
             Some(name),
         );
-        let node = PropertySignature::new(node, question_token, type_);
+        let mut node = PropertySignature::new(node, question_token, type_);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 

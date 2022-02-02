@@ -669,7 +669,11 @@ impl NodeBuilder {
                 };
             }
 
-            let modifiers = if false { unimplemented!() } else { None };
+            let modifiers = if false {
+                unimplemented!()
+            } else {
+                Option::<NodeArray>::None
+            };
             let property_signature = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     factory_.create_property_signature(
