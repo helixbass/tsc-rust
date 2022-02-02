@@ -22,7 +22,8 @@ use crate::{
     InterfaceOrClassLikeDeclarationInterface, LiteralLikeNode, LiteralLikeNodeInterface, Node,
     NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, Number, NumericLiteral,
     ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, ReadonlyTextRange,
-    SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
+    RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags,
+    TransformFlags,
 };
 
 thread_local! {
@@ -1044,6 +1045,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.text_source_node = Some(source_node.node_wrapper());
         node
+    }
+
+    pub fn create_regular_expression_literal(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: String,
+    ) -> RegularExpressionLiteral {
+        let node =
+            self.create_base_literal(base_factory, SyntaxKind::RegularExpressionLiteral, text);
+        RegularExpressionLiteral::new(node)
     }
 
     pub fn create_literal_like_node(

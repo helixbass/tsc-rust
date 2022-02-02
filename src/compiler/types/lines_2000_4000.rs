@@ -153,6 +153,7 @@ pub enum LiteralLikeNode {
     TemplateLiteralLikeNode(TemplateLiteralLikeNode),
     NumericLiteral(NumericLiteral),
     BigIntLiteral(BigIntLiteral),
+    RegularExpressionLiteral(RegularExpressionLiteral),
 }
 
 #[derive(Debug)]
@@ -193,6 +194,23 @@ impl TemplateLiteralLikeNodeInterface for TemplateLiteralLikeNode {
 pub trait TemplateLiteralLikeNodeInterface {
     fn maybe_raw_text(&self) -> Option<&str>;
     fn maybe_template_flags(&self) -> Option<TokenFlags>;
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "LiteralLikeNode, Expression",
+    interfaces = "LiteralLikeNodeInterface"
+)]
+pub struct RegularExpressionLiteral {
+    _literal_like_node: BaseLiteralLikeNode,
+}
+
+impl RegularExpressionLiteral {
+    pub fn new(base_literal_like_node: BaseLiteralLikeNode) -> Self {
+        Self {
+            _literal_like_node: base_literal_like_node,
+        }
+    }
 }
 
 bitflags! {
