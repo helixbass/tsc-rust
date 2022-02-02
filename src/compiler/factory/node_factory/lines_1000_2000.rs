@@ -4,12 +4,13 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
+    has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
     is_this_identifier, modifiers_to_flags, ArrayTypeNode, BaseNode, BaseNodeFactory,
-    ComputedPropertyName, Decorator, IntersectionTypeNode, ModifierFlags,
+    ComputedPropertyName, Decorator, HasInitializerInterface, IntersectionTypeNode, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    ParameterDeclaration, PropertySignature, QualifiedName, StringOrRcNode, SyntaxKind,
-    TransformFlags, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode,
-    TypeReferenceNode, UnionTypeNode,
+    ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName, StringOrRcNode,
+    SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
+    TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -263,6 +264,59 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         let mut node = PropertySignature::new(node, question_token, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_property_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        name: TName,
+        question_or_exclamation_token: Option<Rc<Node /*QuestionToken | ExclamationToken*/>>,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+        initializer: Option<Rc<Node /*Expression*/>>,
+    ) -> PropertyDeclaration {
+        let node = self.create_base_variable_like_declaration(
+            base_factory,
+            SyntaxKind::PropertyDeclaration,
+            decorators,
+            modifiers,
+            Some(name),
+            type_,
+            initializer,
+        );
+        let question_or_exclamation_token_is_some = question_or_exclamation_token.is_some();
+        let mut node = PropertyDeclaration::new(
+            node,
+            question_or_exclamation_token
+                .clone()
+                .filter(|question_or_exclamation_token| {
+                    is_question_token(question_or_exclamation_token)
+                }),
+            question_or_exclamation_token.filter(|question_or_exclamation_token| {
+                is_exclamation_token(question_or_exclamation_token)
+            }),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(node.question_token.clone())
+                | propagate_child_flags(node.exclamation_token.clone())
+                | TransformFlags::ContainsClassFields,
+        );
+        if is_computed_property_name(&node.name())
+            || has_static_modifier(&node) && node.maybe_initializer().is_some()
+        {
+            node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
+        }
+        if question_or_exclamation_token_is_some
+            || modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Ambient)
+        {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
         node
     }
 

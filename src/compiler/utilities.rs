@@ -1976,16 +1976,23 @@ pub fn is_non_type_alias_template(tag: &Node /*JSDocTag*/) -> bool {
             }))
 }
 
-pub fn has_syntactic_modifier(node: &Node, flags: ModifierFlags) -> bool {
+pub fn has_syntactic_modifier<TNode: NodeInterface>(node: &TNode, flags: ModifierFlags) -> bool {
     get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
 }
 
-fn get_selected_syntactic_modifier_flags(node: &Node, flags: ModifierFlags) -> ModifierFlags {
+pub fn has_static_modifier<TNode: NodeInterface>(node: &TNode) -> bool {
+    has_syntactic_modifier(node, ModifierFlags::Static)
+}
+
+fn get_selected_syntactic_modifier_flags<TNode: NodeInterface>(
+    node: &TNode,
+    flags: ModifierFlags,
+) -> ModifierFlags {
     get_syntactic_modifier_flags(node) & flags
 }
 
-fn get_modifier_flags_worker(
-    node: &Node,
+fn get_modifier_flags_worker<TNode: NodeInterface>(
+    node: &TNode,
     include_jsdoc: bool,
     always_include_jsdoc: Option<bool>,
 ) -> ModifierFlags {
@@ -2014,11 +2021,11 @@ pub fn get_effective_modifier_flags_always_include_jsdoc(node: &Node) -> Modifie
     get_modifier_flags_worker(node, true, Some(true))
 }
 
-pub fn get_syntactic_modifier_flags(node: &Node) -> ModifierFlags {
+pub fn get_syntactic_modifier_flags<TNode: NodeInterface>(node: &TNode) -> ModifierFlags {
     get_modifier_flags_worker(node, false, None)
 }
 
-fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
+fn get_syntactic_modifier_flags_no_cache<TNode: NodeInterface>(node: &TNode) -> ModifierFlags {
     let mut flags = modifiers_to_flags(node.maybe_modifiers());
     if node.flags().intersects(NodeFlags::NestedNamespace) || false {
         flags |= ModifierFlags::Export;
