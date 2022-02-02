@@ -10,9 +10,9 @@ use crate::{
     FunctionLikeDeclarationInterface, GetAccessorDeclaration, HasInitializerInterface,
     IntersectionTypeNode, MethodDeclaration, MethodSignature, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName, StringOrRcNode,
-    SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
-    TypePredicateNode, TypeReferenceNode, UnionTypeNode,
+    ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName,
+    SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode,
+    TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -487,6 +487,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             body,
         );
         GetAccessorDeclaration::new(node)
+    }
+
+    pub fn create_set_accessor_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        name: TName,
+        parameters: TParameters,
+        body: Option<Rc<Node /*Block*/>>,
+    ) -> SetAccessorDeclaration {
+        let node = self.create_base_function_like_declaration(
+            base_factory,
+            SyntaxKind::SetAccessor,
+            decorators,
+            modifiers,
+            Some(name),
+            Option::<NodeArray>::None,
+            Some(parameters),
+            None,
+            body,
+        );
+        SetAccessorDeclaration::new(node)
     }
 
     pub fn create_keyword_type_node(
