@@ -9,9 +9,9 @@ use crate::{
     CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
     ConstructSignatureDeclaration, ConstructorDeclaration, Decorator,
     FunctionLikeDeclarationInterface, GetAccessorDeclaration, HasInitializerInterface,
-    IntersectionTypeNode, MethodDeclaration, MethodSignature, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName,
+    IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration, MethodSignature,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName,
     SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode,
     TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
@@ -564,6 +564,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_,
         );
         let mut node = ConstructSignatureDeclaration::new(node);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_index_signature<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        parameters: TParameters,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+    ) -> IndexSignatureDeclaration {
+        let node = self.create_base_signature_declaration(
+            base_factory,
+            SyntaxKind::IndexSignature,
+            decorators,
+            modifiers,
+            Option::<Rc<Node>>::None,
+            Option::<NodeArray>::None,
+            Some(parameters),
+            type_,
+        );
+        let mut node = IndexSignatureDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }

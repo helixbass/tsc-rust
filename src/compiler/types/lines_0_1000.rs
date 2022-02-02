@@ -16,11 +16,11 @@ use super::{
     HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
     Identifier, IfStatement, ImportClause, ImportEqualsDeclaration, ImportSpecifier,
-    InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
-    JSDocMemberName, JSDocPropertyLikeTag, JSDocTag, JSDocTemplateTag, JSDocText,
-    JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag, JsxAttribute, JsxText,
-    LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface,
-    MethodDeclaration, MethodSignature, ModifiersArray, ModuleDeclaration,
+    IndexSignatureDeclaration, InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode,
+    JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocTag,
+    JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag,
+    JsxAttribute, JsxText, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode,
+    MemberNameInterface, MethodDeclaration, MethodSignature, ModifiersArray, ModuleDeclaration,
     NamedDeclarationInterface, NewExpression, NodeArray, NonNullExpression, NumericLiteral,
     ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, ParenthesizedExpression,
     PartiallyEmittedExpression, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
@@ -722,6 +722,7 @@ pub enum Node {
     SetAccessorDeclaration(SetAccessorDeclaration),
     CallSignatureDeclaration(CallSignatureDeclaration),
     ConstructSignatureDeclaration(ConstructSignatureDeclaration),
+    IndexSignatureDeclaration(IndexSignatureDeclaration),
 }
 
 impl Node {

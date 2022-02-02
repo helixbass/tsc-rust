@@ -137,7 +137,7 @@ pub use compiler::scanner::{
 };
 pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
-    maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,
+IndexSignatureDeclaration,    maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,
     text_str_num_chars, text_substring, ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode,
     AsExpression, AssignmentDeclarationKind, BaseBindingLikeDeclaration, BaseDiagnostic,
     BaseDiagnosticRelatedInformation, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
