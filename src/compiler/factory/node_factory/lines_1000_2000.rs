@@ -3,19 +3,116 @@
 use std::rc::Rc;
 
 use crate::{
-    ArrayTypeNode, BaseNode, BaseNodeFactory, IntersectionTypeNode, Node, NodeArray,
+    ArrayTypeNode, BaseNode, BaseNodeFactory, IntersectionTypeNode, ModifierFlags, Node, NodeArray,
     NodeArrayOrVec, NodeFactory, ParameterDeclaration, PropertySignature, SyntaxKind,
     TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode,
     UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
+    pub fn create_super(&self, base_factory: &TBaseNodeFactory) -> BaseNode {
+        self.create_token(base_factory, SyntaxKind::SuperKeyword)
+    }
+
+    pub fn create_this(&self, base_factory: &TBaseNodeFactory) -> BaseNode {
+        self.create_token(base_factory, SyntaxKind::ThisKeyword)
+    }
+
+    pub fn create_null(&self, base_factory: &TBaseNodeFactory) -> BaseNode {
+        self.create_token(base_factory, SyntaxKind::NullKeyword)
+    }
+
     pub fn create_true(&self, base_factory: &TBaseNodeFactory) -> BaseNode {
         self.create_token(base_factory, SyntaxKind::TrueKeyword)
     }
 
     pub fn create_false(&self, base_factory: &TBaseNodeFactory) -> BaseNode {
         self.create_token(base_factory, SyntaxKind::FalseKeyword)
+    }
+
+    pub fn create_modifier(&self, base_factory: &TBaseNodeFactory, kind: SyntaxKind) -> BaseNode {
+        self.create_token(base_factory, kind)
+    }
+
+    pub fn create_modifiers_from_modifier_flags(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        flags: ModifierFlags,
+    ) -> Vec<Rc<Node /*Modifier*/>> {
+        let mut result = vec![];
+        if flags.intersects(ModifierFlags::Export) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::ExportKeyword)
+                    .into(),
+            );
+        }
+        if flags.intersects(ModifierFlags::Ambient) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::DeclareKeyword)
+                    .into(),
+            );
+        }
+        if flags.intersects(ModifierFlags::Default) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::DefaultKeyword)
+                    .into(),
+            );
+        }
+        if flags.intersects(ModifierFlags::Const) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::ConstKeyword)
+                    .into(),
+            );
+        }
+        if flags.intersects(ModifierFlags::Public) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::PublicKeyword)
+                    .into(),
+            );
+        }
+        if flags.intersects(ModifierFlags::Private) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::PrivateKeyword)
+                    .into(),
+            );
+        }
+        if flags.intersects(ModifierFlags::Protected) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::ProtectedKeyword)
+                    .into(),
+            );
+        }
+        if flags.intersects(ModifierFlags::Abstract) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::AbstractKeyword)
+                    .into(),
+            );
+        }
+        if flags.intersects(ModifierFlags::Static) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::StaticKeyword)
+                    .into(),
+            );
+        }
+        if flags.intersects(ModifierFlags::Override) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::OverrideKeyword)
+                    .into(),
+            );
+        }
+        if flags.intersects(ModifierFlags::Readonly) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::ReadonlyKeyword)
+                    .into(),
+            );
+        }
+        if flags.intersects(ModifierFlags::Async) {
+            result.push(
+                self.create_modifier(base_factory, SyntaxKind::AsyncKeyword)
+                    .into(),
+            );
+        }
+        result
     }
 
     pub fn create_type_parameter_declaration(
