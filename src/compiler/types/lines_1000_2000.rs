@@ -368,7 +368,22 @@ impl PrivateIdentifier {
 #[ast_type]
 pub struct Decorator {
     _node: BaseNode,
-    expression: Rc<Node /*LeftHandSideExpression*/>,
+    pub expression: Rc<Node /*LeftHandSideExpression*/>,
+}
+
+impl Decorator {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for Decorator {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
 }
 
 #[derive(Debug)]

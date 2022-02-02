@@ -5,10 +5,11 @@ use std::rc::Rc;
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
     is_this_identifier, modifiers_to_flags, ArrayTypeNode, BaseNode, BaseNodeFactory,
-    ComputedPropertyName, IntersectionTypeNode, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, ParameterDeclaration, PropertySignature,
-    QualifiedName, StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode,
-    TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
+    ComputedPropertyName, Decorator, IntersectionTypeNode, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    ParameterDeclaration, PropertySignature, QualifiedName, StringOrRcNode, SyntaxKind,
+    TransformFlags, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode,
+    TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -220,6 +221,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 node.add_transform_flags(TransformFlags::ContainsES2015);
             }
         }
+        node
+    }
+
+    pub fn create_decorator(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> Decorator {
+        let node = self.create_base_node(base_factory, SyntaxKind::Decorator);
+        let mut node = Decorator::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_left_side_of_access(base_factory, &expression),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | TransformFlags::ContainsTypeScript
+                | TransformFlags::ContainsTypeScriptClassSyntax,
+        );
         node
     }
 
