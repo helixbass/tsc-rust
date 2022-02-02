@@ -21,15 +21,16 @@ use super::{
     ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NewExpression, NodeArray,
     NonNullExpression, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
     ParameterDeclaration, ParenthesizedExpression, PartiallyEmittedExpression,
-    PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, PropertyAssignment,
-    PropertyDeclaration, PropertySignature, QualifiedName, RegularExpressionLiteral,
-    ReturnStatement, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
-    Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateSpan, TransformFlags, TypeAliasDeclaration, TypeAssertion, TypeElement,
-    TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypeReferenceNode,
-    UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
+    PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier, PropertyAccessExpression,
+    PropertyAssignment, PropertyDeclaration, PropertySignature, QualifiedName,
+    RegularExpressionLiteral, ReturnStatement, ShorthandPropertyAssignment,
+    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, SpreadAssignment,
+    SpreadElement, StringLiteral, Symbol, SymbolTable, TaggedTemplateExpression,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateSpan, TransformFlags,
+    TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode, TypeNode,
+    TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
+    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -709,6 +710,7 @@ pub enum Node {
     ExportDeclaration(ExportDeclaration),
     ImportSpecifier(ImportSpecifier),
     ExportSpecifier(ExportSpecifier),
+    PrivateIdentifier(PrivateIdentifier),
 }
 
 impl Node {

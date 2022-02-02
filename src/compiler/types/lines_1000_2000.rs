@@ -332,6 +332,29 @@ impl HasTypeInterface for BaseVariableLikeDeclaration {
 impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 
 #[derive(Debug)]
+#[ast_type]
+pub struct PrivateIdentifier {
+    _node: BaseNode,
+    pub escaped_text: __String,
+}
+
+impl PrivateIdentifier {
+    pub fn new(base_node: BaseNode, escaped_text: __String) -> Self {
+        Self {
+            _node: base_node,
+            escaped_text,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct Decorator {
+    _node: BaseNode,
+    expression: Rc<Node /*LeftHandSideExpression*/>,
+}
+
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct TypeParameterDeclaration {
     _named_declaration: BaseNamedDeclaration,
@@ -353,13 +376,6 @@ impl TypeParameterDeclaration {
             expression: None,
         }
     }
-}
-
-#[derive(Debug)]
-#[ast_type]
-pub struct Decorator {
-    _node: BaseNode,
-    expression: Rc<Node /*LeftHandSideExpression*/>,
 }
 
 #[derive(Debug)]

@@ -12,7 +12,7 @@ use super::{
 use crate::{
     create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
     get_text_of_identifier_or_literal, is_identifier, null_node_converters,
-    null_parenthesizer_rules, pseudo_big_int_to_string, string_to_token,
+    null_parenthesizer_rules, pseudo_big_int_to_string, starts_with, string_to_token,
     BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
     BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
@@ -22,7 +22,7 @@ use crate::{
     HasTypeParametersInterface, Identifier, InterfaceOrClassLikeDeclarationInterface,
     LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory,
     NodeInterface, Number, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
-    PrefixUnaryExpression, ReadonlyTextRange, RegularExpressionLiteral,
+    PrefixUnaryExpression, PrivateIdentifier, ReadonlyTextRange, RegularExpressionLiteral,
     SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
 };
 
@@ -1136,6 +1136,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if matches!(node.original_keyword_kind, Some(SyntaxKind::AwaitKeyword)) {
             node.add_transform_flags(TransformFlags::ContainsPossibleTopLevelAwait);
         }
+        node
+    }
+
+    pub fn create_private_identifier(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: &str,
+    ) -> PrivateIdentifier {
+        if !starts_with(text, "#") {
+            Debug_.fail(Some(&format!(
+                "First character of private identifier must be #: {}",
+                text
+            )));
+        }
+        let node = base_factory.create_base_private_identifier_node(SyntaxKind::PrivateIdentifier);
+        let mut node = PrivateIdentifier::new(node, escape_leading_underscores(text));
+        node.add_transform_flags(TransformFlags::ContainsClassFields);
         node
     }
 
