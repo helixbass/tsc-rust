@@ -4,11 +4,11 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
-    ArrayTypeNode, BaseNode, BaseNodeFactory, ComputedPropertyName, IntersectionTypeNode,
-    ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    ParameterDeclaration, PropertySignature, QualifiedName, StringOrRcNode, SyntaxKind,
-    TransformFlags, TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode,
-    TypeReferenceNode, UnionTypeNode,
+    is_this_identifier, modifiers_to_flags, ArrayTypeNode, BaseNode, BaseNodeFactory,
+    ComputedPropertyName, IntersectionTypeNode, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, ParameterDeclaration, PropertySignature,
+    QualifiedName, StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode,
+    TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -161,8 +161,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::TypeParameter,
-            None,
-            None,
+            Option::<NodeArray>::None,
+            Option::<NodeArray>::None,
             Some(name),
         );
         let mut node = TypeParameterDeclaration::new(node, constraint, default_type);
@@ -170,17 +170,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_parameter_declaration(
+    pub fn create_parameter_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
         dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
-        name: Rc<Node>,
+        name: TName,
         question_token: Option<Rc<Node /*QuestionToken*/>>,
         type_: Option<Rc<Node /*TypeNode*/>>,
         initializer: Option<Rc<Node /*Expression*/>>,
     ) -> ParameterDeclaration {
+        let initializer_is_some = initializer.is_some();
         let node = self.create_base_variable_like_declaration(
             base_factory,
             SyntaxKind::Parameter,
@@ -188,9 +193,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             modifiers,
             Some(name),
             type_,
-            initializer,
+            initializer.map(|initializer| {
+                self.parenthesizer_rules()
+                    .parenthesize_expression_for_disallowed_comma(base_factory, &initializer)
+            }),
         );
-        let node = ParameterDeclaration::new(node, dot_dot_dot_token, question_token);
+        let question_token_is_some = question_token.is_some();
+        let dot_dot_dot_token_is_some = dot_dot_dot_token.is_some();
+        let mut node = ParameterDeclaration::new(node, dot_dot_dot_token, question_token);
+        if is_this_identifier(Some(node.name())) {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        } else {
+            node.add_transform_flags(
+                propagate_child_flags(node.dot_dot_dot_token.clone())
+                    | propagate_child_flags(node.question_token.clone()),
+            );
+            if question_token_is_some {
+                node.add_transform_flags(TransformFlags::ContainsTypeScript);
+            }
+            if modifiers_to_flags(node.maybe_modifiers())
+                .intersects(ModifierFlags::ParameterPropertyModifier)
+            {
+                node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
+            }
+            if initializer_is_some || dot_dot_dot_token_is_some {
+                node.add_transform_flags(TransformFlags::ContainsES2015);
+            }
+        }
         node
     }
 
@@ -205,7 +234,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::PropertySignature,
-            None,
+            Option::<NodeArray>::None,
             modifiers,
             Some(name),
         );

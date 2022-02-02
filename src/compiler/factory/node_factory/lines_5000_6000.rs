@@ -5,9 +5,9 @@ use std::rc::Rc;
 
 use super::propagate_child_flags;
 use crate::{
-    is_outer_expression, BaseNodeFactory, Node, NodeArrayOrVec, NodeFactory, NodeInterface,
-    OuterExpressionKinds, PropertyAssignment, ShorthandPropertyAssignment, SourceFile,
-    SpreadAssignment, SyntaxKind, TransformFlags,
+    is_outer_expression, BaseNodeFactory, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, OuterExpressionKinds, PropertyAssignment, ShorthandPropertyAssignment,
+    SourceFile, SpreadAssignment, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -20,8 +20,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::PropertyAssignment,
-            None,
-            None,
+            Option::<NodeArray>::None,
+            Option::<NodeArray>::None,
             Some(name),
         );
         let node = PropertyAssignment::new(node, initializer);
@@ -37,8 +37,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_named_declaration(
             base_factory,
             SyntaxKind::PropertyAssignment,
-            None,
-            None,
+            Option::<NodeArray>::None,
+            Option::<NodeArray>::None,
             Some(name),
         );
         let mut node = ShorthandPropertyAssignment::new(

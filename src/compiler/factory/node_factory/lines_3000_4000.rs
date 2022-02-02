@@ -45,7 +45,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_declaration(
             base_factory,
             SyntaxKind::VariableStatement,
-            None,
+            Option::<NodeArray>::None,
             modifiers,
         );
         let node = VariableStatement::new(node, declaration_list.into());
@@ -106,8 +106,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_variable_like_declaration(
             base_factory,
             SyntaxKind::VariableDeclaration,
-            None,
-            None,
+            Option::<NodeArray>::None,
+            Option::<NodeArray>::None,
             name,
             type_,
             initializer,

@@ -1917,6 +1917,22 @@ pub fn create_text_writer(new_line: &str) -> TextWriter {
     // text_writer.reset()
 }
 
+pub fn is_this_identifier<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+    if node.is_none() {
+        return false;
+    }
+    let node = node.unwrap();
+    let node = node.borrow();
+    node.kind() == SyntaxKind::Identifier && identifier_is_this_keyword(node)
+}
+
+pub fn identifier_is_this_keyword(id: &Node /*Identifier*/) -> bool {
+    matches!(
+        id.as_identifier().original_keyword_kind,
+        Some(SyntaxKind::ThisKeyword)
+    )
+}
+
 pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
     let type_ = node
         .maybe_as_has_type()

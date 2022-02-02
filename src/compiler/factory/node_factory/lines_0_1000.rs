@@ -706,12 +706,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory.create_base_node(kind)
     }
 
-    pub(crate) fn create_base_declaration(
+    pub(crate) fn create_base_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
     ) -> BaseNode {
         let mut node = self.create_base_node(base_factory, kind);
         node.set_decorators(self.as_node_array(decorators));
@@ -726,12 +729,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub(crate) fn create_base_named_declaration<TName: Into<StringOrRcNode>>(
+    pub(crate) fn create_base_named_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
         name: Option<TName>,
     ) -> BaseNamedDeclaration {
         let node = self.create_base_declaration(base_factory, kind, decorators, modifiers);
@@ -911,12 +918,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub(crate) fn create_base_binding_like_declaration<TName: Into<StringOrRcNode>>(
+    pub(crate) fn create_base_binding_like_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
         name: Option<TName>,
         initializer: Option<Rc<Node>>,
     ) -> BaseBindingLikeDeclaration {
@@ -927,12 +938,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub(crate) fn create_base_variable_like_declaration<TName: Into<StringOrRcNode>>(
+    pub(crate) fn create_base_variable_like_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
         name: Option<TName>,
         type_: Option<Rc<Node>>,
         initializer: Option<Rc<Node>>,
