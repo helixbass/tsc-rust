@@ -31,11 +31,11 @@ impl ParserType {
 
         let mut node = self.factory.create_type_parameter_declaration(
             self,
-            name.into(),
+            Into::<Rc<Node>>::into(name),
             constraint.map(Into::into),
             default_type.map(Into::into),
         );
-        node.expression = expression.map(Into::into);
+        node.expression = expression.map(|expression| expression.wrap());
         self.finish_node(node, pos, None)
     }
 

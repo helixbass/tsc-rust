@@ -151,10 +151,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_type_parameter_declaration(
+    pub fn create_type_parameter_declaration<TName: Into<StringOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: Rc<Node>,
+        name: TName,
         constraint: Option<Rc<Node /*TypeNode*/>>,
         default_type: Option<Rc<Node /*TypeNode*/>>,
     ) -> TypeParameterDeclaration {
@@ -165,7 +165,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             None,
             Some(name),
         );
-        let node = TypeParameterDeclaration::new(node, constraint, default_type);
+        let mut node = TypeParameterDeclaration::new(node, constraint, default_type);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
