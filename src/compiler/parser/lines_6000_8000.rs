@@ -7,15 +7,15 @@ use super::{ParserType, SignatureFlags};
 use crate::{
     append, modifiers_to_flags, some, BaseNode, BaseNodeFactory, Block, Debug_, Decorator,
     DiagnosticMessage, Diagnostics, FunctionDeclaration, InterfaceDeclaration, ModifierFlags, Node,
-    NodeArray, NodeFlags, NodeInterface, Statement, SyntaxKind, TypeAliasDeclaration,
-    VariableDeclaration, VariableDeclarationList,
+    NodeArray, NodeFlags, NodeInterface, SyntaxKind, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList,
 };
 
 impl ParserType {
-    pub(super) fn parse_expression_or_labeled_statement(&self) -> Statement {
+    pub(super) fn parse_expression_or_labeled_statement(&self) -> Node {
         let pos = self.get_node_pos();
         let expression = self.parse_expression();
-        let node: Statement = if false {
+        let node: Node = if false {
             unimplemented!()
         } else {
             if !self.try_parse_semicolon() {
@@ -78,7 +78,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_statement(&self) -> Statement {
+    pub(super) fn parse_statement(&self) -> Node {
         match self.token() {
             SyntaxKind::SemicolonToken => return self.parse_empty_statement(),
             SyntaxKind::VarKeyword => {
@@ -111,7 +111,7 @@ impl ParserType {
         modifier.kind() == SyntaxKind::DeclareKeyword
     }
 
-    pub(super) fn parse_declaration(&self) -> Statement {
+    pub(super) fn parse_declaration(&self) -> Node {
         let is_ambient = some(
             self.look_ahead(|| {
                 self.parse_decorators();
@@ -146,7 +146,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn try_reuse_ambient_declaration(&self) -> Option<Statement> {
+    pub(super) fn try_reuse_ambient_declaration(&self) -> Option<Node> {
         None
     }
 
@@ -155,7 +155,7 @@ impl ParserType {
         pos: isize,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Statement {
+    ) -> Node {
         match self.token() {
             SyntaxKind::VarKeyword | SyntaxKind::ConstKeyword => {
                 self.parse_variable_statement(pos, decorators, modifiers)
@@ -264,7 +264,7 @@ impl ParserType {
         pos: isize,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Statement {
+    ) -> Node {
         let declaration_list = self.parse_variable_declaration_list();
         self.parse_semicolon();
         let node = self

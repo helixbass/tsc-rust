@@ -746,37 +746,12 @@ impl LiteralLikeNodeInterface for JsxText {
 
 #[derive(Debug)]
 #[ast_type]
-pub enum Statement {
-    FunctionDeclaration(FunctionDeclaration),
-    EmptyStatement(EmptyStatement),
-    Block(Block),
-    VariableStatement(VariableStatement),
-    ExpressionStatement(ExpressionStatement),
-    IfStatement(IfStatement),
-    ReturnStatement(ReturnStatement),
-    InterfaceDeclaration(InterfaceDeclaration),
-    TypeAliasDeclaration(TypeAliasDeclaration),
-    ForStatement(ForStatement),
-    ForInStatement(ForInStatement),
-    ForOfStatement(ForOfStatement),
-    ModuleDeclaration(ModuleDeclaration),
-    LabeledStatement(LabeledStatement),
-    ExportAssignment(ExportAssignment),
-    ImportEqualsDeclaration(ImportEqualsDeclaration),
-    ImportClause(ImportClause),
-    ExportDeclaration(ExportDeclaration),
-    ImportSpecifier(ImportSpecifier),
-    ExportSpecifier(ExportSpecifier),
-}
-
-#[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
 pub struct EmptyStatement {
     pub _node: BaseNode,
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct Block {
     _node: BaseNode,
     pub statements: NodeArray, /*<Statement>*/
@@ -794,7 +769,7 @@ impl Block {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct VariableStatement {
     _node: BaseNode,
     pub declaration_list: Rc</*VariableDeclarationList*/ Node>,
@@ -810,7 +785,7 @@ impl VariableStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ExpressionStatement {
     _node: BaseNode,
     pub expression: Rc</*Expression*/ Node>,
@@ -826,7 +801,7 @@ impl ExpressionStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct IfStatement {
     _node: BaseNode,
     pub expression: Rc</*Expression*/ Node>,
@@ -851,7 +826,7 @@ impl IfStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ForStatement {
     _node: BaseNode,
     pub statement: Rc<Node /*Statement*/>,
@@ -889,7 +864,7 @@ impl HasInitializerInterface for ForStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ForInStatement {
     _node: BaseNode,
     pub statement: Rc<Node /*Statement*/>,
@@ -924,7 +899,7 @@ impl HasInitializerInterface for ForInStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ForOfStatement {
     _node: BaseNode,
     pub await_modifier: Option<Rc<Node /*AwaitKeywordToken*/>>,
@@ -962,7 +937,7 @@ impl HasInitializerInterface for ForOfStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ReturnStatement {
     _node: BaseNode,
     pub expression: Option<Rc</*Expression*/ Node>>,
@@ -978,7 +953,7 @@ impl ReturnStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct LabeledStatement {
     _node: BaseNode,
     pub label: Rc<Node /*Identifier*/>,
@@ -1322,7 +1297,6 @@ impl ClassLikeDeclarationInterface for ClassLikeDeclarationBase {
 
 #[derive(Debug)]
 #[ast_type(
-    ancestors = "Statement",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface"
 )]
 pub struct InterfaceDeclaration {
@@ -1344,7 +1318,6 @@ impl InterfaceDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
-    ancestors = "Statement",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
 pub struct TypeAliasDeclaration {
@@ -1407,7 +1380,7 @@ impl HasInitializerInterface for EnumMember {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ModuleDeclaration {
     _node: BaseNode,
     pub name: Rc<Node /*ModuleName*/>,
@@ -1443,7 +1416,7 @@ pub trait HasIsTypeOnlyInterface {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement", interfaces = "NamedDeclarationInterface")]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct ImportEqualsDeclaration {
     _named_declaration: BaseNamedDeclaration,
     pub is_type_only: bool,
@@ -1471,7 +1444,7 @@ impl HasIsTypeOnlyInterface for ImportEqualsDeclaration {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ImportClause {
     _node: BaseNode,
     pub is_type_only: bool,
@@ -1516,7 +1489,7 @@ impl HasIsTypeOnlyInterface for ImportClause {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ExportDeclaration {
     _node: BaseNode,
     pub is_type_only: bool,
@@ -1550,7 +1523,7 @@ impl HasIsTypeOnlyInterface for ExportDeclaration {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ImportSpecifier {
     _node: BaseNode,
     pub property_name: Option<Rc<Node /*Identifier*/>>,
@@ -1595,7 +1568,7 @@ impl HasIsTypeOnlyInterface for ImportSpecifier {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ExportSpecifier {
     _node: BaseNode,
     pub is_type_only: bool,
@@ -1640,7 +1613,7 @@ impl HasIsTypeOnlyInterface for ExportSpecifier {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ExportAssignment {
     _node: BaseNode,
     pub is_export_equals: Option<bool>,

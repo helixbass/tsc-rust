@@ -6,7 +6,7 @@ use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_binary_operator_precedence, ArrayLiteralExpression, BinaryExpression, Block,
     DiagnosticMessage, Diagnostics, Identifier, Node, NodeFlags, ObjectLiteralExpression,
-    OperatorPrecedence, PropertyAssignment, ReturnStatement, Statement, SyntaxKind, TypeNode,
+    OperatorPrecedence, PropertyAssignment, ReturnStatement, SyntaxKind, TypeNode,
 };
 
 impl ParserType {
@@ -382,13 +382,13 @@ impl ParserType {
         block
     }
 
-    pub(super) fn parse_empty_statement(&self) -> Statement {
+    pub(super) fn parse_empty_statement(&self) -> Node {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::SemicolonToken, None, None);
         self.finish_node(self.factory.create_empty_statement(self).into(), pos, None)
     }
 
-    pub(super) fn parse_if_statement(&self) -> Statement {
+    pub(super) fn parse_if_statement(&self) -> Node {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::IfKeyword, None, None);
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
@@ -405,8 +405,8 @@ impl ParserType {
                 .create_if_statement(
                     self,
                     expression.wrap(),
-                    then_statement.into(),
-                    else_statement.map(Into::into),
+                    then_statement.wrap(),
+                    else_statement.map(|else_statement| else_statement.wrap()),
                 )
                 .into(),
             pos,

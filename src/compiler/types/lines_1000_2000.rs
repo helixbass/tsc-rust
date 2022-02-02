@@ -470,7 +470,6 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
-    ancestors = "Statement",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
 )]
 pub struct FunctionDeclaration {

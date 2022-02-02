@@ -5,8 +5,8 @@ use std::rc::Rc;
 use crate::{
     BaseNodeFactory, Block, EmptyStatement, ExpressionStatement, FunctionDeclaration, IfStatement,
     InterfaceDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    ReturnStatement, Statement, SyntaxKind, TemplateSpan, TypeAliasDeclaration,
-    VariableDeclaration, VariableDeclarationList, VariableStatement,
+    ReturnStatement, SyntaxKind, TemplateSpan, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList, VariableStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {

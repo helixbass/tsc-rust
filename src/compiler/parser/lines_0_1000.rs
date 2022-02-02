@@ -13,8 +13,8 @@ use crate::{
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
     HasTypeParametersInterface, Identifier, NamedDeclarationInterface, Node, NodeArray,
     NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
-    SignatureDeclarationInterface, SourceTextAsChars, Statement, SyntaxKind,
-    TemplateLiteralLikeNode, TypeElement, TypeNode,
+    SignatureDeclarationInterface, SourceTextAsChars, SyntaxKind, TemplateLiteralLikeNode,
+    TypeElement, TypeNode,
 };
 use local_macros::ast_type;
 
@@ -264,7 +264,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_node(&mut cb_node, variable_declaration.maybe_type());
             visit_node(&mut cb_node, variable_declaration.maybe_initializer())
         }
-        Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+        Node::FunctionDeclaration(function_declaration) => {
             visit_nodes(
                 &mut cb_node,
                 Some(&mut cb_nodes),
@@ -327,7 +327,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
         Node::PrefixUnaryExpression(prefix_unary_expression) => {
             visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()))
         }
-        Node::Statement(Statement::VariableStatement(variable_statement)) => {
+        Node::VariableStatement(variable_statement) => {
             visit_nodes(
                 &mut cb_node,
                 Some(&mut cb_nodes),
@@ -348,7 +348,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             Some(&mut cb_nodes),
             Some(&variable_declaration_list.declarations),
         ),
-        Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
+        Node::InterfaceDeclaration(interface_declaration) => {
             visit_nodes(
                 &mut cb_node,
                 Some(&mut cb_nodes),
@@ -371,7 +371,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 Some(&interface_declaration.members),
             )
         }
-        Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
+        Node::TypeAliasDeclaration(type_alias_declaration) => {
             visit_nodes(
                 &mut cb_node,
                 Some(&mut cb_nodes),

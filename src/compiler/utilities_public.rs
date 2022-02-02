@@ -31,8 +31,8 @@ use crate::{
     set_localized_diagnostic_messages, set_ui_locale, skip_outer_expressions, some,
     AssignmentDeclarationKind, CharacterCodes, CompilerOptions, Debug_, Diagnostics,
     GeneratedIdentifierFlags, HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeArray, NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Statement,
-    Symbol, SymbolInterface, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
+    Node, NodeArray, NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Symbol,
+    SymbolInterface, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
     compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
     Diagnostic, SortedArray,
 };
@@ -556,7 +556,7 @@ fn name_for_nameless_jsdoc_typedef(
         return get_declaration_identifier(&host_node);
     }
     match &*host_node {
-        Node::Statement(Statement::VariableStatement(host_node)) => {
+        Node::VariableStatement(host_node) => {
             if
             /*hostNode.declarationList &&*/
             !host_node
@@ -573,7 +573,7 @@ fn name_for_nameless_jsdoc_typedef(
                 );
             }
         }
-        Node::Statement(Statement::ExpressionStatement(host_node)) => {
+        Node::ExpressionStatement(host_node) => {
             let mut expr = host_node.expression.clone();
             match &*expr {
                 Node::BinaryExpression(expr_as_binary_expression)
@@ -600,7 +600,7 @@ fn name_for_nameless_jsdoc_typedef(
         Node::ParenthesizedExpression(host_node) => {
             return get_declaration_identifier(&host_node.expression);
         }
-        Node::Statement(Statement::LabeledStatement(host_node)) => {
+        Node::LabeledStatement(host_node) => {
             if is_declaration(&host_node.statement) || is_expression(&host_node.statement) {
                 return get_declaration_identifier(&host_node.statement);
             }
