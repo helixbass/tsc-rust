@@ -2,11 +2,12 @@
 
 use std::rc::Rc;
 
+use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
     ArrayTypeNode, BaseNode, BaseNodeFactory, IntersectionTypeNode, ModifierFlags, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, ParameterDeclaration, PropertySignature, SyntaxKind,
-    TypeLiteralNode, TypeNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode,
-    UnionTypeNode,
+    NodeArrayOrVec, NodeFactory, NodeInterface, ParameterDeclaration, PropertySignature,
+    QualifiedName, StringOrRcNode, SyntaxKind, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
+    TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -113,6 +114,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             );
         }
         result
+    }
+
+    pub fn create_qualified_name<TRight: Into<StringOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*EntityName*/>,
+        right: TRight,
+    ) -> QualifiedName {
+        let node = self.create_base_node(base_factory, SyntaxKind::QualifiedName);
+        let mut node =
+            QualifiedName::new(node, left, self.as_name(base_factory, Some(right)).unwrap());
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.left)) | propagate_identifier_name_flags(&node.right),
+        );
+        node
     }
 
     pub fn create_type_parameter_declaration(

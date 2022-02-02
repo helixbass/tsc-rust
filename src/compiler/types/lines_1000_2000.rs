@@ -201,17 +201,12 @@ pub struct QualifiedName {
 }
 
 impl QualifiedName {
-    pub fn new(
-        base_node: BaseNode,
-        left: Rc<Node>,
-        right: Rc<Node>,
-        jsdoc_dot_pos: Option<usize>,
-    ) -> Self {
+    pub fn new(base_node: BaseNode, left: Rc<Node>, right: Rc<Node>) -> Self {
         Self {
             _node: base_node,
             left,
             right,
-            jsdoc_dot_pos,
+            jsdoc_dot_pos: None,
         }
     }
 }
