@@ -224,12 +224,17 @@ bitflags! {
 )]
 pub struct NumericLiteral {
     _literal_like_node: BaseLiteralLikeNode,
+    pub(crate) numeric_literal_flags: TokenFlags,
 }
 
 impl NumericLiteral {
-    pub fn new(base_literal_like_node: BaseLiteralLikeNode) -> Self {
+    pub fn new(
+        base_literal_like_node: BaseLiteralLikeNode,
+        numeric_literal_flags: TokenFlags,
+    ) -> Self {
         Self {
             _literal_like_node: base_literal_like_node,
+            numeric_literal_flags,
         }
     }
 }

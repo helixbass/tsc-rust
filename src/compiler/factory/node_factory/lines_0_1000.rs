@@ -19,7 +19,7 @@ use crate::{
     ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface,
     HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
     InterfaceOrClassLikeDeclarationInterface, LiteralLikeNode, LiteralLikeNodeInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, NumericLiteral,
+    NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, Number, NumericLiteral,
     ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, ReadonlyTextRange,
     SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
 };
@@ -962,15 +962,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         BaseLiteralLikeNode::new(node, text)
     }
 
-    pub fn create_numeric_literal(
+    pub fn create_numeric_literal<TValue: Into<StringOrNumber>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        value: String,
+        value: TValue,
         numeric_literal_flags: Option<TokenFlags>,
     ) -> NumericLiteral {
         let numeric_literal_flags = numeric_literal_flags.unwrap_or(TokenFlags::None);
-        let node = self.create_base_literal(base_factory, SyntaxKind::NumericLiteral, value);
-        NumericLiteral::new(node)
+        let value = value.into();
+        let node = self.create_base_literal(
+            base_factory,
+            SyntaxKind::NumericLiteral,
+            match value {
+                StringOrNumber::String(value) => value,
+                StringOrNumber::Number(value) => value.to_string(),
+            },
+        );
+        let mut node = NumericLiteral::new(node, numeric_literal_flags);
+        if numeric_literal_flags.intersects(TokenFlags::BinaryOrOctalSpecifier) {
+            node.add_transform_flags(TransformFlags::ContainsES2015);
+        }
+        node
     }
 
     pub fn create_big_int_literal<TPseudoBigIntOrString: Into<PseudoBigIntOrString>>(
@@ -1071,5 +1083,22 @@ impl From<String> for StringOrRcNode {
 impl From<Rc<Node>> for StringOrRcNode {
     fn from(value: Rc<Node>) -> Self {
         Self::RcNode(value)
+    }
+}
+
+pub enum StringOrNumber {
+    String(String),
+    Number(Number),
+}
+
+impl From<String> for StringOrNumber {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Number> for StringOrNumber {
+    fn from(value: Number) -> Self {
+        Self::Number(value)
     }
 }
