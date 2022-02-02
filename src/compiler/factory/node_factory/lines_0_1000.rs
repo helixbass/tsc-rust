@@ -995,13 +995,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             SyntaxKind::BigIntLiteral,
             match value {
-                PseudoBigIntOrString::PseudoBigInt(pseudo_big_int) => {
-                    format!("{}n", pseudo_big_int_to_string(&pseudo_big_int))
+                PseudoBigIntOrString::String(value) => value,
+                PseudoBigIntOrString::PseudoBigInt(value) => {
+                    format!("{}n", pseudo_big_int_to_string(&value))
                 }
-                PseudoBigIntOrString::String(string) => string,
             },
         );
-        BigIntLiteral::new(node)
+        let mut node = BigIntLiteral::new(node);
+        node.add_transform_flags(TransformFlags::ContainsESNext);
+        node
     }
 
     pub fn create_base_string_literal(
