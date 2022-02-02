@@ -784,6 +784,22 @@ impl FunctionTypeNode {
     }
 }
 
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
+)]
+pub struct ConstructorTypeNode {
+    _signature_declaration: BaseSignatureDeclaration,
+}
+
+impl ConstructorTypeNode {
+    pub fn new(base_signature_declaration: BaseSignatureDeclaration) -> Self {
+        Self {
+            _signature_declaration: base_signature_declaration,
+        }
+    }
+}
+
 pub trait HasTypeArgumentsInterface {
     fn maybe_type_arguments(&self) -> Option<&NodeArray>;
 }
