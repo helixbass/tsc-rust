@@ -13,8 +13,8 @@ use crate::{
     MethodSignature, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature,
     QualifiedName, SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TemplateLiteralTypeSpan,
-    TransformFlags, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
-    TypeReferenceNode, UnionTypeNode,
+    TransformFlags, TupleTypeNode, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode,
+    TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -743,6 +743,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             self.parenthesizer_rules()
                 .parenthesize_element_type_of_array_type(base_factory, &element_type),
         );
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_tuple_type_node<TElements: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: Option<TElements>,
+    ) -> TupleTypeNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::TupleType);
+        let mut node = TupleTypeNode::new(node, self.create_node_array(elements, None));
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }

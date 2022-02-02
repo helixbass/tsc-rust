@@ -905,6 +905,22 @@ impl ArrayTypeNode {
     }
 }
 
+#[derive(Debug)]
+#[ast_type]
+pub struct TupleTypeNode {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<TypeNode | NamedTupleMember>*/
+}
+
+impl TupleTypeNode {
+    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+        }
+    }
+}
+
 pub trait UnionOrIntersectionTypeNodeInterface {
     fn types(&self) -> &NodeArray;
 }
