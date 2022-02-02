@@ -22,19 +22,20 @@ use super::{
     JSDocTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
     JSDocTypedefTag, JsxAttribute, JsxText, KeywordTypeNode, LabeledStatement,
     LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface, MethodDeclaration,
-    MethodSignature, ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NewExpression,
-    NodeArray, NonNullExpression, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
-    ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
-    PartiallyEmittedExpression, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
-    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    QualifiedName, RegularExpressionLiteral, ReturnStatement, SetAccessorDeclaration,
-    ShorthandPropertyAssignment, SignatureDeclarationBase, SignatureDeclarationInterface,
-    SourceFile, SpreadAssignment, SpreadElement, StringLiteral, Symbol, SymbolTable,
-    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeSpan,
-    TemplateSpan, TransformFlags, TupleTypeNode, TypeAliasDeclaration, TypeAssertion, TypeElement,
-    TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode,
-    UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
+    MethodSignature, ModifiersArray, ModuleDeclaration, NamedDeclarationInterface,
+    NamedTupleMember, NewExpression, NodeArray, NonNullExpression, NumericLiteral,
+    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, ParenthesizedExpression,
+    ParenthesizedTypeNode, PartiallyEmittedExpression, PostfixUnaryExpression,
+    PrefixUnaryExpression, PrivateIdentifier, PropertyAccessExpression, PropertyAssignment,
+    PropertyDeclaration, PropertySignature, QualifiedName, RegularExpressionLiteral,
+    ReturnStatement, SetAccessorDeclaration, ShorthandPropertyAssignment, SignatureDeclarationBase,
+    SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
+    Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
+    TemplateLiteralTypeSpan, TemplateSpan, TransformFlags, TupleTypeNode, TypeAliasDeclaration,
+    TypeAssertion, TypeElement, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode,
+    TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode,
+    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -740,6 +741,7 @@ pub enum Node {
     ConstructorTypeNode(ConstructorTypeNode),
     TypeQueryNode(TypeQueryNode),
     TupleTypeNode(TupleTypeNode),
+    NamedTupleMember(NamedTupleMember),
 }
 
 impl Node {

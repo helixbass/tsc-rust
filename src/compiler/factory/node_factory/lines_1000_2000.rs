@@ -10,11 +10,11 @@ use crate::{
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, Decorator,
     FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
     HasInitializerInterface, IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration,
-    MethodSignature, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature,
-    QualifiedName, SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TemplateLiteralTypeSpan,
-    TransformFlags, TupleTypeNode, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode,
-    TypeQueryNode, TypeReferenceNode, UnionTypeNode,
+    MethodSignature, ModifierFlags, NamedDeclarationInterface, NamedTupleMember, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeInterface, ParameterDeclaration, PropertyDeclaration,
+    PropertySignature, QualifiedName, SetAccessorDeclaration, StringOrRcNode, SyntaxKind,
+    TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
+    TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -754,6 +754,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> TupleTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TupleType);
         let mut node = TupleTypeNode::new(node, self.create_node_array(elements, None));
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_named_tuple_member(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
+        name: Rc<Node /*Identifier*/>,
+        question_token: Option<Rc<Node /*QuestionToken*/>>,
+        type_: Rc<Node /*TypeNode*/>,
+    ) -> NamedTupleMember {
+        let node = self.create_base_node(base_factory, SyntaxKind::NamedTupleMember);
+        let mut node = NamedTupleMember::new(node, dot_dot_dot_token, name, question_token, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }

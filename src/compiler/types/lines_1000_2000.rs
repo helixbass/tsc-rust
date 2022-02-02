@@ -921,6 +921,34 @@ impl TupleTypeNode {
     }
 }
 
+#[derive(Debug)]
+#[ast_type]
+pub struct NamedTupleMember {
+    _node: BaseNode,
+    pub dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
+    pub name: Rc<Node /*Identifier*/>,
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl NamedTupleMember {
+    pub fn new(
+        base_node: BaseNode,
+        dot_dot_dot_token: Option<Rc<Node>>,
+        name: Rc<Node>,
+        question_token: Option<Rc<Node>>,
+        type_: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            dot_dot_dot_token,
+            name,
+            question_token,
+            type_,
+        }
+    }
+}
+
 pub trait UnionOrIntersectionTypeNodeInterface {
     fn types(&self) -> &NodeArray;
 }
