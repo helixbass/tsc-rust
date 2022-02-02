@@ -12,7 +12,7 @@ use crate::{
     IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration, MethodSignature,
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
     NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName,
-    SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode,
+    SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode,
     TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
 
@@ -655,7 +655,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         kind: SyntaxKind, /*SyntaxKind.UnionType | SyntaxKind.IntersectionType*/
         types: TElements, /*<TypeNode>*/
-    ) -> TypeNode {
+    ) -> Node {
         let node = self.create_base_node(base_factory, kind);
         let types = self
             .parenthesizer_rules()
@@ -674,7 +674,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         types: TElements, /*<TypeNode>*/
-    ) -> TypeNode {
+    ) -> Node {
         self.create_union_or_intersection_type_node(base_factory, SyntaxKind::UnionType, types)
     }
 
@@ -682,7 +682,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         types: TElements, /*<TypeNode>*/
-    ) -> TypeNode {
+    ) -> Node {
         self.create_union_or_intersection_type_node(
             base_factory,
             SyntaxKind::IntersectionType,

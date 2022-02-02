@@ -752,23 +752,6 @@ impl ParameterDeclaration {
 
 #[derive(Debug)]
 #[ast_type]
-pub enum TypeNode {
-    KeywordTypeNode(KeywordTypeNode),
-    UnionTypeNode(UnionTypeNode),
-    IntersectionTypeNode(IntersectionTypeNode),
-    LiteralTypeNode(LiteralTypeNode),
-    TypeReferenceNode(TypeReferenceNode),
-    TypePredicateNode(TypePredicateNode),
-    TypeLiteralNode(TypeLiteralNode),
-    ArrayTypeNode(ArrayTypeNode),
-    JSDocTypeExpression(JSDocTypeExpression),
-    FunctionTypeNode(FunctionTypeNode),
-    ParenthesizedTypeNode(ParenthesizedTypeNode),
-    BaseJSDocUnaryType(BaseJSDocUnaryType),
-}
-
-#[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
 pub struct KeywordTypeNode {
     _node: BaseNode,
 }
@@ -787,7 +770,6 @@ impl From<BaseNode> for KeywordTypeNode {
 
 #[derive(Debug)]
 #[ast_type(
-    ancestors = "TypeNode",
     interfaces = "NamedDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
 )]
 pub struct FunctionTypeNode {
@@ -807,7 +789,7 @@ pub trait HasTypeArgumentsInterface {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct TypeReferenceNode {
     _node: BaseNode,
     pub type_name: Rc<Node /*EntityName*/>,
@@ -835,7 +817,7 @@ impl HasTypeArgumentsInterface for TypeReferenceNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct TypePredicateNode {
     _node: BaseNode,
     pub asserts_modifier: Option<Rc<Node /*AssertsToken*/>>,
@@ -860,7 +842,7 @@ impl TypePredicateNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct TypeLiteralNode {
     _node: BaseNode,
     pub members: NodeArray, /*<TypeElement>*/
@@ -876,7 +858,7 @@ impl TypeLiteralNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct ArrayTypeNode {
     _node: BaseNode,
     pub element_type: Rc<Node /*TypeNode*/>,
@@ -896,7 +878,7 @@ pub trait UnionOrIntersectionTypeNodeInterface {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct UnionTypeNode {
     _node: BaseNode,
     pub types: NodeArray, /*<TypeNode>*/
@@ -918,7 +900,7 @@ impl UnionOrIntersectionTypeNodeInterface for UnionTypeNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct IntersectionTypeNode {
     _node: BaseNode,
     pub types: NodeArray, /*<TypeNode>*/
@@ -940,7 +922,7 @@ impl UnionOrIntersectionTypeNodeInterface for IntersectionTypeNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct ParenthesizedTypeNode {
     _node: BaseNode,
     pub type_: Rc<Node /*TypeNode*/>,
@@ -966,7 +948,7 @@ impl HasTypeInterface for ParenthesizedTypeNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct LiteralTypeNode {
     _node: BaseNode,
     pub literal: Rc<Node>, // TODO: should be weak?

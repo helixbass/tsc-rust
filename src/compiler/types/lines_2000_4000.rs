@@ -1702,7 +1702,7 @@ impl TextRange for SynthesizedComment {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct JSDocTypeExpression {
     _node: BaseNode,
     pub type_: Rc<Node /*TypeNode*/>,
@@ -1746,7 +1746,7 @@ impl JSDocMemberName {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct BaseJSDocUnaryType {
     _node: BaseNode,
     pub type_: Option<Rc<Node /*TypeNode*/>>,

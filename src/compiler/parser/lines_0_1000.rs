@@ -14,7 +14,7 @@ use crate::{
     HasTypeParametersInterface, Identifier, NamedDeclarationInterface, Node, NodeArray,
     NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
     SignatureDeclarationInterface, SourceTextAsChars, SyntaxKind, TemplateLiteralLikeNode,
-    TypeElement, TypeNode,
+    TypeElement,
 };
 use local_macros::ast_type;
 
@@ -292,7 +292,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_node(&mut cb_node, function_declaration.maybe_type());
             visit_node(&mut cb_node, function_declaration.maybe_body())
         }
-        Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
+        Node::TypeReferenceNode(type_reference_node) => {
             visit_node(&mut cb_node, Some(type_reference_node.type_name.clone()));
             visit_nodes(
                 &mut cb_node,
@@ -300,18 +300,18 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 type_reference_node.type_arguments.as_ref(),
             )
         }
-        Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
+        Node::ArrayTypeNode(array_type) => {
             visit_node(&mut cb_node, Some(array_type.element_type.clone()))
         }
-        Node::TypeNode(TypeNode::UnionTypeNode(union_type)) => {
+        Node::UnionTypeNode(union_type) => {
             visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(&union_type.types))
         }
-        Node::TypeNode(TypeNode::IntersectionTypeNode(intersection_type)) => visit_nodes(
+        Node::IntersectionTypeNode(intersection_type) => visit_nodes(
             &mut cb_node,
             Some(&mut cb_nodes),
             Some(&intersection_type.types),
         ),
-        Node::TypeNode(TypeNode::LiteralTypeNode(literal_type)) => {
+        Node::LiteralTypeNode(literal_type) => {
             visit_node(&mut cb_node, Some(literal_type.literal.clone()))
         }
         Node::ArrayLiteralExpression(array_literal_expression) => visit_nodes(

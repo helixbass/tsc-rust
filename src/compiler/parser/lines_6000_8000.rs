@@ -220,7 +220,7 @@ impl ParserType {
         let node = self.factory.create_variable_declaration(
             self,
             Some(name),
-            type_.map(|type_| type_.into()),
+            type_.map(|type_| type_.wrap()),
             initializer.map(|initializer| initializer.wrap()),
         );
         self.finish_node(node, pos, None)
@@ -319,7 +319,7 @@ impl ParserType {
             name.map(Into::into),
             type_parameters,
             parameters,
-            type_.map(Into::into),
+            type_.map(|type_| type_.wrap()),
             body.map(Into::into),
         );
         self.finish_node(node, pos, None)
@@ -464,7 +464,7 @@ impl ParserType {
             modifiers,
             name.into(),
             type_parameters,
-            type_.into(),
+            type_.wrap(),
         );
         self.finish_node(node, pos, None)
     }

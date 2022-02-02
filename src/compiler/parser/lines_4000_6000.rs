@@ -6,7 +6,7 @@ use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_binary_operator_precedence, ArrayLiteralExpression, BinaryExpression, Block,
     DiagnosticMessage, Diagnostics, Identifier, Node, NodeFlags, ObjectLiteralExpression,
-    OperatorPrecedence, PropertyAssignment, ReturnStatement, SyntaxKind, TypeNode,
+    OperatorPrecedence, PropertyAssignment, ReturnStatement, SyntaxKind,
 };
 
 impl ParserType {
@@ -19,17 +19,17 @@ impl ParserType {
         None
     }
 
-    pub(super) fn parse_type(&self) -> TypeNode {
+    pub(super) fn parse_type(&self) -> Node {
         self.do_outside_of_context(NodeFlags::TypeExcludesFlags, || self.parse_type_worker())
     }
 
-    pub(super) fn parse_type_worker(&self) -> TypeNode {
+    pub(super) fn parse_type_worker(&self) -> Node {
         let pos = self.get_node_pos();
         let type_ = self.parse_union_type_or_higher();
         type_
     }
 
-    pub(super) fn parse_type_annotation(&self) -> Option<TypeNode> {
+    pub(super) fn parse_type_annotation(&self) -> Option<Node> {
         if self.parse_optional(SyntaxKind::ColonToken) {
             Some(self.parse_type())
         } else {

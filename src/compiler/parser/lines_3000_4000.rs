@@ -6,14 +6,14 @@ use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_full_width, is_modifier_kind, some, token_to_string, Diagnostics, KeywordTypeNode,
     LiteralTypeNode, Node, NodeArray, NodeFactory, ParameterDeclaration, SyntaxKind, TypeElement,
-    TypeNode, TypeParameterDeclaration,
+    TypeParameterDeclaration,
 };
 
 impl ParserType {
     pub(super) fn parse_type_parameter(&self) -> TypeParameterDeclaration {
         let pos = self.get_node_pos();
         let name = self.parse_identifier(None, None);
-        let mut constraint: Option<TypeNode> = None;
+        let mut constraint: Option<Node> = None;
         let mut expression: Option<Node> = None;
         if self.parse_optional(SyntaxKind::ExtendsKeyword) {
             if self.is_start_of_type(None) || !self.is_start_of_expression() {
@@ -32,8 +32,8 @@ impl ParserType {
         let mut node = self.factory.create_type_parameter_declaration(
             self,
             Into::<Rc<Node>>::into(name),
-            constraint.map(Into::into),
-            default_type.map(Into::into),
+            constraint.map(|constraint| constraint.wrap()),
+            default_type.map(|default_type| default_type.wrap()),
         );
         node.expression = expression.map(|expression| expression.wrap());
         self.finish_node(node, pos, None)
@@ -118,7 +118,7 @@ impl ParserType {
                 dot_dot_dot_token.map(Into::into),
                 name,
                 question_token.map(Into::into),
-                type_annotation.map(Into::into),
+                type_annotation.map(|type_annotation| type_annotation.wrap()),
                 initializer.map(Into::into),
             ),
             pos,
@@ -132,7 +132,7 @@ impl ParserType {
         &self,
         return_token: SyntaxKind,
         is_type: bool,
-    ) -> Option<TypeNode> {
+    ) -> Option<Node> {
         if self.should_parse_return_type(return_token, is_type) {
             return Some(self.parse_type_or_type_predicate());
         }
@@ -224,7 +224,7 @@ impl ParserType {
                     modifiers,
                     name.wrap(),
                     question_token.map(Into::into),
-                    type_.map(Into::into),
+                    type_.map(|type_| type_.wrap()),
                 )
                 .into();
         }
@@ -270,7 +270,7 @@ impl ParserType {
         members
     }
 
-    pub(super) fn parse_keyword_and_no_dot(&self) -> Option<TypeNode> {
+    pub(super) fn parse_keyword_and_no_dot(&self) -> Option<Node> {
         let node = self.parse_token_node();
         if false {
             None
@@ -302,7 +302,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_non_array_type(&self) -> TypeNode {
+    pub(super) fn parse_non_array_type(&self) -> Node {
         match self.token() {
             SyntaxKind::StringKeyword
             | SyntaxKind::NumberKeyword
@@ -358,7 +358,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_postfix_type_or_higher(&self) -> TypeNode {
+    pub(super) fn parse_postfix_type_or_higher(&self) -> Node {
         let pos = self.get_node_pos();
         let mut type_ = self.parse_non_array_type();
         while !self.scanner().has_preceding_line_break() {
@@ -377,7 +377,7 @@ impl ParserType {
                         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
                         type_ = self.finish_node(
                             self.factory
-                                .create_array_type_node(self, type_.into())
+                                .create_array_type_node(self, type_.wrap())
                                 .into(),
                             pos,
                             None,
@@ -393,7 +393,7 @@ impl ParserType {
         type_
     }
 
-    pub(super) fn parse_type_operator_or_higher(&self) -> TypeNode {
+    pub(super) fn parse_type_operator_or_higher(&self) -> Node {
         // let operator = self.token();
         // match operator {
 
@@ -404,20 +404,20 @@ impl ParserType {
     pub(super) fn parse_function_or_constructor_type_to_error(
         &self,
         is_in_union_type: bool,
-    ) -> Option<TypeNode> {
+    ) -> Option<Node> {
         None
     }
 
-    pub(super) fn parse_union_or_intersection_type<TReturn: Into<TypeNode>>(
+    pub(super) fn parse_union_or_intersection_type<TReturn: Into<Node>>(
         &self,
         operator: SyntaxKind, /*SyntaxKind.BarToken | SyntaxKind.AmpersandToken*/
-        parse_constituent_type: fn(&ParserType) -> TypeNode,
+        parse_constituent_type: fn(&ParserType) -> Node,
         create_type_node: fn(&NodeFactory<ParserType>, &ParserType, NodeArray) -> TReturn,
-    ) -> TypeNode {
+    ) -> Node {
         let pos = self.get_node_pos();
         let is_union_type = operator == SyntaxKind::BarToken;
         let has_leading_operator = self.parse_optional(operator);
-        let mut type_: Option<TypeNode> = Some(if has_leading_operator {
+        let mut type_: Option<Node> = Some(if has_leading_operator {
             self.parse_function_or_constructor_type_to_error(is_union_type)
                 .unwrap_or_else(|| parse_constituent_type(self))
         } else {
@@ -448,7 +448,7 @@ impl ParserType {
         type_.unwrap()
     }
 
-    pub(super) fn parse_intersection_type_or_higher(&self) -> TypeNode {
+    pub(super) fn parse_intersection_type_or_higher(&self) -> Node {
         self.parse_union_or_intersection_type(
             SyntaxKind::AmpersandToken,
             ParserType::parse_type_operator_or_higher,
@@ -456,7 +456,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_union_type_or_higher(&self) -> TypeNode {
+    pub(super) fn parse_union_type_or_higher(&self) -> Node {
         self.parse_union_or_intersection_type(
             SyntaxKind::BarToken,
             ParserType::parse_intersection_type_or_higher,
@@ -464,7 +464,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_type_or_type_predicate(&self) -> TypeNode {
+    pub(super) fn parse_type_or_type_predicate(&self) -> Node {
         let pos = self.get_node_pos();
         let type_predicate_variable = if self.is_identifier() {
             self.try_parse(|| self.parse_type_predicate_prefix())
@@ -479,7 +479,7 @@ impl ParserType {
                         self,
                         None,
                         type_predicate_variable.into(),
-                        Some(type_.into()),
+                        Some(type_.wrap()),
                     )
                     .into(),
                 pos,

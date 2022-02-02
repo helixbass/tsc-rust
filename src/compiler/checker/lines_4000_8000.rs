@@ -10,8 +10,8 @@ use crate::{
     Debug_, EmitHint, EmitTextWriter, KeywordTypeNode, Node, NodeArray, NodeBuilderFlags,
     NodeInterface, ObjectFlags, PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface,
     Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeNode,
-    TypeParameter, __String, create_printer, create_text_writer, factory, get_object_flags,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter,
+    __String, create_printer, create_text_writer, factory, get_object_flags,
     get_source_file_of_node, synthetic_factory,
 };
 
@@ -233,7 +233,7 @@ impl TypeChecker {
         );
         let type_node: Rc<Node> = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
-            Some(type_node) => type_node.into(),
+            Some(type_node) => type_node.wrap(),
         };
         let options = PrinterOptions {};
         let mut printer = create_printer(options);
@@ -330,7 +330,7 @@ impl NodeBuilder {
         type_: &Type,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<TypeNode> {
+    ) -> Option<Node> {
         self.with_context(flags, tracker, |context| {
             self.type_to_type_node_helper(type_checker, type_, context)
         })
@@ -372,7 +372,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         type_: &Type,
         context: &NodeBuilderContext,
-    ) -> TypeNode {
+    ) -> Node {
         if type_.flags().intersects(TypeFlags::String) {
             return Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
@@ -558,7 +558,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*ObjectType*/
-    ) -> TypeNode {
+    ) -> Node {
         let symbol = type_.maybe_symbol();
         if let Some(symbol) = symbol {
             if false {
@@ -581,8 +581,8 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type,
-        transform: fn(&NodeBuilder, &TypeChecker, &NodeBuilderContext, &Type) -> TypeNode,
-    ) -> TypeNode {
+        transform: fn(&NodeBuilder, &TypeChecker, &NodeBuilderContext, &Type) -> Node,
+    ) -> Node {
         let result = transform(self, type_checker, context, type_);
         result
     }
@@ -592,7 +592,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*ObjectType*/
-    ) -> TypeNode {
+    ) -> Node {
         let resolved = type_checker.resolve_structured_type_members(type_);
 
         let members = self.create_type_nodes_from_resolved_type(type_checker, context, &resolved);
@@ -653,7 +653,7 @@ impl NodeBuilder {
         if false {
             unimplemented!()
         } else {
-            let property_type_node: TypeNode;
+            let property_type_node: Node;
             if false {
                 unimplemented!()
             } else {
@@ -681,7 +681,7 @@ impl NodeBuilder {
                         modifiers,
                         property_name,
                         optional_token.map(Into::into),
-                        Some(property_type_node.into()),
+                        Some(property_type_node.wrap()),
                     )
                 })
             });
@@ -746,7 +746,7 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: SymbolFlags,
-    ) -> TypeNode {
+    ) -> Node {
         let chain = self.lookup_symbol_chain(symbol, context, Some(meaning));
 
         let chain_index = chain.len() - 1;
@@ -905,7 +905,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: &Type,
         symbol: &Symbol,
-    ) -> TypeNode {
+    ) -> Node {
         let result = self.type_to_type_node_helper(type_checker, type_, context);
         result
     }

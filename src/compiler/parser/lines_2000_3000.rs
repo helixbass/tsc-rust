@@ -6,7 +6,7 @@ use super::{ParserType, ParsingContext};
 use crate::{
     is_literal_kind, is_template_literal_kind, token_to_string, Debug_, DiagnosticMessage,
     Diagnostics, LiteralLikeNodeInterface, Node, NodeArray, NodeInterface, SyntaxKind,
-    TemplateExpression, TemplateSpan, TokenFlags, TypeNode,
+    TemplateExpression, TemplateSpan, TokenFlags,
 };
 
 impl ParserType {
@@ -376,7 +376,7 @@ impl ParserType {
         None
     }
 
-    pub(super) fn parse_type_reference(&self) -> TypeNode {
+    pub(super) fn parse_type_reference(&self) -> Node {
         let pos = self.get_node_pos();
         let name = self.parse_entity_name_of_type_reference().wrap();
         let type_arguments = self.parse_type_arguments_of_type_reference();

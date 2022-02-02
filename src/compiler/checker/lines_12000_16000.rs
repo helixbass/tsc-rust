@@ -10,7 +10,7 @@ use crate::{
     get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
     BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, UnionReduction,
+    TypeFlags, TypeId, TypeInterface, TypeReference, UnionReduction,
 };
 
 impl TypeChecker {
@@ -103,7 +103,7 @@ impl TypeChecker {
             let type_arguments = match &*node {
                 None => vec![],
                 Some(node) => match &**node {
-                    Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
+                    Node::TypeReferenceNode(type_reference_node) => {
                         let target_as_base_interface_type = type_.target.as_base_interface_type();
                         concatenate(
                             target_as_base_interface_type
@@ -119,7 +119,7 @@ impl TypeChecker {
                             ),
                         )
                     }
-                    Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => unimplemented!(),
+                    Node::ArrayTypeNode(array_type_node) => unimplemented!(),
                     _ => unimplemented!(),
                 },
             };

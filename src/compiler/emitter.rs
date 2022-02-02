@@ -6,7 +6,7 @@ use crate::{
     get_literal_text, id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_,
     EmitHint, EmitTextWriter, GetLiteralTextFlags, HasTypeInterface, ListFormat,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, PrinterOptions, Symbol,
-    TypeElement, TypeNode,
+    TypeElement,
 };
 
 #[derive(PartialEq, Eq)]
@@ -124,16 +124,10 @@ impl Printer {
                 Node::TypeElement(TypeElement::PropertySignature(_)) => {
                     return self.emit_property_signature(node)
                 }
-                Node::TypeNode(TypeNode::TypeReferenceNode(_)) => {
-                    return self.emit_type_reference(node)
-                }
-                Node::TypeNode(TypeNode::TypeLiteralNode(_)) => {
-                    return self.emit_type_literal(node)
-                }
-                Node::TypeNode(TypeNode::UnionTypeNode(_)) => return self.emit_union_type(node),
-                Node::TypeNode(TypeNode::LiteralTypeNode(_)) => {
-                    return self.emit_literal_type(node)
-                }
+                Node::TypeReferenceNode(_) => return self.emit_type_reference(node),
+                Node::TypeLiteralNode(_) => return self.emit_type_literal(node),
+                Node::UnionTypeNode(_) => return self.emit_union_type(node),
+                Node::LiteralTypeNode(_) => return self.emit_literal_type(node),
                 _ => (),
             }
             if is_expression(node) {
