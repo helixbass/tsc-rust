@@ -182,7 +182,7 @@ pub use compiler::types::{
     NodeArrayOrVec, NodeBuilderFlags, NodeCheckFlags, NodeConverters, NodeFactory, NodeFlags,
     NodeId, NodeInterface, NodeLinks, NonNullExpression, NumberLiteralType, NumericLiteral,
     ObjectBindingPattern, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
-    ObjectType, ObjectTypeInterface, OuterExpressionKinds, ParameterDeclaration,
+    ObjectType, ObjectTypeInterface, OptionalType, OuterExpressionKinds, ParameterDeclaration,
     ParenthesizedExpression, ParenthesizedTypeNode, ParenthesizerRules, ParsedCommandLine,
     PartiallyEmittedExpression, Path, PostfixUnaryExpression, PrefixUnaryExpression, Printer,
     PrinterOptions, PrivateIdentifier, Program, PropertyAccessExpression, PropertyAssignment,

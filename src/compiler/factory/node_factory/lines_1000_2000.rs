@@ -11,9 +11,9 @@ use crate::{
     FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
     HasInitializerInterface, IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration,
     MethodSignature, ModifierFlags, NamedDeclarationInterface, NamedTupleMember, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, ParameterDeclaration, PropertyDeclaration,
-    PropertySignature, QualifiedName, SetAccessorDeclaration, StringOrRcNode, SyntaxKind,
-    TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
+    NodeArrayOrVec, NodeFactory, NodeInterface, OptionalType, ParameterDeclaration,
+    PropertyDeclaration, PropertySignature, QualifiedName, SetAccessorDeclaration, StringOrRcNode,
+    SyntaxKind, TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
     TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
 
@@ -768,6 +768,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> NamedTupleMember {
         let node = self.create_base_node(base_factory, SyntaxKind::NamedTupleMember);
         let mut node = NamedTupleMember::new(node, dot_dot_dot_token, name, question_token, type_);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_optional_type(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Rc<Node /*TypeNode*/>,
+    ) -> OptionalType {
+        let node = self.create_base_node(base_factory, SyntaxKind::OptionalType);
+        let mut node = OptionalType::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_element_type_of_array_type(base_factory, &type_),
+        );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }

@@ -24,18 +24,18 @@ use super::{
     LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface, MethodDeclaration,
     MethodSignature, ModifiersArray, ModuleDeclaration, NamedDeclarationInterface,
     NamedTupleMember, NewExpression, NodeArray, NonNullExpression, NumericLiteral,
-    ObjectBindingPattern, ObjectLiteralExpression, ParameterDeclaration, ParenthesizedExpression,
-    ParenthesizedTypeNode, PartiallyEmittedExpression, PostfixUnaryExpression,
-    PrefixUnaryExpression, PrivateIdentifier, PropertyAccessExpression, PropertyAssignment,
-    PropertyDeclaration, PropertySignature, QualifiedName, RegularExpressionLiteral,
-    ReturnStatement, SetAccessorDeclaration, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
-    Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateLiteralTypeSpan, TemplateSpan, TransformFlags, TupleTypeNode, TypeAliasDeclaration,
-    TypeAssertion, TypeElement, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode,
-    TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode,
-    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression,
+    ObjectBindingPattern, ObjectLiteralExpression, OptionalType, ParameterDeclaration,
+    ParenthesizedExpression, ParenthesizedTypeNode, PartiallyEmittedExpression,
+    PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier, PropertyAccessExpression,
+    PropertyAssignment, PropertyDeclaration, PropertySignature, QualifiedName,
+    RegularExpressionLiteral, ReturnStatement, SetAccessorDeclaration, ShorthandPropertyAssignment,
+    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, SpreadAssignment,
+    SpreadElement, StringLiteral, Symbol, SymbolTable, TaggedTemplateExpression,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeSpan, TemplateSpan,
+    TransformFlags, TupleTypeNode, TypeAliasDeclaration, TypeAssertion, TypeElement,
+    TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode,
+    UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
+    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -742,6 +742,7 @@ pub enum Node {
     TypeQueryNode(TypeQueryNode),
     TupleTypeNode(TupleTypeNode),
     NamedTupleMember(NamedTupleMember),
+    OptionalType(OptionalType),
 }
 
 impl Node {
