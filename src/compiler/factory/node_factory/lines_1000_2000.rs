@@ -8,12 +8,13 @@ use crate::{
     is_this_identifier, modifiers_to_flags, ArrayTypeNode, BaseNode, BaseNodeFactory,
     CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
     ConstructSignatureDeclaration, ConstructorDeclaration, Decorator,
-    FunctionLikeDeclarationInterface, GetAccessorDeclaration, HasInitializerInterface,
-    IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration, MethodSignature,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName,
-    SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TemplateLiteralTypeSpan, TransformFlags,
-    TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
+    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
+    HasInitializerInterface, IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration,
+    MethodSignature, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature,
+    QualifiedName, SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TemplateLiteralTypeSpan,
+    TransformFlags, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode,
+    TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -653,6 +654,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 )
             }),
         );
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_function_type_node<
+        TTypeParameters: Into<NodeArrayOrVec>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_parameters: Option<TTypeParameters>,
+        parameters: TParameters,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+    ) -> FunctionTypeNode {
+        let node = self.create_base_signature_declaration(
+            base_factory,
+            SyntaxKind::FunctionType,
+            Option::<NodeArray>::None,
+            Option::<NodeArray>::None,
+            Option::<Rc<Node>>::None,
+            type_parameters,
+            Some(parameters),
+            type_,
+        );
+        let mut node = FunctionTypeNode::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
