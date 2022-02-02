@@ -466,6 +466,22 @@ impl SignatureDeclarationInterface for BaseSignatureDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+)]
+pub struct CallSignatureDeclaration {
+    _signature_declaration: BaseSignatureDeclaration,
+}
+
+impl CallSignatureDeclaration {
+    pub fn new(signature_declaration: BaseSignatureDeclaration) -> Self {
+        Self {
+            _signature_declaration: signature_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
     ancestors = "SignatureDeclarationBase",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
 )]

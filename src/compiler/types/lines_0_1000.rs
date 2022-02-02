@@ -7,16 +7,17 @@ use std::rc::{Rc, Weak};
 
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, AsExpression, BigIntLiteral,
-    BinaryExpression, BindingElement, Block, CallExpression, ClassStaticBlockDeclaration,
-    ComputedPropertyName, ConditionalExpression, ConstructorDeclaration, Decorator,
-    ElementAccessExpression, EmitNode, EmptyStatement, EnumMember, ExportAssignment,
-    ExportDeclaration, ExportSpecifier, ExpressionStatement, ForInStatement, ForOfStatement,
-    ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
-    FunctionTypeNode, GetAccessorDeclaration, HasElementsInterface, HasExpressionInterface,
-    HasIsTypeOnlyInterface, HasQuestionDotTokenInterface, HasTypeArgumentsInterface,
-    HasTypeParametersInterface, Identifier, IfStatement, ImportClause, ImportEqualsDeclaration,
-    ImportSpecifier, InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface,
-    JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocTag, JSDocTemplateTag, JSDocText,
+    BinaryExpression, BindingElement, Block, CallExpression, CallSignatureDeclaration,
+    ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalExpression,
+    ConstructorDeclaration, Decorator, ElementAccessExpression, EmitNode, EmptyStatement,
+    EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
+    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration, FunctionExpression,
+    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
+    HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
+    HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
+    Identifier, IfStatement, ImportClause, ImportEqualsDeclaration, ImportSpecifier,
+    InterfaceDeclaration, JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
+    JSDocMemberName, JSDocPropertyLikeTag, JSDocTag, JSDocTemplateTag, JSDocText,
     JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag, JsxAttribute, JsxText,
     LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface,
     MethodDeclaration, MethodSignature, ModifiersArray, ModuleDeclaration,
@@ -719,6 +720,7 @@ pub enum Node {
     ConstructorDeclaration(ConstructorDeclaration),
     GetAccessorDeclaration(GetAccessorDeclaration),
     SetAccessorDeclaration(SetAccessorDeclaration),
+    CallSignatureDeclaration(CallSignatureDeclaration),
 }
 
 impl Node {
