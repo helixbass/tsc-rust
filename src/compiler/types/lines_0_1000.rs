@@ -7,11 +7,11 @@ use std::rc::{Rc, Weak};
 
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, AsExpression, BigIntLiteral,
-    BinaryExpression, BindingElement, Block, CallExpression, ComputedPropertyName,
-    ConditionalExpression, Decorator, ElementAccessExpression, EmitNode, EmptyStatement,
-    EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
-    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration, FunctionExpression,
-    FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
+    BinaryExpression, BindingElement, Block, CallExpression, ClassStaticBlockDeclaration,
+    ComputedPropertyName, ConditionalExpression, Decorator, ElementAccessExpression, EmitNode,
+    EmptyStatement, EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier,
+    ExpressionStatement, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    FunctionExpression, FunctionLikeDeclarationInterface, FunctionTypeNode, HasElementsInterface,
     HasExpressionInterface, HasIsTypeOnlyInterface, HasQuestionDotTokenInterface,
     HasTypeArgumentsInterface, HasTypeParametersInterface, Identifier, IfStatement, ImportClause,
     ImportEqualsDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc, JSDocLink,
@@ -714,6 +714,7 @@ pub enum Node {
     ComputedPropertyName(ComputedPropertyName),
     MethodSignature(MethodSignature),
     MethodDeclaration(MethodDeclaration),
+    ClassStaticBlockDeclaration(ClassStaticBlockDeclaration),
 }
 
 impl Node {

@@ -6,12 +6,12 @@ use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
     has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
     is_this_identifier, modifiers_to_flags, ArrayTypeNode, BaseNode, BaseNodeFactory,
-    ComputedPropertyName, Decorator, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    IntersectionTypeNode, MethodDeclaration, MethodSignature, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName, StringOrRcNode,
-    SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode, TypeParameterDeclaration,
-    TypePredicateNode, TypeReferenceNode, UnionTypeNode,
+    ClassStaticBlockDeclaration, ComputedPropertyName, Decorator, FunctionLikeDeclarationInterface,
+    HasInitializerInterface, IntersectionTypeNode, MethodDeclaration, MethodSignature,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName,
+    StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode,
+    TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -403,6 +403,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if asterisk_token_is_some {
             node.add_transform_flags(TransformFlags::ContainsGenerator);
         }
+        node
+    }
+
+    pub fn create_class_static_block_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        body: Rc<Node /*Block*/>,
+    ) -> ClassStaticBlockDeclaration {
+        let node = self.create_base_generic_named_declaration(
+            base_factory,
+            SyntaxKind::ClassStaticBlockDeclaration,
+            decorators,
+            modifiers,
+            Option::<Rc<Node>>::None,
+            Option::<NodeArray>::None,
+        );
+        let mut node = ClassStaticBlockDeclaration::new(node, body.clone());
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*body)) | TransformFlags::ContainsClassFields,
+        );
         node
     }
 

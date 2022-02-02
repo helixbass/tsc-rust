@@ -1,18 +1,19 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
     ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseJSDocUnaryType,
     BaseLiteralLikeNode, BaseNode, BinaryExpression, CallExpression, ConditionalExpression,
-    ElementAccessExpression, FunctionExpression, HasExpressionInterface, HasInitializerInterface,
-    HasTypeInterface, JSDocTypeExpression, NewExpression, Node, NodeInterface, NonNullExpression,
-    ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression, ReadonlyTextRange,
-    SpreadElement, SyntaxKind, TaggedTemplateExpression, TemplateExpression, TransformFlags,
-    TypeAssertion, VoidExpression, __String,
+    ElementAccessExpression, FlowNode, FunctionExpression, HasExpressionInterface,
+    HasInitializerInterface, HasTypeInterface, JSDocTypeExpression, NewExpression, Node,
+    NodeInterface, NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression,
+    PropertyAccessExpression, ReadonlyTextRange, SpreadElement, SyntaxKind,
+    TaggedTemplateExpression, TemplateExpression, TransformFlags, TypeAssertion, VoidExpression,
+    __String,
 };
 use local_macros::ast_type;
 
@@ -571,6 +572,28 @@ impl MethodDeclaration {
     pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
         Self {
             _function_like_declaration: function_like_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
+)]
+pub struct ClassStaticBlockDeclaration {
+    _generic_named_declaration: BaseGenericNamedDeclaration,
+    pub body: Rc<Node /*Block*/>,
+    end_flow_node: RefCell<Option<FlowNode>>,
+    return_flow_node: RefCell<Option<FlowNode>>,
+}
+
+impl ClassStaticBlockDeclaration {
+    pub fn new(generic_named_declaration: BaseGenericNamedDeclaration, body: Rc<Node>) -> Self {
+        Self {
+            _generic_named_declaration: generic_named_declaration,
+            body,
+            end_flow_node: RefCell::new(None),
+            return_flow_node: RefCell::new(None),
         }
     }
 }

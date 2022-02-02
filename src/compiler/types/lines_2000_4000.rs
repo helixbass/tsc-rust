@@ -2192,6 +2192,8 @@ impl NamedDeclarationInterface for JSDocPropertyLikeTag {
     }
 }
 
+pub type FlowNode = ();
+
 pub type SourceTextAsChars = Vec<char>;
 
 pub fn str_to_source_text_as_chars(str_: &str) -> SourceTextAsChars {
