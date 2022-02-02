@@ -6,12 +6,12 @@ use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
     has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
     is_this_identifier, modifiers_to_flags, ArrayTypeNode, BaseNode, BaseNodeFactory,
-    ClassStaticBlockDeclaration, ComputedPropertyName, Decorator, FunctionLikeDeclarationInterface,
-    HasInitializerInterface, IntersectionTypeNode, MethodDeclaration, MethodSignature,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName,
-    StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode,
-    TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
+    ClassStaticBlockDeclaration, ComputedPropertyName, ConstructorDeclaration, Decorator,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, IntersectionTypeNode,
+    MethodDeclaration, MethodSignature, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeInterface, ParameterDeclaration, PropertyDeclaration,
+    PropertySignature, QualifiedName, StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode,
+    TypeNode, TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -428,6 +428,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.add_transform_flags(
             propagate_child_flags(Some(&*body)) | TransformFlags::ContainsClassFields,
         );
+        node
+    }
+
+    pub fn create_constructor_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        parameters: TParameters,
+        body: Option<Rc<Node /*Block*/>>,
+    ) -> ConstructorDeclaration {
+        let node = self.create_base_function_like_declaration(
+            base_factory,
+            SyntaxKind::Constructor,
+            decorators,
+            modifiers,
+            Option::<Rc<Node>>::None,
+            Option::<NodeArray>::None,
+            Some(parameters),
+            None,
+            body,
+        );
+        let mut node = ConstructorDeclaration::new(node);
+        node.add_transform_flags(TransformFlags::ContainsES2015);
         node
     }
 
