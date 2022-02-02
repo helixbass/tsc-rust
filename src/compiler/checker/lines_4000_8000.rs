@@ -779,6 +779,7 @@ impl NodeBuilder {
         index: usize,
         stopper: usize,
     ) -> Rc<Node> {
+        let type_parameter_nodes = Option::<NodeArray>::None; // TODO: this is wrong
         let symbol = chain[index].clone();
 
         let mut symbol_name: Option<String>;
@@ -793,7 +794,14 @@ impl NodeBuilder {
         let symbol_name = symbol_name.unwrap();
 
         let identifier = synthetic_factory.with(|synthetic_factory_| {
-            factory.with(|factory_| factory_.create_identifier(synthetic_factory_, &symbol_name))
+            factory.with(|factory_| {
+                factory_.create_identifier(
+                    synthetic_factory_,
+                    &symbol_name,
+                    type_parameter_nodes,
+                    None,
+                )
+            })
         });
         identifier.set_symbol(symbol);
 
@@ -842,7 +850,14 @@ impl NodeBuilder {
             None,
         ) {
             synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| factory_.create_identifier(synthetic_factory_, &name))
+                factory.with(|factory_| {
+                    factory_.create_identifier(
+                        synthetic_factory_,
+                        &name,
+                        Option::<NodeArray>::None,
+                        None,
+                    )
+                })
             })
         } else {
             unimplemented!()
@@ -857,14 +872,21 @@ impl NodeBuilder {
         chain: Vec<Rc<Symbol>>,
         index: usize,
     ) -> Node {
+        let type_parameter_nodes = Option::<NodeArray>::None; // TODO: this is wrong
         let symbol = &*(&chain)[index];
 
         let symbol_name = type_checker.get_name_of_symbol_as_written(symbol, Some(context));
 
         if index == 0 || false {
             let identifier = synthetic_factory.with(|synthetic_factory_| {
-                factory
-                    .with(|factory_| factory_.create_identifier(synthetic_factory_, &symbol_name))
+                factory.with(|factory_| {
+                    factory_.create_identifier(
+                        synthetic_factory_,
+                        &symbol_name,
+                        type_parameter_nodes,
+                        None,
+                    )
+                })
             });
             identifier.set_symbol(symbol.symbol_wrapper());
             return identifier.into();

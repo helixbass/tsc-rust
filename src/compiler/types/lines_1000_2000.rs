@@ -160,7 +160,9 @@ bitflags! {
 pub struct Identifier {
     _node: BaseNode,
     pub escaped_text: __String,
+    pub original_keyword_kind: Option<SyntaxKind>,
     auto_generate_flags: Option<GeneratedIdentifierFlags>,
+    pub(crate) type_arguments: Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>,
 }
 
 impl Identifier {
@@ -168,7 +170,9 @@ impl Identifier {
         Self {
             _node: base_node,
             escaped_text,
+            original_keyword_kind: None,
             auto_generate_flags: None,
+            type_arguments: None,
         }
     }
 

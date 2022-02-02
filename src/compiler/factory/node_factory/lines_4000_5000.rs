@@ -3,7 +3,7 @@ use std::rc::Rc;
 use super::get_default_tag_name_for_kind;
 use crate::{
     BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, JsxText,
-    Node, NodeFactory, NodeInterface, StringOrNodeArray, SyntaxKind, TransformFlags,
+    Node, NodeArray, NodeFactory, NodeInterface, StringOrNodeArray, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -49,8 +49,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             kind,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, get_default_tag_name_for_kind(kind))
-                    .into()
+                self.create_identifier(
+                    base_factory,
+                    get_default_tag_name_for_kind(kind),
+                    Option::<NodeArray>::None,
+                    None,
+                )
+                .into()
             }),
             comment,
         );
@@ -69,8 +74,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             base_factory,
             kind,
             tag_name.unwrap_or_else(|| {
-                self.create_identifier(base_factory, get_default_tag_name_for_kind(kind))
-                    .into()
+                self.create_identifier(
+                    base_factory,
+                    get_default_tag_name_for_kind(kind),
+                    Option::<NodeArray>::None,
+                    None,
+                )
+                .into()
             }),
             comment,
         );

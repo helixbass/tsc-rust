@@ -28,7 +28,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         name: Option<TName>,
     ) -> Option<Rc<Node>> {
         name.map(|name| match name.into() {
-            StringOrRcNode::String(name) => self.create_identifier(base_factory, &name).into(),
+            StringOrRcNode::String(name) => self
+                .create_identifier(base_factory, &name, Option::<NodeArray>::None, None)
+                .into(),
             StringOrRcNode::RcNode(name) => name,
         })
     }

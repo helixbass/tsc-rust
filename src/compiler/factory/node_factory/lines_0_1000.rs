@@ -12,10 +12,10 @@ use super::{
 use crate::{
     create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
     get_text_of_identifier_or_literal, is_identifier, null_node_converters,
-    null_parenthesizer_rules, pseudo_big_int_to_string, BaseBindingLikeDeclaration,
-    BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
-    BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseLiteralLikeNode,
-    BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
+    null_parenthesizer_rules, pseudo_big_int_to_string, string_to_token,
+    BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
+    BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
+    BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
     BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, ClassLikeDeclarationBase,
     ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface,
     HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
@@ -1095,14 +1095,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         text: &str,
+        mut original_keyword_kind: Option<SyntaxKind>,
     ) -> Identifier {
+        if original_keyword_kind.is_none() && !text.is_empty() {
+            original_keyword_kind = string_to_token(text);
+        }
+        if matches!(original_keyword_kind, Some(SyntaxKind::Identifier)) {
+            original_keyword_kind = None;
+        }
         let node = base_factory.create_base_identifier_node(SyntaxKind::Identifier);
-        let node = Identifier::new(node, escape_leading_underscores(text));
+        let mut node = Identifier::new(node, escape_leading_underscores(text));
+        node.original_keyword_kind = original_keyword_kind;
         node
     }
 
-    pub fn create_identifier(&self, base_factory: &TBaseNodeFactory, text: &str) -> Identifier {
-        let node = self.create_base_identifier(base_factory, text);
+    pub fn create_identifier<TTypeArguments: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: &str,
+        type_arguments: Option<TTypeArguments>,
+        original_keyword_kind: Option<SyntaxKind>,
+    ) -> Identifier {
+        let mut node = self.create_base_identifier(base_factory, text, original_keyword_kind);
+        if let Some(type_arguments) = type_arguments {
+            node.type_arguments = Some(self.create_node_array(Some(type_arguments), None));
+        }
+        if matches!(node.original_keyword_kind, Some(SyntaxKind::AwaitKeyword)) {
+            node.add_transform_flags(TransformFlags::ContainsPossibleTopLevelAwait);
+        }
         node
     }
 
