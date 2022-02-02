@@ -7,10 +7,11 @@ use crate::{
     has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
     is_this_identifier, modifiers_to_flags, ArrayTypeNode, BaseNode, BaseNodeFactory,
     CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
-    ConstructorDeclaration, Decorator, FunctionLikeDeclarationInterface, GetAccessorDeclaration,
-    HasInitializerInterface, IntersectionTypeNode, MethodDeclaration, MethodSignature,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName,
+    ConstructSignatureDeclaration, ConstructorDeclaration, Decorator,
+    FunctionLikeDeclarationInterface, GetAccessorDeclaration, HasInitializerInterface,
+    IntersectionTypeNode, MethodDeclaration, MethodSignature, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName,
     SetAccessorDeclaration, StringOrRcNode, SyntaxKind, TransformFlags, TypeLiteralNode, TypeNode,
     TypeParameterDeclaration, TypePredicateNode, TypeReferenceNode, UnionTypeNode,
 };
@@ -538,6 +539,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_,
         );
         let mut node = CallSignatureDeclaration::new(node);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_construct_signature<
+        TTypeParameters: Into<NodeArrayOrVec>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_parameters: Option<TTypeParameters>,
+        parameters: TParameters,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+    ) -> ConstructSignatureDeclaration {
+        let node = self.create_base_signature_declaration(
+            base_factory,
+            SyntaxKind::ConstructSignature,
+            Option::<NodeArray>::None,
+            Option::<NodeArray>::None,
+            Option::<Rc<Node>>::None,
+            type_parameters,
+            Some(parameters),
+            type_,
+        );
+        let mut node = ConstructSignatureDeclaration::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }

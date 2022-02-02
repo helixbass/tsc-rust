@@ -9,10 +9,10 @@ use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, AsExpression, BigIntLiteral,
     BinaryExpression, BindingElement, Block, CallExpression, CallSignatureDeclaration,
     ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalExpression,
-    ConstructorDeclaration, Decorator, ElementAccessExpression, EmitNode, EmptyStatement,
-    EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
-    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration, FunctionExpression,
-    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
+    ConstructSignatureDeclaration, ConstructorDeclaration, Decorator, ElementAccessExpression,
+    EmitNode, EmptyStatement, EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier,
+    ExpressionStatement, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    FunctionExpression, FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
     HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
     Identifier, IfStatement, ImportClause, ImportEqualsDeclaration, ImportSpecifier,
@@ -721,6 +721,7 @@ pub enum Node {
     GetAccessorDeclaration(GetAccessorDeclaration),
     SetAccessorDeclaration(SetAccessorDeclaration),
     CallSignatureDeclaration(CallSignatureDeclaration),
+    ConstructSignatureDeclaration(ConstructSignatureDeclaration),
 }
 
 impl Node {
