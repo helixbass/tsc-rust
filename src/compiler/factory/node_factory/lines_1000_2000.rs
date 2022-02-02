@@ -633,18 +633,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_type_reference_node<TTypeArguments: Into<NodeArrayOrVec>>(
+    pub fn create_type_reference_node<
+        TTypeName: Into<StringOrRcNode>,
+        TTypeArguments: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_name: Rc<Node>,
+        type_name: TTypeName,
         type_arguments: Option<TTypeArguments>,
     ) -> TypeReferenceNode {
         let node = self.create_base_node(base_factory, SyntaxKind::TypeReference);
-        let node = TypeReferenceNode::new(
+        let mut node = TypeReferenceNode::new(
             node,
             self.as_name(base_factory, Some(type_name)).unwrap(),
-            type_arguments.map(|type_arguments| self.create_node_array(Some(type_arguments), None)),
+            type_arguments.and_then(|type_arguments| {
+                self.parenthesizer_rules().parenthesize_type_arguments(
+                    base_factory,
+                    Some(self.create_node_array(Some(type_arguments), None)),
+                )
+            }),
         );
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
