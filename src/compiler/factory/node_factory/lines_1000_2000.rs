@@ -11,10 +11,11 @@ use crate::{
     FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
     HasInitializerInterface, IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration,
     MethodSignature, ModifierFlags, NamedDeclarationInterface, NamedTupleMember, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, OptionalType, ParameterDeclaration,
-    PropertyDeclaration, PropertySignature, QualifiedName, SetAccessorDeclaration, StringOrRcNode,
-    SyntaxKind, TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
-    TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
+    NodeArrayOrVec, NodeFactory, NodeInterface, OptionalTypeNode, ParameterDeclaration,
+    PropertyDeclaration, PropertySignature, QualifiedName, RestTypeNode, SetAccessorDeclaration,
+    StringOrRcNode, SyntaxKind, TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode,
+    TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode,
+    UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -772,17 +773,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_optional_type(
+    pub fn create_optional_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
         type_: Rc<Node /*TypeNode*/>,
-    ) -> OptionalType {
+    ) -> OptionalTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::OptionalType);
-        let mut node = OptionalType::new(
+        let mut node = OptionalTypeNode::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_element_type_of_array_type(base_factory, &type_),
         );
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_rest_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Rc<Node /*TypeNode*/>,
+    ) -> RestTypeNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::RestType);
+        let mut node = RestTypeNode::new(node, type_);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }

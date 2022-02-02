@@ -961,12 +961,12 @@ impl HasTypeInterface for NamedTupleMember {
 
 #[derive(Debug)]
 #[ast_type]
-pub struct OptionalType {
+pub struct OptionalTypeNode {
     _node: BaseNode,
     pub type_: Rc<Node /*TypeNode*/>,
 }
 
-impl OptionalType {
+impl OptionalTypeNode {
     pub fn new(base_node: BaseNode, type_: Rc<Node>) -> Self {
         Self {
             _node: base_node,
@@ -975,7 +975,23 @@ impl OptionalType {
     }
 }
 
-impl HasTypeInterface for OptionalType {
+#[derive(Debug)]
+#[ast_type]
+pub struct RestTypeNode {
+    _node: BaseNode,
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl RestTypeNode {
+    pub fn new(base_node: BaseNode, type_: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for RestTypeNode {
     fn maybe_type(&self) -> Option<Rc<Node>> {
         Some(self.type_.clone())
     }
