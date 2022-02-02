@@ -1161,7 +1161,64 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_token(&self, base_factory: &TBaseNodeFactory, token: SyntaxKind) -> BaseNode {
-        let node = self.create_base_token(base_factory, token);
+        Debug_.assert(
+            token >= SyntaxKind::FirstToken && token <= SyntaxKind::LastToken,
+            Some("Invalid token"),
+        );
+        Debug_.assert(
+            token <= SyntaxKind::FirstTemplateToken || token >= SyntaxKind::LastTemplateToken,
+            Some("Invalid token. Use 'createTemplateLiteralLikeNode' to create template literals."),
+        );
+        Debug_.assert(
+            token <= SyntaxKind::FirstLiteralToken || token >= SyntaxKind::LastLiteralToken,
+            Some("Invalid token. Use 'createLiteralLikeNode' to create literals."),
+        );
+        Debug_.assert(
+            token != SyntaxKind::Identifier,
+            Some("Invalid token. Use 'createIdentifier' to create identifiers"),
+        );
+        let mut node = self.create_base_token(base_factory, token);
+        let mut transform_flags = TransformFlags::None;
+        match token {
+            SyntaxKind::AsyncKeyword => {
+                transform_flags = TransformFlags::ContainsES2017 | TransformFlags::ContainsES2018;
+            }
+            SyntaxKind::PublicKeyword
+            | SyntaxKind::PrivateKeyword
+            | SyntaxKind::ProtectedKeyword
+            | SyntaxKind::ReadonlyKeyword
+            | SyntaxKind::AbstractKeyword
+            | SyntaxKind::DeclareKeyword
+            | SyntaxKind::ConstKeyword
+            | SyntaxKind::AnyKeyword
+            | SyntaxKind::NumberKeyword
+            | SyntaxKind::BigIntKeyword
+            | SyntaxKind::NeverKeyword
+            | SyntaxKind::ObjectKeyword
+            | SyntaxKind::OverrideKeyword
+            | SyntaxKind::StringKeyword
+            | SyntaxKind::BooleanKeyword
+            | SyntaxKind::SymbolKeyword
+            | SyntaxKind::VoidKeyword
+            | SyntaxKind::UnknownKeyword
+            | SyntaxKind::UndefinedKeyword => {
+                transform_flags = TransformFlags::ContainsTypeScript;
+            }
+            SyntaxKind::SuperKeyword => {
+                transform_flags =
+                    TransformFlags::ContainsES2015 | TransformFlags::ContainsLexicalSuper;
+            }
+            SyntaxKind::StaticKeyword => {
+                transform_flags = TransformFlags::ContainsES2015;
+            }
+            SyntaxKind::ThisKeyword => {
+                transform_flags = TransformFlags::ContainsLexicalThis;
+            }
+            _ => (),
+        }
+        if transform_flags != TransformFlags::None {
+            node.add_transform_flags(transform_flags);
+        }
         node
     }
 }

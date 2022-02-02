@@ -31,7 +31,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         base_factory: &TBaseNodeFactory,
         literal: Rc<Node>,
     ) -> LiteralTypeNode {
-        let node = self.create_token(base_factory, SyntaxKind::LiteralType);
+        let node = self.create_base_node(base_factory, SyntaxKind::LiteralType);
         let node = LiteralTypeNode::new(node, literal);
         node
     }
