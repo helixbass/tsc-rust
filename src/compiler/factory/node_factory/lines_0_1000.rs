@@ -10,11 +10,12 @@ use super::{
     PseudoBigIntOrString,
 };
 use crate::{
-    create_node_converters, create_parenthesizer_rules, escape_leading_underscores, is_identifier,
-    null_node_converters, null_parenthesizer_rules, pseudo_big_int_to_string,
-    BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
-    BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
-    BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
+    create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
+    get_text_of_identifier_or_literal, is_identifier, null_node_converters,
+    null_parenthesizer_rules, pseudo_big_int_to_string, BaseBindingLikeDeclaration,
+    BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
+    BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseLiteralLikeNode,
+    BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
     BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, ClassLikeDeclarationBase,
     ClassLikeDeclarationInterface, Debug_, FunctionLikeDeclarationInterface,
     HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
@@ -1028,6 +1029,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if matches!(has_extended_unicode_escape, Some(true)) {
             node.add_transform_flags(TransformFlags::ContainsES2015);
         }
+        node
+    }
+
+    pub fn create_string_literal_from_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        source_node: &Node, /*PropertyNameLiteral*/
+    ) -> StringLiteral {
+        let mut node = self.create_base_string_literal(
+            base_factory,
+            get_text_of_identifier_or_literal(source_node),
+            None,
+        );
+        node.text_source_node = Some(source_node.node_wrapper());
         node
     }
 

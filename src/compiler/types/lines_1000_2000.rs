@@ -779,13 +779,16 @@ impl LiteralTypeNode {
 )]
 pub struct StringLiteral {
     _literal_like_node: BaseLiteralLikeNode,
-    pub single_quote: Option<bool>,
+    pub(crate) text_source_node:
+        Option<Rc<Node /*Identifier | StringLiteralLike | NumericLiteral*/>>,
+    pub(crate) single_quote: Option<bool>,
 }
 
 impl StringLiteral {
     pub fn new(base_literal_like_node: BaseLiteralLikeNode, single_quote: Option<bool>) -> Self {
         Self {
             _literal_like_node: base_literal_like_node,
+            text_source_node: None,
             single_quote,
         }
     }

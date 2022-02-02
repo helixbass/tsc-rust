@@ -1383,6 +1383,14 @@ pub fn is_property_name_literal(node: &Node) -> bool {
     }
 }
 
+pub fn get_text_of_identifier_or_literal(node: &Node) -> String {
+    if is_member_name(node) {
+        id_text(node)
+    } else {
+        node.as_literal_like_node().text().to_owned()
+    }
+}
+
 pub fn get_escaped_text_of_identifier_or_literal(node: &Node) -> __String {
     if is_member_name(node) {
         node.as_member_name().escaped_text()
