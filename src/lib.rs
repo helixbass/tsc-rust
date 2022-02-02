@@ -153,7 +153,7 @@ pub use compiler::types::{
     CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType, CommandLineOptionOfListType,
     CommandLineOptionOfNumberType, CommandLineOptionOfStringType, CommentDirective,
     CommentDirectiveType, CommentKind, CommentRange, CompilerHost, CompilerOptions,
-    CompilerOptionsValue, ComputedPropertyName, ConditionalExpression,
+    CompilerOptionsValue, ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContextFlags,
     CreateProgramOptions, Decorator, Diagnostic, DiagnosticCategory, DiagnosticCollection,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,

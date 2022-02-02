@@ -7,15 +7,15 @@ use crate::{
     has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
     is_this_identifier, modifiers_to_flags, ArrayTypeNode, BaseNode, BaseNodeFactory,
     CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
-    ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, Decorator,
-    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
-    HasInitializerInterface, IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration,
-    MethodSignature, ModifierFlags, NamedDeclarationInterface, NamedTupleMember, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, OptionalTypeNode, ParameterDeclaration,
-    PropertyDeclaration, PropertySignature, QualifiedName, RestTypeNode, SetAccessorDeclaration,
-    StringOrRcNode, SyntaxKind, TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode,
-    TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode,
-    UnionTypeNode,
+    ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
+    ConstructorTypeNode, Decorator, FunctionLikeDeclarationInterface, FunctionTypeNode,
+    GetAccessorDeclaration, HasInitializerInterface, IndexSignatureDeclaration,
+    IntersectionTypeNode, MethodDeclaration, MethodSignature, ModifierFlags,
+    NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, OptionalTypeNode, ParameterDeclaration, PropertyDeclaration, PropertySignature,
+    QualifiedName, RestTypeNode, SetAccessorDeclaration, StringOrRcNode, SyntaxKind,
+    TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
+    TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -839,5 +839,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             SyntaxKind::IntersectionType,
             types,
         )
+    }
+
+    pub fn create_conditional_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        check_type: Rc<Node /*TypeNode*/>,
+        extends_type: Rc<Node /*TypeNode*/>,
+        true_type: Rc<Node /*TypeNode*/>,
+        false_type: Rc<Node /*TypeNode*/>,
+    ) -> ConditionalTypeNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::ConditionalType);
+        let mut node = ConditionalTypeNode::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_member_of_conditional_type(base_factory, &check_type),
+            self.parenthesizer_rules()
+                .parenthesize_member_of_conditional_type(base_factory, &extends_type),
+            true_type,
+            false_type,
+        );
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
     }
 }

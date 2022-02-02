@@ -1051,6 +1051,34 @@ impl UnionOrIntersectionTypeNodeInterface for IntersectionTypeNode {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct ConditionalTypeNode {
+    _node: BaseNode,
+    pub check_type: Rc<Node /*TypeNode*/>,
+    pub extends_type: Rc<Node /*TypeNode*/>,
+    pub true_type: Rc<Node /*TypeNode*/>,
+    pub false_type: Rc<Node /*TypeNode*/>,
+}
+
+impl ConditionalTypeNode {
+    pub fn new(
+        base_node: BaseNode,
+        check_type: Rc<Node>,
+        extends_type: Rc<Node>,
+        true_type: Rc<Node>,
+        false_type: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            check_type,
+            extends_type,
+            true_type,
+            false_type,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ParenthesizedTypeNode {
     _node: BaseNode,
     pub type_: Rc<Node /*TypeNode*/>,

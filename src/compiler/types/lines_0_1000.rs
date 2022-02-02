@@ -9,11 +9,11 @@ use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, AsExpression, BaseJSDocUnaryType,
     BigIntLiteral, BinaryExpression, BindingElement, Block, CallExpression,
     CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
-    ConditionalExpression, ConstructSignatureDeclaration, ConstructorDeclaration,
-    ConstructorTypeNode, Decorator, ElementAccessExpression, EmitNode, EmptyStatement, EnumMember,
-    ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement, ForInStatement,
-    ForOfStatement, ForStatement, FunctionDeclaration, FunctionExpression,
-    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
+    ConditionalExpression, ConditionalTypeNode, ConstructSignatureDeclaration,
+    ConstructorDeclaration, ConstructorTypeNode, Decorator, ElementAccessExpression, EmitNode,
+    EmptyStatement, EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier,
+    ExpressionStatement, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    FunctionExpression, FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
     HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
     Identifier, IfStatement, ImportClause, ImportEqualsDeclaration, ImportSpecifier,
@@ -744,6 +744,7 @@ pub enum Node {
     NamedTupleMember(NamedTupleMember),
     OptionalTypeNode(OptionalTypeNode),
     RestTypeNode(RestTypeNode),
+    ConditionalTypeNode(ConditionalTypeNode),
 }
 
 impl Node {
