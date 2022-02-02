@@ -735,10 +735,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_array_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        element_type: Rc<Node>,
+        element_type: Rc<Node /*TypeNode*/>,
     ) -> ArrayTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::ArrayType);
-        let node = ArrayTypeNode::new(node, element_type);
+        let mut node = ArrayTypeNode::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_element_type_of_array_type(base_factory, &element_type),
+        );
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
