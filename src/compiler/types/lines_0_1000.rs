@@ -32,10 +32,10 @@ use super::{
     ShorthandPropertyAssignment, SignatureDeclarationBase, SignatureDeclarationInterface,
     SourceFile, SpreadAssignment, SpreadElement, StringLiteral, Symbol, SymbolTable,
     TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
-    TemplateLiteralTypeSpan, TemplateSpan, TransformFlags, TupleTypeNode, TypeAliasDeclaration,
-    TypeAssertion, TypeElement, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode,
-    TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode,
-    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, TransformFlags, TupleTypeNode,
+    TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode, TypeParameterDeclaration,
+    TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
+    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
     VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
@@ -749,6 +749,7 @@ pub enum Node {
     InferTypeNode(InferTypeNode),
     TemplateLiteralTypeNode(TemplateLiteralTypeNode),
     ImportTypeNode(ImportTypeNode),
+    ThisTypeNode(ThisTypeNode),
 }
 
 impl Node {

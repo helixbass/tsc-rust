@@ -12,7 +12,7 @@ use crate::{
     NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression,
     ParenthesizedExpression, ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression,
     SpreadElement, SyntaxKind, SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateLiteralTypeNode, TokenFlags, TransformFlags,
+    TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -70,10 +70,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_parenthesized_type(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_: Rc<Node>,
+        type_: Rc<Node /*TypeNode*/>,
     ) -> ParenthesizedTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::ParenthesizedType);
         let mut node = ParenthesizedTypeNode::new(node, type_);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_this_type_node(&self, base_factory: &TBaseNodeFactory) -> ThisTypeNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::ThisType);
+        let mut node = ThisTypeNode::new(node);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }

@@ -808,6 +808,18 @@ impl ImportTypeNode {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct ThisTypeNode {
+    _node: BaseNode,
+}
+
+impl ThisTypeNode {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
 )]
