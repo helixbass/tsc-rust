@@ -219,6 +219,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                     Some(&node_as_object_binding_pattern.elements),
                     |element, _| self.convert_to_object_assignment_element(base_factory, element),
                 ),
+                None,
             );
             let ret = set_text_range(&*Into::<Rc<Node>>::into(ret), Some(node)).node_wrapper();
             set_original_node(ret.clone(), Some(node.node_wrapper()));

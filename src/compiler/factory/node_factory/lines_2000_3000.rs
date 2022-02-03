@@ -263,7 +263,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         });
         let last_element = elements_vec
             .as_ref()
-            .and_then(|elements_vec| last_or_undefined(&elements_vec));
+            .and_then(|elements_vec| last_or_undefined(elements_vec));
         let elements_array = self.create_node_array(
             elements,
             last_element.and_then(|last_element| {
@@ -288,9 +288,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         properties: Option<TProperties>, /*ObjectLiteralElementLike*/
+        multi_line: Option<bool>,
     ) -> ObjectLiteralExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ObjectLiteralExpression);
-        let node = ObjectLiteralExpression::new(node, self.create_node_array(properties, None));
+        let mut node = ObjectLiteralExpression::new(
+            node,
+            self.create_node_array(properties, None),
+            multi_line,
+        );
+        node.add_transform_flags(propagate_children_flags(Some(&node.properties)));
         node
     }
 

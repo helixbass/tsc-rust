@@ -381,13 +381,15 @@ impl HasExpressionInterface for SpreadElement {
 pub struct ObjectLiteralExpression {
     _node: BaseNode,
     pub properties: NodeArray, /*<ObjectLiteralElementLike>*/
+    pub multi_line: Option<bool>,
 }
 
 impl ObjectLiteralExpression {
-    pub fn new(base_node: BaseNode, properties: NodeArray) -> Self {
+    pub fn new(base_node: BaseNode, properties: NodeArray, multi_line: Option<bool>) -> Self {
         Self {
             _node: base_node,
             properties,
+            multi_line,
         }
     }
 }

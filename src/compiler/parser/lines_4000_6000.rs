@@ -291,6 +291,7 @@ impl ParserType {
     pub(super) fn parse_object_literal_expression(&self) -> ObjectLiteralExpression {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
+        let multi_line = self.scanner().has_preceding_line_break();
         let properties = self.parse_delimited_list(
             ParsingContext::ObjectLiteralMembers,
             ParserType::parse_object_literal_element,
@@ -301,7 +302,7 @@ impl ParserType {
         }
         self.finish_node(
             self.factory
-                .create_object_literal_expression(self, Some(properties)),
+                .create_object_literal_expression(self, Some(properties), Some(multi_line)),
             pos,
             None,
         )
