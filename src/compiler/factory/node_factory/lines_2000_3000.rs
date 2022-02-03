@@ -17,7 +17,7 @@ use crate::{
     PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, SpreadElement,
     StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
     TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
-    ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion, TypeOperatorNode,
+    ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion, TypeOfExpression, TypeOperatorNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -810,6 +810,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> DeleteExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::DeleteExpression);
         let mut node = DeleteExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_operand_of_prefix_unary(base_factory, &expression),
+        );
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node
+    }
+
+    pub fn create_type_of_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> TypeOfExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::TypeOfExpression);
+        let mut node = TypeOfExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(base_factory, &expression),

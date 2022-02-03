@@ -1421,3 +1421,25 @@ impl HasExpressionInterface for DeleteExpression {
         self.expression.clone()
     }
 }
+
+#[derive(Debug)]
+#[ast_type]
+pub struct TypeOfExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl TypeOfExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for TypeOfExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
