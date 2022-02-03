@@ -8,14 +8,14 @@ use crate::{
     has_invalid_escape, is_call_chain, is_generated_identifier, is_identifier, is_import_keyword,
     is_local_name, is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
     modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction,
-    BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, BindingElement,
-    CallExpression, Debug_, DeleteExpression, ElementAccessExpression, FunctionExpression,
-    FunctionLikeDeclarationInterface, HasTypeParametersInterface, ImportTypeNode,
-    IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode, MappedTypeNode, ModifierFlags,
-    NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
-    PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, SpreadElement,
-    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
+    AwaitExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
+    BindingElement, CallExpression, Debug_, DeleteExpression, ElementAccessExpression,
+    FunctionExpression, FunctionLikeDeclarationInterface, HasTypeParametersInterface,
+    ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode, MappedTypeNode,
+    ModifierFlags, NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression,
+    ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression,
+    SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
     TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
     ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion, TypeOfExpression, TypeOperatorNode,
     VoidExpression,
@@ -846,6 +846,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 .parenthesize_operand_of_prefix_unary(base_factory, &expression),
         );
         node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node
+    }
+
+    pub fn create_await_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> AwaitExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::AwaitExpression);
+        let mut node = AwaitExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_operand_of_prefix_unary(base_factory, &expression),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | TransformFlags::ContainsES2017
+                | TransformFlags::ContainsES2018
+                | TransformFlags::ContainsAwait,
+        );
         node
     }
 

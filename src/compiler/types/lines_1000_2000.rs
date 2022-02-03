@@ -1403,7 +1403,7 @@ impl PostfixUnaryExpression {
 #[ast_type]
 pub struct DeleteExpression {
     _node: BaseNode,
-    pub expression: Rc<Node /*Expression*/>,
+    pub expression: Rc<Node /*UnaryExpression*/>,
 }
 
 impl DeleteExpression {
@@ -1425,7 +1425,7 @@ impl HasExpressionInterface for DeleteExpression {
 #[ast_type]
 pub struct TypeOfExpression {
     _node: BaseNode,
-    pub expression: Rc<Node /*Expression*/>,
+    pub expression: Rc<Node /*UnaryExpression*/>,
 }
 
 impl TypeOfExpression {
@@ -1447,7 +1447,7 @@ impl HasExpressionInterface for TypeOfExpression {
 #[ast_type]
 pub struct VoidExpression {
     _node: BaseNode,
-    pub expression: Rc<Node /*Expression*/>,
+    pub expression: Rc<Node /*UnaryExpression*/>,
 }
 
 impl VoidExpression {
@@ -1460,6 +1460,28 @@ impl VoidExpression {
 }
 
 impl HasExpressionInterface for VoidExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct AwaitExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*UnaryExpression*/>,
+}
+
+impl AwaitExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for AwaitExpression {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
     }
