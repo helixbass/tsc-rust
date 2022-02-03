@@ -148,10 +148,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_literal_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        literal: Rc<Node>,
+        literal: Rc<Node /*LiteralTypeNode["literal"]*/>,
     ) -> LiteralTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::LiteralType);
-        let node = LiteralTypeNode::new(node, literal);
+        let mut node = LiteralTypeNode::new(node, literal);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 
