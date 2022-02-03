@@ -1156,6 +1156,24 @@ impl StringLiteral {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct TemplateLiteralTypeNode {
+    pub _node: BaseNode,
+    pub head: Rc<Node /*TemplateHead*/>,
+    pub template_spans: NodeArray, /*<TemplateLiteralTypeSpan>*/
+}
+
+impl TemplateLiteralTypeNode {
+    pub fn new(base_node: BaseNode, head: Rc<Node>, template_spans: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            head,
+            template_spans,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct TemplateLiteralTypeSpan {
     pub _node: BaseNode,
     pub type_: Rc<Node /*TypeNode*/>,

@@ -11,8 +11,8 @@ use crate::{
     FunctionExpression, InferTypeNode, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
     ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, SpreadElement,
-    SyntaxKind, SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode, TokenFlags,
-    TransformFlags,
+    SyntaxKind, SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode,
+    TemplateLiteralTypeNode, TokenFlags, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -23,6 +23,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> InferTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::InferType);
         let mut node = InferTypeNode::new(node, type_parameter);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_template_literal_type<TTemplateSpans: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        head: Rc<Node /*TemplateHead*/>,
+        template_spans: TTemplateSpans, /*<TemplateLiteralTypeSpan>*/
+    ) -> TemplateLiteralTypeNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::TemplateLiteralType);
+        let mut node = TemplateLiteralTypeNode::new(
+            node,
+            head,
+            self.create_node_array(Some(template_spans), None),
+        );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }

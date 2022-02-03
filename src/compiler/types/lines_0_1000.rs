@@ -31,11 +31,12 @@ use super::{
     QualifiedName, RegularExpressionLiteral, RestTypeNode, ReturnStatement, SetAccessorDeclaration,
     ShorthandPropertyAssignment, SignatureDeclarationBase, SignatureDeclarationInterface,
     SourceFile, SpreadAssignment, SpreadElement, StringLiteral, Symbol, SymbolTable,
-    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeSpan,
-    TemplateSpan, TransformFlags, TupleTypeNode, TypeAliasDeclaration, TypeAssertion, TypeElement,
-    TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode,
-    UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
+    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
+    TemplateLiteralTypeSpan, TemplateSpan, TransformFlags, TupleTypeNode, TypeAliasDeclaration,
+    TypeAssertion, TypeElement, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode,
+    TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode,
+    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -746,6 +747,7 @@ pub enum Node {
     RestTypeNode(RestTypeNode),
     ConditionalTypeNode(ConditionalTypeNode),
     InferTypeNode(InferTypeNode),
+    TemplateLiteralTypeNode(TemplateLiteralTypeNode),
 }
 
 impl Node {
