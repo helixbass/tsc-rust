@@ -10,7 +10,7 @@ use crate::{
     BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, CallExpression, Debug_,
     FunctionExpression, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode,
     MappedTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
+    ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
     PostfixUnaryExpression, PrefixUnaryExpression, SpreadElement, SyntaxKind, SyntaxKindOrRcNode,
     TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags,
     TransformFlags, TypeOperatorNode,
@@ -153,6 +153,30 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, SyntaxKind::LiteralType);
         let mut node = LiteralTypeNode::new(node, literal);
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_object_binding_pattern<TElements: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: TElements, /*<BindingElement>*/
+    ) -> ObjectBindingPattern {
+        let node = self.create_base_node(base_factory, SyntaxKind::ObjectBindingPattern);
+        let mut node =
+            ObjectBindingPattern::new(node, self.create_node_array(Some(elements), None));
+        node.add_transform_flags(
+            propagate_children_flags(Some(&node.elements))
+                | TransformFlags::ContainsES2015
+                | TransformFlags::ContainsBindingPattern,
+        );
+        if node
+            .transform_flags()
+            .intersects(TransformFlags::ContainsRestOrSpread)
+        {
+            node.add_transform_flags(
+                TransformFlags::ContainsES2018 | TransformFlags::ContainsObjectRestOrSpread,
+            );
+        }
         node
     }
 
