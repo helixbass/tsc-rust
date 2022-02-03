@@ -51,7 +51,7 @@ impl BinaryExpression {
 #[derive(Debug)]
 #[ast_type]
 pub struct ConditionalExpression {
-    pub _node: BaseNode,
+    _node: BaseNode,
     pub condition: Rc<Node /*Expression*/>,
     pub question_token: Rc<Node /*QuestionToken*/>,
     pub when_true: Rc<Node /*Expression*/>,
@@ -62,11 +62,11 @@ pub struct ConditionalExpression {
 impl ConditionalExpression {
     pub fn new(
         base_node: BaseNode,
-        condition: Rc<Node>,
-        question_token: Rc<Node>,
-        when_true: Rc<Node>,
-        colon_token: Rc<Node>,
-        when_false: Rc<Node>,
+        condition: Rc<Node /*Expression*/>,
+        question_token: Rc<Node /*QuestionToken*/>,
+        when_true: Rc<Node /*Expression*/>,
+        colon_token: Rc<Node /*ColonToken*/>,
+        when_false: Rc<Node /*Expression*/>,
     ) -> Self {
         Self {
             _node: base_node,

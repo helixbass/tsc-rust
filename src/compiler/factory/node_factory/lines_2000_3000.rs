@@ -12,16 +12,16 @@ use crate::{
     is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
     modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction,
     AwaitExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
-    BindingElement, CallExpression, Debug_, DeleteExpression, ElementAccessExpression,
-    FunctionExpression, FunctionLikeDeclarationInterface, HasTypeParametersInterface,
-    ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode, MappedTypeNode,
-    ModifierFlags, NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression,
-    ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression,
-    SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
-    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
-    ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion, TypeOfExpression, TypeOperatorNode,
-    VoidExpression,
+    BindingElement, CallExpression, ConditionalExpression, Debug_, DeleteExpression,
+    ElementAccessExpression, FunctionExpression, FunctionLikeDeclarationInterface,
+    HasTypeParametersInterface, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode,
+    LiteralTypeNode, MappedTypeNode, ModifierFlags, NewExpression, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, ObjectBindingPattern, ObjectLiteralExpression,
+    ParenthesizedExpression, ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression,
+    PropertyAccessExpression, SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
+    SyntaxKind, SyntaxKindOrRcNode, TaggedTemplateExpression, TemplateExpression,
+    TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags,
+    TypeAssertion, TypeOfExpression, TypeOperatorNode, VoidExpression,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -972,6 +972,43 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else if is_logical_or_coalescing_assignment_operator(operator_kind) {
             node.add_transform_flags(TransformFlags::ContainsES2021);
         }
+        node
+    }
+
+    pub fn create_conditional_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        condition: Rc<Node /*Expression*/>,
+        question_token: Option<Rc<Node /*QuestionToken*/>>,
+        when_true: Rc<Node /*Expression*/>,
+        colon_token: Option<Rc<Node /*ColonToken*/>>,
+        when_false: Rc<Node /*Expression*/>,
+    ) -> ConditionalExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::ConditionalExpression);
+        let mut node = ConditionalExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_condition_of_conditional_expression(base_factory, &condition),
+            question_token.unwrap_or_else(|| {
+                self.create_token(base_factory, SyntaxKind::QuestionToken)
+                    .into()
+            }),
+            self.parenthesizer_rules()
+                .parenthesize_branch_of_conditional_expression(base_factory, &when_true),
+            colon_token.unwrap_or_else(|| {
+                self.create_token(base_factory, SyntaxKind::ColonToken)
+                    .into()
+            }),
+            self.parenthesizer_rules()
+                .parenthesize_branch_of_conditional_expression(base_factory, &when_false),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.condition))
+                | propagate_child_flags(Some(&*node.question_token))
+                | propagate_child_flags(Some(&*node.when_true))
+                | propagate_child_flags(Some(&*node.colon_token))
+                | propagate_child_flags(Some(&*node.when_false)),
+        );
         node
     }
 
