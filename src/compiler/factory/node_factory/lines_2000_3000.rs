@@ -8,13 +8,14 @@ use crate::{
     is_call_chain, is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
     is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
     ArrayBindingPattern, ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory,
-    BinaryExpression, BindingElement, CallExpression, Debug_, FunctionExpression, ImportTypeNode,
-    IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode, MappedTypeNode, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, ObjectBindingPattern,
-    ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
+    BinaryExpression, BindingElement, CallExpression, Debug_, ElementAccessExpression,
+    FunctionExpression, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode,
+    MappedTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
+    ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
     PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, SpreadElement,
-    StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags, TypeOperatorNode,
+    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags,
+    TransformFlags, TypeOperatorNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -356,6 +357,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     propagate_child_flags(Some(&*node.name))
                 },
         );
+        node
+    }
+
+    pub fn create_element_access_expression<TIndex: Into<StringOrNumberOrBoolOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+        index: TIndex,
+    ) -> ElementAccessExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::ElementAccessExpression);
+        let mut node = ElementAccessExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_left_side_of_access(base_factory, &expression),
+            None,
+            self.as_expression(base_factory, Some(index)).unwrap(),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.argument_expression)),
+        );
+        if is_super_keyword(&expression) {
+            node.add_transform_flags(
+                TransformFlags::ContainsES2017 | TransformFlags::ContainsES2018,
+            );
+        }
         node
     }
 

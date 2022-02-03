@@ -11,7 +11,7 @@ use crate::{
     add_range, append_if_unique, create_base_node_factory, is_named_declaration, is_property_name,
     set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, Debug_, EmitFlags,
     EmitNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt,
-    SourceMapRange, StringOrRcNode, SyntaxKind, TransformFlags,
+    SourceMapRange, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -32,6 +32,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 .create_identifier(base_factory, &name, Option::<NodeArray>::None, None)
                 .into(),
             StringOrRcNode::RcNode(name) => name,
+        })
+    }
+
+    pub(super) fn as_expression<TValue: Into<StringOrNumberOrBoolOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        value: Option<TValue>,
+    ) -> Option<Rc<Node>> {
+        value.map(|value| match value.into() {
+            StringOrNumberOrBoolOrRcNode::String(value) => self
+                .create_string_literal(base_factory, value, None, None)
+                .into(),
+            StringOrNumberOrBoolOrRcNode::Number(value) => self
+                .create_numeric_literal(base_factory, value, None)
+                .into(),
+            StringOrNumberOrBoolOrRcNode::Bool(value) => {
+                if value {
+                    self.create_true(base_factory).into()
+                } else {
+                    self.create_false(base_factory).into()
+                }
+            }
+            StringOrNumberOrBoolOrRcNode::RcNode(value) => value,
         })
     }
 

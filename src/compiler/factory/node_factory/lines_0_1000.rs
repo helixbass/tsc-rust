@@ -1281,3 +1281,34 @@ impl From<Number> for StringOrNumber {
         Self::Number(value)
     }
 }
+
+pub enum StringOrNumberOrBoolOrRcNode {
+    String(String),
+    Number(Number),
+    Bool(bool),
+    RcNode(Rc<Node>),
+}
+
+impl From<String> for StringOrNumberOrBoolOrRcNode {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Rc<Node>> for StringOrNumberOrBoolOrRcNode {
+    fn from(value: Rc<Node>) -> Self {
+        Self::RcNode(value)
+    }
+}
+
+impl From<Number> for StringOrNumberOrBoolOrRcNode {
+    fn from(value: Number) -> Self {
+        Self::Number(value)
+    }
+}
+
+impl From<bool> for StringOrNumberOrBoolOrRcNode {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
