@@ -7,15 +7,17 @@ use super::{propagate_child_flags, propagate_children_flags, propagate_identifie
 use crate::{
     has_invalid_escape, is_call_chain, is_generated_identifier, is_identifier, is_import_keyword,
     is_local_name, is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
-    ArrayBindingPattern, ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory,
-    BinaryExpression, BindingElement, CallExpression, Debug_, ElementAccessExpression,
-    FunctionExpression, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode,
-    MappedTypeNode, NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression,
-    ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression,
-    SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
-    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
-    ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion, TypeOperatorNode,
+    modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode,
+    BaseNodeFactory, BinaryExpression, BindingElement, CallExpression, Debug_,
+    ElementAccessExpression, FunctionExpression, FunctionLikeDeclarationInterface,
+    HasTypeParametersInterface, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode,
+    LiteralTypeNode, MappedTypeNode, ModifierFlags, NewExpression, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, ObjectBindingPattern, ObjectLiteralExpression,
+    ParenthesizedExpression, ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression,
+    PropertyAccessExpression, SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
+    SyntaxKind, SyntaxKindOrRcNode, TaggedTemplateExpression, TemplateExpression,
+    TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags,
+    TypeAssertion, TypeOperatorNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -709,16 +711,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_function_expression(
+    pub fn create_function_expression<
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+        TTypeParameters: Into<NodeArrayOrVec>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
-        modifiers: Option<NodeArray>,
+        modifiers: Option<TModifiers>,
         asterisk_token: Option<Rc<Node>>,
-        name: Option<Rc<Node>>,
-        type_parameters: Option<NodeArray>,
-        parameters: NodeArray,
+        name: Option<TName>,
+        type_parameters: Option<TTypeParameters>,
+        parameters: TParameters,
         type_: Option<Rc<Node>>,
-        body: Option<Rc<Node>>,
+        body: Rc<Node>,
     ) -> FunctionExpression {
         let mut node = self.create_base_function_like_declaration(
             base_factory,
@@ -729,10 +736,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_parameters,
             Some(parameters),
             type_,
-            body,
+            Some(body),
         );
         node.asterisk_token = asterisk_token;
-        FunctionExpression::new(node)
+        let mut node = FunctionExpression::new(node);
+        node.add_transform_flags(propagate_child_flags(node.maybe_asterisk_token()));
+        if node.maybe_type_parameters().is_some() {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Async) {
+            if node.maybe_asterisk_token().is_some() {
+                node.add_transform_flags(TransformFlags::ContainsES2018);
+            } else {
+                node.add_transform_flags(TransformFlags::ContainsES2017);
+            }
+        } else if node.maybe_asterisk_token().is_some() {
+            node.add_transform_flags(TransformFlags::ContainsGenerator);
+        }
+        node
     }
 
     pub fn create_prefix_unary_expression(

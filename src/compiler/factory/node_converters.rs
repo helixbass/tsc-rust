@@ -74,7 +74,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                     .map(Clone::clone),
                 node_as_function_declaration.parameters().clone(),
                 node_as_function_declaration.maybe_type(),
-                node_as_function_declaration.maybe_body(),
+                node_as_function_declaration.maybe_body().unwrap(),
             )
             .into();
         set_original_node(updated.clone(), Some(node.node_wrapper()));
