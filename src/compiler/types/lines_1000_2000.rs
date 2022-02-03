@@ -1172,6 +1172,34 @@ impl HasTypeInterface for ParenthesizedTypeNode {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct TypeOperatorNode {
+    _node: BaseNode,
+    pub operator: SyntaxKind, /*SyntaxKind.KeyOfKeyword | SyntaxKind.UniqueKeyword | SyntaxKind.ReadonlyKeyword*/
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl TypeOperatorNode {
+    pub fn new(base_node: BaseNode, operator: SyntaxKind, type_: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            operator,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for TypeOperatorNode {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = type_;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct LiteralTypeNode {
     _node: BaseNode,
     pub literal: Rc<Node>, // TODO: should be weak?

@@ -201,11 +201,11 @@ pub use compiler::types::{
     ThisTypeNode, TokenFlags, TransformFlags, TransientSymbol, TransientSymbolInterface,
     TsConfigOnlyOption, TupleTypeNode, Type, TypeAliasDeclaration, TypeAssertion, TypeChecker,
     TypeCheckerHost, TypeElement, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
-    TypeLiteralNode, TypeMapper, TypeParameter, TypeParameterDeclaration, TypePredicate,
-    TypePredicateNode, TypeQueryNode, TypeReference, TypeReferenceNode, UnderscoreEscapedMap,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionReduction, UnionType,
-    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression, __String,
+    TypeLiteralNode, TypeMapper, TypeOperatorNode, TypeParameter, TypeParameterDeclaration,
+    TypePredicate, TypePredicateNode, TypeQueryNode, TypeReference, TypeReferenceNode,
+    UnderscoreEscapedMap, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
+    UnionReduction, UnionType, UnionTypeNode, VariableDeclaration, VariableDeclarationList,
+    VariableLikeDeclarationInterface, VariableStatement, VoidExpression, __String,
 };
 use compiler::types::{CommandLineOptionType, EmitNode, StringOrDiagnosticMessage};
 use compiler::utilities::set_localized_diagnostic_messages;

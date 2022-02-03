@@ -12,7 +12,7 @@ use crate::{
     NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression,
     ParenthesizedExpression, ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression,
     SpreadElement, SyntaxKind, SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags,
+    TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags, TypeOperatorNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -81,6 +81,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_this_type_node(&self, base_factory: &TBaseNodeFactory) -> ThisTypeNode {
         let node = self.create_base_node(base_factory, SyntaxKind::ThisType);
         let mut node = ThisTypeNode::new(node);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_type_operator_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operator: SyntaxKind,
+        type_: Rc<Node /*TypeNode*/>,
+    ) -> TypeOperatorNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::TypeOperator);
+        let mut node = TypeOperatorNode::new(
+            node,
+            operator,
+            self.parenthesizer_rules()
+                .parenthesize_member_of_element_type(base_factory, &type_),
+        );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
