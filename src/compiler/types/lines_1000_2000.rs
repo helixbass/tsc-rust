@@ -123,6 +123,7 @@ impl Deref for NodeArray {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum NodeArrayOrVec {
     NodeArray(NodeArray),
     Vec(Vec<Rc<Node>>),

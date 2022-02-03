@@ -254,6 +254,7 @@ impl ParserType {
     pub(super) fn parse_array_literal_expression(&self) -> ArrayLiteralExpression {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
+        let multi_line = self.scanner().has_preceding_line_break();
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayLiteralMembers,
             ParserType::parse_argument_or_array_literal_element,
@@ -262,7 +263,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
             self.factory
-                .create_array_literal_expression(self, Some(elements)),
+                .create_array_literal_expression(self, Some(elements), Some(multi_line)),
             pos,
             None,
         )

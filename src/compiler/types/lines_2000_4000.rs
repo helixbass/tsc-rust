@@ -341,13 +341,15 @@ impl HasExpressionInterface for ParenthesizedExpression {
 pub struct ArrayLiteralExpression {
     _node: BaseNode,
     pub elements: NodeArray, /*<Expression>*/
+    pub(crate) multi_line: Option<bool>,
 }
 
 impl ArrayLiteralExpression {
-    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+    pub fn new(base_node: BaseNode, elements: NodeArray, multi_line: Option<bool>) -> Self {
         Self {
             _node: base_node,
             elements,
+            multi_line,
         }
     }
 }

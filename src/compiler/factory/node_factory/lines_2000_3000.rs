@@ -253,24 +253,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         &self,
         base_factory: &TBaseNodeFactory,
         elements: Option<TElements>, /*Expression*/
+        multi_line: Option<bool>,
     ) -> ArrayLiteralExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ArrayLiteralExpression);
-        let elements = elements.map(|elements| match elements.into() {
+        let elements = elements.map(|elements| elements.into());
+        let elements_vec = elements.clone().map(|elements| match elements {
             NodeArrayOrVec::NodeArray(node_array) => node_array.to_vec(),
             NodeArrayOrVec::Vec(elements) => elements,
         });
-        let last_element = elements
+        let last_element = elements_vec
             .as_ref()
-            .and_then(|elements| last_or_undefined(&elements));
-        let has_trailing_comma = last_element.and_then(|last_element| {
-            if is_omitted_expression(last_element) {
-                Some(true)
-            } else {
-                None
-            }
-        });
-        let elements_array = self.create_node_array(elements, has_trailing_comma);
-        let node = ArrayLiteralExpression::new(node, elements_array);
+            .and_then(|elements_vec| last_or_undefined(&elements_vec));
+        let elements_array = self.create_node_array(
+            elements,
+            last_element.and_then(|last_element| {
+                if is_omitted_expression(last_element) {
+                    Some(true)
+                } else {
+                    None
+                }
+            }),
+        );
+        let mut node = ArrayLiteralExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expressions_of_comma_delimited_list(base_factory, elements_array),
+            multi_line,
+        );
+        node.add_transform_flags(propagate_children_flags(Some(&node.elements)));
         node
     }
 
