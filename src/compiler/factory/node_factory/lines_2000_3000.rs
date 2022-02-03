@@ -3,17 +3,18 @@
 use std::ptr;
 use std::rc::Rc;
 
-use super::{propagate_child_flags, propagate_children_flags};
+use super::{propagate_child_flags, propagate_children_flags, propagate_identifier_name_flags};
 use crate::{
     is_call_chain, is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
     is_omitted_expression, is_super_property, last_or_undefined, ArrayBindingPattern,
     ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
-    CallExpression, Debug_, FunctionExpression, ImportTypeNode, IndexedAccessTypeNode,
-    InferTypeNode, LiteralTypeNode, MappedTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, ObjectBindingPattern, ObjectLiteralExpression,
-    ParenthesizedExpression, ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression,
-    SpreadElement, SyntaxKind, SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags, TypeOperatorNode,
+    BindingElement, CallExpression, Debug_, FunctionExpression, ImportTypeNode,
+    IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode, MappedTypeNode, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, ObjectBindingPattern,
+    ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
+    PostfixUnaryExpression, PrefixUnaryExpression, SpreadElement, StringOrRcNode, SyntaxKind,
+    SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
+    ThisTypeNode, TokenFlags, TransformFlags, TypeOperatorNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -192,6 +193,50 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsES2015
                 | TransformFlags::ContainsBindingPattern,
         );
+        node
+    }
+
+    pub fn create_binding_element<
+        TPropertyName: Into<StringOrRcNode>,
+        TName: Into<StringOrRcNode>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
+        property_name: Option<TPropertyName /*PropertyName*/>,
+        name: TName, /*BindingName*/
+        initializer: Option<Rc<Node /*Expression*/>>,
+    ) -> BindingElement {
+        let node = self.create_base_binding_like_declaration(
+            base_factory,
+            SyntaxKind::BindingElement,
+            Option::<NodeArray>::None,
+            Option::<NodeArray>::None,
+            Some(name),
+            initializer.map(|initializer| {
+                self.parenthesizer_rules()
+                    .parenthesize_expression_for_disallowed_comma(base_factory, &initializer)
+            }),
+        );
+        let dot_dot_dot_token_is_some = dot_dot_dot_token.is_some();
+        let mut node = BindingElement::new(
+            node,
+            self.as_name(base_factory, property_name),
+            dot_dot_dot_token,
+        );
+        node.add_transform_flags(
+            propagate_child_flags(node.dot_dot_dot_token.clone()) | TransformFlags::ContainsES2015,
+        );
+        if let Some(node_property_name) = node.property_name.as_ref() {
+            node.add_transform_flags(if is_identifier(node_property_name) {
+                propagate_identifier_name_flags(&node_property_name)
+            } else {
+                propagate_child_flags(Some(&**node_property_name))
+            });
+        }
+        if dot_dot_dot_token_is_some {
+            node.add_transform_flags(TransformFlags::ContainsRestOrSpread);
+        }
         node
     }
 
