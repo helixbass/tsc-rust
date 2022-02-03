@@ -408,7 +408,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         let result = same_map(Some(&elements), |element, _| {
             self.parenthesize_expression_for_disallowed_comma(base_node_factory, element)
         });
-        let mut node_array = self.factory.create_node_array(
+        let node_array = self.factory.create_node_array(
             result,
             match &elements {
                 NodeArrayOrVec::NodeArray(elements) => Some(elements.has_trailing_comma),
@@ -424,7 +424,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
         // );
         match elements {
             NodeArrayOrVec::NodeArray(elements) => {
-                set_text_range(&mut node_array, Some(&elements));
+                set_text_range(&node_array, Some(&elements));
             }
             NodeArrayOrVec::Vec(_) => (),
         }

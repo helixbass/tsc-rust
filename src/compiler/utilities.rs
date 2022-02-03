@@ -19,26 +19,26 @@ use crate::{
     is_element_access_expression, is_export_declaration, is_expression_statement, is_function_like,
     is_function_like_or_class_static_block_declaration, is_identifier, is_jsdoc,
     is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_tag, is_left_hand_side_expression,
-    is_module_declaration, is_numeric_literal, is_object_literal_expression,
-    is_parenthesized_expression, is_private_identifier, is_property_access_expression,
-    is_source_file, is_string_literal_like, is_variable_statement, is_void_expression,
-    is_white_space_like, last, length, module_resolution_option_declarations,
-    options_affecting_program_structure, skip_outer_expressions, str_to_source_text_as_chars,
+    is_module_declaration, is_no_substituion_template_literal, is_numeric_literal,
+    is_object_literal_expression, is_parenthesized_expression, is_private_identifier,
+    is_property_access_expression, is_source_file, is_string_literal_like, is_variable_statement,
+    is_void_expression, is_white_space_like, last, length, module_resolution_option_declarations,
+    options_affecting_program_structure, skip_outer_expressions, some, str_to_source_text_as_chars,
     text_substring, AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface,
     CompilerOptions, CompilerOptionsValue, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     EmitFlags, EmitTextWriter, LiteralLikeNodeInterface, MapLike, ModifierFlags, ModuleKind, Node,
     NodeArray, NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds, PrefixUnaryExpression,
     PseudoBigInt, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SortedArray,
     SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TransformFlags, TransientSymbolInterface,
-    Type, TypeFlags, TypeInterface, UnderscoreEscapedMap, __String, compare_strings_case_sensitive,
-    compare_values, create_text_span_from_bounds, escape_leading_underscores, for_each,
-    get_combined_node_flags, get_name_of_declaration, insert_sorted, is_big_int_literal,
-    is_member_name, is_type_alias_declaration, skip_trivia, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags,
-    Comparison, Debug_, Diagnostic, DiagnosticCollection, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface,
+    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TokenFlags, TransformFlags,
+    TransientSymbolInterface, Type, TypeFlags, TypeInterface, UnderscoreEscapedMap, __String,
+    compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
+    escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
+    insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
+    CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic, DiagnosticCollection,
+    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -1711,6 +1711,22 @@ fn escape_template_substitution(str: &str) -> String {
     template_substitution_reg_exp
         .replace_all(str, "\\${")
         .to_string()
+}
+
+pub(crate) fn has_invalid_escape(template: &Node /*TemplateLiteral*/) -> bool {
+    /*template &&*/
+    if is_no_substituion_template_literal(template) {
+        matches!(template.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None)
+    } else {
+        let template_as_template_expression = template.as_template_expression();
+        matches!(template_as_template_expression.head.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None)
+            || some(
+                Some(&template_as_template_expression.template_spans),
+                Some(
+                    |span: &Rc<Node>| matches!(span.as_template_span().literal.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None),
+                ),
+            )
+    }
 }
 
 fn escape_non_ascii_string(

@@ -5,8 +5,8 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags, propagate_identifier_name_flags};
 use crate::{
-    is_call_chain, is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
-    is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
+    has_invalid_escape, is_call_chain, is_generated_identifier, is_identifier, is_import_keyword,
+    is_local_name, is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
     ArrayBindingPattern, ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory,
     BinaryExpression, BindingElement, CallExpression, Debug_, ElementAccessExpression,
     FunctionExpression, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode,
@@ -14,8 +14,8 @@ use crate::{
     NodeInterface, ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression,
     ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression,
     SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
-    TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags,
-    TransformFlags, TypeOperatorNode,
+    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
+    ThisTypeNode, TokenFlags, TransformFlags, TypeOperatorNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -642,6 +642,37 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         if node.type_arguments.is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        node
+    }
+
+    pub fn create_tagged_template_expression<TTypeArguments: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag: Rc<Node /*Expression*/>,
+        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
+        template: Rc<Node /*TemplateLiteral*/>,
+    ) -> TaggedTemplateExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::TaggedTemplateExpression);
+        let mut node = TaggedTemplateExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_left_side_of_access(base_factory, &tag),
+            self.as_node_array(type_arguments),
+            template,
+            None,
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.tag))
+                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_child_flags(Some(&*node.template))
+                | TransformFlags::ContainsES2015,
+        );
+        if node.type_arguments.is_some() {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        if has_invalid_escape(&node.template) {
+            node.add_transform_flags(TransformFlags::ContainsES2018);
         }
         node
     }

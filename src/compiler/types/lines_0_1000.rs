@@ -31,12 +31,13 @@ use super::{
     QualifiedName, RegularExpressionLiteral, RestTypeNode, ReturnStatement, SetAccessorDeclaration,
     ShorthandPropertyAssignment, SignatureDeclarationBase, SignatureDeclarationInterface,
     SourceFile, SpreadAssignment, SpreadElement, StringLiteral, Symbol, SymbolTable,
-    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
-    TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, TransformFlags, TupleTypeNode,
-    TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode, TypeOperatorNode,
-    TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode,
-    UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
+    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
+    TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode, TemplateLiteralTypeSpan,
+    TemplateSpan, ThisTypeNode, TransformFlags, TupleTypeNode, TypeAliasDeclaration, TypeAssertion,
+    TypeElement, TypeLiteralNode, TypeOperatorNode, TypeParameterDeclaration, TypePredicateNode,
+    TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode,
+    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, VoidExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -943,6 +944,13 @@ impl Node {
         match self {
             Node::JSDocTag(JSDocTag::BaseJSDocTypeLikeTag(node)) => node,
             _ => panic!("Expected JSDoc type like tag"),
+        }
+    }
+
+    pub fn as_template_literal_like_node(&self) -> &dyn TemplateLiteralLikeNodeInterface {
+        match self {
+            Node::TemplateLiteralLikeNode(node) => node,
+            _ => panic!("Expected template literal like node"),
         }
     }
 

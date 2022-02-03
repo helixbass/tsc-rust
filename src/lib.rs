@@ -208,7 +208,6 @@ pub use compiler::types::{
     VariableLikeDeclarationInterface, VariableStatement, VoidExpression, __String,
 };
 use compiler::types::{CommandLineOptionType, EmitNode, StringOrDiagnosticMessage};
-use compiler::utilities::set_localized_diagnostic_messages;
 pub use compiler::utilities::{
     attach_file_to_diagnostics, chain_diagnostic_messages, compare_diagnostics,
     create_compiler_diagnostic, create_detached_diagnostic, create_diagnostic_collection,
@@ -235,6 +234,7 @@ pub use compiler::utilities::{
     set_parent, set_text_range_pos_end, set_value_declaration, using_single_line_string_writer,
     Associativity, FunctionFlags, GetLiteralTextFlags, OperatorPrecedence,
 };
+use compiler::utilities::{has_invalid_escape, set_localized_diagnostic_messages};
 pub use compiler::utilities_public::{
     collapse_text_change_ranges_across_multiple_versions, create_text_change_range,
     create_text_span, create_text_span_from_bounds, decoded_text_span_intersects_with,
