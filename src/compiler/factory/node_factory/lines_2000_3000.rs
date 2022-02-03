@@ -9,7 +9,7 @@ use crate::{
     is_omitted_expression, is_super_property, last_or_undefined, ArrayLiteralExpression,
     BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, CallExpression, Debug_,
     FunctionExpression, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
+    MappedTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
     ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
     PostfixUnaryExpression, PrefixUnaryExpression, SpreadElement, SyntaxKind, SyntaxKindOrRcNode,
     TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags,
@@ -116,6 +116,30 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             self.parenthesizer_rules()
                 .parenthesize_member_of_element_type(base_factory, &object_type),
             index_type,
+        );
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_mapped_type_node<TMembers: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        readonly_token: Option<Rc<Node /*ReadonlyKeyword | PlusToken | MinusToken*/>>,
+        type_parameter: Rc<Node /*TypeParameterDeclaration*/>,
+        name_type: Option<Rc<Node /*TypeNode*/>>,
+        question_token: Option<Rc<Node /*QuestionToken | PlusToken | MinusToken*/>>,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+        members: Option<TMembers /*<TypeElement>*/>,
+    ) -> MappedTypeNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::MappedType);
+        let mut node = MappedTypeNode::new(
+            node,
+            readonly_token,
+            type_parameter,
+            name_type,
+            question_token,
+            type_,
+            members.map(|members| self.create_node_array(Some(members), None)),
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node

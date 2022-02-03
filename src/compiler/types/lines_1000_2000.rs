@@ -1218,6 +1218,50 @@ impl IndexedAccessTypeNode {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct MappedTypeNode {
+    _node: BaseNode,
+    pub readonly_token: Option<Rc<Node /*ReadonlyToken | PlusToken | MinusToken*/>>,
+    pub type_parameter: Rc<Node /*TypeParameterDeclaration*/>,
+    pub name_type: Option<Rc<Node /*TypeNode*/>>,
+    pub question_token: Option<Rc<Node /*QuestionToken | PlusToken | MinusToken*/>>,
+    pub type_: Option<Rc<Node /*TypeNode*/>>,
+    pub members: Option<NodeArray /*<TypeElement>*/>,
+}
+
+impl MappedTypeNode {
+    pub fn new(
+        base_node: BaseNode,
+        readonly_token: Option<Rc<Node>>,
+        type_parameter: Rc<Node>,
+        name_type: Option<Rc<Node>>,
+        question_token: Option<Rc<Node>>,
+        type_: Option<Rc<Node>>,
+        members: Option<NodeArray>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            readonly_token,
+            type_parameter,
+            name_type,
+            question_token,
+            type_,
+            members,
+        }
+    }
+}
+
+impl HasTypeInterface for MappedTypeNode {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = Some(type_);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct LiteralTypeNode {
     _node: BaseNode,
     pub literal: Rc<Node>, // TODO: should be weak?

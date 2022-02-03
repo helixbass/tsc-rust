@@ -22,9 +22,9 @@ use super::{
     JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocTag,
     JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag,
     JsxAttribute, JsxText, KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface,
-    LiteralTypeNode, MemberNameInterface, MethodDeclaration, MethodSignature, ModifiersArray,
-    ModuleDeclaration, NamedDeclarationInterface, NamedTupleMember, NewExpression, NodeArray,
-    NonNullExpression, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
+    LiteralTypeNode, MappedTypeNode, MemberNameInterface, MethodDeclaration, MethodSignature,
+    ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NamedTupleMember, NewExpression,
+    NodeArray, NonNullExpression, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
     OptionalTypeNode, ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
     PartiallyEmittedExpression, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
     PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
@@ -752,6 +752,7 @@ pub enum Node {
     ThisTypeNode(ThisTypeNode),
     TypeOperatorNode(TypeOperatorNode),
     IndexedAccessTypeNode(IndexedAccessTypeNode),
+    MappedTypeNode(MappedTypeNode),
 }
 
 impl Node {
