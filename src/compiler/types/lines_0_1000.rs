@@ -6,8 +6,8 @@ use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, AsExpression, BaseJSDocUnaryType,
-    BigIntLiteral, BinaryExpression, BindingElement, Block, CallExpression,
+    ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
+    BaseJSDocUnaryType, BigIntLiteral, BinaryExpression, BindingElement, Block, CallExpression,
     CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
     ConditionalExpression, ConditionalTypeNode, ConstructSignatureDeclaration,
     ConstructorDeclaration, ConstructorTypeNode, Decorator, ElementAccessExpression, EmitNode,
@@ -754,6 +754,7 @@ pub enum Node {
     TypeOperatorNode(TypeOperatorNode),
     IndexedAccessTypeNode(IndexedAccessTypeNode),
     MappedTypeNode(MappedTypeNode),
+    ArrowFunction(ArrowFunction),
 }
 
 impl Node {

@@ -7,17 +7,17 @@ use super::{propagate_child_flags, propagate_children_flags, propagate_identifie
 use crate::{
     has_invalid_escape, is_call_chain, is_generated_identifier, is_identifier, is_import_keyword,
     is_local_name, is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
-    modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode,
-    BaseNodeFactory, BinaryExpression, BindingElement, CallExpression, Debug_,
-    ElementAccessExpression, FunctionExpression, FunctionLikeDeclarationInterface,
-    HasTypeParametersInterface, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode,
-    LiteralTypeNode, MappedTypeNode, ModifierFlags, NewExpression, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, ObjectBindingPattern, ObjectLiteralExpression,
-    ParenthesizedExpression, ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression,
-    PropertyAccessExpression, SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
-    SyntaxKind, SyntaxKindOrRcNode, TaggedTemplateExpression, TemplateExpression,
-    TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags,
-    TypeAssertion, TypeOperatorNode,
+    modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction,
+    BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, BindingElement,
+    CallExpression, Debug_, ElementAccessExpression, FunctionExpression,
+    FunctionLikeDeclarationInterface, HasTypeParametersInterface, ImportTypeNode,
+    IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode, MappedTypeNode, ModifierFlags,
+    NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
+    ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
+    PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, SpreadElement,
+    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
+    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
+    ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion, TypeOperatorNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -752,6 +752,53 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             }
         } else if node.maybe_asterisk_token().is_some() {
             node.add_transform_flags(TransformFlags::ContainsGenerator);
+        }
+        node
+    }
+
+    pub fn create_arrow_function<
+        TModifiers: Into<NodeArrayOrVec>,
+        TTypeParameters: Into<NodeArrayOrVec>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        modifiers: Option<TModifiers>,
+        type_parameters: Option<TTypeParameters>,
+        parameters: TParameters,
+        type_: Option<Rc<Node>>,
+        equals_greater_than_token: Option<Rc<Node /*EqualsGreaterThanToken*/>>,
+        body: Rc<Node /*ConciseBody*/>,
+    ) -> ArrowFunction {
+        let mut node = self.create_base_function_like_declaration(
+            base_factory,
+            SyntaxKind::ArrowFunction,
+            Option::<NodeArray>::None,
+            modifiers,
+            Option::<Rc<Node>>::None,
+            type_parameters,
+            Some(parameters),
+            type_,
+            Some(
+                self.parenthesizer_rules()
+                    .parenthesize_concise_body_of_arrow_function(base_factory, &body),
+            ),
+        );
+        let mut node = ArrowFunction::new(
+            node,
+            equals_greater_than_token.unwrap_or_else(|| {
+                self.create_token(base_factory, SyntaxKind::EqualsGreaterThanToken)
+                    .into()
+            }),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.equals_greater_than_token))
+                | TransformFlags::ContainsES2015,
+        );
+        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Async) {
+            node.add_transform_flags(
+                TransformFlags::ContainsES2017 | TransformFlags::ContainsLexicalThis,
+            );
         }
         node
     }

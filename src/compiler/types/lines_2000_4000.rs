@@ -96,6 +96,27 @@ impl FunctionExpression {
 }
 
 #[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct ArrowFunction {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+    pub equals_greater_than_token: Rc<Node /*EqualsGreaterThanToken*/>,
+}
+
+impl ArrowFunction {
+    pub fn new(
+        function_like_declaration: BaseFunctionLikeDeclaration,
+        equals_greater_than_token: Rc<Node>,
+    ) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
+            equals_greater_than_token,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(impl_from = false)]
 pub struct BaseLiteralLikeNode {
     _node: BaseNode,
