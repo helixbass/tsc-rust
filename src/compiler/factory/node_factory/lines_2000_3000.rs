@@ -872,11 +872,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_prefix_unary_expression(
         &self,
         base_factory: &TBaseNodeFactory,
-        operator: SyntaxKind,
+        operator: SyntaxKind, /*PrefixUnaryOperator*/
         operand: Rc<Node /*Expression*/>,
     ) -> PrefixUnaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::PrefixUnaryExpression);
-        let node = PrefixUnaryExpression::new(node, operator, operand);
+        let mut node = PrefixUnaryExpression::new(
+            node,
+            operator,
+            self.parenthesizer_rules()
+                .parenthesize_operand_of_prefix_unary(base_factory, &operand),
+        );
+        node.add_transform_flags(propagate_child_flags(Some(&*node.operand)));
+        if matches!(
+            operator,
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) && is_identifier(&node.operand)
+            && !is_generated_identifier(&node.operand)
+            && !is_local_name(&node.operand)
+        {
+            node.add_transform_flags(TransformFlags::ContainsUpdateExpressionForIdentifier);
+        }
         node
     }
 
