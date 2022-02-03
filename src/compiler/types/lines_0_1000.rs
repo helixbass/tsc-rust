@@ -1153,6 +1153,18 @@ impl Node {
     pub fn as_array_binding_pattern(&self) -> &ArrayBindingPattern {
         enum_unwrapped!(self, [Node, ArrayBindingPattern])
     }
+
+    pub fn as_shorthand_property_assignment(&self) -> &ShorthandPropertyAssignment {
+        enum_unwrapped!(self, [Node, ShorthandPropertyAssignment])
+    }
+
+    pub fn as_spread_element(&self) -> &SpreadElement {
+        enum_unwrapped!(self, [Node, SpreadElement])
+    }
+
+    pub fn as_spread_assignment(&self) -> &SpreadAssignment {
+        enum_unwrapped!(self, [Node, SpreadAssignment])
+    }
 }
 
 #[derive(Debug)]

@@ -2077,6 +2077,15 @@ pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
     }
 }
 
+pub fn is_logical_or_coalescing_assignment_operator(token: SyntaxKind) -> bool {
+    matches!(
+        token,
+        SyntaxKind::BarBarEqualsToken
+            | SyntaxKind::AmpersandAmpersandEqualsToken
+            | SyntaxKind::QuestionQuestionEqualsToken
+    )
+}
+
 pub fn is_assignment_operator(token: SyntaxKind) -> bool {
     token >= SyntaxKind::FirstAssignment && token <= SyntaxKind::LastAssignment
 }

@@ -5,8 +5,11 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags, propagate_identifier_name_flags};
 use crate::{
-    has_invalid_escape, is_call_chain, is_generated_identifier, is_identifier, is_import_keyword,
-    is_local_name, is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
+    get_elements_of_binding_or_assignment_pattern, get_target_of_binding_or_assignment_element,
+    has_invalid_escape, is_array_literal_expression, is_assignment_pattern, is_call_chain,
+    is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
+    is_logical_or_coalescing_assignment_operator, is_object_literal_expression,
+    is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
     modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction,
     AwaitExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
     BindingElement, CallExpression, Debug_, DeleteExpression, ElementAccessExpression,
@@ -928,8 +931,86 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_expression(base_factory, SyntaxKind::BinaryExpression);
         let operator_token = self.as_token(base_factory, operator.into());
         let operator_kind = operator_token.kind();
-        let node = BinaryExpression::new(node, left, operator_token, right);
+        let mut node = BinaryExpression::new(
+            node,
+            self.parenthesizer_rules().parenthesize_left_side_of_binary(
+                base_factory,
+                operator_kind,
+                &left,
+            ),
+            operator_token,
+            self.parenthesizer_rules()
+                .parenthesize_right_side_of_binary(base_factory, operator_kind, Some(left), &right),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.left))
+                | propagate_child_flags(Some(&*node.operator_token))
+                | propagate_child_flags(Some(&*node.right)),
+        );
+        if operator_kind == SyntaxKind::QuestionQuestionToken {
+            node.add_transform_flags(TransformFlags::ContainsES2020);
+        } else if operator_kind == SyntaxKind::EqualsToken {
+            if is_object_literal_expression(&node.left) {
+                node.add_transform_flags(
+                    TransformFlags::ContainsES2015
+                        | TransformFlags::ContainsES2018
+                        | TransformFlags::ContainsDestructuringAssignment
+                        | self.propagate_assignment_pattern_flags(&node.left),
+                );
+            } else if is_array_literal_expression(&node.left) {
+                node.add_transform_flags(
+                    TransformFlags::ContainsES2015
+                        | TransformFlags::ContainsDestructuringAssignment
+                        | self.propagate_assignment_pattern_flags(&node.left),
+                );
+            }
+        } else if matches!(
+            operator_kind,
+            SyntaxKind::AsteriskAsteriskToken | SyntaxKind::AsteriskAsteriskEqualsToken
+        ) {
+            node.add_transform_flags(TransformFlags::ContainsES2016);
+        } else if is_logical_or_coalescing_assignment_operator(operator_kind) {
+            node.add_transform_flags(TransformFlags::ContainsES2021);
+        }
         node
+    }
+
+    fn propagate_assignment_pattern_flags(
+        &self,
+        node: &Node, /*AssignmentPattern*/
+    ) -> TransformFlags {
+        if node
+            .transform_flags()
+            .intersects(TransformFlags::ContainsObjectRestOrSpread)
+        {
+            return TransformFlags::ContainsObjectRestOrSpread;
+        }
+        if node
+            .transform_flags()
+            .intersects(TransformFlags::ContainsES2018)
+        {
+            for element in get_elements_of_binding_or_assignment_pattern(node) {
+                let target = get_target_of_binding_or_assignment_element(&element);
+                if let Some(target) = target.filter(|target| is_assignment_pattern(target)) {
+                    if target
+                        .transform_flags()
+                        .intersects(TransformFlags::ContainsObjectRestOrSpread)
+                    {
+                        return TransformFlags::ContainsObjectRestOrSpread;
+                    }
+                    if target
+                        .transform_flags()
+                        .intersects(TransformFlags::ContainsES2018)
+                    {
+                        let flags = self.propagate_assignment_pattern_flags(&target);
+                        if flags != TransformFlags::None {
+                            return flags;
+                        }
+                    }
+                }
+            }
+        }
+        TransformFlags::None
     }
 
     pub fn create_template_expression<TTemplateSpans: Into<NodeArrayOrVec>>(

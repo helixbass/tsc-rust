@@ -98,6 +98,7 @@ pub use compiler::factory::parenthesizer_rules::{
     create_parenthesizer_rules, null_parenthesizer_rules,
 };
 pub use compiler::factory::utilities::{
+    get_elements_of_binding_or_assignment_pattern, get_target_of_binding_or_assignment_element,
     is_comma_sequence, is_local_name, is_outer_expression, skip_outer_expressions,
 };
 pub use compiler::factory::utilities_public::set_text_range;
@@ -226,9 +227,10 @@ pub use compiler::utilities::{
     get_operator_precedence, get_source_file_of_node, get_syntactic_modifier_flags,
     get_text_of_identifier_or_literal, has_dynamic_name, has_static_modifier,
     has_syntactic_modifier, is_access_expression, is_ambient_module, is_any_import_or_re_export,
-    is_bindable_static_element_access_expression, is_block_or_catch_scoped,
-    is_external_or_common_js_module, is_function_block, is_function_expression_or_arrow_function,
-    is_import_call, is_in_js_file, is_jsdoc_type_alias, is_keyword, is_object_literal_method,
+    is_assignment_expression, is_bindable_static_element_access_expression,
+    is_block_or_catch_scoped, is_external_or_common_js_module, is_function_block,
+    is_function_expression_or_arrow_function, is_import_call, is_in_js_file, is_jsdoc_type_alias,
+    is_keyword, is_logical_or_coalescing_assignment_operator, is_object_literal_method,
     is_property_name_literal, is_super_property, is_this_identifier, is_type_alias,
     is_type_node_kind, is_write_only_access, modifier_to_flag, modifiers_to_flags, node_is_missing,
     object_allocator, parse_pseudo_big_int, position_is_synthesized, pseudo_big_int_to_string,
