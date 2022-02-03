@@ -9,7 +9,7 @@ use crate::{
     is_local_name, is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
     modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction,
     BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, BindingElement,
-    CallExpression, Debug_, ElementAccessExpression, FunctionExpression,
+    CallExpression, Debug_, DeleteExpression, ElementAccessExpression, FunctionExpression,
     FunctionLikeDeclarationInterface, HasTypeParametersInterface, ImportTypeNode,
     IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode, MappedTypeNode, ModifierFlags,
     NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
@@ -800,6 +800,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 TransformFlags::ContainsES2017 | TransformFlags::ContainsLexicalThis,
             );
         }
+        node
+    }
+
+    pub fn create_delete_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> DeleteExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::DeleteExpression);
+        let mut node = DeleteExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_operand_of_prefix_unary(base_factory, &expression),
+        );
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
         node
     }
 

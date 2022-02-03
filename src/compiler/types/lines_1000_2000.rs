@@ -1399,3 +1399,25 @@ impl PostfixUnaryExpression {
         }
     }
 }
+
+#[derive(Debug)]
+#[ast_type]
+pub struct DeleteExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl DeleteExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for DeleteExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
