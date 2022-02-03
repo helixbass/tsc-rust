@@ -1079,6 +1079,22 @@ impl ConditionalTypeNode {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct InferTypeNode {
+    _node: BaseNode,
+    pub type_parameter: Rc<Node /*TypeParameterDeclaration*/>,
+}
+
+impl InferTypeNode {
+    pub fn new(base_node: BaseNode, type_parameter: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_parameter,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ParenthesizedTypeNode {
     _node: BaseNode,
     pub type_: Rc<Node /*TypeNode*/>,

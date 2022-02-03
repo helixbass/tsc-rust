@@ -8,13 +8,25 @@ use crate::{
     is_call_chain, is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
     is_omitted_expression, is_super_property, last_or_undefined, ArrayLiteralExpression,
     BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, CallExpression, Debug_,
-    FunctionExpression, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
-    PostfixUnaryExpression, PrefixUnaryExpression, SpreadElement, SyntaxKind, SyntaxKindOrRcNode,
-    TemplateExpression, TemplateLiteralLikeNode, TokenFlags, TransformFlags,
+    FunctionExpression, InferTypeNode, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
+    ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, SpreadElement,
+    SyntaxKind, SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode, TokenFlags,
+    TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
+    pub fn create_infer_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_parameter: Rc<Node /*TypeParameterDeclaration*/>,
+    ) -> InferTypeNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::InferType);
+        let mut node = InferTypeNode::new(node, type_parameter);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
     pub fn create_parenthesized_type(
         &self,
         base_factory: &TBaseNodeFactory,
