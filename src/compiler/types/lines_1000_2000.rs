@@ -12,8 +12,7 @@ use super::{
     HasInitializerInterface, HasTypeInterface, JSDocTypeExpression, NewExpression, Node,
     NodeInterface, NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression,
     PropertyAccessExpression, ReadonlyTextRange, SpreadElement, SyntaxKind,
-    TaggedTemplateExpression, TemplateExpression, TransformFlags, TypeAssertion, VoidExpression,
-    __String,
+    TaggedTemplateExpression, TemplateExpression, TransformFlags, TypeAssertion, __String,
 };
 use local_macros::ast_type;
 
@@ -1439,6 +1438,28 @@ impl TypeOfExpression {
 }
 
 impl HasExpressionInterface for TypeOfExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct VoidExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl VoidExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for VoidExpression {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
     }

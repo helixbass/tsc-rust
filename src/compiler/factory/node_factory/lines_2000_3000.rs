@@ -18,6 +18,7 @@ use crate::{
     StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
     TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
     ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion, TypeOfExpression, TypeOperatorNode,
+    VoidExpression,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -825,6 +826,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> TypeOfExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::TypeOfExpression);
         let mut node = TypeOfExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_operand_of_prefix_unary(base_factory, &expression),
+        );
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node
+    }
+
+    pub fn create_void_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> VoidExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::VoidExpression);
+        let mut node = VoidExpression::new(
             node,
             self.parenthesizer_rules()
                 .parenthesize_operand_of_prefix_unary(base_factory, &expression),

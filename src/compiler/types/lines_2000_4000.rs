@@ -275,28 +275,6 @@ impl BigIntLiteral {
 
 #[derive(Debug)]
 #[ast_type]
-pub struct VoidExpression {
-    _node: BaseNode,
-    pub expression: Rc<Node /*UnaryExpression*/>,
-}
-
-impl VoidExpression {
-    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
-        Self {
-            _node: base_node,
-            expression,
-        }
-    }
-}
-
-impl HasExpressionInterface for VoidExpression {
-    fn expression(&self) -> Rc<Node> {
-        self.expression.clone()
-    }
-}
-
-#[derive(Debug)]
-#[ast_type]
 pub struct TemplateExpression {
     _node: BaseNode,
     pub head: Rc<Node /*TemplateHead*/>,
