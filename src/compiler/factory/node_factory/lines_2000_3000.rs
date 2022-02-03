@@ -975,43 +975,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_conditional_expression(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        condition: Rc<Node /*Expression*/>,
-        question_token: Option<Rc<Node /*QuestionToken*/>>,
-        when_true: Rc<Node /*Expression*/>,
-        colon_token: Option<Rc<Node /*ColonToken*/>>,
-        when_false: Rc<Node /*Expression*/>,
-    ) -> ConditionalExpression {
-        let node = self.create_base_expression(base_factory, SyntaxKind::ConditionalExpression);
-        let mut node = ConditionalExpression::new(
-            node,
-            self.parenthesizer_rules()
-                .parenthesize_condition_of_conditional_expression(base_factory, &condition),
-            question_token.unwrap_or_else(|| {
-                self.create_token(base_factory, SyntaxKind::QuestionToken)
-                    .into()
-            }),
-            self.parenthesizer_rules()
-                .parenthesize_branch_of_conditional_expression(base_factory, &when_true),
-            colon_token.unwrap_or_else(|| {
-                self.create_token(base_factory, SyntaxKind::ColonToken)
-                    .into()
-            }),
-            self.parenthesizer_rules()
-                .parenthesize_branch_of_conditional_expression(base_factory, &when_false),
-        );
-        node.add_transform_flags(
-            propagate_child_flags(Some(&*node.condition))
-                | propagate_child_flags(Some(&*node.question_token))
-                | propagate_child_flags(Some(&*node.when_true))
-                | propagate_child_flags(Some(&*node.colon_token))
-                | propagate_child_flags(Some(&*node.when_false)),
-        );
-        node
-    }
-
     fn propagate_assignment_pattern_flags(
         &self,
         node: &Node, /*AssignmentPattern*/
@@ -1050,17 +1013,59 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         TransformFlags::None
     }
 
+    pub fn create_conditional_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        condition: Rc<Node /*Expression*/>,
+        question_token: Option<Rc<Node /*QuestionToken*/>>,
+        when_true: Rc<Node /*Expression*/>,
+        colon_token: Option<Rc<Node /*ColonToken*/>>,
+        when_false: Rc<Node /*Expression*/>,
+    ) -> ConditionalExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::ConditionalExpression);
+        let mut node = ConditionalExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_condition_of_conditional_expression(base_factory, &condition),
+            question_token.unwrap_or_else(|| {
+                self.create_token(base_factory, SyntaxKind::QuestionToken)
+                    .into()
+            }),
+            self.parenthesizer_rules()
+                .parenthesize_branch_of_conditional_expression(base_factory, &when_true),
+            colon_token.unwrap_or_else(|| {
+                self.create_token(base_factory, SyntaxKind::ColonToken)
+                    .into()
+            }),
+            self.parenthesizer_rules()
+                .parenthesize_branch_of_conditional_expression(base_factory, &when_false),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.condition))
+                | propagate_child_flags(Some(&*node.question_token))
+                | propagate_child_flags(Some(&*node.when_true))
+                | propagate_child_flags(Some(&*node.colon_token))
+                | propagate_child_flags(Some(&*node.when_false)),
+        );
+        node
+    }
+
     pub fn create_template_expression<TTemplateSpans: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         head: Rc<Node /*TemplateHead*/>,
-        template_spans: TTemplateSpans,
+        template_spans: TTemplateSpans, /*<TemplateSpan>*/
     ) -> TemplateExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::TemplateExpression);
-        let node = TemplateExpression::new(
+        let mut node = TemplateExpression::new(
             node,
             head,
             self.create_node_array(Some(template_spans), None),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.head))
+                | propagate_children_flags(Some(&node.template_spans))
+                | TransformFlags::ContainsES2015,
         );
         node
     }
