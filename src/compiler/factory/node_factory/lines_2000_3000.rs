@@ -10,10 +10,10 @@ use crate::{
     ArrayBindingPattern, ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory,
     BinaryExpression, BindingElement, CallExpression, Debug_, ElementAccessExpression,
     FunctionExpression, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode,
-    MappedTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
-    PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, SpreadElement,
-    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
+    MappedTypeNode, NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression,
+    ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression,
+    SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
     TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags,
     TransformFlags, TypeOperatorNode,
 };
@@ -278,7 +278,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = ArrayLiteralExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expressions_of_comma_delimited_list(base_factory, elements_array),
+                .parenthesize_expressions_of_comma_delimited_list(
+                    base_factory,
+                    elements_array.into(),
+                ),
             multi_line,
         );
         node.add_transform_flags(propagate_children_flags(Some(&node.elements)));
@@ -431,7 +434,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             self.parenthesizer_rules()
                 .parenthesize_expressions_of_comma_delimited_list(
                     base_factory,
-                    self.create_node_array(arguments_array, None),
+                    self.create_node_array(arguments_array, None).into(),
                 ),
         );
         node.add_transform_flags(
@@ -527,7 +530,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             self.parenthesizer_rules()
                 .parenthesize_expressions_of_comma_delimited_list(
                     base_factory,
-                    self.create_node_array(arguments_array, None),
+                    self.create_node_array(arguments_array, None).into(),
                 ),
         );
         node.add_transform_flags(
@@ -605,6 +608,42 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         } else {
             node.node_wrapper()
         }
+    }
+
+    pub fn create_new_expression<
+        TTypeArguments: Into<NodeArrayOrVec>,
+        TArgumentsArray: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
+        arguments_array: Option<TArgumentsArray /*<Expression>*/>,
+    ) -> NewExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::NewExpression);
+        let mut node = NewExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expression_of_new(base_factory, &expression),
+            self.as_node_array(type_arguments),
+            arguments_array.map(|arguments_array| {
+                self.parenthesizer_rules()
+                    .parenthesize_expressions_of_comma_delimited_list(
+                        base_factory,
+                        arguments_array.into(),
+                    )
+            }),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_children_flags(node.arguments.as_ref())
+                | TransformFlags::ContainsES2020,
+        );
+        if node.type_arguments.is_some() {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        node
     }
 
     pub fn create_parenthesized_expression(
