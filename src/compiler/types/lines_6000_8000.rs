@@ -1167,7 +1167,7 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory> {
     fn parenthesize_type_arguments(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_parameters: Option<NodeArray /*<TypeNode>*/>,
+        type_parameters: Option<NodeArrayOrVec /*<TypeNode>*/>,
     ) -> Option<NodeArray /*<TypeNode>*/>;
 }
 

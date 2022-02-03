@@ -17,12 +17,12 @@ use super::{
     HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
     Identifier, IfStatement, ImportClause, ImportEqualsDeclaration, ImportSpecifier,
-    IndexSignatureDeclaration, InferTypeNode, InterfaceDeclaration, IntersectionTypeNode, JSDoc,
-    JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName,
-    JSDocPropertyLikeTag, JSDocTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLikeTagInterface, JSDocTypedefTag, JsxAttribute, JsxText, KeywordTypeNode,
-    LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MemberNameInterface,
-    MethodDeclaration, MethodSignature, ModifiersArray, ModuleDeclaration,
+    ImportTypeNode, IndexSignatureDeclaration, InferTypeNode, InterfaceDeclaration,
+    IntersectionTypeNode, JSDoc, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
+    JSDocMemberName, JSDocPropertyLikeTag, JSDocTag, JSDocTemplateTag, JSDocText,
+    JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag, JsxAttribute, JsxText,
+    KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode,
+    MemberNameInterface, MethodDeclaration, MethodSignature, ModifiersArray, ModuleDeclaration,
     NamedDeclarationInterface, NamedTupleMember, NewExpression, NodeArray, NonNullExpression,
     NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression, OptionalTypeNode,
     ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
@@ -748,6 +748,7 @@ pub enum Node {
     ConditionalTypeNode(ConditionalTypeNode),
     InferTypeNode(InferTypeNode),
     TemplateLiteralTypeNode(TemplateLiteralTypeNode),
+    ImportTypeNode(ImportTypeNode),
 }
 
 impl Node {

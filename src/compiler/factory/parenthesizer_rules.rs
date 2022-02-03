@@ -585,7 +585,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
     fn parenthesize_type_arguments(
         &self,
         base_node_factory: &TBaseNodeFactory,
-        type_arguments: Option<NodeArray>,
+        type_arguments: Option<NodeArrayOrVec>,
     ) -> Option<NodeArray> {
         if some(
             type_arguments.as_deref(),
@@ -781,8 +781,13 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
     fn parenthesize_type_arguments(
         &self,
         base_node_factory: &TBaseNodeFactory,
-        type_parameters: Option<NodeArray>,
+        type_parameters: Option<NodeArrayOrVec>,
     ) -> Option<NodeArray> {
-        type_parameters
+        type_parameters.map(|type_parameters| match type_parameters {
+            NodeArrayOrVec::NodeArray(type_parameters) => type_parameters,
+            NodeArrayOrVec::Vec(_) => {
+                panic!("Expected NodeArray")
+            }
+        })
     }
 }

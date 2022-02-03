@@ -140,6 +140,17 @@ impl From<Vec<Rc<Node>>> for NodeArrayOrVec {
     }
 }
 
+impl Deref for NodeArrayOrVec {
+    type Target = [Rc<Node>];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            NodeArrayOrVec::NodeArray(node_array) => node_array.deref(),
+            NodeArrayOrVec::Vec(vec) => vec.deref(),
+        }
+    }
+}
+
 bitflags! {
     pub struct GeneratedIdentifierFlags: u32 {
         const None = 0;
@@ -765,6 +776,34 @@ impl KeywordTypeNode {
 impl From<BaseNode> for KeywordTypeNode {
     fn from(base_node: BaseNode) -> Self {
         KeywordTypeNode::new(base_node)
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct ImportTypeNode {
+    _node: BaseNode,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    pub is_type_of: bool,
+    pub argument: Rc<Node /*<TypeNode>*/>,
+    pub qualifier: Option<Rc<Node /*<EntityName>*/>>,
+}
+
+impl ImportTypeNode {
+    pub fn new(
+        base_node: BaseNode,
+        argument: Rc<Node>,
+        qualifier: Option<Rc<Node>>,
+        type_arguments: Option<NodeArray>,
+        is_type_of: bool,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            type_arguments,
+            is_type_of,
+            argument,
+            qualifier,
+        }
     }
 }
 

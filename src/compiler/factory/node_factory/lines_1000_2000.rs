@@ -651,7 +651,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_arguments.and_then(|type_arguments| {
                 self.parenthesizer_rules().parenthesize_type_arguments(
                     base_factory,
-                    Some(self.create_node_array(Some(type_arguments), None)),
+                    Some(self.create_node_array(Some(type_arguments), None).into()),
                 )
             }),
         );

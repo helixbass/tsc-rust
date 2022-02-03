@@ -8,10 +8,10 @@ use crate::{
     is_call_chain, is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
     is_omitted_expression, is_super_property, last_or_undefined, ArrayLiteralExpression,
     BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, CallExpression, Debug_,
-    FunctionExpression, InferTypeNode, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
-    ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, SpreadElement,
-    SyntaxKind, SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode,
+    FunctionExpression, ImportTypeNode, InferTypeNode, LiteralTypeNode, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression,
+    ParenthesizedExpression, ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression,
+    SpreadElement, SyntaxKind, SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode,
     TemplateLiteralTypeNode, TokenFlags, TransformFlags,
 };
 
@@ -38,6 +38,30 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node,
             head,
             self.create_node_array(Some(template_spans), None),
+        );
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_import_type_node<TTypeArguments: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        argument: Rc<Node /*TypeNode*/>,
+        qualifier: Option<Rc<Node /*EntityName*/>>,
+        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
+        is_type_of: Option<bool>,
+    ) -> ImportTypeNode {
+        let is_type_of = is_type_of.unwrap_or(false);
+        let node = self.create_base_node(base_factory, SyntaxKind::ImportType);
+        let mut node = ImportTypeNode::new(
+            node,
+            argument,
+            qualifier,
+            type_arguments.and_then(|type_arguments| {
+                self.parenthesizer_rules()
+                    .parenthesize_type_arguments(base_factory, Some(type_arguments.into()))
+            }),
+            is_type_of,
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
