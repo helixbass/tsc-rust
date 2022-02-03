@@ -6,14 +6,14 @@ use std::rc::Rc;
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     is_call_chain, is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
-    is_omitted_expression, is_super_property, last_or_undefined, ArrayLiteralExpression,
-    BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, CallExpression, Debug_,
-    FunctionExpression, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode,
-    MappedTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
-    PostfixUnaryExpression, PrefixUnaryExpression, SpreadElement, SyntaxKind, SyntaxKindOrRcNode,
-    TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags,
-    TransformFlags, TypeOperatorNode,
+    is_omitted_expression, is_super_property, last_or_undefined, ArrayBindingPattern,
+    ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
+    CallExpression, Debug_, FunctionExpression, ImportTypeNode, IndexedAccessTypeNode,
+    InferTypeNode, LiteralTypeNode, MappedTypeNode, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeInterface, ObjectBindingPattern, ObjectLiteralExpression,
+    ParenthesizedExpression, ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression,
+    SpreadElement, SyntaxKind, SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode,
+    TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags, TypeOperatorNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -177,6 +177,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 TransformFlags::ContainsES2018 | TransformFlags::ContainsObjectRestOrSpread,
             );
         }
+        node
+    }
+
+    pub fn create_array_binding_pattern<TElements: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: TElements, /*<BindingElement>*/
+    ) -> ArrayBindingPattern {
+        let node = self.create_base_node(base_factory, SyntaxKind::ArrayBindingPattern);
+        let mut node = ArrayBindingPattern::new(node, self.create_node_array(Some(elements), None));
+        node.add_transform_flags(
+            propagate_children_flags(Some(&node.elements))
+                | TransformFlags::ContainsES2015
+                | TransformFlags::ContainsBindingPattern,
+        );
         node
     }
 
