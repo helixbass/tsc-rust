@@ -704,7 +704,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         expression: Rc<Node /*Expression*/>,
     ) -> ParenthesizedExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::ParenthesizedExpression);
-        let node = ParenthesizedExpression::new(node, expression);
+        let mut node = ParenthesizedExpression::new(node, expression);
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
         node
     }
 
