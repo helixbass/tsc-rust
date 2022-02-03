@@ -411,12 +411,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_call_expression(
+    pub fn create_call_expression<
+        TTypeArguments: Into<NodeArrayOrVec>,
+        TArgumentsArray: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression*/>,
-        type_arguments: Option<Vec<Rc<Node /*TypeNode*/>>>,
-        arguments_array: Vec<Rc<Node /*expression*/>>,
+        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
+        arguments_array: Option<TArgumentsArray /*<Expression>*/>,
     ) -> CallExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::CallExpression);
         let mut node = CallExpression::new(
@@ -428,7 +431,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             self.parenthesizer_rules()
                 .parenthesize_expressions_of_comma_delimited_list(
                     base_factory,
-                    self.create_node_array(Some(arguments_array), None),
+                    self.create_node_array(arguments_array, None),
                 ),
         );
         node.add_transform_flags(
@@ -492,7 +495,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     base_factory,
                     expression.node_wrapper(),
                     type_arguments.map(|type_arguments| type_arguments.to_vec()),
-                    arguments_array.to_vec(),
+                    Some(arguments_array.to_vec()),
                 )
                 .into(),
                 node,
@@ -502,13 +505,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
     }
 
-    pub fn create_call_chain(
+    pub fn create_call_chain<
+        TTypeArguments: Into<NodeArrayOrVec>,
+        TArgumentsArray: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
         expression: Rc<Node /*Expression*/>,
         question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
-        type_arguments: Option<Vec<Rc<Node /*TypeNode*/>>>,
-        arguments_array: Vec<Rc<Node /*expression*/>>,
+        type_arguments: Option<TTypeArguments /*<TypeNode>*/>,
+        arguments_array: Option<TArgumentsArray /*<Expression>*/>,
     ) -> CallExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::CallExpression);
         node.set_flags(node.flags() | NodeFlags::OptionalChain);
@@ -521,7 +527,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             self.parenthesizer_rules()
                 .parenthesize_expressions_of_comma_delimited_list(
                     base_factory,
-                    self.create_node_array(Some(arguments_array), None),
+                    self.create_node_array(arguments_array, None),
                 ),
         );
         node.add_transform_flags(
@@ -591,7 +597,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                     expression.node_wrapper(),
                     question_dot_token,
                     type_arguments.map(|type_arguments| type_arguments.to_vec()),
-                    arguments_array.to_vec(),
+                    Some(arguments_array.to_vec()),
                 )
                 .into(),
                 node,
