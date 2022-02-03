@@ -168,7 +168,7 @@ pub use compiler::types::{
     HasIsTypeOnlyInterface, HasQuestionDotTokenInterface, HasTypeArgumentsInterface,
     HasTypeInterface, HasTypeParametersInterface, Identifier, IfStatement, ImportClause,
     ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode, ImportsNotUsedAsValues,
-    IndexSignatureDeclaration, InferTypeNode, InterfaceDeclaration,
+    IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InterfaceDeclaration,
     InterfaceOrClassLikeDeclarationInterface, InterfaceType,
     InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, IntersectionTypeNode,
     IntrinsicType, IntrinsicTypeInterface, JSDoc, JSDocAugmentsTag, JSDocCallbackTag,

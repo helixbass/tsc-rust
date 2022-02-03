@@ -1200,6 +1200,24 @@ impl HasTypeInterface for TypeOperatorNode {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct IndexedAccessTypeNode {
+    _node: BaseNode,
+    pub object_type: Rc<Node /*TypeNode*/>,
+    pub index_type: Rc<Node /*TypeNode*/>,
+}
+
+impl IndexedAccessTypeNode {
+    pub fn new(base_node: BaseNode, object_type: Rc<Node>, index_type: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            object_type,
+            index_type,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct LiteralTypeNode {
     _node: BaseNode,
     pub literal: Rc<Node>, // TODO: should be weak?

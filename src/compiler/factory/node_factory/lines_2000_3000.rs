@@ -8,11 +8,12 @@ use crate::{
     is_call_chain, is_generated_identifier, is_identifier, is_import_keyword, is_local_name,
     is_omitted_expression, is_super_property, last_or_undefined, ArrayLiteralExpression,
     BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression, CallExpression, Debug_,
-    FunctionExpression, ImportTypeNode, InferTypeNode, LiteralTypeNode, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression,
-    ParenthesizedExpression, ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression,
-    SpreadElement, SyntaxKind, SyntaxKindOrRcNode, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags, TypeOperatorNode,
+    FunctionExpression, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode,
+    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
+    ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
+    PostfixUnaryExpression, PrefixUnaryExpression, SpreadElement, SyntaxKind, SyntaxKindOrRcNode,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags,
+    TransformFlags, TypeOperatorNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -97,6 +98,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             operator,
             self.parenthesizer_rules()
                 .parenthesize_member_of_element_type(base_factory, &type_),
+        );
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_indexed_access_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        operator: SyntaxKind,
+        object_type: Rc<Node /*TypeNode*/>,
+        index_type: Rc<Node /*TypeNode*/>,
+    ) -> IndexedAccessTypeNode {
+        let node = self.create_base_node(base_factory, SyntaxKind::IndexedAccessType);
+        let mut node = IndexedAccessTypeNode::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_member_of_element_type(base_factory, &object_type),
+            index_type,
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
