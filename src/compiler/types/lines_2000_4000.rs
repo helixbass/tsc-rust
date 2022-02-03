@@ -624,7 +624,7 @@ pub struct TypeAssertion {
 }
 
 impl TypeAssertion {
-    pub fn new(base_node: BaseNode, type_: Rc<Node>, expression: Rc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, type_: Rc<Node>) -> Self {
         Self {
             _node: base_node,
             type_,

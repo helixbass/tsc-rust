@@ -15,7 +15,7 @@ use crate::{
     ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression,
     SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
     TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
-    ThisTypeNode, TokenFlags, TransformFlags, TypeOperatorNode,
+    ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion, TypeOperatorNode,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -674,6 +674,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if has_invalid_escape(&node.template) {
             node.add_transform_flags(TransformFlags::ContainsES2018);
         }
+        node
+    }
+
+    pub fn create_type_assertion(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_: Rc<Node /*TypeNode*/>,
+        expression: Rc<Node /*Expression*/>,
+    ) -> TypeAssertion {
+        let node = self.create_base_expression(base_factory, SyntaxKind::TypeAssertionExpression);
+        let mut node = TypeAssertion::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_operand_of_prefix_unary(base_factory, &expression),
+            type_,
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.type_))
+                | TransformFlags::ContainsTypeScript,
+        );
         node
     }
 
