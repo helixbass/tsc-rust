@@ -411,13 +411,13 @@ impl PropertyAccessExpression {
     pub fn new(
         base_node: BaseNode,
         expression: Rc<Node>,
-        // question_dot_token: Option<Rc<Node>>,
+        question_dot_token: Option<Rc<Node>>,
         name: Rc<Node>,
     ) -> Self {
         Self {
             _node: base_node,
             expression,
-            question_dot_token: None,
+            question_dot_token,
             name,
         }
     }

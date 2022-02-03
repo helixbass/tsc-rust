@@ -311,6 +311,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node,
             self.parenthesizer_rules()
                 .parenthesize_left_side_of_access(base_factory, &expression),
+            None,
             self.as_name(base_factory, Some(name)).unwrap(),
         );
         node.add_transform_flags(
@@ -326,6 +327,35 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 TransformFlags::ContainsES2017 | TransformFlags::ContainsES2018,
             );
         }
+        node
+    }
+
+    pub fn create_property_access_chain<TName: Into<StringOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+        question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+        name: TName,
+    ) -> PropertyAccessExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::PropertyAccessExpression);
+        node.set_flags(node.flags() | NodeFlags::OptionalChain);
+        let mut node = PropertyAccessExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_left_side_of_access(base_factory, &expression),
+            question_dot_token,
+            self.as_name(base_factory, Some(name)).unwrap(),
+        );
+        node.add_transform_flags(
+            TransformFlags::ContainsES2020
+                | propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(node.question_dot_token.clone())
+                | if is_identifier(&node.name) {
+                    propagate_identifier_name_flags(&node.name)
+                } else {
+                    propagate_child_flags(Some(&*node.name))
+                },
+        );
         node
     }
 
