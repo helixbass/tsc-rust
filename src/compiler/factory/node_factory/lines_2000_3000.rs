@@ -902,7 +902,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         operator: SyntaxKind,
     ) -> PostfixUnaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::PostfixUnaryExpression);
-        let mut node = PostfixUnaryExpression::new(node, operand, operator);
+        let mut node = PostfixUnaryExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_operand_of_postfix_unary(base_factory, &operand),
+            operator,
+        );
         node.add_transform_flags(propagate_child_flags(Some(&*node.operand)));
         if is_identifier(&node.operand)
             && !is_generated_identifier(&node.operand)
