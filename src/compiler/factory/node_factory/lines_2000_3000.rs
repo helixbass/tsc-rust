@@ -386,6 +386,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn create_element_access_chain<TIndex: Into<StringOrNumberOrBoolOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+        question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+        index: TIndex,
+    ) -> ElementAccessExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::ElementAccessExpression);
+        node.set_flags(node.flags() | NodeFlags::OptionalChain);
+        let mut node = ElementAccessExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_left_side_of_access(base_factory, &expression),
+            question_dot_token,
+            self.as_expression(base_factory, Some(index)).unwrap(),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(node.question_dot_token.clone())
+                | propagate_child_flags(Some(&*node.argument_expression))
+                | TransformFlags::ContainsES2020,
+        );
+        node
+    }
+
     pub fn create_call_expression(
         &self,
         base_factory: &TBaseNodeFactory,
