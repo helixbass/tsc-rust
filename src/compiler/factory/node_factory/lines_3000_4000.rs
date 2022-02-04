@@ -7,12 +7,12 @@ use crate::{
     modifiers_to_flags, AsExpression, BaseNodeFactory, Block, BreakStatement, ContinueStatement,
     Debug_, DebuggerStatement, DoStatement, EmptyStatement, ExpressionStatement,
     ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
-    IfStatement, InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
-    OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement,
-    StringOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags,
-    TryStatement, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
-    VariableStatement, WhileStatement, WithStatement,
+    FunctionLikeDeclarationInterface, IfStatement, InterfaceDeclaration, LabeledStatement,
+    MetaProperty, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement,
+    SemicolonClassElement, StringOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan,
+    ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -539,17 +539,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_function_declaration(
+    pub fn create_function_declaration<
+        TModifiers: Into<NodeArrayOrVec>,
+        TDecorators: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+        TTypeParameters: Into<NodeArrayOrVec>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
-        asterisk_token: Option<Rc<Node>>,
-        name: Option<Rc<Node>>,
-        type_parameters: Option<NodeArray>,
-        parameters: NodeArray,
-        type_: Option<Rc<Node>>,
-        body: Option<Rc<Node>>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
+        name: Option<TName /*Identifier*/>,
+        type_parameters: Option<TTypeParameters /*<TypeParameterDeclaration>*/>,
+        parameters: TParameters, /*<ParameterDeclaration>*/
+        type_: Option<Rc<Node /*TypeNode*/>>,
+        body: Option<Rc<Node /*Block*/>>,
     ) -> FunctionDeclaration {
         let mut node = self.create_base_function_like_declaration(
             base_factory,
@@ -563,7 +569,30 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             body,
         );
         node.asterisk_token = asterisk_token;
-        FunctionDeclaration::new(node)
+        let mut node = FunctionDeclaration::new(node);
+        if node.maybe_body().is_none()
+            || modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Ambient)
+        {
+            node.set_transform_flags(TransformFlags::ContainsTypeScript);
+        } else {
+            node.add_transform_flags(
+                propagate_child_flags(node.maybe_asterisk_token())
+                    | TransformFlags::ContainsHoistedDeclarationOrCompletion,
+            );
+            if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Async) {
+                match node.maybe_asterisk_token() {
+                    Some(_) => {
+                        node.add_transform_flags(TransformFlags::ContainsES2018);
+                    }
+                    None => {
+                        node.add_transform_flags(TransformFlags::ContainsES2017);
+                    }
+                }
+            } else if node.maybe_asterisk_token().is_some() {
+                node.add_transform_flags(TransformFlags::ContainsGenerator);
+            }
+        }
+        node
     }
 
     pub fn create_interface_declaration<

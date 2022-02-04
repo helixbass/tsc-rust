@@ -328,7 +328,7 @@ impl ParserType {
             decorators,
             modifiers,
             asterisk_token.map(Into::into),
-            name.map(Into::into),
+            name.map(Into::<Rc<Node>>::into),
             type_parameters,
             parameters,
             type_.map(|type_| type_.wrap()),
