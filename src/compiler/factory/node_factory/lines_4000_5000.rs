@@ -3,9 +3,10 @@ use std::rc::Rc;
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
     AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
-    BaseNodeFactory, ExportAssignment, ExportDeclaration, ImportSpecifier, JsxText, NamedExports,
-    NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, StringOrNodeArray, SyntaxKind, TransformFlags,
+    BaseNodeFactory, ExportAssignment, ExportDeclaration, ExportSpecifier, ImportSpecifier,
+    JsxText, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind,
+    TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -180,6 +181,33 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, SyntaxKind::NamedExports);
         let mut node = NamedExports::new(node, self.create_node_array(Some(elements), None));
         node.add_transform_flags(propagate_children_flags(Some(&node.elements)));
+        node.set_transform_flags(
+            node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
+        );
+        node
+    }
+
+    pub fn create_export_specifier<
+        TPropertyName: Into<StringOrRcNode>,
+        TName: Into<StringOrRcNode>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        is_type_only: bool,
+        property_name: Option<TPropertyName /*Identifier*/>,
+        name: TName, /*Identifier*/
+    ) -> ExportSpecifier {
+        let node = self.create_base_node(base_factory, SyntaxKind::ExportSpecifier);
+        let mut node = ExportSpecifier::new(
+            node,
+            is_type_only,
+            self.as_name(base_factory, property_name),
+            self.as_name(base_factory, Some(name)).unwrap(),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(node.property_name.clone())
+                | propagate_child_flags(Some(&*node.name)),
+        );
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
