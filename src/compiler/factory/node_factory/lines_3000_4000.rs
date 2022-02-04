@@ -7,9 +7,9 @@ use crate::{
     AsExpression, BaseNodeFactory, Block, Debug_, EmptyStatement, ExpressionStatement,
     ExpressionWithTypeArguments, FunctionDeclaration, IfStatement, InterfaceDeclaration,
     MetaProperty, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    NonNullExpression, OmittedExpression, ReturnStatement, SyntaxKind, TemplateSpan,
-    TransformFlags, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    NonNullExpression, OmittedExpression, ReturnStatement, SemicolonClassElement, SyntaxKind,
+    TemplateSpan, TransformFlags, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList, VariableStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -129,6 +129,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(Some(&*node.literal))
                 | TransformFlags::ContainsES2015,
         );
+        node
+    }
+
+    pub fn create_semicolon_class_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+    ) -> SemicolonClassElement {
+        let node = self.create_base_node(base_factory, SyntaxKind::SemicolonClassElement);
+        let mut node = SemicolonClassElement::new(node);
+        node.add_transform_flags(TransformFlags::ContainsES2015);
         node
     }
 

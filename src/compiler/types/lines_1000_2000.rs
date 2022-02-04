@@ -636,6 +636,18 @@ impl ConstructorDeclaration {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct SemicolonClassElement {
+    _node: BaseNode,
+}
+
+impl SemicolonClassElement {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
 )]

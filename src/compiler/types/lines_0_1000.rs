@@ -30,10 +30,10 @@ use super::{
     ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
     PartiallyEmittedExpression, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
     PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    QualifiedName, RegularExpressionLiteral, RestTypeNode, ReturnStatement, SetAccessorDeclaration,
-    ShorthandPropertyAssignment, SignatureDeclarationBase, SignatureDeclarationInterface,
-    SourceFile, SpreadAssignment, SpreadElement, StringLiteral, Symbol, SymbolTable,
-    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
+    QualifiedName, RegularExpressionLiteral, RestTypeNode, ReturnStatement, SemicolonClassElement,
+    SetAccessorDeclaration, ShorthandPropertyAssignment, SignatureDeclarationBase,
+    SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
+    Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
     TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode, TemplateLiteralTypeSpan,
     TemplateSpan, ThisTypeNode, TransformFlags, TupleTypeNode, TypeAliasDeclaration, TypeAssertion,
     TypeElement, TypeLiteralNode, TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration,
@@ -765,6 +765,7 @@ pub enum Node {
     OmittedExpression(OmittedExpression),
     ExpressionWithTypeArguments(ExpressionWithTypeArguments),
     MetaProperty(MetaProperty),
+    SemicolonClassElement(SemicolonClassElement),
 }
 
 impl Node {
