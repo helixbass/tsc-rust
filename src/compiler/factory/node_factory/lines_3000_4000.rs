@@ -194,9 +194,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_empty_statement(&self, base_factory: &TBaseNodeFactory) -> EmptyStatement {
-        EmptyStatement {
-            _node: self.create_base_node(base_factory, SyntaxKind::EmptyStatement),
-        }
+        let node = self.create_base_node(base_factory, SyntaxKind::EmptyStatement);
+        EmptyStatement::new(node)
     }
 
     pub fn create_expression_statement(

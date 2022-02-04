@@ -796,7 +796,13 @@ impl LiteralLikeNodeInterface for JsxText {
 #[derive(Debug)]
 #[ast_type]
 pub struct EmptyStatement {
-    pub _node: BaseNode,
+    _node: BaseNode,
+}
+
+impl EmptyStatement {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
 }
 
 #[derive(Debug)]
