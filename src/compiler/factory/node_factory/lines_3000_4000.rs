@@ -4,16 +4,16 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, BreakStatement, ClassDeclaration,
-    ContinueStatement, Debug_, DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration,
-    ExpressionStatement, ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement,
-    FunctionDeclaration, FunctionLikeDeclarationInterface, IfStatement, InterfaceDeclaration,
-    LabeledStatement, MetaProperty, ModifierFlags, ModuleBlock, ModuleDeclaration, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
-    RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
-    SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
-    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
-    WhileStatement, WithStatement,
+    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, BreakStatement, CaseBlock,
+    ClassDeclaration, ContinueStatement, Debug_, DebuggerStatement, DoStatement, EmptyStatement,
+    EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments, ForInStatement,
+    ForOfStatement, ForStatement, FunctionDeclaration, FunctionLikeDeclarationInterface,
+    IfStatement, InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags, ModuleBlock,
+    ModuleDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
+    NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement,
+    SemicolonClassElement, StringOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan,
+    ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -776,6 +776,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, SyntaxKind::ModuleBlock);
         let mut node = ModuleBlock::new(node, self.create_node_array(statements, None));
         node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
+        node
+    }
+
+    pub fn create_case_block<TClauses: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        clauses: TClauses, /*<CaseOrDefaultClause>*/
+    ) -> CaseBlock {
+        let node = self.create_base_node(base_factory, SyntaxKind::CaseBlock);
+        let mut node = CaseBlock::new(node, self.create_node_array(Some(clauses), None));
+        node.add_transform_flags(propagate_children_flags(Some(&node.clauses)));
         node
     }
 }

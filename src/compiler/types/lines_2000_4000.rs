@@ -1127,6 +1127,22 @@ impl SwitchStatement {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct CaseBlock {
+    _node: BaseNode,
+    pub clauses: NodeArray, /*<CaseOrDefaultClause>*/
+}
+
+impl CaseBlock {
+    pub fn new(base_node: BaseNode, clauses: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            clauses,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct LabeledStatement {
     _node: BaseNode,
     pub label: Rc<Node /*Identifier*/>,
