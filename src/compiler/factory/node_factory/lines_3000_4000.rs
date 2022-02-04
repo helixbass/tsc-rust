@@ -4,10 +4,10 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_external_module_reference, modifiers_to_flags, AsExpression, BaseNodeFactory, Block,
-    BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_, DebuggerStatement,
-    DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments,
-    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    is_external_module_reference, modifiers_to_flags, AsExpression, AssertClause, BaseNodeFactory,
+    Block, BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_,
+    DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement,
+    ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
     FunctionLikeDeclarationInterface, IfStatement, ImportClause, ImportDeclaration,
     ImportEqualsDeclaration, InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags,
     ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, Node, NodeArray, NodeArrayOrVec,
@@ -885,6 +885,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
+        node
+    }
+
+    pub fn create_assert_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: NodeArray, /*<AssertEntry>*/
+        multi_line: Option<bool>,
+    ) -> AssertClause {
+        let node = self.create_base_node(base_factory, SyntaxKind::AssertClause);
+        let mut node = AssertClause::new(node, elements, multi_line);
+        node.add_transform_flags(TransformFlags::ContainsESNext);
         node
     }
 }

@@ -140,7 +140,7 @@ pub use compiler::sys::{get_sys, System};
 pub use compiler::types::{
     maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,
     text_str_num_chars, text_substring, ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode,
-    ArrowFunction, AsExpression, AssignmentDeclarationKind, AwaitExpression,
+    ArrowFunction, AsExpression, AssertClause, AssignmentDeclarationKind, AwaitExpression,
     BaseBindingLikeDeclaration, BaseDiagnostic, BaseDiagnosticRelatedInformation,
     BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration,
     BaseInterfaceType, BaseIntrinsicType, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,

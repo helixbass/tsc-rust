@@ -1814,6 +1814,24 @@ impl HasIsTypeOnlyInterface for ImportClause {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct AssertClause {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<AssertEntry>*/
+    pub multi_line: Option<bool>,
+}
+
+impl AssertClause {
+    pub fn new(base_node: BaseNode, elements: NodeArray, multi_line: Option<bool>) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+            multi_line,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct NamespaceExportDeclaration {
     _named_declaration: BaseNamedDeclaration,

@@ -7,16 +7,16 @@ use std::rc::{Rc, Weak};
 
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
-    AwaitExpression, BaseJSDocUnaryType, BigIntLiteral, BinaryExpression, BindingElement, Block,
-    BreakStatement, CallExpression, CallSignatureDeclaration, CaseBlock, ClassDeclaration,
-    ClassExpression, ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalExpression,
-    ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
-    ConstructorTypeNode, ContinueStatement, DebuggerStatement, Decorator, DeleteExpression,
-    DoStatement, ElementAccessExpression, EmitNode, EmptyStatement, EnumDeclaration, EnumMember,
-    ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
-    ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
-    FunctionExpression, FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
-    HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
+    AssertClause, AwaitExpression, BaseJSDocUnaryType, BigIntLiteral, BinaryExpression,
+    BindingElement, Block, BreakStatement, CallExpression, CallSignatureDeclaration, CaseBlock,
+    ClassDeclaration, ClassExpression, ClassStaticBlockDeclaration, ComputedPropertyName,
+    ConditionalExpression, ConditionalTypeNode, ConstructSignatureDeclaration,
+    ConstructorDeclaration, ConstructorTypeNode, ContinueStatement, DebuggerStatement, Decorator,
+    DeleteExpression, DoStatement, ElementAccessExpression, EmitNode, EmptyStatement,
+    EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier,
+    ExpressionStatement, ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement,
+    FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface, FunctionTypeNode,
+    GetAccessorDeclaration, HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
     Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
     ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
@@ -783,6 +783,7 @@ pub enum Node {
     CaseBlock(CaseBlock),
     NamespaceExportDeclaration(NamespaceExportDeclaration),
     ImportDeclaration(ImportDeclaration),
+    AssertClause(AssertClause),
 }
 
 impl Node {
