@@ -474,7 +474,7 @@ impl ParserType {
             self,
             decorators,
             modifiers,
-            name.into(),
+            Into::<Rc<Node>>::into(name),
             type_parameters,
             type_.wrap(),
         );

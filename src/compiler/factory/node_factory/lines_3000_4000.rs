@@ -668,14 +668,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_type_alias_declaration<TTypeParameters: Into<NodeArrayOrVec>>(
+    pub fn create_type_alias_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+        TTypeParameters: Into<NodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
-        name: Rc<Node>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        name: TName,
         type_parameters: Option<TTypeParameters>,
-        type_: Rc<Node>,
+        type_: Rc<Node /*TypeNode*/>,
     ) -> TypeAliasDeclaration {
         let node = self.create_base_generic_named_declaration(
             base_factory,
@@ -685,7 +690,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             Some(name),
             type_parameters,
         );
-        let node = TypeAliasDeclaration::new(node, type_);
+        let mut node = TypeAliasDeclaration::new(node, type_);
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 }
