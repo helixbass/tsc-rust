@@ -221,11 +221,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         else_statement: Option<Rc<Node /*Statement*/>>,
     ) -> IfStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::IfStatement);
-        let node = IfStatement::new(
+        let mut node = IfStatement::new(
             node,
             expression,
             self.as_embedded_statement(Some(then_statement)).unwrap(),
             self.as_embedded_statement(else_statement),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.then_statement))
+                | propagate_child_flags(node.else_statement.clone()),
         );
         node
     }
