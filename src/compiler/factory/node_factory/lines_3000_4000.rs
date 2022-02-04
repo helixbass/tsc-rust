@@ -638,15 +638,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 
     pub fn create_interface_declaration<
-        TMembers: Into<NodeArrayOrVec>,
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
         TTypeParameters: Into<NodeArrayOrVec>,
         THeritageClauses: Into<NodeArrayOrVec>,
+        TMembers: Into<NodeArrayOrVec>,
     >(
         &self,
         base_factory: &TBaseNodeFactory,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
-        name: Rc<Node>,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        name: TName,
         type_parameters: Option<TTypeParameters>,
         heritage_clauses: Option<THeritageClauses>,
         members: TMembers,
@@ -660,7 +663,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_parameters,
             heritage_clauses,
         );
-        let node = InterfaceDeclaration::new(node, self.create_node_array(Some(members), None));
+        let mut node = InterfaceDeclaration::new(node, self.create_node_array(Some(members), None));
+        node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 

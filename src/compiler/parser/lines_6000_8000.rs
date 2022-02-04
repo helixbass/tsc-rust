@@ -446,7 +446,7 @@ impl ParserType {
             self,
             decorators,
             modifiers,
-            name.into(),
+            Into::<Rc<Node>>::into(name),
             type_parameters,
             heritage_clauses,
             members,
