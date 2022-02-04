@@ -123,7 +123,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         literal: Rc<Node /*TemplateMiddle | TemplateTail*/>,
     ) -> TemplateSpan {
         let node = self.create_base_node(base_factory, SyntaxKind::TemplateSpan);
-        let node = TemplateSpan::new(node, expression, literal);
+        let mut node = TemplateSpan::new(node, expression, literal);
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.literal))
+                | TransformFlags::ContainsES2015,
+        );
         node
     }
 
