@@ -4,9 +4,9 @@ use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_chil
 use crate::{
     AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
     BaseNodeFactory, ExportAssignment, ExportDeclaration, ExportSpecifier, ImportSpecifier,
-    JsxText, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind,
-    TransformFlags,
+    JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport,
+    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
+    SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -212,6 +212,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
+    }
+
+    pub fn create_missing_declaration(
+        &self,
+        base_factory: &TBaseNodeFactory,
+    ) -> MissingDeclaration {
+        let node = self.create_base_declaration(
+            base_factory,
+            SyntaxKind::MissingDeclaration,
+            Option::<NodeArray>::None,
+            Option::<NodeArray>::None,
+        );
+        MissingDeclaration::new(node)
     }
 
     pub(crate) fn create_jsdoc_primary_type_worker(

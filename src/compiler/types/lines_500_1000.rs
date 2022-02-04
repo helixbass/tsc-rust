@@ -25,11 +25,11 @@ use super::{
     JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag,
     JsxAttribute, JsxText, KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface,
     LiteralTypeNode, MappedTypeNode, MemberNameInterface, MetaProperty, MethodDeclaration,
-    MethodSignature, ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface,
-    NamedExports, NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration,
-    NamespaceImport, NewExpression, NodeArray, NonNullExpression, NumericLiteral,
-    ObjectBindingPattern, ObjectLiteralExpression, OmittedExpression, OptionalTypeNode,
-    ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
+    MethodSignature, MissingDeclaration, ModifiersArray, ModuleBlock, ModuleDeclaration,
+    NamedDeclarationInterface, NamedExports, NamedImports, NamedTupleMember, NamespaceExport,
+    NamespaceExportDeclaration, NamespaceImport, NewExpression, NodeArray, NonNullExpression,
+    NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression, OmittedExpression,
+    OptionalTypeNode, ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
     PartiallyEmittedExpression, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
     PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
     QualifiedName, ReadonlyTextRange, RegularExpressionLiteral, RestTypeNode, ReturnStatement,
@@ -315,6 +315,7 @@ pub enum Node {
     NamespaceExport(NamespaceExport),
     NamedImports(NamedImports),
     NamedExports(NamedExports),
+    MissingDeclaration(MissingDeclaration),
 }
 
 impl Node {
