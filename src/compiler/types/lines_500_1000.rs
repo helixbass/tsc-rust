@@ -2,7 +2,6 @@
 
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{

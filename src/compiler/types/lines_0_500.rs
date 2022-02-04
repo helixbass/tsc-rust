@@ -1,51 +1,7 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::Cell;
 use std::ops::Deref;
-use std::rc::{Rc, Weak};
-
-use super::{
-    ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
-    AssertClause, AssertEntry, AwaitExpression, BaseJSDocUnaryType, BigIntLiteral,
-    BinaryExpression, BindingElement, Block, BreakStatement, CallExpression,
-    CallSignatureDeclaration, CaseBlock, ClassDeclaration, ClassExpression,
-    ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
-    ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContinueStatement,
-    DebuggerStatement, Decorator, DeleteExpression, DoStatement, ElementAccessExpression, EmitNode,
-    EmptyStatement, EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration,
-    ExportSpecifier, ExpressionStatement, ExpressionWithTypeArguments, ForInStatement,
-    ForOfStatement, ForStatement, FunctionDeclaration, FunctionExpression,
-    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
-    HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
-    HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
-    Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
-    ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
-    InferTypeNode, InterfaceDeclaration, IntersectionTypeNode, JSDoc, JSDocLink, JSDocLinkCode,
-    JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocTag,
-    JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag,
-    JsxAttribute, JsxText, KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface,
-    LiteralTypeNode, MappedTypeNode, MemberNameInterface, MetaProperty, MethodDeclaration,
-    MethodSignature, ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface,
-    NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration, NamespaceImport,
-    NewExpression, NodeArray, NonNullExpression, NumericLiteral, ObjectBindingPattern,
-    ObjectLiteralExpression, OmittedExpression, OptionalTypeNode, ParameterDeclaration,
-    ParenthesizedExpression, ParenthesizedTypeNode, PartiallyEmittedExpression,
-    PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier, PropertyAccessExpression,
-    PropertyAssignment, PropertyDeclaration, PropertySignature, QualifiedName,
-    RegularExpressionLiteral, RestTypeNode, ReturnStatement, SemicolonClassElement,
-    SetAccessorDeclaration, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
-    SwitchStatement, Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression,
-    TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode,
-    TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, ThrowStatement, TransformFlags,
-    TryStatement, TupleTypeNode, TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode,
-    TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
-    TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
-    WhileStatement, WithStatement, YieldExpression,
-};
-use local_macros::{ast_type, enum_unwrapped};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Path(String);

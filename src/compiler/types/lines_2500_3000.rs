@@ -1,16 +1,13 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::Cell;
 use std::rc::Rc;
 
 use super::{
-    BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseNamedDeclaration, BaseNode,
-    BaseTextRange, BaseVariableLikeDeclaration, BindingLikeDeclarationInterface, Diagnostic,
-    FunctionDeclaration, HasExpressionInterface, HasInitializerInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Path, StringLiteral, Symbol,
-    SyntaxKind, TextRange, TypeCheckerHost, VariableLikeDeclarationInterface,
+    BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
+    BindingLikeDeclarationInterface, HasExpressionInterface, HasInitializerInterface,
+    HasTypeInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, SyntaxKind, VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
 

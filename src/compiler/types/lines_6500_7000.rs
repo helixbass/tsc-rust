@@ -1,16 +1,11 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
-use super::{
-    BaseTextRange, DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, NodeArrayOrVec,
-    SyntaxKind, SynthesizedComment, TextRange,
-};
-use crate::{BaseNodeFactory, MapLike, NodeFactoryFlags, OptionsNameMap};
-use local_macros::{command_line_option_type, enum_unwrapped};
+use super::{BaseTextRange, Node, SyntaxKind, SynthesizedComment, TextRange};
 
 pub trait ModuleResolutionHost {
     fn read_file(&self, file_name: &str) -> Option<String>;

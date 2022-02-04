@@ -1,19 +1,12 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
-use std::cell::{Cell, RefCell};
-use std::ops::Deref;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{
-    ArrayLiteralExpression, AsExpression, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
-    BaseJSDocUnaryType, BaseLiteralLikeNode, BaseNode, BaseSignatureDeclaration,
-    BaseVariableLikeDeclaration, BinaryExpression, CallExpression, ConditionalExpression,
-    ElementAccessExpression, FlowNode, FunctionExpression, HasExpressionInterface,
-    HasInitializerInterface, HasTypeInterface, JSDocTypeExpression, NewExpression, Node, NodeArray,
-    NodeInterface, NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression,
-    PropertyAccessExpression, ReadonlyTextRange, SpreadElement, SyntaxKind,
-    TaggedTemplateExpression, TemplateExpression, TransformFlags, TypeAssertion, __String,
+    BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration, BaseLiteralLikeNode, BaseNode,
+    BaseSignatureDeclaration, BaseVariableLikeDeclaration, FlowNode, HasExpressionInterface,
+    HasTypeInterface, Node, NodeArray, SyntaxKind,
 };
 use local_macros::ast_type;
 

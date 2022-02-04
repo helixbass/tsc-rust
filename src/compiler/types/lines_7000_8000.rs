@@ -1,16 +1,11 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::cell::RefCell;
+use std::rc::Rc;
 
-use super::{
-    BaseTextRange, DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, NodeArrayOrVec,
-    SyntaxKind, SynthesizedComment, TextRange,
-};
-use crate::{BaseNodeFactory, MapLike, NodeFactoryFlags, OptionsNameMap};
-use local_macros::{command_line_option_type, enum_unwrapped};
+use super::{Node, NodeArray, NodeArrayOrVec, SyntaxKind};
+use crate::{BaseNodeFactory, NodeFactoryFlags};
 
 bitflags! {
     pub struct OuterExpressionKinds: u32 {

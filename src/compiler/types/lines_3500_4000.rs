@@ -1,16 +1,9 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
-use super::{
-    BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseNamedDeclaration, BaseNode,
-    BaseTextRange, BaseVariableLikeDeclaration, BindingLikeDeclarationInterface, Diagnostic,
-    FunctionDeclaration, HasInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Path, StringLiteral, Symbol,
-    SyntaxKind, TextRange, TypeCheckerHost, VariableLikeDeclarationInterface,
-};
+use super::{BaseNode, BaseTextRange, Diagnostic, NodeArray, Path, Symbol, TypeCheckerHost};
 use local_macros::ast_type;
 
 pub type SourceTextAsChars = Vec<char>;
