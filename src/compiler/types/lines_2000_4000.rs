@@ -1850,6 +1850,22 @@ impl AssertClause {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct NamespaceImport {
+    _node: BaseNode,
+    pub name: Rc<Node /*Identifier*/>,
+}
+
+impl NamespaceImport {
+    pub fn new(base_node: BaseNode, name: Rc<Node /*Identifier*/>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct NamespaceExportDeclaration {
     _named_declaration: BaseNamedDeclaration,

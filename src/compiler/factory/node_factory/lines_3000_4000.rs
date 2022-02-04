@@ -10,8 +10,8 @@ use crate::{
     ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
     FunctionLikeDeclarationInterface, IfStatement, ImportClause, ImportDeclaration,
     ImportEqualsDeclaration, InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags,
-    ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
+    ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, NamespaceImport, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
     RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
     SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
     TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
@@ -909,6 +909,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, SyntaxKind::AssertEntry);
         let mut node = AssertEntry::new(node, name, value);
         node.add_transform_flags(TransformFlags::ContainsESNext);
+        node
+    }
+
+    pub fn create_namespace_import(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Rc<Node /*Identifier*/>,
+    ) -> NamespaceImport {
+        let node = self.create_base_node(base_factory, SyntaxKind::NamespaceImport);
+        let mut node = NamespaceImport::new(node, name);
+        node.add_transform_flags(propagate_child_flags(Some(&*node.name)));
+        node.set_transform_flags(
+            node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
+        );
         node
     }
 }
