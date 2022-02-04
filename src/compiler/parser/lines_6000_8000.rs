@@ -267,9 +267,11 @@ impl ParserType {
     ) -> Node {
         let declaration_list = self.parse_variable_declaration_list();
         self.parse_semicolon();
-        let node = self
-            .factory
-            .create_variable_statement(self, modifiers, declaration_list);
+        let node = self.factory.create_variable_statement(
+            self,
+            modifiers,
+            Into::<Rc<Node>>::into(declaration_list),
+        );
         node.set_decorators(decorators);
         self.finish_node(node.into(), pos, None)
     }

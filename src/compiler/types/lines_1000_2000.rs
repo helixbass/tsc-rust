@@ -151,6 +151,31 @@ impl Deref for NodeArrayOrVec {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum RcNodeOrNodeArrayOrVec {
+    RcNode(Rc<Node>),
+    NodeArray(NodeArray),
+    Vec(Vec<Rc<Node>>),
+}
+
+impl From<Rc<Node>> for RcNodeOrNodeArrayOrVec {
+    fn from(value: Rc<Node>) -> Self {
+        Self::RcNode(value)
+    }
+}
+
+impl From<NodeArray> for RcNodeOrNodeArrayOrVec {
+    fn from(value: NodeArray) -> Self {
+        Self::NodeArray(value)
+    }
+}
+
+impl From<Vec<Rc<Node>>> for RcNodeOrNodeArrayOrVec {
+    fn from(value: Vec<Rc<Node>>) -> Self {
+        Self::Vec(value)
+    }
+}
+
 bitflags! {
     pub struct GeneratedIdentifierFlags: u32 {
         const None = 0;

@@ -4,12 +4,13 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    AsExpression, BaseNodeFactory, Block, Debug_, EmptyStatement, ExpressionStatement,
-    ExpressionWithTypeArguments, FunctionDeclaration, IfStatement, InterfaceDeclaration,
-    MetaProperty, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    NonNullExpression, OmittedExpression, ReturnStatement, SemicolonClassElement, SyntaxKind,
-    TemplateSpan, TransformFlags, TypeAliasDeclaration, VariableDeclaration,
-    VariableDeclarationList, VariableStatement,
+    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, Debug_, EmptyStatement,
+    ExpressionStatement, ExpressionWithTypeArguments, FunctionDeclaration, IfStatement,
+    InterfaceDeclaration, MetaProperty, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
+    RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, SyntaxKind, TemplateSpan,
+    TransformFlags, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
+    VariableStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -158,11 +159,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_variable_statement(
+    pub fn create_variable_statement<
+        TModifiers: Into<NodeArrayOrVec>,
+        TDeclarationList: Into<RcNodeOrNodeArrayOrVec>,
+    >(
         &self,
         base_factory: &TBaseNodeFactory,
-        modifiers: Option<NodeArray>,
-        declaration_list: VariableDeclarationList,
+        modifiers: Option<TModifiers>,
+        declaration_list: TDeclarationList,
     ) -> VariableStatement {
         let node = self.create_base_declaration(
             base_factory,
@@ -170,7 +174,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             Option::<NodeArray>::None,
             modifiers,
         );
-        let node = VariableStatement::new(node, declaration_list.into());
+        let mut node = VariableStatement::new(
+            node,
+            match declaration_list.into() {
+                RcNodeOrNodeArrayOrVec::RcNode(declaration_list) => declaration_list,
+                RcNodeOrNodeArrayOrVec::NodeArray(declaration_list) => self
+                    .create_variable_declaration_list(base_factory, declaration_list, None)
+                    .into(),
+                RcNodeOrNodeArrayOrVec::Vec(declaration_list) => self
+                    .create_variable_declaration_list(base_factory, declaration_list, None)
+                    .into(),
+            },
+        );
+        node.add_transform_flags(propagate_child_flags(Some(&*node.declaration_list)));
+        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Ambient) {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
         node
     }
 
