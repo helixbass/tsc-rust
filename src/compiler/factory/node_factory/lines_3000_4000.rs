@@ -4,11 +4,11 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    BaseNodeFactory, Block, EmptyStatement, ExpressionStatement, ExpressionWithTypeArguments,
-    FunctionDeclaration, IfStatement, InterfaceDeclaration, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, OmittedExpression, ReturnStatement, SyntaxKind,
-    TemplateSpan, TransformFlags, TypeAliasDeclaration, VariableDeclaration,
-    VariableDeclarationList, VariableStatement,
+    AsExpression, BaseNodeFactory, Block, EmptyStatement, ExpressionStatement,
+    ExpressionWithTypeArguments, FunctionDeclaration, IfStatement, InterfaceDeclaration, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OmittedExpression,
+    ReturnStatement, SyntaxKind, TemplateSpan, TransformFlags, TypeAliasDeclaration,
+    VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -37,6 +37,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.expression))
                 | propagate_children_flags(node.type_arguments.as_ref())
                 | TransformFlags::ContainsES2015,
+        );
+        node
+    }
+
+    pub fn create_as_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node>, /*Expression*/
+        type_: Rc<Node /*TypeNode*/>,
+    ) -> AsExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::AsExpression);
+        let mut node = AsExpression::new(node, expression, type_);
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.type_))
+                | TransformFlags::ContainsTypeScript,
         );
         node
     }
