@@ -10,9 +10,9 @@ use super::{
     AwaitExpression, BaseJSDocUnaryType, BigIntLiteral, BinaryExpression, BindingElement, Block,
     CallExpression, CallSignatureDeclaration, ClassExpression, ClassStaticBlockDeclaration,
     ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
-    ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, Decorator,
-    DeleteExpression, DoStatement, ElementAccessExpression, EmitNode, EmptyStatement, EnumMember,
-    ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
+    ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContinueStatement,
+    Decorator, DeleteExpression, DoStatement, ElementAccessExpression, EmitNode, EmptyStatement,
+    EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
     ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
     FunctionExpression, FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
     HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
@@ -768,6 +768,7 @@ pub enum Node {
     SemicolonClassElement(SemicolonClassElement),
     DoStatement(DoStatement),
     WhileStatement(WhileStatement),
+    ContinueStatement(ContinueStatement),
 }
 
 impl Node {

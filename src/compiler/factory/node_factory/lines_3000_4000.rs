@@ -4,13 +4,14 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, Debug_, DoStatement, EmptyStatement,
-    ExpressionStatement, ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement,
-    FunctionDeclaration, IfStatement, InterfaceDeclaration, MetaProperty, ModifierFlags, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
-    OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, SyntaxKind,
-    TemplateSpan, TransformFlags, TypeAliasDeclaration, VariableDeclaration,
-    VariableDeclarationList, VariableStatement, WhileStatement,
+    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, ContinueStatement, Debug_,
+    DoStatement, EmptyStatement, ExpressionStatement, ExpressionWithTypeArguments, ForInStatement,
+    ForOfStatement, ForStatement, FunctionDeclaration, IfStatement, InterfaceDeclaration,
+    MetaProperty, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement,
+    SemicolonClassElement, StringOrRcNode, SyntaxKind, TemplateSpan, TransformFlags,
+    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    WhileStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -348,6 +349,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if await_modifier_is_some {
             node.add_transform_flags(TransformFlags::ContainsES2018);
         }
+        node
+    }
+
+    pub fn create_continue_statement<TLabel: Into<StringOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        label: Option<TLabel>,
+    ) -> ContinueStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::ContinueStatement);
+        let mut node = ContinueStatement::new(node, self.as_name(base_factory, label));
+        node.add_transform_flags(
+            propagate_child_flags(node.label.clone())
+                | TransformFlags::ContainsHoistedDeclarationOrCompletion,
+        );
         node
     }
 
