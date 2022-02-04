@@ -1486,3 +1486,25 @@ impl HasExpressionInterface for AwaitExpression {
         self.expression.clone()
     }
 }
+
+#[derive(Debug)]
+#[ast_type]
+pub struct YieldExpression {
+    _node: BaseNode,
+    pub asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
+    pub expression: Option<Rc<Node /*Expression*/>>,
+}
+
+impl YieldExpression {
+    pub fn new(
+        base_node: BaseNode,
+        expression: Option<Rc<Node>>,
+        asterisk_token: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            asterisk_token,
+        }
+    }
+}

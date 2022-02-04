@@ -24,7 +24,7 @@ use crate::{
     PropertyAccessExpression, SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
     SyntaxKind, SyntaxKindOrRcNode, TaggedTemplateExpression, TemplateExpression,
     TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags,
-    TypeAssertion, TypeOfExpression, TypeOperatorNode, VoidExpression,
+    TypeAssertion, TypeOfExpression, TypeOperatorNode, VoidExpression, YieldExpression,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -1229,6 +1229,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.expression))
                 | TransformFlags::ContainsES2015
                 | TransformFlags::ContainsRestOrSpread,
+        );
+        node
+    }
+
+    pub fn create_yield_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
+        expression: Option<Rc<Node /*Expression*/>>,
+    ) -> YieldExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::YieldExpression);
+        let mut node = YieldExpression::new(
+            node,
+            expression.map(|expression| {
+                self.parenthesizer_rules()
+                    .parenthesize_expression_for_disallowed_comma(base_factory, &expression)
+            }),
+            asterisk_token,
+        );
+        node.add_transform_flags(
+            propagate_child_flags(node.expression.clone())
+                | propagate_child_flags(node.asterisk_token.clone())
+                | TransformFlags::ContainsES2015
+                | TransformFlags::ContainsES2018
+                | TransformFlags::ContainsYield,
         );
         node
     }

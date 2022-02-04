@@ -207,7 +207,7 @@ pub use compiler::types::{
     TypeReferenceNode, UnderscoreEscapedMap, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface, UnionReduction, UnionType, UnionTypeNode,
     VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression, __String,
+    VariableStatement, VoidExpression, YieldExpression, __String,
 };
 use compiler::types::{CommandLineOptionType, EmitNode, StringOrDiagnosticMessage};
 pub use compiler::utilities::{
