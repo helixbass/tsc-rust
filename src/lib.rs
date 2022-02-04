@@ -182,7 +182,7 @@ pub use compiler::types::{
     LineAndCharacter, ListFormat, LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface,
     LiteralTypeNode, MappedTypeNode, MetaProperty, MethodDeclaration, MethodSignature,
     ModifierFlags, ModuleBlock, ModuleDeclaration, ModuleKind, ModuleResolutionHost,
-    ModuleResolutionKind, ModuleSpecifierResolutionHost, NamedDeclarationInterface,
+    ModuleResolutionKind, ModuleSpecifierResolutionHost, NamedDeclarationInterface, NamedImports,
     NamedTupleMember, NamespaceExport, NamespaceExportDeclaration, NamespaceImport, NewExpression,
     NewLineKind, Node, NodeArray, NodeArrayOrVec, NodeBuilderFlags, NodeCheckFlags, NodeConverters,
     NodeFactory, NodeFlags, NodeId, NodeInterface, NodeLinks, NonNullExpression, NumberLiteralType,

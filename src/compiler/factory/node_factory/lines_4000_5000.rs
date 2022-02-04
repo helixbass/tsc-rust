@@ -1,10 +1,10 @@
 use std::rc::Rc;
 
-use super::{get_default_tag_name_for_kind, propagate_child_flags};
+use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
     AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
-    BaseNodeFactory, JsxText, NamespaceExport, NamespaceImport, Node, NodeArray, NodeFactory,
-    NodeInterface, StringOrNodeArray, SyntaxKind, TransformFlags,
+    BaseNodeFactory, JsxText, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -56,6 +56,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.name)) | TransformFlags::ContainsESNext,
         );
+        node.set_transform_flags(
+            node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
+        );
+        node
+    }
+
+    pub fn create_named_imports<TElements: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: TElements,
+    ) -> NamedImports {
+        let node = self.create_base_node(base_factory, SyntaxKind::NamedImports);
+        let mut node = NamedImports::new(node, self.create_node_array(Some(elements), None));
+        node.add_transform_flags(propagate_children_flags(Some(&node.elements)));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );

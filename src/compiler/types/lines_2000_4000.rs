@@ -1931,6 +1931,22 @@ impl HasIsTypeOnlyInterface for ExportDeclaration {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct NamedImports {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<ImportSpecifier>*/
+}
+
+impl NamedImports {
+    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ImportSpecifier {
     _node: BaseNode,
     pub property_name: Option<Rc<Node /*Identifier*/>>,
