@@ -18,9 +18,9 @@ use super::{
     FunctionExpression, FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
     HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
-    Identifier, IfStatement, ImportClause, ImportEqualsDeclaration, ImportSpecifier,
-    ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode,
-    InterfaceDeclaration, IntersectionTypeNode, JSDoc, JSDocLink, JSDocLinkCode,
+    Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
+    ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
+    InferTypeNode, InterfaceDeclaration, IntersectionTypeNode, JSDoc, JSDocLink, JSDocLinkCode,
     JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocTag,
     JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag,
     JsxAttribute, JsxText, KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface,
@@ -782,6 +782,7 @@ pub enum Node {
     ModuleBlock(ModuleBlock),
     CaseBlock(CaseBlock),
     NamespaceExportDeclaration(NamespaceExportDeclaration),
+    ImportDeclaration(ImportDeclaration),
 }
 
 impl Node {

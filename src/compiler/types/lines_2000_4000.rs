@@ -1745,6 +1745,31 @@ impl HasIsTypeOnlyInterface for ImportEqualsDeclaration {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct ImportDeclaration {
+    _node: BaseNode,
+    pub import_clause: Option<Rc<Node /*ImportClause*/>>,
+    pub module_specifier: Rc<Node /*Expression*/>,
+    pub assert_clause: Option<Rc<Node /*AssertClause*/>>,
+}
+
+impl ImportDeclaration {
+    pub fn new(
+        base_node: BaseNode,
+        import_clause: Option<Rc<Node>>,
+        module_specifier: Rc<Node>,
+        assert_clause: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            import_clause,
+            module_specifier,
+            assert_clause,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ImportClause {
     _node: BaseNode,
     pub is_type_only: bool,

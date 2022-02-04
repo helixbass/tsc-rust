@@ -8,13 +8,13 @@ use crate::{
     BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_, DebuggerStatement,
     DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments,
     ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
-    FunctionLikeDeclarationInterface, IfStatement, ImportEqualsDeclaration, InterfaceDeclaration,
-    LabeledStatement, MetaProperty, ModifierFlags, ModuleBlock, ModuleDeclaration,
-    NamespaceExportDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement,
-    SemicolonClassElement, StringOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan,
-    ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration, VariableDeclaration,
-    VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
+    FunctionLikeDeclarationInterface, IfStatement, ImportDeclaration, ImportEqualsDeclaration,
+    InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags, ModuleBlock,
+    ModuleDeclaration, NamespaceExportDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeInterface, NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec,
+    ReturnStatement, SemicolonClassElement, StringOrRcNode, SwitchStatement, SyntaxKind,
+    TemplateSpan, ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration,
+    VariableDeclaration, VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -835,6 +835,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         }
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
+        );
+        node
+    }
+
+    pub fn create_import_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        import_clause: Option<Rc<Node /*ImportClause*/>>,
+        module_specifier: Rc<Node /*Expression*/>,
+        assert_clause: Option<Rc<Node /*AssertClause*/>>,
+    ) -> ImportDeclaration {
+        let node = self.create_base_declaration(
+            base_factory,
+            SyntaxKind::ImportDeclaration,
+            decorators,
+            modifiers,
+        );
+        let mut node = ImportDeclaration::new(node, import_clause, module_specifier, assert_clause);
+        node.add_transform_flags(
+            propagate_child_flags(node.import_clause.clone())
+                | propagate_child_flags(Some(&*node.module_specifier)),
         );
         node
     }
