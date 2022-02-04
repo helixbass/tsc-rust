@@ -3,9 +3,9 @@ use std::rc::Rc;
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
     AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
-    BaseNodeFactory, ImportSpecifier, JsxText, NamedImports, NamespaceExport, NamespaceImport,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, SyntaxKind,
-    TransformFlags,
+    BaseNodeFactory, ExportAssignment, ImportSpecifier, JsxText, NamedImports, NamespaceExport,
+    NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    StringOrNodeArray, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -90,6 +90,46 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(node.property_name.clone())
                 | propagate_child_flags(Some(&*node.name)),
         );
+        node.set_transform_flags(
+            node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
+        );
+        node
+    }
+
+    pub fn create_export_assignment<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        is_export_equals: Option<bool>,
+        expression: Rc<Node /*Expression*/>,
+    ) -> ExportAssignment {
+        let node = self.create_base_declaration(
+            base_factory,
+            SyntaxKind::ExportAssignment,
+            decorators,
+            modifiers,
+        );
+        let mut node = ExportAssignment::new(
+            node,
+            is_export_equals,
+            if matches!(is_export_equals, Some(true)) {
+                self.parenthesizer_rules()
+                    .parenthesize_right_side_of_binary(
+                        base_factory,
+                        SyntaxKind::EqualsToken,
+                        None,
+                        &expression,
+                    )
+            } else {
+                self.parenthesizer_rules()
+                    .parenthesize_expression_of_export_default(base_factory, &expression)
+            },
+        );
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
