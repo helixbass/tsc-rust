@@ -807,6 +807,18 @@ impl EmptyStatement {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct DebuggerStatement {
+    _node: BaseNode,
+}
+
+impl DebuggerStatement {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct Block {
     _node: BaseNode,
     pub statements: NodeArray, /*<Statement>*/

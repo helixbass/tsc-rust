@@ -5,14 +5,14 @@ use std::rc::Rc;
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     modifiers_to_flags, AsExpression, BaseNodeFactory, Block, BreakStatement, ContinueStatement,
-    Debug_, DoStatement, EmptyStatement, ExpressionStatement, ExpressionWithTypeArguments,
-    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration, IfStatement,
-    InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
-    RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
-    SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
-    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
-    WhileStatement, WithStatement,
+    Debug_, DebuggerStatement, DoStatement, EmptyStatement, ExpressionStatement,
+    ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    IfStatement, InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
+    OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement,
+    StringOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags,
+    TryStatement, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
+    VariableStatement, WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -480,6 +480,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(node.finally_block.clone()),
         );
         node
+    }
+
+    pub fn create_debugger_statement(&self, base_factory: &TBaseNodeFactory) -> DebuggerStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::DebuggerStatement);
+        DebuggerStatement::new(node)
     }
 
     pub fn create_variable_declaration(
