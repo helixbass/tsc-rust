@@ -8,11 +8,12 @@ use crate::{
     ContinueStatement, Debug_, DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration,
     ExpressionStatement, ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement,
     FunctionDeclaration, FunctionLikeDeclarationInterface, IfStatement, InterfaceDeclaration,
-    LabeledStatement, MetaProperty, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec,
-    ReturnStatement, SemicolonClassElement, StringOrRcNode, SwitchStatement, SyntaxKind,
-    TemplateSpan, ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration,
-    VariableDeclaration, VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
+    LabeledStatement, MetaProperty, ModifierFlags, ModuleDeclaration, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
+    RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
+    SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
+    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -719,6 +720,48 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.add_transform_flags(
             propagate_children_flags(Some(&node.members)) | TransformFlags::ContainsTypeScript,
         );
+        node.set_transform_flags(
+            node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
+        );
+        node
+    }
+
+    pub fn create_module_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        name: Rc<Node /*ModuleName*/>,
+        body: Option<Rc<Node /*ModuleBody*/>>,
+        flags: Option<NodeFlags>,
+    ) -> ModuleDeclaration {
+        let flags = flags.unwrap_or(NodeFlags::None);
+        let node = self.create_base_declaration(
+            base_factory,
+            SyntaxKind::ModuleDeclaration,
+            decorators,
+            modifiers,
+        );
+        node.set_flags(
+            node.flags()
+                | (flags
+                    & (NodeFlags::Namespace
+                        | NodeFlags::NestedNamespace
+                        | NodeFlags::GlobalAugmentation)),
+        );
+        let mut node = ModuleDeclaration::new(node, name, body);
+        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Ambient) {
+            node.set_transform_flags(TransformFlags::ContainsTypeScript);
+        } else {
+            node.add_transform_flags(
+                propagate_child_flags(Some(&*node.name))
+                    | propagate_child_flags(node.body.clone())
+                    | TransformFlags::ContainsTypeScript,
+            );
+        }
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
