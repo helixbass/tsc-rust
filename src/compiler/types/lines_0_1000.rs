@@ -39,7 +39,7 @@ use super::{
     TypeElement, TypeLiteralNode, TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration,
     TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
     UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression, YieldExpression,
+    VariableStatement, VoidExpression, WhileStatement, YieldExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -767,6 +767,7 @@ pub enum Node {
     MetaProperty(MetaProperty),
     SemicolonClassElement(SemicolonClassElement),
     DoStatement(DoStatement),
+    WhileStatement(WhileStatement),
 }
 
 impl Node {

@@ -10,7 +10,7 @@ use crate::{
     NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
     RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, SyntaxKind, TemplateSpan,
     TransformFlags, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
-    VariableStatement,
+    VariableStatement, WhileStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -241,7 +241,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         statement: Rc<Node /*Statement*/>,
         expression: Rc<Node /*Expression*/>,
     ) -> DoStatement {
-        let node = self.create_base_node(base_factory, SyntaxKind::IfStatement);
+        let node = self.create_base_node(base_factory, SyntaxKind::DoStatement);
         let mut node = DoStatement::new(
             node,
             self.as_embedded_statement(Some(statement)).unwrap(),
@@ -250,6 +250,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.statement))
                 | propagate_child_flags(Some(&*node.expression)),
+        );
+        node
+    }
+
+    pub fn create_while_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+        statement: Rc<Node /*Statement*/>,
+    ) -> WhileStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::WhileStatement);
+        let mut node = WhileStatement::new(
+            node,
+            expression,
+            self.as_embedded_statement(Some(statement)).unwrap(),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.statement)),
         );
         node
     }

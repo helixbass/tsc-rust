@@ -900,6 +900,24 @@ impl DoStatement {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct WhileStatement {
+    _node: BaseNode,
+    pub statement: Rc</*Statement*/ Node>,
+    pub expression: Rc</*Expression*/ Node>,
+}
+
+impl WhileStatement {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, statement: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            statement,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ForStatement {
     _node: BaseNode,
     pub statement: Rc<Node /*Statement*/>,
