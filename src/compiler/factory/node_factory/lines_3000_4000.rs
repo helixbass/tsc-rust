@@ -8,13 +8,14 @@ use crate::{
     BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_, DebuggerStatement,
     DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments,
     ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
-    FunctionLikeDeclarationInterface, IfStatement, ImportDeclaration, ImportEqualsDeclaration,
-    InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags, ModuleBlock,
-    ModuleDeclaration, NamespaceExportDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec,
-    ReturnStatement, SemicolonClassElement, StringOrRcNode, SwitchStatement, SyntaxKind,
-    TemplateSpan, ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration,
-    VariableDeclaration, VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
+    FunctionLikeDeclarationInterface, IfStatement, ImportClause, ImportDeclaration,
+    ImportEqualsDeclaration, InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags,
+    ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
+    RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
+    SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
+    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -861,6 +862,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.add_transform_flags(
             propagate_child_flags(node.import_clause.clone())
                 | propagate_child_flags(Some(&*node.module_specifier)),
+        );
+        node
+    }
+
+    pub fn create_import_clause(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        is_type_only: bool,
+        name: Option<Rc<Node /*Identifier*/>>,
+        named_bindings: Option<Rc<Node /*NamedImportBindings*/>>,
+    ) -> ImportClause {
+        let node = self.create_base_node(base_factory, SyntaxKind::ImportClause);
+        let mut node = ImportClause::new(node, is_type_only, name, named_bindings);
+        node.add_transform_flags(
+            propagate_child_flags(node.name.clone())
+                | propagate_child_flags(node.named_bindings.clone()),
+        );
+        if is_type_only {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        node.set_transform_flags(
+            node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
         node
     }
