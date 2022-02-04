@@ -4,10 +4,32 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use super::{
-    BaseNamedDeclaration, BaseNode, HasIsTypeOnlyInterface, HasTypeInterface,
-    NamedDeclarationInterface, Node, NodeArray, SyntaxKind, TextRange,
+    BaseNamedDeclaration, BaseNode, HasExpressionInterface, HasIsTypeOnlyInterface,
+    HasTypeInterface, NamedDeclarationInterface, Node, NodeArray, SyntaxKind, TextRange,
 };
 use local_macros::ast_type;
+
+#[derive(Debug)]
+#[ast_type]
+pub struct ExternalModuleReference {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl ExternalModuleReference {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for ExternalModuleReference {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
 
 #[derive(Debug)]
 #[ast_type]

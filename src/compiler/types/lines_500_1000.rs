@@ -13,8 +13,8 @@ use super::{
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContinueStatement,
     DebuggerStatement, Decorator, DeleteExpression, DoStatement, ElementAccessExpression, EmitNode,
     EmptyStatement, EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration,
-    ExportSpecifier, ExpressionStatement, ExpressionWithTypeArguments, ForInStatement,
-    ForOfStatement, ForStatement, FunctionDeclaration, FunctionExpression,
+    ExportSpecifier, ExpressionStatement, ExpressionWithTypeArguments, ExternalModuleReference,
+    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration, FunctionExpression,
     FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
     HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
@@ -316,6 +316,7 @@ pub enum Node {
     NamedImports(NamedImports),
     NamedExports(NamedExports),
     MissingDeclaration(MissingDeclaration),
+    ExternalModuleReference(ExternalModuleReference),
 }
 
 impl Node {

@@ -3,10 +3,10 @@ use std::rc::Rc;
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
     AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
-    BaseNodeFactory, ExportAssignment, ExportDeclaration, ExportSpecifier, ImportSpecifier,
-    JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
-    SyntaxKind, TransformFlags,
+    BaseNodeFactory, ExportAssignment, ExportDeclaration, ExportSpecifier, ExternalModuleReference,
+    ImportSpecifier, JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport,
+    NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -225,6 +225,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             Option::<NodeArray>::None,
         );
         MissingDeclaration::new(node)
+    }
+
+    pub fn create_external_module_reference(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> ExternalModuleReference {
+        let node = self.create_base_node(base_factory, SyntaxKind::ExternalModuleReference);
+        let mut node = ExternalModuleReference::new(node, expression);
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node.set_transform_flags(
+            node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
+        );
+        node
     }
 
     pub(crate) fn create_jsdoc_primary_type_worker(
