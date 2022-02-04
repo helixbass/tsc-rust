@@ -1095,6 +1095,26 @@ impl WithStatement {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct SwitchStatement {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+    pub case_block: Rc<Node /*CaseBlock*/>,
+    pub possibly_exhaustive: Option<bool>,
+}
+
+impl SwitchStatement {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, case_block: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            case_block,
+            possibly_exhaustive: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct LabeledStatement {
     _node: BaseNode,
     pub label: Rc<Node /*Identifier*/>,

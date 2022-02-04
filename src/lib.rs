@@ -196,7 +196,7 @@ pub use compiler::types::{
     SetAccessorDeclaration, ShorthandPropertyAssignment, Signature, SignatureDeclarationBase,
     SignatureDeclarationInterface, SignatureFlags, SignatureKind, SourceFile, SourceFileLike,
     SourceMapRange, SourceTextAsChars, SpreadAssignment, SpreadElement, StringLiteral,
-    StringLiteralType, StringOrNodeArray, StructureIsReused, Symbol, SymbolFlags,
+    StringLiteralType, StringOrNodeArray, StructureIsReused, SwitchStatement, Symbol, SymbolFlags,
     SymbolFormatFlags, SymbolId, SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker,
     SymbolWriter, SyntaxKind, SynthesizedComment, TaggedTemplateExpression, TemplateExpression,
     TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode,

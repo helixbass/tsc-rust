@@ -9,9 +9,9 @@ use crate::{
     ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration, IfStatement,
     InterfaceDeclaration, MetaProperty, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
-    RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode, SyntaxKind,
-    TemplateSpan, TransformFlags, TypeAliasDeclaration, VariableDeclaration,
-    VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
+    RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
+    SwitchStatement, SyntaxKind, TemplateSpan, TransformFlags, TypeAliasDeclaration,
+    VariableDeclaration, VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -410,6 +410,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
                 | propagate_child_flags(Some(&*node.statement)),
+        );
+        node
+    }
+
+    pub fn create_switch_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+        case_block: Rc<Node /*CaseBlock*/>,
+    ) -> SwitchStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::SwitchStatement);
+        let mut node = SwitchStatement::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expression_for_disallowed_comma(base_factory, &expression),
+            case_block,
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.case_block)),
         );
         node
     }

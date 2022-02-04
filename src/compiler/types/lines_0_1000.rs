@@ -33,13 +33,14 @@ use super::{
     QualifiedName, RegularExpressionLiteral, RestTypeNode, ReturnStatement, SemicolonClassElement,
     SetAccessorDeclaration, ShorthandPropertyAssignment, SignatureDeclarationBase,
     SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
-    Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode, TemplateLiteralTypeSpan,
-    TemplateSpan, ThisTypeNode, TransformFlags, TupleTypeNode, TypeAliasDeclaration, TypeAssertion,
-    TypeElement, TypeLiteralNode, TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration,
-    TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
-    UnionTypeNode, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression, WhileStatement, WithStatement, YieldExpression,
+    SwitchStatement, Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression,
+    TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode,
+    TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, TransformFlags, TupleTypeNode,
+    TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode, TypeOfExpression,
+    TypeOperatorNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
+    TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
+    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
+    WhileStatement, WithStatement, YieldExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -771,6 +772,7 @@ pub enum Node {
     ContinueStatement(ContinueStatement),
     BreakStatement(BreakStatement),
     WithStatement(WithStatement),
+    SwitchStatement(SwitchStatement),
 }
 
 impl Node {
