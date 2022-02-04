@@ -1081,11 +1081,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let template_flags = template_flags.unwrap_or(TokenFlags::None);
         let node = self.create_base_token(base_factory, kind);
         let node = BaseLiteralLikeNode::new(node, text);
-        let node = TemplateLiteralLikeNode::new(
+        let mut node = TemplateLiteralLikeNode::new(
             node,
             raw_text,
             Some(template_flags & TokenFlags::TemplateLiteralLikeFlags),
         );
+        node.add_transform_flags(TransformFlags::ContainsES2015);
+        if matches!(node.template_flags, Some(template_flags) if template_flags != TokenFlags::None)
+        {
+            node.add_transform_flags(TransformFlags::ContainsES2018);
+        }
         node
     }
 
