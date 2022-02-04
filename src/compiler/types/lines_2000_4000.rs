@@ -1866,6 +1866,22 @@ impl NamespaceImport {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct NamespaceExport {
+    _node: BaseNode,
+    pub name: Rc<Node /*Identifier*/>,
+}
+
+impl NamespaceExport {
+    pub fn new(base_node: BaseNode, name: Rc<Node /*Identifier*/>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct NamespaceExportDeclaration {
     _named_declaration: BaseNamedDeclaration,

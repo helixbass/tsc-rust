@@ -27,8 +27,8 @@ use super::{
     JsxAttribute, JsxText, KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface,
     LiteralTypeNode, MappedTypeNode, MemberNameInterface, MetaProperty, MethodDeclaration,
     MethodSignature, ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface,
-    NamedTupleMember, NamespaceExportDeclaration, NamespaceImport, NewExpression, NodeArray,
-    NonNullExpression, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
+    NamedTupleMember, NamespaceExport, NamespaceExportDeclaration, NamespaceImport, NewExpression,
+    NodeArray, NonNullExpression, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
     OmittedExpression, OptionalTypeNode, ParameterDeclaration, ParenthesizedExpression,
     ParenthesizedTypeNode, PartiallyEmittedExpression, PostfixUnaryExpression,
     PrefixUnaryExpression, PrivateIdentifier, PropertyAccessExpression, PropertyAssignment,
@@ -787,6 +787,7 @@ pub enum Node {
     AssertClause(AssertClause),
     AssertEntry(AssertEntry),
     NamespaceImport(NamespaceImport),
+    NamespaceExport(NamespaceExport),
 }
 
 impl Node {
