@@ -524,9 +524,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> VariableDeclarationList {
         let flags = flags.unwrap_or(NodeFlags::None);
         let node = self.create_base_node(base_factory, SyntaxKind::VariableDeclarationList);
-        node.set_flags(node.flags() & NodeFlags::BlockScoped);
-        let node =
+        node.set_flags(node.flags() | (flags & NodeFlags::BlockScoped));
+        let mut node =
             VariableDeclarationList::new(node, self.create_node_array(Some(declarations), None));
+        node.add_transform_flags(
+            propagate_children_flags(Some(&node.declarations))
+                | TransformFlags::ContainsHoistedDeclarationOrCompletion,
+        );
+        if flags.intersects(NodeFlags::BlockScoped) {
+            node.add_transform_flags(
+                TransformFlags::ContainsES2015 | TransformFlags::ContainsBlockScopedBinding,
+            );
+        }
         node
     }
 
