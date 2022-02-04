@@ -5,12 +5,12 @@ use std::rc::Rc;
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     modifiers_to_flags, AsExpression, BaseNodeFactory, Block, Debug_, DoStatement, EmptyStatement,
-    ExpressionStatement, ExpressionWithTypeArguments, ForStatement, FunctionDeclaration,
-    IfStatement, InterfaceDeclaration, MetaProperty, ModifierFlags, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
-    RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, SyntaxKind, TemplateSpan,
-    TransformFlags, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
-    VariableStatement, WhileStatement,
+    ExpressionStatement, ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement,
+    FunctionDeclaration, IfStatement, InterfaceDeclaration, MetaProperty, ModifierFlags, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
+    OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, SyntaxKind,
+    TemplateSpan, TransformFlags, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList, VariableStatement, WhileStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -295,6 +295,59 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(node.incrementor.clone())
                 | propagate_child_flags(Some(&*node.statement)),
         );
+        node
+    }
+
+    pub fn create_for_in_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        initializer: Rc<Node /*ForInitializer*/>,
+        expression: Rc<Node /*Expression*/>,
+        statement: Rc<Node /*Statement*/>,
+    ) -> ForInStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::ForInStatement);
+        let mut node = ForInStatement::new(
+            node,
+            initializer,
+            expression,
+            self.as_embedded_statement(Some(statement)).unwrap(),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.initializer))
+                | propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.statement)),
+        );
+        node
+    }
+
+    pub fn create_for_of_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        await_modifier: Option<Rc<Node /*AwaitKeyword*/>>,
+        initializer: Rc<Node /*ForInitializer*/>,
+        expression: Rc<Node /*Expression*/>,
+        statement: Rc<Node /*Statement*/>,
+    ) -> ForOfStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::ForOfStatement);
+        let await_modifier_is_some = await_modifier.is_some();
+        let mut node = ForOfStatement::new(
+            node,
+            await_modifier,
+            initializer,
+            self.parenthesizer_rules()
+                .parenthesize_expression_for_disallowed_comma(base_factory, &expression),
+            self.as_embedded_statement(Some(statement)).unwrap(),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(node.await_modifier.clone())
+                | propagate_child_flags(Some(&*node.initializer))
+                | propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.statement))
+                | TransformFlags::ContainsES2015,
+        );
+        if await_modifier_is_some {
+            node.add_transform_flags(TransformFlags::ContainsES2018);
+        }
         node
     }
 

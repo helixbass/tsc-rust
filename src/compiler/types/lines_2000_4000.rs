@@ -966,9 +966,9 @@ pub struct ForInStatement {
 impl ForInStatement {
     pub fn new(
         base_node: BaseNode,
-        statement: Rc<Node>,
         initializer: Rc<Node>,
         expression: Rc<Node>,
+        statement: Rc<Node>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -1003,9 +1003,9 @@ impl ForOfStatement {
     pub fn new(
         base_node: BaseNode,
         await_modifier: Option<Rc<Node>>,
-        statement: Rc<Node>,
         initializer: Rc<Node>,
         expression: Rc<Node>,
+        statement: Rc<Node>,
     ) -> Self {
         Self {
             _node: base_node,
