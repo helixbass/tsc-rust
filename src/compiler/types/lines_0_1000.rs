@@ -35,9 +35,9 @@ use super::{
     SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
     SwitchStatement, Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression,
     TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode,
-    TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, TransformFlags, TupleTypeNode,
-    TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode, TypeOfExpression,
-    TypeOperatorNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
+    TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, ThrowStatement, TransformFlags,
+    TupleTypeNode, TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode,
+    TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
     TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
     VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
     WhileStatement, WithStatement, YieldExpression,
@@ -773,6 +773,7 @@ pub enum Node {
     BreakStatement(BreakStatement),
     WithStatement(WithStatement),
     SwitchStatement(SwitchStatement),
+    ThrowStatement(ThrowStatement),
 }
 
 impl Node {

@@ -1132,6 +1132,28 @@ impl LabeledStatement {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct ThrowStatement {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl ThrowStatement {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for ThrowStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub enum TypeElement {
     PropertySignature(PropertySignature),

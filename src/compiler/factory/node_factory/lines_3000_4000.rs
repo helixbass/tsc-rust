@@ -10,8 +10,9 @@ use crate::{
     InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags, Node, NodeArray,
     NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
     RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
-    SwitchStatement, SyntaxKind, TemplateSpan, TransformFlags, TypeAliasDeclaration,
-    VariableDeclaration, VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
+    SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags,
+    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -450,6 +451,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.label))
                 | propagate_child_flags(Some(&*node.statement)),
         );
+        node
+    }
+
+    pub fn create_throw_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> ThrowStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::ThrowStatement);
+        let mut node = ThrowStatement::new(node, expression);
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
         node
     }
 
