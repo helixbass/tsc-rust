@@ -8,7 +8,7 @@ use crate::{
     ContinueStatement, Debug_, DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration,
     ExpressionStatement, ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement,
     FunctionDeclaration, FunctionLikeDeclarationInterface, IfStatement, InterfaceDeclaration,
-    LabeledStatement, MetaProperty, ModifierFlags, ModuleDeclaration, Node, NodeArray,
+    LabeledStatement, MetaProperty, ModifierFlags, ModuleBlock, ModuleDeclaration, Node, NodeArray,
     NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
     RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
     SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
@@ -765,6 +765,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
+        node
+    }
+
+    pub fn create_module_block<TStatements: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        statements: Option<TStatements>,
+    ) -> ModuleBlock {
+        let node = self.create_base_node(base_factory, SyntaxKind::ModuleBlock);
+        let mut node = ModuleBlock::new(node, self.create_node_array(statements, None));
+        node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
         node
     }
 }

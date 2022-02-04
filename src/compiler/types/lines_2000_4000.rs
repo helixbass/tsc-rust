@@ -1679,6 +1679,22 @@ impl NamedDeclarationInterface for ModuleDeclaration {
     }
 }
 
+#[derive(Debug)]
+#[ast_type]
+pub struct ModuleBlock {
+    _node: BaseNode,
+    pub statements: NodeArray, /*<Statement>*/
+}
+
+impl ModuleBlock {
+    pub fn new(base_node: BaseNode, statements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            statements,
+        }
+    }
+}
+
 pub trait HasIsTypeOnlyInterface {
     fn is_type_only(&self) -> bool;
 }

@@ -25,7 +25,7 @@ use super::{
     JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag,
     JsxAttribute, JsxText, KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface,
     LiteralTypeNode, MappedTypeNode, MemberNameInterface, MetaProperty, MethodDeclaration,
-    MethodSignature, ModifiersArray, ModuleDeclaration, NamedDeclarationInterface,
+    MethodSignature, ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface,
     NamedTupleMember, NewExpression, NodeArray, NonNullExpression, NumericLiteral,
     ObjectBindingPattern, ObjectLiteralExpression, OmittedExpression, OptionalTypeNode,
     ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
@@ -779,6 +779,7 @@ pub enum Node {
     DebuggerStatement(DebuggerStatement),
     ClassDeclaration(ClassDeclaration),
     EnumDeclaration(EnumDeclaration),
+    ModuleBlock(ModuleBlock),
 }
 
 impl Node {
