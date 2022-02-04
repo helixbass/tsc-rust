@@ -1300,6 +1300,22 @@ impl ClassLikeDeclarationInterface for ClassLikeDeclarationBase {
 
 #[derive(Debug)]
 #[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface, ClassLikeDeclarationInterface"
+)]
+pub struct ClassExpression {
+    _class_like_declaration: ClassLikeDeclarationBase,
+}
+
+impl ClassExpression {
+    pub fn new(base_class_like_declaration: ClassLikeDeclarationBase) -> Self {
+        Self {
+            _class_like_declaration: base_class_like_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface"
 )]
 pub struct InterfaceDeclaration {

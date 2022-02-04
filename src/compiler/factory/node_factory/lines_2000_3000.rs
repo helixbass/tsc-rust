@@ -15,16 +15,17 @@ use crate::{
     is_omitted_expression, is_super_keyword, is_super_property, last_or_undefined,
     modifiers_to_flags, ArrayBindingPattern, ArrayLiteralExpression, ArrowFunction,
     AwaitExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
-    BindingElement, CallExpression, ConditionalExpression, Debug_, DeleteExpression,
-    ElementAccessExpression, FunctionExpression, FunctionLikeDeclarationInterface,
-    HasTypeParametersInterface, ImportTypeNode, IndexedAccessTypeNode, InferTypeNode,
-    LiteralTypeNode, MappedTypeNode, ModifierFlags, NewExpression, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, ObjectBindingPattern, ObjectLiteralExpression,
-    ParenthesizedExpression, ParenthesizedTypeNode, PostfixUnaryExpression, PrefixUnaryExpression,
-    PropertyAccessExpression, SpreadElement, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
-    SyntaxKind, SyntaxKindOrRcNode, TaggedTemplateExpression, TemplateExpression,
-    TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags, TransformFlags,
-    TypeAssertion, TypeOfExpression, TypeOperatorNode, VoidExpression, YieldExpression,
+    BindingElement, CallExpression, ClassExpression, ConditionalExpression, Debug_,
+    DeleteExpression, ElementAccessExpression, FunctionExpression,
+    FunctionLikeDeclarationInterface, HasTypeParametersInterface, ImportTypeNode,
+    IndexedAccessTypeNode, InferTypeNode, LiteralTypeNode, MappedTypeNode, ModifierFlags,
+    NewExpression, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
+    ObjectBindingPattern, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
+    PostfixUnaryExpression, PrefixUnaryExpression, PropertyAccessExpression, SpreadElement,
+    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, SyntaxKindOrRcNode,
+    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode,
+    ThisTypeNode, TokenFlags, TransformFlags, TypeAssertion, TypeOfExpression, TypeOperatorNode,
+    VoidExpression, YieldExpression,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -1214,25 +1215,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_spread_element(
-        &self,
-        base_factory: &TBaseNodeFactory,
-        expression: Rc<Node /*Expression*/>,
-    ) -> SpreadElement {
-        let node = self.create_base_expression(base_factory, SyntaxKind::SpreadElement);
-        let mut node = SpreadElement::new(
-            node,
-            self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(base_factory, &expression),
-        );
-        node.add_transform_flags(
-            propagate_child_flags(Some(&*node.expression))
-                | TransformFlags::ContainsES2015
-                | TransformFlags::ContainsRestOrSpread,
-        );
-        node
-    }
-
     pub fn create_yield_expression(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -1255,6 +1237,57 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsES2018
                 | TransformFlags::ContainsYield,
         );
+        node
+    }
+
+    pub fn create_spread_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> SpreadElement {
+        let node = self.create_base_expression(base_factory, SyntaxKind::SpreadElement);
+        let mut node = SpreadElement::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expression_for_disallowed_comma(base_factory, &expression),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | TransformFlags::ContainsES2015
+                | TransformFlags::ContainsRestOrSpread,
+        );
+        node
+    }
+
+    pub fn create_class_expression<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+        TTypeParameters: Into<NodeArrayOrVec>,
+        THeritageClauses: Into<NodeArrayOrVec>,
+        TMembers: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        name: Option<TName /*string | Identifier*/>,
+        type_parameters: Option<TTypeParameters /*<TypeParameterDeclaration>*/>,
+        heritage_clauses: Option<THeritageClauses /*<HeritageClause>*/>,
+        members: TMembers, /*<ClassElement>*/
+    ) -> ClassExpression {
+        let node = self.create_base_class_like_declaration(
+            base_factory,
+            SyntaxKind::ClassExpression,
+            decorators,
+            modifiers,
+            name,
+            type_parameters,
+            heritage_clauses,
+            members,
+        );
+        let mut node = ClassExpression::new(node);
+        node.add_transform_flags(TransformFlags::ContainsES2015);
         node
     }
 }
