@@ -1029,6 +1029,22 @@ impl HasInitializerInterface for ForOfStatement {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct BreakStatement {
+    _node: BaseNode,
+    pub label: Option<Rc<Node /*Identifier*/>>,
+}
+
+impl BreakStatement {
+    pub fn new(base_node: BaseNode, label: Option<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            label,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ContinueStatement {
     _node: BaseNode,
     pub label: Option<Rc<Node /*Identifier*/>>,

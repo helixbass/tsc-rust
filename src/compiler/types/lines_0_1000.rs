@@ -8,8 +8,8 @@ use std::rc::{Rc, Weak};
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
     AwaitExpression, BaseJSDocUnaryType, BigIntLiteral, BinaryExpression, BindingElement, Block,
-    CallExpression, CallSignatureDeclaration, ClassExpression, ClassStaticBlockDeclaration,
-    ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
+    BreakStatement, CallExpression, CallSignatureDeclaration, ClassExpression,
+    ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContinueStatement,
     Decorator, DeleteExpression, DoStatement, ElementAccessExpression, EmitNode, EmptyStatement,
     EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
@@ -769,6 +769,7 @@ pub enum Node {
     DoStatement(DoStatement),
     WhileStatement(WhileStatement),
     ContinueStatement(ContinueStatement),
+    BreakStatement(BreakStatement),
 }
 
 impl Node {

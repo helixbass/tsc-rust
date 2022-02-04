@@ -4,14 +4,14 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, ContinueStatement, Debug_,
-    DoStatement, EmptyStatement, ExpressionStatement, ExpressionWithTypeArguments, ForInStatement,
-    ForOfStatement, ForStatement, FunctionDeclaration, IfStatement, InterfaceDeclaration,
-    MetaProperty, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement,
-    SemicolonClassElement, StringOrRcNode, SyntaxKind, TemplateSpan, TransformFlags,
-    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
-    WhileStatement,
+    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, BreakStatement, ContinueStatement,
+    Debug_, DoStatement, EmptyStatement, ExpressionStatement, ExpressionWithTypeArguments,
+    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration, IfStatement,
+    InterfaceDeclaration, MetaProperty, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
+    RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode, SyntaxKind,
+    TemplateSpan, TransformFlags, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList, VariableStatement, WhileStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -359,6 +359,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> ContinueStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::ContinueStatement);
         let mut node = ContinueStatement::new(node, self.as_name(base_factory, label));
+        node.add_transform_flags(
+            propagate_child_flags(node.label.clone())
+                | TransformFlags::ContainsHoistedDeclarationOrCompletion,
+        );
+        node
+    }
+
+    pub fn create_break_statement<TLabel: Into<StringOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        label: Option<TLabel>,
+    ) -> BreakStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::BreakStatement);
+        let mut node = BreakStatement::new(node, self.as_name(base_factory, label));
         node.add_transform_flags(
             propagate_child_flags(node.label.clone())
                 | TransformFlags::ContainsHoistedDeclarationOrCompletion,
