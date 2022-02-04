@@ -748,12 +748,17 @@ impl ClassStaticBlockDeclaration {
 )]
 pub struct VariableDeclaration {
     _variable_like_declaration: BaseVariableLikeDeclaration,
+    pub exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
 }
 
 impl VariableDeclaration {
-    pub fn new(base_variable_like_declaration: BaseVariableLikeDeclaration) -> Self {
+    pub fn new(
+        base_variable_like_declaration: BaseVariableLikeDeclaration,
+        exclamation_token: Option<Rc<Node>>,
+    ) -> Self {
         Self {
             _variable_like_declaration: base_variable_like_declaration,
+            exclamation_token,
         }
     }
 }

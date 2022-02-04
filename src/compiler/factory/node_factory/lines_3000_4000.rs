@@ -487,12 +487,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         DebuggerStatement::new(node)
     }
 
-    pub fn create_variable_declaration(
+    pub fn create_variable_declaration<TName: Into<StringOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: Option<Rc<Node>>,
-        type_: Option<Rc<Node>>,
-        initializer: Option<Rc<Node>>,
+        name: Option<TName /*BindingName*/>,
+        exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+        initializer: Option<Rc<Node /*Expression*/>>,
     ) -> VariableDeclaration {
         let node = self.create_base_variable_like_declaration(
             base_factory,
@@ -501,9 +502,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             Option::<NodeArray>::None,
             name,
             type_,
-            initializer,
+            initializer.map(|initializer| {
+                self.parenthesizer_rules()
+                    .parenthesize_expression_for_disallowed_comma(base_factory, &initializer)
+            }),
         );
-        VariableDeclaration::new(node)
+        let exclamation_token_is_some = exclamation_token.is_some();
+        let mut node = VariableDeclaration::new(node, exclamation_token);
+        node.add_transform_flags(propagate_child_flags(node.exclamation_token.clone()));
+        if exclamation_token_is_some {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        node
     }
 
     pub fn create_variable_declaration_list<TDeclarations: Into<NodeArrayOrVec>>(

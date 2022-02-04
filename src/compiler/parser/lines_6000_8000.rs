@@ -196,21 +196,30 @@ impl ParserType {
     }
 
     pub(super) fn parse_variable_declaration_no_exclamation(&self) -> VariableDeclaration {
-        self.parse_variable_declaration(false)
+        self.parse_variable_declaration(Some(false))
     }
 
     pub(super) fn parse_variable_declaration_allow_exclamation(&self) -> VariableDeclaration {
-        self.parse_variable_declaration(true)
+        self.parse_variable_declaration(Some(true))
     }
 
     pub(super) fn parse_variable_declaration(
         &self,
-        allow_exclamation: bool,
+        allow_exclamation: Option<bool>,
     ) -> VariableDeclaration {
+        let allow_exclamation = allow_exclamation.unwrap_or(false);
         let pos = self.get_node_pos();
         let name = self.parse_identifier_or_pattern(Some(
             &Diagnostics::Private_identifiers_are_not_allowed_in_variable_declarations,
         ));
+        let mut exclamation_token: Option<BaseNode> = None;
+        if allow_exclamation
+            && name.kind() == SyntaxKind::Identifier
+            && self.token() == SyntaxKind::ExclamationToken
+            && !self.scanner().has_preceding_line_break()
+        {
+            exclamation_token = Some(self.parse_token_node());
+        }
         let type_ = self.parse_type_annotation();
         let initializer = if false {
             None
@@ -220,6 +229,7 @@ impl ParserType {
         let node = self.factory.create_variable_declaration(
             self,
             Some(name),
+            exclamation_token.map(Into::into),
             type_.map(|type_| type_.wrap()),
             initializer.map(|initializer| initializer.wrap()),
         );
