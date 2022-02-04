@@ -1092,7 +1092,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 Some(text) => raw_text != text,
                 None => true,
             } {
-                cooked = Some(get_cooked_text(kind, &raw_text));
+                cooked = Some(get_cooked_text(kind, raw_text));
                 if matches!(cooked, Some(CookedText::InvalidValue)) {
                     Debug_.fail(Some("Invalid raw text"));
                 }
@@ -1148,6 +1148,70 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsES2018);
         }
         node
+    }
+
+    pub fn create_template_head(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: Option<String>,
+        raw_text: Option<String>,
+        template_flags: Option<TokenFlags>,
+    ) -> TemplateLiteralLikeNode {
+        self.create_template_literal_like_node_checked(
+            base_factory,
+            SyntaxKind::TemplateHead,
+            text,
+            raw_text,
+            template_flags,
+        )
+    }
+
+    pub fn create_template_middle(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: Option<String>,
+        raw_text: Option<String>,
+        template_flags: Option<TokenFlags>,
+    ) -> TemplateLiteralLikeNode {
+        self.create_template_literal_like_node_checked(
+            base_factory,
+            SyntaxKind::TemplateMiddle,
+            text,
+            raw_text,
+            template_flags,
+        )
+    }
+
+    pub fn create_template_tail(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: Option<String>,
+        raw_text: Option<String>,
+        template_flags: Option<TokenFlags>,
+    ) -> TemplateLiteralLikeNode {
+        self.create_template_literal_like_node_checked(
+            base_factory,
+            SyntaxKind::TemplateTail,
+            text,
+            raw_text,
+            template_flags,
+        )
+    }
+
+    pub fn create_no_substitution_template_literal(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        text: Option<String>,
+        raw_text: Option<String>,
+        template_flags: Option<TokenFlags>,
+    ) -> TemplateLiteralLikeNode {
+        self.create_template_literal_like_node_checked(
+            base_factory,
+            SyntaxKind::NoSubstitutionTemplateLiteral,
+            text,
+            raw_text,
+            template_flags,
+        )
     }
 
     pub fn create_spread_element(
