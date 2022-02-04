@@ -4,8 +4,8 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, BreakStatement, ContinueStatement,
-    Debug_, DebuggerStatement, DoStatement, EmptyStatement, ExpressionStatement,
+    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, BreakStatement, ClassDeclaration,
+    ContinueStatement, Debug_, DebuggerStatement, DoStatement, EmptyStatement, ExpressionStatement,
     ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
     FunctionLikeDeclarationInterface, IfStatement, InterfaceDeclaration, LabeledStatement,
     MetaProperty, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
@@ -590,6 +590,48 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 }
             } else if node.maybe_asterisk_token().is_some() {
                 node.add_transform_flags(TransformFlags::ContainsGenerator);
+            }
+        }
+        node
+    }
+
+    pub fn create_class_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+        TTypeParameters: Into<NodeArrayOrVec>,
+        THeritageClauses: Into<NodeArrayOrVec>,
+        TMembers: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        name: Option<TName /*string | Identifier*/>,
+        type_parameters: Option<TTypeParameters /*<TypeParameterDeclaration>*/>,
+        heritage_clauses: Option<THeritageClauses /*<HeritageClause>*/>,
+        members: TMembers, /*<ClassElement>*/
+    ) -> ClassDeclaration {
+        let node = self.create_base_class_like_declaration(
+            base_factory,
+            SyntaxKind::ClassDeclaration,
+            decorators,
+            modifiers,
+            name,
+            type_parameters,
+            heritage_clauses,
+            members,
+        );
+        let mut node = ClassDeclaration::new(node);
+        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Ambient) {
+            node.set_transform_flags(TransformFlags::ContainsTypeScript);
+        } else {
+            node.add_transform_flags(TransformFlags::ContainsES2015);
+            if node
+                .transform_flags()
+                .intersects(TransformFlags::ContainsTypeScriptClassSyntax)
+            {
+                node.add_transform_flags(TransformFlags::ContainsTypeScript);
             }
         }
         node
