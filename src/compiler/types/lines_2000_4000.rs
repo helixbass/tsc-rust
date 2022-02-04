@@ -1154,6 +1154,31 @@ impl HasExpressionInterface for ThrowStatement {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct TryStatement {
+    _node: BaseNode,
+    pub try_block: Rc<Node /*Block*/>,
+    pub catch_clause: Option<Rc<Node /*CatchClause*/>>,
+    pub finally_block: Option<Rc<Node /*Block*/>>,
+}
+
+impl TryStatement {
+    pub fn new(
+        base_node: BaseNode,
+        try_block: Rc<Node>,
+        catch_clause: Option<Rc<Node>>,
+        finally_block: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            try_block,
+            catch_clause,
+            finally_block,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub enum TypeElement {
     PropertySignature(PropertySignature),

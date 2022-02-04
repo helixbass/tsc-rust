@@ -10,7 +10,7 @@ use crate::{
     InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags, Node, NodeArray,
     NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
     RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
-    SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags,
+    SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
     TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
     WhileStatement, WithStatement,
 };
@@ -462,6 +462,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, SyntaxKind::ThrowStatement);
         let mut node = ThrowStatement::new(node, expression);
         node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node
+    }
+
+    pub fn create_try_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        try_block: Rc<Node /*Block*/>,
+        catch_clause: Option<Rc<Node /*CatchClause*/>>,
+        finally_block: Option<Rc<Node /*Block*/>>,
+    ) -> TryStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::TryStatement);
+        let mut node = TryStatement::new(node, try_block, catch_clause, finally_block);
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.try_block))
+                | propagate_child_flags(node.catch_clause.clone())
+                | propagate_child_flags(node.finally_block.clone()),
+        );
         node
     }
 
