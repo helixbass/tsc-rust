@@ -26,13 +26,13 @@ use super::{
     LiteralTypeNode, MappedTypeNode, MemberNameInterface, MethodDeclaration, MethodSignature,
     ModifiersArray, ModuleDeclaration, NamedDeclarationInterface, NamedTupleMember, NewExpression,
     NodeArray, NonNullExpression, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
-    OptionalTypeNode, ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
-    PartiallyEmittedExpression, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
-    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    QualifiedName, RegularExpressionLiteral, RestTypeNode, ReturnStatement, SetAccessorDeclaration,
-    ShorthandPropertyAssignment, SignatureDeclarationBase, SignatureDeclarationInterface,
-    SourceFile, SpreadAssignment, SpreadElement, StringLiteral, Symbol, SymbolTable,
-    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
+    OmittedExpression, OptionalTypeNode, ParameterDeclaration, ParenthesizedExpression,
+    ParenthesizedTypeNode, PartiallyEmittedExpression, PostfixUnaryExpression,
+    PrefixUnaryExpression, PrivateIdentifier, PropertyAccessExpression, PropertyAssignment,
+    PropertyDeclaration, PropertySignature, QualifiedName, RegularExpressionLiteral, RestTypeNode,
+    ReturnStatement, SetAccessorDeclaration, ShorthandPropertyAssignment, SignatureDeclarationBase,
+    SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
+    Symbol, SymbolTable, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
     TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode, TemplateLiteralTypeSpan,
     TemplateSpan, ThisTypeNode, TransformFlags, TupleTypeNode, TypeAliasDeclaration, TypeAssertion,
     TypeElement, TypeLiteralNode, TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration,
@@ -761,6 +761,7 @@ pub enum Node {
     AwaitExpression(AwaitExpression),
     YieldExpression(YieldExpression),
     ClassExpression(ClassExpression),
+    OmittedExpression(OmittedExpression),
 }
 
 impl Node {

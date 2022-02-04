@@ -5,11 +5,16 @@ use std::rc::Rc;
 use crate::{
     BaseNodeFactory, Block, EmptyStatement, ExpressionStatement, FunctionDeclaration, IfStatement,
     InterfaceDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    ReturnStatement, SyntaxKind, TemplateSpan, TypeAliasDeclaration, VariableDeclaration,
-    VariableDeclarationList, VariableStatement,
+    OmittedExpression, ReturnStatement, SyntaxKind, TemplateSpan, TypeAliasDeclaration,
+    VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
+    pub fn create_omitted_expression(&self, base_factory: &TBaseNodeFactory) -> OmittedExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::OmittedExpression);
+        OmittedExpression::new(node)
+    }
+
     pub fn create_template_span(
         &self,
         base_factory: &TBaseNodeFactory,

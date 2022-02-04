@@ -1343,6 +1343,18 @@ impl HasTypeInterface for TemplateLiteralTypeSpan {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct OmittedExpression {
+    pub _node: BaseNode,
+}
+
+impl OmittedExpression {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct PartiallyEmittedExpression {
     pub _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
