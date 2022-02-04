@@ -1957,9 +1957,9 @@ pub struct ImportSpecifier {
 impl ImportSpecifier {
     pub fn new(
         base_node: BaseNode,
+        is_type_only: bool,
         property_name: Option<Rc<Node>>,
         name: Rc<Node>,
-        is_type_only: bool,
     ) -> Self {
         Self {
             _node: base_node,
