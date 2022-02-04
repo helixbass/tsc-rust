@@ -1632,6 +1632,22 @@ impl HasInitializerInterface for EnumMember {
 }
 
 #[derive(Debug)]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
+pub struct EnumDeclaration {
+    _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
+    pub members: NodeArray,                   /*<EnumMember>*/
+}
+
+impl EnumDeclaration {
+    pub fn new(base_named_declaration: BaseNamedDeclaration, members: NodeArray) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+            members,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type]
 pub struct ModuleDeclaration {
     _node: BaseNode,

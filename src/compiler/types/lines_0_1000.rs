@@ -12,10 +12,11 @@ use super::{
     ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContinueStatement,
     DebuggerStatement, Decorator, DeleteExpression, DoStatement, ElementAccessExpression, EmitNode,
-    EmptyStatement, EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier,
-    ExpressionStatement, ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement,
-    FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface, FunctionTypeNode,
-    GetAccessorDeclaration, HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
+    EmptyStatement, EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration,
+    ExportSpecifier, ExpressionStatement, ExpressionWithTypeArguments, ForInStatement,
+    ForOfStatement, ForStatement, FunctionDeclaration, FunctionExpression,
+    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
+    HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
     Identifier, IfStatement, ImportClause, ImportEqualsDeclaration, ImportSpecifier,
     ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode,
@@ -777,6 +778,7 @@ pub enum Node {
     TryStatement(TryStatement),
     DebuggerStatement(DebuggerStatement),
     ClassDeclaration(ClassDeclaration),
+    EnumDeclaration(EnumDeclaration),
 }
 
 impl Node {

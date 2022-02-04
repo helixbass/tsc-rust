@@ -162,7 +162,7 @@ pub use compiler::types::{
     DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     DoStatement, ElementAccessExpression, EmitFlags, EmitHint, EmitTextWriter, EmptyStatement,
-    EnumMember, ExitStatus, ExportAssignment, ExportDeclaration, ExportSpecifier,
+    EnumDeclaration, EnumMember, ExitStatus, ExportAssignment, ExportDeclaration, ExportSpecifier,
     ExpressionStatement, ExpressionWithTypeArguments, FlowNode, ForInStatement, ForOfStatement,
     ForStatement, FreshableIntrinsicType, FunctionDeclaration, FunctionExpression,
     FunctionLikeDeclarationBase, FunctionLikeDeclarationInterface, FunctionTypeNode,
