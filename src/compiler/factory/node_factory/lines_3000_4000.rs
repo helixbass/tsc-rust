@@ -4,11 +4,12 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    AsExpression, BaseNodeFactory, Block, EmptyStatement, ExpressionStatement,
-    ExpressionWithTypeArguments, FunctionDeclaration, IfStatement, InterfaceDeclaration, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
-    OmittedExpression, ReturnStatement, SyntaxKind, TemplateSpan, TransformFlags,
-    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
+    AsExpression, BaseNodeFactory, Block, Debug_, EmptyStatement, ExpressionStatement,
+    ExpressionWithTypeArguments, FunctionDeclaration, IfStatement, InterfaceDeclaration,
+    MetaProperty, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
+    NonNullExpression, OmittedExpression, ReturnStatement, SyntaxKind, TemplateSpan,
+    TransformFlags, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
+    VariableStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -89,6 +90,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsTypeScript,
         );
+        node
+    }
+
+    pub fn create_meta_property(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        keyword_token: SyntaxKind, /*MetaProperty["keywordToken"]*/
+        name: Rc<Node>,            /*Identifier*/
+    ) -> MetaProperty {
+        let node = self.create_base_expression(base_factory, SyntaxKind::MetaProperty);
+        let mut node = MetaProperty::new(node, keyword_token, name);
+        node.add_transform_flags(propagate_child_flags(Some(&*node.name)));
+        match keyword_token {
+            SyntaxKind::NewKeyword => {
+                node.add_transform_flags(TransformFlags::ContainsES2015);
+            }
+            SyntaxKind::ImportKeyword => {
+                node.add_transform_flags(TransformFlags::ContainsESNext);
+            }
+            _ => {
+                Debug_.assert_never(keyword_token, None);
+            }
+        }
         node
     }
 

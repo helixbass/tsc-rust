@@ -690,6 +690,24 @@ impl HasExpressionInterface for NonNullExpression {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct MetaProperty {
+    _node: BaseNode,
+    pub keyword_token: SyntaxKind, /*SyntaxKind.NewKeyword | SyntaxKind.ImportKeyword*/
+    pub name: Rc<Node /*Identifier*/>,
+}
+
+impl MetaProperty {
+    pub fn new(base_node: BaseNode, keyword_token: SyntaxKind, name: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            keyword_token,
+            name,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JsxAttribute {
     _node: BaseNode,
     pub name: Rc<Node /*Identifier*/>,
