@@ -7,8 +7,8 @@ use crate::{
     modifiers_to_flags, AsExpression, BaseNodeFactory, Block, BreakStatement, ContinueStatement,
     Debug_, DoStatement, EmptyStatement, ExpressionStatement, ExpressionWithTypeArguments,
     ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration, IfStatement,
-    InterfaceDeclaration, MetaProperty, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
+    InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
     RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
     SwitchStatement, SyntaxKind, TemplateSpan, TransformFlags, TypeAliasDeclaration,
     VariableDeclaration, VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
@@ -430,6 +430,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
                 | propagate_child_flags(Some(&*node.case_block)),
+        );
+        node
+    }
+
+    pub fn create_labeled_statement<TLabel: Into<StringOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        label: TLabel,
+        statement: Rc<Node /*Statement*/>,
+    ) -> LabeledStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::LabeledStatement);
+        let mut node = LabeledStatement::new(
+            node,
+            self.as_name(base_factory, Some(label)).unwrap(),
+            self.as_embedded_statement(Some(statement)).unwrap(),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.label))
+                | propagate_child_flags(Some(&*node.statement)),
         );
         node
     }
