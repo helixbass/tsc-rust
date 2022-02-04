@@ -3,8 +3,8 @@ use std::rc::Rc;
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
     AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
-    BaseNodeFactory, ExportAssignment, ImportSpecifier, JsxText, NamedImports, NamespaceExport,
-    NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    BaseNodeFactory, ExportAssignment, ExportDeclaration, ImportSpecifier, JsxText, NamedImports,
+    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
     StringOrNodeArray, SyntaxKind, TransformFlags,
 };
 
@@ -130,6 +130,42 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             },
         );
         node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node.set_transform_flags(
+            node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
+        );
+        node
+    }
+
+    pub fn create_export_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        is_type_only: bool,
+        export_clause: Option<Rc<Node /*NamedExportBindings*/>>,
+        module_specifier: Option<Rc<Node /*Expression*/>>,
+        assert_clause: Option<Rc<Node /*AssertClause*/>>,
+    ) -> ExportDeclaration {
+        let node = self.create_base_declaration(
+            base_factory,
+            SyntaxKind::ExportDeclaration,
+            decorators,
+            modifiers,
+        );
+        let mut node = ExportDeclaration::new(
+            node,
+            is_type_only,
+            export_clause,
+            module_specifier,
+            assert_clause,
+        );
+        node.add_transform_flags(
+            propagate_child_flags(node.export_clause.clone())
+                | propagate_child_flags(node.module_specifier.clone()),
+        );
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );
