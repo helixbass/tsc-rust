@@ -74,6 +74,24 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn create_non_null_chain(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node>, /*Expression*/
+    ) -> NonNullExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::NonNullExpression);
+        node.set_flags(node.flags() | NodeFlags::OptionalChain);
+        let mut node = NonNullExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_left_side_of_access(base_factory, &expression),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsTypeScript,
+        );
+        node
+    }
+
     pub fn create_template_span(
         &self,
         base_factory: &TBaseNodeFactory,
