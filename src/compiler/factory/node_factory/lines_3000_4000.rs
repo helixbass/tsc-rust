@@ -383,10 +383,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_return_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Option<Rc<Node>>,
+        expression: Option<Rc<Node /*Expression*/>>,
     ) -> ReturnStatement {
         let node = self.create_base_node(base_factory, SyntaxKind::ReturnStatement);
-        let node = ReturnStatement::new(node, expression);
+        let mut node = ReturnStatement::new(node, expression);
+        node.add_transform_flags(
+            propagate_child_flags(node.expression.clone())
+                | TransformFlags::ContainsES2018
+                | TransformFlags::ContainsHoistedDeclarationOrCompletion,
+        );
         node
     }
 
