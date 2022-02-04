@@ -2,17 +2,43 @@
 
 use std::rc::Rc;
 
+use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    BaseNodeFactory, Block, EmptyStatement, ExpressionStatement, FunctionDeclaration, IfStatement,
-    InterfaceDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    OmittedExpression, ReturnStatement, SyntaxKind, TemplateSpan, TypeAliasDeclaration,
-    VariableDeclaration, VariableDeclarationList, VariableStatement,
+    BaseNodeFactory, Block, EmptyStatement, ExpressionStatement, ExpressionWithTypeArguments,
+    FunctionDeclaration, IfStatement, InterfaceDeclaration, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, OmittedExpression, ReturnStatement, SyntaxKind,
+    TemplateSpan, TransformFlags, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList, VariableStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
     pub fn create_omitted_expression(&self, base_factory: &TBaseNodeFactory) -> OmittedExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::OmittedExpression);
         OmittedExpression::new(node)
+    }
+
+    pub fn create_expression_with_type_arguments<TTypeArguments: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node>, /*Expression*/
+        type_arguments: Option<TTypeArguments>,
+    ) -> ExpressionWithTypeArguments {
+        let node = self.create_base_node(base_factory, SyntaxKind::ExpressionWithTypeArguments);
+        let mut node = ExpressionWithTypeArguments::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_left_side_of_access(base_factory, &expression),
+            type_arguments.and_then(|type_arguments| {
+                self.parenthesizer_rules()
+                    .parenthesize_type_arguments(base_factory, Some(type_arguments.into()))
+            }),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_children_flags(node.type_arguments.as_ref())
+                | TransformFlags::ContainsES2015,
+        );
+        node
     }
 
     pub fn create_template_span(

@@ -527,6 +527,34 @@ impl HasQuestionDotTokenInterface for CallExpression {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct ExpressionWithTypeArguments {
+    _node: BaseNode,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    pub expression: Rc<Node /*LeftHandSideExpression*/>,
+}
+
+impl ExpressionWithTypeArguments {
+    pub fn new(
+        base_node: BaseNode,
+        expression: Rc<Node>,
+        type_arguments: Option<NodeArray>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            type_arguments,
+        }
+    }
+}
+
+impl HasExpressionInterface for ExpressionWithTypeArguments {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct NewExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,

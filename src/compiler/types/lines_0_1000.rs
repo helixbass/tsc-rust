@@ -12,9 +12,9 @@ use super::{
     ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, Decorator,
     DeleteExpression, ElementAccessExpression, EmitNode, EmptyStatement, EnumMember,
-    ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement, ForInStatement,
-    ForOfStatement, ForStatement, FunctionDeclaration, FunctionExpression,
-    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
+    ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
+    ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    FunctionExpression, FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
     HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
     Identifier, IfStatement, ImportClause, ImportEqualsDeclaration, ImportSpecifier,
@@ -762,6 +762,7 @@ pub enum Node {
     YieldExpression(YieldExpression),
     ClassExpression(ClassExpression),
     OmittedExpression(OmittedExpression),
+    ExpressionWithTypeArguments(ExpressionWithTypeArguments),
 }
 
 impl Node {
