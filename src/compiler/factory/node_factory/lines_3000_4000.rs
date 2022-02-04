@@ -201,12 +201,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_expression_statement(
         &self,
         base_factory: &TBaseNodeFactory,
-        expression: Rc<Node>,
+        expression: Rc<Node /*Expression*/>,
     ) -> ExpressionStatement {
-        ExpressionStatement::new(
-            self.create_base_node(base_factory, SyntaxKind::ExpressionStatement),
-            expression,
-        )
+        let node = self.create_base_node(base_factory, SyntaxKind::ExpressionStatement);
+        let mut node = ExpressionStatement::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expression_of_expression_statement(base_factory, &expression),
+        );
+        node.add_transform_flags(propagate_child_flags(Some(&*node.expression)));
+        node
     }
 
     pub fn create_if_statement(
