@@ -1077,6 +1077,24 @@ impl ReturnStatement {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct WithStatement {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+    pub statement: Rc<Node /*Statement*/>,
+}
+
+impl WithStatement {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, statement: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            statement,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct LabeledStatement {
     _node: BaseNode,
     pub label: Rc<Node /*Identifier*/>,

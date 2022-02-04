@@ -11,7 +11,7 @@ use crate::{
     NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
     RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode, SyntaxKind,
     TemplateSpan, TransformFlags, TypeAliasDeclaration, VariableDeclaration,
-    VariableDeclarationList, VariableStatement, WhileStatement,
+    VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -391,6 +391,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(node.expression.clone())
                 | TransformFlags::ContainsES2018
                 | TransformFlags::ContainsHoistedDeclarationOrCompletion,
+        );
+        node
+    }
+
+    pub fn create_with_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+        statement: Rc<Node /*Statement*/>,
+    ) -> WithStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::WithStatement);
+        let mut node = WithStatement::new(
+            node,
+            expression,
+            self.as_embedded_statement(Some(statement)).unwrap(),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.statement)),
         );
         node
     }
