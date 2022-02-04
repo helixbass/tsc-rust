@@ -6,9 +6,9 @@ use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     AsExpression, BaseNodeFactory, Block, EmptyStatement, ExpressionStatement,
     ExpressionWithTypeArguments, FunctionDeclaration, IfStatement, InterfaceDeclaration, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OmittedExpression,
-    ReturnStatement, SyntaxKind, TemplateSpan, TransformFlags, TypeAliasDeclaration,
-    VariableDeclaration, VariableDeclarationList, VariableStatement,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
+    OmittedExpression, ReturnStatement, SyntaxKind, TemplateSpan, TransformFlags,
+    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -53,6 +53,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.expression))
                 | propagate_child_flags(Some(&*node.type_))
                 | TransformFlags::ContainsTypeScript,
+        );
+        node
+    }
+
+    pub fn create_non_null_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node>, /*Expression*/
+    ) -> NonNullExpression {
+        let node = self.create_base_expression(base_factory, SyntaxKind::NonNullExpression);
+        let mut node = NonNullExpression::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_left_side_of_access(base_factory, &expression),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsTypeScript,
         );
         node
     }
