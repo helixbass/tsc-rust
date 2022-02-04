@@ -929,10 +929,10 @@ pub struct ForStatement {
 impl ForStatement {
     pub fn new(
         base_node: BaseNode,
-        statement: Rc<Node>,
         initializer: Option<Rc<Node>>,
         condition: Option<Rc<Node>>,
         incrementor: Option<Rc<Node>>,
+        statement: Rc<Node>,
     ) -> Self {
         Self {
             _node: base_node,

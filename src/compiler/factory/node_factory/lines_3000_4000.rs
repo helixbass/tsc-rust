@@ -5,9 +5,9 @@ use std::rc::Rc;
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     modifiers_to_flags, AsExpression, BaseNodeFactory, Block, Debug_, DoStatement, EmptyStatement,
-    ExpressionStatement, ExpressionWithTypeArguments, FunctionDeclaration, IfStatement,
-    InterfaceDeclaration, MetaProperty, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
+    ExpressionStatement, ExpressionWithTypeArguments, ForStatement, FunctionDeclaration,
+    IfStatement, InterfaceDeclaration, MetaProperty, ModifierFlags, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
     RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, SyntaxKind, TemplateSpan,
     TransformFlags, TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
     VariableStatement, WhileStatement,
@@ -268,6 +268,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression))
+                | propagate_child_flags(Some(&*node.statement)),
+        );
+        node
+    }
+
+    pub fn create_for_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        initializer: Option<Rc<Node /*ForInitializer*/>>,
+        condition: Option<Rc<Node /*Expression*/>>,
+        incrementor: Option<Rc<Node /*Expression*/>>,
+        statement: Rc<Node /*Statement*/>,
+    ) -> ForStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::ForStatement);
+        let mut node = ForStatement::new(
+            node,
+            initializer,
+            condition,
+            incrementor,
+            self.as_embedded_statement(Some(statement)).unwrap(),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(node.initializer.clone())
+                | propagate_child_flags(node.condition.clone())
+                | propagate_child_flags(node.incrementor.clone())
                 | propagate_child_flags(Some(&*node.statement)),
         );
         node
