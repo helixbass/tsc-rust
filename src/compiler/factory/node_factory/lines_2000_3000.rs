@@ -3,7 +3,10 @@
 use std::ptr;
 use std::rc::Rc;
 
-use super::{propagate_child_flags, propagate_children_flags, propagate_identifier_name_flags};
+use super::{
+    get_cooked_text, propagate_child_flags, propagate_children_flags,
+    propagate_identifier_name_flags, CookedText,
+};
 use crate::{
     get_elements_of_binding_or_assignment_pattern, get_target_of_binding_or_assignment_element,
     has_invalid_escape, is_array_literal_expression, is_assignment_pattern, is_call_chain,
@@ -1068,6 +1071,59 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | TransformFlags::ContainsES2015,
         );
         node
+    }
+
+    fn create_template_literal_like_node_checked(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        mut text: Option<String>,
+        raw_text: Option<String>,
+        template_flags: Option<TokenFlags>,
+    ) -> TemplateLiteralLikeNode {
+        let template_flags = template_flags.unwrap_or(TokenFlags::None);
+        Debug_.assert(
+            template_flags & !TokenFlags::TemplateLiteralLikeFlags == TokenFlags::None,
+            Some("Unsupported template flags."),
+        );
+        let mut cooked: Option<CookedText> = None;
+        if let Some(raw_text) = raw_text.as_ref() {
+            if match text.as_ref() {
+                Some(text) => raw_text != text,
+                None => true,
+            } {
+                cooked = Some(get_cooked_text(kind, &raw_text));
+                if matches!(cooked, Some(CookedText::InvalidValue)) {
+                    Debug_.fail(Some("Invalid raw text"));
+                }
+            }
+        }
+        match text.as_ref() {
+            None => {
+                if cooked.is_none() {
+                    Debug_.fail(Some(
+                        "Arguments 'text' and 'rawText' may not both be undefined.",
+                    ));
+                }
+                let cooked = cooked.unwrap();
+                text = Some(match cooked {
+                    CookedText::InvalidValue => panic!("Expected String"),
+                    CookedText::String(cooked) => cooked,
+                });
+            }
+            Some(text) => {
+                if let Some(cooked) = cooked.as_ref() {
+                    Debug_.assert(matches!(cooked, CookedText::String(cooked) if text == cooked), Some("Expected argument 'text' to be the normalized (i.e. 'cooked') version of argument 'rawText'."));
+                }
+            }
+        }
+        self.create_template_literal_like_node(
+            base_factory,
+            kind,
+            text.unwrap(),
+            raw_text,
+            Some(template_flags),
+        )
     }
 
     pub fn create_template_literal_like_node(

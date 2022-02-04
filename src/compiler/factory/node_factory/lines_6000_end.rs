@@ -1,17 +1,18 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefMut;
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
-    add_range, append_if_unique, create_base_node_factory, is_named_declaration, is_property_name,
-    set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, Debug_, EmitFlags,
-    EmitNode, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt,
-    SourceMapRange, StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, TransformFlags,
+    add_range, append_if_unique, create_base_node_factory, create_scanner, is_named_declaration,
+    is_property_name, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, Debug_,
+    EmitFlags, EmitNode, LanguageVariant, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SourceMapRange,
+    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -135,6 +136,85 @@ pub(super) fn get_default_tag_name_for_kind(kind: SyntaxKind) -> &'static str {
             Debug_.format_syntax_kind(Some(kind))
         ))),
     }
+}
+
+thread_local! {
+    pub(super) static raw_text_scanner: RefCell<Option<Scanner>> = RefCell::new(None);
+}
+
+pub(super) enum CookedText {
+    InvalidValue,
+    String(String),
+}
+
+pub(super) fn get_cooked_text(
+    kind: SyntaxKind, /*TemplateLiteralToken["kind"]*/
+    raw_text: &str,
+) -> CookedText {
+    raw_text_scanner.with(|raw_text_scanner_| {
+        let mut raw_text_scanner_ref = raw_text_scanner_.borrow_mut();
+        if raw_text_scanner_ref.is_none() {
+            *raw_text_scanner_ref = Some(create_scanner(
+                ScriptTarget::Latest,
+                false,
+                Some(LanguageVariant::Standard),
+                None,
+                None,
+                None,
+                None,
+            ));
+        }
+        let mut raw_text_scanner_ref = raw_text_scanner_ref.as_mut().unwrap();
+        match kind {
+            SyntaxKind::NoSubstitutionTemplateLiteral => {
+                let text = format!("`{}`", raw_text);
+                raw_text_scanner_ref.set_text(Some(text.chars().collect()), Some(text), None, None);
+            }
+            SyntaxKind::TemplateHead => {
+                let text = format!("`{}${{", raw_text);
+                raw_text_scanner_ref.set_text(Some(text.chars().collect()), Some(text), None, None);
+            }
+            SyntaxKind::TemplateMiddle => {
+                let text = format!("}}{}${{", raw_text);
+                raw_text_scanner_ref.set_text(Some(text.chars().collect()), Some(text), None, None);
+            }
+            SyntaxKind::TemplateTail => {
+                let text = format!("}}{}`", raw_text);
+                raw_text_scanner_ref.set_text(Some(text.chars().collect()), Some(text), None, None);
+            }
+            _ => panic!("Unexpected kind"),
+        }
+
+        let mut token = raw_text_scanner_ref.scan(None);
+        if token == SyntaxKind::CloseBraceToken {
+            token = raw_text_scanner_ref.re_scan_template_token(None, false);
+        }
+
+        if raw_text_scanner_ref.is_unterminated() {
+            raw_text_scanner_ref.set_text(None, None, None, None);
+            return CookedText::InvalidValue;
+        }
+
+        let mut token_value: Option<String> = None;
+        match token {
+            SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateHead
+            | SyntaxKind::TemplateMiddle
+            | SyntaxKind::TemplateTail => {
+                token_value = Some(raw_text_scanner_ref.get_token_value());
+            }
+            _ => (),
+        }
+
+        if token_value.is_none() || raw_text_scanner_ref.scan(None) != SyntaxKind::EndOfFileToken {
+            raw_text_scanner_ref.set_text(None, None, None, None);
+            return CookedText::InvalidValue;
+        }
+        let token_value = token_value.unwrap();
+
+        raw_text_scanner_ref.set_text(None, None, None, None);
+        CookedText::String(token_value)
+    })
 }
 
 pub(super) fn propagate_identifier_name_flags(node: &Node /*Identifier*/) -> TransformFlags {
