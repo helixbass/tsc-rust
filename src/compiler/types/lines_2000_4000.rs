@@ -1789,6 +1789,20 @@ impl HasIsTypeOnlyInterface for ImportClause {
 }
 
 #[derive(Debug)]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
+pub struct NamespaceExportDeclaration {
+    _named_declaration: BaseNamedDeclaration,
+}
+
+impl NamespaceExportDeclaration {
+    pub fn new(base_named_declaration: BaseNamedDeclaration) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type]
 pub struct ExportDeclaration {
     _node: BaseNode,

@@ -9,11 +9,11 @@ use crate::{
     EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments, ForInStatement,
     ForOfStatement, ForStatement, FunctionDeclaration, FunctionLikeDeclarationInterface,
     IfStatement, InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags, ModuleBlock,
-    ModuleDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface,
-    NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement,
-    SemicolonClassElement, StringOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan,
-    ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration, VariableDeclaration,
-    VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
+    ModuleDeclaration, NamespaceExportDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeInterface, NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec,
+    ReturnStatement, SemicolonClassElement, StringOrRcNode, SwitchStatement, SyntaxKind,
+    TemplateSpan, ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration,
+    VariableDeclaration, VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -787,6 +787,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, SyntaxKind::CaseBlock);
         let mut node = CaseBlock::new(node, self.create_node_array(Some(clauses), None));
         node.add_transform_flags(propagate_children_flags(Some(&node.clauses)));
+        node
+    }
+
+    pub fn create_namespace_export_declaration<TName: Into<StringOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: TName,
+    ) -> NamespaceExportDeclaration {
+        let node = self.create_base_named_declaration(
+            base_factory,
+            SyntaxKind::NamespaceExportDeclaration,
+            Option::<NodeArray>::None,
+            Option::<NodeArray>::None,
+            Some(name),
+        );
+        let mut node = NamespaceExportDeclaration::new(node);
+        node.set_transform_flags(TransformFlags::ContainsTypeScript);
         node
     }
 }
