@@ -882,6 +882,24 @@ impl IfStatement {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct DoStatement {
+    _node: BaseNode,
+    pub statement: Rc</*Statement*/ Node>,
+    pub expression: Rc</*Expression*/ Node>,
+}
+
+impl DoStatement {
+    pub fn new(base_node: BaseNode, statement: Rc<Node>, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            statement,
+            expression,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ForStatement {
     _node: BaseNode,
     pub statement: Rc<Node /*Statement*/>,

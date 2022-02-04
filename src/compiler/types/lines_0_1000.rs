@@ -11,7 +11,7 @@ use super::{
     CallExpression, CallSignatureDeclaration, ClassExpression, ClassStaticBlockDeclaration,
     ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, Decorator,
-    DeleteExpression, ElementAccessExpression, EmitNode, EmptyStatement, EnumMember,
+    DeleteExpression, DoStatement, ElementAccessExpression, EmitNode, EmptyStatement, EnumMember,
     ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
     ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
     FunctionExpression, FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
@@ -766,6 +766,7 @@ pub enum Node {
     ExpressionWithTypeArguments(ExpressionWithTypeArguments),
     MetaProperty(MetaProperty),
     SemicolonClassElement(SemicolonClassElement),
+    DoStatement(DoStatement),
 }
 
 impl Node {

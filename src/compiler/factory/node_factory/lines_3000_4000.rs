@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, Debug_, EmptyStatement,
+    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, Debug_, DoStatement, EmptyStatement,
     ExpressionStatement, ExpressionWithTypeArguments, FunctionDeclaration, IfStatement,
     InterfaceDeclaration, MetaProperty, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
     NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
@@ -231,6 +231,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.expression))
                 | propagate_child_flags(Some(&*node.then_statement))
                 | propagate_child_flags(node.else_statement.clone()),
+        );
+        node
+    }
+
+    pub fn create_do_statement(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        statement: Rc<Node /*Statement*/>,
+        expression: Rc<Node /*Expression*/>,
+    ) -> DoStatement {
+        let node = self.create_base_node(base_factory, SyntaxKind::IfStatement);
+        let mut node = DoStatement::new(
+            node,
+            self.as_embedded_statement(Some(statement)).unwrap(),
+            expression,
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.statement))
+                | propagate_child_flags(Some(&*node.expression)),
         );
         node
     }
