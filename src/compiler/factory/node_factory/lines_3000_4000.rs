@@ -4,16 +4,17 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    modifiers_to_flags, AsExpression, BaseNodeFactory, Block, BreakStatement, CaseBlock,
-    ClassDeclaration, ContinueStatement, Debug_, DebuggerStatement, DoStatement, EmptyStatement,
-    EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments, ForInStatement,
-    ForOfStatement, ForStatement, FunctionDeclaration, FunctionLikeDeclarationInterface,
-    IfStatement, InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags, ModuleBlock,
-    ModuleDeclaration, NamespaceExportDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec,
-    ReturnStatement, SemicolonClassElement, StringOrRcNode, SwitchStatement, SyntaxKind,
-    TemplateSpan, ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration,
-    VariableDeclaration, VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
+    is_external_module_reference, modifiers_to_flags, AsExpression, BaseNodeFactory, Block,
+    BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_, DebuggerStatement,
+    DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments,
+    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    FunctionLikeDeclarationInterface, IfStatement, ImportEqualsDeclaration, InterfaceDeclaration,
+    LabeledStatement, MetaProperty, ModifierFlags, ModuleBlock, ModuleDeclaration,
+    NamespaceExportDeclaration, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, NonNullExpression, OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement,
+    SemicolonClassElement, StringOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan,
+    ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -804,6 +805,37 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         let mut node = NamespaceExportDeclaration::new(node);
         node.set_transform_flags(TransformFlags::ContainsTypeScript);
+        node
+    }
+
+    pub fn create_import_equals_declaration<
+        TDecorators: Into<NodeArrayOrVec>,
+        TModifiers: Into<NodeArrayOrVec>,
+        TName: Into<StringOrRcNode>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        decorators: Option<TDecorators>,
+        modifiers: Option<TModifiers>,
+        is_type_only: bool,
+        name: TName,
+        module_reference: Rc<Node /*ModuleReference*/>,
+    ) -> ImportEqualsDeclaration {
+        let node = self.create_base_named_declaration(
+            base_factory,
+            SyntaxKind::ImportEqualsDeclaration,
+            decorators,
+            modifiers,
+            Some(name),
+        );
+        let mut node = ImportEqualsDeclaration::new(node, is_type_only, module_reference);
+        node.add_transform_flags(propagate_child_flags(Some(&*node.module_reference)));
+        if !is_external_module_reference(&node.module_reference) {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        node.set_transform_flags(
+            node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
+        );
         node
     }
 }
