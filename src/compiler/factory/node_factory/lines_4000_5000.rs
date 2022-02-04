@@ -3,9 +3,9 @@ use std::rc::Rc;
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
     AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
-    BaseNodeFactory, ExportAssignment, ExportDeclaration, ImportSpecifier, JsxText, NamedImports,
-    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    StringOrNodeArray, SyntaxKind, TransformFlags,
+    BaseNodeFactory, ExportAssignment, ExportDeclaration, ImportSpecifier, JsxText, NamedExports,
+    NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, StringOrNodeArray, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -166,6 +166,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(node.export_clause.clone())
                 | propagate_child_flags(node.module_specifier.clone()),
         );
+        node.set_transform_flags(
+            node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
+        );
+        node
+    }
+
+    pub fn create_named_exports<TElements: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        elements: TElements,
+    ) -> NamedExports {
+        let node = self.create_base_node(base_factory, SyntaxKind::NamedExports);
+        let mut node = NamedExports::new(node, self.create_node_array(Some(elements), None));
+        node.add_transform_flags(propagate_children_flags(Some(&node.elements)));
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
         );

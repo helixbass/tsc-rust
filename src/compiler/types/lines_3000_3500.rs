@@ -213,6 +213,22 @@ impl NamedImports {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct NamedExports {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<ExportSpecifier>*/
+}
+
+impl NamedExports {
+    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ImportSpecifier {
     _node: BaseNode,
     pub property_name: Option<Rc<Node /*Identifier*/>>,
