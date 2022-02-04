@@ -4,8 +4,8 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_external_module_reference, modifiers_to_flags, AsExpression, AssertClause, BaseNodeFactory,
-    Block, BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_,
+    is_external_module_reference, modifiers_to_flags, AsExpression, AssertClause, AssertEntry,
+    BaseNodeFactory, Block, BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_,
     DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement,
     ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
     FunctionLikeDeclarationInterface, IfStatement, ImportClause, ImportDeclaration,
@@ -896,6 +896,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> AssertClause {
         let node = self.create_base_node(base_factory, SyntaxKind::AssertClause);
         let mut node = AssertClause::new(node, elements, multi_line);
+        node.add_transform_flags(TransformFlags::ContainsESNext);
+        node
+    }
+
+    pub fn create_assert_entry(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Rc<Node /*AssertionKey*/>,
+        value: Rc<Node /*StringLiteral*/>,
+    ) -> AssertEntry {
+        let node = self.create_base_node(base_factory, SyntaxKind::AssertEntry);
+        let mut node = AssertEntry::new(node, name, value);
         node.add_transform_flags(TransformFlags::ContainsESNext);
         node
     }

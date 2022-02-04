@@ -1815,6 +1815,24 @@ impl HasIsTypeOnlyInterface for ImportClause {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct AssertEntry {
+    _node: BaseNode,
+    pub name: Rc<Node /*AssertionKey*/>,
+    pub value: Rc<Node /*StringLiteral*/>,
+}
+
+impl AssertEntry {
+    pub fn new(base_node: BaseNode, name: Rc<Node>, value: Rc<Node /*StringLiteral*/>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+            value,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct AssertClause {
     _node: BaseNode,
     pub elements: NodeArray, /*<AssertEntry>*/
