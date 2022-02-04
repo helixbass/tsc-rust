@@ -149,11 +149,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         multi_line: Option<bool>,
     ) -> Block {
         let node = self.create_base_node(base_factory, SyntaxKind::Block);
-        let node = Block::new(
+        let mut node = Block::new(
             node,
             self.create_node_array(Some(statements), None),
             multi_line,
         );
+        node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
         node
     }
 
