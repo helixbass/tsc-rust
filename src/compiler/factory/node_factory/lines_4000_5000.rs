@@ -8,10 +8,10 @@ use crate::{
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxClosingElement, JsxElement, JsxOpeningElement,
-    JsxSelfClosingElement, JsxText, MissingDeclaration, NamedExports, NamedImports,
-    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxClosingElement, JsxElement, JsxFragment,
+    JsxOpeningElement, JsxSelfClosingElement, JsxText, MissingDeclaration, NamedExports,
+    NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -760,6 +760,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = JsxClosingElement::new(node, tag_name);
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.tag_name)) | TransformFlags::ContainsJsx,
+        );
+        node
+    }
+
+    pub fn create_jsx_fragment<TChildren: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        opening_fragment: Rc<Node /*JsxOpeningFragment*/>,
+        children: TChildren,
+        closing_fragment: Rc<Node /*JsxClosingFragment*/>,
+    ) -> JsxFragment {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxFragment);
+        let mut node = JsxFragment::new(
+            node,
+            opening_fragment,
+            self.create_node_array(Some(children), None),
+            closing_fragment,
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.opening_fragment))
+                | propagate_children_flags(Some(&node.children))
+                | propagate_child_flags(Some(&*node.closing_fragment))
+                | TransformFlags::ContainsJsx,
         );
         node
     }

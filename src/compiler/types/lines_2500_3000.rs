@@ -106,6 +106,31 @@ impl JsxSelfClosingElement {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct JsxFragment {
+    _node: BaseNode,
+    pub opening_fragment: Rc<Node /*JsxOpeningFragment*/>,
+    pub children: NodeArray, /*<JsxChild>*/
+    pub closing_fragment: Rc<Node /*JsxClosingFragment*/>,
+}
+
+impl JsxFragment {
+    pub fn new(
+        base_node: BaseNode,
+        opening_fragment: Rc<Node>,
+        children: NodeArray,
+        closing_fragment: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            opening_fragment,
+            children,
+            closing_fragment,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JsxAttribute {
     _node: BaseNode,
     pub name: Rc<Node /*Identifier*/>,
