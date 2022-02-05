@@ -8,8 +8,8 @@ use crate::{
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxClosingElement, JsxClosingFragment, JsxElement,
-    JsxFragment, JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxText,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxClosingElement, JsxClosingFragment,
+    JsxElement, JsxFragment, JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxText,
     MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
     SyntaxKind, TransformFlags,
@@ -821,6 +821,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, SyntaxKind::JsxClosingFragment);
         let mut node = JsxClosingFragment::new(node);
         node.add_transform_flags(TransformFlags::ContainsJsx);
+        node
+    }
+
+    pub fn create_jsx_attribute(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Rc<Node /*Identifier*/>,
+        initializer: Option<Rc<Node /*StringLiteral | JsxExpression*/>>,
+    ) -> JsxAttribute {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxAttribute);
+        let mut node = JsxAttribute::new(node, name, initializer);
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.name))
+                | propagate_child_flags(node.initializer.clone())
+                | TransformFlags::ContainsJsx,
+        );
         node
     }
 }
