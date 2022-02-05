@@ -4,7 +4,7 @@ use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_chil
 use crate::{
     escape_leading_underscores, get_jsdoc_type_alias_name, AssertClause, AssertEntry, BaseJSDocTag,
     BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, ExportAssignment,
-    ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier,
+    ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDocCallbackTag,
     JSDocFunctionType, JSDocPropertyLikeTag, JSDocSignature, JSDocTemplateTag, JSDocTypeExpression,
     JSDocTypeLiteral, JSDocTypedefTag, JsxText, MissingDeclaration, NamedExports, NamedImports,
     NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
@@ -353,7 +353,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         BaseJSDocTag::new(node, tag_name, comment.map(Into::into))
     }
 
-    pub(crate) fn create_jsdoc_template_tag<
+    pub fn create_jsdoc_template_tag<
         TTypeParameters: Into<NodeArrayOrVec>,
         TComment: Into<StringOrNodeArray>,
     >(
@@ -380,7 +380,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub(crate) fn create_jsdoc_typedef_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_typedef_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -405,7 +405,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub(crate) fn create_jsdoc_parameter_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_parameter_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -433,7 +433,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub(crate) fn create_jsdoc_property_tag<TComment: Into<StringOrNodeArray>>(
+    pub fn create_jsdoc_property_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
@@ -458,6 +458,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             name,
             is_name_first.unwrap_or(false),
             is_bracketed,
+        )
+    }
+
+    pub fn create_jsdoc_callback_tag<TComment: Into<StringOrNodeArray>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        type_expression: Rc<Node /*JSDocSignature*/>,
+        full_name: Option<Rc<Node /*Identifier | JSDocNamespaceDeclaration*/>>,
+        comment: Option<TComment>,
+    ) -> JSDocCallbackTag {
+        let node = self.create_base_jsdoc_tag(
+            base_factory,
+            SyntaxKind::JSDocCallbackTag,
+            tag_name.unwrap_or_else(|| {
+                self.create_identifier(base_factory, "callback", Option::<NodeArray>::None, None)
+                    .into()
+            }),
+            comment,
+        );
+        JSDocCallbackTag::new(
+            node,
+            type_expression,
+            full_name.clone(),
+            get_jsdoc_type_alias_name(full_name),
         )
     }
 

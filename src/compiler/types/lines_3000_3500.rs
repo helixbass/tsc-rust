@@ -867,9 +867,9 @@ pub struct JSDocCallbackTag {
 impl JSDocCallbackTag {
     pub fn new(
         base_jsdoc_tag: BaseJSDocTag,
+        type_expression: Rc<Node>,
         full_name: Option<Rc<Node>>,
         name: Option<Rc<Node>>,
-        type_expression: Rc<Node>,
     ) -> Self {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
