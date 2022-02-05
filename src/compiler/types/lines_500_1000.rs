@@ -22,7 +22,7 @@ use super::{
     ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
     InferTypeNode, InterfaceDeclaration, IntersectionTypeNode, JSDoc, JSDocFunctionType, JSDocLink,
     JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag,
-    JSDocSignature, JSDocTag, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
+    JSDocSignature, JSDocTag, JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
     JSDocTypeLikeTagInterface, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxText,
     KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
     MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
@@ -517,6 +517,13 @@ impl Node {
         match self {
             Node::TemplateLiteralLikeNode(node) => node,
             _ => panic!("Expected template literal like node"),
+        }
+    }
+
+    pub fn as_jsdoc_tag(&self) -> &dyn JSDocTagInterface {
+        match self {
+            Node::JSDocTag(node) => node,
+            _ => panic!("Expected JSDoc tag"),
         }
     }
 

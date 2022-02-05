@@ -2,12 +2,12 @@ use std::rc::Rc;
 
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
-    AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
-    BaseNodeFactory, ExportAssignment, ExportDeclaration, ExportSpecifier, ExternalModuleReference,
-    ImportSpecifier, JSDocFunctionType, JSDocSignature, JSDocTypeExpression, JSDocTypeLiteral,
-    JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
-    SyntaxKind, TransformFlags,
+    escape_leading_underscores, AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag,
+    BaseJSDocUnaryType, BaseNode, BaseNodeFactory, ExportAssignment, ExportDeclaration,
+    ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDocFunctionType, JSDocSignature,
+    JSDocTypeExpression, JSDocTypeLiteral, JsxText, MissingDeclaration, NamedExports, NamedImports,
+    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -261,7 +261,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub(crate) fn create_jsdoc_function_type<TParameters: Into<NodeArrayOrVec>>(
+    pub fn create_jsdoc_function_type<TParameters: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         parameters: TParameters,
@@ -280,7 +280,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         JSDocFunctionType::new(node)
     }
 
-    pub(crate) fn create_jsdoc_type_literal<TPropertyTags: Into<NodeArrayOrVec>>(
+    pub fn create_jsdoc_type_literal<TPropertyTags: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
         property_tags: Option<TPropertyTags>,
@@ -291,7 +291,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         JSDocTypeLiteral::new(node, self.as_node_array(property_tags), is_array_type)
     }
 
-    pub(crate) fn create_jsdoc_type_expression(
+    pub fn create_jsdoc_type_expression(
         &self,
         base_factory: &TBaseNodeFactory,
         type_: Rc<Node /*TypeNode*/>,
@@ -300,7 +300,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         JSDocTypeExpression::new(node, type_)
     }
 
-    pub(crate) fn create_jsdoc_signature<
+    pub fn create_jsdoc_signature<
         TTypeParameters: Into<NodeArrayOrVec>,
         TParameters: Into<NodeArrayOrVec>,
     >(
@@ -317,6 +317,28 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             self.create_node_array(Some(parameters), None),
             type_,
         )
+    }
+
+    fn get_default_tag_name(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*JSDocTag*/
+    ) -> Rc<Node /*Identifier*/> {
+        let default_tag_name = get_default_tag_name_for_kind(node.kind());
+        let node_as_jsdoc_tag = node.as_jsdoc_tag();
+        if node_as_jsdoc_tag.tag_name().as_identifier().escaped_text
+            == escape_leading_underscores(default_tag_name)
+        {
+            node_as_jsdoc_tag.tag_name()
+        } else {
+            self.create_identifier(
+                base_factory,
+                default_tag_name,
+                Option::<NodeArray>::None,
+                None,
+            )
+            .into()
+        }
     }
 
     pub(crate) fn create_base_jsdoc_tag<TComment: Into<StringOrNodeArray>>(
