@@ -386,7 +386,15 @@ fn get_ast_struct_interface_impl(
                 }
             }
         }
-
+        "UnparsedSectionInterface" => {
+            quote! {
+                impl crate::UnparsedSectionInterface for #ast_type_name {
+                    fn maybe_data(&self) -> ::std::option::Option<&str> {
+                        self.#first_field_name.maybe_data()
+                    }
+                }
+            }
+        }
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
@@ -811,6 +819,17 @@ fn get_ast_enum_interface_impl(
                     fn members(&self) -> &crate::NodeArray {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.members()),*
+                        }
+                    }
+                }
+            }
+        }
+        "UnparsedSectionInterface" => {
+            quote! {
+                impl crate::UnparsedSectionInterface for #ast_type_name {
+                    fn maybe_data(&self) -> ::std::option::Option<&str> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_data()),*
                         }
                     }
                 }

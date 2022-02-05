@@ -216,8 +216,8 @@ pub use compiler::types::{
     TypeFormatFlags, TypeId, TypeInterface, TypeLiteralNode, TypeMapper, TypeOfExpression,
     TypeOperatorNode, TypeParameter, TypeParameterDeclaration, TypePredicate, TypePredicateNode,
     TypeQueryNode, TypeReference, TypeReferenceNode, UnderscoreEscapedMap, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, UnionReduction, UnionType, UnionTypeNode,
-    UnparsedNodeInterface, UnparsedSource, VariableDeclaration, VariableDeclarationList,
+    UnionOrIntersectionTypeInterface, UnionReduction, UnionType, UnionTypeNode, UnparsedPrologue,
+    UnparsedSectionInterface, UnparsedSource, VariableDeclaration, VariableDeclarationList,
     VariableLikeDeclarationInterface, VariableStatement, VoidExpression, WhileStatement,
     WithStatement, YieldExpression, __String,
 };

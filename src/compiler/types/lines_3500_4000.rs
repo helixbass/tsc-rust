@@ -248,10 +248,12 @@ impl UnparsedSource {
     }
 }
 
-pub trait UnparsedNodeInterface {
+pub trait UnparsedSectionInterface {
     fn maybe_data(&self) -> Option<&str>;
 }
 
+#[derive(Debug)]
+#[ast_type(impl_from = false)]
 pub struct BaseUnparsedNode {
     _node: BaseNode,
     data: Option<String>,
@@ -266,9 +268,23 @@ impl BaseUnparsedNode {
     }
 }
 
-impl UnparsedNodeInterface for BaseUnparsedNode {
+impl UnparsedSectionInterface for BaseUnparsedNode {
     fn maybe_data(&self) -> Option<&str> {
         self.data.as_deref()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "UnparsedSectionInterface")]
+pub struct UnparsedPrologue {
+    _unparsed_node: BaseUnparsedNode,
+}
+
+impl UnparsedPrologue {
+    pub fn new(base_unparsed_node: BaseUnparsedNode) -> Self {
+        Self {
+            _unparsed_node: base_unparsed_node,
+        }
     }
 }
 

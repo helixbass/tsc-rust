@@ -9,7 +9,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind, ScriptTarget,
     ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode, SyntaxKind,
-    TransformFlags, UnparsedSource,
+    TransformFlags, UnparsedPrologue, UnparsedSource,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -177,6 +177,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> BaseUnparsedNode {
         let node = self.create_base_node(base_factory, kind);
         BaseUnparsedNode::new(node, data)
+    }
+
+    fn create_unparsed_prologue(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        data: Option<String>,
+    ) -> UnparsedPrologue {
+        let node = self.create_base_unparsed_node(base_factory, SyntaxKind::UnparsedPrologue, data);
+        UnparsedPrologue::new(node)
     }
 
     fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {
