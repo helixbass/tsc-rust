@@ -143,6 +143,18 @@ impl JsxOpeningFragment {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct JsxClosingFragment {
+    _node: BaseNode,
+}
+
+impl JsxClosingFragment {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JsxAttribute {
     _node: BaseNode,
     pub name: Rc<Node /*Identifier*/>,

@@ -8,10 +8,11 @@ use crate::{
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxClosingElement, JsxElement, JsxFragment,
-    JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxText, MissingDeclaration,
-    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxClosingElement, JsxClosingFragment, JsxElement,
+    JsxFragment, JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxText,
+    MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
+    SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -809,6 +810,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> JsxOpeningFragment {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxOpeningFragment);
         let mut node = JsxOpeningFragment::new(node);
+        node.add_transform_flags(TransformFlags::ContainsJsx);
+        node
+    }
+
+    pub fn create_jsx_jsx_closing_fragment(
+        &self,
+        base_factory: &TBaseNodeFactory,
+    ) -> JsxClosingFragment {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxClosingFragment);
+        let mut node = JsxClosingFragment::new(node);
         node.add_transform_flags(TransformFlags::ContainsJsx);
         node
     }
