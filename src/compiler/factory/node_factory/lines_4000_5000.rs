@@ -5,9 +5,9 @@ use crate::{
     escape_leading_underscores, AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag,
     BaseJSDocUnaryType, BaseNode, BaseNodeFactory, ExportAssignment, ExportDeclaration,
     ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDocFunctionType, JSDocSignature,
-    JSDocTypeExpression, JSDocTypeLiteral, JsxText, MissingDeclaration, NamedExports, NamedImports,
-    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    JSDocTemplateTag, JSDocTypeExpression, JSDocTypeLiteral, JsxText, MissingDeclaration,
+    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -349,8 +349,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         comment: Option<TComment>,
     ) -> BaseJSDocTag {
         let node = self.create_base_node(base_factory, kind);
-        let node = BaseJSDocTag::new(node, tag_name, comment.map(Into::into));
-        node
+        BaseJSDocTag::new(node, tag_name, comment.map(Into::into))
+    }
+
+    pub(crate) fn create_jsdoc_template_tag<
+        TTypeParameters: Into<NodeArrayOrVec>,
+        TComment: Into<StringOrNodeArray>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        constraint: Option<Rc<Node /*JSDocTypeExpression*/>>,
+        type_parameters: TTypeParameters, /*<TypeParameterDeclaration>*/
+        comment: Option<TComment>,
+    ) -> JSDocTemplateTag {
+        let node = self.create_base_jsdoc_tag(
+            base_factory,
+            SyntaxKind::JSDocTemplateTag,
+            tag_name.unwrap_or_else(|| {
+                self.create_identifier(base_factory, "template", Option::<NodeArray>::None, None)
+                    .into()
+            }),
+            comment,
+        );
+        JSDocTemplateTag::new(
+            node,
+            constraint,
+            self.create_node_array(Some(type_parameters), None),
+        )
     }
 
     pub(crate) fn create_jsdoc_simple_tag_worker<TComment: Into<StringOrNodeArray>>(
