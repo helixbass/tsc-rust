@@ -15,13 +15,21 @@ use local_macros::enum_unwrapped;
 
 impl ParserType {
     pub(super) fn parse_source_file_worker(&self) -> Rc<Node /*SourceFile*/> {
+        let source_flags = self.context_flags();
+
         self.next_token();
 
         let statements =
             self.parse_list(ParsingContext::SourceElements, ParserType::parse_statement);
-        Debug_.assert(matches!(self.token(), SyntaxKind::EndOfFileToken), None);
+        Debug_.assert(self.token() == SyntaxKind::EndOfFileToken, None);
+        let end_of_file_token = self.parse_token_node();
 
-        let source_file = self.create_source_file(self.file_name(), statements);
+        let source_file = self.create_source_file(
+            self.file_name(),
+            statements,
+            end_of_file_token.into(),
+            source_flags,
+        );
         let source_file: Rc<Node> = source_file.into();
         source_file
             .as_source_file()
@@ -37,8 +45,12 @@ impl ParserType {
         &self,
         file_name: &str,
         statements: TNodes,
+        end_of_file_token: Rc<Node /*EndOfFileToken*/>,
+        flags: NodeFlags,
     ) -> SourceFile {
-        let mut source_file = self.factory.create_source_file(self, statements);
+        let mut source_file =
+            self.factory
+                .create_source_file(self, statements, end_of_file_token, flags);
 
         source_file.text = self.source_text().to_string();
         source_file.set_file_name(file_name.to_string());

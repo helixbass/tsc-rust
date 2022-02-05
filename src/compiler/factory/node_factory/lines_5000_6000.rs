@@ -3,12 +3,12 @@
 use std::borrow::Borrow;
 use std::rc::Rc;
 
-use super::propagate_child_flags;
+use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_outer_expression, BaseNodeFactory, EnumMember, NamedDeclarationInterface, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeInterface, OuterExpressionKinds, PropertyAssignment,
-    ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode, SyntaxKind,
-    TransformFlags,
+    is_outer_expression, BaseNodeFactory, EnumMember, LanguageVariant, NamedDeclarationInterface,
+    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
+    PropertyAssignment, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SourceFile,
+    SpreadAssignment, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -109,17 +109,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_source_file<TNodes: Into<NodeArrayOrVec>>(
+    pub fn create_source_file<TStatements: Into<NodeArrayOrVec>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        statements: TNodes,
+        statements: TStatements,
+        end_of_file_token: Rc<Node /*EndOfFileToken*/>,
+        flags: NodeFlags,
     ) -> SourceFile {
         let node = base_factory.create_base_source_file_node(SyntaxKind::SourceFile);
-        let node = SourceFile::new(
+        let mut node = SourceFile::new(
             node,
             self.create_node_array(Some(statements), None),
+            end_of_file_token,
             "".to_string(),
             "".to_string(),
+            ScriptTarget::ES3,
+            LanguageVariant::Standard,
+            ScriptKind::Unknown,
+            false,
+            false,
+        );
+        node.add_transform_flags(
+            propagate_children_flags(Some(&node.statements))
+                | propagate_child_flags(Some(&*node.end_of_file_token)),
         );
         node
     }

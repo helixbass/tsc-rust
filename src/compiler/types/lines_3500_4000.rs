@@ -3,7 +3,10 @@
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
-use super::{BaseNode, BaseTextRange, Diagnostic, NodeArray, Path, Symbol, TypeCheckerHost};
+use super::{
+    BaseNode, BaseTextRange, Diagnostic, LanguageVariant, Node, NodeArray, Path, ScriptKind,
+    ScriptTarget, Symbol, TypeCheckerHost,
+};
 use local_macros::ast_type;
 
 pub type SourceTextAsChars = Vec<char>;
@@ -51,11 +54,21 @@ pub struct SourceFile {
     _node: BaseNode,
     _symbols_without_a_symbol_table_strong_references: RefCell<Vec<Rc<Symbol>>>,
     pub statements: NodeArray,
+    pub end_of_file_token: Rc<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
 
     file_name: RefCell<String>,
     path: RefCell<Option<Path>>,
     pub text: String,
     pub text_as_chars: SourceTextAsChars,
+
+    language_variant: LanguageVariant,
+    is_declaration_file: bool,
+
+    has_no_default_lib: bool,
+
+    language_version: ScriptTarget,
+
+    script_kind: ScriptKind,
 
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
@@ -66,20 +79,32 @@ impl SourceFile {
     pub fn new(
         base_node: BaseNode,
         statements: NodeArray,
+        end_of_file_token: Rc<Node>,
         file_name: String,
         text: String,
+        language_version: ScriptTarget,
+        language_variant: LanguageVariant,
+        script_kind: ScriptKind,
+        is_declaration_file: bool,
+        has_no_default_lib: bool,
     ) -> Self {
         let text_as_chars = text.chars().collect();
         Self {
             _node: base_node,
             _symbols_without_a_symbol_table_strong_references: RefCell::new(vec![]),
             statements,
+            end_of_file_token,
             file_name: RefCell::new(file_name),
             path: RefCell::new(None),
             text,
             text_as_chars,
             parse_diagnostics: RefCell::new(None),
             line_map: RefCell::new(None),
+            language_version,
+            language_variant,
+            script_kind,
+            is_declaration_file,
+            has_no_default_lib,
         }
     }
 
