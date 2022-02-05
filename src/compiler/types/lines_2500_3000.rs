@@ -1158,6 +1158,24 @@ impl InterfaceDeclaration {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct HeritageClause {
+    _node: BaseNode,
+    pub token: SyntaxKind, /*SyntaxKind.ExtendsKeyword | SyntaxKind.ImplementsKeyword*/
+    pub types: NodeArray,  /*<ExpressionWithTypeArguments>*/
+}
+
+impl HeritageClause {
+    pub fn new(base_node: BaseNode, token: SyntaxKind, types: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            token,
+            types,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]

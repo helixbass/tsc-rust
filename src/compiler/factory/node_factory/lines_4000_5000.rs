@@ -3,16 +3,17 @@ use std::rc::Rc;
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
     escape_leading_underscores, get_jsdoc_type_alias_name, AssertClause, AssertEntry, BaseJSDocTag,
-    BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, CaseClause, DefaultClause,
-    ExportAssignment, ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier,
-    JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
-    JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
-    JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes, JsxClosingElement,
-    JsxClosingFragment, JsxElement, JsxExpression, JsxFragment, JsxOpeningElement,
-    JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText, MissingDeclaration,
-    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, CaseClause, Debug_,
+    DefaultClause, ExportAssignment, ExportDeclaration, ExportSpecifier, ExternalModuleReference,
+    HeritageClause, ImportSpecifier, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType,
+    JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkPlain, JSDocMemberName,
+    JSDocNameReference, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTemplateTag,
+    JSDocText, JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes,
+    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
+    JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
+    MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
+    SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -910,6 +911,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, SyntaxKind::DefaultClause);
         let mut node = DefaultClause::new(node, self.create_node_array(Some(statements), None));
         node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
+        node
+    }
+
+    pub fn create_heritage_clause<TTypes: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        token: SyntaxKind, /*HeritageClause["token"]*/
+        types: TTypes,     /*<ExpressionWithTypeArguments>*/
+    ) -> HeritageClause {
+        let node = self.create_base_node(base_factory, SyntaxKind::HeritageClause);
+        let mut node = HeritageClause::new(node, token, self.create_node_array(Some(types), None));
+        node.add_transform_flags(propagate_children_flags(Some(&node.types)));
+        match token {
+            SyntaxKind::ExtendsKeyword => {
+                node.add_transform_flags(TransformFlags::ContainsES2015);
+            }
+            SyntaxKind::ImplementsKeyword => {
+                node.add_transform_flags(TransformFlags::ContainsTypeScript);
+            }
+            _ => Debug_.assert_never(token, None),
+        }
         node
     }
 }
