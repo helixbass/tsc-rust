@@ -148,6 +148,22 @@ impl HasInitializerInterface for JsxAttribute {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct JsxClosingElement {
+    _node: BaseNode,
+    pub tag_name: Rc<Node /*JsxTagNameExpression*/>,
+}
+
+impl JsxClosingElement {
+    pub fn new(base_node: BaseNode, tag_name: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            tag_name,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JsxText {
     _node: BaseNode,
     pub text: String,

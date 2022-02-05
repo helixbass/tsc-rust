@@ -8,10 +8,10 @@ use crate::{
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxElement, JsxOpeningElement, JsxSelfClosingElement,
-    JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
-    SyntaxKind, TransformFlags,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxClosingElement, JsxElement, JsxOpeningElement,
+    JsxSelfClosingElement, JsxText, MissingDeclaration, NamedExports, NamedImports,
+    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -748,6 +748,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if node.type_arguments.is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
+        node
+    }
+
+    pub fn create_jsx_closing_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Rc<Node /*JsxTagNameExpression*/>,
+    ) -> JsxClosingElement {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxClosingElement);
+        let mut node = JsxClosingElement::new(node, tag_name);
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.tag_name)) | TransformFlags::ContainsJsx,
+        );
         node
     }
 
