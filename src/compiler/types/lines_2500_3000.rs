@@ -56,6 +56,22 @@ impl JsxElement {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct JsxAttributes {
+    _node: BaseNode,
+    pub properties: NodeArray, /*<JsxAttributeLike>*/
+}
+
+impl JsxAttributes {
+    pub fn new(base_node: BaseNode, properties: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            properties,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JsxOpeningElement {
     _node: BaseNode,
     pub tag_name: Rc<Node /*JsxTagNameExpression*/>,

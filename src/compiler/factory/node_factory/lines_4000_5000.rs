@@ -8,11 +8,11 @@ use crate::{
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxClosingElement, JsxClosingFragment,
-    JsxElement, JsxFragment, JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxText,
-    MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
-    SyntaxKind, TransformFlags,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes, JsxClosingElement,
+    JsxClosingFragment, JsxElement, JsxFragment, JsxOpeningElement, JsxOpeningFragment,
+    JsxSelfClosingElement, JsxText, MissingDeclaration, NamedExports, NamedImports,
+    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -836,6 +836,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.name))
                 | propagate_child_flags(node.initializer.clone())
                 | TransformFlags::ContainsJsx,
+        );
+        node
+    }
+
+    pub fn create_jsx_attributes<TProperties: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        properties: TProperties,
+    ) -> JsxAttributes {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxAttributes);
+        let mut node = JsxAttributes::new(node, self.create_node_array(Some(properties), None));
+        node.add_transform_flags(
+            propagate_children_flags(Some(&node.properties)) | TransformFlags::ContainsJsx,
         );
         node
     }
