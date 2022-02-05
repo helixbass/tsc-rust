@@ -217,9 +217,9 @@ pub use compiler::types::{
     TypeOperatorNode, TypeParameter, TypeParameterDeclaration, TypePredicate, TypePredicateNode,
     TypeQueryNode, TypeReference, TypeReferenceNode, UnderscoreEscapedMap, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface, UnionReduction, UnionType, UnionTypeNode, UnparsedPrepend,
-    UnparsedPrologue, UnparsedSectionInterface, UnparsedSource, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
-    WhileStatement, WithStatement, YieldExpression, __String,
+    UnparsedPrologue, UnparsedSectionInterface, UnparsedSource, UnparsedTextLike,
+    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, VoidExpression, WhileStatement, WithStatement, YieldExpression, __String,
 };
 use compiler::types::{CommandLineOptionType, EmitNode, StringOrDiagnosticMessage};
 pub use compiler::utilities::{

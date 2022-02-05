@@ -304,6 +304,20 @@ impl UnparsedPrepend {
     }
 }
 
+#[derive(Debug)]
+#[ast_type(interfaces = "UnparsedSectionInterface")]
+pub struct UnparsedTextLike {
+    _unparsed_node: BaseUnparsedNode,
+}
+
+impl UnparsedTextLike {
+    pub fn new(base_unparsed_node: BaseUnparsedNode) -> Self {
+        Self {
+            _unparsed_node: base_unparsed_node,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct CommentDirective {
     pub range: BaseTextRange,
