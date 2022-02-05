@@ -6,10 +6,10 @@ use crate::{
     BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, ExportAssignment,
     ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDocAugmentsTag,
     JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode,
-    JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature,
-    JSDocTemplateTag, JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag, JsxText,
-    MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
+    JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag, JSDocSeeTag,
+    JSDocSignature, JSDocTemplateTag, JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag,
+    JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport,
+    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
     SyntaxKind, TransformFlags,
 };
 
@@ -586,6 +586,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> JSDocLinkCode {
         let node = self.create_base_node(base_factory, SyntaxKind::JSDocLinkCode);
         JSDocLinkCode::new(node, name, text)
+    }
+
+    pub fn create_jsdoc_link_plain(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
+        text: String,
+    ) -> JSDocLinkPlain {
+        let node = self.create_base_node(base_factory, SyntaxKind::JSDocLinkPlain);
+        JSDocLinkPlain::new(node, name, text)
     }
 
     pub(crate) fn create_jsdoc_simple_tag_worker<TComment: Into<StringOrNodeArray>>(
