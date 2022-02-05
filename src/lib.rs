@@ -149,7 +149,7 @@ pub use compiler::types::{
     BaseSignatureDeclaration, BaseSymbol, BaseTextRange, BaseTransientSymbol, BaseType,
     BaseUnionOrIntersectionType, BaseVariableLikeDeclaration, BigIntLiteral, BigIntLiteralType,
     BinaryExpression, BindingElement, BindingLikeDeclarationInterface, Block, BreakStatement,
-    CallExpression, CallSignatureDeclaration, CaseBlock, CharacterCodes, CheckFlags,
+    CallExpression, CallSignatureDeclaration, CaseBlock, CaseClause, CharacterCodes, CheckFlags,
     ClassDeclaration, ClassExpression, ClassLikeDeclarationBase, ClassLikeDeclarationInterface,
     ClassStaticBlockDeclaration, CommandLineOption, CommandLineOptionBase,
     CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType,

@@ -3,9 +3,9 @@ use std::rc::Rc;
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
     escape_leading_underscores, get_jsdoc_type_alias_name, AssertClause, AssertEntry, BaseJSDocTag,
-    BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, ExportAssignment,
-    ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDoc,
-    JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
+    BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, CaseClause,
+    ExportAssignment, ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier,
+    JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
     JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes, JsxClosingElement,
@@ -878,6 +878,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(node.dot_dot_dot_token.clone())
                 | propagate_child_flags(node.expression.clone())
                 | TransformFlags::ContainsJsx,
+        );
+        node
+    }
+
+    pub fn create_case_clause<TStatements: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+        statements: TStatements,
+    ) -> CaseClause {
+        let node = self.create_base_node(base_factory, SyntaxKind::CaseClause);
+        let mut node = CaseClause::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expression_for_disallowed_comma(base_factory, &expression),
+            self.create_node_array(Some(statements), None),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | propagate_children_flags(Some(&node.statements)),
         );
         node
     }

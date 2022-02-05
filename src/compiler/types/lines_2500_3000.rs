@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
-    BindingLikeDeclarationInterface, HasExpressionInterface, HasInitializerInterface,
+    BindingLikeDeclarationInterface, FlowNode, HasExpressionInterface, HasInitializerInterface,
     HasTypeInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, SyntaxKind, VariableLikeDeclarationInterface,
 };
@@ -672,6 +672,26 @@ impl CaseBlock {
         Self {
             _node: base_node,
             clauses,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct CaseClause {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+    pub statements: NodeArray, /*<Statement>*/
+    pub(crate) fallthrough_flow_node: Option<FlowNode>,
+}
+
+impl CaseClause {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, statements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            statements,
+            fallthrough_flow_node: None,
         }
     }
 }

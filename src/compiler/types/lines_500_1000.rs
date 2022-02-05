@@ -8,7 +8,7 @@ use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
     AssertClause, AssertEntry, AwaitExpression, BaseJSDocUnaryType, BigIntLiteral,
     BinaryExpression, BindingElement, Block, BreakStatement, CallExpression,
-    CallSignatureDeclaration, CaseBlock, ClassDeclaration, ClassExpression,
+    CallSignatureDeclaration, CaseBlock, CaseClause, ClassDeclaration, ClassExpression,
     ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContinueStatement,
     DebuggerStatement, Decorator, DeleteExpression, DoStatement, ElementAccessExpression, EmitNode,
@@ -335,6 +335,7 @@ pub enum Node {
     JsxAttributes(JsxAttributes),
     JsxSpreadAttribute(JsxSpreadAttribute),
     JsxExpression(JsxExpression),
+    CaseClause(CaseClause),
 }
 
 impl Node {
