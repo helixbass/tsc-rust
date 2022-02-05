@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_outer_expression, BaseNodeFactory, Bundle, EnumMember, LanguageVariant,
+    is_outer_expression, BaseNodeFactory, BaseUnparsedNode, Bundle, EnumMember, LanguageVariant,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind, ScriptTarget,
     ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode, SyntaxKind,
@@ -167,6 +167,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             vec![],
         )
         // node.getLineAndCharacterOfPosition = pos => getLineAndCharacterOfPosition(node, pos);
+    }
+
+    fn create_base_unparsed_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        data: Option<String>,
+    ) -> BaseUnparsedNode {
+        let node = self.create_base_node(base_factory, kind);
+        BaseUnparsedNode::new(node, data)
     }
 
     fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {

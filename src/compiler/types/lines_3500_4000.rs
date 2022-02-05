@@ -248,6 +248,30 @@ impl UnparsedSource {
     }
 }
 
+pub trait UnparsedNodeInterface {
+    fn maybe_data(&self) -> Option<&str>;
+}
+
+pub struct BaseUnparsedNode {
+    _node: BaseNode,
+    data: Option<String>,
+}
+
+impl BaseUnparsedNode {
+    pub fn new(base_node: BaseNode, data: Option<String>) -> Self {
+        Self {
+            _node: base_node,
+            data,
+        }
+    }
+}
+
+impl UnparsedNodeInterface for BaseUnparsedNode {
+    fn maybe_data(&self) -> Option<&str> {
+        self.data.as_deref()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct CommentDirective {
     pub range: BaseTextRange,
