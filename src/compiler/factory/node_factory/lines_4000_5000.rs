@@ -4,11 +4,11 @@ use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_chil
 use crate::{
     escape_leading_underscores, get_jsdoc_type_alias_name, AssertClause, AssertEntry, BaseJSDocTag,
     BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, ExportAssignment,
-    ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDocCallbackTag,
-    JSDocFunctionType, JSDocPropertyLikeTag, JSDocSignature, JSDocTemplateTag, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxText, MissingDeclaration, NamedExports, NamedImports,
-    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDocAugmentsTag,
+    JSDocCallbackTag, JSDocFunctionType, JSDocPropertyLikeTag, JSDocSignature, JSDocTemplateTag,
+    JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag, JsxText, MissingDeclaration,
+    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -484,6 +484,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             full_name.clone(),
             get_jsdoc_type_alias_name(full_name),
         )
+    }
+
+    pub fn create_jsdoc_augments_tag<TComment: Into<StringOrNodeArray>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        class_name: Rc<Node /*JSDocSignature*/>,
+        comment: Option<TComment>,
+    ) -> JSDocAugmentsTag {
+        let node = self.create_base_jsdoc_tag(
+            base_factory,
+            SyntaxKind::JSDocAugmentsTag,
+            tag_name.unwrap_or_else(|| {
+                self.create_identifier(base_factory, "augments", Option::<NodeArray>::None, None)
+                    .into()
+            }),
+            comment,
+        );
+        JSDocAugmentsTag::new(node, class_name)
     }
 
     pub(crate) fn create_jsdoc_simple_tag_worker<TComment: Into<StringOrNodeArray>>(
