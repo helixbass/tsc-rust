@@ -433,6 +433,34 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
+    pub(crate) fn create_jsdoc_property_tag<TComment: Into<StringOrNodeArray>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        name: Rc<Node /*EntityName*/>,
+        is_bracketed: bool,
+        type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+        is_name_first: Option<bool>,
+        comment: Option<TComment>,
+    ) -> JSDocPropertyLikeTag {
+        let node = self.create_base_jsdoc_tag(
+            base_factory,
+            SyntaxKind::JSDocPropertyTag,
+            tag_name.unwrap_or_else(|| {
+                self.create_identifier(base_factory, "prop", Option::<NodeArray>::None, None)
+                    .into()
+            }),
+            comment,
+        );
+        JSDocPropertyLikeTag::new(
+            node,
+            type_expression,
+            name,
+            is_name_first.unwrap_or(false),
+            is_bracketed,
+        )
+    }
+
     pub(crate) fn create_jsdoc_simple_tag_worker<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
