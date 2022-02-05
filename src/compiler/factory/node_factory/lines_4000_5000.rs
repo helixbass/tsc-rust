@@ -10,9 +10,9 @@ use crate::{
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
     JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes, JsxClosingElement,
     JsxClosingFragment, JsxElement, JsxFragment, JsxOpeningElement, JsxOpeningFragment,
-    JsxSelfClosingElement, JsxText, MissingDeclaration, NamedExports, NamedImports,
-    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    JsxSelfClosingElement, JsxSpreadAttribute, JsxText, MissingDeclaration, NamedExports,
+    NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -849,6 +849,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = JsxAttributes::new(node, self.create_node_array(Some(properties), None));
         node.add_transform_flags(
             propagate_children_flags(Some(&node.properties)) | TransformFlags::ContainsJsx,
+        );
+        node
+    }
+
+    pub fn create_jsx_spread_attribute(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> JsxSpreadAttribute {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxSpreadAttribute);
+        let mut node = JsxSpreadAttribute::new(node, expression);
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsJsx,
         );
         node
     }
