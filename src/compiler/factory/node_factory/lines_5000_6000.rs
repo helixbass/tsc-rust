@@ -5,17 +5,18 @@ use std::rc::Rc;
 
 use super::propagate_child_flags;
 use crate::{
-    is_outer_expression, BaseNodeFactory, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, OuterExpressionKinds, PropertyAssignment, ShorthandPropertyAssignment,
-    SourceFile, SpreadAssignment, SyntaxKind, TransformFlags,
+    is_outer_expression, BaseNodeFactory, NamedDeclarationInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeFactory, NodeInterface, OuterExpressionKinds, PropertyAssignment,
+    ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode, SyntaxKind,
+    TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
-    pub fn create_property_assignment(
+    pub fn create_property_assignment<TName: Into<StringOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: Rc<Node>,
-        initializer: Rc<Node>,
+        name: TName, /*PropertyName*/
+        initializer: Rc<Node /*Expression*/>,
     ) -> PropertyAssignment {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -24,7 +25,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             Option::<NodeArray>::None,
             Some(name),
         );
-        let node = PropertyAssignment::new(node, initializer);
+        let mut node = PropertyAssignment::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expression_for_disallowed_comma(base_factory, &initializer),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.name()))
+                | propagate_child_flags(Some(&*node.initializer)),
+        );
         node
     }
 
