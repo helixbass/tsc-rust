@@ -288,6 +288,22 @@ impl UnparsedPrologue {
     }
 }
 
+#[derive(Debug)]
+#[ast_type(interfaces = "UnparsedSectionInterface")]
+pub struct UnparsedPrepend {
+    _unparsed_node: BaseUnparsedNode,
+    texts: Vec<Rc<Node /*UnparsedTextLike*/>>,
+}
+
+impl UnparsedPrepend {
+    pub fn new(base_unparsed_node: BaseUnparsedNode, texts: Vec<Rc<Node>>) -> Self {
+        Self {
+            _unparsed_node: base_unparsed_node,
+            texts,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct CommentDirective {
     pub range: BaseTextRange,

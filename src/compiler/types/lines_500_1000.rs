@@ -45,9 +45,10 @@ use super::{
     TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, ThrowStatement, TransformFlags,
     TryStatement, TupleTypeNode, TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode,
     TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
-    TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, UnparsedPrologue,
-    UnparsedSource, VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VoidExpression, WhileStatement, WithStatement, YieldExpression,
+    TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, UnparsedPrepend,
+    UnparsedPrologue, UnparsedSource, VariableDeclaration, VariableDeclarationList,
+    VariableLikeDeclarationInterface, VariableStatement, VoidExpression, WhileStatement,
+    WithStatement, YieldExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -343,6 +344,7 @@ pub enum Node {
     Bundle(Bundle),
     UnparsedSource(UnparsedSource),
     UnparsedPrologue(UnparsedPrologue),
+    UnparsedPrepend(UnparsedPrepend),
 }
 
 impl Node {
