@@ -8,9 +8,10 @@ use crate::{
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxElement, JsxText, MissingDeclaration, NamedExports,
-    NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxElement, JsxSelfClosingElement, JsxText,
+    MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
+    SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -695,6 +696,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(Some(&*node.closing_element))
                 | TransformFlags::ContainsJsx,
         );
+        node
+    }
+
+    pub fn create_jsx_self_closing_element<TTypeArguments: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Rc<Node /*JsxTagNameExpression*/>,
+        type_arguments: Option<TTypeArguments>,
+        attributes: Rc<Node /*JsxAttributes*/>,
+    ) -> JsxSelfClosingElement {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxSelfClosingElement);
+        let mut node = JsxSelfClosingElement::new(
+            node,
+            tag_name,
+            self.as_node_array(type_arguments),
+            attributes,
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.tag_name))
+                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_child_flags(Some(&*node.attributes))
+                | TransformFlags::ContainsJsx,
+        );
+        if node.type_arguments.is_some() {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
         node
     }
 
