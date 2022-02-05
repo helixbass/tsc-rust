@@ -9,7 +9,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind, ScriptTarget,
     ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode, SyntaxKind,
-    TransformFlags,
+    TransformFlags, UnparsedSource,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -146,6 +146,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let prepends = prepends.unwrap_or_else(|| vec![]);
         let node = self.create_base_node(base_factory, SyntaxKind::Bundle);
         Bundle::new(node, prepends, source_files)
+    }
+
+    pub fn create_unparsed_source(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        prologues: Vec<Rc<Node /*<UnparsedPrologue>*/>>,
+        synthetic_references: Option<Vec<Rc<Node /*<UnparsedSyntheticReference*/>>>,
+        texts: Vec<Rc<Node /*<UnparsedSourceText>*/>>,
+    ) -> UnparsedSource {
+        let node = self.create_base_node(base_factory, SyntaxKind::UnparsedSource);
+        UnparsedSource::new(
+            node,
+            prologues,
+            synthetic_references,
+            texts,
+            "".to_owned(),
+            "".to_owned(),
+            vec![],
+            vec![],
+        )
+        // node.getLineAndCharacterOfPosition = pos => getLineAndCharacterOfPosition(node, pos);
     }
 
     fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {

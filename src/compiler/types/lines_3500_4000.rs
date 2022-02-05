@@ -4,8 +4,8 @@ use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
-    BaseNode, BaseTextRange, Diagnostic, FileReference, LanguageVariant, Node, NodeArray, Path,
-    ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
+    BaseNode, BaseTextRange, Diagnostic, EmitHelper, FileReference, LanguageVariant, Node,
+    NodeArray, Path, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
 };
 use local_macros::ast_type;
 
@@ -192,6 +192,58 @@ impl Bundle {
             synthetic_type_references: None,
             synthetic_lib_references: None,
             has_no_default_lib: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct UnparsedSource {
+    _node: BaseNode,
+    pub file_name: String,
+    pub text: String,
+    pub prologues: Vec<Rc<Node /*UnparsedPrologue*/>>,
+    pub helpers: Option<Vec<Rc<EmitHelper /*UnscopedEmitHelper*/>>>,
+
+    pub referenced_files: Vec<FileReference>,
+    pub type_reference_directives: Option<Vec<String>>,
+    pub lib_reference_directives: Vec<FileReference>,
+    pub has_no_default_lib: Option<bool>,
+
+    pub source_map_path: Option<String>,
+    pub source_map_text: Option<String>,
+    pub synthetic_references: Option<Vec<Rc<Node /*UnparsedSyntheticReference*/>>>,
+    pub texts: Vec<Rc<Node /*UnparsedSourceText*/>>,
+    pub(crate) old_file_of_current_emit: Option<bool>,
+}
+
+// TODO: implement SourceFileLike for UnparsedSource
+impl UnparsedSource {
+    pub fn new(
+        base_node: BaseNode,
+        prologues: Vec<Rc<Node>>,
+        synthetic_references: Option<Vec<Rc<Node>>>,
+        texts: Vec<Rc<Node>>,
+        file_name: String,
+        text: String,
+        referenced_files: Vec<FileReference>,
+        lib_reference_directives: Vec<FileReference>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            prologues,
+            synthetic_references,
+            texts,
+            file_name,
+            text,
+            referenced_files,
+            lib_reference_directives,
+            helpers: None,
+            type_reference_directives: None,
+            has_no_default_lib: None,
+            source_map_path: None,
+            source_map_text: None,
+            old_file_of_current_emit: None,
         }
     }
 }
