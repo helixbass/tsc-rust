@@ -8,9 +8,9 @@ use crate::{
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxElement, JsxSelfClosingElement, JsxText,
-    MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxElement, JsxOpeningElement, JsxSelfClosingElement,
+    JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport,
+    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
     SyntaxKind, TransformFlags,
 };
 
@@ -708,6 +708,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> JsxSelfClosingElement {
         let node = self.create_base_node(base_factory, SyntaxKind::JsxSelfClosingElement);
         let mut node = JsxSelfClosingElement::new(
+            node,
+            tag_name,
+            self.as_node_array(type_arguments),
+            attributes,
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.tag_name))
+                | propagate_children_flags(node.type_arguments.as_ref())
+                | propagate_child_flags(Some(&*node.attributes))
+                | TransformFlags::ContainsJsx,
+        );
+        if node.type_arguments.is_some() {
+            node.add_transform_flags(TransformFlags::ContainsTypeScript);
+        }
+        node
+    }
+
+    pub fn create_jsx_opening_element<TTypeArguments: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Rc<Node /*JsxTagNameExpression*/>,
+        type_arguments: Option<TTypeArguments>,
+        attributes: Rc<Node /*JsxAttributes*/>,
+    ) -> JsxOpeningElement {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxOpeningElement);
+        let mut node = JsxOpeningElement::new(
             node,
             tag_name,
             self.as_node_array(type_arguments),

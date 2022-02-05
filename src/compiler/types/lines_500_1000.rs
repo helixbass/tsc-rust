@@ -24,8 +24,8 @@ use super::{
     JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
     JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSignature, JSDocTag, JSDocTagInterface,
     JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
-    JSDocTypedefTag, JsxAttribute, JsxElement, JsxSelfClosingElement, JsxText, KeywordTypeNode,
-    LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
+    JSDocTypedefTag, JsxAttribute, JsxElement, JsxOpeningElement, JsxSelfClosingElement, JsxText,
+    KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
     MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
     ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface, NamedExports,
     NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration, NamespaceImport,
@@ -325,6 +325,7 @@ pub enum Node {
     JSDocNameReference(JSDocNameReference),
     JsxElement(JsxElement),
     JsxSelfClosingElement(JsxSelfClosingElement),
+    JsxOpeningElement(JsxOpeningElement),
 }
 
 impl Node {

@@ -56,6 +56,31 @@ impl JsxElement {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct JsxOpeningElement {
+    _node: BaseNode,
+    pub tag_name: Rc<Node /*JsxTagNameExpression*/>,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    pub attributes: Rc<Node /*JsxAttributes*/>,
+}
+
+impl JsxOpeningElement {
+    pub fn new(
+        base_node: BaseNode,
+        tag_name: Rc<Node>,
+        type_arguments: Option<NodeArray>,
+        attributes: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            tag_name,
+            type_arguments,
+            attributes,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JsxSelfClosingElement {
     _node: BaseNode,
     pub tag_name: Rc<Node /*JsxTagNameExpression*/>,
