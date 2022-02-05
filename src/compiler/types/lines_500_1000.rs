@@ -21,18 +21,19 @@ use super::{
     Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
     ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
     InferTypeNode, InterfaceDeclaration, IntersectionTypeNode, JSDoc, JSDocFunctionType, JSDocLink,
-    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag,
-    JSDocSignature, JSDocTag, JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLikeTagInterface, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxText,
-    KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
-    MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
-    ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface, NamedExports,
-    NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration, NamespaceImport,
-    NewExpression, NodeArray, NonNullExpression, NumericLiteral, ObjectBindingPattern,
-    ObjectLiteralExpression, OmittedExpression, OptionalTypeNode, ParameterDeclaration,
-    ParenthesizedExpression, ParenthesizedTypeNode, PartiallyEmittedExpression,
-    PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier, PropertyAccessExpression,
-    PropertyAssignment, PropertyDeclaration, PropertySignature, QualifiedName, ReadonlyTextRange,
+    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName,
+    JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSignature, JSDocTag, JSDocTagInterface,
+    JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
+    JSDocTypedefTag, JsxAttribute, JsxText, KeywordTypeNode, LabeledStatement,
+    LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode, MemberNameInterface, MetaProperty,
+    MethodDeclaration, MethodSignature, MissingDeclaration, ModifiersArray, ModuleBlock,
+    ModuleDeclaration, NamedDeclarationInterface, NamedExports, NamedImports, NamedTupleMember,
+    NamespaceExport, NamespaceExportDeclaration, NamespaceImport, NewExpression, NodeArray,
+    NonNullExpression, NumericLiteral, ObjectBindingPattern, ObjectLiteralExpression,
+    OmittedExpression, OptionalTypeNode, ParameterDeclaration, ParenthesizedExpression,
+    ParenthesizedTypeNode, PartiallyEmittedExpression, PostfixUnaryExpression,
+    PrefixUnaryExpression, PrivateIdentifier, PropertyAccessExpression, PropertyAssignment,
+    PropertyDeclaration, PropertySignature, QualifiedName, ReadonlyTextRange,
     RegularExpressionLiteral, RestTypeNode, ReturnStatement, SemicolonClassElement,
     SetAccessorDeclaration, ShorthandPropertyAssignment, SignatureDeclarationBase,
     SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
@@ -320,6 +321,7 @@ pub enum Node {
     JSDocFunctionType(JSDocFunctionType),
     JSDocTypeLiteral(JSDocTypeLiteral),
     JSDocSignature(JSDocSignature),
+    JSDocNamespaceDeclaration(JSDocNamespaceDeclaration),
 }
 
 impl Node {
@@ -733,6 +735,10 @@ impl Node {
 
     pub fn as_spread_assignment(&self) -> &SpreadAssignment {
         enum_unwrapped!(self, [Node, SpreadAssignment])
+    }
+
+    pub fn as_jsdoc_namespace_declaration(&self) -> &JSDocNamespaceDeclaration {
+        enum_unwrapped!(self, [Node, JSDocNamespaceDeclaration])
     }
 }
 

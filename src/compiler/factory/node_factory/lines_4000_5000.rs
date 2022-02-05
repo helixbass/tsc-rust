@@ -2,12 +2,13 @@ use std::rc::Rc;
 
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
-    escape_leading_underscores, AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag,
-    BaseJSDocUnaryType, BaseNode, BaseNodeFactory, ExportAssignment, ExportDeclaration,
-    ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDocFunctionType, JSDocSignature,
-    JSDocTemplateTag, JSDocTypeExpression, JSDocTypeLiteral, JsxText, MissingDeclaration,
-    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    escape_leading_underscores, get_jsdoc_type_alias_name, AssertClause, AssertEntry, BaseJSDocTag,
+    BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, ExportAssignment,
+    ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier,
+    JSDocFunctionType, JSDocSignature, JSDocTemplateTag, JSDocTypeExpression, JSDocTypeLiteral,
+    JSDocTypedefTag, JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport,
+    NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -376,6 +377,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node,
             constraint,
             self.create_node_array(Some(type_parameters), None),
+        )
+    }
+
+    pub(crate) fn create_jsdoc_typedef_tag<TComment: Into<StringOrNodeArray>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+        full_name: Option<Rc<Node /*Identifier | JSDocNamespaceDeclaration*/>>,
+        comment: Option<TComment>,
+    ) -> JSDocTypedefTag {
+        let node = self.create_base_jsdoc_tag(
+            base_factory,
+            SyntaxKind::JSDocTypedefTag,
+            tag_name.unwrap_or_else(|| {
+                self.create_identifier(base_factory, "typedef", Option::<NodeArray>::None, None)
+                    .into()
+            }),
+            comment,
+        );
+        JSDocTypedefTag::new(
+            node,
+            type_expression,
+            full_name.clone(),
+            get_jsdoc_type_alias_name(full_name),
         )
     }
 

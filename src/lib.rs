@@ -97,6 +97,7 @@ pub use compiler::factory::node_tests::{
 pub use compiler::factory::parenthesizer_rules::{
     create_parenthesizer_rules, null_parenthesizer_rules,
 };
+use compiler::factory::utilities::get_jsdoc_type_alias_name;
 pub use compiler::factory::utilities::{
     get_elements_of_binding_or_assignment_pattern, get_target_of_binding_or_assignment_element,
     is_comma_sequence, is_local_name, is_outer_expression, skip_outer_expressions,
@@ -177,13 +178,13 @@ pub use compiler::types::{
     InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, IntersectionTypeNode,
     IntrinsicType, IntrinsicTypeInterface, JSDoc, JSDocAugmentsTag, JSDocCallbackTag,
     JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface,
-    JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTag,
-    JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxEmit, JsxText, KeywordTypeNode,
-    LabeledStatement, LanguageVariant, LineAndCharacter, ListFormat, LiteralLikeNodeInterface,
-    LiteralType, LiteralTypeInterface, LiteralTypeNode, MappedTypeNode, MetaProperty,
-    MethodDeclaration, MethodSignature, MissingDeclaration, ModifierFlags, ModuleBlock,
-    ModuleDeclaration, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
+    JSDocLinkPlain, JSDocMemberName, JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSeeTag,
+    JSDocSignature, JSDocTag, JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
+    JSDocTypeLikeTagInterface, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxEmit, JsxText,
+    KeywordTypeNode, LabeledStatement, LanguageVariant, LineAndCharacter, ListFormat,
+    LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, LiteralTypeNode, MappedTypeNode,
+    MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration, ModifierFlags,
+    ModuleBlock, ModuleDeclaration, ModuleKind, ModuleResolutionHost, ModuleResolutionKind,
     ModuleSpecifierResolutionHost, NamedDeclarationInterface, NamedExports, NamedImports,
     NamedTupleMember, NamespaceExport, NamespaceExportDeclaration, NamespaceImport, NewExpression,
     NewLineKind, Node, NodeArray, NodeArrayOrVec, NodeBuilderFlags, NodeCheckFlags, NodeConverters,
