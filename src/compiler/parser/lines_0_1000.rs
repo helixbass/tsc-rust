@@ -527,6 +527,15 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_node(&mut cb_node, Some(&*node.equals_greater_than_token));
             visit_node(&mut cb_node, node.maybe_body())
         }
+        Node::ClassStaticBlockDeclaration(node) => {
+            visit_nodes(
+                &mut cb_node,
+                Some(&mut cb_nodes),
+                node.maybe_decorators().as_ref(),
+            );
+            visit_nodes(&mut cb_node, Some(&mut cb_nodes), node.maybe_modifiers());
+            visit_node(&mut cb_node, Some(&*node.body));
+        }
         Node::TypeReferenceNode(node) => {
             visit_node(&mut cb_node, Some(node.type_name.clone()));
             visit_nodes(
@@ -535,20 +544,58 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 node.type_arguments.as_ref(),
             )
         }
-        Node::ArrayTypeNode(array_type) => {
-            visit_node(&mut cb_node, Some(array_type.element_type.clone()))
+        Node::TypePredicateNode(node) => {
+            visit_node(&mut cb_node, node.asserts_modifier.clone());
+            visit_node(&mut cb_node, Some(&*node.parameter_name));
+            visit_node(&mut cb_node, node.type_.clone());
         }
-        Node::UnionTypeNode(union_type) => {
-            visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(&union_type.types))
+        Node::TypeQueryNode(node) => visit_node(&mut cb_node, Some(&*node.expr_name)),
+        Node::TypeLiteralNode(node) => {
+            visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(&node.members))
         }
-        Node::IntersectionTypeNode(intersection_type) => visit_nodes(
-            &mut cb_node,
-            Some(&mut cb_nodes),
-            Some(&intersection_type.types),
-        ),
-        Node::LiteralTypeNode(literal_type) => {
-            visit_node(&mut cb_node, Some(literal_type.literal.clone()))
+        Node::ArrayTypeNode(node) => visit_node(&mut cb_node, Some(node.element_type.clone())),
+        Node::TupleTypeNode(node) => {
+            visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(&node.elements))
         }
+        Node::UnionTypeNode(node) => {
+            visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(&node.types))
+        }
+        Node::IntersectionTypeNode(node) => {
+            visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(&node.types))
+        }
+        Node::ConditionalTypeNode(node) => {
+            visit_node(&mut cb_node, Some(&*node.check_type));
+            visit_node(&mut cb_node, Some(&*node.extends_type));
+            visit_node(&mut cb_node, Some(&*node.true_type));
+            visit_node(&mut cb_node, Some(&*node.false_type));
+        }
+        Node::InferTypeNode(node) => {
+            visit_node(&mut cb_node, Some(&*node.type_parameter));
+        }
+        Node::ImportTypeNode(node) => {
+            visit_node(&mut cb_node, Some(&*node.argument));
+            visit_node(&mut cb_node, node.qualifier.clone());
+            visit_nodes(
+                &mut cb_node,
+                Some(&mut cb_nodes),
+                node.type_arguments.as_ref(),
+            )
+        }
+        Node::ParenthesizedTypeNode(node) => visit_node(&mut cb_node, Some(&*node.type_)),
+        Node::TypeOperatorNode(node) => visit_node(&mut cb_node, Some(&*node.type_)),
+        Node::IndexedAccessTypeNode(node) => {
+            visit_node(&mut cb_node, Some(&*node.object_type));
+            visit_node(&mut cb_node, Some(&*node.index_type));
+        }
+        Node::MappedTypeNode(node) => {
+            visit_node(&mut cb_node, node.readonly_token.clone());
+            visit_node(&mut cb_node, Some(&*node.type_parameter));
+            visit_node(&mut cb_node, node.name_type.clone());
+            visit_node(&mut cb_node, node.question_token.clone());
+            visit_node(&mut cb_node, node.type_.clone());
+            visit_nodes(&mut cb_node, Some(&mut cb_nodes), node.members.as_ref())
+        }
+        Node::LiteralTypeNode(node) => visit_node(&mut cb_node, Some(&*node.literal)),
         Node::ArrayLiteralExpression(array_literal_expression) => visit_nodes(
             &mut cb_node,
             Some(&mut cb_nodes),
