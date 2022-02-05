@@ -21,7 +21,7 @@ use super::{
     Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
     ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
     InferTypeNode, InterfaceDeclaration, IntersectionTypeNode, JSDoc, JSDocFunctionType, JSDocLink,
-    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName,
+    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
     JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSignature, JSDocTag, JSDocTagInterface,
     JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
     JSDocTypedefTag, JsxAttribute, JsxText, KeywordTypeNode, LabeledStatement,
@@ -322,6 +322,7 @@ pub enum Node {
     JSDocTypeLiteral(JSDocTypeLiteral),
     JSDocSignature(JSDocSignature),
     JSDocNamespaceDeclaration(JSDocNamespaceDeclaration),
+    JSDocNameReference(JSDocNameReference),
 }
 
 impl Node {

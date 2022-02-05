@@ -457,6 +457,36 @@ impl HasTypeInterface for JSDocTypeExpression {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct JSDocNameReference {
+    _node: BaseNode,
+    pub name: Rc<Node /*EntityName | JSDocMemberName*/>,
+}
+
+impl JSDocNameReference {
+    pub fn new(base_node: BaseNode, name: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for JSDocNameReference {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JSDocMemberName {
     _node: BaseNode,
     pub left: Rc<Node /*EntityName | JSDocMemberName*/>,
