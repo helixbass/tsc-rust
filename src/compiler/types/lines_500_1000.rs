@@ -21,8 +21,8 @@ use super::{
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
     HeritageClause, Identifier, IfStatement, ImportClause, ImportDeclaration,
     ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration,
-    IndexedAccessTypeNode, InferTypeNode, InterfaceDeclaration, IntersectionTypeNode, JSDoc,
-    JSDocFunctionType, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
+    IndexedAccessTypeNode, InferTypeNode, InputFiles, InterfaceDeclaration, IntersectionTypeNode,
+    JSDoc, JSDocFunctionType, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
     JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration, JSDocPropertyLikeTag,
     JSDocSignature, JSDocTag, JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
     JSDocTypeLikeTagInterface, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes,
@@ -346,6 +346,7 @@ pub enum Node {
     UnparsedPrologue(UnparsedPrologue),
     UnparsedPrepend(UnparsedPrepend),
     UnparsedTextLike(UnparsedTextLike),
+    InputFiles(InputFiles),
 }
 
 impl Node {

@@ -4,8 +4,8 @@ use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
-    BaseNode, BaseTextRange, Diagnostic, EmitHelper, FileReference, LanguageVariant, Node,
-    NodeArray, Path, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
+    BaseNode, BaseTextRange, BuildInfo, Diagnostic, EmitHelper, FileReference, LanguageVariant,
+    Node, NodeArray, Path, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
 };
 use local_macros::ast_type;
 
@@ -192,6 +192,42 @@ impl Bundle {
             synthetic_type_references: None,
             synthetic_lib_references: None,
             has_no_default_lib: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct InputFiles {
+    _node: BaseNode,
+    pub javascript_path: Option<String>,
+    pub javascript_text: String,
+    pub javascript_map_path: Option<String>,
+    pub javascript_map_text: Option<String>,
+    pub declaration_path: Option<String>,
+    pub declaration_text: String,
+    pub declaration_map_path: Option<String>,
+    pub declaration_map_text: Option<String>,
+    pub(crate) build_info_path: Option<String>,
+    pub(crate) build_info: Option<BuildInfo>,
+    pub(crate) old_file_of_current_emit: Option<bool>,
+}
+
+impl InputFiles {
+    pub fn new(base_node: BaseNode, javascript_text: String, declaration_text: String) -> Self {
+        Self {
+            _node: base_node,
+            javascript_text,
+            declaration_text,
+            javascript_path: None,
+            javascript_map_path: None,
+            javascript_map_text: None,
+            declaration_path: None,
+            declaration_map_path: None,
+            declaration_map_text: None,
+            build_info_path: None,
+            build_info: None,
+            old_file_of_current_emit: None,
         }
     }
 }

@@ -174,7 +174,7 @@ pub use compiler::types::{
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, HeritageClause,
     Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
     ImportSpecifier, ImportTypeNode, ImportsNotUsedAsValues, IndexSignatureDeclaration,
-    IndexedAccessTypeNode, InferTypeNode, InterfaceDeclaration,
+    IndexedAccessTypeNode, InferTypeNode, InputFiles, InterfaceDeclaration,
     InterfaceOrClassLikeDeclarationInterface, InterfaceType,
     InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, IntersectionTypeNode,
     IntrinsicType, IntrinsicTypeInterface, JSDoc, JSDocAugmentsTag, JSDocCallbackTag,

@@ -5,9 +5,9 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_outer_expression, BaseNodeFactory, BaseUnparsedNode, Bundle, EnumMember, LanguageVariant,
-    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind, ScriptTarget,
+    is_outer_expression, BaseNodeFactory, BaseUnparsedNode, Bundle, EnumMember, InputFiles,
+    LanguageVariant, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind, ScriptTarget,
     ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode, SyntaxKind,
     TransformFlags, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
 };
@@ -214,6 +214,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             data,
         );
         UnparsedTextLike::new(node)
+    }
+
+    fn create_input_files(&self, base_factory: &TBaseNodeFactory) -> InputFiles {
+        let node = self.create_base_node(base_factory, SyntaxKind::InputFiles);
+        InputFiles::new(node, "".to_owned(), "".to_owned())
     }
 
     fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {
