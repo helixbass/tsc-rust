@@ -2,18 +2,18 @@ use std::rc::Rc;
 
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
-    escape_leading_underscores, get_jsdoc_type_alias_name, AssertClause, AssertEntry, BaseJSDocTag,
-    BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, CaseClause, Debug_,
-    DefaultClause, ExportAssignment, ExportDeclaration, ExportSpecifier, ExternalModuleReference,
-    HeritageClause, ImportSpecifier, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType,
-    JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkPlain, JSDocMemberName,
-    JSDocNameReference, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTemplateTag,
-    JSDocText, JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes,
-    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
-    JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
-    MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
-    SyntaxKind, TransformFlags,
+    escape_leading_underscores, get_jsdoc_type_alias_name, is_variable_declaration, AssertClause,
+    AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory,
+    CaseClause, CatchClause, Debug_, DefaultClause, ExportAssignment, ExportDeclaration,
+    ExportSpecifier, ExternalModuleReference, HeritageClause, ImportSpecifier, JSDoc,
+    JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
+    JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
+    JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes, JsxClosingElement,
+    JsxClosingFragment, JsxElement, JsxExpression, JsxFragment, JsxOpeningElement,
+    JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText, MissingDeclaration,
+    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -931,6 +931,55 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 node.add_transform_flags(TransformFlags::ContainsTypeScript);
             }
             _ => Debug_.assert_never(token, None),
+        }
+        node
+    }
+
+    pub fn create_catch_clause<TVariableDeclaration: Into<StringOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        variable_declaration: Option<
+            TVariableDeclaration, /*BindingName | VariableDeclaration*/
+        >,
+        block: Rc<Node /*Block*/>,
+    ) -> CatchClause {
+        let node = self.create_base_node(base_factory, SyntaxKind::CatchClause);
+        let variable_declaration: Option<Rc<Node>> =
+            variable_declaration.map(|variable_declaration| {
+                let variable_declaration = variable_declaration.into();
+                match variable_declaration {
+                    StringOrRcNode::String(variable_declaration) => self
+                        .create_variable_declaration(
+                            base_factory,
+                            Some(variable_declaration),
+                            None,
+                            None,
+                            None,
+                        )
+                        .into(),
+                    StringOrRcNode::RcNode(variable_declaration)
+                        if !is_variable_declaration(&variable_declaration) =>
+                    {
+                        self.create_variable_declaration(
+                            base_factory,
+                            Some(variable_declaration),
+                            None,
+                            None,
+                            None,
+                        )
+                        .into()
+                    }
+                    StringOrRcNode::RcNode(variable_declaration) => variable_declaration,
+                }
+            });
+        let variable_declaration_is_some = variable_declaration.is_some();
+        let mut node = CatchClause::new(node, variable_declaration, block);
+        node.add_transform_flags(
+            propagate_child_flags(node.variable_declaration.clone())
+                | propagate_child_flags(Some(&*node.block)),
+        );
+        if !variable_declaration_is_some {
+            node.add_transform_flags(TransformFlags::ContainsES2019);
         }
         node
     }

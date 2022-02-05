@@ -780,6 +780,28 @@ impl TryStatement {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct CatchClause {
+    _node: BaseNode,
+    pub variable_declaration: Option<Rc<Node /*VariableDeclaration*/>>,
+    pub block: Rc<Node /*Block*/>,
+}
+
+impl CatchClause {
+    pub fn new(
+        base_node: BaseNode,
+        variable_declaration: Option<Rc<Node>>,
+        block: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            variable_declaration,
+            block,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub enum TypeElement {
     PropertySignature(PropertySignature),
