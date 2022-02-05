@@ -605,7 +605,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         tag_name: Option<Rc<Node /*Identifier*/>>,
         comment: Option<TComment>,
     ) -> BaseJSDocTag {
-        let node = self.create_base_jsdoc_tag(
+        self.create_base_jsdoc_tag(
             base_factory,
             kind,
             tag_name.unwrap_or_else(|| {
@@ -618,8 +618,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 .into()
             }),
             comment,
-        );
-        node
+        )
     }
 
     pub(crate) fn create_jsdoc_type_like_tag_worker<TComment: Into<StringOrNodeArray>>(
@@ -644,8 +643,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             }),
             comment,
         );
-        let node = BaseJSDocTypeLikeTag::new(node, type_expression);
-        node
+        BaseJSDocTypeLikeTag::new(node, type_expression)
+    }
+
+    pub fn create_jsdoc_unknown_tag<TComment: Into<StringOrNodeArray>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Rc<Node /*Identifier*/>,
+        comment: Option<TComment>,
+    ) -> BaseJSDocTag {
+        self.create_base_jsdoc_tag(
+            base_factory,
+            SyntaxKind::JSDocUnknownType,
+            tag_name,
+            comment,
+        )
     }
 
     pub fn create_jsx_text(
