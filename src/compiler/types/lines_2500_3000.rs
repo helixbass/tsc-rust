@@ -698,6 +698,24 @@ impl CaseClause {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct DefaultClause {
+    _node: BaseNode,
+    pub statements: NodeArray, /*<Statement>*/
+    pub(crate) fallthrough_flow_node: Option<FlowNode>,
+}
+
+impl DefaultClause {
+    pub fn new(base_node: BaseNode, statements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            statements,
+            fallthrough_flow_node: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct LabeledStatement {
     _node: BaseNode,
     pub label: Rc<Node /*Identifier*/>,

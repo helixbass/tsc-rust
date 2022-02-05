@@ -3,7 +3,7 @@ use std::rc::Rc;
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
     escape_leading_underscores, get_jsdoc_type_alias_name, AssertClause, AssertEntry, BaseJSDocTag,
-    BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, CaseClause,
+    BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, CaseClause, DefaultClause,
     ExportAssignment, ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier,
     JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
@@ -899,6 +899,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.expression))
                 | propagate_children_flags(Some(&node.statements)),
         );
+        node
+    }
+
+    pub fn create_default_clause<TStatements: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        statements: TStatements,
+    ) -> DefaultClause {
+        let node = self.create_base_node(base_factory, SyntaxKind::DefaultClause);
+        let mut node = DefaultClause::new(node, self.create_node_array(Some(statements), None));
+        node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
         node
     }
 }
