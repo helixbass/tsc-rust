@@ -9,10 +9,10 @@ use crate::{
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
     JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes, JsxClosingElement,
-    JsxClosingFragment, JsxElement, JsxFragment, JsxOpeningElement, JsxOpeningFragment,
-    JsxSelfClosingElement, JsxSpreadAttribute, JsxText, MissingDeclaration, NamedExports,
-    NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    JsxClosingFragment, JsxElement, JsxExpression, JsxFragment, JsxOpeningElement,
+    JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText, MissingDeclaration,
+    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -862,6 +862,22 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let mut node = JsxSpreadAttribute::new(node, expression);
         node.add_transform_flags(
             propagate_child_flags(Some(&*node.expression)) | TransformFlags::ContainsJsx,
+        );
+        node
+    }
+
+    pub fn create_jsx_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
+        expression: Option<Rc<Node /*Expression*/>>,
+    ) -> JsxExpression {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxExpression);
+        let mut node = JsxExpression::new(node, dot_dot_dot_token, expression);
+        node.add_transform_flags(
+            propagate_child_flags(node.dot_dot_dot_token.clone())
+                | propagate_child_flags(node.expression.clone())
+                | TransformFlags::ContainsJsx,
         );
         node
     }

@@ -251,6 +251,28 @@ impl JsxClosingElement {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct JsxExpression {
+    _node: BaseNode,
+    pub dot_dot_dot_token: Option<Rc<Node /*Token<SyntaxKind.DotDotDotToken>*/>>,
+    pub expression: Option<Rc<Node /*Expression*/>>,
+}
+
+impl JsxExpression {
+    pub fn new(
+        base_node: BaseNode,
+        dot_dot_dot_token: Option<Rc<Node>>,
+        expression: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            dot_dot_dot_token,
+            expression,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JsxText {
     _node: BaseNode,
     pub text: String,
