@@ -5,10 +5,11 @@ use crate::{
     escape_leading_underscores, get_jsdoc_type_alias_name, AssertClause, AssertEntry, BaseJSDocTag,
     BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, ExportAssignment,
     ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDocAugmentsTag,
-    JSDocCallbackTag, JSDocFunctionType, JSDocPropertyLikeTag, JSDocSignature, JSDocTemplateTag,
-    JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag, JsxText, MissingDeclaration,
-    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
-    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocPropertyLikeTag, JSDocSignature,
+    JSDocTemplateTag, JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag, JsxText,
+    MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
+    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
+    SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -503,6 +504,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             comment,
         );
         JSDocAugmentsTag::new(node, class_name)
+    }
+
+    pub fn create_jsdoc_implements_tag<TComment: Into<StringOrNodeArray>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        tag_name: Option<Rc<Node /*Identifier*/>>,
+        class_name: Rc<Node /*JSDocSignature*/>,
+        comment: Option<TComment>,
+    ) -> JSDocImplementsTag {
+        let node = self.create_base_jsdoc_tag(
+            base_factory,
+            SyntaxKind::JSDocImplementsTag,
+            tag_name.unwrap_or_else(|| {
+                self.create_identifier(base_factory, "implements", Option::<NodeArray>::None, None)
+                    .into()
+            }),
+            comment,
+        );
+        JSDocImplementsTag::new(node, class_name)
     }
 
     pub(crate) fn create_jsdoc_simple_tag_worker<TComment: Into<StringOrNodeArray>>(
