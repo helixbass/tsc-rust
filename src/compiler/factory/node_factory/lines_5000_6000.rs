@@ -5,10 +5,11 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_outer_expression, BaseNodeFactory, EnumMember, LanguageVariant, NamedDeclarationInterface,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds,
-    PropertyAssignment, ScriptKind, ScriptTarget, ShorthandPropertyAssignment, SourceFile,
-    SpreadAssignment, StringOrRcNode, SyntaxKind, TransformFlags,
+    is_outer_expression, BaseNodeFactory, Bundle, EnumMember, LanguageVariant,
+    NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind, ScriptTarget,
+    ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode, SyntaxKind,
+    TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -134,6 +135,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(Some(&*node.end_of_file_token)),
         );
         node
+    }
+
+    pub fn create_bundle(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        source_files: Vec<Rc<Node /*<SourceFile>*/>>,
+        prepends: Option<Vec<Rc<Node /*<UnparsedSource | InputFiles>*/>>>,
+    ) -> Bundle {
+        let prepends = prepends.unwrap_or_else(|| vec![]);
+        let node = self.create_base_node(base_factory, SyntaxKind::Bundle);
+        Bundle::new(node, prepends, source_files)
     }
 
     fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {

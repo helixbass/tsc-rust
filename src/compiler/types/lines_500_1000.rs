@@ -7,7 +7,7 @@ use std::rc::{Rc, Weak};
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
     AssertClause, AssertEntry, AwaitExpression, BaseJSDocUnaryType, BigIntLiteral,
-    BinaryExpression, BindingElement, Block, BreakStatement, CallExpression,
+    BinaryExpression, BindingElement, Block, BreakStatement, Bundle, CallExpression,
     CallSignatureDeclaration, CaseBlock, CaseClause, CatchClause, ClassDeclaration,
     ClassExpression, ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalExpression,
     ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
@@ -340,6 +340,7 @@ pub enum Node {
     DefaultClause(DefaultClause),
     HeritageClause(HeritageClause),
     CatchClause(CatchClause),
+    Bundle(Bundle),
 }
 
 impl Node {

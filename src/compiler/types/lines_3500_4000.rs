@@ -4,8 +4,8 @@ use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
-    BaseNode, BaseTextRange, Diagnostic, LanguageVariant, Node, NodeArray, Path, ScriptKind,
-    ScriptTarget, Symbol, TypeCheckerHost,
+    BaseNode, BaseTextRange, Diagnostic, FileReference, LanguageVariant, Node, NodeArray, Path,
+    ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
 };
 use local_macros::ast_type;
 
@@ -167,6 +167,32 @@ impl SourceFileLike for SourceFile {
         allow_edits: Option<bool>,
     ) -> Option<usize> {
         None
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct Bundle {
+    _node: BaseNode,
+    pub prepends: Vec<Rc<Node /*InputFiles | UnparsedSource*/>>,
+    pub source_files: Vec<Rc<Node /*SourceFile*/>>,
+    pub(crate) synthetic_file_references: Option<Vec<FileReference>>,
+    pub(crate) synthetic_type_references: Option<Vec<FileReference>>,
+    pub(crate) synthetic_lib_references: Option<Vec<FileReference>>,
+    pub(crate) has_no_default_lib: Option<bool>,
+}
+
+impl Bundle {
+    pub fn new(base_node: BaseNode, prepends: Vec<Rc<Node>>, source_files: Vec<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            prepends,
+            source_files,
+            synthetic_file_references: None,
+            synthetic_type_references: None,
+            synthetic_lib_references: None,
+            has_no_default_lib: None,
+        }
     }
 }
 

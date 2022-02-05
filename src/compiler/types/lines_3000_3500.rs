@@ -359,6 +359,31 @@ impl ExportAssignment {
     }
 }
 
+#[derive(Debug)]
+pub struct FileReference {
+    pos: Cell<isize>,
+    end: Cell<isize>,
+    file_name: String,
+}
+
+impl TextRange for FileReference {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
+    }
+}
+
 pub type CommentKind = SyntaxKind; /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
 
 pub struct CommentRange {
