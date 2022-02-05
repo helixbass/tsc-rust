@@ -932,8 +932,8 @@ pub struct JSDocPropertyLikeTag {
 impl JSDocPropertyLikeTag {
     pub fn new(
         base_jsdoc_tag: BaseJSDocTag,
-        name: Rc<Node>,
         type_expression: Option<Rc<Node>>,
+        name: Rc<Node>,
         is_name_first: bool,
         is_bracketed: bool,
     ) -> Self {
