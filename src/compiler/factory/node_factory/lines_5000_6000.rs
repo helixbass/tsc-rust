@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use super::propagate_child_flags;
 use crate::{
-    is_outer_expression, BaseNodeFactory, NamedDeclarationInterface, Node, NodeArray,
+    is_outer_expression, BaseNodeFactory, EnumMember, NamedDeclarationInterface, Node, NodeArray,
     NodeArrayOrVec, NodeFactory, NodeInterface, OuterExpressionKinds, PropertyAssignment,
     ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode, SyntaxKind,
     TransformFlags,
@@ -82,6 +82,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(node.expression.clone()))
                 | TransformFlags::ContainsES2018
                 | TransformFlags::ContainsObjectRestOrSpread,
+        );
+        node
+    }
+
+    pub fn create_enum_member<TName: Into<StringOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: TName, /*Identifier*/
+        initializer: Option<Rc<Node /*Expression*/>>,
+    ) -> EnumMember {
+        let node = self.create_base_node(base_factory, SyntaxKind::EnumMember);
+        let mut node = EnumMember::new(
+            node,
+            self.as_name(base_factory, Some(name)).unwrap(),
+            initializer.map(|initializer| {
+                self.parenthesizer_rules()
+                    .parenthesize_expression_for_disallowed_comma(base_factory, &initializer)
+            }),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.name))
+                | propagate_child_flags(node.initializer.clone())
+                | TransformFlags::ContainsTypeScript,
         );
         node
     }
