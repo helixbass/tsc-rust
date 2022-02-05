@@ -5,11 +5,11 @@ use crate::{
     escape_leading_underscores, get_jsdoc_type_alias_name, AssertClause, AssertEntry, BaseJSDocTag,
     BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, ExportAssignment,
     ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDocAugmentsTag,
-    JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocMemberName, JSDocNameReference,
-    JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxText, MissingDeclaration, NamedExports, NamedImports,
-    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocMemberName,
+    JSDocNameReference, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTemplateTag,
+    JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag, JsxText, MissingDeclaration,
+    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -560,7 +560,21 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         right: Rc<Node /*Identifier*/>,
     ) -> JSDocMemberName {
         let node = self.create_base_node(base_factory, SyntaxKind::JSDocMemberName);
-        JSDocMemberName::new(node, left, right)
+        let mut node = JSDocMemberName::new(node, left, right);
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.left)) | propagate_child_flags(Some(&*node.right)),
+        );
+        node
+    }
+
+    pub fn create_jsdoc_link(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Option<Rc<Node /*EntityName | JSDocMemberName*/>>,
+        text: String,
+    ) -> JSDocLink {
+        let node = self.create_base_node(base_factory, SyntaxKind::JSDocLink);
+        JSDocLink::new(node, name, text)
     }
 
     pub(crate) fn create_jsdoc_simple_tag_worker<TComment: Into<StringOrNodeArray>>(
