@@ -177,7 +177,7 @@ pub use compiler::types::{
     InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, IntersectionTypeNode,
     IntrinsicType, IntrinsicTypeInterface, JSDoc, JSDocAugmentsTag, JSDocCallbackTag,
     JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface,
-    JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocSeeTag, JSDocTag,
+    JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTag,
     JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
     JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxEmit, JsxText, KeywordTypeNode,
     LabeledStatement, LanguageVariant, LineAndCharacter, ListFormat, LiteralLikeNodeInterface,

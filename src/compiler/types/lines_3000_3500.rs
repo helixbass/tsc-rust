@@ -895,6 +895,31 @@ impl NamedDeclarationInterface for JSDocCallbackTag {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct JSDocSignature {
+    _node: BaseNode,
+    pub type_parameters: Option<NodeArray /*<JSDocTemplateTag>*/>,
+    pub parameters: NodeArray, /*<JSDocParameterTag>*/
+    pub type_: Option<Rc<Node /*JSDocReturnTag*/>>,
+}
+
+impl JSDocSignature {
+    pub fn new(
+        base_node: BaseNode,
+        type_parameters: Option<NodeArray>,
+        parameters: NodeArray,
+        type_: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            type_parameters,
+            parameters,
+            type_,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
 pub struct JSDocPropertyLikeTag {
     _base_jsdoc_tag: BaseJSDocTag,

@@ -4,9 +4,9 @@ use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_chil
 use crate::{
     AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
     BaseNodeFactory, ExportAssignment, ExportDeclaration, ExportSpecifier, ExternalModuleReference,
-    ImportSpecifier, JSDocFunctionType, JSDocTypeExpression, JSDocTypeLiteral, JsxText,
-    MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
+    ImportSpecifier, JSDocFunctionType, JSDocSignature, JSDocTypeExpression, JSDocTypeLiteral,
+    JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport,
+    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
     SyntaxKind, TransformFlags,
 };
 
@@ -298,6 +298,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> JSDocTypeExpression {
         let node = self.create_base_node(base_factory, SyntaxKind::JSDocTypeExpression);
         JSDocTypeExpression::new(node, type_)
+    }
+
+    pub(crate) fn create_jsdoc_signature<
+        TTypeParameters: Into<NodeArrayOrVec>,
+        TParameters: Into<NodeArrayOrVec>,
+    >(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        type_parameters: Option<TTypeParameters /*<JSDocTemplateTag>*/>,
+        parameters: TParameters, /*<JSDocParameterTag>*/
+        type_: Option<Rc<Node /*JSDocReturnTag*/>>,
+    ) -> JSDocSignature {
+        let node = self.create_base_node(base_factory, SyntaxKind::JSDocSignature);
+        JSDocSignature::new(
+            node,
+            self.as_node_array(type_parameters),
+            self.create_node_array(Some(parameters), None),
+            type_,
+        )
     }
 
     pub(crate) fn create_base_jsdoc_tag<TComment: Into<StringOrNodeArray>>(
