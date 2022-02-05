@@ -37,11 +37,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_shorthand_property_assignment(
+    pub fn create_shorthand_property_assignment<TName: Into<StringOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: Rc<Node>,
-        object_assignment_initializer: Option<Rc<Node>>,
+        name: TName, /*Identifier*/
+        object_assignment_initializer: Option<Rc<Node /*Expression*/>>,
     ) -> ShorthandPropertyAssignment {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -61,11 +61,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             }),
         );
         node.add_transform_flags(
-            propagate_child_flags(
-                node.object_assignment_initializer
-                    .as_ref()
-                    .map(|rc| rc.clone()),
-            ) | TransformFlags::ContainsES2015,
+            propagate_child_flags(node.object_assignment_initializer.clone())
+                | TransformFlags::ContainsES2015,
         );
         node
     }
