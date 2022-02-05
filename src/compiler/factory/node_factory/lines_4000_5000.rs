@@ -4,12 +4,12 @@ use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_chil
 use crate::{
     escape_leading_underscores, get_jsdoc_type_alias_name, AssertClause, AssertEntry, BaseJSDocTag,
     BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, ExportAssignment,
-    ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDocAugmentsTag,
-    JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode,
-    JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag, JSDocSeeTag,
-    JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLiteral,
-    JSDocTypedefTag, JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport,
-    NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDoc,
+    JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
+    JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
+    JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxText, MissingDeclaration, NamedExports, NamedImports,
+    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
     StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
@@ -663,6 +663,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_jsdoc_text(&self, base_factory: &TBaseNodeFactory, text: String) -> JSDocText {
         let node = self.create_base_node(base_factory, SyntaxKind::JSDocText);
         JSDocText::new(node, text)
+    }
+
+    pub fn create_jsdoc_comment<TComment: Into<StringOrNodeArray>, TTags: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        comment: Option<TComment>,
+        tags: Option<TTags>,
+    ) -> JSDoc {
+        let node = self.create_base_node(base_factory, SyntaxKind::JSDocComment);
+        JSDoc::new(node, comment.map(Into::into), self.as_node_array(tags))
     }
 
     pub fn create_jsx_text(

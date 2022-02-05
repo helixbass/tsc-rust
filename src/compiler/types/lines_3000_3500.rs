@@ -556,8 +556,8 @@ pub struct JSDoc {
 impl JSDoc {
     pub fn new(
         base_node: BaseNode,
-        tags: Option<NodeArray>,
         comment: Option<StringOrNodeArray>,
+        tags: Option<NodeArray>,
     ) -> Self {
         Self {
             _node: base_node,
