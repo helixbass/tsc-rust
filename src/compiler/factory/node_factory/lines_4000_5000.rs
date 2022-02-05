@@ -9,9 +9,9 @@ use crate::{
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
     JSDocTypeLiteral, JSDocTypedefTag, JsxClosingElement, JsxElement, JsxFragment,
-    JsxOpeningElement, JsxSelfClosingElement, JsxText, MissingDeclaration, NamedExports,
-    NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxText, MissingDeclaration,
+    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -799,6 +799,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             text,
             contains_only_trivia_white_spaces.unwrap_or(false),
         );
+        node.add_transform_flags(TransformFlags::ContainsJsx);
+        node
+    }
+
+    pub fn create_jsx_opening_fragment(
+        &self,
+        base_factory: &TBaseNodeFactory,
+    ) -> JsxOpeningFragment {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxOpeningFragment);
+        let mut node = JsxOpeningFragment::new(node);
         node.add_transform_flags(TransformFlags::ContainsJsx);
         node
     }
