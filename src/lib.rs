@@ -181,7 +181,7 @@ pub use compiler::types::{
     JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration,
     JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTag, JSDocTagInterface,
     JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
-    JSDocTypedefTag, JsxAttribute, JsxEmit, JsxText, KeywordTypeNode, LabeledStatement,
+    JSDocTypedefTag, JsxAttribute, JsxElement, JsxEmit, JsxText, KeywordTypeNode, LabeledStatement,
     LanguageVariant, LineAndCharacter, ListFormat, LiteralLikeNodeInterface, LiteralType,
     LiteralTypeInterface, LiteralTypeNode, MappedTypeNode, MetaProperty, MethodDeclaration,
     MethodSignature, MissingDeclaration, ModifierFlags, ModuleBlock, ModuleDeclaration, ModuleKind,

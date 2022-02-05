@@ -8,9 +8,9 @@ use crate::{
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
     JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxText, MissingDeclaration, NamedExports, NamedImports,
-    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxElement, JsxText, MissingDeclaration, NamedExports,
+    NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -673,6 +673,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> JSDoc {
         let node = self.create_base_node(base_factory, SyntaxKind::JSDocComment);
         JSDoc::new(node, comment.map(Into::into), self.as_node_array(tags))
+    }
+
+    pub fn create_jsx_element<TChildren: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        opening_element: Rc<Node /*JsxOpeningElement*/>,
+        children: TChildren,
+        closing_element: Rc<Node /*JsxClosingElement*/>,
+    ) -> JsxElement {
+        let node = self.create_base_node(base_factory, SyntaxKind::JsxElement);
+        let mut node = JsxElement::new(
+            node,
+            opening_element,
+            self.create_node_array(Some(children), None),
+            closing_element,
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.opening_element))
+                | propagate_children_flags(Some(&node.children))
+                | propagate_child_flags(Some(&*node.closing_element))
+                | TransformFlags::ContainsJsx,
+        );
+        node
     }
 
     pub fn create_jsx_text(

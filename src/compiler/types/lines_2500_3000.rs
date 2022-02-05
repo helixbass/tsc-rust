@@ -31,6 +31,31 @@ impl MetaProperty {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct JsxElement {
+    _node: BaseNode,
+    pub opening_element: Rc<Node /*JsxOpeningElement*/>,
+    pub children: NodeArray, /*<JsxChild>*/
+    pub closing_element: Rc<Node /*JsxClosingElement*/>,
+}
+
+impl JsxElement {
+    pub fn new(
+        base_node: BaseNode,
+        opening_element: Rc<Node>,
+        children: NodeArray,
+        closing_element: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            opening_element,
+            children,
+            closing_element,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JsxAttribute {
     _node: BaseNode,
     pub name: Rc<Node /*Identifier*/>,
