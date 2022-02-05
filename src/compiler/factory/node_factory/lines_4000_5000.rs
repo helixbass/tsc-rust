@@ -4,9 +4,9 @@ use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_chil
 use crate::{
     AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
     BaseNodeFactory, ExportAssignment, ExportDeclaration, ExportSpecifier, ExternalModuleReference,
-    ImportSpecifier, JSDocFunctionType, JsxText, MissingDeclaration, NamedExports, NamedImports,
-    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
+    ImportSpecifier, JSDocFunctionType, JSDocTypeLiteral, JsxText, MissingDeclaration,
+    NamedExports, NamedImports, NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -277,6 +277,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             type_,
         );
         JSDocFunctionType::new(node)
+    }
+
+    pub(crate) fn create_jsdoc_type_literal<TPropertyTags: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        property_tags: Option<TPropertyTags>,
+        is_array_type: Option<bool>,
+    ) -> JSDocTypeLiteral {
+        let is_array_type = is_array_type.unwrap_or(false);
+        let node = self.create_base_node(base_factory, SyntaxKind::JSDocTypeLiteral);
+        JSDocTypeLiteral::new(node, self.as_node_array(property_tags), is_array_type)
     }
 
     pub(crate) fn create_base_jsdoc_tag<TComment: Into<StringOrNodeArray>>(

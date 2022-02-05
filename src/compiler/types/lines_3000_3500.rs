@@ -936,4 +936,26 @@ impl NamedDeclarationInterface for JSDocPropertyLikeTag {
     }
 }
 
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocTypeLiteral {
+    _node: BaseNode,
+    pub js_doc_property_tags: Option<NodeArray /*<JSDocPropertyLikeTag>*/>,
+    pub is_array_type: bool,
+}
+
+impl JSDocTypeLiteral {
+    pub fn new(
+        base_node: BaseNode,
+        js_doc_property_tags: Option<NodeArray>,
+        is_array_type: bool,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            js_doc_property_tags,
+            is_array_type,
+        }
+    }
+}
+
 pub type FlowNode = ();
