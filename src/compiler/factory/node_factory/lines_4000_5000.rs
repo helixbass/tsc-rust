@@ -7,10 +7,10 @@ use crate::{
     ExportDeclaration, ExportSpecifier, ExternalModuleReference, ImportSpecifier, JSDocAugmentsTag,
     JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode,
     JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag, JSDocSeeTag,
-    JSDocSignature, JSDocTemplateTag, JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag,
-    JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport, NamespaceImport,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StringOrNodeArray, StringOrRcNode,
-    SyntaxKind, TransformFlags,
+    JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLiteral,
+    JSDocTypedefTag, JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport,
+    NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -658,6 +658,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             tag_name,
             comment,
         )
+    }
+
+    pub fn create_jsdoc_text(&self, base_factory: &TBaseNodeFactory, text: String) -> JSDocText {
+        let node = self.create_base_node(base_factory, SyntaxKind::JSDocText);
+        JSDocText::new(node, text)
     }
 
     pub fn create_jsx_text(
