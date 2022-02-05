@@ -4,8 +4,8 @@ use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_chil
 use crate::{
     AssertClause, AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode,
     BaseNodeFactory, ExportAssignment, ExportDeclaration, ExportSpecifier, ExternalModuleReference,
-    ImportSpecifier, JsxText, MissingDeclaration, NamedExports, NamedImports, NamespaceExport,
-    NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
+    ImportSpecifier, JSDocFunctionType, JsxText, MissingDeclaration, NamedExports, NamedImports,
+    NamespaceExport, NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
     StringOrNodeArray, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
@@ -258,6 +258,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node = self.create_base_node(base_factory, kind);
         let node = BaseJSDocUnaryType::new(node, type_);
         node
+    }
+
+    pub(crate) fn create_jsdoc_function_type<TParameters: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        parameters: TParameters,
+        type_: Option<Rc<Node /*TypeNode*/>>,
+    ) -> JSDocFunctionType {
+        let node = self.create_base_signature_declaration(
+            base_factory,
+            SyntaxKind::JSDocFunctionType,
+            Option::<NodeArray>::None,
+            Option::<NodeArray>::None,
+            Option::<Rc<Node>>::None,
+            Option::<NodeArray>::None,
+            Some(parameters),
+            type_,
+        );
+        JSDocFunctionType::new(node)
     }
 
     pub(crate) fn create_base_jsdoc_tag<TComment: Into<StringOrNodeArray>>(

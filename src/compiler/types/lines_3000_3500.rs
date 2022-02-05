@@ -4,8 +4,9 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use super::{
-    BaseNamedDeclaration, BaseNode, HasExpressionInterface, HasIsTypeOnlyInterface,
-    HasTypeInterface, NamedDeclarationInterface, Node, NodeArray, SyntaxKind, TextRange,
+    BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasExpressionInterface,
+    HasIsTypeOnlyInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
+    SyntaxKind, TextRange,
 };
 use local_macros::ast_type;
 
@@ -495,6 +496,22 @@ impl HasTypeInterface for BaseJSDocUnaryType {
 
     fn set_type(&mut self, type_: Rc<Node>) {
         self.type_ = Some(type_);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+)]
+pub struct JSDocFunctionType {
+    _signature_declaration: BaseSignatureDeclaration,
+}
+
+impl JSDocFunctionType {
+    pub fn new(signature_declaration: BaseSignatureDeclaration) -> Self {
+        Self {
+            _signature_declaration: signature_declaration,
+        }
     }
 }
 
