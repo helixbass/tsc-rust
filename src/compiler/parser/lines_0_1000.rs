@@ -8,12 +8,12 @@ use std::rc::Rc;
 
 use super::{Parser, ParsingContext};
 use crate::{
-    create_node_factory, create_scanner, maybe_text_char_at_index, normalize_path,
+    create_node_factory, create_scanner, for_each, maybe_text_char_at_index, normalize_path,
     object_allocator, BaseNode, BaseNodeFactory, CharacterCodes, ClassLikeDeclarationInterface,
     Diagnostic, DiagnosticMessage, FunctionLikeDeclarationInterface, HasInitializerInterface,
     HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
+    InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
+    NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
     SignatureDeclarationInterface, SourceTextAsChars, StringOrNodeArray, SyntaxKind,
     TemplateLiteralLikeNode,
 };
@@ -1092,15 +1092,126 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_node(&mut cb_node, node.maybe_type());
         }
         Node::JSDoc(node) => {
-            if let Some(comment) = node.comment.as_ref() {
-                match comment {
-                    StringOrNodeArray::NodeArray(comment) => {
-                        visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
-                    }
-                    _ => (),
-                }
+            if let Some(StringOrNodeArray::NodeArray(comment)) = node.comment.as_ref() {
+                visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
             }
             visit_nodes(&mut cb_node, Some(&mut cb_nodes), node.tags.as_ref());
+        }
+        Node::JSDocSeeTag(node) => {
+            visit_node(&mut cb_node, Some(node.tag_name()));
+            visit_node(&mut cb_node, node.name.clone());
+            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
+            }
+        }
+        Node::JSDocNameReference(node) => {
+            visit_node(&mut cb_node, Some(&*node.name));
+        }
+        Node::JSDocMemberName(node) => {
+            visit_node(&mut cb_node, Some(&*node.left));
+            visit_node(&mut cb_node, Some(&*node.right));
+        }
+        Node::JSDocPropertyLikeTag(node) => {
+            visit_node(&mut cb_node, Some(node.tag_name()));
+            if node.is_name_first {
+                visit_node(&mut cb_node, Some(&*node.name));
+                visit_node(&mut cb_node, node.type_expression.clone());
+                if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                    visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
+                }
+            } else {
+                visit_node(&mut cb_node, node.type_expression.clone());
+                visit_node(&mut cb_node, Some(&*node.name));
+                if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                    visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
+                }
+            }
+        }
+        Node::BaseJSDocTag(node) => {
+            visit_node(&mut cb_node, Some(node.tag_name()));
+            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
+            }
+        }
+        Node::JSDocImplementsTag(node) => {
+            visit_node(&mut cb_node, Some(node.tag_name()));
+            visit_node(&mut cb_node, Some(&*node.class));
+            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
+            }
+        }
+        Node::JSDocAugmentsTag(node) => {
+            visit_node(&mut cb_node, Some(node.tag_name()));
+            visit_node(&mut cb_node, Some(&*node.class));
+            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
+            }
+        }
+        Node::JSDocTemplateTag(node) => {
+            visit_node(&mut cb_node, Some(node.tag_name()));
+            visit_node(&mut cb_node, node.constraint.clone());
+            visit_nodes(
+                &mut cb_node,
+                Some(&mut cb_nodes),
+                Some(&node.type_parameters),
+            );
+            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
+            }
+        }
+        Node::JSDocTypedefTag(node) => {
+            visit_node(&mut cb_node, Some(node.tag_name()));
+            if matches!(node.type_expression.as_ref(), Some(type_expression) if type_expression.kind() == SyntaxKind::JSDocTypeExpression)
+            {
+                visit_node(&mut cb_node, node.type_expression.clone());
+                visit_node(&mut cb_node, node.full_name.clone());
+                if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                    visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
+                }
+            } else {
+                visit_node(&mut cb_node, node.full_name.clone());
+                visit_node(&mut cb_node, node.type_expression.clone());
+                if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                    visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
+                }
+            }
+        }
+        Node::JSDocCallbackTag(node) => {
+            visit_node(&mut cb_node, Some(node.tag_name()));
+            visit_node(&mut cb_node, node.full_name.clone());
+            visit_node(&mut cb_node, Some(&*node.type_expression));
+            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
+            }
+        }
+        Node::BaseJSDocTypeLikeTag(node) => {
+            visit_node(&mut cb_node, Some(node.tag_name()));
+            visit_node(&mut cb_node, node.type_expression.clone());
+            if let Some(StringOrNodeArray::NodeArray(comment)) = node.maybe_comment() {
+                visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(comment));
+            }
+        }
+        Node::JSDocSignature(node) => {
+            node.type_parameters.as_ref().map(|type_parameters| {
+                for_each(type_parameters, |node, _| {
+                    cb_node(node);
+                    Option::<()>::None
+                })
+            });
+            for_each(&node.parameters, |node, _| {
+                cb_node(node);
+                Option::<()>::None
+            });
+            visit_node(&mut cb_node, node.type_.clone());
+        }
+        Node::JSDocLink(node) => {
+            visit_node(&mut cb_node, node.name.clone());
+        }
+        Node::JSDocLinkCode(node) => {
+            visit_node(&mut cb_node, node.name.clone());
+        }
+        Node::PartiallyEmittedExpression(node) => {
+            visit_node(&mut cb_node, Some(&*node.expression));
         }
         _ => unimplemented!(),
     }

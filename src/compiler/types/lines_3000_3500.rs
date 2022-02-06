@@ -797,7 +797,7 @@ pub trait JSDocTypeLikeTagInterface: JSDocTagInterface {
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct BaseJSDocTypeLikeTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+    pub type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
 }
 
 impl BaseJSDocTypeLikeTag {
