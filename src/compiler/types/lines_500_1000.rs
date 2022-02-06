@@ -6,45 +6,47 @@ use std::rc::{Rc, Weak};
 
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
-    AssertClause, AssertEntry, AwaitExpression, BaseJSDocUnaryType, BigIntLiteral,
-    BinaryExpression, BindingElement, Block, BreakStatement, Bundle, CallExpression,
-    CallSignatureDeclaration, CaseBlock, CaseClause, CatchClause, ClassDeclaration,
-    ClassExpression, ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalExpression,
-    ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
-    ConstructorTypeNode, ContinueStatement, DebuggerStatement, Decorator, DefaultClause,
-    DeleteExpression, DoStatement, ElementAccessExpression, EmitNode, EmptyStatement,
-    EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier,
-    ExpressionStatement, ExpressionWithTypeArguments, ExternalModuleReference, ForInStatement,
-    ForOfStatement, ForStatement, FunctionDeclaration, FunctionExpression,
-    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
-    HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
-    HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
-    HeritageClause, Identifier, IfStatement, ImportClause, ImportDeclaration,
-    ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration,
-    IndexedAccessTypeNode, InferTypeNode, InputFiles, InterfaceDeclaration, IntersectionTypeNode,
-    JSDoc, JSDocFunctionType, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
-    JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration, JSDocPropertyLikeTag,
-    JSDocSignature, JSDocTag, JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
-    JSDocTypeLikeTagInterface, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes,
-    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
-    JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
-    KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
-    MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
-    ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface, NamedExports,
-    NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration, NamespaceImport,
-    NewExpression, NodeArray, NonNullExpression, NumericLiteral, ObjectBindingPattern,
-    ObjectLiteralExpression, OmittedExpression, OptionalTypeNode, ParameterDeclaration,
-    ParenthesizedExpression, ParenthesizedTypeNode, PartiallyEmittedExpression,
-    PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier, PropertyAccessExpression,
-    PropertyAssignment, PropertyDeclaration, PropertySignature, QualifiedName, ReadonlyTextRange,
-    RegularExpressionLiteral, RestTypeNode, ReturnStatement, SemicolonClassElement,
-    SetAccessorDeclaration, ShorthandPropertyAssignment, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
-    SwitchStatement, Symbol, SymbolTable, SyntaxKind, TaggedTemplateExpression, TemplateExpression,
-    TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode,
-    TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, ThrowStatement, TransformFlags,
-    TryStatement, TupleTypeNode, TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode,
-    TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
+    AssertClause, AssertEntry, AwaitExpression, BaseJSDocTag, BaseJSDocTypeLikeTag,
+    BaseJSDocUnaryType, BigIntLiteral, BinaryExpression, BindingElement, Block, BreakStatement,
+    Bundle, CallExpression, CallSignatureDeclaration, CaseBlock, CaseClause, CatchClause,
+    ClassDeclaration, ClassExpression, ClassStaticBlockDeclaration, CommaListExpression,
+    ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
+    ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContinueStatement,
+    DebuggerStatement, Decorator, DefaultClause, DeleteExpression, DoStatement,
+    ElementAccessExpression, EmitNode, EmptyStatement, EnumDeclaration, EnumMember,
+    ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
+    ExpressionWithTypeArguments, ExternalModuleReference, ForInStatement, ForOfStatement,
+    ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
+    FunctionTypeNode, GetAccessorDeclaration, HasElementsInterface, HasExpressionInterface,
+    HasIsTypeOnlyInterface, HasQuestionDotTokenInterface, HasTypeArgumentsInterface,
+    HasTypeParametersInterface, HeritageClause, Identifier, IfStatement, ImportClause,
+    ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
+    IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InputFiles,
+    InterfaceDeclaration, IntersectionTypeNode, JSDoc, JSDocAugmentsTag, JSDocCallbackTag,
+    JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface,
+    JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration,
+    JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTagInterface, JSDocTemplateTag,
+    JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral, JSDocTypedefTag,
+    JsxAttribute, JsxAttributes, JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression,
+    JsxFragment, JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute,
+    JsxText, KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode,
+    MappedTypeNode, MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature,
+    MissingDeclaration, ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface,
+    NamedExports, NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration,
+    NamespaceImport, NewExpression, NodeArray, NonNullExpression, NumericLiteral,
+    ObjectBindingPattern, ObjectLiteralExpression, OmittedExpression, OptionalTypeNode,
+    ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
+    PartiallyEmittedExpression, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
+    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
+    QualifiedName, ReadonlyTextRange, RegularExpressionLiteral, RestTypeNode, ReturnStatement,
+    SemicolonClassElement, SetAccessorDeclaration, ShorthandPropertyAssignment,
+    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, SpreadAssignment,
+    SpreadElement, StringLiteral, SwitchStatement, Symbol, SymbolTable, SyntaxKind,
+    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
+    TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode, TemplateLiteralTypeSpan,
+    TemplateSpan, ThisTypeNode, ThrowStatement, TransformFlags, TryStatement, TupleTypeNode,
+    TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode, TypeOfExpression,
+    TypeOperatorNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
     TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, UnparsedPrepend,
     UnparsedPrologue, UnparsedSource, UnparsedTextLike, VariableDeclaration,
     VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
@@ -189,7 +191,15 @@ pub enum Node {
     PropertyAssignment(PropertyAssignment),
     SourceFile(SourceFile),
     QualifiedName(QualifiedName),
-    JSDocTag(JSDocTag),
+    BaseJSDocTag(BaseJSDocTag),
+    JSDocAugmentsTag(JSDocAugmentsTag),
+    JSDocImplementsTag(JSDocImplementsTag),
+    BaseJSDocTypeLikeTag(BaseJSDocTypeLikeTag),
+    JSDocTemplateTag(JSDocTemplateTag),
+    JSDocSeeTag(JSDocSeeTag),
+    JSDocTypedefTag(JSDocTypedefTag),
+    JSDocCallbackTag(JSDocCallbackTag),
+    JSDocPropertyLikeTag(JSDocPropertyLikeTag),
     BindingElement(BindingElement),
     PropertyDeclaration(PropertyDeclaration),
     EnumMember(EnumMember),
@@ -347,6 +357,7 @@ pub enum Node {
     UnparsedPrepend(UnparsedPrepend),
     UnparsedTextLike(UnparsedTextLike),
     InputFiles(InputFiles),
+    CommaListExpression(CommaListExpression),
 }
 
 impl Node {
@@ -535,7 +546,7 @@ impl Node {
 
     pub fn as_jsdoc_type_like_tag(&self) -> &dyn JSDocTypeLikeTagInterface {
         match self {
-            Node::JSDocTag(JSDocTag::BaseJSDocTypeLikeTag(node)) => node,
+            Node::BaseJSDocTypeLikeTag(node) => node,
             _ => panic!("Expected JSDoc type like tag"),
         }
     }
@@ -549,7 +560,15 @@ impl Node {
 
     pub fn as_jsdoc_tag(&self) -> &dyn JSDocTagInterface {
         match self {
-            Node::JSDocTag(node) => node,
+            Node::BaseJSDocTag(node) => node,
+            Node::JSDocAugmentsTag(node) => node,
+            Node::JSDocImplementsTag(node) => node,
+            Node::BaseJSDocTypeLikeTag(node) => node,
+            Node::JSDocTemplateTag(node) => node,
+            Node::JSDocSeeTag(node) => node,
+            Node::JSDocTypedefTag(node) => node,
+            Node::JSDocCallbackTag(node) => node,
+            Node::JSDocPropertyLikeTag(node) => node,
             _ => panic!("Expected JSDoc tag"),
         }
     }
@@ -635,11 +654,11 @@ impl Node {
     }
 
     pub fn as_jsdoc_property_like_tag(&self) -> &JSDocPropertyLikeTag {
-        enum_unwrapped!(self, [Node, JSDocTag, JSDocPropertyLikeTag])
+        enum_unwrapped!(self, [Node, JSDocPropertyLikeTag])
     }
 
     pub fn as_jsdoc_template_tag(&self) -> &JSDocTemplateTag {
-        enum_unwrapped!(self, [Node, JSDocTag, JSDocTemplateTag])
+        enum_unwrapped!(self, [Node, JSDocTemplateTag])
     }
 
     pub fn as_new_expression(&self) -> &NewExpression {
@@ -647,7 +666,7 @@ impl Node {
     }
 
     pub fn as_jsdoc_typedef_tag(&self) -> &JSDocTypedefTag {
-        enum_unwrapped!(self, [Node, JSDocTag, JSDocTypedefTag])
+        enum_unwrapped!(self, [Node, JSDocTypedefTag])
     }
 
     pub fn as_export_assignment(&self) -> &ExportAssignment {

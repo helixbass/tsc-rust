@@ -318,6 +318,22 @@ impl LiteralLikeNodeInterface for JsxText {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct CommaListExpression {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<Expression>*/
+}
+
+impl CommaListExpression {
+    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct EmptyStatement {
     _node: BaseNode,
 }
