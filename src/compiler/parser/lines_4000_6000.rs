@@ -6,7 +6,7 @@ use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_binary_operator_precedence, ArrayLiteralExpression, BinaryExpression, Block,
     DiagnosticMessage, Diagnostics, Identifier, Node, NodeFlags, ObjectLiteralExpression,
-    OperatorPrecedence, PropertyAssignment, ReturnStatement, SyntaxKind,
+    OperatorPrecedence, PrefixUnaryExpression, PropertyAssignment, ReturnStatement, SyntaxKind,
 };
 
 impl ParserType {
@@ -165,6 +165,19 @@ impl ParserType {
         )
     }
 
+    pub(super) fn parse_prefix_unary_expression(&self) -> PrefixUnaryExpression {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_prefix_unary_expression(
+                self,
+                self.token(),
+                self.next_token_and(|| self.parse_simple_unary_expression().wrap()),
+            ),
+            pos,
+            None,
+        )
+    }
+
     pub(super) fn parse_unary_expression_or_higher(&self) -> Node {
         if self.is_update_expression() {
             let update_expression = self.parse_update_expression();
@@ -172,6 +185,10 @@ impl ParserType {
         }
 
         panic!("Unimplemented");
+    }
+
+    pub(super) fn parse_simple_unary_expression(&self) -> Node {
+        unimplemented!()
     }
 
     pub(super) fn is_update_expression(&self) -> bool {
@@ -184,8 +201,7 @@ impl ParserType {
         if self.token() == SyntaxKind::PlusPlusToken {
             let pos = self.get_node_pos();
             let operator = self.token();
-            let operand =
-                self.next_token_and(ParserType::parse_left_hand_side_expression_or_higher);
+            let operand = self.next_token_and(|| self.parse_left_hand_side_expression_or_higher());
             return self
                 .finish_node(
                     self.factory

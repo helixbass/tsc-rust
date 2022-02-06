@@ -5,11 +5,12 @@ use std::rc::Rc;
 
 use super::{MissingNode, ParserType, ParsingContext, SpeculationKind};
 use crate::{
-    attach_file_to_diagnostics, create_detached_diagnostic, is_modifier_kind,
+    attach_file_to_diagnostics, create_detached_diagnostic, is_external_module, is_modifier_kind,
     is_template_literal_kind, last_or_undefined, set_parent_recursive, set_text_range_pos_end,
     token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, Identifier, Node, NodeArray,
-    NodeArrayOrVec, NodeFlags, NodeInterface, SourceFile, SyntaxKind,
+    NodeArrayOrVec, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SourceFile, SyntaxKind,
+    TransformFlags,
 };
 use local_macros::enum_unwrapped;
 
@@ -63,6 +64,13 @@ impl ParserType {
         source_file
     }
 
+    pub(super) fn reparse_top_level_await(
+        &self,
+        source_file: &Node, /*SourceFile*/
+    ) -> SourceFile {
+        unimplemented!()
+    }
+
     pub fn fixup_parent_references(&self, root_node: &Node) {
         set_parent_recursive(Some(root_node), true);
     }
@@ -70,6 +78,9 @@ impl ParserType {
     pub(super) fn create_source_file<TNodes: Into<NodeArrayOrVec>>(
         &self,
         file_name: &str,
+        language_version: ScriptTarget,
+        script_kind: ScriptKind,
+        is_declaration_file: bool,
         statements: TNodes,
         end_of_file_token: Rc<Node /*EndOfFileToken*/>,
         flags: NodeFlags,
@@ -77,6 +88,17 @@ impl ParserType {
         let mut source_file =
             self.factory
                 .create_source_file(self, statements, end_of_file_token, flags);
+        set_text_range_pos_width(source_file, 0, self.source_text().len());
+        set_external_module_indicator(source_file);
+
+        if !is_declaration_file
+            && is_external_module(&source_file)
+            && source_file
+                .transform_flags()
+                .intersects(TransformFlags::ContainsPossibleTopLevelAwait)
+        {
+            source_file = self.reparse_top_level_await(source_file);
+        }
 
         source_file.text = self.source_text().to_string();
         source_file.set_file_name(file_name.to_string());
@@ -223,9 +245,12 @@ impl ParserType {
         self.current_token()
     }
 
-    pub(super) fn next_token_and<TReturn>(&self, func: fn(&ParserType) -> TReturn) -> TReturn {
+    pub(super) fn next_token_and<TReturn, TCallback: FnOnce() -> TReturn>(
+        &self,
+        func: TCallback,
+    ) -> TReturn {
         self.next_token();
-        func(self)
+        func()
     }
 
     pub(super) fn next_token(&self) -> SyntaxKind {

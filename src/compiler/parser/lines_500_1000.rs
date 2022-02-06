@@ -8,9 +8,9 @@ use std::rc::Rc;
 use super::{Parser, ParsingContext};
 use crate::{
     convert_to_object_worker, create_node_factory, create_scanner, ensure_script_kind,
-    get_language_variant, normalize_path, object_allocator, BaseNode, Diagnostic,
-    DiagnosticMessage, Identifier, IncrementalParser, IncrementalParserSyntaxCursor,
-    LanguageVariant, Node, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
+    get_language_variant, normalize_path, object_allocator, BaseNode, Debug_, Diagnostic,
+    DiagnosticMessage, Diagnostics, Identifier, IncrementalParser, IncrementalParserSyntaxCursor,
+    LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
     ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind,
     ScriptTarget, SyntaxKind, TemplateLiteralLikeNode, TextChangeRange,
 };
@@ -551,6 +551,95 @@ impl ParserType {
             language_version,
             syntax_cursor,
             ScriptKind::JSON,
+        );
+        self.set_source_flags(self.context_flags());
+
+        self.next_token();
+        let pos = self.get_node_pos();
+        let statements: NodeArray;
+        let end_of_file_token: Rc<Node>;
+        if self.token() == SyntaxKind::EndOfFileToken {
+            statements = self.create_node_array(vec![], pos, Some(pos), None);
+            end_of_file_token = self.parse_token_node().into();
+        } else {
+            let mut expressions: Option<Vec<Rc<Node>>> = None;
+            while self.token() != SyntaxKind::EndOfFileToken {
+                let expression: Rc<Node>;
+                match self.token() {
+                    SyntaxKind::OpenBracketToken => {
+                        expression = self.parse_array_literal_expression().into();
+                    }
+                    SyntaxKind::TrueKeyword
+                    | SyntaxKind::FalseKeyword
+                    | SyntaxKind::NullKeyword => {
+                        expression = self.parse_token_node().into();
+                    }
+                    SyntaxKind::MinusToken => {
+                        if self.look_ahead_bool(|| {
+                            self.next_token() == SyntaxKind::NumericLiteral
+                                && self.next_token() != SyntaxKind::ColonToken
+                        }) {
+                            expression = self.parse_prefix_unary_expression().into();
+                        } else {
+                            expression = self.parse_object_literal_expression().into();
+                        }
+                    }
+                    SyntaxKind::NumericLiteral | SyntaxKind::StringLiteral => {
+                        if self.look_ahead_bool(|| self.next_token() != SyntaxKind::ColonToken) {
+                            expression = self.parse_literal_node().wrap();
+                        } else {
+                            expression = self.parse_object_literal_expression().into();
+                        }
+                    }
+                    _ => {
+                        expression = self.parse_object_literal_expression().into();
+                    }
+                }
+
+                match expressions {
+                    Some(_) => {
+                        expressions.as_mut().unwrap().push(expression);
+                    }
+                    None => {
+                        expressions = Some(vec![expression]);
+                        if self.token() != SyntaxKind::EndOfFileToken {
+                            self.parse_error_at_current_token(&Diagnostics::Unexpected_token, None);
+                        }
+                    }
+                }
+            }
+
+            let expression: Rc<Node> = match expressions {
+                Some(expressions) if expressions.len() > 1 => self
+                    .finish_node(
+                        self.factory
+                            .create_array_literal_expression(self, Some(expressions), None),
+                        pos,
+                        None,
+                    )
+                    .into(),
+                _ => Debug_.check_defined(expressions, None)[0].clone(),
+            };
+            let statement = self.factory.create_expression_statement(self, expression);
+            let statement = self.finish_node(statement, pos, None);
+            statements = self.create_node_array(vec![statement.into()], pos, None, None);
+            end_of_file_token = self
+                .parse_expected_token(
+                    SyntaxKind::EndOfFileToken,
+                    Some(&Diagnostics::Unexpected_token),
+                    None,
+                )
+                .wrap();
+        }
+
+        let source_file = self.create_source_file(
+            file_name,
+            ScriptTarget::ES2015,
+            ScriptKind::JSON,
+            false,
+            statements,
+            end_of_file_token,
+            self.source_flags(),
         );
         unimplemented!()
     }
