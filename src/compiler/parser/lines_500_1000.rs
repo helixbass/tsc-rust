@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -8,9 +9,9 @@ use super::{Parser, ParsingContext};
 use crate::{
     create_node_factory, create_scanner, ensure_script_kind, normalize_path, object_allocator,
     BaseNode, Diagnostic, DiagnosticMessage, Identifier, IncrementalParser,
-    IncrementalParserSyntaxCursor, Node, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
-    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, Scanner, ScriptKind, ScriptTarget,
-    SyntaxKind, TemplateLiteralLikeNode, TextChangeRange,
+    IncrementalParserSyntaxCursor, LanguageVariant, Node, NodeFactory, NodeFactoryFlags, NodeFlags,
+    NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, Scanner, ScriptKind,
+    ScriptTarget, SyntaxKind, TemplateLiteralLikeNode, TextChangeRange,
 };
 use local_macros::ast_type;
 
@@ -127,13 +128,24 @@ pub struct ParserType {
     pub(super) TokenConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) SourceFileConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) factory: Rc<NodeFactory<ParserType>>,
-    pub(super) node_count: Cell<Option<usize>>,
     pub(super) file_name: Option<String>,
+    pub(super) source_flags: Option<NodeFlags>,
     pub(super) source_text: Option<String>,
+    pub(super) language_version: Option<ScriptTarget>,
+    pub(super) script_kind: Option<ScriptKind>,
+    pub(super) language_variant: Option<LanguageVariant>,
     pub(super) parse_diagnostics:
         Option<RefCell<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+    pub(super) js_doc_diagnostics:
+        Option<RefCell<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+    pub(super) syntax_cursor: Option<IncrementalParserSyntaxCursor>,
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
+    pub(super) node_count: Cell<Option<usize>>,
+    pub(super) identifiers: RefCell<Option<HashMap<String, String>>>,
+    pub(super) private_identifiers: RefCell<Option<HashMap<String, String>>>,
+    pub(super) identifier_count: Cell<Option<usize>>,
     pub(super) parsing_context: Cell<Option<ParsingContext>>,
+    pub(super) not_parenthesized_arrow: RefCell<Option<HashSet<usize>>>,
     pub(super) context_flags: Cell<Option<NodeFlags>>,
     pub(super) top_level: Cell<bool>,
     pub(super) parse_error_before_next_finished_node: Cell<bool>,
@@ -158,17 +170,27 @@ impl ParserType {
             PrivateIdentifierConstructor: None,
             TokenConstructor: None,
             SourceFileConstructor: None,
-            node_count: Cell::new(None),
             factory: create_node_factory(
                 NodeFactoryFlags::NoParenthesizerRules
                     | NodeFactoryFlags::NoNodeConverters
                     | NodeFactoryFlags::NoOriginalNode,
             ),
             file_name: None,
+            source_flags: None,
             source_text: None,
+            language_version: None,
+            script_kind: None,
+            language_variant: None,
             parse_diagnostics: None,
+            js_doc_diagnostics: None,
+            syntax_cursor: None,
             current_token: RefCell::new(None),
+            node_count: Cell::new(None),
+            identifiers: RefCell::new(None),
+            private_identifiers: RefCell::new(None),
+            identifier_count: Cell::new(None),
             parsing_context: Cell::new(None),
+            not_parenthesized_arrow: RefCell::new(None),
             context_flags: Cell::new(None),
             top_level: Cell::new(true),
             parse_error_before_next_finished_node: Cell::new(false),
@@ -248,6 +270,86 @@ impl ParserType {
         self.SourceFileConstructor = Some(SourceFileConstructor);
     }
 
+    pub(super) fn file_name(&self) -> &str {
+        self.file_name.as_ref().unwrap()
+    }
+
+    pub(super) fn set_file_name(&mut self, file_name: String) {
+        self.file_name = Some(file_name);
+    }
+
+    pub(super) fn source_flags(&self) -> NodeFlags {
+        self.source_flags.unwrap()
+    }
+
+    pub(super) fn set_source_flags(&mut self, source_flags: NodeFlags) {
+        self.source_flags = Some(source_flags);
+    }
+
+    pub(super) fn source_text(&self) -> &str {
+        self.source_text.as_ref().unwrap()
+    }
+
+    pub(super) fn set_source_text(&mut self, source_text: String) {
+        self.source_text = Some(source_text);
+    }
+
+    pub(super) fn language_version(&self) -> ScriptTarget {
+        self.language_version.unwrap()
+    }
+
+    pub(super) fn set_language_version(&mut self, language_version: ScriptTarget) {
+        self.language_version = Some(language_version);
+    }
+
+    pub(super) fn script_kind(&self) -> ScriptKind {
+        self.script_kind.unwrap()
+    }
+
+    pub(super) fn set_script_kind(&mut self, script_kind: ScriptKind) {
+        self.script_kind = Some(script_kind);
+    }
+
+    pub(super) fn language_variant(&self) -> LanguageVariant {
+        self.language_variant.unwrap()
+    }
+
+    pub(super) fn set_language_variant(&mut self, language_variant: LanguageVariant) {
+        self.language_variant = Some(language_variant);
+    }
+
+    pub(super) fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
+        self.parse_diagnostics.as_ref().unwrap().borrow_mut()
+    }
+
+    pub(super) fn set_parse_diagnostics(&mut self, parse_diagnostics: Vec<Rc<Diagnostic>>) {
+        self.parse_diagnostics = Some(RefCell::new(parse_diagnostics));
+    }
+
+    pub(super) fn js_doc_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
+        self.js_doc_diagnostics.as_ref().unwrap().borrow_mut()
+    }
+
+    pub(super) fn set_js_doc_diagnostics(&mut self, js_doc_diagnostics: Vec<Rc<Diagnostic>>) {
+        self.js_doc_diagnostics = Some(RefCell::new(js_doc_diagnostics));
+    }
+
+    pub(super) fn syntax_cursor(&self) -> IncrementalParserSyntaxCursor {
+        self.syntax_cursor.unwrap()
+    }
+
+    pub(super) fn set_syntax_cursor(&mut self, syntax_cursor: IncrementalParserSyntaxCursor) {
+        self.syntax_cursor = Some(syntax_cursor);
+    }
+
+    pub(super) fn current_token(&self) -> SyntaxKind {
+        self.current_token.borrow().unwrap()
+    }
+
+    pub(super) fn set_current_token(&self, token: SyntaxKind) {
+        *self.current_token.borrow_mut() = Some(token);
+    }
+
     pub(super) fn node_count(&self) -> usize {
         self.node_count.get().unwrap()
     }
@@ -260,36 +362,36 @@ impl ParserType {
         self.node_count.set(Some(self.node_count() + 1));
     }
 
-    pub(super) fn file_name(&self) -> &str {
-        self.file_name.as_ref().unwrap()
+    pub(super) fn identifiers(&self) -> RefMut<HashMap<String, String>> {
+        RefMut::map(self.identifiers.borrow_mut(), |option| {
+            option.as_mut().unwrap()
+        })
     }
 
-    pub(super) fn set_file_name(&mut self, file_name: String) {
-        self.file_name = Some(file_name);
+    pub(super) fn set_identifiers(&self, identifiers: HashMap<String, String>) {
+        *self.identifiers.borrow_mut() = Some(identifiers);
     }
 
-    pub(super) fn source_text(&self) -> &str {
-        self.source_text.as_ref().unwrap()
+    pub(super) fn private_identifiers(&self) -> RefMut<HashMap<String, String>> {
+        RefMut::map(self.private_identifiers.borrow_mut(), |option| {
+            option.as_mut().unwrap()
+        })
     }
 
-    pub(super) fn set_source_text(&mut self, source_text: String) {
-        self.source_text = Some(source_text);
+    pub(super) fn set_private_identifiers(&self, private_identifiers: HashMap<String, String>) {
+        *self.private_identifiers.borrow_mut() = Some(private_identifiers);
     }
 
-    pub(super) fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
-        self.parse_diagnostics.as_ref().unwrap().borrow_mut()
+    pub(super) fn identifier_count(&self) -> usize {
+        self.identifier_count.get().unwrap()
     }
 
-    pub(super) fn set_parse_diagnostics(&mut self, parse_diagnostics: Vec<Rc<Diagnostic>>) {
-        self.parse_diagnostics = Some(RefCell::new(parse_diagnostics));
+    pub(super) fn set_identifier_count(&mut self, identifier_count: usize) {
+        self.identifier_count.set(Some(identifier_count));
     }
 
-    pub(super) fn current_token(&self) -> SyntaxKind {
-        self.current_token.borrow().unwrap()
-    }
-
-    pub(super) fn set_current_token(&self, token: SyntaxKind) {
-        *self.current_token.borrow_mut() = Some(token);
+    pub(super) fn increment_identifier_count(&self) {
+        self.identifier_count.set(Some(self.identifier_count() + 1));
     }
 
     pub(super) fn parsing_context(&self) -> ParsingContext {
@@ -298,6 +400,16 @@ impl ParserType {
 
     pub(super) fn set_parsing_context(&self, parsing_context: ParsingContext) {
         self.parsing_context.set(Some(parsing_context));
+    }
+
+    pub(super) fn not_parenthesized_arrow(&self) -> RefMut<HashSet<usize>> {
+        RefMut::map(self.not_parenthesized_arrow.borrow_mut(), |option| {
+            option.as_mut().unwrap()
+        })
+    }
+
+    pub(super) fn set_not_parenthesized_arrow(&self, not_parenthesized_arrow: HashSet<usize>) {
+        *self.not_parenthesized_arrow.borrow_mut() = Some(not_parenthesized_arrow);
     }
 
     pub(super) fn context_flags(&self) -> NodeFlags {
