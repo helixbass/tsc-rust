@@ -1,21 +1,14 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
-use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::TryInto;
 use std::rc::Rc;
 
 use super::{Parser, ParsingContext};
 use crate::{
-    create_node_factory, create_scanner, for_each, maybe_text_char_at_index, normalize_path,
-    object_allocator, BaseNode, BaseNodeFactory, CharacterCodes, ClassLikeDeclarationInterface,
-    Diagnostic, DiagnosticMessage, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
-    SignatureDeclarationInterface, SourceTextAsChars, StringOrNodeArray, SyntaxKind,
-    TemplateLiteralLikeNode,
+    create_node_factory, create_scanner, normalize_path, object_allocator, BaseNode, Diagnostic,
+    DiagnosticMessage, Identifier, Node, NodeFactory, NodeFactoryFlags, NodeFlags, Scanner,
+    ScriptTarget, SyntaxKind, TemplateLiteralLikeNode,
 };
 use local_macros::ast_type;
 

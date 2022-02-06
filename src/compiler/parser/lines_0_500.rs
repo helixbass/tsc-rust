@@ -2,22 +2,18 @@
 
 use bitflags::bitflags;
 use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::convert::TryInto;
+use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{Parser, ParserType, ParsingContext};
+use super::ParserType;
 use crate::{
-    create_node_factory, create_scanner, for_each, maybe_text_char_at_index, normalize_path,
-    object_allocator, BaseNode, BaseNodeFactory, CharacterCodes, ClassLikeDeclarationInterface,
-    Diagnostic, DiagnosticMessage, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface, NamedDeclarationInterface, Node,
-    NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
+    create_node_factory, for_each, maybe_text_char_at_index, object_allocator, BaseNode,
+    BaseNodeFactory, CharacterCodes, ClassLikeDeclarationInterface,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
+    HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFactory, NodeFactoryFlags, NodeInterface,
     SignatureDeclarationInterface, SourceTextAsChars, StringOrNodeArray, SyntaxKind,
-    TemplateLiteralLikeNode,
 };
-use local_macros::ast_type;
 
 bitflags! {
     pub struct SignatureFlags: u32 {
