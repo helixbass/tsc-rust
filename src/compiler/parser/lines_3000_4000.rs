@@ -5,7 +5,7 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_full_width, is_modifier_kind, some, token_to_string, Diagnostics, KeywordTypeNode,
-    LiteralTypeNode, Node, NodeArray, NodeFactory, ParameterDeclaration, SyntaxKind, TypeElement,
+    LiteralTypeNode, Node, NodeArray, NodeFactory, ParameterDeclaration, SyntaxKind,
     TypeParameterDeclaration,
 };
 
@@ -209,10 +209,10 @@ impl ParserType {
         &self,
         pos: isize,
         modifiers: Option<NodeArray>,
-    ) -> TypeElement {
+    ) -> Node {
         let name = self.parse_property_name();
         let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
-        let node: TypeElement;
+        let node: Node;
         if false {
             unimplemented!()
         } else {
@@ -251,7 +251,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_type_member(&self) -> TypeElement {
+    pub(super) fn parse_type_member(&self) -> Node {
         let pos = self.get_node_pos();
         let modifiers = self.parse_modifiers(None, None);
 

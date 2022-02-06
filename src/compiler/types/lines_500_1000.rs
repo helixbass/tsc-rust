@@ -45,12 +45,12 @@ use super::{
     TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
     TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode, TemplateLiteralTypeSpan,
     TemplateSpan, ThisTypeNode, ThrowStatement, TransformFlags, TryStatement, TupleTypeNode,
-    TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode, TypeOfExpression,
-    TypeOperatorNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
-    TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, UnparsedPrepend,
-    UnparsedPrologue, UnparsedSource, UnparsedTextLike, VariableDeclaration,
-    VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
-    WhileStatement, WithStatement, YieldExpression,
+    TypeAliasDeclaration, TypeAssertion, TypeLiteralNode, TypeOfExpression, TypeOperatorNode,
+    TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode,
+    UnionOrIntersectionTypeNodeInterface, UnionTypeNode, UnparsedPrepend, UnparsedPrologue,
+    UnparsedSource, UnparsedTextLike, VariableDeclaration, VariableDeclarationList,
+    VariableLikeDeclarationInterface, VariableStatement, VoidExpression, WhileStatement,
+    WithStatement, YieldExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -187,7 +187,7 @@ pub enum Node {
     VariableDeclarationList(VariableDeclarationList),
     ParameterDeclaration(ParameterDeclaration),
     TemplateSpan(TemplateSpan),
-    TypeElement(TypeElement),
+    PropertySignature(PropertySignature),
     PropertyAssignment(PropertyAssignment),
     SourceFile(SourceFile),
     QualifiedName(QualifiedName),
@@ -373,7 +373,7 @@ impl Node {
             Node::VariableDeclaration(node) => Some(node),
             Node::InterfaceDeclaration(node) => Some(node),
             Node::TypeAliasDeclaration(node) => Some(node),
-            Node::TypeElement(node) => Some(node),
+            Node::PropertySignature(node) => Some(node),
             Node::PropertyAssignment(node) => Some(node),
             Node::FunctionDeclaration(node) => Some(node),
             Node::ParameterDeclaration(node) => Some(node),
@@ -408,9 +408,7 @@ impl Node {
     pub fn maybe_as_has_type(&self) -> Option<&dyn HasTypeInterface> {
         match self {
             Node::VariableDeclaration(variable_declaration) => Some(variable_declaration),
-            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
-                Some(property_signature)
-            }
+            Node::PropertySignature(property_signature) => Some(property_signature),
             Node::FunctionDeclaration(function_declaration) => Some(function_declaration),
             Node::ParameterDeclaration(parameter_declaration) => Some(parameter_declaration),
             _ => None,
@@ -422,7 +420,7 @@ impl Node {
             Node::VariableDeclaration(node) => Some(node),
             Node::ParameterDeclaration(node) => Some(node),
             Node::BindingElement(node) => Some(node),
-            Node::TypeElement(TypeElement::PropertySignature(node)) => Some(node),
+            Node::PropertySignature(node) => Some(node),
             Node::PropertyDeclaration(node) => Some(node),
             Node::PropertyAssignment(node) => Some(node),
             Node::EnumMember(node) => Some(node),
@@ -714,7 +712,7 @@ impl Node {
     }
 
     pub fn as_property_signature(&self) -> &PropertySignature {
-        enum_unwrapped!(self, [Node, TypeElement, PropertySignature])
+        enum_unwrapped!(self, [Node, PropertySignature])
     }
 
     pub fn as_literal_type_node(&self) -> &LiteralTypeNode {

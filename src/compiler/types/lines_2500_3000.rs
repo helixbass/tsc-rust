@@ -818,12 +818,6 @@ impl CatchClause {
 }
 
 #[derive(Debug)]
-#[ast_type(interfaces = "NamedDeclarationInterface")]
-pub enum TypeElement {
-    PropertySignature(PropertySignature),
-}
-
-#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface"
 )]
@@ -848,7 +842,7 @@ impl BindingElement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeElement", interfaces = "NamedDeclarationInterface")]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct PropertySignature {
     _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
     pub question_token: Option<Rc<Node /*QuestionToken*/>>,

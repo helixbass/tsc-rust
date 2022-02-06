@@ -15,7 +15,7 @@ use crate::{
     InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeArray,
     NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
     SignatureDeclarationInterface, SourceTextAsChars, StringOrNodeArray, SyntaxKind,
-    TemplateLiteralLikeNode, TypeElement,
+    TemplateLiteralLikeNode,
 };
 use local_macros::ast_type;
 
@@ -249,7 +249,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_node(&mut cb_node, node.maybe_type());
             visit_node(&mut cb_node, node.maybe_initializer())
         }
-        Node::TypeElement(TypeElement::PropertySignature(node)) => {
+        Node::PropertySignature(node) => {
             visit_nodes(
                 &mut cb_node,
                 Some(&mut cb_nodes),
