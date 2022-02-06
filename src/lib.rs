@@ -103,7 +103,9 @@ pub use compiler::factory::utilities::{
     is_comma_sequence, is_local_name, is_outer_expression, skip_outer_expressions,
 };
 pub use compiler::factory::utilities_public::set_text_range;
-pub use compiler::parser::{create_source_file, for_each_child, MissingNode, ParserType};
+pub use compiler::parser::{
+    create_source_file, for_each_child, IncrementalParserSyntaxCursor, MissingNode, ParserType,
+};
 pub use compiler::path::{
     alt_directory_separator, change_any_extension, combine_paths, compare_paths,
     compare_paths_case_insensitive, compare_paths_case_sensitive, contains_path,

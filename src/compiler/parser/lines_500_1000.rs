@@ -7,13 +7,50 @@ use std::rc::Rc;
 use super::{Parser, ParsingContext};
 use crate::{
     create_node_factory, create_scanner, normalize_path, object_allocator, BaseNode, Diagnostic,
-    DiagnosticMessage, Identifier, Node, NodeFactory, NodeFactoryFlags, NodeFlags, Scanner,
-    ScriptTarget, SyntaxKind, TemplateLiteralLikeNode,
+    DiagnosticMessage, Identifier, IncrementalParserSyntaxCursor, Node, NodeFactory,
+    NodeFactoryFlags, NodeFlags, Scanner, ScriptKind, ScriptTarget, SyntaxKind,
+    TemplateLiteralLikeNode,
 };
 use local_macros::ast_type;
 
-pub fn create_source_file(file_name: &str, source_text: &str) -> Rc<Node /*SourceFile*/> {
-    Parser().parse_source_file(file_name, source_text)
+pub fn create_source_file(
+    file_name: &str,
+    source_text: String,
+    language_version: ScriptTarget,
+    set_parent_nodes: Option<bool>,
+    script_kind: Option<ScriptKind>,
+) -> Rc<Node /*SourceFile*/> {
+    let set_parent_nodes = set_parent_nodes.unwrap_or(false);
+    // tracing?.push(tracing.Phase.Parse, "createSourceFile", { path: fileName }, /*separateBeginAndEnd*/ true);
+    // performance.mark("beforeParse");
+    let result: Rc<Node /*SourceFile*/>;
+
+    // perfLogger.logStartParseSourceFile(fileName);
+    if language_version == ScriptTarget::JSON {
+        result = Parser().parse_source_file(
+            file_name,
+            source_text,
+            language_version,
+            None,
+            Some(set_parent_nodes),
+            Some(ScriptKind::JSON),
+        );
+    } else {
+        result = Parser().parse_source_file(
+            file_name,
+            source_text,
+            language_version,
+            None,
+            Some(set_parent_nodes),
+            script_kind,
+        );
+    }
+    // perfLogger.logStopParseSourceFile();
+
+    // performance.mark("afterParse");
+    // performance.measure("Parse", "beforeParse", "afterParse");
+    // tracing?.pop();
+    result
 }
 
 #[ast_type(impl_from = false)]
@@ -224,13 +261,17 @@ impl ParserType {
     pub(super) fn parse_source_file(
         &mut self,
         file_name: &str,
-        source_text: &str,
+        source_text: String,
+        language_version: ScriptTarget,
+        syntax_cursor: Option<IncrementalParserSyntaxCursor>,
+        set_parent_nodes: Option<bool>,
+        script_kind: Option<ScriptKind>,
     ) -> Rc<Node /*SourceFile*/> {
         self.initialize_state(file_name, source_text);
         self.parse_source_file_worker()
     }
 
-    pub(super) fn initialize_state(&mut self, _file_name: &str, _source_text: &str) {
+    pub(super) fn initialize_state(&mut self, _file_name: &str, _source_text: String) {
         self.set_NodeConstructor(object_allocator.get_node_constructor());
         self.set_IdentifierConstructor(object_allocator.get_identifier_constructor());
         self.set_PrivateIdentifierConstructor(
@@ -240,7 +281,7 @@ impl ParserType {
         self.set_SourceFileConstructor(object_allocator.get_source_file_constructor());
 
         self.set_file_name(normalize_path(_file_name));
-        self.set_source_text(_source_text.to_string());
+        self.set_source_text(_source_text.clone());
 
         self.set_parse_diagnostics(vec![]);
         self.set_parsing_context(ParsingContext::None);

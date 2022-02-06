@@ -5,14 +5,18 @@ use std::cell::Cell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{BaseTextRange, Node, SyntaxKind, SynthesizedComment, TextRange};
+use super::{BaseTextRange, Node, ScriptTarget, SyntaxKind, SynthesizedComment, TextRange};
 
 pub trait ModuleResolutionHost {
     fn read_file(&self, file_name: &str) -> Option<String>;
 }
 
 pub trait CompilerHost: ModuleResolutionHost {
-    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_source_file(
+        &self,
+        file_name: &str,
+        language_version: ScriptTarget,
+    ) -> Option<Rc<Node /*SourceFile*/>>;
     fn get_current_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
 }

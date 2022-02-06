@@ -1,17 +1,22 @@
 use std::rc::Rc;
 
 use crate::{
-    concatenate, create_source_file, create_type_checker, for_each, get_sys, normalize_path,
-    to_path as to_path_helper, CompilerHost, CompilerOptions, CreateProgramOptions, Diagnostic,
-    ModuleResolutionHost, ModuleSpecifierResolutionHost, Node, Path, Program, SourceFile,
-    StructureIsReused, System, TypeChecker, TypeCheckerHost,
+    concatenate, create_source_file, create_type_checker, for_each, get_emit_script_target,
+    get_sys, normalize_path, to_path as to_path_helper, CompilerHost, CompilerOptions,
+    CreateProgramOptions, Diagnostic, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node,
+    Path, Program, ScriptTarget, SourceFile, StructureIsReused, System, TypeChecker,
+    TypeCheckerHost,
 };
 
-fn create_compiler_host() -> impl CompilerHost {
-    create_compiler_host_worker()
+fn create_compiler_host(
+    options: &CompilerOptions,
+    set_parent_nodes: Option<bool>,
+) -> impl CompilerHost {
+    create_compiler_host_worker(options, set_parent_nodes)
 }
 
 struct CompilerHostConcrete {
+    set_parent_nodes: Option<bool>,
     system: &'static dyn System,
 }
 
@@ -22,9 +27,21 @@ impl ModuleResolutionHost for CompilerHostConcrete {
 }
 
 impl CompilerHost for CompilerHostConcrete {
-    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
+    fn get_source_file(
+        &self,
+        file_name: &str,
+        language_version: ScriptTarget,
+    ) -> Option<Rc<Node /*SourceFile*/>> {
         let text = self.read_file(file_name);
-        text.map(|text| create_source_file(file_name, &text))
+        text.map(|text| {
+            create_source_file(
+                file_name,
+                text,
+                language_version,
+                self.set_parent_nodes,
+                None,
+            )
+        })
     }
 
     fn get_canonical_file_name(&self, file_name: &str) -> String {
@@ -36,8 +53,14 @@ impl CompilerHost for CompilerHostConcrete {
     }
 }
 
-fn create_compiler_host_worker() -> impl CompilerHost {
-    CompilerHostConcrete { system: get_sys() }
+fn create_compiler_host_worker(
+    options: &CompilerOptions,
+    set_parent_nodes: Option<bool>,
+) -> impl CompilerHost {
+    CompilerHostConcrete {
+        set_parent_nodes,
+        system: get_sys(),
+    }
 }
 
 struct ProgramConcrete {
@@ -173,6 +196,7 @@ struct CreateProgramHelperContext<'a> {
     processing_other_files: &'a mut Vec<Rc<Node>>,
     host: &'a dyn CompilerHost,
     current_directory: &'a str,
+    options: Rc<CompilerOptions>,
 }
 
 pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Program {
@@ -184,7 +208,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Progr
     let mut processing_other_files: Option<Vec<Rc<Node>>> = None;
     let mut files: Vec<Rc<Node>> = vec![];
 
-    let host = create_compiler_host();
+    let host = create_compiler_host(&options, None);
 
     let current_directory = host.get_current_directory();
 
@@ -196,6 +220,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Progr
             processing_other_files: &mut processing_other_files_present,
             host: &host,
             current_directory: &current_directory,
+            options: options.clone(),
         };
         for_each(root_names, |name, _index| {
             process_root_file(&mut helper_context, name);
@@ -244,7 +269,9 @@ fn find_source_file_worker(
 ) -> Option<Rc<Node>> {
     let _path = to_path(helper_context, file_name);
 
-    let file = helper_context.host.get_source_file(file_name);
+    let file = helper_context
+        .host
+        .get_source_file(file_name, get_emit_script_target(&*helper_context.options));
 
     file.map(|file| {
         let file_as_source_file = file.as_source_file();
