@@ -524,7 +524,16 @@ impl ParserType {
         language_version: ScriptTarget,
     ) -> Option<Rc<Node /*EntityName*/>> {
         self.initialize_state("", content, language_version, None, ScriptKind::JS);
-        unimplemented!()
+        self.next_token();
+        let entity_name = self.parse_entity_name(true, None);
+        let is_invalid =
+            self.token() == SyntaxKind::EndOfFileToken && self.parse_diagnostics().is_empty();
+        self.clear_state();
+        if is_invalid {
+            Some(entity_name.wrap())
+        } else {
+            None
+        }
     }
 
     pub fn parse_json_text(
