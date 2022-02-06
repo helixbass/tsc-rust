@@ -6,9 +6,9 @@ use std::rc::Rc;
 
 use super::{Parser, ParsingContext};
 use crate::{
-    create_node_factory, create_scanner, normalize_path, object_allocator, BaseNode, Diagnostic,
-    DiagnosticMessage, Identifier, IncrementalParserSyntaxCursor, Node, NodeFactory,
-    NodeFactoryFlags, NodeFlags, Scanner, ScriptKind, ScriptTarget, SyntaxKind,
+    create_node_factory, create_scanner, ensure_script_kind, normalize_path, object_allocator,
+    BaseNode, Diagnostic, DiagnosticMessage, Identifier, IncrementalParserSyntaxCursor, Node,
+    NodeFactory, NodeFactoryFlags, NodeFlags, Scanner, ScriptKind, ScriptTarget, SyntaxKind,
     TemplateLiteralLikeNode,
 };
 use local_macros::ast_type;
@@ -51,6 +51,13 @@ pub fn create_source_file(
     // performance.measure("Parse", "beforeParse", "afterParse");
     // tracing?.pop();
     result
+}
+
+pub fn parse_isolated_entity_name(
+    text: String,
+    language_version: ScriptTarget,
+) -> Option<Rc<Node /*EntityName*/>> {
+    Parser().parse_isolated_entity_name(text, language_version)
 }
 
 #[ast_type(impl_from = false)]
@@ -258,7 +265,7 @@ impl ParserType {
         );
     }
 
-    pub(super) fn parse_source_file(
+    pub fn parse_source_file(
         &mut self,
         file_name: &str,
         source_text: String,
@@ -267,11 +274,38 @@ impl ParserType {
         set_parent_nodes: Option<bool>,
         script_kind: Option<ScriptKind>,
     ) -> Rc<Node /*SourceFile*/> {
-        self.initialize_state(file_name, source_text);
+        let script_kind = ensure_script_kind(file_name, script_kind);
+        if script_kind == ScriptKind::JSON {
+            unimplemented!()
+        }
+
+        self.initialize_state(
+            file_name,
+            source_text,
+            language_version,
+            syntax_cursor,
+            script_kind,
+        );
         self.parse_source_file_worker()
     }
 
-    pub(super) fn initialize_state(&mut self, _file_name: &str, _source_text: String) {
+    pub fn parse_isolated_entity_name(
+        &mut self,
+        content: String,
+        language_version: ScriptTarget,
+    ) -> Option<Rc<Node /*EntityName*/>> {
+        self.initialize_state("", content, language_version, None, ScriptKind::JS);
+        unimplemented!()
+    }
+
+    pub(super) fn initialize_state(
+        &mut self,
+        _file_name: &str,
+        _source_text: String,
+        _language_version: ScriptTarget,
+        _syntax_cursor: Option<IncrementalParserSyntaxCursor>,
+        _script_kind: ScriptKind,
+    ) {
         self.set_NodeConstructor(object_allocator.get_node_constructor());
         self.set_IdentifierConstructor(object_allocator.get_identifier_constructor());
         self.set_PrivateIdentifierConstructor(

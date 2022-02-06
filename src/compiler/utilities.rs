@@ -26,13 +26,13 @@ use crate::{
     options_affecting_program_structure, skip_outer_expressions, some, str_to_source_text_as_chars,
     text_substring, AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface,
     CompilerOptions, CompilerOptionsValue, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitTextWriter, LiteralLikeNodeInterface, MapLike, ModifierFlags, ModuleKind, Node,
-    NodeArray, NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds, PrefixUnaryExpression,
-    PseudoBigInt, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SortedArray,
-    SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TokenFlags, TransformFlags,
-    TransientSymbolInterface, Type, TypeFlags, TypeInterface, UnderscoreEscapedMap, __String,
-    compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
+    EmitFlags, EmitTextWriter, Extension, LiteralLikeNodeInterface, MapLike, ModifierFlags,
+    ModuleKind, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds,
+    PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, ScriptKind, ScriptTarget, Signature,
+    SignatureFlags, SortedArray, SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TokenFlags,
+    TransformFlags, TransientSymbolInterface, Type, TypeFlags, TypeInterface, UnderscoreEscapedMap,
+    __String, compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
     escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
     insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
@@ -2906,6 +2906,32 @@ pub fn get_compiler_option_value(
         CompilerOptionsValue::Bool(Some(get_strict_option_value(options, option.name())))
     } else {
         lookup_compiler_option_value(options, option.name())
+    }
+}
+
+pub fn ensure_script_kind(file_name: &str, script_kind: Option<ScriptKind>) -> ScriptKind {
+    script_kind.unwrap_or_else(|| {
+        let script_kind = get_script_kind_from_file_name(file_name);
+        if script_kind == ScriptKind::Unknown {
+            ScriptKind::TS
+        } else {
+            script_kind
+        }
+    })
+}
+
+pub fn get_script_kind_from_file_name(file_name: &str) -> ScriptKind {
+    let ext = file_name
+        .rfind('.')
+        .map(|extension_index| file_name[extension_index..].to_owned())
+        .and_then(|ext| Extension::maybe_from_str(&ext.to_lowercase()));
+    match ext {
+        Some(Extension::Js) | Some(Extension::Cjs) | Some(Extension::Mjs) => ScriptKind::JS,
+        Some(Extension::Jsx) => ScriptKind::JSX,
+        Some(Extension::Ts) | Some(Extension::Cts) | Some(Extension::Mts) => ScriptKind::TS,
+        Some(Extension::Tsx) => ScriptKind::TSX,
+        Some(Extension::Json) => ScriptKind::JSON,
+        _ => ScriptKind::Unknown,
     }
 }
 

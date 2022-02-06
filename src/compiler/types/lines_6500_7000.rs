@@ -11,6 +11,46 @@ pub trait ModuleResolutionHost {
     fn read_file(&self, file_name: &str) -> Option<String>;
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Extension {
+    Ts,
+    Tsx,
+    Dts,
+    Js,
+    Jsx,
+    Json,
+    TsBuildInfo,
+    Mjs,
+    Mts,
+    Dmts,
+    Cjs,
+    Cts,
+    Dcts,
+}
+
+impl Extension {
+    pub fn maybe_from_str(extension: &str) -> Option<Self> {
+        let extension_lowercase = extension.to_lowercase();
+        let extension: &str = &extension_lowercase;
+        match extension {
+            ".ts" => Some(Self::Ts),
+            ".tsx" => Some(Self::Tsx),
+            ".d.ts" => Some(Self::Dts),
+            ".js" => Some(Self::Js),
+            ".jsx" => Some(Self::Jsx),
+            ".json" => Some(Self::Json),
+            ".tsbuildinfo" => Some(Self::TsBuildInfo),
+            ".mjs" => Some(Self::Mjs),
+            ".mts" => Some(Self::Mts),
+            ".d.mts" => Some(Self::Dmts),
+            ".cjs" => Some(Self::Cjs),
+            ".cts" => Some(Self::Cts),
+            ".d.cts" => Some(Self::Dcts),
+            _ => None,
+        }
+    }
+}
+
 pub trait CompilerHost: ModuleResolutionHost {
     fn get_source_file(
         &self,
