@@ -7,10 +7,11 @@ use std::rc::Rc;
 
 use super::{Parser, ParsingContext};
 use crate::{
-    create_node_factory, create_scanner, ensure_script_kind, normalize_path, object_allocator,
-    BaseNode, Diagnostic, DiagnosticMessage, Identifier, IncrementalParser,
-    IncrementalParserSyntaxCursor, LanguageVariant, Node, NodeFactory, NodeFactoryFlags, NodeFlags,
-    NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, Scanner, ScriptKind,
+    convert_to_object_worker, create_node_factory, create_scanner, ensure_script_kind,
+    get_language_variant, normalize_path, object_allocator, BaseNode, Diagnostic,
+    DiagnosticMessage, Identifier, IncrementalParser, IncrementalParserSyntaxCursor,
+    LanguageVariant, Node, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
+    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind,
     ScriptTarget, SyntaxKind, TemplateLiteralLikeNode, TextChangeRange,
 };
 use local_macros::ast_type;
@@ -135,9 +136,9 @@ pub struct ParserType {
     pub(super) script_kind: Option<ScriptKind>,
     pub(super) language_variant: Option<LanguageVariant>,
     pub(super) parse_diagnostics:
-        Option<RefCell<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+        RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) js_doc_diagnostics:
-        Option<RefCell<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+        RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) syntax_cursor: Option<IncrementalParserSyntaxCursor>,
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
     pub(super) node_count: Cell<Option<usize>>,
@@ -181,8 +182,8 @@ impl ParserType {
             language_version: None,
             script_kind: None,
             language_variant: None,
-            parse_diagnostics: None,
-            js_doc_diagnostics: None,
+            parse_diagnostics: RefCell::new(None),
+            js_doc_diagnostics: RefCell::new(None),
             syntax_cursor: None,
             current_token: RefCell::new(None),
             node_count: Cell::new(None),
@@ -290,56 +291,66 @@ impl ParserType {
         self.source_text.as_ref().unwrap()
     }
 
-    pub(super) fn set_source_text(&mut self, source_text: String) {
-        self.source_text = Some(source_text);
+    pub(super) fn set_source_text(&mut self, source_text: Option<String>) {
+        self.source_text = source_text;
     }
 
     pub(super) fn language_version(&self) -> ScriptTarget {
         self.language_version.unwrap()
     }
 
-    pub(super) fn set_language_version(&mut self, language_version: ScriptTarget) {
-        self.language_version = Some(language_version);
+    pub(super) fn set_language_version(&mut self, language_version: Option<ScriptTarget>) {
+        self.language_version = language_version;
     }
 
     pub(super) fn script_kind(&self) -> ScriptKind {
         self.script_kind.unwrap()
     }
 
-    pub(super) fn set_script_kind(&mut self, script_kind: ScriptKind) {
-        self.script_kind = Some(script_kind);
+    pub(super) fn set_script_kind(&mut self, script_kind: Option<ScriptKind>) {
+        self.script_kind = script_kind;
     }
 
     pub(super) fn language_variant(&self) -> LanguageVariant {
         self.language_variant.unwrap()
     }
 
-    pub(super) fn set_language_variant(&mut self, language_variant: LanguageVariant) {
-        self.language_variant = Some(language_variant);
+    pub(super) fn set_language_variant(&mut self, language_variant: Option<LanguageVariant>) {
+        self.language_variant = language_variant;
     }
 
     pub(super) fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
-        self.parse_diagnostics.as_ref().unwrap().borrow_mut()
+        RefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
+            option.as_mut().unwrap()
+        })
     }
 
-    pub(super) fn set_parse_diagnostics(&mut self, parse_diagnostics: Vec<Rc<Diagnostic>>) {
-        self.parse_diagnostics = Some(RefCell::new(parse_diagnostics));
+    pub(super) fn set_parse_diagnostics(&mut self, parse_diagnostics: Option<Vec<Rc<Diagnostic>>>) {
+        *self.parse_diagnostics.borrow_mut() = parse_diagnostics;
     }
 
     pub(super) fn js_doc_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
-        self.js_doc_diagnostics.as_ref().unwrap().borrow_mut()
+        RefMut::map(self.js_doc_diagnostics.borrow_mut(), |option| {
+            option.as_mut().unwrap()
+        })
     }
 
-    pub(super) fn set_js_doc_diagnostics(&mut self, js_doc_diagnostics: Vec<Rc<Diagnostic>>) {
-        self.js_doc_diagnostics = Some(RefCell::new(js_doc_diagnostics));
+    pub(super) fn set_js_doc_diagnostics(
+        &mut self,
+        js_doc_diagnostics: Option<Vec<Rc<Diagnostic>>>,
+    ) {
+        *self.js_doc_diagnostics.borrow_mut() = js_doc_diagnostics;
     }
 
     pub(super) fn syntax_cursor(&self) -> IncrementalParserSyntaxCursor {
         self.syntax_cursor.unwrap()
     }
 
-    pub(super) fn set_syntax_cursor(&mut self, syntax_cursor: IncrementalParserSyntaxCursor) {
-        self.syntax_cursor = Some(syntax_cursor);
+    pub(super) fn set_syntax_cursor(
+        &mut self,
+        syntax_cursor: Option<IncrementalParserSyntaxCursor>,
+    ) {
+        self.syntax_cursor = syntax_cursor;
     }
 
     pub(super) fn current_token(&self) -> SyntaxKind {
@@ -368,8 +379,8 @@ impl ParserType {
         })
     }
 
-    pub(super) fn set_identifiers(&self, identifiers: HashMap<String, String>) {
-        *self.identifiers.borrow_mut() = Some(identifiers);
+    pub(super) fn set_identifiers(&self, identifiers: Option<HashMap<String, String>>) {
+        *self.identifiers.borrow_mut() = identifiers;
     }
 
     pub(super) fn private_identifiers(&self) -> RefMut<HashMap<String, String>> {
@@ -408,8 +419,11 @@ impl ParserType {
         })
     }
 
-    pub(super) fn set_not_parenthesized_arrow(&self, not_parenthesized_arrow: HashSet<usize>) {
-        *self.not_parenthesized_arrow.borrow_mut() = Some(not_parenthesized_arrow);
+    pub(super) fn set_not_parenthesized_arrow(
+        &self,
+        not_parenthesized_arrow: Option<HashSet<usize>>,
+    ) {
+        *self.not_parenthesized_arrow.borrow_mut() = not_parenthesized_arrow;
     }
 
     pub(super) fn context_flags(&self) -> NodeFlags {
@@ -461,7 +475,32 @@ impl ParserType {
     ) -> Rc<Node /*SourceFile*/> {
         let script_kind = ensure_script_kind(file_name, script_kind);
         if script_kind == ScriptKind::JSON {
-            unimplemented!()
+            let result = self.parse_json_text(
+                file_name,
+                source_text,
+                Some(language_version),
+                syntax_cursor,
+                set_parent_nodes,
+            );
+            let result_as_source_file = result.as_source_file();
+            convert_to_object_worker(
+                &result,
+                result_as_source_file
+                    .statements
+                    .get(0)
+                    .map(|statement| statement.as_expression_statement().expression.clone()),
+                &mut *result_as_source_file.parse_diagnostics(),
+                false,
+                None,
+                None,
+            );
+            result_as_source_file.set_referenced_files(vec![]);
+            result_as_source_file.set_type_reference_directives(vec![]);
+            result_as_source_file.set_lib_reference_directives(vec![]);
+            result_as_source_file.set_amd_dependencies(vec![]);
+            result_as_source_file.set_has_no_default_lib(false);
+            result_as_source_file.set_pragmas(ReadonlyPragmaMap::new());
+            return result;
         }
 
         self.initialize_state(
@@ -471,7 +510,12 @@ impl ParserType {
             syntax_cursor,
             script_kind,
         );
-        self.parse_source_file_worker()
+
+        let result = self.parse_source_file_worker();
+
+        self.clear_state();
+
+        result
     }
 
     pub fn parse_isolated_entity_name(
@@ -519,14 +563,32 @@ impl ParserType {
         self.set_SourceFileConstructor(object_allocator.get_source_file_constructor());
 
         self.set_file_name(normalize_path(_file_name));
-        self.set_source_text(_source_text.clone());
+        self.set_source_text(Some(_source_text.clone()));
+        self.set_language_version(Some(_language_version));
+        self.set_syntax_cursor(_syntax_cursor);
+        self.set_script_kind(Some(_script_kind));
+        self.set_language_variant(Some(get_language_variant(_script_kind)));
 
-        self.set_parse_diagnostics(vec![]);
+        self.set_parse_diagnostics(Some(vec![]));
         self.set_parsing_context(ParsingContext::None);
+        self.set_identifiers(Some(HashMap::new()));
+        self.set_private_identifiers(HashMap::new());
+        self.set_identifier_count(0);
         self.set_node_count(0);
+        self.set_source_flags(NodeFlags::None);
         self.set_top_level(true);
 
-        self.set_context_flags(NodeFlags::None);
+        match self.script_kind() {
+            ScriptKind::JS | ScriptKind::JSX => {
+                self.set_context_flags(NodeFlags::JavaScriptFile);
+            }
+            ScriptKind::JSON => {
+                self.set_context_flags(NodeFlags::JavaScriptFile | NodeFlags::JsonFile);
+            }
+            _ => {
+                self.set_context_flags(NodeFlags::None);
+            }
+        }
         self.set_parse_error_before_next_finished_node(false);
 
         let mut scanner = self.scanner_mut();
@@ -539,5 +601,7 @@ impl ParserType {
         // scanner.set_on_error(Some(Box::new(move |message, length| {
         //     self.scan_error(message, length)
         // })));
+        scanner.set_script_target(self.language_version());
+        scanner.set_language_variant(self.language_variant());
     }
 }

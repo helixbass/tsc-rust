@@ -1,11 +1,11 @@
 #![allow(non_upper_case_globals)]
 
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
     BaseNode, BaseTextRange, BuildInfo, Diagnostic, EmitHelper, FileReference, LanguageVariant,
-    Node, NodeArray, Path, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
+    Node, NodeArray, Path, ReadonlyPragmaMap, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
 };
 use local_macros::ast_type;
 
@@ -35,6 +35,12 @@ pub fn text_str_num_chars(text: &str, start: usize, end: usize) -> usize {
     text[start..end].chars().count()
 }
 
+#[derive(Debug)]
+pub struct AmdDependency {
+    path: String,
+    name: Option<String>,
+}
+
 pub trait SourceFileLike {
     fn text(&self) -> &str;
     fn text_as_chars(&self) -> &SourceTextAsChars;
@@ -61,10 +67,14 @@ pub struct SourceFile {
     pub text: String,
     pub text_as_chars: SourceTextAsChars,
 
+    amd_dependencies: RefCell<Option<Vec<AmdDependency>>>,
+    referenced_files: RefCell<Option<Vec<FileReference>>>,
+    type_reference_directives: RefCell<Option<Vec<FileReference>>>,
+    lib_reference_directives: RefCell<Option<Vec<FileReference>>>,
     language_variant: LanguageVariant,
     is_declaration_file: bool,
 
-    has_no_default_lib: bool,
+    has_no_default_lib: Cell<bool>,
 
     language_version: ScriptTarget,
 
@@ -75,6 +85,7 @@ pub struct SourceFile {
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
     line_map: RefCell<Option<Vec<usize>>>,
+    pragmas: RefCell<Option<ReadonlyPragmaMap>>,
 }
 
 impl SourceFile {
@@ -100,6 +111,10 @@ impl SourceFile {
             path: RefCell::new(None),
             text,
             text_as_chars,
+            amd_dependencies: RefCell::new(None),
+            referenced_files: RefCell::new(None),
+            type_reference_directives: RefCell::new(None),
+            lib_reference_directives: RefCell::new(None),
             parse_diagnostics: RefCell::new(None),
             line_map: RefCell::new(None),
             language_version,
@@ -107,7 +122,8 @@ impl SourceFile {
             script_kind,
             external_module_indicator: None,
             is_declaration_file,
-            has_no_default_lib,
+            has_no_default_lib: Cell::new(has_no_default_lib),
+            pragmas: RefCell::new(None),
         }
     }
 
@@ -127,14 +143,70 @@ impl SourceFile {
         *self.path.borrow_mut() = Some(path);
     }
 
-    pub fn parse_diagnostics(&self) -> Ref<Vec<Rc<Diagnostic>>> {
-        Ref::map(self.parse_diagnostics.borrow(), |option| {
+    pub fn has_no_default_lib(&self) -> bool {
+        self.has_no_default_lib.get()
+    }
+
+    pub fn set_has_no_default_lib(&self, has_no_default_lib: bool) {
+        self.has_no_default_lib.set(has_no_default_lib);
+    }
+
+    pub fn amd_dependencies(&self) -> Ref<Vec<AmdDependency>> {
+        Ref::map(self.amd_dependencies.borrow(), |option| {
             option.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_amd_dependencies(&self, amd_dependencies: Vec<AmdDependency>) {
+        *self.amd_dependencies.borrow_mut() = Some(amd_dependencies);
+    }
+
+    pub fn referenced_files(&self) -> Ref<Vec<FileReference>> {
+        Ref::map(self.referenced_files.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_referenced_files(&self, referenced_files: Vec<FileReference>) {
+        *self.referenced_files.borrow_mut() = Some(referenced_files);
+    }
+
+    pub fn type_reference_directives(&self) -> Ref<Vec<FileReference>> {
+        Ref::map(self.type_reference_directives.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_type_reference_directives(&self, type_reference_directives: Vec<FileReference>) {
+        *self.type_reference_directives.borrow_mut() = Some(type_reference_directives);
+    }
+
+    pub fn lib_reference_directives(&self) -> Ref<Vec<FileReference>> {
+        Ref::map(self.lib_reference_directives.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_lib_reference_directives(&self, lib_reference_directives: Vec<FileReference>) {
+        *self.lib_reference_directives.borrow_mut() = Some(lib_reference_directives);
+    }
+
+    pub fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
+        RefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
+            option.as_mut().unwrap()
         })
     }
 
     pub fn set_parse_diagnostics(&self, parse_diagnostics: Vec<Rc<Diagnostic>>) {
         *self.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
+    }
+
+    pub fn pragmas(&self) -> Ref<ReadonlyPragmaMap> {
+        Ref::map(self.pragmas.borrow(), |option| option.as_ref().unwrap())
+    }
+
+    pub fn set_pragmas(&self, pragmas: ReadonlyPragmaMap) {
+        *self.pragmas.borrow_mut() = Some(pragmas);
     }
 
     pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {

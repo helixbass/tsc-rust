@@ -26,19 +26,19 @@ use crate::{
     options_affecting_program_structure, skip_outer_expressions, some, str_to_source_text_as_chars,
     text_substring, AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface,
     CompilerOptions, CompilerOptionsValue, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitTextWriter, Extension, LiteralLikeNodeInterface, MapLike, ModifierFlags,
-    ModuleKind, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds,
-    PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, ScriptKind, ScriptTarget, Signature,
-    SignatureFlags, SortedArray, SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TokenFlags,
-    TransformFlags, TransientSymbolInterface, Type, TypeFlags, TypeInterface, UnderscoreEscapedMap,
-    __String, compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
-    escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
-    insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
-    CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic, DiagnosticCollection,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    EmitFlags, EmitTextWriter, Extension, LanguageVariant, LiteralLikeNodeInterface, MapLike,
+    ModifierFlags, ModuleKind, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags,
+    OuterExpressionKinds, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, ScriptKind,
+    ScriptTarget, Signature, SignatureFlags, SortedArray, SourceFileLike, SourceTextAsChars,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind,
+    TextSpan, TokenFlags, TransformFlags, TransientSymbolInterface, Type, TypeFlags, TypeInterface,
+    UnderscoreEscapedMap, __String, compare_strings_case_sensitive, compare_values,
+    create_text_span_from_bounds, escape_leading_underscores, for_each, get_combined_node_flags,
+    get_name_of_declaration, insert_sorted, is_big_int_literal, is_member_name,
+    is_type_alias_declaration, skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    BaseNode, BaseSymbol, BaseType, CharacterCodes, CheckFlags, Comparison, Debug_, Diagnostic,
+    DiagnosticCollection, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
 };
 use local_macros::enum_unwrapped;
 
@@ -2681,6 +2681,15 @@ fn compare_message_text(t1: &DiagnosticMessageText, t2: &DiagnosticMessageText) 
         return Comparison::GreaterThan;
     }
     Comparison::EqualTo
+}
+
+pub fn get_language_variant(script_kind: ScriptKind) -> LanguageVariant {
+    match script_kind {
+        ScriptKind::TSX | ScriptKind::JSX | ScriptKind::JS | ScriptKind::JSON => {
+            LanguageVariant::JSX
+        }
+        _ => LanguageVariant::Standard,
+    }
 }
 
 pub fn get_emit_script_target(compiler_options: &CompilerOptions) -> ScriptTarget {

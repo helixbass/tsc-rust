@@ -14,6 +14,28 @@ use crate::{
 use local_macros::enum_unwrapped;
 
 impl ParserType {
+    pub(super) fn clear_state(&mut self) {
+        {
+            let mut scanner = self.scanner_mut();
+            scanner.clear_comment_directives();
+            scanner.set_text(Some(vec![]), Some("".to_owned()), None, None);
+            // scanner.set_on_error(None);
+        }
+
+        self.set_source_text(None);
+        self.set_language_version(None);
+        self.set_syntax_cursor(None);
+        self.set_script_kind(None);
+        self.set_language_variant(None);
+        self.set_source_flags(NodeFlags::None);
+        self.set_parse_diagnostics(None);
+        self.set_js_doc_diagnostics(None);
+        self.set_parsing_context(ParsingContext::None);
+        self.set_identifiers(None);
+        self.set_not_parenthesized_arrow(None);
+        self.set_top_level(true);
+    }
+
     pub(super) fn parse_source_file_worker(&self) -> Rc<Node /*SourceFile*/> {
         let source_flags = self.context_flags();
 
