@@ -516,23 +516,23 @@ pub struct ParsedIsolatedJSDocComment {
 
 impl BaseNodeFactory for ParserType {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.SourceFileConstructor()(kind, 0, 0)
+        self.count_node(self.SourceFileConstructor()(kind, 0, 0))
     }
 
     fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.IdentifierConstructor()(kind, 0, 0)
+        self.count_node(self.IdentifierConstructor()(kind, 0, 0))
     }
 
     fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.PrivateIdentifierConstructor()(kind, 0, 0)
+        self.count_node(self.PrivateIdentifierConstructor()(kind, 0, 0))
     }
 
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.TokenConstructor()(kind, 0, 0)
+        self.count_node(self.TokenConstructor()(kind, 0, 0))
     }
 
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.NodeConstructor()(kind, 0, 0)
+        self.count_node(self.NodeConstructor()(kind, 0, 0))
     }
 }
 

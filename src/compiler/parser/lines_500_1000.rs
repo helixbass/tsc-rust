@@ -120,12 +120,14 @@ pub enum MissingNode {
 #[allow(non_snake_case)]
 pub struct ParserType {
     pub(super) scanner: RefCell<Scanner>,
+    pub(super) disallow_in_and_decorator_context: NodeFlags,
     pub(super) NodeConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) IdentifierConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) PrivateIdentifierConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) TokenConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) SourceFileConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) factory: Rc<NodeFactory<ParserType>>,
+    pub(super) node_count: Cell<Option<usize>>,
     pub(super) file_name: Option<String>,
     pub(super) source_text: Option<String>,
     pub(super) parse_diagnostics:
@@ -149,11 +151,14 @@ impl ParserType {
                 None,
                 None,
             )),
+            disallow_in_and_decorator_context: NodeFlags::DisallowInContext
+                | NodeFlags::DecoratorContext,
             NodeConstructor: None,
             IdentifierConstructor: None,
             PrivateIdentifierConstructor: None,
             TokenConstructor: None,
             SourceFileConstructor: None,
+            node_count: Cell::new(None),
             factory: create_node_factory(
                 NodeFactoryFlags::NoParenthesizerRules
                     | NodeFactoryFlags::NoNodeConverters
@@ -243,6 +248,18 @@ impl ParserType {
         self.SourceFileConstructor = Some(SourceFileConstructor);
     }
 
+    pub(super) fn node_count(&self) -> usize {
+        self.node_count.get().unwrap()
+    }
+
+    pub(super) fn set_node_count(&mut self, node_count: usize) {
+        self.node_count.set(Some(node_count));
+    }
+
+    pub(super) fn increment_node_count(&self) {
+        self.node_count.set(Some(self.node_count() + 1));
+    }
+
     pub(super) fn file_name(&self) -> &str {
         self.file_name.as_ref().unwrap()
     }
@@ -305,6 +322,11 @@ impl ParserType {
 
     pub(super) fn set_parse_error_before_next_finished_node(&self, value: bool) {
         self.parse_error_before_next_finished_node.set(value);
+    }
+
+    pub(super) fn count_node(&self, node: BaseNode) -> BaseNode {
+        self.increment_node_count();
+        node
     }
 
     pub(super) fn scan_error(&self, message: &DiagnosticMessage, length: usize) {
@@ -389,6 +411,7 @@ impl ParserType {
 
         self.set_parse_diagnostics(vec![]);
         self.set_parsing_context(ParsingContext::None);
+        self.set_node_count(0);
         self.set_top_level(true);
 
         self.set_context_flags(NodeFlags::None);
