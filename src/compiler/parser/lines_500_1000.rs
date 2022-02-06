@@ -9,7 +9,8 @@ use crate::{
     create_node_factory, create_scanner, ensure_script_kind, normalize_path, object_allocator,
     BaseNode, Diagnostic, DiagnosticMessage, Identifier, IncrementalParser,
     IncrementalParserSyntaxCursor, Node, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
-    Scanner, ScriptKind, ScriptTarget, SyntaxKind, TemplateLiteralLikeNode, TextChangeRange,
+    ParsedIsolatedJSDocComment, Scanner, ScriptKind, ScriptTarget, SyntaxKind,
+    TemplateLiteralLikeNode, TextChangeRange,
 };
 use local_macros::ast_type;
 
@@ -85,6 +86,21 @@ pub fn update_source_file(
         new_source_file.flags() | (source_file.flags() & NodeFlags::PermanentlySetIncrementalFlags),
     );
     new_source_file
+}
+
+pub fn parse_isolated_jsdoc_comment(
+    content: String,
+    start: Option<usize>,
+    length: Option<usize>,
+) -> Option<ParsedIsolatedJSDocComment> {
+    let result = Parser().JSDocParser_parse_isolated_jsdoc_comment(content, start, length);
+    if let Some(result) = result.as_ref()
+    /*&& result.jsDoc*/
+    {
+        Parser().fixup_parent_references(&result.js_doc);
+    }
+
+    result
 }
 
 #[ast_type(impl_from = false)]

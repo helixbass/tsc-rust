@@ -6,9 +6,9 @@ use std::rc::Rc;
 use super::{ParserType, SignatureFlags};
 use crate::{
     append, modifiers_to_flags, some, BaseNode, BaseNodeFactory, Block, Debug_, Decorator,
-    DiagnosticMessage, Diagnostics, FunctionDeclaration, InterfaceDeclaration, ModifierFlags, Node,
-    NodeArray, NodeFlags, NodeInterface, SyntaxKind, TypeAliasDeclaration, VariableDeclaration,
-    VariableDeclarationList,
+    Diagnostic, DiagnosticMessage, Diagnostics, FunctionDeclaration, InterfaceDeclaration,
+    ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind, TypeAliasDeclaration,
+    VariableDeclaration, VariableDeclarationList,
 };
 
 impl ParserType {
@@ -484,6 +484,20 @@ impl ParserType {
     pub(super) fn next_token_is_open_brace(&self) -> bool {
         self.next_token() == SyntaxKind::OpenBraceToken
     }
+
+    pub fn JSDocParser_parse_isolated_jsdoc_comment(
+        &self,
+        content: String,
+        start: Option<usize>,
+        length: Option<usize>,
+    ) -> Option<ParsedIsolatedJSDocComment> {
+        unimplemented!()
+    }
+}
+
+pub struct ParsedIsolatedJSDocComment {
+    pub js_doc: Rc<Node /*JSDoc*/>,
+    pub diagnostics: Vec<Rc<Diagnostic>>,
 }
 
 impl BaseNodeFactory for ParserType {

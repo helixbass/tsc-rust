@@ -105,7 +105,7 @@ pub use compiler::factory::utilities::{
 pub use compiler::factory::utilities_public::set_text_range;
 pub use compiler::parser::{
     create_source_file, for_each_child, IncrementalParser, IncrementalParserSyntaxCursor,
-    MissingNode, ParserType,
+    MissingNode, ParsedIsolatedJSDocComment, ParserType,
 };
 pub use compiler::path::{
     alt_directory_separator, change_any_extension, combine_paths, compare_paths,
@@ -249,8 +249,9 @@ pub use compiler::utilities::{
     is_property_name_literal, is_super_property, is_this_identifier, is_type_alias,
     is_type_node_kind, is_write_only_access, modifier_to_flag, modifiers_to_flags, node_is_missing,
     object_allocator, parse_pseudo_big_int, position_is_synthesized, pseudo_big_int_to_string,
-    set_parent, set_text_range_pos_end, set_value_declaration, using_single_line_string_writer,
-    Associativity, FunctionFlags, GetLiteralTextFlags, OperatorPrecedence,
+    set_parent, set_parent_recursive, set_text_range_pos_end, set_value_declaration,
+    using_single_line_string_writer, Associativity, FunctionFlags, GetLiteralTextFlags,
+    OperatorPrecedence,
 };
 use compiler::utilities::{has_invalid_escape, set_localized_diagnostic_messages};
 pub use compiler::utilities_public::{

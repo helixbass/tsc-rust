@@ -6,7 +6,7 @@ use std::rc::Rc;
 use super::{MissingNode, ParserType, ParsingContext, SpeculationKind};
 use crate::{
     attach_file_to_diagnostics, create_detached_diagnostic, is_modifier_kind,
-    is_template_literal_kind, last_or_undefined, set_text_range_pos_end,
+    is_template_literal_kind, last_or_undefined, set_parent_recursive, set_text_range_pos_end,
     token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, Identifier, Node, NodeArray,
     NodeArrayOrVec, NodeFlags, NodeInterface, SourceFile, SyntaxKind,
@@ -39,6 +39,10 @@ impl ParserType {
             ));
 
         source_file
+    }
+
+    pub fn fixup_parent_references(&self, root_node: &Node) {
+        set_parent_recursive(Some(root_node), true);
     }
 
     pub(super) fn create_source_file<TNodes: Into<NodeArrayOrVec>>(
