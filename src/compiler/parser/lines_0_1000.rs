@@ -596,6 +596,12 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_nodes(&mut cb_node, Some(&mut cb_nodes), node.members.as_ref())
         }
         Node::LiteralTypeNode(node) => visit_node(&mut cb_node, Some(&*node.literal)),
+        Node::NamedTupleMember(node) => {
+            visit_node(&mut cb_node, node.dot_dot_dot_token.clone());
+            visit_node(&mut cb_node, Some(&*node.name));
+            visit_node(&mut cb_node, node.question_token.clone());
+            visit_node(&mut cb_node, Some(&*node.type_));
+        }
         Node::ArrayLiteralExpression(array_literal_expression) => visit_nodes(
             &mut cb_node,
             Some(&mut cb_nodes),
