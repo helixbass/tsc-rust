@@ -7,9 +7,9 @@ use std::rc::Rc;
 use super::{Parser, ParsingContext};
 use crate::{
     create_node_factory, create_scanner, ensure_script_kind, normalize_path, object_allocator,
-    BaseNode, Diagnostic, DiagnosticMessage, Identifier, IncrementalParserSyntaxCursor, Node,
-    NodeFactory, NodeFactoryFlags, NodeFlags, Scanner, ScriptKind, ScriptTarget, SyntaxKind,
-    TemplateLiteralLikeNode,
+    BaseNode, Diagnostic, DiagnosticMessage, Identifier, IncrementalParser,
+    IncrementalParserSyntaxCursor, Node, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
+    Scanner, ScriptKind, ScriptTarget, SyntaxKind, TemplateLiteralLikeNode, TextChangeRange,
 };
 use local_macros::ast_type;
 
@@ -62,6 +62,29 @@ pub fn parse_isolated_entity_name(
 
 pub fn parse_json_text(file_name: &str, source_text: String) -> Rc<Node /*JsonSourceFile*/> {
     Parser().parse_json_text(file_name, source_text, None, None, None)
+}
+
+pub fn is_external_module(file: &Node /*SourceFile*/) -> bool {
+    file.as_source_file().external_module_indicator.is_some()
+}
+
+pub fn update_source_file(
+    source_file: &Node, /*SourceFile*/
+    new_text: String,
+    text_change_range: TextChangeRange,
+    aggressive_checks: Option<bool>,
+) -> Rc<Node /*SourceFile*/> {
+    let aggressive_checks = aggressive_checks.unwrap_or(false);
+    let new_source_file = IncrementalParser().update_source_file(
+        source_file,
+        new_text,
+        text_change_range,
+        aggressive_checks,
+    );
+    new_source_file.set_flags(
+        new_source_file.flags() | (source_file.flags() & NodeFlags::PermanentlySetIncrementalFlags),
+    );
+    new_source_file
 }
 
 #[ast_type(impl_from = false)]

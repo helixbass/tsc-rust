@@ -68,7 +68,9 @@ pub struct SourceFile {
 
     language_version: ScriptTarget,
 
-    script_kind: ScriptKind,
+    pub(crate) script_kind: ScriptKind,
+
+    pub(crate) external_module_indicator: Option<Rc<Node>>,
 
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
@@ -103,6 +105,7 @@ impl SourceFile {
             language_version,
             language_variant,
             script_kind,
+            external_module_indicator: None,
             is_declaration_file,
             has_no_default_lib,
         }
