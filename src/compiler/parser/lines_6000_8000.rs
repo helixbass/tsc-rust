@@ -485,6 +485,15 @@ impl ParserType {
         self.next_token() == SyntaxKind::OpenBraceToken
     }
 
+    pub fn JSDocParser_parse_jsdoc_type_expression_for_tests(
+        &self,
+        content: String,
+        start: Option<usize>,
+        length: Option<usize>,
+    ) -> Option<ParsedJSDocTypeExpression> {
+        unimplemented!()
+    }
+
     pub fn JSDocParser_parse_isolated_jsdoc_comment(
         &self,
         content: String,
@@ -493,6 +502,11 @@ impl ParserType {
     ) -> Option<ParsedIsolatedJSDocComment> {
         unimplemented!()
     }
+}
+
+pub struct ParsedJSDocTypeExpression {
+    pub js_doc_type_expression: Rc<Node /*JSDocTypeExpression*/>,
+    pub diagnostics: Vec<Rc<Diagnostic>>,
 }
 
 pub struct ParsedIsolatedJSDocComment {

@@ -9,8 +9,8 @@ use crate::{
     create_node_factory, create_scanner, ensure_script_kind, normalize_path, object_allocator,
     BaseNode, Diagnostic, DiagnosticMessage, Identifier, IncrementalParser,
     IncrementalParserSyntaxCursor, Node, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
-    ParsedIsolatedJSDocComment, Scanner, ScriptKind, ScriptTarget, SyntaxKind,
-    TemplateLiteralLikeNode, TextChangeRange,
+    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, Scanner, ScriptKind, ScriptTarget,
+    SyntaxKind, TemplateLiteralLikeNode, TextChangeRange,
 };
 use local_macros::ast_type;
 
@@ -88,7 +88,7 @@ pub fn update_source_file(
     new_source_file
 }
 
-pub fn parse_isolated_jsdoc_comment(
+pub(crate) fn parse_isolated_jsdoc_comment(
     content: String,
     start: Option<usize>,
     length: Option<usize>,
@@ -101,6 +101,14 @@ pub fn parse_isolated_jsdoc_comment(
     }
 
     result
+}
+
+pub(crate) fn parse_jsdoc_type_expression_for_tests(
+    content: String,
+    start: Option<usize>,
+    length: Option<usize>,
+) -> Option<ParsedJSDocTypeExpression> {
+    Parser().JSDocParser_parse_jsdoc_type_expression_for_tests(content, start, length)
 }
 
 #[ast_type(impl_from = false)]

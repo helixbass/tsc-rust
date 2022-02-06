@@ -105,7 +105,7 @@ pub use compiler::factory::utilities::{
 pub use compiler::factory::utilities_public::set_text_range;
 pub use compiler::parser::{
     create_source_file, for_each_child, IncrementalParser, IncrementalParserSyntaxCursor,
-    MissingNode, ParsedIsolatedJSDocComment, ParserType,
+    MissingNode, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
 };
 pub use compiler::path::{
     alt_directory_separator, change_any_extension, combine_paths, compare_paths,
