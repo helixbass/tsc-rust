@@ -2924,7 +2924,7 @@ pub fn get_script_kind_from_file_name(file_name: &str) -> ScriptKind {
     let ext = file_name
         .rfind('.')
         .map(|extension_index| file_name[extension_index..].to_owned())
-        .and_then(|ext| Extension::maybe_from_str(&ext.to_lowercase()));
+        .and_then(|ext| Extension::maybe_from_str(&ext));
     match ext {
         Some(Extension::Js) | Some(Extension::Cjs) | Some(Extension::Mjs) => ScriptKind::JS,
         Some(Extension::Jsx) => ScriptKind::JSX,

@@ -60,6 +60,10 @@ pub fn parse_isolated_entity_name(
     Parser().parse_isolated_entity_name(text, language_version)
 }
 
+pub fn parse_json_text(file_name: &str, source_text: String) -> Rc<Node /*JsonSourceFile*/> {
+    Parser().parse_json_text(file_name, source_text, None, None, None)
+}
+
 #[ast_type(impl_from = false)]
 pub enum MissingNode {
     Identifier(Identifier),
@@ -295,6 +299,25 @@ impl ParserType {
         language_version: ScriptTarget,
     ) -> Option<Rc<Node /*EntityName*/>> {
         self.initialize_state("", content, language_version, None, ScriptKind::JS);
+        unimplemented!()
+    }
+
+    pub fn parse_json_text(
+        &mut self,
+        file_name: &str,
+        source_text: String,
+        language_version: Option<ScriptTarget>,
+        syntax_cursor: Option<IncrementalParserSyntaxCursor>,
+        set_parent_nodes: Option<bool>,
+    ) -> Rc<Node /*JsonSourceFile*/> {
+        let language_version = language_version.unwrap_or(ScriptTarget::ES2015);
+        self.initialize_state(
+            file_name,
+            source_text,
+            language_version,
+            syntax_cursor,
+            ScriptKind::JSON,
+        );
         unimplemented!()
     }
 
