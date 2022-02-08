@@ -143,7 +143,7 @@ pub struct ParserType {
         RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) js_doc_diagnostics:
         RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
-    pub(super) syntax_cursor: Option<IncrementalParserSyntaxCursor>,
+    pub(super) syntax_cursor: RefCell<Option<IncrementalParserSyntaxCursor>>,
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
     pub(super) node_count: Cell<Option<usize>>,
     pub(super) identifiers: RefCell<Option<Rc<HashMap<String, String>>>>,
@@ -190,7 +190,7 @@ impl ParserType {
             language_variant: None,
             parse_diagnostics: RefCell::new(None),
             js_doc_diagnostics: RefCell::new(None),
-            syntax_cursor: None,
+            syntax_cursor: RefCell::new(None),
             current_token: RefCell::new(None),
             node_count: Cell::new(None),
             identifiers: RefCell::new(None),
@@ -360,15 +360,12 @@ impl ParserType {
         *self.js_doc_diagnostics.borrow_mut() = js_doc_diagnostics;
     }
 
-    pub(super) fn syntax_cursor(&self) -> IncrementalParserSyntaxCursor {
-        self.syntax_cursor.unwrap()
+    pub(super) fn maybe_syntax_cursor(&self) -> Ref<Option<IncrementalParserSyntaxCursor>> {
+        self.syntax_cursor.borrow()
     }
 
-    pub(super) fn set_syntax_cursor(
-        &mut self,
-        syntax_cursor: Option<IncrementalParserSyntaxCursor>,
-    ) {
-        self.syntax_cursor = syntax_cursor;
+    pub(super) fn set_syntax_cursor(&self, syntax_cursor: Option<IncrementalParserSyntaxCursor>) {
+        *self.syntax_cursor.borrow_mut() = syntax_cursor;
     }
 
     pub(super) fn current_token(&self) -> SyntaxKind {

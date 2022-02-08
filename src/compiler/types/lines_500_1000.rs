@@ -174,6 +174,14 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_js_doc(&self, js_doc: Vec<Rc<Node /*JSDoc*/>>);
     fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
     fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node /*JSDocTag*/>>);
+    // IncrementalElement
+    fn maybe_intersects_change(&self) -> Option<bool>;
+    fn set_intersects_change(&self, intersects_change: Option<bool>);
+    // fn maybe_length(&self) -> Option<usize>;
+    // fn set_length(&self, length: Option<usize>);
+    // _children: Node[] | undefined;
+    // IncrementalNode
+    // hasBeenIncrementallyParsed: boolean;
 }
 
 #[derive(Debug)]
@@ -811,6 +819,7 @@ pub struct BaseNode {
     emit_node: RefCell<Option<EmitNode>>,
     js_doc: RefCell<Option<Vec<Weak<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
+    intersects_change: Cell<Option<bool>>,
 }
 
 impl BaseNode {
@@ -839,6 +848,7 @@ impl BaseNode {
             emit_node: RefCell::new(None),
             js_doc: RefCell::new(None),
             js_doc_cache: RefCell::new(None),
+            intersects_change: Cell::new(None),
         }
     }
 }
@@ -995,6 +1005,14 @@ impl NodeInterface for BaseNode {
     fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node>>) {
         *self.js_doc_cache.borrow_mut() =
             Some(js_doc_cache.iter().map(|rc| Rc::downgrade(rc)).collect());
+    }
+
+    fn maybe_intersects_change(&self) -> Option<bool> {
+        self.intersects_change.get()
+    }
+
+    fn set_intersects_change(&self, intersects_change: Option<bool>) {
+        self.intersects_change.set(intersects_change);
     }
 }
 

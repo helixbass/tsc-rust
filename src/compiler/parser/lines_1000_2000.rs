@@ -10,7 +10,8 @@ use crate::{
     last_or_undefined, map_defined, process_comment_pragmas, process_pragmas_into_fields,
     set_parent_recursive, set_text_range_pos_end, set_text_range_pos_width,
     token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, Identifier, Node, NodeArray,
+    DiagnosticRelatedInformationInterface, Diagnostics, Identifier, IncrementalParser,
+    IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node, NodeArray,
     NodeArrayOrVec, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
     TransformFlags,
 };
@@ -135,7 +136,21 @@ impl ParserType {
     }
 
     pub(super) fn reparse_top_level_await(&self, source_file: &Node /*SourceFile*/) -> Node {
+        let saved_syntax_cursor = self.maybe_syntax_cursor();
+        let base_syntax_cursor = IncrementalParser().create_syntax_cursor(source_file);
+        self.set_syntax_cursor(Some(
+            IncrementalParserSyntaxCursorReparseTopLevelAwait::new(Rc::new(base_syntax_cursor))
+                .into(),
+        ));
+
         unimplemented!()
+    }
+
+    pub(super) fn contains_possible_top_level_await(&self, node: &Node) -> bool {
+        !node.flags().intersects(NodeFlags::AwaitContext)
+            && node
+                .transform_flags()
+                .intersects(TransformFlags::ContainsPossibleTopLevelAwait)
     }
 
     pub fn fixup_parent_references(&self, root_node: &Node) {
@@ -746,5 +761,35 @@ impl ParserType {
     pub(super) fn parse_any_contextual_modifier(&self) -> bool {
         is_modifier_kind(self.token())
             && self.try_parse_bool(|| self.next_token_can_follow_modifier())
+    }
+}
+
+pub struct IncrementalParserSyntaxCursorReparseTopLevelAwait {
+    base_syntax_cursor: Rc<IncrementalParserSyntaxCursor>,
+}
+
+impl IncrementalParserSyntaxCursorReparseTopLevelAwait {
+    pub fn new(base_syntax_cursor: Rc<IncrementalParserSyntaxCursor>) -> Self {
+        Self { base_syntax_cursor }
+    }
+}
+
+impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorReparseTopLevelAwait {
+    fn current_node(&self, parser: &ParserType, position: usize) -> Option<Rc<Node>> {
+        let node = self.base_syntax_cursor.current_node(parser, position);
+        if parser.top_level() {
+            if let Some(node) = node.as_ref() {
+                if parser.contains_possible_top_level_await(node) {
+                    node.set_intersects_change(Some(true));
+                }
+            }
+        }
+        node
+    }
+}
+
+impl From<IncrementalParserSyntaxCursorReparseTopLevelAwait> for IncrementalParserSyntaxCursor {
+    fn from(value: IncrementalParserSyntaxCursorReparseTopLevelAwait) -> Self {
+        Self::ReparseTopLevelAwait(value)
     }
 }

@@ -1440,3 +1440,42 @@ pub fn for_each_child_returns<
         _ => unimplemented!(),
     }
 }
+
+pub fn for_each_child_bool<
+    TNodeCallback: FnMut(&Node) -> bool,
+    TNodesCallback: FnMut(&NodeArray) -> bool,
+>(
+    node: &Node,
+    mut cb_node: TNodeCallback,
+    mut cb_nodes: Option<TNodesCallback>,
+) -> bool {
+    // match for_each_child_returns(
+    //     node,
+    //     |node: &Node| if cb_node(node) { Some(()) } else { None },
+    //     cb_nodes.map(|cb_nodes| {
+    //         |node_array: &NodeArray| if cb_nodes(node_array) { Some(()) } else { None }
+    //     }),
+    // ) {
+    //     Some(_) => true,
+    //     None => false,
+    // }
+    if let Some(mut cb_nodes) = cb_nodes {
+        match for_each_child_returns(
+            node,
+            |node: &Node| if cb_node(node) { Some(()) } else { None },
+            Some(|node_array: &NodeArray| if cb_nodes(node_array) { Some(()) } else { None }),
+        ) {
+            Some(_) => true,
+            None => false,
+        }
+    } else {
+        match for_each_child_returns(
+            node,
+            |node: &Node| if cb_node(node) { Some(()) } else { None },
+            Option::<fn(&NodeArray) -> Option<()>>::None,
+        ) {
+            Some(_) => true,
+            None => false,
+        }
+    }
+}
