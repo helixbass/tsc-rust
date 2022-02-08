@@ -5,12 +5,12 @@ use std::rc::Rc;
 
 use super::{MissingNode, ParserType, ParsingContext, SpeculationKind};
 use crate::{
-    attach_file_to_diagnostics, create_detached_diagnostic, is_external_module, is_modifier_kind,
-    is_template_literal_kind, last_or_undefined, set_parent_recursive, set_text_range_pos_end,
+    attach_file_to_diagnostics, create_detached_diagnostic, is_declaration_file_name,
+    is_external_module, is_modifier_kind, is_template_literal_kind, last_or_undefined,
+    set_parent_recursive, set_text_range_pos_end, set_text_range_pos_width,
     token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, Identifier, Node, NodeArray,
-    NodeArrayOrVec, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SourceFile, SyntaxKind,
-    TransformFlags,
+    NodeArrayOrVec, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SyntaxKind, TransformFlags,
 };
 use local_macros::enum_unwrapped;
 
@@ -37,7 +37,16 @@ impl ParserType {
         self.set_top_level(true);
     }
 
-    pub(super) fn parse_source_file_worker(&self) -> Rc<Node /*SourceFile*/> {
+    pub(super) fn parse_source_file_worker(
+        &self,
+        language_version: ScriptTarget,
+        set_parent_nodes: bool,
+        script_kind: ScriptKind,
+    ) -> Rc<Node /*SourceFile*/> {
+        let is_declaration_file = is_declaration_file_name(self.file_name());
+        if is_declaration_file {
+            self.set_context_flags(self.context_flags() | NodeFlags::Ambient);
+        }
         let source_flags = self.context_flags();
 
         self.next_token();
@@ -49,11 +58,14 @@ impl ParserType {
 
         let source_file = self.create_source_file(
             self.file_name(),
+            language_version,
+            script_kind,
+            is_declaration_file,
             statements,
             end_of_file_token.into(),
             source_flags,
         );
-        let source_file: Rc<Node> = source_file.into();
+        let source_file: Rc<Node> = source_file.wrap();
         source_file
             .as_source_file()
             .set_parse_diagnostics(attach_file_to_diagnostics(
@@ -64,10 +76,7 @@ impl ParserType {
         source_file
     }
 
-    pub(super) fn reparse_top_level_await(
-        &self,
-        source_file: &Node, /*SourceFile*/
-    ) -> SourceFile {
+    pub(super) fn reparse_top_level_await(&self, source_file: &Node /*SourceFile*/) -> Node {
         unimplemented!()
     }
 
@@ -84,12 +93,17 @@ impl ParserType {
         statements: TNodes,
         end_of_file_token: Rc<Node /*EndOfFileToken*/>,
         flags: NodeFlags,
-    ) -> SourceFile {
-        let mut source_file =
-            self.factory
-                .create_source_file(self, statements, end_of_file_token, flags);
-        set_text_range_pos_width(source_file, 0, self.source_text().len());
-        set_external_module_indicator(source_file);
+    ) -> Node {
+        let mut source_file: Node = self
+            .factory
+            .create_source_file(self, statements, end_of_file_token, flags)
+            .into();
+        set_text_range_pos_width(
+            &source_file,
+            0,
+            self.source_text().len().try_into().unwrap(),
+        );
+        self.set_external_module_indicator(&source_file);
 
         if !is_declaration_file
             && is_external_module(&source_file)
@@ -97,11 +111,12 @@ impl ParserType {
                 .transform_flags()
                 .intersects(TransformFlags::ContainsPossibleTopLevelAwait)
         {
-            source_file = self.reparse_top_level_await(source_file);
+            source_file = self.reparse_top_level_await(&source_file);
         }
 
-        source_file.text = self.source_text().to_string();
-        source_file.set_file_name(file_name.to_string());
+        let source_file_as_source_file = source_file.as_source_file();
+        source_file_as_source_file.set_text(self.source_text().to_string());
+        source_file_as_source_file.set_file_name(file_name.to_string());
 
         source_file
     }

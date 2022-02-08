@@ -324,7 +324,7 @@ fn get_source_text_of_node_from_source_file(
 ) -> String {
     let include_trivia = include_trivia.unwrap_or(false);
     get_text_of_node_from_source_text(
-        source_file.as_source_file().text_as_chars(),
+        &*source_file.as_source_file().text_as_chars(),
         node,
         Some(include_trivia),
     )
@@ -2423,7 +2423,7 @@ pub fn attach_file_to_diagnostic(
 ) -> DiagnosticWithLocation {
     let file_as_source_file = file.as_source_file();
     let file_name = file_as_source_file.file_name();
-    let length: isize = file_as_source_file.text.len().try_into().unwrap();
+    let length: isize = file_as_source_file.text().len().try_into().unwrap();
     Debug_.assert_equal(&diagnostic.file_name, &*file_name, None, None);
     Debug_.assert_less_than_or_equal(diagnostic.start(), length);
     Debug_.assert_less_than_or_equal(diagnostic.start() + diagnostic.length(), length);
@@ -2978,6 +2978,14 @@ fn set_text_range_end<TRange: ReadonlyTextRange>(range: &TRange, end: isize) -> 
 
 pub fn set_text_range_pos_end<TRange: ReadonlyTextRange>(range: &TRange, pos: isize, end: isize) {
     set_text_range_end(set_text_range_pos(range, pos), end);
+}
+
+pub fn set_text_range_pos_width<TRange: ReadonlyTextRange>(
+    range: &TRange,
+    pos: isize,
+    width: isize,
+) {
+    set_text_range_pos_end(range, pos, pos + width);
 }
 
 pub fn set_parent(child: &Node, parent: Option<Rc<Node>>) -> &Node {

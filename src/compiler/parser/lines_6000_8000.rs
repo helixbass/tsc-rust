@@ -5,10 +5,12 @@ use std::rc::Rc;
 
 use super::{ParserType, SignatureFlags};
 use crate::{
-    append, modifiers_to_flags, some, BaseNode, BaseNodeFactory, Block, Debug_, Decorator,
-    Diagnostic, DiagnosticMessage, Diagnostics, FunctionDeclaration, InterfaceDeclaration,
-    ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind, TypeAliasDeclaration,
-    VariableDeclaration, VariableDeclarationList,
+    append, for_each, for_each_child_returns, is_export_assignment, is_export_declaration,
+    is_external_module_reference, is_import_declaration, is_import_equals_declaration,
+    is_meta_property, modifiers_to_flags, some, BaseNode, BaseNodeFactory, Block, Debug_,
+    Decorator, Diagnostic, DiagnosticMessage, Diagnostics, FunctionDeclaration,
+    InterfaceDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
+    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
 };
 
 impl ParserType {
@@ -483,6 +485,79 @@ impl ParserType {
 
     pub(super) fn next_token_is_open_brace(&self) -> bool {
         self.next_token() == SyntaxKind::OpenBraceToken
+    }
+
+    pub(super) fn set_external_module_indicator(&self, source_file: &Node /*SourceFile*/) {
+        let source_file_as_source_file = source_file.as_source_file();
+        source_file_as_source_file.set_external_module_indicator(
+            for_each(&source_file_as_source_file.statements, |statement, _| {
+                self.is_an_external_module_indicator_node(statement)
+            })
+            .or_else(|| self.get_import_meta_if_necessary(source_file)),
+        );
+    }
+
+    pub(super) fn is_an_external_module_indicator_node(&self, node: &Node) -> Option<Rc<Node>> {
+        if self.has_modifier_of_kind(node, SyntaxKind::ExportKeyword)
+            || is_import_equals_declaration(node)
+                && is_external_module_reference(
+                    &node.as_import_equals_declaration().module_reference,
+                )
+            || is_import_declaration(node)
+            || is_export_assignment(node)
+            || is_export_declaration(node)
+        {
+            Some(node.node_wrapper())
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_import_meta_if_necessary(
+        &self,
+        source_file: &Node, /*SourceFile*/
+    ) -> Option<Rc<Node>> {
+        if source_file
+            .flags()
+            .intersects(NodeFlags::PossiblyContainsImportMeta)
+        {
+            self.walk_tree_for_external_module_indicators(source_file)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn walk_tree_for_external_module_indicators(&self, node: &Node) -> Option<Rc<Node>> {
+        if self.is_import_meta(node) {
+            Some(node.node_wrapper())
+        } else {
+            for_each_child_returns(
+                node,
+                |child| self.walk_tree_for_external_module_indicators(child),
+                Option::<fn(&NodeArray) -> Option<Rc<Node>>>::None,
+            )
+        }
+    }
+
+    pub(super) fn has_modifier_of_kind(&self, node: &Node, kind: SyntaxKind) -> bool {
+        let modifiers: Option<&[Rc<Node>]> = node.maybe_modifiers().map(|node_array| {
+            let slice_ref: &[Rc<Node>] = node_array;
+            slice_ref
+        });
+        some(modifiers, Some(|m: &Rc<Node>| m.kind() == kind))
+    }
+
+    pub(super) fn is_import_meta(&self, node: &Node) -> bool {
+        if !is_meta_property(node) {
+            return false;
+        }
+        let node_as_meta_property = node.as_meta_property();
+        node_as_meta_property.keyword_token == SyntaxKind::ImportKeyword
+            && node_as_meta_property
+                .name
+                .as_identifier()
+                .escaped_text
+                .eq_str("meta")
     }
 
     pub fn JSDocParser_parse_jsdoc_type_expression_for_tests(

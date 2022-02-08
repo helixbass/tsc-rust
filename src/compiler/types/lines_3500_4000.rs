@@ -42,8 +42,8 @@ pub struct AmdDependency {
 }
 
 pub trait SourceFileLike {
-    fn text(&self) -> &str;
-    fn text_as_chars(&self) -> &SourceTextAsChars;
+    fn text(&self) -> Ref<String>;
+    fn text_as_chars(&self) -> Ref<SourceTextAsChars>;
     fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>>;
     fn line_map(&self) -> Ref<Vec<usize>>;
     fn maybe_get_position_of_line_and_character(
@@ -64,8 +64,8 @@ pub struct SourceFile {
 
     file_name: RefCell<String>,
     path: RefCell<Option<Path>>,
-    pub text: String,
-    pub text_as_chars: SourceTextAsChars,
+    text: RefCell<String>,
+    text_as_chars: RefCell<SourceTextAsChars>,
 
     amd_dependencies: RefCell<Option<Vec<AmdDependency>>>,
     referenced_files: RefCell<Option<Vec<FileReference>>>,
@@ -80,7 +80,7 @@ pub struct SourceFile {
 
     pub(crate) script_kind: ScriptKind,
 
-    pub(crate) external_module_indicator: Option<Rc<Node>>,
+    external_module_indicator: RefCell<Option<Rc<Node>>>,
 
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
@@ -109,8 +109,8 @@ impl SourceFile {
             end_of_file_token,
             file_name: RefCell::new(file_name),
             path: RefCell::new(None),
-            text,
-            text_as_chars,
+            text: RefCell::new(text),
+            text_as_chars: RefCell::new(text_as_chars),
             amd_dependencies: RefCell::new(None),
             referenced_files: RefCell::new(None),
             type_reference_directives: RefCell::new(None),
@@ -120,7 +120,7 @@ impl SourceFile {
             language_version,
             language_variant,
             script_kind,
-            external_module_indicator: None,
+            external_module_indicator: RefCell::new(None),
             is_declaration_file,
             has_no_default_lib: Cell::new(has_no_default_lib),
             pragmas: RefCell::new(None),
@@ -141,6 +141,11 @@ impl SourceFile {
 
     pub fn set_path(&self, path: Path) {
         *self.path.borrow_mut() = Some(path);
+    }
+
+    pub fn set_text(&self, text: String) {
+        *self.text_as_chars.borrow_mut() = text.chars().collect();
+        *self.text.borrow_mut() = text;
     }
 
     pub fn has_no_default_lib(&self) -> bool {
@@ -191,6 +196,17 @@ impl SourceFile {
         *self.lib_reference_directives.borrow_mut() = Some(lib_reference_directives);
     }
 
+    pub(crate) fn maybe_external_module_indicator(&self) -> Option<Rc<Node>> {
+        self.external_module_indicator.borrow().clone()
+    }
+
+    pub(crate) fn set_external_module_indicator(
+        &self,
+        external_module_indicator: Option<Rc<Node>>,
+    ) {
+        *self.external_module_indicator.borrow_mut() = external_module_indicator;
+    }
+
     pub fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
         RefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
@@ -217,12 +233,12 @@ impl SourceFile {
 }
 
 impl SourceFileLike for SourceFile {
-    fn text(&self) -> &str {
-        &self.text
+    fn text(&self) -> Ref<String> {
+        self.text.borrow()
     }
 
-    fn text_as_chars(&self) -> &SourceTextAsChars {
-        &self.text_as_chars
+    fn text_as_chars(&self) -> Ref<SourceTextAsChars> {
+        self.text_as_chars.borrow()
     }
 
     fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>> {

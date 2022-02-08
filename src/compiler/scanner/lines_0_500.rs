@@ -732,7 +732,7 @@ pub fn get_position_of_line_and_character<TSourceFile: SourceFileLike>(
                 &get_line_starts(source_file),
                 line,
                 character,
-                Some(source_file.text_as_chars()),
+                Some(&*source_file.text_as_chars()),
                 allow_edits,
             )
         })
@@ -831,7 +831,7 @@ pub(crate) fn get_line_starts<TSourceFileLike: SourceFileLike>(
         return source_file.line_map();
     }
     {
-        *source_file.maybe_line_map() = Some(compute_line_starts(source_file.text_as_chars()));
+        *source_file.maybe_line_map() = Some(compute_line_starts(&*source_file.text_as_chars()));
     }
     source_file.line_map()
 }

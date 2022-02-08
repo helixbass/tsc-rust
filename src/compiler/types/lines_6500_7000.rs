@@ -49,6 +49,24 @@ impl Extension {
             _ => None,
         }
     }
+
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::Ts => ".ts",
+            Self::Tsx => ".tsx",
+            Self::Dts => ".d.ts",
+            Self::Js => ".js",
+            Self::Jsx => ".jsx",
+            Self::Json => ".json",
+            Self::TsBuildInfo => ".tsbuildinfo",
+            Self::Mjs => ".mjs",
+            Self::Mts => ".mts",
+            Self::Dmts => ".d.mts",
+            Self::Cjs => ".cjs",
+            Self::Cts => ".cts",
+            Self::Dcts => ".d.cts",
+        }
+    }
 }
 
 pub trait CompilerHost: ModuleResolutionHost {

@@ -68,7 +68,9 @@ pub fn parse_json_text(file_name: &str, source_text: String) -> Rc<Node /*JsonSo
 }
 
 pub fn is_external_module(file: &Node /*SourceFile*/) -> bool {
-    file.as_source_file().external_module_indicator.is_some()
+    file.as_source_file()
+        .maybe_external_module_indicator()
+        .is_some()
 }
 
 pub fn update_source_file(
@@ -473,6 +475,7 @@ impl ParserType {
         set_parent_nodes: Option<bool>,
         script_kind: Option<ScriptKind>,
     ) -> Rc<Node /*SourceFile*/> {
+        let set_parent_nodes = set_parent_nodes.unwrap_or(false);
         let script_kind = ensure_script_kind(file_name, script_kind);
         if script_kind == ScriptKind::JSON {
             let result = self.parse_json_text(
@@ -480,7 +483,7 @@ impl ParserType {
                 source_text,
                 Some(language_version),
                 syntax_cursor,
-                set_parent_nodes,
+                Some(set_parent_nodes),
             );
             let result_as_source_file = result.as_source_file();
             convert_to_object_worker(
@@ -511,7 +514,7 @@ impl ParserType {
             script_kind,
         );
 
-        let result = self.parse_source_file_worker();
+        let result = self.parse_source_file_worker(language_version, set_parent_nodes, script_kind);
 
         self.clear_state();
 

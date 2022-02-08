@@ -5,8 +5,8 @@ use std::convert::TryInto;
 use super::{ParserType, ParsingContext};
 use crate::{
     is_literal_kind, is_template_literal_kind, token_to_string, Debug_, DiagnosticMessage,
-    Diagnostics, LiteralLikeNodeInterface, Node, NodeArray, NodeInterface, SyntaxKind,
-    TemplateExpression, TemplateSpan, TokenFlags,
+    Diagnostics, Node, NodeArray, NodeInterface, SyntaxKind, TemplateExpression, TemplateSpan,
+    TokenFlags,
 };
 
 impl ParserType {

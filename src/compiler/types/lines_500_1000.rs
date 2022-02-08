@@ -782,6 +782,14 @@ impl Node {
     pub fn as_jsdoc_namespace_declaration(&self) -> &JSDocNamespaceDeclaration {
         enum_unwrapped!(self, [Node, JSDocNamespaceDeclaration])
     }
+
+    pub fn as_import_equals_declaration(&self) -> &ImportEqualsDeclaration {
+        enum_unwrapped!(self, [Node, ImportEqualsDeclaration])
+    }
+
+    pub fn as_meta_property(&self) -> &MetaProperty {
+        enum_unwrapped!(self, [Node, MetaProperty])
+    }
 }
 
 #[derive(Debug)]
