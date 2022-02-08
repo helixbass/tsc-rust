@@ -8,6 +8,7 @@ use super::{
     BaseNode, BaseTextRange, BuildInfo, Diagnostic, EmitHelper, FileReference, LanguageVariant,
     Node, NodeArray, Path, ReadonlyPragmaMap, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
 };
+use crate::PragmaContext;
 use local_macros::ast_type;
 
 pub type SourceTextAsChars = Vec<char>;
@@ -92,6 +93,7 @@ pub struct SourceFile {
     js_doc_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
     line_map: RefCell<Option<Vec<usize>>>,
+    comment_directives: RefCell<Option<Vec<CommentDirective>>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
 }
 
@@ -134,6 +136,7 @@ impl SourceFile {
             external_module_indicator: RefCell::new(None),
             is_declaration_file,
             has_no_default_lib: Cell::new(has_no_default_lib),
+            comment_directives: RefCell::new(None),
             pragmas: RefCell::new(None),
         }
     }
@@ -260,6 +263,14 @@ impl SourceFile {
         *self.js_doc_diagnostics.borrow_mut() = Some(js_doc_diagnostics);
     }
 
+    pub fn maybe_comment_directives(&self) -> Ref<Option<Vec<CommentDirective>>> {
+        self.comment_directives.borrow()
+    }
+
+    pub fn set_comment_directives(&self, comment_directives: Option<Vec<CommentDirective>>) {
+        *self.comment_directives.borrow_mut() = comment_directives;
+    }
+
     pub fn pragmas(&self) -> Ref<ReadonlyPragmaMap> {
         Ref::map(self.pragmas.borrow(), |option| option.as_ref().unwrap())
     }
@@ -303,6 +314,8 @@ impl SourceFileLike for SourceFile {
         None
     }
 }
+
+impl PragmaContext for SourceFile {}
 
 #[derive(Debug)]
 #[ast_type]

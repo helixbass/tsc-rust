@@ -104,11 +104,13 @@ pub use compiler::factory::utilities::{
     is_comma_sequence, is_local_name, is_outer_expression, skip_outer_expressions,
 };
 pub use compiler::factory::utilities_public::set_text_range;
-use compiler::parser::is_declaration_file_name;
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_returns, is_external_module,
     IncrementalParser, IncrementalParserSyntaxCursor, MissingNode, ParsedIsolatedJSDocComment,
     ParsedJSDocTypeExpression, ParserType,
+};
+use compiler::parser::{
+    is_declaration_file_name, process_comment_pragmas, process_pragmas_into_fields, PragmaContext,
 };
 pub use compiler::path::{
     alt_directory_separator, change_any_extension, combine_paths, compare_paths,

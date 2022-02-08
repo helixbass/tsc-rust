@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{file_extension_is_one_of, Extension, Node, TextChangeRange};
+use crate::{file_extension_is_one_of, DiagnosticMessage, Extension, Node, TextChangeRange};
 
 pub fn IncrementalParser() -> IncrementalParserType {
     IncrementalParserType::new()
@@ -35,4 +35,21 @@ pub(crate) fn is_declaration_file_name(file_name: &str) -> bool {
             Extension::Dcts.to_str(),
         ],
     )
+}
+
+pub(crate) trait PragmaContext {}
+
+pub(crate) fn process_comment_pragmas<TContext: PragmaContext>(
+    context: &TContext,
+    source_text: &str,
+) {
+}
+
+pub(crate) fn process_pragmas_into_fields<
+    TContext: PragmaContext,
+    TReportDiagnostic: FnMut(isize, isize, &DiagnosticMessage),
+>(
+    context: &TContext,
+    report_diagnostic: TReportDiagnostic,
+) {
 }

@@ -7,10 +7,11 @@ use super::{MissingNode, ParserType, ParsingContext, SpeculationKind};
 use crate::{
     attach_file_to_diagnostics, create_detached_diagnostic, is_declaration_file_name,
     is_external_module, is_modifier_kind, is_template_literal_kind, last_or_undefined,
-    set_parent_recursive, set_text_range_pos_end, set_text_range_pos_width,
-    token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, Identifier, Node, NodeArray,
-    NodeArrayOrVec, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SyntaxKind, TransformFlags,
+    process_comment_pragmas, process_pragmas_into_fields, set_parent_recursive,
+    set_text_range_pos_end, set_text_range_pos_width, token_is_identifier_or_keyword,
+    token_to_string, BaseNode, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    Diagnostics, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFlags, NodeInterface, ScriptKind,
+    ScriptTarget, SyntaxKind, TransformFlags,
 };
 use local_macros::enum_unwrapped;
 
@@ -54,7 +55,7 @@ impl ParserType {
         let statements =
             self.parse_list(ParsingContext::SourceElements, ParserType::parse_statement);
         Debug_.assert(self.token() == SyntaxKind::EndOfFileToken, None);
-        let end_of_file_token = self.parse_token_node();
+        let end_of_file_token = self.add_jsdoc_comment(self.parse_token_node());
 
         let source_file = self.create_source_file(
             self.file_name(),
@@ -66,14 +67,44 @@ impl ParserType {
             source_flags,
         );
         let source_file: Rc<Node> = source_file.wrap();
-        source_file
-            .as_source_file()
-            .set_parse_diagnostics(attach_file_to_diagnostics(
-                &*self.parse_diagnostics(),
-                &source_file,
+        let source_file_as_source_file = source_file.as_source_file();
+
+        process_comment_pragmas(source_file_as_source_file, self.source_text());
+        let report_pragma_diagnostic = |pos: isize, end: isize, diagnostic: &DiagnosticMessage| {
+            self.parse_diagnostics().push(Rc::new(
+                create_detached_diagnostic(self.file_name(), pos, end, diagnostic, None).into(),
             ));
+        };
+        process_pragmas_into_fields(source_file_as_source_file, report_pragma_diagnostic);
+
+        source_file_as_source_file
+            .set_comment_directives(self.scanner().get_comment_directives().clone());
+        source_file_as_source_file.set_node_count(self.node_count());
+        source_file_as_source_file.set_identifier_count(self.identifier_count());
+        source_file_as_source_file.set_identifiers(self.identifiers().clone());
+        source_file_as_source_file.set_parse_diagnostics(attach_file_to_diagnostics(
+            &*self.parse_diagnostics(),
+            &source_file,
+        ));
+        {
+            let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
+            if let Some(js_doc_diagnostics) = &*maybe_js_doc_diagnostics {
+                source_file_as_source_file.set_js_doc_diagnostics(attach_file_to_diagnostics(
+                    js_doc_diagnostics,
+                    &source_file,
+                ));
+            }
+        }
+
+        if set_parent_nodes {
+            self.fixup_parent_references(&source_file);
+        }
 
         source_file
+    }
+
+    pub(super) fn add_jsdoc_comment<TNode: NodeInterface>(&self, node: TNode) -> TNode {
+        node
     }
 
     pub(super) fn reparse_top_level_await(&self, source_file: &Node /*SourceFile*/) -> Node {
