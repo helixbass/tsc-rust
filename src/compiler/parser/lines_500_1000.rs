@@ -12,8 +12,8 @@ use crate::{
     Diagnostic, DiagnosticMessage, Diagnostics, Identifier, IncrementalParser,
     IncrementalParserSyntaxCursor, LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags,
     NodeFlags, NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression,
-    ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SyntaxKind, TemplateLiteralLikeNode,
-    TextChangeRange,
+    ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
+    TemplateLiteralLikeNode, TextChangeRange,
 };
 use local_macros::ast_type;
 
@@ -135,6 +135,7 @@ pub struct ParserType {
     pub(super) file_name: Option<String>,
     pub(super) source_flags: Option<NodeFlags>,
     pub(super) source_text: Option<String>,
+    pub(super) source_text_as_chars: Option<SourceTextAsChars>,
     pub(super) language_version: Option<ScriptTarget>,
     pub(super) script_kind: Option<ScriptKind>,
     pub(super) language_variant: Option<LanguageVariant>,
@@ -153,6 +154,7 @@ pub struct ParserType {
     pub(super) context_flags: Cell<Option<NodeFlags>>,
     pub(super) top_level: Cell<bool>,
     pub(super) parse_error_before_next_finished_node: Cell<bool>,
+    pub(super) has_deprecated_tag: Cell<bool>,
 }
 
 impl ParserType {
@@ -182,6 +184,7 @@ impl ParserType {
             file_name: None,
             source_flags: None,
             source_text: None,
+            source_text_as_chars: None,
             language_version: None,
             script_kind: None,
             language_variant: None,
@@ -198,6 +201,7 @@ impl ParserType {
             context_flags: Cell::new(None),
             top_level: Cell::new(true),
             parse_error_before_next_finished_node: Cell::new(false),
+            has_deprecated_tag: Cell::new(false),
         }
     }
 
@@ -295,7 +299,14 @@ impl ParserType {
     }
 
     pub(super) fn set_source_text(&mut self, source_text: Option<String>) {
+        self.source_text_as_chars = source_text
+            .as_ref()
+            .map(|source_text| source_text.chars().collect());
         self.source_text = source_text;
+    }
+
+    pub(super) fn source_text_as_chars(&self) -> &SourceTextAsChars {
+        self.source_text_as_chars.as_ref().unwrap()
     }
 
     pub(super) fn language_version(&self) -> ScriptTarget {
@@ -455,6 +466,14 @@ impl ParserType {
 
     pub(super) fn set_parse_error_before_next_finished_node(&self, value: bool) {
         self.parse_error_before_next_finished_node.set(value);
+    }
+
+    pub(super) fn has_deprecated_tag(&self) -> bool {
+        self.has_deprecated_tag.get()
+    }
+
+    pub(super) fn set_has_deprecated_tag(&self, value: bool) {
+        self.has_deprecated_tag.set(value);
     }
 
     pub(super) fn count_node(&self, node: BaseNode) -> BaseNode {

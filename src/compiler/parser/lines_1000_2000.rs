@@ -5,13 +5,14 @@ use std::rc::Rc;
 
 use super::{MissingNode, ParserType, ParsingContext, SpeculationKind};
 use crate::{
-    attach_file_to_diagnostics, create_detached_diagnostic, is_declaration_file_name,
-    is_external_module, is_modifier_kind, is_template_literal_kind, last_or_undefined,
-    process_comment_pragmas, process_pragmas_into_fields, set_parent_recursive,
-    set_text_range_pos_end, set_text_range_pos_width, token_is_identifier_or_keyword,
-    token_to_string, BaseNode, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    Diagnostics, Identifier, Node, NodeArray, NodeArrayOrVec, NodeFlags, NodeInterface, ScriptKind,
-    ScriptTarget, SyntaxKind, TransformFlags,
+    attach_file_to_diagnostics, create_detached_diagnostic, get_jsdoc_comment_ranges,
+    is_declaration_file_name, is_external_module, is_modifier_kind, is_template_literal_kind,
+    last_or_undefined, map_defined, process_comment_pragmas, process_pragmas_into_fields,
+    set_parent_recursive, set_text_range_pos_end, set_text_range_pos_width,
+    token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, Identifier, Node, NodeArray,
+    NodeArrayOrVec, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
+    TransformFlags,
 };
 use local_macros::enum_unwrapped;
 
@@ -103,7 +104,33 @@ impl ParserType {
         source_file
     }
 
+    pub(super) fn with_jsdoc<TNode: NodeInterface>(&self, node: TNode, has_jsdoc: bool) -> TNode {
+        if has_jsdoc {
+            self.add_jsdoc_comment(node)
+        } else {
+            node
+        }
+    }
+
     pub(super) fn add_jsdoc_comment<TNode: NodeInterface>(&self, node: TNode) -> TNode {
+        Debug_.assert(node.maybe_js_doc().is_none(), None);
+        let js_doc = map_defined(
+            get_jsdoc_comment_ranges(&node, self.source_text_as_chars()),
+            |comment, _| {
+                self.JSDocParser_parse_jsdoc_comment(
+                    &node,
+                    comment.pos().try_into().unwrap(),
+                    (comment.end() - comment.pos()).try_into().unwrap(),
+                )
+            },
+        );
+        if !js_doc.is_empty() {
+            node.set_js_doc(js_doc);
+        }
+        if self.has_deprecated_tag() {
+            self.set_has_deprecated_tag(false);
+            node.set_flags(NodeFlags::Deprecated);
+        }
         node
     }
 

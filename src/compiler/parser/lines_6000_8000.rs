@@ -577,6 +577,15 @@ impl ParserType {
     ) -> Option<ParsedIsolatedJSDocComment> {
         unimplemented!()
     }
+
+    pub fn JSDocParser_parse_jsdoc_comment<TNode: NodeInterface>(
+        &self,
+        parent: &TNode,
+        start: usize,
+        length: usize,
+    ) -> Option<Rc<Node /*JSDoc*/>> {
+        unimplemented!()
+    }
 }
 
 pub struct ParsedJSDocTypeExpression {

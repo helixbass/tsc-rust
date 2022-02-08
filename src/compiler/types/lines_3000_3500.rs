@@ -386,6 +386,7 @@ impl TextRange for FileReference {
 
 pub type CommentKind = SyntaxKind; /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
 
+#[derive(Clone, Debug)]
 pub struct CommentRange {
     pos: Cell<isize>,
     end: Cell<isize>,

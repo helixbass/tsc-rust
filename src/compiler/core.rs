@@ -149,6 +149,26 @@ pub fn flat_map<
     result.unwrap_or(vec![])
 }
 
+pub fn map_defined<
+    TCollection: IntoIterator,
+    TReturn,
+    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
+>(
+    array: Option<TCollection>,
+    mut map_fn: TCallback,
+) -> Vec<TReturn> {
+    let mut result = vec![];
+    if let Some(array) = array {
+        for (i, item) in array.into_iter().enumerate() {
+            let mapped = map_fn(item, i);
+            if let Some(mapped) = mapped {
+                result.push(mapped);
+            }
+        }
+    }
+    result
+}
+
 pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(
     array: Option<&[TItem]>,
     predicate: Option<TPredicate>,
