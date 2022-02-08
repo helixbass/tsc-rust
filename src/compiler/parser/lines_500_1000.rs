@@ -7,12 +7,13 @@ use std::rc::Rc;
 
 use super::{Parser, ParsingContext};
 use crate::{
-    convert_to_object_worker, create_node_factory, create_scanner, ensure_script_kind,
-    get_language_variant, normalize_path, object_allocator, BaseNode, Debug_, Diagnostic,
-    DiagnosticMessage, Diagnostics, Identifier, IncrementalParser, IncrementalParserSyntaxCursor,
-    LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface,
-    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind,
-    ScriptTarget, SyntaxKind, TemplateLiteralLikeNode, TextChangeRange,
+    attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
+    ensure_script_kind, get_language_variant, normalize_path, object_allocator, BaseNode, Debug_,
+    Diagnostic, DiagnosticMessage, Diagnostics, Identifier, IncrementalParser,
+    IncrementalParserSyntaxCursor, LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags,
+    NodeFlags, NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression,
+    ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SyntaxKind, TemplateLiteralLikeNode,
+    TextChangeRange,
 };
 use local_macros::ast_type;
 
@@ -144,7 +145,7 @@ pub struct ParserType {
     pub(super) syntax_cursor: Option<IncrementalParserSyntaxCursor>,
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
     pub(super) node_count: Cell<Option<usize>>,
-    pub(super) identifiers: RefCell<Option<HashMap<String, String>>>,
+    pub(super) identifiers: RefCell<Option<Rc<HashMap<String, String>>>>,
     pub(super) private_identifiers: RefCell<Option<HashMap<String, String>>>,
     pub(super) identifier_count: Cell<Option<usize>>,
     pub(super) parsing_context: Cell<Option<ParsingContext>>,
@@ -331,6 +332,10 @@ impl ParserType {
         *self.parse_diagnostics.borrow_mut() = parse_diagnostics;
     }
 
+    pub(super) fn maybe_js_doc_diagnostics(&self) -> RefMut<Option<Vec<Rc<Diagnostic>>>> {
+        self.js_doc_diagnostics.borrow_mut()
+    }
+
     pub(super) fn js_doc_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
         RefMut::map(self.js_doc_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
@@ -375,13 +380,13 @@ impl ParserType {
         self.node_count.set(Some(self.node_count() + 1));
     }
 
-    pub(super) fn identifiers(&self) -> RefMut<HashMap<String, String>> {
+    pub(super) fn identifiers(&self) -> RefMut<Rc<HashMap<String, String>>> {
         RefMut::map(self.identifiers.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
 
-    pub(super) fn set_identifiers(&self, identifiers: Option<HashMap<String, String>>) {
+    pub(super) fn set_identifiers(&self, identifiers: Option<Rc<HashMap<String, String>>>) {
         *self.identifiers.borrow_mut() = identifiers;
     }
 
@@ -548,6 +553,7 @@ impl ParserType {
         set_parent_nodes: Option<bool>,
     ) -> Rc<Node /*JsonSourceFile*/> {
         let language_version = language_version.unwrap_or(ScriptTarget::ES2015);
+        let set_parent_nodes = set_parent_nodes.unwrap_or(false);
         self.initialize_state(
             file_name,
             source_text,
@@ -635,16 +641,43 @@ impl ParserType {
                 .wrap();
         }
 
-        let source_file = self.create_source_file(
-            file_name,
-            ScriptTarget::ES2015,
-            ScriptKind::JSON,
-            false,
-            statements,
-            end_of_file_token,
-            self.source_flags(),
-        );
-        unimplemented!()
+        let source_file: Rc<Node> = self
+            .create_source_file(
+                file_name,
+                ScriptTarget::ES2015,
+                ScriptKind::JSON,
+                false,
+                statements,
+                end_of_file_token,
+                self.source_flags(),
+            )
+            .wrap();
+
+        if set_parent_nodes {
+            self.fixup_parent_references(&source_file);
+        }
+
+        let source_file_as_source_file = source_file.as_source_file();
+        source_file_as_source_file.set_node_count(self.node_count());
+        source_file_as_source_file.set_identifier_count(self.identifier_count());
+        source_file_as_source_file.set_identifiers(self.identifiers().clone());
+        source_file_as_source_file.set_parse_diagnostics(attach_file_to_diagnostics(
+            &*self.parse_diagnostics(),
+            &source_file,
+        ));
+        {
+            let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
+            if let Some(js_doc_diagnostics) = &*maybe_js_doc_diagnostics {
+                source_file_as_source_file.set_js_doc_diagnostics(attach_file_to_diagnostics(
+                    js_doc_diagnostics,
+                    &source_file,
+                ));
+            }
+        }
+
+        let result = source_file;
+        self.clear_state();
+        result
     }
 
     pub(super) fn initialize_state(
@@ -672,7 +705,7 @@ impl ParserType {
 
         self.set_parse_diagnostics(Some(vec![]));
         self.set_parsing_context(ParsingContext::None);
-        self.set_identifiers(Some(HashMap::new()));
+        self.set_identifiers(Some(Rc::new(HashMap::new())));
         self.set_private_identifiers(HashMap::new());
         self.set_identifier_count(0);
         self.set_node_count(0);

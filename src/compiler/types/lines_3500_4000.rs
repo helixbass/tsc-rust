@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
@@ -82,7 +83,13 @@ pub struct SourceFile {
 
     external_module_indicator: RefCell<Option<Rc<Node>>>,
 
+    identifiers: RefCell<Option<Rc<HashMap<String, String>>>>,
+    node_count: Cell<Option<usize>>,
+    identifier_count: Cell<Option<usize>>,
+
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+
+    js_doc_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
     line_map: RefCell<Option<Vec<usize>>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
@@ -115,7 +122,11 @@ impl SourceFile {
             referenced_files: RefCell::new(None),
             type_reference_directives: RefCell::new(None),
             lib_reference_directives: RefCell::new(None),
+            identifiers: RefCell::new(None),
+            node_count: Cell::new(None),
+            identifier_count: Cell::new(None),
             parse_diagnostics: RefCell::new(None),
+            js_doc_diagnostics: RefCell::new(None),
             line_map: RefCell::new(None),
             language_version,
             language_variant,
@@ -207,6 +218,30 @@ impl SourceFile {
         *self.external_module_indicator.borrow_mut() = external_module_indicator;
     }
 
+    pub fn identifiers(&self) -> Rc<HashMap<String, String>> {
+        self.identifiers.borrow().clone().unwrap()
+    }
+
+    pub fn set_identifiers(&self, identifiers: Rc<HashMap<String, String>>) {
+        *self.identifiers.borrow_mut() = Some(identifiers);
+    }
+
+    pub fn node_count(&self) -> usize {
+        self.node_count.get().unwrap()
+    }
+
+    pub fn set_node_count(&self, node_count: usize) {
+        self.node_count.set(Some(node_count))
+    }
+
+    pub fn identifier_count(&self) -> usize {
+        self.identifier_count.get().unwrap()
+    }
+
+    pub fn set_identifier_count(&self, identifier_count: usize) {
+        self.identifier_count.set(Some(identifier_count))
+    }
+
     pub fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
         RefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
@@ -215,6 +250,14 @@ impl SourceFile {
 
     pub fn set_parse_diagnostics(&self, parse_diagnostics: Vec<Rc<Diagnostic>>) {
         *self.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
+    }
+
+    pub fn maybe_js_doc_diagnostics(&self) -> RefMut<Option<Vec<Rc<Diagnostic>>>> {
+        self.js_doc_diagnostics.borrow_mut()
+    }
+
+    pub fn set_js_doc_diagnostics(&self, js_doc_diagnostics: Vec<Rc<Diagnostic>>) {
+        *self.js_doc_diagnostics.borrow_mut() = Some(js_doc_diagnostics);
     }
 
     pub fn pragmas(&self) -> Ref<ReadonlyPragmaMap> {
