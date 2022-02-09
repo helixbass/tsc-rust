@@ -140,7 +140,7 @@ pub struct ParserType {
     pub(super) syntax_cursor: RefCell<Option<IncrementalParserSyntaxCursor>>,
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
     pub(super) node_count: Cell<Option<usize>>,
-    pub(super) identifiers: RefCell<Option<Rc<HashMap<String, String>>>>,
+    pub(super) identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
     pub(super) private_identifiers: RefCell<Option<HashMap<String, String>>>,
     pub(super) identifier_count: Cell<Option<usize>>,
     pub(super) parsing_context: Cell<Option<ParsingContext>>,
@@ -390,13 +390,18 @@ impl ParserType {
         self.node_count.set(Some(self.node_count() + 1));
     }
 
-    pub(super) fn identifiers(&self) -> RefMut<Rc<HashMap<String, String>>> {
-        RefMut::map(self.identifiers.borrow_mut(), |option| {
-            option.as_mut().unwrap()
-        })
+    pub(super) fn identifiers_rc(&self) -> Rc<RefCell<HashMap<String, String>>> {
+        self.identifiers.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_identifiers(&self, identifiers: Option<Rc<HashMap<String, String>>>) {
+    pub(super) fn identifiers(&self) -> Ref<Rc<RefCell<HashMap<String, String>>>> {
+        Ref::map(self.identifiers.borrow(), |option| option.as_ref().unwrap())
+    }
+
+    pub(super) fn set_identifiers(
+        &self,
+        identifiers: Option<Rc<RefCell<HashMap<String, String>>>>,
+    ) {
         *self.identifiers.borrow_mut() = identifiers;
     }
 
@@ -667,7 +672,7 @@ impl ParserType {
         let source_file_as_source_file = source_file.as_source_file();
         source_file_as_source_file.set_node_count(self.node_count());
         source_file_as_source_file.set_identifier_count(self.identifier_count());
-        source_file_as_source_file.set_identifiers(self.identifiers().clone());
+        source_file_as_source_file.set_identifiers(self.identifiers_rc());
         source_file_as_source_file.set_parse_diagnostics(attach_file_to_diagnostics(
             &*self.parse_diagnostics(),
             &source_file,
@@ -712,7 +717,7 @@ impl ParserType {
 
         self.set_parse_diagnostics(Some(vec![]));
         self.set_parsing_context(ParsingContext::None);
-        self.set_identifiers(Some(Rc::new(HashMap::new())));
+        self.set_identifiers(Some(Rc::new(RefCell::new(HashMap::new()))));
         self.set_private_identifiers(HashMap::new());
         self.set_identifier_count(0);
         self.set_node_count(0);

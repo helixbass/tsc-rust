@@ -84,7 +84,7 @@ pub struct SourceFile {
 
     external_module_indicator: RefCell<Option<Rc<Node>>>,
 
-    identifiers: RefCell<Option<Rc<HashMap<String, String>>>>,
+    identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
     node_count: Cell<Option<usize>>,
     identifier_count: Cell<Option<usize>>,
 
@@ -258,11 +258,11 @@ impl SourceFile {
         *self.external_module_indicator.borrow_mut() = external_module_indicator;
     }
 
-    pub fn identifiers(&self) -> Rc<HashMap<String, String>> {
+    pub fn identifiers(&self) -> Rc<RefCell<HashMap<String, String>>> {
         self.identifiers.borrow().clone().unwrap()
     }
 
-    pub fn set_identifiers(&self, identifiers: Rc<HashMap<String, String>>) {
+    pub fn set_identifiers(&self, identifiers: Rc<RefCell<HashMap<String, String>>>) {
         *self.identifiers.borrow_mut() = Some(identifiers);
     }
 

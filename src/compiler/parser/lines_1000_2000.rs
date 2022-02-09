@@ -85,7 +85,7 @@ impl ParserType {
             .set_comment_directives(self.scanner().get_comment_directives().clone());
         source_file_as_source_file.set_node_count(self.node_count());
         source_file_as_source_file.set_identifier_count(self.identifier_count());
-        source_file_as_source_file.set_identifiers(self.identifiers().clone());
+        source_file_as_source_file.set_identifiers(self.identifiers_rc());
         source_file_as_source_file.set_parse_diagnostics(attach_file_to_diagnostics(
             &*self.parse_diagnostics(),
             &source_file,
@@ -1190,7 +1190,16 @@ impl ParserType {
     }
 
     pub(super) fn intern_identifier(&self, text: &str) -> String {
-        text.to_string()
+        let identifiers = self.identifiers();
+        let mut identifiers = identifiers.borrow_mut();
+        let mut identifier: Option<String> = identifiers
+            .get(text)
+            .map(|identifier| identifier.to_owned());
+        if identifier.is_none() {
+            identifier = Some(text.to_owned());
+            identifiers.insert(text.to_owned(), identifier.clone().unwrap());
+        }
+        identifier.unwrap()
     }
 
     pub(super) fn create_identifier(
