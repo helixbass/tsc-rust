@@ -370,6 +370,10 @@ impl ParserType {
         }
     }
 
+    pub(super) fn set_disallow_in_context(&self, val: bool) {
+        self.set_context_flag(val, NodeFlags::DisallowInContext);
+    }
+
     pub(super) fn set_yield_context(&self, val: bool) {
         self.set_context_flag(val, NodeFlags::YieldContext);
     }
@@ -418,11 +422,53 @@ impl ParserType {
         self.do_outside_of_context(NodeFlags::DisallowInContext, func)
     }
 
+    pub(super) fn disallow_in_and<TReturn, TFunc: FnOnce() -> TReturn>(
+        &self,
+        func: TFunc,
+    ) -> TReturn {
+        self.do_inside_of_context(NodeFlags::DisallowInContext, func)
+    }
+
+    pub(super) fn do_in_yield_context<TReturn, TFunc: FnOnce() -> TReturn>(
+        &self,
+        func: TFunc,
+    ) -> TReturn {
+        self.do_inside_of_context(NodeFlags::YieldContext, func)
+    }
+
+    pub(super) fn do_in_decorator_context<TReturn, TFunc: FnOnce() -> TReturn>(
+        &self,
+        func: TFunc,
+    ) -> TReturn {
+        self.do_inside_of_context(NodeFlags::DecoratorContext, func)
+    }
+
     pub(super) fn do_in_await_context<TReturn, TFunc: FnOnce() -> TReturn>(
         &self,
         func: TFunc,
     ) -> TReturn {
         self.do_inside_of_context(NodeFlags::AwaitContext, func)
+    }
+
+    pub(super) fn do_outside_of_await_context<TReturn, TFunc: FnOnce() -> TReturn>(
+        &self,
+        func: TFunc,
+    ) -> TReturn {
+        self.do_outside_of_context(NodeFlags::AwaitContext, func)
+    }
+
+    pub(super) fn do_in_yield_and_await_context<TReturn, TFunc: FnOnce() -> TReturn>(
+        &self,
+        func: TFunc,
+    ) -> TReturn {
+        self.do_inside_of_context(NodeFlags::YieldContext | NodeFlags::AwaitContext, func)
+    }
+
+    pub(super) fn do_ouside_of_yield_and_await_context<TReturn, TFunc: FnOnce() -> TReturn>(
+        &self,
+        func: TFunc,
+    ) -> TReturn {
+        self.do_outside_of_context(NodeFlags::YieldContext | NodeFlags::AwaitContext, func)
     }
 
     pub(super) fn in_context(&self, flags: NodeFlags) -> bool {
@@ -431,6 +477,10 @@ impl ParserType {
 
     pub(super) fn in_yield_context(&self) -> bool {
         self.in_context(NodeFlags::YieldContext)
+    }
+
+    pub(super) fn in_disallow_in_context(&self) -> bool {
+        self.in_context(NodeFlags::DisallowInContext)
     }
 
     pub(super) fn in_decorator_context(&self) -> bool {
@@ -485,8 +535,30 @@ impl ParserType {
         self.parse_error_at_position(start, end - start, message, args);
     }
 
+    pub(super) fn parse_error_at_range<TRange: TextRange>(
+        &self,
+        range: &TRange,
+        message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) {
+        self.parse_error_at(range.pos(), range.end(), message, args);
+    }
+
+    pub(super) fn scan_error(&self, message: &DiagnosticMessage, length: usize) {
+        self.parse_error_at_position(
+            self.scanner().get_text_pos().try_into().unwrap(),
+            length.try_into().unwrap(),
+            message,
+            None,
+        );
+    }
+
     pub(super) fn get_node_pos(&self) -> isize {
         self.scanner().get_start_pos().try_into().unwrap()
+    }
+
+    pub(super) fn has_preceding_jsdoc_comment(&self) -> bool {
+        self.scanner().has_preceding_jsdoc_comment()
     }
 
     pub(super) fn token(&self) -> SyntaxKind {

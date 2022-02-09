@@ -482,15 +482,6 @@ impl ParserType {
         node
     }
 
-    pub(super) fn scan_error(&self, message: &DiagnosticMessage, length: usize) {
-        self.parse_error_at_position(
-            self.scanner().get_text_pos().try_into().unwrap(),
-            length.try_into().unwrap(),
-            message,
-            None,
-        );
-    }
-
     pub fn parse_source_file(
         &mut self,
         file_name: &str,
