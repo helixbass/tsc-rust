@@ -185,22 +185,69 @@ impl ParserType {
         }
         match kind {
             ParsingContext::BlockStatements
+            | ParsingContext::SwitchClauses
             | ParsingContext::TypeMembers
-            | ParsingContext::ObjectLiteralMembers => self.token() == SyntaxKind::CloseBraceToken,
+            | ParsingContext::ClassMembers
+            | ParsingContext::EnumMembers
+            | ParsingContext::ObjectLiteralMembers
+            | ParsingContext::ObjectBindingElements
+            | ParsingContext::ImportOrExportSpecifiers
+            | ParsingContext::AssertEntries => self.token() == SyntaxKind::CloseBraceToken,
+            ParsingContext::SwitchClauseStatements => matches!(
+                self.token(),
+                SyntaxKind::CloseBraceToken | SyntaxKind::CaseKeyword | SyntaxKind::DefaultKeyword
+            ),
+            ParsingContext::HeritageClauseElement => matches!(
+                self.token(),
+                SyntaxKind::OpenBraceToken
+                    | SyntaxKind::ExtendsKeyword
+                    | SyntaxKind::ImplementsKeyword
+            ),
             ParsingContext::VariableDeclarations => self.is_variable_declarator_list_terminator(),
             ParsingContext::TypeParameters => {
-                self.token() == SyntaxKind::GreaterThanToken
-                    || self.token() == SyntaxKind::OpenParenToken
-                    || self.token() == SyntaxKind::OpenBraceToken
-                    || self.token() == SyntaxKind::ExtendsKeyword
-                    || self.token() == SyntaxKind::ImplementsKeyword
+                matches!(
+                    self.token(),
+                    SyntaxKind::GreaterThanToken
+                        | SyntaxKind::OpenParenToken
+                        | SyntaxKind::OpenBraceToken
+                        | SyntaxKind::ExtendsKeyword
+                        | SyntaxKind::ImplementsKeyword
+                )
             }
-            ParsingContext::ArrayLiteralMembers => self.token() == SyntaxKind::CloseBracketToken,
-            ParsingContext::Parameters => {
-                self.token() == SyntaxKind::CloseParenToken
-                    || self.token() == SyntaxKind::CloseBracketToken
+            ParsingContext::ArgumentExpressions => {
+                matches!(
+                    self.token(),
+                    SyntaxKind::CloseParenToken | SyntaxKind::SemicolonToken
+                )
+            }
+            ParsingContext::ArrayLiteralMembers
+            | ParsingContext::TupleElementTypes
+            | ParsingContext::ArrayBindingElements => self.token() == SyntaxKind::CloseBracketToken,
+            ParsingContext::JSDocParameters
+            | ParsingContext::Parameters
+            | ParsingContext::RestProperties => {
+                matches!(
+                    self.token(),
+                    SyntaxKind::CloseParenToken | SyntaxKind::CloseBracketToken
+                )
             }
             ParsingContext::TypeArguments => self.token() != SyntaxKind::CommaToken,
+            ParsingContext::HeritageClauses => {
+                matches!(
+                    self.token(),
+                    SyntaxKind::OpenBraceToken | SyntaxKind::CloseBraceToken
+                )
+            }
+            ParsingContext::JsxAttributes => {
+                matches!(
+                    self.token(),
+                    SyntaxKind::GreaterThanToken | SyntaxKind::SlashToken
+                )
+            }
+            ParsingContext::JsxChildren => {
+                self.token() == SyntaxKind::LessThanToken
+                    && self.look_ahead_bool(|| self.next_token_is_slash())
+            }
             _ => false,
         }
     }

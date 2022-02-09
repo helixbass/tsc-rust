@@ -545,8 +545,16 @@ impl ParserType {
         self.finish_node(node, pos, None)
     }
 
+    pub(super) fn next_token_is_open_paren(&self) -> bool {
+        self.next_token() == SyntaxKind::OpenParenToken
+    }
+
     pub(super) fn next_token_is_open_brace(&self) -> bool {
         self.next_token() == SyntaxKind::OpenBraceToken
+    }
+
+    pub(super) fn next_token_is_slash(&self) -> bool {
+        self.next_token() == SyntaxKind::SlashToken
     }
 
     pub(super) fn set_external_module_indicator(&self, source_file: &Node /*SourceFile*/) {
