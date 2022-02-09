@@ -680,11 +680,15 @@ impl ParserType {
         let save_parse_error_before_next_finished_node =
             self.parse_error_before_next_finished_node();
 
+        let save_context_flags = self.context_flags();
+
         let result = if speculation_kind != SpeculationKind::TryParse {
             self.scanner().look_ahead(callback)
         } else {
             self.scanner().try_scan(callback)
         };
+
+        Debug_.assert(save_context_flags == self.context_flags(), None);
 
         if result.is_none() || speculation_kind != SpeculationKind::TryParse {
             self.set_current_token(save_token);
