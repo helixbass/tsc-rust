@@ -1069,9 +1069,10 @@ impl ParserType {
             return true;
         }
 
-        self.token() == SyntaxKind::CloseBraceToken
-            || self.token() == SyntaxKind::EndOfFileToken
-            || self.scanner().has_preceding_line_break()
+        matches!(
+            self.token(),
+            SyntaxKind::CloseBraceToken | SyntaxKind::EndOfFileToken
+        ) || self.scanner().has_preceding_line_break()
     }
 
     pub(super) fn try_parse_semicolon(&self) -> bool {
@@ -1106,11 +1107,11 @@ impl ParserType {
             ),
             has_trailing_comma,
         );
-        // set_text_range_pos_end(
-        //     array,
-        //     pos,
-        //     end.unwrap_or_else(|| self.scanner().get_start_pos()),
-        // );
+        set_text_range_pos_end(
+            &array,
+            pos,
+            end.unwrap_or_else(|| self.scanner().get_start_pos().try_into().unwrap()),
+        );
         array
     }
 
