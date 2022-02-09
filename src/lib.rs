@@ -236,9 +236,10 @@ use compiler::types::{
 };
 pub use compiler::utilities::{
     attach_file_to_diagnostics, chain_diagnostic_messages, compare_diagnostics,
-    create_compiler_diagnostic, create_detached_diagnostic, create_diagnostic_collection,
-    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_symbol_table,
-    create_text_writer, declaration_name_to_string, ensure_script_kind, entity_name_to_string,
+    contains_parse_error, create_compiler_diagnostic, create_detached_diagnostic,
+    create_diagnostic_collection, create_diagnostic_for_node,
+    create_diagnostic_for_node_from_message_chain, create_symbol_table, create_text_writer,
+    declaration_name_to_string, ensure_script_kind, entity_name_to_string,
     get_assignment_declaration_kind, get_binary_operator_precedence, get_check_flags,
     get_containing_function_or_class_static_block, get_declaration_of_kind,
     get_effective_initializer, get_effective_modifier_flags,

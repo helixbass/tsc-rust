@@ -358,6 +358,12 @@ impl ParserType {
         self.syntax_cursor.borrow()
     }
 
+    pub(super) fn syntax_cursor(&self) -> Ref<IncrementalParserSyntaxCursor> {
+        Ref::map(self.syntax_cursor.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
     pub(super) fn take_syntax_cursor(&self) -> Option<IncrementalParserSyntaxCursor> {
         self.syntax_cursor.borrow_mut().take()
     }

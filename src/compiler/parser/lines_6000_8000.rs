@@ -5,12 +5,13 @@ use std::rc::Rc;
 
 use super::{ParserType, SignatureFlags};
 use crate::{
-    append, for_each, for_each_child_returns, is_export_assignment, is_export_declaration,
-    is_external_module_reference, is_import_declaration, is_import_equals_declaration,
-    is_meta_property, modifiers_to_flags, some, BaseNode, BaseNodeFactory, Block, Debug_,
-    Decorator, Diagnostic, DiagnosticMessage, Diagnostics, FunctionDeclaration,
-    InterfaceDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
-    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
+    append, for_each, for_each_child_returns, is_class_member_modifier, is_export_assignment,
+    is_export_declaration, is_external_module_reference, is_import_declaration,
+    is_import_equals_declaration, is_keyword, is_meta_property, is_modifier_kind,
+    modifiers_to_flags, some, BaseNode, BaseNodeFactory, Block, Debug_, Decorator, Diagnostic,
+    DiagnosticMessage, Diagnostics, FunctionDeclaration, InterfaceDeclaration, ModifierFlags, Node,
+    NodeArray, NodeFlags, NodeInterface, SyntaxKind, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList,
 };
 
 impl ParserType {
@@ -339,6 +340,60 @@ impl ParserType {
         self.finish_node(node, pos, None)
     }
 
+    pub(super) fn is_class_member_start(&self) -> bool {
+        let mut id_token: Option<SyntaxKind> = None;
+
+        if self.token() == SyntaxKind::AtToken {
+            return true;
+        }
+
+        while is_modifier_kind(self.token()) {
+            id_token = Some(self.token());
+            if is_class_member_modifier(id_token.unwrap()) {
+                return true;
+            }
+
+            self.next_token();
+        }
+
+        if self.token() == SyntaxKind::AsteriskToken {
+            return true;
+        }
+
+        if self.is_literal_property_name() {
+            id_token = Some(self.token());
+            self.next_token();
+        }
+
+        if self.token() == SyntaxKind::OpenBracketToken {
+            return true;
+        }
+
+        if let Some(id_token) = id_token {
+            if !is_keyword(id_token)
+                || matches!(id_token, SyntaxKind::SetKeyword | SyntaxKind::GetKeyword)
+            {
+                return true;
+            }
+
+            match self.token() {
+                SyntaxKind::OpenParenToken
+                | SyntaxKind::LessThanToken
+                | SyntaxKind::ExclamationToken
+                | SyntaxKind::ColonToken
+                | SyntaxKind::EqualsToken
+                | SyntaxKind::QuestionToken => {
+                    return true;
+                }
+                _ => {
+                    return self.can_parse_semicolon();
+                }
+            }
+        }
+
+        false
+    }
+
     pub(super) fn try_parse_decorator(&self) -> Option<Decorator> {
         let pos = self.get_node_pos();
         if !self.parse_optional(SyntaxKind::AtToken) {
@@ -431,6 +486,13 @@ impl ParserType {
 
     pub(super) fn parse_heritage_clauses(&self) -> Option<NodeArray /*<HeritageClause>*/> {
         None
+    }
+
+    pub(super) fn is_heritage_clause(&self) -> bool {
+        matches!(
+            self.token(),
+            SyntaxKind::ExtendsKeyword | SyntaxKind::ImplementsKeyword
+        )
     }
 
     pub(super) fn parse_interface_declaration(
@@ -637,12 +699,29 @@ bitflags! {
         const None = 0;
         const SourceElements = 1 << 0;
         const BlockStatements = 1 << 1;
+        const SwitchClauses = 1 << 2;
+        const SwitchClauseStatements = 1 << 3;
         const TypeMembers = 1 << 4;
+        const ClassMembers = 1 << 5;
+        const EnumMembers = 1 << 6;
+        const HeritageClauseElement = 1 << 7;
         const VariableDeclarations = 1 << 8;
+        const ObjectBindingElements = 1 << 9;
+        const ArrayBindingElements = 1 << 10;
+        const ArgumentExpressions = 1 << 11;
         const ObjectLiteralMembers = 1 << 12;
+        const JsxAttributes = 1 << 13;
+        const JsxChildren = 1 << 14;
         const ArrayLiteralMembers = 1 << 15;
         const Parameters = 1 << 16;
+        const JSDocParameters = 1 << 17;
+        const RestProperties = 1 << 18;
         const TypeParameters = 1 << 19;
         const TypeArguments = 1 << 20;
+        const TupleElementTypes = 1 << 21;
+        const HeritageClauses = 1 << 22;
+        const ImportOrExportSpecifiers = 1 << 23;
+        const AssertEntries = 1 << 24;
+        const Count = 1 << 25;
     }
 }

@@ -173,7 +173,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Vec<Rc<Node /*JSDoc*/>>);
     fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
-    fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node /*JSDocTag*/>>);
+    fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Rc<Node /*JSDocTag*/>>>);
     // IncrementalElement
     fn maybe_intersects_change(&self) -> Option<bool>;
     fn set_intersects_change(&self, intersects_change: Option<bool>);
@@ -1002,9 +1002,9 @@ impl NodeInterface for BaseNode {
             .map(|vec| vec.iter().map(|weak| weak.upgrade().unwrap()).collect())
     }
 
-    fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node>>) {
-        *self.js_doc_cache.borrow_mut() =
-            Some(js_doc_cache.iter().map(|rc| Rc::downgrade(rc)).collect());
+    fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Rc<Node>>>) {
+        *self.js_doc_cache.borrow_mut() = js_doc_cache
+            .map(|js_doc_cache| js_doc_cache.iter().map(|rc| Rc::downgrade(rc)).collect());
     }
 
     fn maybe_intersects_change(&self) -> Option<bool> {

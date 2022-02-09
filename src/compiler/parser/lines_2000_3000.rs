@@ -1,40 +1,67 @@
 #![allow(non_upper_case_globals)]
 
 use std::convert::TryInto;
+use std::rc::Rc;
 
 use super::{ParserType, ParsingContext};
 use crate::{
-    is_literal_kind, is_template_literal_kind, token_to_string, Debug_, DiagnosticMessage,
-    Diagnostics, Node, NodeArray, NodeInterface, SyntaxKind, TemplateExpression, TemplateSpan,
-    TokenFlags,
+    contains_parse_error, is_literal_kind, is_template_literal_kind, node_is_missing,
+    token_is_identifier_or_keyword, token_to_string, Debug_, DiagnosticMessage, Diagnostics,
+    IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
+    TemplateExpression, TemplateSpan, TokenFlags,
 };
 
 impl ParserType {
     pub(super) fn can_follow_modifier(&self) -> bool {
-        self.token() == SyntaxKind::OpenBracketToken
-            || self.token() == SyntaxKind::OpenBraceToken
-            || self.token() == SyntaxKind::AsteriskToken
-            || self.token() == SyntaxKind::DotDotDotToken
-            || self.is_literal_property_name()
+        matches!(
+            self.token(),
+            SyntaxKind::OpenBracketToken
+                | SyntaxKind::OpenBraceToken
+                | SyntaxKind::AsteriskToken
+                | SyntaxKind::DotDotDotToken
+        ) || self.is_literal_property_name()
     }
 
     pub(super) fn next_token_can_follow_default_keyword(&self) -> bool {
         self.next_token();
-        self.token() == SyntaxKind::ClassKeyword
-            || self.token() == SyntaxKind::FunctionKeyword
-            || self.token() == SyntaxKind::InterfaceKeyword
-            || self.token() == SyntaxKind::AbstractKeyword
-                && self.look_ahead_bool(|| self.next_token_is_class_keyword_on_same_line())
+        matches!(
+            self.token(),
+            SyntaxKind::ClassKeyword | SyntaxKind::FunctionKeyword | SyntaxKind::InterfaceKeyword
+        ) || self.token() == SyntaxKind::AbstractKeyword
+            && self.look_ahead_bool(|| self.next_token_is_class_keyword_on_same_line())
             || self.token() == SyntaxKind::AsyncKeyword
                 && self.look_ahead_bool(|| self.next_token_is_function_keyword_on_same_line())
     }
 
-    pub(super) fn is_list_element(&self, kind: ParsingContext) -> bool {
-        match kind {
-            ParsingContext::SourceElements | ParsingContext::BlockStatements => {
-                self.is_start_of_statement()
+    pub(super) fn is_list_element(
+        &self,
+        parsing_context: ParsingContext,
+        in_error_recovery: bool,
+    ) -> bool {
+        let node = self.current_node(parsing_context);
+        if node.is_some() {
+            return true;
+        }
+
+        match parsing_context {
+            ParsingContext::SourceElements
+            | ParsingContext::BlockStatements
+            | ParsingContext::SwitchClauseStatements => {
+                !(self.token() == SyntaxKind::SemicolonToken && in_error_recovery)
+                    && self.is_start_of_statement()
             }
+            ParsingContext::SwitchClauses => matches!(
+                self.token(),
+                SyntaxKind::CaseKeyword | SyntaxKind::DefaultKeyword
+            ),
             ParsingContext::TypeMembers => self.look_ahead_bool(|| self.is_type_member_start()),
+            ParsingContext::ClassMembers => {
+                self.look_ahead_bool(|| self.is_class_member_start())
+                    || self.token() == SyntaxKind::SemicolonToken && !in_error_recovery
+            }
+            ParsingContext::EnumMembers => {
+                self.token() == SyntaxKind::OpenBracketToken || self.is_literal_property_name()
+            }
             ParsingContext::ObjectLiteralMembers => match self.token() {
                 SyntaxKind::OpenBracketToken
                 | SyntaxKind::AsteriskToken
@@ -42,22 +69,93 @@ impl ParserType {
                 | SyntaxKind::DotToken => true,
                 _ => self.is_literal_property_name(),
             },
+            ParsingContext::RestProperties => self.is_literal_property_name(),
+            ParsingContext::ObjectBindingElements => {
+                matches!(
+                    self.token(),
+                    SyntaxKind::OpenBracketToken | SyntaxKind::DotDotDotToken
+                ) || self.is_literal_property_name()
+            }
+            ParsingContext::AssertEntries => self.is_assertion_key(),
+            ParsingContext::HeritageClauseElement => {
+                if self.token() == SyntaxKind::OpenBraceToken {
+                    return self.look_ahead_bool(|| self.is_valid_heritage_clause_object_literal());
+                }
+
+                if !in_error_recovery {
+                    self.is_start_of_left_hand_side_expression()
+                        && !self.is_heritage_clause_extends_or_implements_keyword()
+                } else {
+                    self.is_identifier() && !self.is_heritage_clause_extends_or_implements_keyword()
+                }
+            }
             ParsingContext::VariableDeclarations => {
                 self.is_binding_identifier_or_private_identifier_or_pattern()
             }
+            ParsingContext::ArrayBindingElements => {
+                matches!(
+                    self.token(),
+                    SyntaxKind::CommaToken | SyntaxKind::DotDotDotToken
+                ) || self.is_binding_identifier_or_private_identifier_or_pattern()
+            }
             ParsingContext::TypeParameters => self.is_identifier(),
             ParsingContext::ArrayLiteralMembers => {
-                self.token() == SyntaxKind::CommaToken
-                    || self.token() == SyntaxKind::DotToken
-                    || self.token() == SyntaxKind::DotDotDotToken
-                    || self.is_start_of_expression()
+                matches!(
+                    self.token(),
+                    SyntaxKind::CommaToken | SyntaxKind::DotToken | SyntaxKind::DotDotDotToken
+                ) || self.is_start_of_expression()
+            }
+            ParsingContext::ArgumentExpressions => {
+                self.token() == SyntaxKind::DotDotDotToken || self.is_start_of_expression()
             }
             ParsingContext::Parameters => self.is_start_of_parameter(false),
-            ParsingContext::TypeArguments => {
+            ParsingContext::JSDocParameters => self.is_start_of_parameter(true),
+            ParsingContext::TypeArguments | ParsingContext::TupleElementTypes => {
                 self.token() == SyntaxKind::CommaToken || self.is_start_of_type(None)
             }
-            _ => unimplemented!(),
+            ParsingContext::HeritageClauses => self.is_heritage_clause(),
+            ParsingContext::ImportOrExportSpecifiers => {
+                token_is_identifier_or_keyword(self.token())
+            }
+            ParsingContext::JsxAttributes => {
+                token_is_identifier_or_keyword(self.token())
+                    || self.token() == SyntaxKind::OpenBraceToken
+            }
+            ParsingContext::JsxChildren => true,
+            _ => Debug_.fail(Some("Non-exhaustive case in 'isListElement'.")),
         }
+    }
+
+    pub(super) fn is_valid_heritage_clause_object_literal(&self) -> bool {
+        Debug_.assert(self.token() == SyntaxKind::OpenBraceToken, None);
+        if self.next_token() == SyntaxKind::CloseBraceToken {
+            let next = self.next_token();
+            return matches!(
+                next,
+                SyntaxKind::CommaToken
+                    | SyntaxKind::OpenBraceToken
+                    | SyntaxKind::ExtendsKeyword
+                    | SyntaxKind::ImplementsKeyword
+            );
+        }
+
+        true
+    }
+
+    pub(super) fn is_heritage_clause_extends_or_implements_keyword(&self) -> bool {
+        if matches!(
+            self.token(),
+            SyntaxKind::ImplementsKeyword | SyntaxKind::ExtendsKeyword
+        ) {
+            return self.look_ahead_bool(|| self.next_token_is_start_of_expression());
+        }
+
+        false
+    }
+
+    pub(super) fn next_token_is_start_of_expression(&self) -> bool {
+        self.next_token();
+        self.is_start_of_expression()
     }
 
     pub(super) fn is_list_terminator(&self, kind: ParsingContext) -> bool {
@@ -103,7 +201,7 @@ impl ParserType {
         let list_pos = self.get_node_pos();
 
         while !self.is_list_terminator(kind) {
-            if self.is_list_element(kind) {
+            if self.is_list_element(kind, false) {
                 list.push(self.parse_list_element(kind, parse_element).into());
 
                 continue;
@@ -123,6 +221,62 @@ impl ParserType {
         parse_element(self)
     }
 
+    pub(super) fn current_node(&self, parsing_context: ParsingContext) -> Option<Rc<Node>> {
+        if self.maybe_syntax_cursor().is_none()
+            || !self.is_reusable_parsing_context(parsing_context)
+            || self.parse_error_before_next_finished_node()
+        {
+            return None;
+        }
+        let syntax_cursor = self.syntax_cursor();
+
+        let node = syntax_cursor.current_node(self, self.scanner().get_start_pos());
+
+        if node_is_missing(node.clone()) {
+            return None;
+        }
+        let node = node.unwrap();
+
+        if matches!(node.maybe_intersects_change(), Some(true)) || contains_parse_error(&node) {
+            return None;
+        }
+
+        let node_context_flags = node.flags() & NodeFlags::ContextFlags;
+        if node_context_flags != self.context_flags() {
+            return None;
+        }
+
+        if !self.can_reuse_node(&node, parsing_context) {
+            return None;
+        }
+
+        if node.maybe_js_doc_cache().is_some() {
+            node.set_js_doc_cache(None);
+        }
+
+        Some(node)
+    }
+
+    pub(super) fn is_reusable_parsing_context(&self, parsing_context: ParsingContext) -> bool {
+        matches!(
+            parsing_context,
+            ParsingContext::ClassMembers
+                | ParsingContext::SwitchClauses
+                | ParsingContext::SourceElements
+                | ParsingContext::BlockStatements
+                | ParsingContext::SwitchClauseStatements
+                | ParsingContext::EnumMembers
+                | ParsingContext::TypeMembers
+                | ParsingContext::VariableDeclarations
+                | ParsingContext::JSDocParameters
+                | ParsingContext::Parameters
+        )
+    }
+
+    pub(super) fn can_reuse_node(&self, node: &Node, parsing_context: ParsingContext) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn parse_delimited_list<TItem: Into<Node>>(
         &self,
         kind: ParsingContext,
@@ -137,7 +291,7 @@ impl ParserType {
 
         let mut comma_start: isize = -1;
         loop {
-            if self.is_list_element(kind) {
+            if self.is_list_element(kind, false) {
                 let start_pos = self.scanner().get_start_pos();
                 list.push(self.parse_list_element(kind, parse_element).into());
                 comma_start = self.scanner().get_token_pos().try_into().unwrap();

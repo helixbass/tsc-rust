@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 use crate::{
     add_range, compare_strings_case_sensitive_maybe, compute_line_starts, concatenate, filter,
-    find_ancestor, first_or_undefined, flat_map, get_jsdoc_parameter_tags,
+    find_ancestor, first_or_undefined, flat_map, for_each_child_bool, get_jsdoc_parameter_tags,
     get_jsdoc_parameter_tags_no_cache, get_jsdoc_tags, get_jsdoc_type_parameter_tags,
     get_jsdoc_type_parameter_tags_no_cache, get_leading_comment_ranges,
     get_trailing_comment_ranges, has_initializer, has_jsdoc_nodes, id_text, is_binary_expression,
@@ -507,6 +507,30 @@ pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWr
 
 pub fn get_full_width(node: &Node) -> isize {
     node.end() - node.pos()
+}
+
+pub fn contains_parse_error(node: &Node) -> bool {
+    aggregate_child_data(node);
+    node.flags()
+        .intersects(NodeFlags::ThisNodeOrAnySubNodesHasError)
+}
+
+fn aggregate_child_data(node: &Node) {
+    if !node.flags().intersects(NodeFlags::HasAggregatedChildData) {
+        let this_node_or_any_sub_nodes_has_error =
+            node.flags().intersects(NodeFlags::ThisNodeHasError)
+                || for_each_child_bool(
+                    node,
+                    |child| contains_parse_error(child),
+                    Option::<fn(&NodeArray) -> bool>::None,
+                );
+
+        if this_node_or_any_sub_nodes_has_error {
+            node.set_flags(node.flags() | NodeFlags::ThisNodeOrAnySubNodesHasError);
+        }
+
+        node.set_flags(node.flags() | NodeFlags::HasAggregatedChildData);
+    }
 }
 
 pub fn get_source_file_of_node(node: &Node) -> Rc<Node /*SourceFile*/> {

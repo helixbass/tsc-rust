@@ -1030,7 +1030,7 @@ fn get_jsdoc_tags_worker(node: &Node, no_cache: Option<bool>) -> Vec<Rc<Node /*J
             }
         }));
         if !no_cache.unwrap_or(false) {
-            node.set_js_doc_cache(tags.clone().unwrap());
+            node.set_js_doc_cache(tags.clone());
         }
     }
     tags.unwrap()

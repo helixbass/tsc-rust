@@ -193,7 +193,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_js_doc_cache()
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::vec::Vec<::std::rc::Rc<crate::Node>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>>) {
                         self.#first_field_name.set_js_doc_cache(js_doc_cache)
                     }
 
@@ -612,7 +612,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::vec::Vec<::std::rc::Rc<crate::Node>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_js_doc_cache(js_doc_cache)),*
                         }
