@@ -43,7 +43,7 @@ impl ParserType {
         if self.token() == SyntaxKind::LessThanToken {
             return Some(self.parse_bracketed_list(
                 ParsingContext::TypeParameters,
-                || self.parse_type_parameter(),
+                || self.parse_type_parameter().into(),
                 SyntaxKind::LessThanToken,
                 SyntaxKind::GreaterThanToken,
             ));
@@ -173,9 +173,9 @@ impl ParserType {
                 ParsingContext::Parameters,
                 || {
                     if saved_await_context {
-                        self.parse_parameter_in_outer_await_context()
+                        self.parse_parameter_in_outer_await_context().into()
                     } else {
-                        self.parse_parameter()
+                        self.parse_parameter().into()
                     }
                 },
                 None,
@@ -264,7 +264,7 @@ impl ParserType {
         let members: NodeArray;
         if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
             members = self.parse_list(ParsingContext::TypeMembers, &mut || {
-                self.parse_type_member()
+                self.parse_type_member().wrap()
             });
             self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
         } else {
@@ -428,7 +428,7 @@ impl ParserType {
             parse_constituent_type(self)
         });
         if self.token() == operator || has_leading_operator {
-            let mut types: Vec<Node> = vec![type_.take().unwrap().into()];
+            let mut types: Vec<Rc<Node>> = vec![type_.take().unwrap().wrap()];
             while self.parse_optional(operator) {
                 types.push(
                     self.parse_function_or_constructor_type_to_error(is_union_type)

@@ -259,7 +259,7 @@ impl ParserType {
         } else {
             declarations = self.parse_delimited_list(
                 ParsingContext::VariableDeclarations,
-                || self.parse_variable_declaration_allow_exclamation(),
+                || self.parse_variable_declaration_allow_exclamation().into(),
                 None,
             );
         }
@@ -404,7 +404,7 @@ impl ParserType {
 
     pub(super) fn parse_decorators(&self) -> Option<NodeArray /*<Decorator>*/> {
         let pos = self.get_node_pos();
-        let mut list: Option<Vec<Node>> = None;
+        let mut list: Option<Vec<Rc<Node>>> = None;
         loop {
             let decorator = self.try_parse_decorator();
             if decorator.is_none() {
@@ -460,7 +460,7 @@ impl ParserType {
         stop_on_start_of_class_static_block: Option<bool>,
     ) -> Option<NodeArray /*<Modifier>*/> {
         let pos = self.get_node_pos();
-        let mut list: Option<Vec<Node>> = None;
+        let mut list: Option<Vec<Rc<Node>>> = None;
         let mut has_seen_static = false;
         loop {
             let modifier = self.try_parse_modifier(
@@ -479,7 +479,7 @@ impl ParserType {
                 list = Some(vec![]);
             }
             let list = list.as_mut().unwrap();
-            append(list, Some(modifier));
+            append(list, Some(modifier.wrap()));
         }
         list.map(|list| self.create_node_array(list, pos, None, None))
     }

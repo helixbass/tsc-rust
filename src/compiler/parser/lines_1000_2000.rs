@@ -58,7 +58,7 @@ impl ParserType {
         self.next_token();
 
         let statements = self.parse_list(ParsingContext::SourceElements, &mut || {
-            self.parse_statement()
+            self.parse_statement().wrap()
         });
         Debug_.assert(self.token() == SyntaxKind::EndOfFileToken, None);
         let end_of_file_token = self.add_jsdoc_comment(self.parse_token_node());
@@ -206,9 +206,8 @@ impl ParserType {
                         let start_pos = self.scanner().get_start_pos();
                         let statement: Rc<Node> = self
                             .parse_list_element(ParsingContext::SourceElements, &mut || {
-                                self.parse_statement()
-                            })
-                            .wrap();
+                                self.parse_statement().wrap()
+                            });
                         statements.push(statement.clone());
                         if start_pos == self.scanner().get_start_pos() {
                             self.next_token();
@@ -1093,20 +1092,14 @@ impl ParserType {
 
     pub(super) fn create_node_array(
         &self,
-        elements: Vec<Node>,
+        elements: Vec<Rc<Node>>,
         pos: isize,
         end: Option<isize>,
         has_trailing_comma: Option<bool>,
     ) -> NodeArray {
-        let array = self.factory.create_node_array(
-            Some(
-                elements
-                    .into_iter()
-                    .map(Node::wrap)
-                    .collect::<Vec<Rc<Node>>>(),
-            ),
-            has_trailing_comma,
-        );
+        let array = self
+            .factory
+            .create_node_array(Some(elements), has_trailing_comma);
         set_text_range_pos_end(
             &array,
             pos,

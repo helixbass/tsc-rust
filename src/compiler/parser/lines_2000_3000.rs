@@ -8,8 +8,8 @@ use crate::{
     contains_parse_error, is_keyword, is_literal_kind, is_template_literal_kind, node_is_missing,
     token_is_identifier_or_keyword, token_is_identifier_or_keyword_or_greater_than,
     token_to_string, Debug_, DiagnosticMessage, Diagnostics,
-    IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
-    TemplateExpression, TemplateSpan, TokenFlags,
+    IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    ReadonlyTextRange, SyntaxKind, TemplateExpression, TemplateSpan, TokenFlags,
 };
 
 impl ParserType {
@@ -285,7 +285,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_list<TItem: Into<Node>, TParseElement: FnMut() -> TItem>(
+    pub(super) fn parse_list<TParseElement: FnMut() -> Rc<Node>>(
         &self,
         kind: ParsingContext,
         parse_element: &mut TParseElement,
@@ -297,7 +297,7 @@ impl ParserType {
 
         while !self.is_list_terminator(kind) {
             if self.is_list_element(kind, false) {
-                list.push(self.parse_list_element(kind, parse_element).into());
+                list.push(self.parse_list_element(kind, parse_element));
 
                 continue;
             }
@@ -311,11 +311,16 @@ impl ParserType {
         self.create_node_array(list, list_pos, None, None)
     }
 
-    pub(super) fn parse_list_element<TItem: Into<Node>, TParseElement: FnMut() -> TItem>(
+    pub(super) fn parse_list_element<TParseElement: FnMut() -> Rc<Node>>(
         &self,
-        _parsing_context: ParsingContext,
+        parsing_context: ParsingContext,
         parse_element: &mut TParseElement,
-    ) -> TItem {
+    ) -> Rc<Node> {
+        let node = self.current_node(parsing_context);
+        if let Some(node) = node {
+            return self.consume_node(node);
+        }
+
         parse_element()
     }
 
@@ -353,6 +358,13 @@ impl ParserType {
         }
 
         Some(node)
+    }
+
+    pub(super) fn consume_node(&self, node: Rc<Node>) -> Rc<Node> {
+        self.scanner_mut()
+            .set_text_pos(node.end().try_into().unwrap());
+        self.next_token();
+        node
     }
 
     pub(super) fn is_reusable_parsing_context(&self, parsing_context: ParsingContext) -> bool {
@@ -510,7 +522,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_delimited_list<TItem: Into<Node>, TParseElement: FnMut() -> TItem>(
+    pub(super) fn parse_delimited_list<TParseElement: FnMut() -> Rc<Node>>(
         &self,
         kind: ParsingContext,
         mut parse_element: TParseElement,
@@ -519,14 +531,14 @@ impl ParserType {
         let consider_semicolon_as_delimiter = consider_semicolon_as_delimiter.unwrap_or(false);
         let save_parsing_context = self.parsing_context();
         self.set_parsing_context(self.parsing_context() | kind);
-        let mut list: Vec<Node> = vec![];
+        let mut list: Vec<Rc<Node>> = vec![];
         let list_pos = self.get_node_pos();
 
         let mut comma_start: isize = -1;
         loop {
             if self.is_list_element(kind, false) {
                 let start_pos = self.scanner().get_start_pos();
-                list.push(self.parse_list_element(kind, &mut parse_element).into());
+                list.push(self.parse_list_element(kind, &mut parse_element));
                 comma_start = self.scanner().get_token_pos().try_into().unwrap();
 
                 if self.parse_optional(SyntaxKind::CommaToken) {
@@ -558,7 +570,7 @@ impl ParserType {
         list
     }
 
-    pub(super) fn parse_bracketed_list<TItem: Into<Node>, TParseElement: FnMut() -> TItem>(
+    pub(super) fn parse_bracketed_list<TParseElement: FnMut() -> Rc<Node>>(
         &self,
         kind: ParsingContext,
         parse_element: TParseElement,
@@ -755,7 +767,7 @@ impl ParserType {
         {
             return Some(self.parse_bracketed_list(
                 ParsingContext::TypeArguments,
-                || self.parse_type(),
+                || self.parse_type().wrap(),
                 SyntaxKind::LessThanToken,
                 SyntaxKind::GreaterThanToken,
             ));
