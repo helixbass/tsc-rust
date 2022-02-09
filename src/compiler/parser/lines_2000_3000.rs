@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use super::{ParserType, ParsingContext};
 use crate::{
-    contains_parse_error, is_literal_kind, is_template_literal_kind, node_is_missing,
+    contains_parse_error, is_keyword, is_literal_kind, is_template_literal_kind, node_is_missing,
     token_is_identifier_or_keyword, token_is_identifier_or_keyword_or_greater_than,
     token_to_string, Debug_, DiagnosticMessage, Diagnostics,
     IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
@@ -290,6 +290,8 @@ impl ParserType {
         kind: ParsingContext,
         parse_element: &mut TParseElement,
     ) -> NodeArray {
+        let save_parsing_context = self.parsing_context();
+        self.set_parsing_context(self.parsing_context() | kind);
         let mut list = vec![];
         let list_pos = self.get_node_pos();
 
@@ -300,9 +302,12 @@ impl ParserType {
                 continue;
             }
 
-            unimplemented!()
+            if self.abort_parsing_list_or_move_to_next_token(kind) {
+                break;
+            }
         }
 
+        self.set_parsing_context(save_parsing_context);
         self.create_node_array(list, list_pos, None, None)
     }
 
@@ -368,6 +373,141 @@ impl ParserType {
 
     pub(super) fn can_reuse_node(&self, node: &Node, parsing_context: ParsingContext) -> bool {
         unimplemented!()
+    }
+
+    pub(super) fn abort_parsing_list_or_move_to_next_token(&self, kind: ParsingContext) -> bool {
+        self.parsing_context_errors(kind);
+        if self.is_in_some_parsing_context() {
+            return true;
+        }
+
+        self.next_token();
+        false
+    }
+
+    pub(super) fn parsing_context_errors(&self, context: ParsingContext) {
+        match context {
+            ParsingContext::SourceElements => {
+                if self.token() == SyntaxKind::DefaultKeyword {
+                    self.parse_error_at_current_token(
+                        &Diagnostics::_0_expected,
+                        Some(vec![token_to_string(SyntaxKind::ExportKeyword)
+                            .unwrap()
+                            .to_owned()]),
+                    );
+                } else {
+                    self.parse_error_at_current_token(
+                        &Diagnostics::Declaration_or_statement_expected,
+                        None,
+                    );
+                }
+            }
+            ParsingContext::BlockStatements => {
+                self.parse_error_at_current_token(
+                    &Diagnostics::Declaration_or_statement_expected,
+                    None,
+                );
+            }
+            ParsingContext::SwitchClauses => {
+                self.parse_error_at_current_token(&Diagnostics::case_or_default_expected, None);
+            }
+            ParsingContext::SwitchClauseStatements => {
+                self.parse_error_at_current_token(&Diagnostics::Statement_expected, None);
+            }
+            ParsingContext::RestProperties | ParsingContext::TypeMembers => {
+                self.parse_error_at_current_token(
+                    &Diagnostics::Property_or_signature_expected,
+                    None,
+                );
+            }
+            ParsingContext::ClassMembers => {
+                self.parse_error_at_current_token(&Diagnostics::Unexpected_token_A_constructor_method_accessor_or_property_was_expected, None);
+            }
+            ParsingContext::EnumMembers => {
+                self.parse_error_at_current_token(&Diagnostics::Enum_member_expected, None);
+            }
+            ParsingContext::HeritageClauseElement => {
+                self.parse_error_at_current_token(&Diagnostics::Expression_expected, None);
+            }
+            ParsingContext::VariableDeclarations => {
+                if is_keyword(self.token()) {
+                    self.parse_error_at_current_token(
+                        &Diagnostics::_0_is_not_allowed_as_a_variable_declaration_name,
+                        Some(vec![token_to_string(self.token()).unwrap().to_owned()]),
+                    );
+                } else {
+                    self.parse_error_at_current_token(
+                        &Diagnostics::Variable_declaration_expected,
+                        None,
+                    );
+                }
+            }
+            ParsingContext::ObjectBindingElements => {
+                self.parse_error_at_current_token(
+                    &Diagnostics::Property_destructuring_pattern_expected,
+                    None,
+                );
+            }
+            ParsingContext::ArrayBindingElements => {
+                self.parse_error_at_current_token(
+                    &Diagnostics::Array_element_destructuring_pattern_expected,
+                    None,
+                );
+            }
+            ParsingContext::ArgumentExpressions => {
+                self.parse_error_at_current_token(&Diagnostics::Argument_expression_expected, None);
+            }
+            ParsingContext::ObjectLiteralMembers => {
+                self.parse_error_at_current_token(&Diagnostics::Property_assignment_expected, None);
+            }
+            ParsingContext::ArrayLiteralMembers => {
+                self.parse_error_at_current_token(&Diagnostics::Expression_or_comma_expected, None);
+            }
+            ParsingContext::JSDocParameters => {
+                self.parse_error_at_current_token(
+                    &Diagnostics::Parameter_declaration_expected,
+                    None,
+                );
+            }
+            ParsingContext::Parameters => {
+                if is_keyword(self.token()) {
+                    self.parse_error_at_current_token(
+                        &Diagnostics::_0_is_not_allowed_as_a_parameter_name,
+                        Some(vec![token_to_string(self.token()).unwrap().to_owned()]),
+                    );
+                } else {
+                    self.parse_error_at_current_token(
+                        &Diagnostics::Parameter_declaration_expected,
+                        None,
+                    );
+                }
+            }
+            ParsingContext::TypeParameters => {
+                self.parse_error_at_current_token(
+                    &Diagnostics::Type_parameter_declaration_expected,
+                    None,
+                );
+            }
+            ParsingContext::TypeArguments => {
+                self.parse_error_at_current_token(&Diagnostics::Type_argument_expected, None);
+            }
+            ParsingContext::TupleElementTypes => {
+                self.parse_error_at_current_token(&Diagnostics::Type_expected, None);
+            }
+            ParsingContext::HeritageClauses => {
+                self.parse_error_at_current_token(&Diagnostics::Unexpected_token_expected, None);
+            }
+            ParsingContext::ImportOrExportSpecifiers => {
+                self.parse_error_at_current_token(&Diagnostics::Identifier_expected, None);
+            }
+            ParsingContext::JsxAttributes => {
+                self.parse_error_at_current_token(&Diagnostics::Identifier_expected, None);
+            }
+            ParsingContext::JsxChildren => {
+                self.parse_error_at_current_token(&Diagnostics::Identifier_expected, None);
+            }
+            _ => (),
+        }
     }
 
     pub(super) fn parse_delimited_list<TItem: Into<Node>, TParseElement: FnMut() -> TItem>(
