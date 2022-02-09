@@ -372,6 +372,10 @@ impl ParserType {
         *self.syntax_cursor.borrow_mut() = syntax_cursor;
     }
 
+    pub(super) fn maybe_current_token(&self) -> Option<SyntaxKind> {
+        *self.current_token.borrow()
+    }
+
     pub(super) fn current_token(&self) -> SyntaxKind {
         self.current_token.borrow().unwrap()
     }

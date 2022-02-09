@@ -7,7 +7,7 @@ use super::{MissingNode, ParserType, ParsingContext, SpeculationKind};
 use crate::{
     add_range, attach_file_to_diagnostics, create_detached_diagnostic, find_index,
     get_jsdoc_comment_ranges, get_language_variant, is_declaration_file_name, is_external_module,
-    is_modifier_kind, is_template_literal_kind, last_or_undefined, map_defined,
+    is_keyword, is_modifier_kind, is_template_literal_kind, last_or_undefined, map_defined,
     process_comment_pragmas, process_pragmas_into_fields, set_parent_recursive, set_text_range,
     set_text_range_pos_end, set_text_range_pos_width, token_is_identifier_or_keyword,
     token_to_string, BaseNode, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
@@ -582,6 +582,16 @@ impl ParserType {
     }
 
     pub(super) fn next_token(&self) -> SyntaxKind {
+        if matches!(self.maybe_current_token(), Some(current_token) if is_keyword(current_token))
+            && (self.scanner().has_unicode_escape() || self.scanner().has_extended_unicode_escape())
+        {
+            self.parse_error_at(
+                self.scanner().get_token_pos().try_into().unwrap(),
+                self.scanner().get_text_pos().try_into().unwrap(),
+                &Diagnostics::Keywords_cannot_contain_escape_characters,
+                None,
+            );
+        }
         self.next_token_without_check()
     }
 
