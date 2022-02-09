@@ -9,12 +9,12 @@ use crate::{
     get_jsdoc_comment_ranges, get_language_variant, is_declaration_file_name, is_external_module,
     is_keyword, is_modifier_kind, is_template_literal_kind, last_or_undefined, map_defined,
     process_comment_pragmas, process_pragmas_into_fields, set_parent_recursive, set_text_range,
-    set_text_range_pos_end, set_text_range_pos_width, token_is_identifier_or_keyword,
-    token_to_string, BaseNode, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    Diagnostics, Identifier, IncrementalParser, IncrementalParserSyntaxCursor,
-    IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeArrayOrVec, NodeFlags,
-    NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
-    TransformFlags,
+    set_text_range_pos_end, set_text_range_pos_width, text_to_keyword_obj,
+    token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, Identifier, IncrementalParser,
+    IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget,
+    SyntaxKind, TextRange, TransformFlags,
 };
 use local_macros::enum_unwrapped;
 
@@ -741,6 +741,14 @@ impl ParserType {
             return true;
         }
 
+        if self.token() == SyntaxKind::YieldKeyword && self.in_yield_context() {
+            return false;
+        }
+
+        if self.token() == SyntaxKind::AwaitKeyword && self.in_await_context() {
+            return false;
+        }
+
         self.token() > SyntaxKind::LastReservedWord
     }
 
@@ -763,7 +771,7 @@ impl ParserType {
         } else {
             self.parse_error_at_current_token(
                 &Diagnostics::_0_expected,
-                token_to_string(kind).map(|string| vec![string.to_string()]),
+                token_to_string(kind).map(|string| vec![string.to_owned()]),
             );
         }
         false
@@ -1068,6 +1076,14 @@ impl ParserType {
         is_modifier_kind(self.token())
             && self.try_parse_bool(|| self.next_token_can_follow_modifier())
     }
+}
+
+lazy_static! {
+    static ref viable_keyword_suggestions: Vec<&'static str> = text_to_keyword_obj
+        .keys()
+        .filter(|key| key.len() > 2)
+        .map(|key| *key)
+        .collect();
 }
 
 pub struct IncrementalParserSyntaxCursorReparseTopLevelAwait {
