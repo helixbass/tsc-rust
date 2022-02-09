@@ -1209,6 +1209,7 @@ impl ParserType {
         private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
     ) -> Node /*Identifier*/ {
         if is_identifier {
+            self.increment_identifier_count();
             let pos = self.get_node_pos();
             let original_keyword_kind = self.token();
             let text = self.intern_identifier(&self.scanner().get_token_value());
@@ -1227,20 +1228,49 @@ impl ParserType {
             );
         }
 
+        if self.token() == SyntaxKind::PrivateIdentifier {
+            self.parse_error_at_current_token(
+                private_identifier_diagnostic_message.unwrap_or(
+                    &Diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+                ),
+                None,
+            );
+            return self.create_identifier(true, None, None);
+        }
+
+        {
+            let scanner = self.scanner();
+            if self.token() == SyntaxKind::Unknown
+                && scanner
+                    .try_scan(|| {
+                        Some(
+                            scanner.re_scan_invalid_identifier(Some(&|message, length| {
+                                self.scan_error(message, length)
+                            })) == SyntaxKind::Identifier,
+                        )
+                    })
+                    .unwrap()
+            {
+                return self.create_identifier(true, None, None);
+            }
+        }
+
+        self.increment_identifier_count();
         let report_at_current_position = self.token() == SyntaxKind::EndOfFileToken;
 
+        let is_reserved_word = self.scanner().is_reserved_word();
         let msg_arg = self.scanner().get_token_text();
 
-        let default_message = if false {
-            unimplemented!()
+        let default_message = if is_reserved_word {
+            &Diagnostics::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here
         } else {
-            Diagnostics::Identifier_expected
+            &Diagnostics::Identifier_expected
         };
 
         self.create_missing_node(
             SyntaxKind::Identifier,
             report_at_current_position,
-            diagnostic_message.unwrap_or(&default_message),
+            diagnostic_message.unwrap_or(default_message),
             Some(vec![msg_arg]),
         )
     }
