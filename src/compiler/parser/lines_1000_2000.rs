@@ -1382,6 +1382,10 @@ impl ParserType {
         self.finish_node(node.into(), pos, None)
     }
 
+    pub(super) fn parse_contextual_modifier(&self, t: SyntaxKind) -> bool {
+        self.token() == t && self.try_parse_bool(|| self.next_token_can_follow_modifier())
+    }
+
     pub(super) fn next_token_is_on_same_line_and_can_follow_modifier(&self) -> bool {
         self.next_token();
         if self.scanner().has_preceding_line_break() {
