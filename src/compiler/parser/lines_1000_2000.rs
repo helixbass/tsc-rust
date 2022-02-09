@@ -1168,13 +1168,23 @@ impl ParserType {
                 .create_template_literal_like_node(
                     self,
                     kind,
-                    "".to_string(),
-                    Some("".to_string()),
+                    "".to_owned(),
+                    Some("".to_owned()),
                     None,
                 )
                 .into()
+        } else if kind == SyntaxKind::NumericLiteral {
+            self.factory
+                .create_numeric_literal(self, "".to_owned(), None)
+                .into()
+        } else if kind == SyntaxKind::StringLiteral {
+            self.factory
+                .create_string_literal(self, "".to_owned(), None, None)
+                .into()
+        } else if kind == SyntaxKind::MissingDeclaration {
+            self.factory.create_missing_declaration(self).into()
         } else {
-            unimplemented!()
+            self.factory.create_token(self, kind).into()
         };
         self.finish_node(result, pos, None)
     }
