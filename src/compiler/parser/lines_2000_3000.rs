@@ -6,7 +6,8 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext};
 use crate::{
     contains_parse_error, is_literal_kind, is_template_literal_kind, node_is_missing,
-    token_is_identifier_or_keyword, token_to_string, Debug_, DiagnosticMessage, Diagnostics,
+    token_is_identifier_or_keyword, token_is_identifier_or_keyword_or_greater_than,
+    token_to_string, Debug_, DiagnosticMessage, Diagnostics,
     IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
     TemplateExpression, TemplateSpan, TokenFlags,
 };
@@ -142,6 +143,21 @@ impl ParserType {
         true
     }
 
+    pub(super) fn next_token_is_identifier(&self) -> bool {
+        self.next_token();
+        self.is_identifier()
+    }
+
+    pub(super) fn next_token_is_identifier_or_keyword(&self) -> bool {
+        self.next_token();
+        token_is_identifier_or_keyword(self.token())
+    }
+
+    pub(super) fn next_token_is_identifier_or_keyword_or_greater_than(&self) -> bool {
+        self.next_token();
+        token_is_identifier_or_keyword_or_greater_than(self.token())
+    }
+
     pub(super) fn is_heritage_clause_extends_or_implements_keyword(&self) -> bool {
         if matches!(
             self.token(),
@@ -156,6 +172,11 @@ impl ParserType {
     pub(super) fn next_token_is_start_of_expression(&self) -> bool {
         self.next_token();
         self.is_start_of_expression()
+    }
+
+    pub(super) fn next_token_is_start_of_type(&self) -> bool {
+        self.next_token();
+        self.is_start_of_type(None)
     }
 
     pub(super) fn is_list_terminator(&self, kind: ParsingContext) -> bool {
