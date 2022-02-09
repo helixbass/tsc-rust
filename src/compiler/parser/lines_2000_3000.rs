@@ -257,6 +257,14 @@ impl ParserType {
             return true;
         }
 
+        if self.is_in_or_of_keyword(self.token()) {
+            return true;
+        }
+
+        if self.token() == SyntaxKind::EqualsGreaterThanToken {
+            return true;
+        }
+
         false
     }
 

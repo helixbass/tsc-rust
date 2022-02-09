@@ -117,6 +117,10 @@ impl ParserType {
         self.parse_binary_expression_rest(precedence, left_operand, pos)
     }
 
+    pub(super) fn is_in_or_of_keyword(&self, t: SyntaxKind) -> bool {
+        matches!(t, SyntaxKind::InKeyword | SyntaxKind::OfKeyword)
+    }
+
     pub(super) fn parse_binary_expression_rest(
         &self,
         precedence: OperatorPrecedence,
