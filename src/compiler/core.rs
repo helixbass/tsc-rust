@@ -70,6 +70,18 @@ pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .map(|(_, value)| value)
 }
 
+pub fn find_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: &[TItem],
+    mut predicate: TCallback,
+    start_index: Option<usize>,
+) -> Option<usize> {
+    array
+        .into_iter()
+        .enumerate()
+        .skip(start_index.unwrap_or(0))
+        .position(|(index, value)| predicate(value, index))
+}
+
 pub fn contains<TItem: Eq>(array: Option<&[TItem]>, value: &TItem) -> bool {
     array.map_or(false, |array| array.iter().any(|item| item == value))
 }

@@ -5,15 +5,15 @@ use std::rc::Rc;
 
 use super::{MissingNode, ParserType, ParsingContext, SpeculationKind};
 use crate::{
-    attach_file_to_diagnostics, create_detached_diagnostic, get_jsdoc_comment_ranges,
-    is_declaration_file_name, is_external_module, is_modifier_kind, is_template_literal_kind,
-    last_or_undefined, map_defined, process_comment_pragmas, process_pragmas_into_fields,
-    set_parent_recursive, set_text_range_pos_end, set_text_range_pos_width,
-    token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, Identifier, IncrementalParser,
-    IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node, NodeArray,
-    NodeArrayOrVec, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
-    TransformFlags,
+    add_range, attach_file_to_diagnostics, create_detached_diagnostic, find_index,
+    get_jsdoc_comment_ranges, is_declaration_file_name, is_external_module, is_modifier_kind,
+    is_template_literal_kind, last_or_undefined, map_defined, process_comment_pragmas,
+    process_pragmas_into_fields, set_parent_recursive, set_text_range_pos_end,
+    set_text_range_pos_width, token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_,
+    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, Identifier,
+    IncrementalParser, IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind,
+    ScriptTarget, SyntaxKind, TextRange, TransformFlags,
 };
 use local_macros::enum_unwrapped;
 
@@ -143,6 +143,98 @@ impl ParserType {
                 .into(),
         ));
 
+        let mut statements: Vec<Rc<Node>> = vec![];
+        let mut parse_diagnostics_ref = self.parse_diagnostics();
+        let saved_parse_diagnostics = parse_diagnostics_ref.clone();
+
+        *parse_diagnostics_ref = vec![];
+
+        let mut pos: Option<usize> = Some(0);
+        let source_file_as_source_file = source_file.as_source_file();
+        let mut start =
+            self.find_next_statement_with_await(&source_file_as_source_file.statements, 0);
+        while let Some(start_present) = start {
+            let prev_statement = &source_file_as_source_file.statements[pos.unwrap()];
+            let next_statement = &source_file_as_source_file.statements[start_present];
+            add_range(
+                &mut statements,
+                Some(&source_file_as_source_file.statements),
+                pos.map(|pos| pos.try_into().unwrap()),
+                Some(start_present.try_into().unwrap()),
+            );
+            pos = self.find_next_statement_without_await(
+                &source_file_as_source_file.statements,
+                start_present,
+            );
+
+            let diagnostic_start = find_index(
+                &saved_parse_diagnostics,
+                |diagnostic, _| diagnostic.start() >= prev_statement.pos(),
+                None,
+            );
+            let diagnostic_end = diagnostic_start.and_then(|diagnostic_start| {
+                find_index(
+                    &saved_parse_diagnostics,
+                    |diagnostic, _| diagnostic.start() >= next_statement.pos(),
+                    Some(diagnostic_start),
+                )
+            });
+            if let Some(diagnostic_start) = diagnostic_start {
+                add_range(
+                    &mut *parse_diagnostics_ref,
+                    Some(&saved_parse_diagnostics),
+                    Some(diagnostic_start.try_into().unwrap()),
+                    diagnostic_end.map(|diagnostic_end| diagnostic_end.try_into().unwrap()),
+                );
+            }
+
+            self.speculation_helper(
+                || {
+                    let saved_context_flags = self.context_flags();
+                    self.set_context_flags(self.context_flags() | NodeFlags::AwaitContext);
+                    self.scanner_mut()
+                        .set_text_pos(next_statement.pos().try_into().unwrap());
+                    self.next_token();
+
+                    while self.token() != SyntaxKind::EndOfFileToken {
+                        let start_pos = self.scanner().get_start_pos();
+                        let statement: Rc<Node> = self
+                            .parse_list_element(
+                                ParsingContext::SourceElements,
+                                ParserType::parse_statement,
+                            )
+                            .wrap();
+                        statements.push(statement.clone());
+                        if start_pos == self.scanner().get_start_pos() {
+                            self.next_token();
+                        }
+
+                        if let Some(pos_present) = pos {
+                            let non_await_statement =
+                                &source_file_as_source_file.statements[pos_present];
+                            if statement.end() == non_await_statement.pos() {
+                                break;
+                            }
+                            if statement.end() > non_await_statement.pos() {
+                                pos = self.find_next_statement_without_await(
+                                    &source_file_as_source_file.statements,
+                                    pos_present + 1,
+                                );
+                            }
+                        }
+                    }
+
+                    self.set_context_flags(saved_context_flags);
+                    Option::<()>::None
+                },
+                SpeculationKind::Reparse,
+            );
+
+            start = pos.and_then(|pos| {
+                self.find_next_statement_with_await(&source_file_as_source_file.statements, pos)
+            });
+        }
+
         unimplemented!()
     }
 
@@ -151,6 +243,34 @@ impl ParserType {
             && node
                 .transform_flags()
                 .intersects(TransformFlags::ContainsPossibleTopLevelAwait)
+    }
+
+    pub(super) fn find_next_statement_with_await(
+        &self,
+        statements: &[Rc<Node /*Statement*/>],
+        start: usize,
+    ) -> Option<usize> {
+        for (i, statement) in statements.iter().enumerate().skip(start) {
+            if self.contains_possible_top_level_await(statement) {
+                return Some(i);
+            }
+        }
+
+        None
+    }
+
+    pub(super) fn find_next_statement_without_await(
+        &self,
+        statements: &[Rc<Node /*Statement*/>],
+        start: usize,
+    ) -> Option<usize> {
+        for (i, statement) in statements.iter().enumerate().skip(start) {
+            if !self.contains_possible_top_level_await(statement) {
+                return Some(i);
+            }
+        }
+
+        None
     }
 
     pub fn fixup_parent_references(&self, root_node: &Node) {
