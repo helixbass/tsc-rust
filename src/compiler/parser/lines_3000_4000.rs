@@ -43,7 +43,7 @@ impl ParserType {
         if self.token() == SyntaxKind::LessThanToken {
             return Some(self.parse_bracketed_list(
                 ParsingContext::TypeParameters,
-                ParserType::parse_type_parameter,
+                || self.parse_type_parameter(),
                 SyntaxKind::LessThanToken,
                 SyntaxKind::GreaterThanToken,
             ));
@@ -171,10 +171,12 @@ impl ParserType {
         } else {
             self.parse_delimited_list(
                 ParsingContext::Parameters,
-                if saved_await_context {
-                    ParserType::parse_parameter_in_outer_await_context
-                } else {
-                    ParserType::parse_parameter
+                || {
+                    if saved_await_context {
+                        self.parse_parameter_in_outer_await_context()
+                    } else {
+                        self.parse_parameter()
+                    }
                 },
                 None,
             )
@@ -261,7 +263,9 @@ impl ParserType {
     pub(super) fn parse_object_type_members(&self) -> NodeArray /*<TypeElement>*/ {
         let members: NodeArray;
         if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
-            members = self.parse_list(ParsingContext::TypeMembers, ParserType::parse_type_member);
+            members = self.parse_list(ParsingContext::TypeMembers, &mut || {
+                self.parse_type_member()
+            });
             self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
         } else {
             members = self.create_missing_list();

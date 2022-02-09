@@ -285,10 +285,10 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_list<TItem: Into<Node>>(
+    pub(super) fn parse_list<TItem: Into<Node>, TParseElement: FnMut() -> TItem>(
         &self,
         kind: ParsingContext,
-        parse_element: fn(&ParserType) -> TItem,
+        parse_element: &mut TParseElement,
     ) -> NodeArray {
         let mut list = vec![];
         let list_pos = self.get_node_pos();
@@ -306,12 +306,12 @@ impl ParserType {
         self.create_node_array(list, list_pos, None, None)
     }
 
-    pub(super) fn parse_list_element<TItem: Into<Node>>(
+    pub(super) fn parse_list_element<TItem: Into<Node>, TParseElement: FnMut() -> TItem>(
         &self,
         _parsing_context: ParsingContext,
-        parse_element: fn(&ParserType) -> TItem,
+        parse_element: &mut TParseElement,
     ) -> TItem {
-        parse_element(self)
+        parse_element()
     }
 
     pub(super) fn current_node(&self, parsing_context: ParsingContext) -> Option<Rc<Node>> {
@@ -370,10 +370,10 @@ impl ParserType {
         unimplemented!()
     }
 
-    pub(super) fn parse_delimited_list<TItem: Into<Node>>(
+    pub(super) fn parse_delimited_list<TItem: Into<Node>, TParseElement: FnMut() -> TItem>(
         &self,
         kind: ParsingContext,
-        parse_element: fn(&ParserType) -> TItem,
+        mut parse_element: TParseElement,
         consider_semicolon_as_delimiter: Option<bool>,
     ) -> NodeArray {
         let consider_semicolon_as_delimiter = consider_semicolon_as_delimiter.unwrap_or(false);
@@ -386,7 +386,7 @@ impl ParserType {
         loop {
             if self.is_list_element(kind, false) {
                 let start_pos = self.scanner().get_start_pos();
-                list.push(self.parse_list_element(kind, parse_element).into());
+                list.push(self.parse_list_element(kind, &mut parse_element).into());
                 comma_start = self.scanner().get_token_pos().try_into().unwrap();
 
                 if self.parse_optional(SyntaxKind::CommaToken) {
@@ -418,10 +418,10 @@ impl ParserType {
         list
     }
 
-    pub(super) fn parse_bracketed_list<TItem: Into<Node>>(
+    pub(super) fn parse_bracketed_list<TItem: Into<Node>, TParseElement: FnMut() -> TItem>(
         &self,
         kind: ParsingContext,
-        parse_element: fn(&ParserType) -> TItem,
+        parse_element: TParseElement,
         open: SyntaxKind,
         close: SyntaxKind,
     ) -> NodeArray {
@@ -615,7 +615,7 @@ impl ParserType {
         {
             return Some(self.parse_bracketed_list(
                 ParsingContext::TypeArguments,
-                ParserType::parse_type,
+                || self.parse_type(),
                 SyntaxKind::LessThanToken,
                 SyntaxKind::GreaterThanToken,
             ));

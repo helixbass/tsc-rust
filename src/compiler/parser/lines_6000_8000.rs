@@ -259,7 +259,7 @@ impl ParserType {
         } else {
             declarations = self.parse_delimited_list(
                 ParsingContext::VariableDeclarations,
-                ParserType::parse_variable_declaration_allow_exclamation,
+                || self.parse_variable_declaration_allow_exclamation(),
                 None,
             );
         }

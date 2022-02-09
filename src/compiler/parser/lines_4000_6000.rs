@@ -276,7 +276,7 @@ impl ParserType {
         let multi_line = self.scanner().has_preceding_line_break();
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayLiteralMembers,
-            ParserType::parse_argument_or_array_literal_element,
+            || self.parse_argument_or_array_literal_element(),
             None,
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
@@ -313,7 +313,7 @@ impl ParserType {
         let multi_line = self.scanner().has_preceding_line_break();
         let properties = self.parse_delimited_list(
             ParsingContext::ObjectLiteralMembers,
-            ParserType::parse_object_literal_element,
+            || self.parse_object_literal_element(),
             Some(true),
         );
         if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
@@ -346,8 +346,9 @@ impl ParserType {
             || ignore_missing_open_brace
         {
             let multi_line = self.scanner().has_preceding_line_break();
-            let statements =
-                self.parse_list(ParsingContext::BlockStatements, ParserType::parse_statement);
+            let statements = self.parse_list(ParsingContext::BlockStatements, &mut || {
+                self.parse_statement()
+            });
             if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
                 unimplemented!()
             }
