@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -924,6 +925,66 @@ impl ParserType {
         None
     }
 
+    pub(super) fn parse_semicolon_after_property_name<
+        TType: Borrow<Node>,
+        TInitializer: Borrow<Node>,
+    >(
+        &self,
+        name: &Node, /*PropertyName*/
+        type_: Option<TType /*TypeNode*/>,
+        initializer: Option<TInitializer /*Expression*/>,
+    ) {
+        if self.token() == SyntaxKind::AtToken && !self.scanner().has_preceding_line_break() {
+            self.parse_error_at_current_token(&Diagnostics::Decorators_must_precede_the_name_and_all_keywords_of_property_declarations, None);
+            return;
+        }
+
+        if self.token() == SyntaxKind::OpenParenToken {
+            self.parse_error_at_current_token(
+                &Diagnostics::Cannot_start_a_function_call_in_a_type_annotation,
+                None,
+            );
+            self.next_token();
+            return;
+        }
+
+        if type_.is_some() && !self.can_parse_semicolon() {
+            if initializer.is_some() {
+                self.parse_error_at_current_token(
+                    &Diagnostics::_0_expected,
+                    Some(vec![token_to_string(SyntaxKind::SemicolonToken)
+                        .unwrap()
+                        .to_owned()]),
+                );
+            } else {
+                self.parse_error_at_current_token(
+                    &Diagnostics::Expected_for_property_initializer,
+                    None,
+                );
+            }
+            return;
+        }
+
+        if self.try_parse_semicolon() {
+            return;
+        }
+
+        if initializer.is_some() {
+            if self.token() == SyntaxKind::OpenBraceToken {
+                self.parse_error_at_current_token(
+                    &Diagnostics::_0_expected,
+                    Some(vec![token_to_string(SyntaxKind::SemicolonToken)
+                        .unwrap()
+                        .to_owned()]),
+                );
+            }
+
+            return;
+        }
+
+        self.parse_error_for_missing_semicolon_after(name);
+    }
+
     pub(super) fn parse_optional_token(&self, t: SyntaxKind) -> Option<Node> {
         if self.token() == t {
             return Some(self.parse_token_node().into());
@@ -951,7 +1012,7 @@ impl ParserType {
                     t,
                     false,
                     diagnostic_message.unwrap_or(&Diagnostics::_0_expected),
-                    Some(args.unwrap_or_else(|| vec![token_to_string(t).unwrap().to_string()])),
+                    Some(args.unwrap_or_else(|| vec![token_to_string(t).unwrap().to_owned()])),
                 ),
                 [MissingNode, TemplateLiteralLikeNode]
             )
