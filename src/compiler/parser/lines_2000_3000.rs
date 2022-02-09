@@ -194,9 +194,9 @@ impl ParserType {
     ) -> Node /*EntityName*/ {
         let pos = self.get_node_pos();
         let entity: Node = if allow_reserved_words {
-            self.parse_identifier_name(diagnostic_message).into()
+            self.parse_identifier_name(diagnostic_message)
         } else {
-            self.parse_identifier(diagnostic_message, None).into()
+            self.parse_identifier(diagnostic_message, None)
         };
         entity
     }

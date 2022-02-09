@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::{MissingNode, ParserType, ParsingContext, SpeculationKind};
+use super::{ParserType, ParsingContext, SpeculationKind};
 use crate::{
     add_range, attach_file_to_diagnostics, create_detached_diagnostic, find_index,
     get_jsdoc_comment_ranges, get_language_variant, get_spelling_suggestion, id_text,
@@ -1144,7 +1144,7 @@ impl ParserType {
         report_at_current_position: bool,
         diagnostic_message: &DiagnosticMessage,
         args: Option<Vec<String>>,
-    ) -> MissingNode {
+    ) -> Node {
         if report_at_current_position {
             self.parse_error_at_position(
                 self.scanner().get_start_pos().try_into().unwrap(),
@@ -1160,20 +1160,19 @@ impl ParserType {
 
         let pos = self.get_node_pos();
         let result = if kind == SyntaxKind::Identifier {
-            MissingNode::Identifier(self.factory.create_identifier(
-                self,
-                "",
-                Option::<NodeArray>::None,
-                None,
-            ))
+            self.factory
+                .create_identifier(self, "", Option::<NodeArray>::None, None)
+                .into()
         } else if is_template_literal_kind(kind) {
-            MissingNode::TemplateLiteralLikeNode(self.factory.create_template_literal_like_node(
-                self,
-                kind,
-                "".to_string(),
-                Some("".to_string()),
-                None,
-            ))
+            self.factory
+                .create_template_literal_like_node(
+                    self,
+                    kind,
+                    "".to_string(),
+                    Some("".to_string()),
+                    None,
+                )
+                .into()
         } else {
             unimplemented!()
         };
@@ -1189,19 +1188,21 @@ impl ParserType {
         is_identifier: bool,
         diagnostic_message: Option<&DiagnosticMessage>,
         private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Identifier {
+    ) -> Node /*Identifier*/ {
         if is_identifier {
             let pos = self.get_node_pos();
             let original_keyword_kind = self.token();
             let text = self.intern_identifier(&self.scanner().get_token_value());
             self.next_token_without_check();
             return self.finish_node(
-                self.factory.create_identifier(
-                    self,
-                    &text,
-                    Option::<NodeArray>::None,
-                    Some(original_keyword_kind),
-                ),
+                self.factory
+                    .create_identifier(
+                        self,
+                        &text,
+                        Option::<NodeArray>::None,
+                        Some(original_keyword_kind),
+                    )
+                    .into(),
                 pos,
                 None,
             );
@@ -1217,21 +1218,18 @@ impl ParserType {
             Diagnostics::Identifier_expected
         };
 
-        enum_unwrapped!(
-            self.create_missing_node(
-                SyntaxKind::Identifier,
-                report_at_current_position,
-                diagnostic_message.unwrap_or(&default_message),
-                Some(vec![msg_arg]),
-            ),
-            [MissingNode, Identifier]
+        self.create_missing_node(
+            SyntaxKind::Identifier,
+            report_at_current_position,
+            diagnostic_message.unwrap_or(&default_message),
+            Some(vec![msg_arg]),
         )
     }
 
     pub(super) fn parse_binding_identifier(
         &self,
         private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Identifier {
+    ) -> Node {
         self.create_identifier(
             self.is_binding_identifier(),
             None,
@@ -1243,7 +1241,7 @@ impl ParserType {
         &self,
         diagnostic_message: Option<&DiagnosticMessage>,
         private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Identifier {
+    ) -> Node {
         self.create_identifier(
             self.is_identifier(),
             diagnostic_message,
@@ -1254,7 +1252,7 @@ impl ParserType {
     pub(super) fn parse_identifier_name(
         &self,
         diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Identifier {
+    ) -> Node {
         self.create_identifier(
             token_is_identifier_or_keyword(self.token()),
             diagnostic_message,
@@ -1269,7 +1267,7 @@ impl ParserType {
     }
 
     pub(super) fn parse_property_name_worker(&self) -> Node /*PropertyName*/ {
-        self.parse_identifier_name(None).into()
+        self.parse_identifier_name(None)
     }
 
     pub(super) fn parse_property_name(&self) -> Node /*PropertyName*/ {

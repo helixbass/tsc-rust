@@ -116,21 +116,6 @@ pub(crate) fn parse_jsdoc_type_expression_for_tests(
     Parser().JSDocParser_parse_jsdoc_type_expression_for_tests(content, start, length)
 }
 
-#[ast_type(impl_from = false)]
-pub enum MissingNode {
-    Identifier(Identifier),
-    TemplateLiteralLikeNode(TemplateLiteralLikeNode),
-}
-
-impl From<MissingNode> for Node {
-    fn from(value: MissingNode) -> Self {
-        match value {
-            MissingNode::Identifier(value) => value.into(),
-            MissingNode::TemplateLiteralLikeNode(value) => value.into(),
-        }
-    }
-}
-
 #[allow(non_snake_case)]
 pub struct ParserType {
     pub(super) scanner: RefCell<Scanner>,

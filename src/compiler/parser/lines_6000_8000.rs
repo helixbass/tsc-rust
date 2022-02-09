@@ -194,7 +194,7 @@ impl ParserType {
         private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
     ) -> Rc<Node> {
         self.parse_binding_identifier(private_identifier_diagnostic_message)
-            .into()
+            .wrap()
     }
 
     pub(super) fn parse_variable_declaration_no_exclamation(&self) -> VariableDeclaration {
@@ -330,7 +330,7 @@ impl ParserType {
             decorators,
             modifiers,
             asterisk_token.map(Into::into),
-            name.map(Into::<Rc<Node>>::into),
+            name.map(|name| name.wrap()),
             type_parameters,
             parameters,
             type_.map(|type_| type_.wrap()),
@@ -448,7 +448,7 @@ impl ParserType {
             self,
             decorators,
             modifiers,
-            Into::<Rc<Node>>::into(name),
+            name.wrap(),
             type_parameters,
             heritage_clauses,
             members,
@@ -476,7 +476,7 @@ impl ParserType {
             self,
             decorators,
             modifiers,
-            Into::<Rc<Node>>::into(name),
+            name.wrap(),
             type_parameters,
             type_.wrap(),
         );

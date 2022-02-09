@@ -10,7 +10,7 @@ use crate::{
 };
 
 impl ParserType {
-    pub(super) fn parse_type_predicate_prefix(&self) -> Option<Identifier> {
+    pub(super) fn parse_type_predicate_prefix(&self) -> Option<Node> {
         let id = self.parse_identifier(None, None);
         if self.token() == SyntaxKind::IsKeyword && !self.scanner().has_preceding_line_break() {
             self.next_token();
@@ -254,7 +254,6 @@ impl ParserType {
         }
 
         self.parse_identifier(Some(&Diagnostics::Expression_expected), None)
-            .into()
     }
 
     pub(super) fn parse_argument_or_array_literal_element(&self) -> Node {
@@ -324,7 +323,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_optional_binding_identifier(&self) -> Option<Identifier> {
+    pub(super) fn parse_optional_binding_identifier(&self) -> Option<Node> {
         if self.is_binding_identifier() {
             Some(self.parse_binding_identifier(None))
         } else {

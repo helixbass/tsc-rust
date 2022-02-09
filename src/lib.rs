@@ -109,7 +109,7 @@ pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_returns,
     is_external_module, IncrementalParser, IncrementalParserSyntaxCursor,
     IncrementalParserSyntaxCursorInterface, IncrementalParserSyntaxCursorReparseTopLevelAwait,
-    MissingNode, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
+    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
 };
 use compiler::parser::{
     is_declaration_file_name, process_comment_pragmas, process_pragmas_into_fields, PragmaContext,

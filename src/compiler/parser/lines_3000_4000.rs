@@ -31,7 +31,7 @@ impl ParserType {
 
         let mut node = self.factory.create_type_parameter_declaration(
             self,
-            Into::<Rc<Node>>::into(name),
+            name.wrap(),
             constraint.map(|constraint| constraint.wrap()),
             default_type.map(|default_type| default_type.wrap()),
         );
@@ -478,7 +478,7 @@ impl ParserType {
                     .create_type_predicate_node(
                         self,
                         None,
-                        Into::<Rc<Node>>::into(type_predicate_variable),
+                        type_predicate_variable.wrap(),
                         Some(type_.wrap()),
                     )
                     .into(),
