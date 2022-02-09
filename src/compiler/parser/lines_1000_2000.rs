@@ -1417,10 +1417,10 @@ impl ParserType {
     }
 
     pub(super) fn can_follow_export_modifier(&self) -> bool {
-        self.token() != SyntaxKind::AsteriskToken
-            && self.token() != SyntaxKind::AsKeyword
-            && self.token() != SyntaxKind::OpenBraceToken
-            && self.can_follow_modifier()
+        !matches!(
+            self.token(),
+            SyntaxKind::AsteriskToken | SyntaxKind::AsKeyword | SyntaxKind::OpenBraceToken,
+        ) && self.can_follow_modifier()
     }
 
     pub(super) fn next_token_can_follow_export_modifier(&self) -> bool {
