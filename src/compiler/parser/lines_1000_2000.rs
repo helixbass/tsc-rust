@@ -6,14 +6,15 @@ use std::rc::Rc;
 use super::{MissingNode, ParserType, ParsingContext, SpeculationKind};
 use crate::{
     add_range, attach_file_to_diagnostics, create_detached_diagnostic, find_index,
-    get_jsdoc_comment_ranges, is_declaration_file_name, is_external_module, is_modifier_kind,
-    is_template_literal_kind, last_or_undefined, map_defined, process_comment_pragmas,
-    process_pragmas_into_fields, set_parent_recursive, set_text_range, set_text_range_pos_end,
-    set_text_range_pos_width, token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, Identifier,
-    IncrementalParser, IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind,
-    ScriptTarget, SyntaxKind, TextRange, TransformFlags,
+    get_jsdoc_comment_ranges, get_language_variant, is_declaration_file_name, is_external_module,
+    is_modifier_kind, is_template_literal_kind, last_or_undefined, map_defined,
+    process_comment_pragmas, process_pragmas_into_fields, set_parent_recursive, set_text_range,
+    set_text_range_pos_end, set_text_range_pos_width, token_is_identifier_or_keyword,
+    token_to_string, BaseNode, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    Diagnostics, Identifier, IncrementalParser, IncrementalParserSyntaxCursor,
+    IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeArrayOrVec, NodeFlags,
+    NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
+    TransformFlags,
 };
 use local_macros::enum_unwrapped;
 
@@ -335,7 +336,7 @@ impl ParserType {
         set_text_range_pos_width(
             &*source_file,
             0,
-            self.source_text().len().try_into().unwrap(),
+            self.source_text_as_chars().len().try_into().unwrap(),
         );
         self.set_external_module_indicator(&source_file);
 
@@ -350,7 +351,13 @@ impl ParserType {
 
         let source_file_as_source_file = source_file.as_source_file();
         source_file_as_source_file.set_text(self.source_text().to_string());
-        source_file_as_source_file.set_file_name(file_name.to_string());
+        source_file_as_source_file.set_bind_diagnostics(Some(vec![]));
+        source_file_as_source_file.set_bind_suggestion_diagnostics(None);
+        source_file_as_source_file.set_language_version(language_version);
+        source_file_as_source_file.set_file_name(file_name.to_owned());
+        source_file_as_source_file.set_language_variant(get_language_variant(script_kind));
+        source_file_as_source_file.set_is_declaration_file(is_declaration_file);
+        source_file_as_source_file.set_script_kind(script_kind);
 
         source_file
     }

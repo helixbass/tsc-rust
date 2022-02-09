@@ -73,14 +73,14 @@ pub struct SourceFile {
     referenced_files: RefCell<Option<Vec<FileReference>>>,
     type_reference_directives: RefCell<Option<Vec<FileReference>>>,
     lib_reference_directives: RefCell<Option<Vec<FileReference>>>,
-    language_variant: LanguageVariant,
-    is_declaration_file: bool,
+    language_variant: Cell<LanguageVariant>,
+    is_declaration_file: Cell<bool>,
 
     has_no_default_lib: Cell<bool>,
 
-    language_version: ScriptTarget,
+    language_version: Cell<ScriptTarget>,
 
-    pub(crate) script_kind: ScriptKind,
+    script_kind: Cell<ScriptKind>,
 
     external_module_indicator: RefCell<Option<Rc<Node>>>,
 
@@ -89,6 +89,9 @@ pub struct SourceFile {
     identifier_count: Cell<Option<usize>>,
 
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+
+    bind_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+    bind_suggestion_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
     js_doc_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
@@ -128,13 +131,15 @@ impl SourceFile {
             node_count: Cell::new(None),
             identifier_count: Cell::new(None),
             parse_diagnostics: RefCell::new(None),
+            bind_diagnostics: RefCell::new(None),
+            bind_suggestion_diagnostics: RefCell::new(None),
             js_doc_diagnostics: RefCell::new(None),
             line_map: RefCell::new(None),
-            language_version,
-            language_variant,
-            script_kind,
+            language_version: Cell::new(language_version),
+            language_variant: Cell::new(language_variant),
+            script_kind: Cell::new(script_kind),
             external_module_indicator: RefCell::new(None),
-            is_declaration_file,
+            is_declaration_file: Cell::new(is_declaration_file),
             has_no_default_lib: Cell::new(has_no_default_lib),
             comment_directives: RefCell::new(None),
             pragmas: RefCell::new(None),
@@ -168,6 +173,22 @@ impl SourceFile {
 
     pub fn set_has_no_default_lib(&self, has_no_default_lib: bool) {
         self.has_no_default_lib.set(has_no_default_lib);
+    }
+
+    pub fn language_version(&self) -> ScriptTarget {
+        self.language_version.get()
+    }
+
+    pub fn set_language_version(&self, language_version: ScriptTarget) {
+        self.language_version.set(language_version);
+    }
+
+    pub fn script_kind(&self) -> ScriptKind {
+        self.script_kind.get()
+    }
+
+    pub fn set_script_kind(&self, script_kind: ScriptKind) {
+        self.script_kind.set(script_kind);
     }
 
     pub fn amd_dependencies(&self) -> Ref<Vec<AmdDependency>> {
@@ -208,6 +229,22 @@ impl SourceFile {
 
     pub fn set_lib_reference_directives(&self, lib_reference_directives: Vec<FileReference>) {
         *self.lib_reference_directives.borrow_mut() = Some(lib_reference_directives);
+    }
+
+    pub fn language_variant(&self) -> LanguageVariant {
+        self.language_variant.get()
+    }
+
+    pub fn set_language_variant(&self, language_variant: LanguageVariant) {
+        self.language_variant.set(language_variant);
+    }
+
+    pub fn is_declaration_file(&self) -> bool {
+        self.is_declaration_file.get()
+    }
+
+    pub fn set_is_declaration_file(&self, is_declaration_file: bool) {
+        self.is_declaration_file.set(is_declaration_file);
     }
 
     pub(crate) fn maybe_external_module_indicator(&self) -> Option<Rc<Node>> {
@@ -253,6 +290,27 @@ impl SourceFile {
 
     pub fn set_parse_diagnostics(&self, parse_diagnostics: Vec<Rc<Diagnostic>>) {
         *self.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
+    }
+
+    pub fn bind_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
+        RefMut::map(self.bind_diagnostics.borrow_mut(), |option| {
+            option.as_mut().unwrap()
+        })
+    }
+
+    pub fn set_bind_diagnostics(&self, bind_diagnostics: Option<Vec<Rc<Diagnostic>>>) {
+        *self.bind_diagnostics.borrow_mut() = bind_diagnostics;
+    }
+
+    pub fn maybe_bind_suggestion_diagnostics(&self) -> RefMut<Option<Vec<Rc<Diagnostic>>>> {
+        self.bind_suggestion_diagnostics.borrow_mut()
+    }
+
+    pub fn set_bind_suggestion_diagnostics(
+        &self,
+        bind_suggestion_diagnostics: Option<Vec<Rc<Diagnostic>>>,
+    ) {
+        *self.bind_suggestion_diagnostics.borrow_mut() = bind_suggestion_diagnostics;
     }
 
     pub fn maybe_js_doc_diagnostics(&self) -> RefMut<Option<Vec<Rc<Diagnostic>>>> {
