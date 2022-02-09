@@ -814,7 +814,9 @@ impl ParserType {
         } {
             self.parse_error_at_current_token(
                 &Diagnostics::_0_expected,
-                token_to_string(SyntaxKind::SemicolonToken).map(|string| vec![string.to_owned()]),
+                Some(vec![token_to_string(SyntaxKind::SemicolonToken)
+                    .unwrap()
+                    .to_owned()]),
             );
             return;
         }
@@ -985,11 +987,16 @@ impl ParserType {
         self.parse_error_for_missing_semicolon_after(name);
     }
 
-    pub(super) fn parse_optional_token(&self, t: SyntaxKind) -> Option<Node> {
-        if self.token() == t {
-            return Some(self.parse_token_node().into());
+    pub(super) fn parse_expected_jsdoc(&self, kind: SyntaxKind /*JSDocSyntaxKind*/) -> bool {
+        if self.token() == kind {
+            self.next_token_jsdoc();
+            return true;
         }
-        None
+        self.parse_error_at_current_token(
+            &Diagnostics::_0_expected,
+            token_to_string(kind).map(|string| vec![string.to_owned()]),
+        );
+        false
     }
 
     pub(super) fn parse_optional(&self, t: SyntaxKind) -> bool {
@@ -1000,6 +1007,20 @@ impl ParserType {
         false
     }
 
+    pub(super) fn parse_optional_token(&self, t: SyntaxKind) -> Option<Node> {
+        if self.token() == t {
+            return Some(self.parse_token_node().into());
+        }
+        None
+    }
+
+    pub(super) fn parse_optional_token_jsdoc(&self, t: SyntaxKind) -> Option<Node> {
+        if self.token() == t {
+            return Some(self.parse_token_node_jsdoc().into());
+        }
+        None
+    }
+
     pub(super) fn parse_expected_token(
         &self,
         t: SyntaxKind,
@@ -1007,14 +1028,23 @@ impl ParserType {
         args: Option<Vec<String>>,
     ) -> Node {
         self.parse_optional_token(t).unwrap_or_else(|| {
-            enum_unwrapped!(
-                self.create_missing_node(
-                    t,
-                    false,
-                    diagnostic_message.unwrap_or(&Diagnostics::_0_expected),
-                    Some(args.unwrap_or_else(|| vec![token_to_string(t).unwrap().to_owned()])),
-                ),
-                [MissingNode, TemplateLiteralLikeNode]
+            self.create_missing_node(
+                t,
+                false,
+                diagnostic_message.unwrap_or(&Diagnostics::_0_expected),
+                Some(args.unwrap_or_else(|| vec![token_to_string(t).unwrap().to_owned()])),
+            )
+            .into()
+        })
+    }
+
+    pub(super) fn parse_expected_token_jsdoc(&self, t: SyntaxKind) -> Node {
+        self.parse_optional_token_jsdoc(t).unwrap_or_else(|| {
+            self.create_missing_node(
+                t,
+                false,
+                &Diagnostics::_0_expected,
+                Some(vec![token_to_string(t).unwrap().to_owned()]),
             )
             .into()
         })
@@ -1024,6 +1054,13 @@ impl ParserType {
         let pos = self.get_node_pos();
         let kind = self.token();
         self.next_token();
+        self.finish_node(self.factory.create_token(self, kind), pos, None)
+    }
+
+    pub(super) fn parse_token_node_jsdoc(&self) -> BaseNode {
+        let pos = self.get_node_pos();
+        let kind = self.token();
+        self.next_token_jsdoc();
         self.finish_node(self.factory.create_token(self, kind), pos, None)
     }
 

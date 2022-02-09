@@ -122,6 +122,15 @@ pub enum MissingNode {
     TemplateLiteralLikeNode(TemplateLiteralLikeNode),
 }
 
+impl From<MissingNode> for Node {
+    fn from(value: MissingNode) -> Self {
+        match value {
+            MissingNode::Identifier(value) => value.into(),
+            MissingNode::TemplateLiteralLikeNode(value) => value.into(),
+        }
+    }
+}
+
 #[allow(non_snake_case)]
 pub struct ParserType {
     pub(super) scanner: RefCell<Scanner>,
