@@ -5,11 +5,12 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_outer_expression, BaseNodeFactory, BaseUnparsedNode, Bundle, EnumMember, InputFiles,
-    LanguageVariant, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeFlags, NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind, ScriptTarget,
-    ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode, SyntaxKind,
-    TransformFlags, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
+    is_outer_expression, BaseNodeFactory, BaseUnparsedNode, Bundle, EnumMember, FileReference,
+    InputFiles, LanguageVariant, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind,
+    ScriptTarget, ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode,
+    SyntaxKind, TransformFlags, UnparsedPrepend, UnparsedPrologue, UnparsedSource,
+    UnparsedTextLike,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -135,6 +136,50 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(Some(&*node.end_of_file_token)),
         );
         node
+    }
+
+    pub fn update_source_file<TStatements: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*SourceFile*/
+        statements: TStatements,
+        is_declaration_file: Option<bool>,
+        referenced_files: Option<Vec<FileReference>>,
+        type_reference_directives: Option<Vec<FileReference>>,
+        has_no_default_lib: Option<bool>,
+        lib_reference_directives: Option<Vec<FileReference>>,
+    ) -> Rc<Node /*SourceFile*/> {
+        // TODO
+        // let node_as_source_file = node.as_source_file();
+        // let is_declaration_file = is_declaration_file.unwrap_or_else(|| node_as_source_file.is_declaration_file());
+        // let referenced_files = referenced_files.unwrap_or_else(|| node_as_source_file.referenced_files().clone());
+        // let type_reference_directives = type_reference_directives.unwrap_or_else(|| node_as_source_file.type_reference_directives().clone());
+        // let has_no_default_lib = has_no_default_lib.unwrap_or_else(|| node_as_source_file.has_no_default_lib());
+        // let lib_reference_directives = lib_reference_directives.unwrap_or_else(|| node_as_source_file.lib_reference_directives().clone());
+        // let statements = statements.into();
+        // let statements_as_vec = match statements.clone() {
+        //     NodeArrayOrVec::NodeArray(statements) => statements.to_vec(),
+        //     NodeArrayOrVec::Vec(statements) => statements,
+        // };
+        //     if !(node_as_source_file.statements.len() == statements_as_vec.len()
+        //         && node_as_source_file.statements.iter().enumerate().all(
+        //             |(index, node_statement)| Rc::ptr_eq(node_statement, &statements_as_vec[index]),
+        //         ))
+        // {
+        //     // self.update(
+        //     //     self.create_call_expression(
+        //     //         base_factory,
+        //     //         expression.node_wrapper(),
+        //     //         type_arguments.map(|type_arguments| type_arguments.to_vec()),
+        //     //         Some(arguments_array.to_vec()),
+        //     //     )
+        //     //     .into(),
+        //     //     node,
+        //     // )
+        // } else {
+        //     node.node_wrapper()
+        // }
+        node.node_wrapper()
     }
 
     pub fn create_bundle(

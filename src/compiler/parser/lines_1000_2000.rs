@@ -8,7 +8,7 @@ use crate::{
     add_range, attach_file_to_diagnostics, create_detached_diagnostic, find_index,
     get_jsdoc_comment_ranges, is_declaration_file_name, is_external_module, is_modifier_kind,
     is_template_literal_kind, last_or_undefined, map_defined, process_comment_pragmas,
-    process_pragmas_into_fields, set_parent_recursive, set_text_range_pos_end,
+    process_pragmas_into_fields, set_parent_recursive, set_text_range, set_text_range_pos_end,
     set_text_range_pos_width, token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_,
     DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, Identifier,
     IncrementalParser, IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node,
@@ -68,7 +68,6 @@ impl ParserType {
             end_of_file_token.into(),
             source_flags,
         );
-        let source_file: Rc<Node> = source_file.wrap();
         let source_file_as_source_file = source_file.as_source_file();
 
         process_comment_pragmas(source_file_as_source_file, self.source_text());
@@ -135,8 +134,11 @@ impl ParserType {
         node
     }
 
-    pub(super) fn reparse_top_level_await(&self, source_file: &Node /*SourceFile*/) -> Node {
-        let saved_syntax_cursor = self.maybe_syntax_cursor();
+    pub(super) fn reparse_top_level_await(
+        &self,
+        source_file: &Node, /*SourceFile*/
+    ) -> Rc<Node> {
+        let saved_syntax_cursor = self.take_syntax_cursor();
         let base_syntax_cursor = IncrementalParser().create_syntax_cursor(source_file);
         self.set_syntax_cursor(Some(
             IncrementalParserSyntaxCursorReparseTopLevelAwait::new(Rc::new(base_syntax_cursor))
@@ -235,7 +237,46 @@ impl ParserType {
             });
         }
 
-        unimplemented!()
+        if let Some(pos) = pos {
+            let prev_statement = &source_file_as_source_file.statements[pos];
+            add_range(
+                &mut statements,
+                Some(&source_file_as_source_file.statements),
+                Some(pos.try_into().unwrap()),
+                None,
+            );
+
+            let diagnostic_start = find_index(
+                &saved_parse_diagnostics,
+                |diagnostic, _| diagnostic.start() >= prev_statement.pos(),
+                None,
+            );
+            if let Some(diagnostic_start) = diagnostic_start {
+                add_range(
+                    &mut *parse_diagnostics_ref,
+                    Some(&saved_parse_diagnostics),
+                    Some(diagnostic_start.try_into().unwrap()),
+                    None,
+                );
+            }
+        }
+
+        self.set_syntax_cursor(saved_syntax_cursor);
+        let new_statements = self.factory.create_node_array(Some(statements), None);
+        set_text_range(
+            &new_statements,
+            Some(&source_file_as_source_file.statements),
+        );
+        self.factory.update_source_file(
+            self,
+            source_file,
+            new_statements,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
     }
 
     pub(super) fn contains_possible_top_level_await(&self, node: &Node) -> bool {
@@ -286,13 +327,13 @@ impl ParserType {
         statements: TNodes,
         end_of_file_token: Rc<Node /*EndOfFileToken*/>,
         flags: NodeFlags,
-    ) -> Node {
-        let mut source_file: Node = self
+    ) -> Rc<Node> {
+        let mut source_file: Rc<Node> = self
             .factory
             .create_source_file(self, statements, end_of_file_token, flags)
             .into();
         set_text_range_pos_width(
-            &source_file,
+            &*source_file,
             0,
             self.source_text().len().try_into().unwrap(),
         );

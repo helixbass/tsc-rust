@@ -364,6 +364,10 @@ impl ParserType {
         self.syntax_cursor.borrow()
     }
 
+    pub(super) fn take_syntax_cursor(&self) -> Option<IncrementalParserSyntaxCursor> {
+        self.syntax_cursor.borrow_mut().take()
+    }
+
     pub(super) fn set_syntax_cursor(&self, syntax_cursor: Option<IncrementalParserSyntaxCursor>) {
         *self.syntax_cursor.borrow_mut() = syntax_cursor;
     }
@@ -657,17 +661,15 @@ impl ParserType {
                 .wrap();
         }
 
-        let source_file: Rc<Node> = self
-            .create_source_file(
-                file_name,
-                ScriptTarget::ES2015,
-                ScriptKind::JSON,
-                false,
-                statements,
-                end_of_file_token,
-                self.source_flags(),
-            )
-            .wrap();
+        let source_file = self.create_source_file(
+            file_name,
+            ScriptTarget::ES2015,
+            ScriptKind::JSON,
+            false,
+            statements,
+            end_of_file_token,
+            self.source_flags(),
+        );
 
         if set_parent_nodes {
             self.fixup_parent_references(&source_file);
