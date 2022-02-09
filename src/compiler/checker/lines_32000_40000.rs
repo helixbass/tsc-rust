@@ -270,23 +270,24 @@ impl TypeChecker {
             // }
             Node::TemplateLiteralLikeNode(template_literal_like_node) => {
                 let type_: Rc<Type> =
-                    self.get_string_literal_type(template_literal_like_node.text());
+                    self.get_string_literal_type(&*template_literal_like_node.text());
                 self.get_fresh_type_of_literal_type(&type_)
             }
             Node::StringLiteral(string_literal) => {
-                let type_: Rc<Type> = self.get_string_literal_type(string_literal.text());
+                let type_: Rc<Type> = self.get_string_literal_type(&*string_literal.text());
                 self.get_fresh_type_of_literal_type(&type_)
             }
             Node::NumericLiteral(numeric_literal) => {
                 self.check_grammar_numeric_literal(node);
-                let type_: Rc<Type> = self.get_number_literal_type(numeric_literal.text().into());
+                let type_: Rc<Type> =
+                    self.get_number_literal_type(numeric_literal.text().as_str().into());
                 self.get_fresh_type_of_literal_type(&type_)
             }
             Node::BigIntLiteral(big_int_literal) => {
                 let type_: Rc<Type> = self
                     .get_big_int_literal_type(PseudoBigInt::new(
                         false,
-                        parse_pseudo_big_int(big_int_literal.text()),
+                        parse_pseudo_big_int(&*big_int_literal.text()),
                     ))
                     .into();
                 self.get_fresh_type_of_literal_type(&type_)

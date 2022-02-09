@@ -12,13 +12,13 @@ use crate::{
     is_modifier_kind, is_tagged_template_expression, is_template_literal_kind, last_or_undefined,
     map_defined, process_comment_pragmas, process_pragmas_into_fields, set_parent_recursive,
     set_text_range, set_text_range_pos_end, set_text_range_pos_width, skip_trivia, starts_with,
-    text_to_keyword_obj, token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, Identifier,
-    IncrementalParser, IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node,
-    NodeArray, NodeArrayOrVec, NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind,
-    ScriptTarget, SyntaxKind, TextRange, TransformFlags,
+    text_to_keyword_obj, token_is_identifier_or_keyword, token_to_string, BaseNode,
+    ComputedPropertyName, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    Diagnostics, IncrementalParser, IncrementalParserSyntaxCursor,
+    IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeArrayOrVec, NodeFlags,
+    NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
+    TransformFlags,
 };
-use local_macros::enum_unwrapped;
 
 impl ParserType {
     pub(super) fn clear_state(&mut self) {
@@ -1311,16 +1311,75 @@ impl ParserType {
 
     pub(super) fn is_literal_property_name(&self) -> bool {
         token_is_identifier_or_keyword(self.token())
-            || self.token() == SyntaxKind::StringLiteral
-            || self.token() == SyntaxKind::NumericLiteral
+            || matches!(
+                self.token(),
+                SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral
+            )
     }
 
-    pub(super) fn parse_property_name_worker(&self) -> Node /*PropertyName*/ {
+    pub(super) fn is_assertion_key(&self) -> bool {
+        token_is_identifier_or_keyword(self.token()) || self.token() == SyntaxKind::StringLiteral
+    }
+
+    pub(super) fn parse_property_name_worker(&self, allow_computed_property_names: bool) -> Node /*PropertyName*/
+    {
+        if matches!(
+            self.token(),
+            SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral
+        ) {
+            let node = self.parse_literal_node();
+            let node_as_literal_like_node = node.as_literal_like_node();
+            node_as_literal_like_node
+                .set_text(self.intern_identifier(&*node_as_literal_like_node.text()));
+            return node;
+        }
+        if allow_computed_property_names && self.token() == SyntaxKind::OpenBracketToken {
+            return self.parse_computed_property_name().into();
+        }
+        if self.token() == SyntaxKind::PrivateIdentifier {
+            return self.parse_private_identifier();
+        }
         self.parse_identifier_name(None)
     }
 
     pub(super) fn parse_property_name(&self) -> Node /*PropertyName*/ {
-        self.parse_property_name_worker()
+        self.parse_property_name_worker(true)
+    }
+
+    pub(super) fn parse_computed_property_name(&self) -> ComputedPropertyName {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
+        let expression = self.allow_in_and(|| self.parse_expression());
+        self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
+        self.finish_node(
+            self.factory
+                .create_computed_property_name(self, expression.wrap()),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn intern_private_identifier(&self, text: &str) -> String {
+        let private_identifiers = self.private_identifiers();
+        let mut private_identifiers = private_identifiers.borrow_mut();
+        let mut private_identifier: Option<String> = private_identifiers
+            .get(text)
+            .map(|private_identifier| private_identifier.to_owned());
+        if private_identifier.is_none() {
+            private_identifier = Some(text.to_owned());
+            private_identifiers.insert(text.to_owned(), private_identifier.clone().unwrap());
+        }
+        private_identifier.unwrap()
+    }
+
+    pub(super) fn parse_private_identifier(&self) -> Node {
+        let pos = self.get_node_pos();
+        let node = self.factory.create_private_identifier(
+            self,
+            &self.intern_private_identifier(&self.scanner().get_token_text()),
+        );
+        self.next_token();
+        self.finish_node(node.into(), pos, None)
     }
 
     pub(super) fn next_token_is_on_same_line_and_can_follow_modifier(&self) -> bool {

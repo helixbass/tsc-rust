@@ -406,7 +406,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 format!(
                     "'{}'",
                     escape_text(
-                        node_as_string_literal.text(),
+                        &*node_as_string_literal.text(),
                         Some(CharacterCodes::single_quote)
                     )
                 )
@@ -414,7 +414,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 format!(
                     "\"{}\"",
                     escape_text(
-                        node_as_string_literal.text(),
+                        &*node_as_string_literal.text(),
                         Some(CharacterCodes::double_quote)
                     )
                 )
@@ -434,7 +434,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 .clone()
                 .unwrap_or_else(|| {
                     escape_template_substitution(&escape_text(
-                        node_as_template_literal_like_node.text(),
+                        &*node_as_template_literal_like_node.text(),
                         Some(CharacterCodes::backtick),
                     ))
                 });
@@ -940,7 +940,7 @@ fn is_void_zero(node: &Node) -> bool {
     }
     let node_expression_as_numeric_literal =
         node_as_void_expression.expression.as_numeric_literal();
-    node_expression_as_numeric_literal.text() == "0"
+    &*node_expression_as_numeric_literal.text() == "0"
 }
 
 pub fn get_element_or_property_access_argument_expression_or_name(
@@ -969,7 +969,7 @@ pub fn get_element_or_property_access_name(node: &Node, /*AccessExpression*/) ->
         }
         if is_string_literal_like(&*name) || is_numeric_literal(&*name) {
             return Some(escape_leading_underscores(
-                name.as_literal_like_node().text(),
+                &*name.as_literal_like_node().text(),
             ));
         }
         None
@@ -1427,7 +1427,7 @@ pub fn get_escaped_text_of_identifier_or_literal(node: &Node) -> __String {
     if is_member_name(node) {
         node.as_member_name().escaped_text()
     } else {
-        escape_leading_underscores(node.as_literal_like_node().text())
+        escape_leading_underscores(&*node.as_literal_like_node().text())
     }
 }
 

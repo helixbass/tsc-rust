@@ -293,8 +293,12 @@ fn get_ast_struct_interface_impl(
         "LiteralLikeNodeInterface" => {
             quote! {
                 impl crate::LiteralLikeNodeInterface for #ast_type_name {
-                    fn text(&self) -> &str {
+                    fn text(&self) -> ::std::cell::Ref<String> {
                         self.#first_field_name.text()
+                    }
+
+                    fn set_text(&self, text: String) {
+                        self.#first_field_name.set_text(text)
                     }
 
                     fn is_unterminated(&self) -> Option<bool> {
@@ -660,9 +664,15 @@ fn get_ast_enum_interface_impl(
         "LiteralLikeNodeInterface" => {
             quote! {
                 impl crate::LiteralLikeNodeInterface for #ast_type_name {
-                    fn text(&self) -> &str {
+                    fn text(&self) -> ::std::cell::Ref<String> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.text()),*
+                        }
+                    }
+
+                    fn set_text(&self, text: String) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_text(text)),*
                         }
                     }
 

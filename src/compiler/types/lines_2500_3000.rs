@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::cell::Cell;
+use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
 use super::{
@@ -275,7 +275,7 @@ impl JsxExpression {
 #[ast_type]
 pub struct JsxText {
     _node: BaseNode,
-    pub text: String,
+    text: RefCell<String>,
     pub is_unterminated: Cell<Option<bool>>,
     pub has_extended_unicode_escape: Cell<Option<bool>>,
     pub contains_only_trivia_white_spaces: bool,
@@ -285,7 +285,7 @@ impl JsxText {
     pub fn new(base_node: BaseNode, text: String, contains_only_trivia_white_spaces: bool) -> Self {
         Self {
             _node: base_node,
-            text,
+            text: RefCell::new(text),
             is_unterminated: Cell::new(None),
             has_extended_unicode_escape: Cell::new(None),
             contains_only_trivia_white_spaces,
@@ -294,8 +294,12 @@ impl JsxText {
 }
 
 impl LiteralLikeNodeInterface for JsxText {
-    fn text(&self) -> &str {
-        &self.text
+    fn text(&self) -> Ref<String> {
+        self.text.borrow()
+    }
+
+    fn set_text(&self, text: String) {
+        *self.text.borrow_mut() = text;
     }
 
     fn is_unterminated(&self) -> Option<bool> {

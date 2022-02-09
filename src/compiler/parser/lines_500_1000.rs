@@ -141,7 +141,7 @@ pub struct ParserType {
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
     pub(super) node_count: Cell<Option<usize>>,
     pub(super) identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
-    pub(super) private_identifiers: RefCell<Option<HashMap<String, String>>>,
+    pub(super) private_identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
     pub(super) identifier_count: Cell<Option<usize>>,
     pub(super) parsing_context: Cell<Option<ParsingContext>>,
     pub(super) not_parenthesized_arrow: RefCell<Option<HashSet<usize>>>,
@@ -405,14 +405,17 @@ impl ParserType {
         *self.identifiers.borrow_mut() = identifiers;
     }
 
-    pub(super) fn private_identifiers(&self) -> RefMut<HashMap<String, String>> {
-        RefMut::map(self.private_identifiers.borrow_mut(), |option| {
-            option.as_mut().unwrap()
+    pub(super) fn private_identifiers(&self) -> Ref<Rc<RefCell<HashMap<String, String>>>> {
+        Ref::map(self.private_identifiers.borrow(), |option| {
+            option.as_ref().unwrap()
         })
     }
 
-    pub(super) fn set_private_identifiers(&self, private_identifiers: HashMap<String, String>) {
-        *self.private_identifiers.borrow_mut() = Some(private_identifiers);
+    pub(super) fn set_private_identifiers(
+        &self,
+        private_identifiers: Option<Rc<RefCell<HashMap<String, String>>>>,
+    ) {
+        *self.private_identifiers.borrow_mut() = private_identifiers;
     }
 
     pub(super) fn identifier_count(&self) -> usize {
@@ -718,7 +721,7 @@ impl ParserType {
         self.set_parse_diagnostics(Some(vec![]));
         self.set_parsing_context(ParsingContext::None);
         self.set_identifiers(Some(Rc::new(RefCell::new(HashMap::new()))));
-        self.set_private_identifiers(HashMap::new());
+        self.set_private_identifiers(Some(Rc::new(RefCell::new(HashMap::new()))));
         self.set_identifier_count(0);
         self.set_node_count(0);
         self.set_source_flags(NodeFlags::None);
