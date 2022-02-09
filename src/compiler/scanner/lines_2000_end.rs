@@ -428,7 +428,7 @@ impl Scanner {
         self.scan_jsx_attribute_value(on_error)
     }
 
-    pub(super) fn scan_js_doc_token(&self, on_error: Option<ErrorCallback>) -> SyntaxKind /*JSDocSyntaxKind*/
+    pub fn scan_js_doc_token(&self, on_error: Option<ErrorCallback>) -> SyntaxKind /*JSDocSyntaxKind*/
     {
         self.set_start_pos(self.pos());
         self.set_token_pos(self.pos());

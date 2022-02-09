@@ -595,6 +595,14 @@ impl ParserType {
         self.next_token_without_check()
     }
 
+    pub(super) fn next_token_jsdoc(&self) -> SyntaxKind /*JSDocSyntaxKind*/ {
+        let current_token = self
+            .scanner()
+            .scan_js_doc_token(Some(&|message, length| self.scan_error(message, length)));
+        self.set_current_token(current_token);
+        self.current_token()
+    }
+
     pub(super) fn re_scan_template_token(&self, is_tagged_template: bool) -> SyntaxKind {
         self.set_current_token(self.scanner().re_scan_template_token(
             Some(&|message, length| self.scan_error(message, length)),
