@@ -268,6 +268,23 @@ impl ParserType {
         false
     }
 
+    pub(super) fn is_in_some_parsing_context(&self) -> bool {
+        let max = ParsingContext::Count;
+        let mut shift = 0;
+        let mut kind = ParsingContext::from_bits(1 << shift).unwrap();
+        while kind < max {
+            if self.parsing_context().intersects(kind) {
+                if self.is_list_element(kind, true) || self.is_list_terminator(kind) {
+                    return true;
+                }
+            }
+            shift += 1;
+            kind = ParsingContext::from_bits(1 << shift).unwrap();
+        }
+
+        false
+    }
+
     pub(super) fn parse_list<TItem: Into<Node>>(
         &self,
         kind: ParsingContext,
