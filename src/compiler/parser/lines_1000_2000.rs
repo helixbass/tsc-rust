@@ -603,6 +603,19 @@ impl ParserType {
         self.current_token()
     }
 
+    pub(super) fn re_scan_greater_token(&self) -> SyntaxKind {
+        self.set_current_token(self.scanner().re_scan_greater_token());
+        self.current_token()
+    }
+
+    pub(super) fn re_scan_slash_token(&self) -> SyntaxKind {
+        self.set_current_token(
+            self.scanner()
+                .re_scan_slash_token(Some(&|message, length| self.scan_error(message, length))),
+        );
+        self.current_token()
+    }
+
     pub(super) fn re_scan_template_token(&self, is_tagged_template: bool) -> SyntaxKind {
         self.set_current_token(self.scanner().re_scan_template_token(
             Some(&|message, length| self.scan_error(message, length)),
@@ -623,6 +636,37 @@ impl ParserType {
 
     pub(super) fn re_scan_less_than_token(&self) -> SyntaxKind {
         self.set_current_token(self.scanner().re_scan_less_than_token());
+        self.current_token()
+    }
+
+    pub(super) fn re_scan_hash_token(&self) -> SyntaxKind {
+        self.set_current_token(self.scanner().re_scan_hash_token());
+        self.current_token()
+    }
+
+    pub(super) fn scan_jsx_identifier(&self) -> SyntaxKind {
+        self.set_current_token(
+            self.scanner()
+                .scan_jsx_identifier(Some(&|message, length| self.scan_error(message, length))),
+        );
+        self.current_token()
+    }
+
+    pub(super) fn scan_jsx_text(&self) -> SyntaxKind {
+        self.set_current_token(self.scanner().scan_jsx_token(
+            Some(&|message, length| self.scan_error(message, length)),
+            None,
+        ));
+        self.current_token()
+    }
+
+    pub(super) fn scan_jsx_attribute_value(&self) -> SyntaxKind {
+        self.set_current_token(
+            self.scanner()
+                .scan_jsx_attribute_value(Some(&|message, length| {
+                    self.scan_error(message, length)
+                })),
+        );
         self.current_token()
     }
 
