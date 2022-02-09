@@ -6,15 +6,16 @@ use std::rc::Rc;
 use super::{MissingNode, ParserType, ParsingContext, SpeculationKind};
 use crate::{
     add_range, attach_file_to_diagnostics, create_detached_diagnostic, find_index,
-    get_jsdoc_comment_ranges, get_language_variant, is_declaration_file_name, is_external_module,
-    is_keyword, is_modifier_kind, is_template_literal_kind, last_or_undefined, map_defined,
-    process_comment_pragmas, process_pragmas_into_fields, set_parent_recursive, set_text_range,
-    set_text_range_pos_end, set_text_range_pos_width, text_to_keyword_obj,
-    token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, Identifier, IncrementalParser,
-    IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node, NodeArray,
-    NodeArrayOrVec, NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget,
-    SyntaxKind, TextRange, TransformFlags,
+    get_jsdoc_comment_ranges, get_language_variant, get_spelling_suggestion, id_text,
+    is_declaration_file_name, is_external_module, is_identifier, is_identifier_text, is_keyword,
+    is_modifier_kind, is_tagged_template_expression, is_template_literal_kind, last_or_undefined,
+    map_defined, process_comment_pragmas, process_pragmas_into_fields, set_parent_recursive,
+    set_text_range, set_text_range_pos_end, set_text_range_pos_width, skip_trivia, starts_with,
+    text_to_keyword_obj, token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_,
+    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, Identifier,
+    IncrementalParser, IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind,
+    ScriptTarget, SyntaxKind, TextRange, TransformFlags,
 };
 use local_macros::enum_unwrapped;
 
@@ -777,8 +778,150 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_error_for_missing_semicolon_after(&self, node: &Node) {
-        unimplemented!()
+    pub(super) fn parse_error_for_missing_semicolon_after(
+        &self,
+        node: &Node, /*Expression | PropertyName*/
+    ) {
+        if is_tagged_template_expression(node) {
+            let node_as_tagged_template_expression = node.as_tagged_template_expression();
+            self.parse_error_at(
+                skip_trivia(
+                    self.source_text_as_chars(),
+                    node_as_tagged_template_expression.template.pos(),
+                    None,
+                    None,
+                    None,
+                ),
+                node_as_tagged_template_expression.end(),
+                &Diagnostics::Module_declaration_names_may_only_use_or_quoted_strings,
+                None,
+            );
+            return;
+        }
+
+        let expression_text = if is_identifier(node) {
+            Some(id_text(node))
+        } else {
+            None
+        };
+
+        if match expression_text.as_ref() {
+            None => true,
+            Some(expression_text) => {
+                !is_identifier_text(expression_text, Some(self.language_version()), None)
+            }
+        } {
+            self.parse_error_at_current_token(
+                &Diagnostics::_0_expected,
+                token_to_string(SyntaxKind::SemicolonToken).map(|string| vec![string.to_owned()]),
+            );
+            return;
+        }
+        let expression_text = expression_text.unwrap();
+
+        let pos = skip_trivia(self.source_text_as_chars(), node.pos(), None, None, None);
+
+        match expression_text.as_str() {
+            "const" | "let" | "var" => {
+                self.parse_error_at(
+                    pos,
+                    node.end(),
+                    &Diagnostics::Variable_declaration_not_allowed_at_this_location,
+                    None,
+                );
+                return;
+            }
+            "declare" => {
+                return;
+            }
+            "interface" => {
+                self.parse_error_for_invalid_name(
+                    &Diagnostics::Interface_name_cannot_be_0,
+                    &Diagnostics::Interface_must_be_given_a_name,
+                    SyntaxKind::OpenBraceToken,
+                );
+                return;
+            }
+            "is" => {
+                self.parse_error_at(
+                    pos,
+                    self.scanner().get_text_pos().try_into().unwrap(),
+                    &Diagnostics::A_type_predicate_is_only_allowed_in_return_type_position_for_functions_and_methods,
+                    None,
+                );
+                return;
+            }
+            "module" | "namespace" => {
+                self.parse_error_for_invalid_name(
+                    &Diagnostics::Namespace_name_cannot_be_0,
+                    &Diagnostics::Namespace_must_be_given_a_name,
+                    SyntaxKind::OpenBraceToken,
+                );
+                return;
+            }
+            "type" => {
+                self.parse_error_for_invalid_name(
+                    &Diagnostics::Type_alias_name_cannot_be_0,
+                    &Diagnostics::Type_alias_must_be_given_a_name,
+                    SyntaxKind::EqualsToken,
+                );
+                return;
+            }
+            _ => (),
+        }
+
+        let suggestion: Option<String> =
+            get_spelling_suggestion(&expression_text, &viable_keyword_suggestions, |n| {
+                Some((*n).to_owned())
+            })
+            .map(|suggestion| (*suggestion).to_owned())
+            .or_else(|| self.get_space_suggestion(&expression_text));
+        if let Some(suggestion) = suggestion {
+            self.parse_error_at(
+                pos,
+                node.end(),
+                &Diagnostics::Unknown_keyword_or_identifier_Did_you_mean_0,
+                Some(vec![suggestion]),
+            );
+            return;
+        }
+
+        if self.token() == SyntaxKind::Unknown {
+            return;
+        }
+
+        self.parse_error_at(
+            pos,
+            node.end(),
+            &Diagnostics::Unexpected_keyword_or_identifier,
+            None,
+        );
+    }
+
+    pub(super) fn parse_error_for_invalid_name(
+        &self,
+        name_diagnostic: &DiagnosticMessage,
+        blank_diagnostic: &DiagnosticMessage,
+        token_if_blank_name: SyntaxKind,
+    ) {
+        if self.token() == token_if_blank_name {
+            self.parse_error_at_current_token(blank_diagnostic, None);
+        } else {
+            self.parse_error_at_current_token(
+                name_diagnostic,
+                Some(vec![self.scanner().get_token_value()]),
+            );
+        }
+    }
+
+    pub(super) fn get_space_suggestion(&self, expression_text: &str) -> Option<String> {
+        for keyword in viable_keyword_suggestions.iter() {
+            if expression_text.len() > keyword.len() + 2 && starts_with(expression_text, keyword) {
+                return Some(format!("{} {}", keyword, &expression_text[keyword.len()..]));
+            }
+        }
+
+        None
     }
 
     pub(super) fn parse_optional_token(&self, t: SyntaxKind) -> Option<Node> {
@@ -1082,7 +1225,7 @@ lazy_static! {
     static ref viable_keyword_suggestions: Vec<&'static str> = text_to_keyword_obj
         .keys()
         .filter(|key| key.len() > 2)
-        .map(|key| *key)
+        .copied()
         .collect();
 }
 
