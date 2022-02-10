@@ -6,7 +6,7 @@ use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_full_width, is_modifier_kind, some, token_to_string, Diagnostics, Identifier,
     IndexSignatureDeclaration, KeywordTypeNode, LiteralTypeNode, Node, NodeArray, NodeFactory,
-    ParameterDeclaration, SyntaxKind, TypeParameterDeclaration, TypeQueryNode,
+    ParameterDeclaration, SyntaxKind, TypeLiteralNode, TypeParameterDeclaration, TypeQueryNode,
 };
 
 impl ParserType {
@@ -511,30 +511,110 @@ impl ParserType {
     }
 
     pub(super) fn is_type_member_start(&self) -> bool {
+        if matches!(
+            self.token(),
+            SyntaxKind::OpenParenToken
+                | SyntaxKind::LessThanToken
+                | SyntaxKind::GetKeyword
+                | SyntaxKind::SetKeyword
+        ) {
+            return true;
+        }
         let mut id_token = false;
-
+        while is_modifier_kind(self.token()) {
+            id_token = true;
+            self.next_token();
+        }
+        if self.token() == SyntaxKind::OpenBracketToken {
+            return true;
+        }
         if self.is_literal_property_name() {
             id_token = true;
             self.next_token();
         }
-
         if id_token {
-            return self.token() == SyntaxKind::OpenParenToken
-                || self.token() == SyntaxKind::LessThanToken
-                || self.token() == SyntaxKind::QuestionToken
-                || self.token() == SyntaxKind::ColonToken
-                || self.token() == SyntaxKind::CommaToken
-                || self.can_parse_semicolon();
+            return matches!(
+                self.token(),
+                SyntaxKind::OpenParenToken
+                    | SyntaxKind::LessThanToken
+                    | SyntaxKind::QuestionToken
+                    | SyntaxKind::ColonToken
+                    | SyntaxKind::CommaToken
+            ) || self.can_parse_semicolon();
         }
         false
     }
 
     pub(super) fn parse_type_member(&self) -> Node {
+        if matches!(
+            self.token(),
+            SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+        ) {
+            return self.parse_signature_member(SyntaxKind::CallSignature);
+        }
+        if self.token() == SyntaxKind::NewKeyword
+            && self.look_ahead_bool(|| self.next_token_is_open_paren_or_less_than())
+        {
+            return self.parse_signature_member(SyntaxKind::ConstructSignature);
+        }
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let modifiers = self.parse_modifiers(None, None);
+        if self.parse_contextual_modifier(SyntaxKind::GetKeyword) {
+            return self.parse_accessor_declaration(
+                pos,
+                has_jsdoc,
+                None,
+                modifiers,
+                SyntaxKind::GetAccessor,
+            );
+        }
 
+        if self.parse_contextual_modifier(SyntaxKind::SetKeyword) {
+            return self.parse_accessor_declaration(
+                pos,
+                has_jsdoc,
+                None,
+                modifiers,
+                SyntaxKind::SetAccessor,
+            );
+        }
+
+        if self.is_index_signature() {
+            return self
+                .parse_index_signature_declaration(pos, has_jsdoc, None, modifiers)
+                .into();
+        }
         self.parse_property_or_method_signature(pos, has_jsdoc, modifiers)
+    }
+
+    pub(super) fn next_token_is_open_paren_or_less_than(&self) -> bool {
+        self.next_token();
+        matches!(
+            self.token(),
+            SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+        )
+    }
+
+    pub(super) fn next_token_is_dot(&self) -> bool {
+        self.next_token() == SyntaxKind::DotToken
+    }
+
+    pub(super) fn next_token_is_open_paren_or_less_than_or_dot(&self) -> bool {
+        matches!(
+            self.next_token(),
+            SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken | SyntaxKind::DotToken
+        )
+    }
+
+    pub(super) fn parse_type_literal(&self) -> TypeLiteralNode {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory
+                .create_type_literal_node(self, Some(self.parse_object_type_members())),
+            pos,
+            None,
+        )
     }
 
     pub(super) fn parse_object_type_members(&self) -> NodeArray /*<TypeElement>*/ {
@@ -549,6 +629,36 @@ impl ParserType {
         }
 
         members
+    }
+
+    pub(super) fn is_start_of_mapped_type(&self) -> bool {
+        self.next_token();
+        if matches!(self.token(), SyntaxKind::PlusToken | SyntaxKind::MinusToken) {
+            return self.next_token() == SyntaxKind::ReadonlyKeyword;
+        }
+        if self.token() == SyntaxKind::ReadonlyKeyword {
+            self.next_token();
+        }
+        self.token() == SyntaxKind::OpenBracketToken
+            && self.next_token_is_identifier()
+            && self.next_token() == SyntaxKind::InKeyword
+    }
+
+    pub(super) fn parse_mapped_type_parameter(&self) -> TypeParameterDeclaration {
+        let pos = self.get_node_pos();
+        let name = self.parse_identifier_name(None);
+        self.parse_expected(SyntaxKind::InKeyword, None, None);
+        let type_ = self.parse_type();
+        self.finish_node(
+            self.factory.create_type_parameter_declaration(
+                self,
+                name.wrap(),
+                Some(type_.wrap()),
+                None,
+            ),
+            pos,
+            None,
+        )
     }
 
     pub(super) fn parse_keyword_and_no_dot(&self) -> Option<Node> {

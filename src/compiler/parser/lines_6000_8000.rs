@@ -345,6 +345,17 @@ impl ParserType {
         self.finish_node(node, pos, None)
     }
 
+    pub(super) fn parse_accessor_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        kind: SyntaxKind, /*AccessorDeclaration["kind"]*/
+    ) -> Node /*AccessorDeclaration*/ {
+        unimplemented!()
+    }
+
     pub(super) fn is_class_member_start(&self) -> bool {
         let mut id_token: Option<SyntaxKind> = None;
 
