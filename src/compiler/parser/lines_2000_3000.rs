@@ -7,9 +7,9 @@ use super::{ParserType, ParsingContext};
 use crate::{
     contains_parse_error, is_keyword, is_literal_kind, is_template_literal_kind, node_is_missing,
     token_is_identifier_or_keyword, token_is_identifier_or_keyword_or_greater_than,
-    token_to_string, Debug_, DiagnosticMessage, Diagnostics,
-    IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    ReadonlyTextRange, SyntaxKind, TemplateExpression, TemplateSpan, TokenFlags,
+    token_to_string, Debug_, DiagnosticMessage, Diagnostics, HasInitializerInterface,
+    IncrementalParserSyntaxCursorInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, ReadonlyTextRange, SyntaxKind, TemplateExpression, TemplateSpan, TokenFlags,
 };
 
 impl ParserType {
@@ -384,7 +384,152 @@ impl ParserType {
     }
 
     pub(super) fn can_reuse_node(&self, node: &Node, parsing_context: ParsingContext) -> bool {
-        unimplemented!()
+        match parsing_context {
+            ParsingContext::ClassMembers => self.is_reusable_class_member(node),
+
+            ParsingContext::SwitchClauses => self.is_reusable_switch_clause(node),
+
+            ParsingContext::SourceElements
+            | ParsingContext::BlockStatements
+            | ParsingContext::SwitchClauseStatements => self.is_reusable_statement(node),
+
+            ParsingContext::EnumMembers => self.is_reusable_enum_member(node),
+
+            ParsingContext::TypeMembers => self.is_reusable_type_member(node),
+
+            ParsingContext::VariableDeclarations => self.is_reusable_variable_declaration(node),
+
+            ParsingContext::JSDocParameters | ParsingContext::Parameters => {
+                self.is_reusable_parameter(node)
+            }
+
+            _ => false,
+        }
+    }
+
+    pub(super) fn is_reusable_class_member(&self, node: &Node) -> bool {
+        // if (node) {
+        match node.kind() {
+            SyntaxKind::Constructor
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::SemicolonClassElement => {
+                return true;
+            }
+            SyntaxKind::MethodDeclaration => {
+                let method_declaration = node.as_method_declaration();
+                let name_is_constructor = method_declaration.name().kind()
+                    == SyntaxKind::Identifier
+                    && matches!(
+                        method_declaration
+                            .name()
+                            .as_identifier()
+                            .original_keyword_kind,
+                        Some(SyntaxKind::ConstructorKeyword)
+                    );
+
+                return !name_is_constructor;
+            }
+            _ => (),
+        }
+        // }
+
+        false
+    }
+
+    pub(super) fn is_reusable_switch_clause(&self, node: &Node) -> bool {
+        // if (node) {
+        match node.kind() {
+            SyntaxKind::CaseClause | SyntaxKind::DefaultClause => {
+                return true;
+            }
+            _ => (),
+        }
+        // }
+
+        false
+    }
+
+    pub(super) fn is_reusable_statement(&self, node: &Node) -> bool {
+        // if (node) {
+        match node.kind() {
+            SyntaxKind::FunctionDeclaration
+            | SyntaxKind::VariableStatement
+            | SyntaxKind::Block
+            | SyntaxKind::IfStatement
+            | SyntaxKind::ExpressionStatement
+            | SyntaxKind::ThrowStatement
+            | SyntaxKind::ReturnStatement
+            | SyntaxKind::SwitchStatement
+            | SyntaxKind::BreakStatement
+            | SyntaxKind::ContinueStatement
+            | SyntaxKind::ForInStatement
+            | SyntaxKind::ForOfStatement
+            | SyntaxKind::ForStatement
+            | SyntaxKind::WhileStatement
+            | SyntaxKind::WithStatement
+            | SyntaxKind::EmptyStatement
+            | SyntaxKind::TryStatement
+            | SyntaxKind::LabeledStatement
+            | SyntaxKind::DoStatement
+            | SyntaxKind::DebuggerStatement
+            | SyntaxKind::ImportDeclaration
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ExportDeclaration
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::TypeAliasDeclaration => {
+                return true;
+            }
+            _ => (),
+        }
+        // }
+
+        false
+    }
+
+    pub(super) fn is_reusable_enum_member(&self, node: &Node) -> bool {
+        node.kind() == SyntaxKind::EnumMember
+    }
+
+    pub(super) fn is_reusable_type_member(&self, node: &Node) -> bool {
+        // if (node) {
+        match node.kind() {
+            SyntaxKind::ConstructSignature
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::CallSignature => {
+                return true;
+            }
+            _ => (),
+        }
+        // }
+
+        false
+    }
+
+    pub(super) fn is_reusable_variable_declaration(&self, node: &Node) -> bool {
+        if node.kind() != SyntaxKind::VariableDeclaration {
+            return false;
+        }
+
+        let variable_declarator = node.as_variable_declaration();
+        variable_declarator.maybe_initializer().is_none()
+    }
+
+    pub(super) fn is_reusable_parameter(&self, node: &Node) -> bool {
+        if node.kind() != SyntaxKind::Parameter {
+            return false;
+        }
+
+        let parameter = node.as_parameter_declaration();
+        parameter.maybe_initializer().is_none()
     }
 
     pub(super) fn abort_parsing_list_or_move_to_next_token(&self, kind: ParsingContext) -> bool {

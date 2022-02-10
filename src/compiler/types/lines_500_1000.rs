@@ -798,6 +798,10 @@ impl Node {
     pub fn as_meta_property(&self) -> &MetaProperty {
         enum_unwrapped!(self, [Node, MetaProperty])
     }
+
+    pub fn as_method_declaration(&self) -> &MethodDeclaration {
+        enum_unwrapped!(self, [Node, MethodDeclaration])
+    }
 }
 
 #[derive(Debug)]
