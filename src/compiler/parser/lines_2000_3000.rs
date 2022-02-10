@@ -9,8 +9,8 @@ use crate::{
     token_is_identifier_or_keyword, token_is_identifier_or_keyword_or_greater_than,
     token_to_string, Debug_, DiagnosticMessage, Diagnostics, HasInitializerInterface,
     IncrementalParserSyntaxCursorInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
-    NodeInterface, QualifiedName, ReadonlyTextRange, SyntaxKind, TemplateExpression, TemplateSpan,
-    TokenFlags,
+    NodeInterface, QualifiedName, ReadonlyTextRange, SyntaxKind, TemplateExpression,
+    TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan, TokenFlags,
 };
 
 impl ParserType {
@@ -873,8 +873,47 @@ impl ParserType {
         self.finish_node(
             self.factory.create_template_expression(
                 self,
-                self.parse_template_head(is_tagged_template).into(),
+                self.parse_template_head(is_tagged_template).wrap(),
                 self.parse_template_spans(is_tagged_template),
+            ),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_template_type(&self) -> TemplateLiteralTypeNode {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_template_literal_type(
+                self,
+                self.parse_template_head(false).wrap(),
+                self.parse_template_type_spans(),
+            ),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_template_type_spans(&self) -> NodeArray /*<TemplateLiteralTypeSpan>*/ {
+        let pos = self.get_node_pos();
+        let mut list = vec![];
+        let mut node: TemplateLiteralTypeSpan;
+        while {
+            node = self.parse_template_type_span();
+            let is_node_template_middle = node.literal.kind() == SyntaxKind::TemplateMiddle;
+            list.push(node.into());
+            is_node_template_middle
+        } {}
+        self.create_node_array(list, pos, None, None)
+    }
+
+    pub(super) fn parse_template_type_span(&self) -> TemplateLiteralTypeSpan {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_template_literal_type_span(
+                self,
+                self.parse_type().wrap(),
+                self.parse_literal_of_template_span(false).wrap(),
             ),
             pos,
             None,
@@ -904,7 +943,7 @@ impl ParserType {
                 self,
                 self.allow_in_and(|| self.parse_expression()).into(),
                 self.parse_literal_of_template_span(is_tagged_template)
-                    .into(),
+                    .wrap(),
             ),
             pos,
             None,
