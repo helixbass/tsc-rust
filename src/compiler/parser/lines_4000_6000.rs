@@ -19,6 +19,10 @@ impl ParserType {
         None
     }
 
+    pub(super) fn parse_asserts_type_predicate(&self) -> Node /*TypeNode*/ {
+        unimplemented!()
+    }
+
     pub(super) fn parse_type(&self) -> Node {
         self.do_outside_of_context(NodeFlags::TypeExcludesFlags, || self.parse_type_worker())
     }

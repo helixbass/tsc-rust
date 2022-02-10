@@ -939,13 +939,81 @@ impl ParserType {
 
     pub(super) fn parse_non_array_type(&self) -> Node {
         match self.token() {
-            SyntaxKind::StringKeyword
+            SyntaxKind::AnyKeyword
+            | SyntaxKind::UnknownKeyword
+            | SyntaxKind::StringKeyword
             | SyntaxKind::NumberKeyword
             | SyntaxKind::BigIntKeyword
-            | SyntaxKind::BooleanKeyword => self
+            | SyntaxKind::SymbolKeyword
+            | SyntaxKind::BooleanKeyword
+            | SyntaxKind::UndefinedKeyword
+            | SyntaxKind::NeverKeyword
+            | SyntaxKind::ObjectKeyword => self
                 .try_parse(|| self.parse_keyword_and_no_dot())
-                .unwrap_or_else(|| unimplemented!()),
-            SyntaxKind::StringLiteral => self.parse_literal_type_node(None).into(),
+                .unwrap_or_else(|| self.parse_type_reference()),
+            SyntaxKind::AsteriskEqualsToken => {
+                self.scanner().re_scan_asterisk_equals_token();
+                self.parse_jsdoc_all_type().into()
+            }
+            SyntaxKind::AsteriskToken => self.parse_jsdoc_all_type().into(),
+            SyntaxKind::QuestionQuestionToken => {
+                self.scanner().re_scan_question_token();
+                self.parse_jsdoc_unknown_or_nullable_type().into()
+            }
+            SyntaxKind::QuestionToken => self.parse_jsdoc_unknown_or_nullable_type().into(),
+            SyntaxKind::FunctionKeyword => self.parse_jsdoc_function_type(),
+            SyntaxKind::ExclamationToken => self.parse_jsdoc_non_nullable_type().into(),
+            SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::BigIntLiteral
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::NullKeyword => self.parse_literal_type_node(None).into(),
+            SyntaxKind::MinusToken => {
+                if self.look_ahead_bool(|| self.next_token_is_numeric_or_big_int_literal()) {
+                    self.parse_literal_type_node(Some(true)).into()
+                } else {
+                    self.parse_type_reference()
+                }
+            }
+            SyntaxKind::VoidKeyword => self.parse_token_node().into(),
+            SyntaxKind::ThisKeyword => {
+                let this_keyword = self.parse_this_type_node();
+                if self.token() == SyntaxKind::IsKeyword
+                    && !self.scanner().has_preceding_line_break()
+                {
+                    self.parse_this_type_predicate(this_keyword.into()).into()
+                } else {
+                    this_keyword.into()
+                }
+            }
+            SyntaxKind::TypeOfKeyword => {
+                if self.look_ahead_bool(|| self.is_start_of_type_of_import_type()) {
+                    self.parse_import_type().into()
+                } else {
+                    self.parse_type_query().into()
+                }
+            }
+            SyntaxKind::OpenBraceToken => {
+                if self.look_ahead_bool(|| self.is_start_of_mapped_type()) {
+                    self.parse_mapped_type().into()
+                } else {
+                    self.parse_type_literal().into()
+                }
+            }
+            SyntaxKind::OpenBracketToken => self.parse_tuple_type().into(),
+            SyntaxKind::OpenParenToken => self.parse_parenthesized_type(),
+            SyntaxKind::ImportKeyword => self.parse_import_type().into(),
+            SyntaxKind::AssertsKeyword => {
+                if self.look_ahead_bool(|| self.next_token_is_identifier_or_keyword_on_same_line())
+                {
+                    self.parse_asserts_type_predicate()
+                } else {
+                    self.parse_type_reference()
+                }
+            }
+            SyntaxKind::TemplateHead => self.parse_template_type().into(),
             _ => self.parse_type_reference(),
         }
     }

@@ -98,7 +98,7 @@ impl Scanner {
         self.token()
     }
 
-    pub(super) fn re_scan_asterisk_equals_token(&self) -> SyntaxKind {
+    pub fn re_scan_asterisk_equals_token(&self) -> SyntaxKind {
         Debug_.assert(
             self.token() == SyntaxKind::AsteriskEqualsToken,
             Some("'reScanAsteriskEqualsToken' should only be called on a '*='"),
