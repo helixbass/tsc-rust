@@ -929,6 +929,14 @@ impl ParserType {
         )
     }
 
+    pub(super) fn next_token_is_numeric_or_big_int_literal(&self) -> bool {
+        self.next_token();
+        matches!(
+            self.token(),
+            SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral
+        )
+    }
+
     pub(super) fn parse_non_array_type(&self) -> Node {
         match self.token() {
             SyntaxKind::StringKeyword
