@@ -679,34 +679,62 @@ impl ParserType {
         let mut list: Vec<Rc<Node>> = vec![];
         let list_pos = self.get_node_pos();
 
-        let mut comma_start: isize = -1;
+        let mut comma_start: Option<usize> = None;
         loop {
             if self.is_list_element(kind, false) {
                 let start_pos = self.scanner().get_start_pos();
                 list.push(self.parse_list_element(kind, &mut parse_element));
-                comma_start = self.scanner().get_token_pos().try_into().unwrap();
+                comma_start = Some(self.scanner().get_token_pos());
 
                 if self.parse_optional(SyntaxKind::CommaToken) {
                     continue;
                 }
 
-                comma_start = -1;
+                comma_start = None;
                 if self.is_list_terminator(kind) {
                     break;
                 }
 
-                unimplemented!()
+                self.parse_expected(
+                    SyntaxKind::CommaToken,
+                    self.get_expected_comma_diagnostic(kind),
+                    None,
+                );
+
+                if consider_semicolon_as_delimiter
+                    && self.token() == SyntaxKind::SemicolonToken
+                    && !self.scanner().has_preceding_line_break()
+                {
+                    self.next_token();
+                }
+                if start_pos == self.scanner().get_start_pos() {
+                    self.next_token();
+                }
+                continue;
             }
 
             if self.is_list_terminator(kind) {
                 break;
             }
 
-            unimplemented!()
+            if self.abort_parsing_list_or_move_to_next_token(kind) {
+                break;
+            }
         }
 
         self.set_parsing_context(save_parsing_context);
-        self.create_node_array(list, list_pos, None, Some(comma_start >= 0))
+        self.create_node_array(list, list_pos, None, Some(comma_start.is_some()))
+    }
+
+    pub(super) fn get_expected_comma_diagnostic(
+        &self,
+        kind: ParsingContext,
+    ) -> Option<&'static DiagnosticMessage> {
+        if kind == ParsingContext::EnumMembers {
+            Some(&Diagnostics::An_enum_member_name_must_be_followed_by_a_or)
+        } else {
+            None
+        }
     }
 
     pub(super) fn create_missing_list(&self) -> NodeArray {
