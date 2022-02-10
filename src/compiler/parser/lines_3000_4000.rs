@@ -5,10 +5,10 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_full_width, is_jsdoc_nullable_type, is_modifier_kind, set_text_range, some,
-    token_is_identifier_or_keyword, token_to_string, Diagnostics, Identifier,
+    token_is_identifier_or_keyword, token_to_string, Diagnostics, Identifier, ImportTypeNode,
     IndexSignatureDeclaration, KeywordTypeNode, LiteralTypeNode, MappedTypeNode, Node, NodeArray,
-    NodeFactory, NodeInterface, ParameterDeclaration, ReadonlyTextRange, SyntaxKind, TupleTypeNode,
-    TypeLiteralNode, TypeParameterDeclaration, TypeQueryNode,
+    NodeFactory, NodeFlags, NodeInterface, ParameterDeclaration, ReadonlyTextRange, SyntaxKind,
+    TupleTypeNode, TypeLiteralNode, TypeParameterDeclaration, TypeQueryNode,
 };
 
 impl ParserType {
@@ -859,9 +859,9 @@ impl ParserType {
         self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
-    pub(super) fn parse_keyword_and_no_dot(&self) -> Option<Node> {
+    pub(super) fn parse_keyword_and_no_dot(&self) -> Option<Node /*TypeNode*/> {
         let node = self.parse_token_node();
-        if false {
+        if self.token() == SyntaxKind::DotToken {
             None
         } else {
             Some(Into::<KeywordTypeNode>::into(node).into())
@@ -874,18 +874,56 @@ impl ParserType {
         if negative {
             self.next_token();
         }
-        let expression: Node = match self.token() {
+        let mut expression: Node = match self.token() {
             SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword | SyntaxKind::NullKeyword => {
                 self.parse_token_node().into()
             }
-            _ => self.parse_literal_like_node(self.token()).into(),
+            _ => self.parse_literal_like_node(self.token()),
         };
         if negative {
-            unimplemented!()
+            expression = self.finish_node(
+                self.factory
+                    .create_prefix_unary_expression(self, SyntaxKind::MinusToken, expression.wrap())
+                    .into(),
+                pos,
+                None,
+            );
         }
         self.finish_node(
             self.factory
-                .create_literal_type_node(self, expression.into()),
+                .create_literal_type_node(self, expression.wrap()),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn is_start_of_type_of_import_type(&self) -> bool {
+        self.next_token();
+        self.token() == SyntaxKind::ImportKeyword
+    }
+
+    pub(super) fn parse_import_type(&self) -> ImportTypeNode {
+        self.set_source_flags(self.source_flags() | NodeFlags::PossiblyContainsDynamicImport);
+        let pos = self.get_node_pos();
+        let is_type_of = self.parse_optional(SyntaxKind::TypeOfKeyword);
+        self.parse_expected(SyntaxKind::ImportKeyword, None, None);
+        self.parse_expected(SyntaxKind::OpenParenToken, None, None);
+        let type_ = self.parse_type();
+        self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+        let qualifier = if self.parse_optional(SyntaxKind::DotToken) {
+            Some(self.parse_entity_name_of_type_reference())
+        } else {
+            None
+        };
+        let type_arguments = self.parse_type_arguments_of_type_reference();
+        self.finish_node(
+            self.factory.create_import_type_node(
+                self,
+                type_.wrap(),
+                qualifier.map(|qualifier| qualifier.wrap()),
+                type_arguments,
+                Some(is_type_of),
+            ),
             pos,
             None,
         )

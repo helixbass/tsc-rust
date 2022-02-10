@@ -127,7 +127,7 @@ pub struct ParserType {
     pub(super) SourceFileConstructor: Option<fn(SyntaxKind, isize, isize) -> BaseNode>,
     pub(super) factory: Rc<NodeFactory<ParserType>>,
     pub(super) file_name: Option<String>,
-    pub(super) source_flags: Option<NodeFlags>,
+    pub(super) source_flags: Cell<Option<NodeFlags>>,
     pub(super) source_text: Option<String>,
     pub(super) source_text_as_chars: Option<SourceTextAsChars>,
     pub(super) language_version: Option<ScriptTarget>,
@@ -176,7 +176,7 @@ impl ParserType {
                     | NodeFactoryFlags::NoOriginalNode,
             ),
             file_name: None,
-            source_flags: None,
+            source_flags: Cell::new(None),
             source_text: None,
             source_text_as_chars: None,
             language_version: None,
@@ -281,11 +281,11 @@ impl ParserType {
     }
 
     pub(super) fn source_flags(&self) -> NodeFlags {
-        self.source_flags.unwrap()
+        self.source_flags.get().unwrap()
     }
 
-    pub(super) fn set_source_flags(&mut self, source_flags: NodeFlags) {
-        self.source_flags = Some(source_flags);
+    pub(super) fn set_source_flags(&self, source_flags: NodeFlags) {
+        self.source_flags.set(Some(source_flags));
     }
 
     pub(super) fn source_text(&self) -> &str {
