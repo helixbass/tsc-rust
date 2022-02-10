@@ -924,14 +924,14 @@ impl ParserType {
     {
         if self.token() == SyntaxKind::CloseBraceToken {
             self.re_scan_template_token(is_tagged_template);
-            self.parse_template_middle_or_template_tail().into()
+            self.parse_template_middle_or_template_tail()
         } else {
             self.parse_expected_token(
                 SyntaxKind::TemplateTail,
                 Some(&Diagnostics::_0_expected),
                 Some(vec![token_to_string(SyntaxKind::CloseBraceToken)
                     .unwrap()
-                    .to_string()]),
+                    .to_owned()]),
             )
         }
     }
@@ -941,7 +941,7 @@ impl ParserType {
         self.finish_node(
             self.factory.create_template_span(
                 self,
-                self.allow_in_and(|| self.parse_expression()).into(),
+                self.allow_in_and(|| self.parse_expression()).wrap(),
                 self.parse_literal_of_template_span(is_tagged_template)
                     .wrap(),
             ),
@@ -970,16 +970,23 @@ impl ParserType {
     {
         let fragment = self.parse_literal_like_node(self.token());
         Debug_.assert(
-            fragment.kind() == SyntaxKind::TemplateMiddle
-                || fragment.kind() == SyntaxKind::TemplateTail,
+            matches!(
+                fragment.kind(),
+                SyntaxKind::TemplateMiddle | SyntaxKind::TemplateTail
+            ),
             Some("Template fragment has wrong token kind"),
         );
         fragment
     }
 
-    pub(super) fn get_template_literal_raw_text(&self, kind: SyntaxKind) -> String {
-        let is_last =
-            kind == SyntaxKind::NoSubstitutionTemplateLiteral || kind == SyntaxKind::TemplateTail;
+    pub(super) fn get_template_literal_raw_text(
+        &self,
+        kind: SyntaxKind, /*TemplateLiteralToken["kind"]*/
+    ) -> String {
+        let is_last = matches!(
+            kind,
+            SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::TemplateTail
+        );
         let token_text = self.scanner().get_token_text();
         let token_text_chars = token_text.chars();
         let token_text_chars_len = token_text_chars.clone().count();
@@ -1001,7 +1008,7 @@ impl ParserType {
 
     pub(super) fn parse_literal_like_node(&self, kind: SyntaxKind) -> Node {
         let pos = self.get_node_pos();
-        let mut node: Node = if is_template_literal_kind(kind) {
+        let node: Node = if is_template_literal_kind(kind) {
             self.factory
                 .create_template_literal_like_node(
                     self,
@@ -1079,5 +1086,27 @@ impl ParserType {
             pos,
             None,
         )
+    }
+
+    pub(super) fn type_has_arrow_function_blocking_parse_error(
+        &self,
+        node: &Node, /*TypeNode*/
+    ) -> bool {
+        match node.kind() {
+            SyntaxKind::TypeReference => {
+                node_is_missing(Some(&*node.as_type_reference_node().type_name))
+            }
+            SyntaxKind::FunctionType | SyntaxKind::ConstructorType => {
+                let node_as_signature_declaration = node.as_signature_declaration();
+                let parameters = node_as_signature_declaration.parameters();
+                let type_ = node_as_signature_declaration.maybe_type().unwrap();
+                self.is_missing_list(parameters)
+                    || self.type_has_arrow_function_blocking_parse_error(&type_)
+            }
+            SyntaxKind::ParenthesizedType => self.type_has_arrow_function_blocking_parse_error(
+                &node.as_parenthesized_type_node().type_,
+            ),
+            _ => false,
+        }
     }
 }

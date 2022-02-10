@@ -810,6 +810,10 @@ impl Node {
     pub fn as_method_declaration(&self) -> &MethodDeclaration {
         enum_unwrapped!(self, [Node, MethodDeclaration])
     }
+
+    pub fn as_parenthesized_type_node(&self) -> &ParenthesizedTypeNode {
+        enum_unwrapped!(self, [Node, ParenthesizedTypeNode])
+    }
 }
 
 #[derive(Debug)]
