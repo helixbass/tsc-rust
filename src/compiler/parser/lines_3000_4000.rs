@@ -5,8 +5,8 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_full_width, is_modifier_kind, some, token_to_string, Diagnostics, Identifier,
-    KeywordTypeNode, LiteralTypeNode, Node, NodeArray, NodeFactory, ParameterDeclaration,
-    SyntaxKind, TypeParameterDeclaration, TypeQueryNode,
+    IndexSignatureDeclaration, KeywordTypeNode, LiteralTypeNode, Node, NodeArray, NodeFactory,
+    ParameterDeclaration, SyntaxKind, TypeParameterDeclaration, TypeQueryNode,
 };
 
 impl ParserType {
@@ -273,16 +273,20 @@ impl ParserType {
 
     pub(super) fn parse_return_type(
         &self,
-        return_token: SyntaxKind,
+        return_token: SyntaxKind, /*SyntaxKind.ColonToken | SyntaxKind.EqualsGreaterThanToken*/
         is_type: bool,
-    ) -> Option<Node> {
+    ) -> Option<Node /*TypeNode*/> {
         if self.should_parse_return_type(return_token, is_type) {
             return Some(self.parse_type_or_type_predicate());
         }
         None
     }
 
-    pub(super) fn should_parse_return_type(&self, return_token: SyntaxKind, is_type: bool) -> bool {
+    pub(super) fn should_parse_return_type(
+        &self,
+        return_token: SyntaxKind, /*SyntaxKind.ColonToken | SyntaxKind.EqualsGreaterThanToken*/
+        is_type: bool,
+    ) -> bool {
         if return_token == SyntaxKind::EqualsGreaterThanToken {
             self.parse_expected(return_token, None, None);
             return true;
@@ -293,7 +297,7 @@ impl ParserType {
                 &Diagnostics::_0_expected,
                 Some(vec![token_to_string(SyntaxKind::ColonToken)
                     .unwrap()
-                    .to_string()]),
+                    .to_owned()]),
             );
             self.next_token();
             return true;
@@ -309,8 +313,12 @@ impl ParserType {
         self.set_yield_context(flags.intersects(SignatureFlags::Yield));
         self.set_await_context(flags.intersects(SignatureFlags::Await));
 
-        let parameters = if false {
-            unimplemented!()
+        let parameters = if flags.intersects(SignatureFlags::JSDoc) {
+            self.parse_delimited_list(
+                ParsingContext::JSDocParameters,
+                || self.parse_jsdoc_parameter().into(),
+                None,
+            )
         } else {
             self.parse_delimited_list(
                 ParsingContext::Parameters,
@@ -350,31 +358,156 @@ impl ParserType {
         self.parse_semicolon();
     }
 
+    pub(super) fn parse_signature_member(
+        &self,
+        kind: SyntaxKind, /*SyntaxKind.CallSignature | SyntaxKind.ConstructSignature*/
+    ) -> Node /*CallSignatureDeclaration | ConstructSignatureDeclaration*/ {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        if kind == SyntaxKind::ConstructSignature {
+            self.parse_expected(SyntaxKind::NewKeyword, None, None);
+        }
+
+        let type_parameters = self.parse_type_parameters();
+        let parameters = self.parse_parameters(SignatureFlags::Type);
+        let type_ = self.parse_return_type(SyntaxKind::ColonToken, true);
+        self.parse_type_member_semicolon();
+        let node = if kind == SyntaxKind::CallSignature {
+            self.factory
+                .create_call_signature(
+                    self,
+                    type_parameters,
+                    parameters,
+                    type_.map(|type_| type_.wrap()),
+                )
+                .into()
+        } else {
+            self.factory
+                .create_construct_signature(
+                    self,
+                    type_parameters,
+                    parameters,
+                    type_.map(|type_| type_.wrap()),
+                )
+                .into()
+        };
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
+    pub(super) fn is_index_signature(&self) -> bool {
+        self.token() == SyntaxKind::OpenBraceToken
+            && self.look_ahead_bool(|| self.is_unambiguously_index_signature())
+    }
+
+    pub(super) fn is_unambiguously_index_signature(&self) -> bool {
+        self.next_token();
+        if matches!(
+            self.token(),
+            SyntaxKind::DotDotDotToken | SyntaxKind::CloseBracketToken
+        ) {
+            return true;
+        }
+
+        if is_modifier_kind(self.token()) {
+            self.next_token();
+            if self.is_identifier() {
+                return true;
+            }
+        } else if !self.is_identifier() {
+            return false;
+        } else {
+            self.next_token();
+        }
+
+        if matches!(
+            self.token(),
+            SyntaxKind::ColonToken | SyntaxKind::CommaToken
+        ) {
+            return true;
+        }
+
+        if self.token() != SyntaxKind::QuestionToken {
+            return false;
+        }
+
+        self.next_token();
+        matches!(
+            self.token(),
+            SyntaxKind::ColonToken | SyntaxKind::CommaToken | SyntaxKind::CloseBracketToken
+        )
+    }
+
+    pub(super) fn parse_index_signature_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> IndexSignatureDeclaration {
+        let parameters = self.parse_bracketed_list(
+            ParsingContext::Parameters,
+            || self.parse_parameter().into(),
+            SyntaxKind::OpenBracketToken,
+            SyntaxKind::CloseBracketToken,
+        );
+        let type_ = self.parse_type_annotation();
+        self.parse_type_member_semicolon();
+        let node = self.factory.create_index_signature(
+            self,
+            decorators,
+            modifiers,
+            parameters,
+            type_.map(|type_| type_.wrap()),
+        );
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
     pub(super) fn parse_property_or_method_signature(
         &self,
         pos: isize,
+        has_jsdoc: bool,
         modifiers: Option<NodeArray>,
-    ) -> Node {
+    ) -> Node /*PropertySignature | MethodSignature*/ {
         let name = self.parse_property_name();
         let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
         let node: Node;
-        if false {
-            unimplemented!()
-        } else {
-            let type_ = self.parse_type_annotation();
+        if matches!(
+            self.token(),
+            SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+        ) {
+            let type_parameters = self.parse_type_parameters();
+            let parameters = self.parse_parameters(SignatureFlags::Type);
+            let type_ = self.parse_return_type(SyntaxKind::ColonToken, true);
             node = self
                 .factory
-                .create_property_signature(
+                .create_method_signature(
                     self,
                     modifiers,
-                    name.wrap(),
-                    question_token.map(Into::into),
+                    Some(name.wrap()),
+                    question_token.map(|question_token| question_token.wrap()),
+                    type_parameters,
+                    Some(parameters),
                     type_.map(|type_| type_.wrap()),
                 )
                 .into();
+        } else {
+            let type_ = self.parse_type_annotation();
+            let mut node_as_property_signature = self.factory.create_property_signature(
+                self,
+                modifiers,
+                name.wrap(),
+                question_token.map(|question_token| question_token.wrap()),
+                type_.map(|type_| type_.wrap()),
+            );
+            if self.token() == SyntaxKind::EqualsToken {
+                node_as_property_signature.initializer = self
+                    .parse_initializer()
+                    .map(|initializer| initializer.wrap());
+            }
+            node = node_as_property_signature.into();
         }
         self.parse_type_member_semicolon();
-        self.finish_node(node, pos, None)
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn is_type_member_start(&self) -> bool {
@@ -398,9 +531,10 @@ impl ParserType {
 
     pub(super) fn parse_type_member(&self) -> Node {
         let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
         let modifiers = self.parse_modifiers(None, None);
 
-        self.parse_property_or_method_signature(pos, modifiers)
+        self.parse_property_or_method_signature(pos, has_jsdoc, modifiers)
     }
 
     pub(super) fn parse_object_type_members(&self) -> NodeArray /*<TypeElement>*/ {
