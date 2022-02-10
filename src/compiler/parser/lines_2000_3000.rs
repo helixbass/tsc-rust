@@ -10,7 +10,7 @@ use crate::{
     token_to_string, Debug_, DiagnosticMessage, Diagnostics, HasInitializerInterface,
     IncrementalParserSyntaxCursorInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
     NodeInterface, QualifiedName, ReadonlyTextRange, SyntaxKind, TemplateExpression,
-    TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan, TokenFlags,
+    TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan, TokenFlags, TypePredicateNode,
 };
 
 impl ParserType {
@@ -1108,5 +1108,22 @@ impl ParserType {
             ),
             _ => false,
         }
+    }
+
+    pub(super) fn parse_this_type_predicate(
+        &self,
+        lhs: Rc<Node /*ThisTypeNode*/>,
+    ) -> TypePredicateNode {
+        self.next_token();
+        self.finish_node(
+            self.factory.create_type_predicate_node(
+                self,
+                None,
+                lhs.clone(),
+                Some(self.parse_type().wrap()),
+            ),
+            lhs.pos(),
+            None,
+        )
     }
 }
