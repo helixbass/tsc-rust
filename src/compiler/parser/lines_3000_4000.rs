@@ -5,10 +5,11 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_full_width, is_jsdoc_nullable_type, is_modifier_kind, set_text_range, some,
-    token_is_identifier_or_keyword, token_to_string, Diagnostics, Identifier, ImportTypeNode,
-    IndexSignatureDeclaration, KeywordTypeNode, LiteralTypeNode, MappedTypeNode, Node, NodeArray,
-    NodeFactory, NodeFlags, NodeInterface, ParameterDeclaration, ReadonlyTextRange, SyntaxKind,
-    TupleTypeNode, TypeLiteralNode, TypeParameterDeclaration, TypeQueryNode,
+    token_is_identifier_or_keyword, token_to_string, Diagnostics, ImportTypeNode,
+    IndexSignatureDeclaration, InferTypeNode, KeywordTypeNode, LiteralTypeNode, MappedTypeNode,
+    Node, NodeArray, NodeFactory, NodeFlags, NodeInterface, ParameterDeclaration,
+    ReadonlyTextRange, SyntaxKind, TupleTypeNode, TypeLiteralNode, TypeOperatorNode,
+    TypeParameterDeclaration, TypeQueryNode,
 };
 
 impl ParserType {
@@ -1143,12 +1144,57 @@ impl ParserType {
         type_
     }
 
-    pub(super) fn parse_type_operator_or_higher(&self) -> Node {
-        // let operator = self.token();
-        // match operator {
+    pub(super) fn parse_type_operator(
+        &self,
+        operator: SyntaxKind, /*SyntaxKind.KeyOfKeyword | SyntaxKind.UniqueKeyword | SyntaxKind.ReadonlyKeyword*/
+    ) -> TypeOperatorNode {
+        let pos = self.get_node_pos();
+        self.parse_expected(operator, None, None);
+        self.finish_node(
+            self.factory.create_type_operator_node(
+                self,
+                operator,
+                self.parse_type_operator_or_higher().wrap(),
+            ),
+            pos,
+            None,
+        )
+    }
 
-        // }
-        self.parse_postfix_type_or_higher()
+    pub(super) fn parse_type_parameter_of_infer_type(&self) -> TypeParameterDeclaration {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_type_parameter_declaration(
+                self,
+                self.parse_identifier(None, None).wrap(),
+                None,
+                None,
+            ),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_infer_type(&self) -> InferTypeNode {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::InferKeyword, None, None);
+        self.finish_node(
+            self.factory
+                .create_infer_type_node(self, self.parse_type_parameter().into()),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_type_operator_or_higher(&self) -> Node {
+        let operator = self.token();
+        match operator {
+            SyntaxKind::KeyOfKeyword | SyntaxKind::UniqueKeyword | SyntaxKind::ReadonlyKeyword => {
+                self.parse_type_operator(operator).into()
+            }
+            SyntaxKind::InferKeyword => self.parse_infer_type().into(),
+            _ => self.parse_postfix_type_or_higher(),
+        }
     }
 
     pub(super) fn parse_function_or_constructor_type_to_error(
