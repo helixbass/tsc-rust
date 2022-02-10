@@ -9,7 +9,8 @@ use crate::{
     token_is_identifier_or_keyword, token_is_identifier_or_keyword_or_greater_than,
     token_to_string, Debug_, DiagnosticMessage, Diagnostics, HasInitializerInterface,
     IncrementalParserSyntaxCursorInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
-    NodeInterface, ReadonlyTextRange, SyntaxKind, TemplateExpression, TemplateSpan, TokenFlags,
+    NodeInterface, QualifiedName, ReadonlyTextRange, SyntaxKind, TemplateExpression, TemplateSpan,
+    TokenFlags,
 };
 
 impl ParserType {
@@ -743,6 +744,10 @@ impl ParserType {
         list
     }
 
+    pub(super) fn is_missing_list(&self, arr: &NodeArray) -> bool {
+        arr.is_missing_list
+    }
+
     pub(super) fn parse_bracketed_list<TParseElement: FnMut() -> Rc<Node>>(
         &self,
         kind: ParsingContext,
@@ -765,12 +770,88 @@ impl ParserType {
         diagnostic_message: Option<&DiagnosticMessage>,
     ) -> Node /*EntityName*/ {
         let pos = self.get_node_pos();
-        let entity: Node = if allow_reserved_words {
+        let mut entity: Node /*EntityName*/ = if allow_reserved_words {
             self.parse_identifier_name(diagnostic_message)
         } else {
             self.parse_identifier(diagnostic_message, None)
         };
+        let mut dot_pos = self.get_node_pos();
+        while self.parse_optional(SyntaxKind::DotToken) {
+            if self.token() == SyntaxKind::LessThanToken {
+                entity
+                    .as_has_jsdoc_dot_pos()
+                    .set_jsdoc_dot_pos(Some(dot_pos));
+                break;
+            }
+            dot_pos = self.get_node_pos();
+            entity = self.finish_node(
+                self.factory
+                    .create_qualified_name(
+                        self,
+                        entity.wrap(),
+                        self.parse_right_side_of_dot(allow_reserved_words, false)
+                            .wrap(),
+                    )
+                    .into(),
+                pos,
+                None,
+            );
+        }
         entity
+    }
+
+    pub(super) fn create_qualified_name(
+        &self,
+        entity: Rc<Node /*EntityName*/>,
+        name: Rc<Node /*Identifier*/>,
+    ) -> QualifiedName {
+        self.finish_node(
+            self.factory
+                .create_qualified_name(self, entity.clone(), name),
+            entity.pos(),
+            None,
+        )
+    }
+
+    pub(super) fn parse_right_side_of_dot(
+        &self,
+        allow_identifier_names: bool,
+        allow_private_identifiers: bool,
+    ) -> Node /*Identifier | PrivateIdentifier*/ {
+        if self.scanner().has_preceding_line_break() && token_is_identifier_or_keyword(self.token())
+        {
+            let matches_pattern =
+                self.look_ahead_bool(|| self.next_token_is_identifier_or_keyword_on_same_line());
+
+            if matches_pattern {
+                return self.create_missing_node(
+                    SyntaxKind::Identifier,
+                    true,
+                    &Diagnostics::Identifier_expected,
+                    None,
+                );
+            }
+        }
+
+        if self.token() == SyntaxKind::PrivateIdentifier {
+            let node = self.parse_private_identifier();
+            return if allow_private_identifiers {
+                node
+            } else {
+                self.create_missing_node(
+                    SyntaxKind::Identifier,
+                    true,
+                    &Diagnostics::Identifier_expected,
+                    None,
+                )
+            };
+        }
+
+        if allow_identifier_names {
+            self.parse_identifier_name(None)
+        } else {
+            self.parse_identifier(None, None)
+        }
     }
 
     pub(super) fn parse_template_spans(&self, is_tagged_template: bool) -> NodeArray /*<TemplateSpan>*/

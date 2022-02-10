@@ -18,9 +18,9 @@ use super::{
     ExpressionWithTypeArguments, ExternalModuleReference, ForInStatement, ForOfStatement,
     ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
     FunctionTypeNode, GetAccessorDeclaration, HasElementsInterface, HasExpressionInterface,
-    HasIsTypeOnlyInterface, HasQuestionDotTokenInterface, HasTypeArgumentsInterface,
-    HasTypeParametersInterface, HeritageClause, Identifier, IfStatement, ImportClause,
-    ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
+    HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasQuestionDotTokenInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause, Identifier, IfStatement,
+    ImportClause, ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
     IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InputFiles,
     InterfaceDeclaration, IntersectionTypeNode, JSDoc, JSDocAugmentsTag, JSDocCallbackTag,
     JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface,
@@ -576,6 +576,14 @@ impl Node {
             Node::JSDocCallbackTag(node) => node,
             Node::JSDocPropertyLikeTag(node) => node,
             _ => panic!("Expected JSDoc tag"),
+        }
+    }
+
+    pub fn as_has_jsdoc_dot_pos(&self) -> &dyn HasJSDocDotPosInterface {
+        match self {
+            Node::Identifier(node) => node,
+            Node::QualifiedName(node) => node,
+            _ => panic!("Expected has JSDoc dot pos"),
         }
     }
 
