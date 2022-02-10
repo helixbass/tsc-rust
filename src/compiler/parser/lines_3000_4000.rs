@@ -5,8 +5,9 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_full_width, is_modifier_kind, some, token_to_string, Diagnostics, Identifier,
-    IndexSignatureDeclaration, KeywordTypeNode, LiteralTypeNode, Node, NodeArray, NodeFactory,
-    ParameterDeclaration, SyntaxKind, TypeLiteralNode, TypeParameterDeclaration, TypeQueryNode,
+    IndexSignatureDeclaration, KeywordTypeNode, LiteralTypeNode, MappedTypeNode, Node, NodeArray,
+    NodeFactory, NodeInterface, ParameterDeclaration, SyntaxKind, TypeLiteralNode,
+    TypeParameterDeclaration, TypeQueryNode,
 };
 
 impl ParserType {
@@ -655,6 +656,58 @@ impl ParserType {
                 name.wrap(),
                 Some(type_.wrap()),
                 None,
+            ),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_mapped_type(&self) -> MappedTypeNode {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
+        let mut readonly_token: Option<Node /*ReadonlyKeyword | PlusToken | MinusToken*/> = None;
+        if matches!(
+            self.token(),
+            SyntaxKind::ReadonlyKeyword | SyntaxKind::PlusToken | SyntaxKind::MinusToken
+        ) {
+            readonly_token = Some(self.parse_token_node().into());
+            if readonly_token.as_ref().unwrap().kind() != SyntaxKind::ReadonlyKeyword {
+                self.parse_expected(SyntaxKind::ReadonlyKeyword, None, None);
+            }
+        }
+        self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
+        let type_parameter = self.parse_mapped_type_parameter();
+        let name_type = if self.parse_optional(SyntaxKind::AsKeyword) {
+            Some(self.parse_type())
+        } else {
+            None
+        };
+        self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
+        let mut question_token: Option<Node /*QuestionKeyword | PlusToken | MinusToken*/> = None;
+        if matches!(
+            self.token(),
+            SyntaxKind::QuestionToken | SyntaxKind::PlusToken | SyntaxKind::MinusToken
+        ) {
+            question_token = Some(self.parse_token_node().into());
+            if question_token.as_ref().unwrap().kind() != SyntaxKind::QuestionToken {
+                self.parse_expected(SyntaxKind::QuestionToken, None, None);
+            }
+        }
+        let type_ = self.parse_type_annotation();
+        self.parse_semicolon();
+        let members = self.parse_list(ParsingContext::TypeMembers, &mut || {
+            self.parse_type_member().wrap()
+        });
+        self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
+        self.finish_node(
+            self.factory.create_mapped_type_node(
+                self,
+                readonly_token.map(|readonly_token| readonly_token.wrap()),
+                type_parameter.into(),
+                name_type.map(|name_type| name_type.wrap()),
+                question_token.map(|question_token| question_token.wrap()),
+                type_.map(|type_| type_.wrap()),
+                Some(members),
             ),
             pos,
             None,
