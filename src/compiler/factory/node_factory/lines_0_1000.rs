@@ -718,9 +718,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     ) -> BaseNode {
         let mut node = self.create_base_node(base_factory, kind);
         node.set_decorators(self.as_node_array(decorators));
-        node.modifiers = self.as_node_array(modifiers);
+        node.set_modifiers(self.as_node_array(modifiers));
         let flags = propagate_children_flags(node.maybe_decorators().as_ref())
-            | propagate_children_flags(node.modifiers.as_ref());
+            | propagate_children_flags(node.maybe_modifiers().as_ref());
         node.add_transform_flags(flags);
         // node.symbol = undefined!;
         // node.localSymbol = undefined!;

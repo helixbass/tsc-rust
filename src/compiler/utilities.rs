@@ -2103,7 +2103,7 @@ pub fn get_syntactic_modifier_flags<TNode: NodeInterface>(node: &TNode) -> Modif
 }
 
 fn get_syntactic_modifier_flags_no_cache<TNode: NodeInterface>(node: &TNode) -> ModifierFlags {
-    let mut flags = modifiers_to_flags(node.maybe_modifiers());
+    let mut flags = modifiers_to_flags(node.maybe_modifiers().as_ref());
     if node.flags().intersects(NodeFlags::NestedNamespace) || false {
         flags |= ModifierFlags::Export;
     }

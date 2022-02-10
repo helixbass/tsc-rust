@@ -626,7 +626,8 @@ impl ParserType {
     }
 
     pub(super) fn has_modifier_of_kind(&self, node: &Node, kind: SyntaxKind) -> bool {
-        let modifiers: Option<&[Rc<Node>]> = node.maybe_modifiers().map(|node_array| {
+        let modifiers = node.maybe_modifiers();
+        let modifiers: Option<&[Rc<Node>]> = modifiers.as_ref().map(|node_array| {
             let slice_ref: &[Rc<Node>] = node_array;
             slice_ref
         });

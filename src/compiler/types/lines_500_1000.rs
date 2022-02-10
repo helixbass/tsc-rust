@@ -153,7 +153,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn add_transform_flags(&mut self, flags: TransformFlags);
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>>;
     fn set_decorators(&self, decorators: Option<NodeArray>);
-    fn maybe_modifiers(&self) -> Option<&NodeArray>;
+    fn maybe_modifiers(&self) -> Ref<Option<NodeArray>>;
+    fn set_modifiers(&self, modifiers: Option<NodeArray>);
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
     fn set_id(&self, id: NodeId);
@@ -814,6 +815,10 @@ impl Node {
     pub fn as_parenthesized_type_node(&self) -> &ParenthesizedTypeNode {
         enum_unwrapped!(self, [Node, ParenthesizedTypeNode])
     }
+
+    pub fn as_base_jsdoc_unary_type(&self) -> &BaseJSDocUnaryType {
+        enum_unwrapped!(self, [Node, BaseJSDocUnaryType])
+    }
 }
 
 #[derive(Debug)]
@@ -824,7 +829,7 @@ pub struct BaseNode {
     modifier_flags_cache: Cell<ModifierFlags>,
     transform_flags: TransformFlags,
     pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
-    pub modifiers: Option<ModifiersArray>,
+    pub modifiers: RefCell<Option<ModifiersArray>>,
     pub id: Cell<Option<NodeId>>,
     pub parent: RefCell<Option<Weak<Node>>>,
     pub original: RefCell<Option<Weak<Node>>>,
@@ -853,7 +858,7 @@ impl BaseNode {
             modifier_flags_cache: Cell::new(ModifierFlags::None),
             transform_flags,
             decorators: RefCell::new(None),
-            modifiers: None,
+            modifiers: RefCell::new(None),
             id: Cell::new(None),
             parent: RefCell::new(None),
             original: RefCell::new(None),
@@ -923,8 +928,12 @@ impl NodeInterface for BaseNode {
         *self.decorators.borrow_mut() = decorators;
     }
 
-    fn maybe_modifiers(&self) -> Option<&NodeArray> {
-        self.modifiers.as_ref()
+    fn maybe_modifiers(&self) -> Ref<Option<NodeArray>> {
+        self.modifiers.borrow()
+    }
+
+    fn set_modifiers(&self, modifiers: Option<NodeArray>) {
+        *self.modifiers.borrow_mut() = modifiers;
     }
 
     fn maybe_id(&self) -> Option<NodeId> {

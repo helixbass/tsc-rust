@@ -66,6 +66,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 base_factory,
                 node_as_function_declaration
                     .maybe_modifiers()
+                    .as_ref()
                     .map(Clone::clone),
                 node_as_function_declaration.maybe_asterisk_token(),
                 node_as_function_declaration.maybe_name(),

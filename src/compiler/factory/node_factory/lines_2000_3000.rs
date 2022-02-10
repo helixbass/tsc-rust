@@ -752,7 +752,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if node.maybe_type_parameters().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
-        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Async) {
+        if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Async) {
             if node.maybe_asterisk_token().is_some() {
                 node.add_transform_flags(TransformFlags::ContainsES2018);
             } else {
@@ -803,7 +803,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             propagate_child_flags(Some(&*node.equals_greater_than_token))
                 | TransformFlags::ContainsES2015,
         );
-        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Async) {
+        if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Async) {
             node.add_transform_flags(
                 TransformFlags::ContainsES2017 | TransformFlags::ContainsLexicalThis,
             );

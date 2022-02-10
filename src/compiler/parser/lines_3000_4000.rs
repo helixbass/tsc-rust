@@ -4,10 +4,11 @@ use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    get_full_width, is_modifier_kind, some, token_to_string, Diagnostics, Identifier,
+    get_full_width, is_jsdoc_nullable_type, is_modifier_kind, set_text_range, some,
+    token_is_identifier_or_keyword, token_to_string, Diagnostics, Identifier,
     IndexSignatureDeclaration, KeywordTypeNode, LiteralTypeNode, MappedTypeNode, Node, NodeArray,
-    NodeFactory, NodeInterface, ParameterDeclaration, SyntaxKind, TypeLiteralNode,
-    TypeParameterDeclaration, TypeQueryNode,
+    NodeFactory, NodeInterface, ParameterDeclaration, ReadonlyTextRange, SyntaxKind, TupleTypeNode,
+    TypeLiteralNode, TypeParameterDeclaration, TypeQueryNode,
 };
 
 impl ParserType {
@@ -712,6 +713,150 @@ impl ParserType {
             pos,
             None,
         )
+    }
+
+    pub(super) fn parse_tuple_element_type(&self) -> Node /*TypeNode*/ {
+        let pos = self.get_node_pos();
+        if self.parse_optional(SyntaxKind::DotDotDotToken) {
+            return self.finish_node(
+                self.factory
+                    .create_rest_type_node(self, self.parse_type().wrap())
+                    .into(),
+                pos,
+                None,
+            );
+        }
+        let type_ = self.parse_type();
+        if is_jsdoc_nullable_type(&type_) {
+            let type_type = type_.as_base_jsdoc_unary_type().type_.clone().unwrap();
+            if type_.pos() == type_type.pos() {
+                let node: Node = self
+                    .factory
+                    .create_optional_type_node(self, type_type)
+                    .into();
+                set_text_range(&node, Some(&type_));
+                node.set_flags(type_.flags());
+                return node;
+            }
+        }
+        return type_;
+    }
+
+    pub(super) fn is_next_token_colon_or_question_colon(&self) -> bool {
+        self.next_token() == SyntaxKind::ColonToken
+            || self.token() == SyntaxKind::QuestionToken
+                && self.next_token() == SyntaxKind::ColonToken
+    }
+
+    pub(super) fn is_tuple_element_name(&self) -> bool {
+        if self.token() == SyntaxKind::DotDotDotToken {
+            return token_is_identifier_or_keyword(self.next_token())
+                && self.is_next_token_colon_or_question_colon();
+        }
+        token_is_identifier_or_keyword(self.token()) && self.is_next_token_colon_or_question_colon()
+    }
+
+    pub(super) fn parse_tuple_element_name_or_tuple_element_type(&self) -> Node /*TypeNode*/ {
+        if self.look_ahead_bool(|| self.is_tuple_element_name()) {
+            let pos = self.get_node_pos();
+            let has_jsdoc = self.has_preceding_jsdoc_comment();
+            let dot_dot_dot_token = self.parse_optional_token(SyntaxKind::DotDotDotToken);
+            let name = self.parse_identifier_name(None);
+            let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
+            self.parse_expected(SyntaxKind::ColonToken, None, None);
+            let type_ = self.parse_tuple_element_type();
+            let node = self.factory.create_named_tuple_member(
+                self,
+                dot_dot_dot_token.map(|dot_dot_dot_token| dot_dot_dot_token.wrap()),
+                name.wrap(),
+                question_token.map(|question_token| question_token.wrap()),
+                type_.wrap(),
+            );
+            return self.with_jsdoc(self.finish_node(node.into(), pos, None), has_jsdoc);
+        }
+        self.parse_tuple_element_type()
+    }
+
+    pub(super) fn parse_tuple_type(&self) -> TupleTypeNode {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_tuple_type_node(
+                self,
+                Some(self.parse_bracketed_list(
+                    ParsingContext::TupleElementTypes,
+                    || self.parse_tuple_element_name_or_tuple_element_type().wrap(),
+                    SyntaxKind::OpenBracketToken,
+                    SyntaxKind::CloseBracketToken,
+                )),
+            ),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_parenthesized_type(&self) -> Node /*TypeNode*/ {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::OpenParenToken, None, None);
+        let type_ = self.parse_type();
+        self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+        self.finish_node(
+            self.factory
+                .create_parenthesized_type(self, type_.wrap())
+                .into(),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_modifiers_for_constructor_type(&self) -> Option<NodeArray /*<Modifier>*/> {
+        let mut modifiers = None;
+        if self.token() == SyntaxKind::AbstractKeyword {
+            let pos = self.get_node_pos();
+            self.next_token();
+            let modifier = self.finish_node(
+                self.factory.create_token(self, SyntaxKind::AbstractKeyword),
+                pos,
+                None,
+            );
+            modifiers = Some(self.create_node_array(vec![modifier.into()], pos, None, None));
+        }
+        modifiers
+    }
+
+    pub(super) fn parse_function_or_constructor_type(&self) -> Node /*TypeNode*/ {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        let modifiers = self.parse_modifiers_for_constructor_type();
+        let is_constructor_type = self.parse_optional(SyntaxKind::NewKeyword);
+        let type_parameters = self.parse_type_parameters();
+        let parameters = self.parse_parameters(SignatureFlags::Type);
+        let type_ = self.parse_return_type(SyntaxKind::EqualsGreaterThanToken, false);
+        let node: Node = if is_constructor_type {
+            self.factory
+                .create_constructor_type_node(
+                    self,
+                    modifiers,
+                    type_parameters,
+                    parameters,
+                    type_.map(|type_| type_.wrap()),
+                )
+                .into()
+        } else {
+            let function_type_node: Node = self
+                .factory
+                .create_function_type_node(
+                    self,
+                    type_parameters,
+                    parameters,
+                    type_.map(|type_| type_.wrap()),
+                )
+                .into();
+            // if !is_constructor_type {
+            function_type_node.set_modifiers(modifiers);
+            // }
+            function_type_node
+        };
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn parse_keyword_and_no_dot(&self) -> Option<Node> {

@@ -113,8 +113,12 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_decorators(decorators)
                     }
 
-                    fn maybe_modifiers(&self) -> ::std::option::Option<&crate::NodeArray> {
+                    fn maybe_modifiers(&self) -> ::std::cell::Ref<::std::option::Option<crate::NodeArray>> {
                         self.#first_field_name.maybe_modifiers()
+                    }
+
+                    fn set_modifiers(&self, modifiers: ::std::option::Option<crate::NodeArray>) {
+                        self.#first_field_name.set_modifiers(modifiers)
                     }
 
                     fn maybe_id(&self) -> ::std::option::Option<crate::NodeId> {
@@ -492,9 +496,15 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_modifiers(&self) -> ::std::option::Option<&crate::NodeArray> {
+                    fn maybe_modifiers(&self) -> ::std::cell::Ref<::std::option::Option<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_modifiers()),*
+                        }
+                    }
+
+                    fn set_modifiers(&self, modifiers: ::std::option::Option<crate::NodeArray>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_modifiers(modifiers)),*
                         }
                     }
 

@@ -218,7 +218,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             if question_token_is_some {
                 node.add_transform_flags(TransformFlags::ContainsTypeScript);
             }
-            if modifiers_to_flags(node.maybe_modifiers())
+            if modifiers_to_flags(node.maybe_modifiers().as_ref())
                 .intersects(ModifierFlags::ParameterPropertyModifier)
             {
                 node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
@@ -318,7 +318,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
         }
         if question_or_exclamation_token_is_some
-            || modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Ambient)
+            || modifiers_to_flags(node.maybe_modifiers().as_ref())
+                .intersects(ModifierFlags::Ambient)
         {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
@@ -398,7 +399,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         if question_token_is_some {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
-        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Async) {
+        if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Async) {
             if asterisk_token_is_some {
                 node.add_transform_flags(TransformFlags::ContainsES2018);
             } else {

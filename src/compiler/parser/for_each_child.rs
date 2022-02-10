@@ -33,7 +33,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.question_token.clone());
@@ -50,7 +54,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.dot_dot_dot_token.clone());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.question_token.clone());
@@ -63,7 +71,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.question_token.clone());
             visit_node(&mut cb_node, node.exclamation_token.clone());
@@ -76,7 +88,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.question_token.clone());
             visit_node(&mut cb_node, node.maybe_type());
@@ -88,7 +104,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.question_token.clone());
             visit_node(&mut cb_node, Some(&*node.initializer))
@@ -99,7 +119,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.exclamation_token.clone());
             visit_node(&mut cb_node, node.maybe_type());
@@ -111,7 +135,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.dot_dot_dot_token.clone());
             visit_node(&mut cb_node, node.property_name.clone());
             visit_node(&mut cb_node, node.maybe_name());
@@ -123,7 +151,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -138,7 +170,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -153,7 +189,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -168,7 +208,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -183,7 +227,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -198,7 +246,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.maybe_question_token());
@@ -218,7 +270,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, Some(node.name()));
             visit_nodes(
                 &mut cb_node,
@@ -234,7 +290,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.maybe_question_token());
@@ -254,7 +314,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.maybe_question_token());
@@ -274,7 +338,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.maybe_question_token());
@@ -294,7 +362,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.maybe_question_token());
@@ -314,7 +386,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.maybe_question_token());
@@ -334,7 +410,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.maybe_question_token());
@@ -355,7 +435,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, Some(&*node.body));
         }
         Node::TypeReferenceNode(node) => {
@@ -541,7 +625,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, Some(node.declaration_list.clone()))
         }
         Node::VariableDeclarationList(node) => {
@@ -630,7 +718,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_name());
             visit_nodes(
                 &mut cb_node,
@@ -650,7 +742,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_name());
             visit_nodes(
                 &mut cb_node,
@@ -670,7 +766,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, Some(node.name()));
             visit_nodes(
                 &mut cb_node,
@@ -690,7 +790,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, Some(node.name()));
             visit_nodes(
                 &mut cb_node,
@@ -705,7 +809,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, Some(node.name()));
             visit_nodes(&mut cb_node, cb_nodes.as_mut(), Some(&node.members))
         }
@@ -719,7 +827,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, node.body.clone());
         }
@@ -729,7 +841,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, Some(&*node.module_reference));
         }
@@ -739,7 +855,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.import_clause.clone());
             visit_node(&mut cb_node, Some(&*node.module_specifier));
             visit_node(&mut cb_node, node.assert_clause.clone());
@@ -776,7 +896,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, node.export_clause.clone());
             visit_node(&mut cb_node, node.module_specifier.clone());
             visit_node(&mut cb_node, node.assert_clause.clone());
@@ -795,7 +919,11 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 cb_nodes.as_mut(),
                 node.maybe_decorators().as_ref(),
             );
-            visit_nodes(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers());
+            visit_nodes(
+                &mut cb_node,
+                cb_nodes.as_mut(),
+                node.maybe_modifiers().as_ref(),
+            );
             visit_node(&mut cb_node, Some(&*node.expression));
         }
         Node::TemplateExpression(node) => {
