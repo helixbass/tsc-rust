@@ -6,7 +6,7 @@ use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_full_width, is_modifier_kind, some, token_to_string, Diagnostics, Identifier,
     KeywordTypeNode, LiteralTypeNode, Node, NodeArray, NodeFactory, ParameterDeclaration,
-    SyntaxKind, TypeParameterDeclaration,
+    SyntaxKind, TypeParameterDeclaration, TypeQueryNode,
 };
 
 impl ParserType {
@@ -119,6 +119,17 @@ impl ParserType {
         type_
     }
 
+    pub(super) fn parse_type_query(&self) -> TypeQueryNode {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::TypeOfKeyword, None, None);
+        self.finish_node(
+            self.factory
+                .create_type_query_node(self, self.parse_entity_name(true, None).wrap()),
+            pos,
+            None,
+        )
+    }
+
     pub(super) fn parse_type_parameter(&self) -> TypeParameterDeclaration {
         let pos = self.get_node_pos();
         let name = self.parse_identifier(None, None);
@@ -137,7 +148,6 @@ impl ParserType {
         } else {
             None
         };
-
         let mut node = self.factory.create_type_parameter_declaration(
             self,
             name.wrap(),
@@ -172,7 +182,7 @@ impl ParserType {
         let name = self.parse_identifier_or_pattern(Some(
             &Diagnostics::Private_identifiers_cannot_be_used_as_parameters,
         ));
-        if get_full_width(&*name) == 0
+        if get_full_width(&name) == 0
             && !some(
                 modifiers.as_ref().map(|modifiers| {
                     let modifiers: &[Rc<Node>] = modifiers;
@@ -200,6 +210,7 @@ impl ParserType {
         in_outer_await_context: bool,
     ) -> ParameterDeclaration {
         let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
 
         let decorators = if in_outer_await_context {
             self.do_in_await_context(|| self.parse_decorators())
@@ -208,7 +219,27 @@ impl ParserType {
         };
 
         if self.token() == SyntaxKind::ThisKeyword {
-            unimplemented!()
+            let node = self.factory.create_parameter_declaration(
+                self,
+                decorators.clone(),
+                Option::<NodeArray>::None,
+                None,
+                Some(self.create_identifier(true, None, None).wrap()),
+                None,
+                self.parse_type_annotation()
+                    .map(|type_annotation| type_annotation.wrap()),
+                None,
+            );
+
+            if let Some(decorators) = decorators {
+                self.parse_error_at_range(
+                    &*decorators[0],
+                    &Diagnostics::Decorators_may_not_be_applied_to_this_parameters,
+                    None,
+                );
+            }
+
+            return self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc);
         }
 
         let saved_top_level = self.top_level();
@@ -219,19 +250,22 @@ impl ParserType {
         let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
         let type_annotation = self.parse_type_annotation();
         let initializer = self.parse_initializer();
-        let node = self.finish_node(
-            self.factory.create_parameter_declaration(
-                self,
-                decorators,
-                modifiers,
-                dot_dot_dot_token.map(Into::into),
-                Some(name),
-                question_token.map(Into::into),
-                type_annotation.map(|type_annotation| type_annotation.wrap()),
-                initializer.map(Into::into),
+        let node = self.with_jsdoc(
+            self.finish_node(
+                self.factory.create_parameter_declaration(
+                    self,
+                    decorators,
+                    modifiers,
+                    dot_dot_dot_token.map(Into::into),
+                    Some(name),
+                    question_token.map(Into::into),
+                    type_annotation.map(|type_annotation| type_annotation.wrap()),
+                    initializer.map(Into::into),
+                ),
+                pos,
+                None,
             ),
-            pos,
-            None,
+            has_jsdoc,
         );
         self.set_top_level(saved_top_level);
         node

@@ -536,7 +536,7 @@ impl ParserType {
         self.parse_error_at_position(start, end - start, message, args);
     }
 
-    pub(super) fn parse_error_at_range<TRange: TextRange>(
+    pub(super) fn parse_error_at_range<TRange: ReadonlyTextRange>(
         &self,
         range: &TRange,
         message: &DiagnosticMessage,
