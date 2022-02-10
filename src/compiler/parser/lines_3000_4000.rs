@@ -1057,25 +1057,72 @@ impl ParserType {
             | SyntaxKind::AssertsKeyword
             | SyntaxKind::NoSubstitutionTemplateLiteral
             | SyntaxKind::TemplateHead => true,
+            SyntaxKind::FunctionKeyword => !in_start_of_parameter,
+            SyntaxKind::MinusToken => {
+                !in_start_of_parameter
+                    && self.look_ahead_bool(|| self.next_token_is_numeric_or_big_int_literal())
+            }
+            SyntaxKind::OpenParenToken => {
+                !in_start_of_parameter
+                    && self.look_ahead_bool(|| self.is_start_of_parenthesized_or_function_type())
+            }
             _ => self.is_identifier(),
         }
     }
 
-    pub(super) fn parse_postfix_type_or_higher(&self) -> Node {
+    pub(super) fn is_start_of_parenthesized_or_function_type(&self) -> bool {
+        self.next_token();
+        self.token() == SyntaxKind::CloseParenToken
+            || self.is_start_of_parameter(false)
+            || self.is_start_of_type(None)
+    }
+
+    pub(super) fn parse_postfix_type_or_higher(&self) -> Node /*TypeNode*/ {
         let pos = self.get_node_pos();
         let mut type_ = self.parse_non_array_type();
         while !self.scanner().has_preceding_line_break() {
             match self.token() {
                 SyntaxKind::ExclamationToken => {
-                    unimplemented!()
+                    self.next_token();
+                    type_ = self.finish_node(
+                        self.factory
+                            .create_jsdoc_non_nullable_type(self, Some(type_.wrap()))
+                            .into(),
+                        pos,
+                        None,
+                    );
+                    break;
                 }
                 SyntaxKind::QuestionToken => {
-                    unimplemented!()
+                    if self.look_ahead_bool(|| self.next_token_is_start_of_type()) {
+                        return type_;
+                    }
+                    self.next_token();
+                    type_ = self.finish_node(
+                        self.factory
+                            .create_jsdoc_non_nullable_type(self, Some(type_.wrap()))
+                            .into(),
+                        pos,
+                        None,
+                    );
+                    break;
                 }
                 SyntaxKind::OpenBracketToken => {
                     self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
                     if self.is_start_of_type(None) {
-                        unimplemented!()
+                        let index_type = self.parse_type();
+                        self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
+                        type_ = self.finish_node(
+                            self.factory
+                                .create_indexed_access_type_node(
+                                    self,
+                                    type_.wrap(),
+                                    index_type.wrap(),
+                                )
+                                .into(),
+                            pos,
+                            None,
+                        );
                     } else {
                         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
                         type_ = self.finish_node(

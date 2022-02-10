@@ -118,7 +118,6 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     pub fn create_indexed_access_type_node(
         &self,
         base_factory: &TBaseNodeFactory,
-        operator: SyntaxKind,
         object_type: Rc<Node /*TypeNode*/>,
         index_type: Rc<Node /*TypeNode*/>,
     ) -> IndexedAccessTypeNode {
