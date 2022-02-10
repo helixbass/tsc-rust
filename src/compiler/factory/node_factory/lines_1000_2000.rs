@@ -187,7 +187,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         decorators: Option<TDecorators>,
         modifiers: Option<TModifiers>,
         dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
-        name: TName,
+        name: Option<TName>,
         question_token: Option<Rc<Node /*QuestionToken*/>>,
         type_: Option<Rc<Node /*TypeNode*/>>,
         initializer: Option<Rc<Node /*Expression*/>>,
@@ -198,7 +198,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             SyntaxKind::Parameter,
             decorators,
             modifiers,
-            Some(name),
+            name,
             type_,
             initializer.map(|initializer| {
                 self.parenthesizer_rules()

@@ -4,12 +4,121 @@ use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    get_full_width, is_modifier_kind, some, token_to_string, Diagnostics, KeywordTypeNode,
-    LiteralTypeNode, Node, NodeArray, NodeFactory, ParameterDeclaration, SyntaxKind,
-    TypeParameterDeclaration,
+    get_full_width, is_modifier_kind, some, token_to_string, Diagnostics, Identifier,
+    KeywordTypeNode, LiteralTypeNode, Node, NodeArray, NodeFactory, ParameterDeclaration,
+    SyntaxKind, TypeParameterDeclaration,
 };
 
 impl ParserType {
+    pub(super) fn parse_jsdoc_function_type(&self) -> Node {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        if self.look_ahead_bool(|| self.next_token_is_open_paren()) {
+            self.next_token();
+            let parameters = self.parse_parameters(SignatureFlags::Type | SignatureFlags::JSDoc);
+            let type_ = self.parse_return_type(SyntaxKind::ColonToken, false);
+            return self.with_jsdoc(
+                self.finish_node(
+                    self.factory
+                        .create_jsdoc_function_type(
+                            self,
+                            parameters,
+                            type_.map(|type_| type_.wrap()),
+                        )
+                        .into(),
+                    pos,
+                    None,
+                ),
+                has_jsdoc,
+            );
+        }
+        self.finish_node(
+            self.factory
+                .create_type_reference_node(
+                    self,
+                    self.parse_identifier_name(None).wrap(),
+                    Option::<NodeArray>::None,
+                )
+                .into(),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_jsdoc_parameter(&self) -> ParameterDeclaration {
+        let pos = self.get_node_pos();
+        let mut name: Option<Node> = None;
+        if matches!(
+            self.token(),
+            SyntaxKind::ThisKeyword | SyntaxKind::NewKeyword
+        ) {
+            name = Some(self.parse_identifier_name(None));
+            self.parse_expected(SyntaxKind::ColonToken, None, None);
+        }
+        self.finish_node(
+            self.factory.create_parameter_declaration(
+                self,
+                Option::<NodeArray>::None,
+                Option::<NodeArray>::None,
+                None,
+                name.map(|name| name.wrap()),
+                None,
+                Some(self.parse_jsdoc_type().wrap()),
+                None,
+            ),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_jsdoc_type(&self) -> Node {
+        self.scanner_mut().set_in_jsdoc_type(true);
+        let pos = self.get_node_pos();
+        if self.parse_optional(SyntaxKind::ModuleKeyword) {
+            let module_tag = self.factory.create_jsdoc_namepath_type(self, None);
+            loop {
+                match self.token() {
+                    SyntaxKind::CloseBraceToken
+                    | SyntaxKind::EndOfFileToken
+                    | SyntaxKind::CommaToken
+                    | SyntaxKind::WhitespaceTrivia => {
+                        break;
+                    }
+                    _ => {
+                        self.next_token_jsdoc();
+                    }
+                }
+            }
+
+            self.scanner_mut().set_in_jsdoc_type(false);
+            return self.finish_node(module_tag.into(), pos, None);
+        }
+
+        let has_dot_dot_dot = self.parse_optional(SyntaxKind::DotDotDotToken);
+        let mut type_ = self.parse_type_or_type_predicate();
+        self.scanner_mut().set_in_jsdoc_type(false);
+        if has_dot_dot_dot {
+            type_ = self.finish_node(
+                self.factory
+                    .create_jsdoc_variadic_type(self, Some(type_.wrap()))
+                    .into(),
+                pos,
+                None,
+            );
+        }
+        if self.token() == SyntaxKind::EqualsToken {
+            self.next_token();
+            return self.finish_node(
+                self.factory
+                    .create_jsdoc_optional_type(self, Some(type_.wrap()))
+                    .into(),
+                pos,
+                None,
+            );
+        }
+        type_
+    }
+
     pub(super) fn parse_type_parameter(&self) -> TypeParameterDeclaration {
         let pos = self.get_node_pos();
         let name = self.parse_identifier(None, None);
@@ -116,7 +225,7 @@ impl ParserType {
                 decorators,
                 modifiers,
                 dot_dot_dot_token.map(Into::into),
-                name,
+                Some(name),
                 question_token.map(Into::into),
                 type_annotation.map(|type_annotation| type_annotation.wrap()),
                 initializer.map(Into::into),
