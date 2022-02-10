@@ -7,10 +7,11 @@ use super::{ParserType, ParsingContext};
 use crate::{
     contains_parse_error, is_keyword, is_literal_kind, is_template_literal_kind, node_is_missing,
     token_is_identifier_or_keyword, token_is_identifier_or_keyword_or_greater_than,
-    token_to_string, Debug_, DiagnosticMessage, Diagnostics, HasInitializerInterface,
-    IncrementalParserSyntaxCursorInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
-    NodeInterface, QualifiedName, ReadonlyTextRange, SyntaxKind, TemplateExpression,
-    TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan, TokenFlags, TypePredicateNode,
+    token_to_string, BaseJSDocUnaryType, BaseNode, Debug_, DiagnosticMessage, Diagnostics,
+    HasInitializerInterface, IncrementalParserSyntaxCursorInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeFlags, NodeInterface, QualifiedName, ReadonlyTextRange, SyntaxKind,
+    TemplateExpression, TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan,
+    ThisTypeNode, TokenFlags, TypePredicateNode,
 };
 
 impl ParserType {
@@ -1125,5 +1126,56 @@ impl ParserType {
             lhs.pos(),
             None,
         )
+    }
+
+    pub(super) fn parse_this_type_node(&self) -> ThisTypeNode {
+        let pos = self.get_node_pos();
+        self.next_token();
+        self.finish_node(self.factory.create_this_type_node(self), pos, None)
+    }
+
+    pub(super) fn parse_jsdoc_all_type(&self) -> BaseNode {
+        let pos = self.get_node_pos();
+        self.next_token();
+        self.finish_node(self.factory.create_jsdoc_all_type(self), pos, None)
+    }
+
+    pub(super) fn parse_jsdoc_non_nullable_type(&self) -> BaseJSDocUnaryType {
+        let pos = self.get_node_pos();
+        self.next_token();
+        self.finish_node(
+            self.factory
+                .create_jsdoc_non_nullable_type(self, Some(self.parse_non_array_type().wrap())),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_jsdoc_unknown_or_nullable_type(&self) -> BaseJSDocUnaryType {
+        let pos = self.get_node_pos();
+        self.next_token();
+
+        if matches!(
+            self.token(),
+            SyntaxKind::CommaToken
+                | SyntaxKind::CloseBraceToken
+                | SyntaxKind::CloseParenToken
+                | SyntaxKind::GreaterThanToken
+                | SyntaxKind::EqualsToken
+                | SyntaxKind::BarToken
+        ) {
+            self.finish_node(
+                self.factory.create_jsdoc_unknown_type(self, None),
+                pos,
+                None,
+            )
+        } else {
+            self.finish_node(
+                self.factory
+                    .create_jsdoc_nullable_type(self, Some(self.parse_type().wrap())),
+                pos,
+                None,
+            )
+        }
     }
 }
