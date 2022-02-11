@@ -1009,14 +1009,47 @@ impl ParserType {
         expression
     }
 
-    pub(super) fn parse_left_hand_side_expression_or_higher(&self) -> Node {
-        let expression = self.parse_member_expression_or_higher();
+    pub(super) fn parse_left_hand_side_expression_or_higher(&self) -> Node /*LeftHandSideExpression*/
+    {
+        let pos = self.get_node_pos();
+        let expression: Node;
+        if self.token() == SyntaxKind::ImportKeyword {
+            if self.look_ahead_bool(|| self.next_token_is_open_paren_or_less_than()) {
+                self.set_source_flags(
+                    self.source_flags() | NodeFlags::PossiblyContainsDynamicImport,
+                );
+                expression = self.parse_token_node().into();
+            } else if self.look_ahead_bool(|| self.next_token_is_dot()) {
+                self.next_token();
+                self.next_token();
+                expression = self.finish_node(
+                    self.factory
+                        .create_meta_property(
+                            self,
+                            SyntaxKind::ImportKeyword,
+                            self.parse_identifier_name(None).wrap(),
+                        )
+                        .into(),
+                    pos,
+                    None,
+                );
+            } else {
+                expression = self.parse_member_expression_or_higher();
+            }
+        } else {
+            expression = if self.token() == SyntaxKind::SuperKeyword {
+                self.parse_super_expression()
+            } else {
+                self.parse_member_expression_or_higher()
+            };
+        }
 
-        self.parse_call_expression_rest(expression)
+        self.parse_call_expression_rest(pos, expression)
     }
 
-    pub(super) fn parse_member_expression_or_higher(&self) -> Node {
+    pub(super) fn parse_member_expression_or_higher(&self) -> Node /*MemberExpression*/ {
+        let pos = self.get_node_pos();
         let expression = self.parse_primary_expression();
-        self.parse_member_expression_rest(expression)
+        self.parse_member_expression_rest(pos, expression, true)
     }
 }

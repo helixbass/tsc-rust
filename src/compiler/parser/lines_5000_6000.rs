@@ -9,6 +9,10 @@ use crate::{
 };
 
 impl ParserType {
+    pub(super) fn parse_super_expression(&self) -> Node /*MemberExpression*/ {
+        unimplemented!()
+    }
+
     pub(super) fn parse_jsx_element_or_self_closing_element_or_fragment(
         &self,
         in_expression_context: bool,
@@ -22,13 +26,18 @@ impl ParserType {
         unimplemented!()
     }
 
-    pub(super) fn parse_member_expression_rest(&self, expression: Node) -> Node {
+    pub(super) fn parse_member_expression_rest(
+        &self,
+        pos: isize,
+        expression: Node, /*LeftHandSideExpression*/
+        allow_optional_chain: bool,
+    ) -> Node {
         loop {
             return expression;
         }
     }
 
-    pub(super) fn parse_call_expression_rest(&self, expression: Node) -> Node {
+    pub(super) fn parse_call_expression_rest(&self, pos: isize, expression: Node) -> Node {
         expression
     }
 
