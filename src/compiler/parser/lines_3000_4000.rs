@@ -137,7 +137,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         let name = self.parse_identifier(None, None);
         let mut constraint: Option<Node> = None;
-        let mut expression: Option<Node> = None;
+        let mut expression: Option<Rc<Node>> = None;
         if self.parse_optional(SyntaxKind::ExtendsKeyword) {
             if self.is_start_of_type(None) || !self.is_start_of_expression() {
                 constraint = Some(self.parse_type());
@@ -157,7 +157,7 @@ impl ParserType {
             constraint.map(|constraint| constraint.wrap()),
             default_type.map(|default_type| default_type.wrap()),
         );
-        node.expression = expression.map(|expression| expression.wrap());
+        node.expression = expression;
         self.finish_node(node, pos, None)
     }
 

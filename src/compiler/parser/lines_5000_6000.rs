@@ -5,10 +5,23 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     ArrayLiteralExpression, Block, DiagnosticMessage, Diagnostics, Node, ObjectLiteralExpression,
-    PropertyAssignment, ReturnStatement, SyntaxKind,
+    PropertyAssignment, ReturnStatement, SyntaxKind, TypeAssertion,
 };
 
 impl ParserType {
+    pub(super) fn parse_jsx_element_or_self_closing_element_or_fragment(
+        &self,
+        in_expression_context: bool,
+        top_invalid_node_position: Option<isize>,
+        opening_tag: Option<Rc<Node /*JsxOpeningElement | JsxOpeningFragment*/>>,
+    ) -> Node /*JsxElement | JsxSelfClosingElement | JsxFragment*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_type_assertion(&self) -> TypeAssertion {
+        unimplemented!()
+    }
+
     pub(super) fn parse_member_expression_rest(&self, expression: Node) -> Node {
         loop {
             return expression;

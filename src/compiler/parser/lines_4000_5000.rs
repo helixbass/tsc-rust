@@ -221,9 +221,7 @@ impl ParserType {
         }
 
         let pos = self.get_node_pos();
-        let expr = self
-            .parse_binary_expression_or_higher(OperatorPrecedence::Lowest)
-            .wrap();
+        let expr = self.parse_binary_expression_or_higher(OperatorPrecedence::Lowest);
 
         if expr.kind() == SyntaxKind::Identifier
             && self.token() == SyntaxKind::EqualsGreaterThanToken
@@ -521,7 +519,7 @@ impl ParserType {
                 let expr = self.parse_binary_expression_or_higher(OperatorPrecedence::Lowest);
                 return Some(self.parse_simple_arrow_function_expression(
                     pos,
-                    expr.wrap(),
+                    expr,
                     async_modifier,
                 ));
             }
@@ -713,8 +711,10 @@ impl ParserType {
             .into();
     }
 
-    pub(super) fn parse_binary_expression_or_higher(&self, precedence: OperatorPrecedence) -> Node /*Expression*/
-    {
+    pub(super) fn parse_binary_expression_or_higher(
+        &self,
+        precedence: OperatorPrecedence,
+    ) -> Rc<Node /*Expression*/> {
         let pos = self.get_node_pos();
         let left_operand = self.parse_unary_expression_or_higher();
         self.parse_binary_expression_rest(precedence, left_operand, pos)
@@ -727,9 +727,9 @@ impl ParserType {
     pub(super) fn parse_binary_expression_rest(
         &self,
         precedence: OperatorPrecedence,
-        mut left_operand: Node,
+        mut left_operand: Rc<Node>,
         pos: isize,
-    ) -> Node {
+    ) -> Rc<Node> {
         loop {
             self.re_scan_greater_token();
             let new_precedence = get_binary_operator_precedence(self.token());
@@ -754,17 +754,16 @@ impl ParserType {
                 } else {
                     self.next_token();
                     left_operand = self
-                        .make_as_expression(left_operand.wrap(), self.parse_type().wrap())
+                        .make_as_expression(left_operand, self.parse_type().wrap())
                         .into();
                 }
             }
 
             left_operand = self
                 .make_binary_expression(
-                    left_operand.wrap(),
+                    left_operand,
                     self.parse_token_node().into(),
-                    self.parse_binary_expression_or_higher(new_precedence)
-                        .wrap(),
+                    self.parse_binary_expression_or_higher(new_precedence),
                     pos,
                 )
                 .into();
@@ -811,7 +810,7 @@ impl ParserType {
             self.factory.create_prefix_unary_expression(
                 self,
                 self.token(),
-                self.next_token_and(|| self.parse_simple_unary_expression().wrap()),
+                self.next_token_and(|| self.parse_simple_unary_expression()),
             ),
             pos,
             None,
@@ -823,7 +822,7 @@ impl ParserType {
         self.finish_node(
             self.factory.create_delete_expression(
                 self,
-                self.next_token_and(|| self.parse_simple_unary_expression().wrap()),
+                self.next_token_and(|| self.parse_simple_unary_expression()),
             ),
             pos,
             None,
@@ -835,7 +834,7 @@ impl ParserType {
         self.finish_node(
             self.factory.create_type_of_expression(
                 self,
-                self.next_token_and(|| self.parse_simple_unary_expression().wrap()),
+                self.next_token_and(|| self.parse_simple_unary_expression()),
             ),
             pos,
             None,
@@ -847,7 +846,7 @@ impl ParserType {
         self.finish_node(
             self.factory.create_void_expression(
                 self,
-                self.next_token_and(|| self.parse_simple_unary_expression().wrap()),
+                self.next_token_and(|| self.parse_simple_unary_expression()),
             ),
             pos,
             None,
@@ -873,14 +872,14 @@ impl ParserType {
         self.finish_node(
             self.factory.create_await_expression(
                 self,
-                self.next_token_and(|| self.parse_simple_unary_expression().wrap()),
+                self.next_token_and(|| self.parse_simple_unary_expression()),
             ),
             pos,
             None,
         )
     }
 
-    pub(super) fn parse_unary_expression_or_higher(&self) -> Node {
+    pub(super) fn parse_unary_expression_or_higher(&self) -> Rc<Node> {
         if self.is_update_expression() {
             let pos = self.get_node_pos();
             let update_expression = self.parse_update_expression();
@@ -916,32 +915,96 @@ impl ParserType {
         simple_unary_expression
     }
 
-    pub(super) fn parse_simple_unary_expression(&self) -> Node {
-        unimplemented!()
+    pub(super) fn parse_simple_unary_expression(&self) -> Rc<Node /*UnaryExpression*/> {
+        match self.token() {
+            SyntaxKind::PlusToken
+            | SyntaxKind::MinusToken
+            | SyntaxKind::TildeToken
+            | SyntaxKind::ExclamationToken => self.parse_prefix_unary_expression().into(),
+            SyntaxKind::DeleteKeyword => self.parse_delete_expression().into(),
+            SyntaxKind::TypeOfKeyword => self.parse_type_of_expression().into(),
+            SyntaxKind::VoidKeyword => self.parse_void_expression().into(),
+            SyntaxKind::LessThanToken => self.parse_type_assertion().into(),
+            SyntaxKind::AwaitKeyword => {
+                if self.is_await_expression() {
+                    self.parse_await_expression().into()
+                } else {
+                    self.parse_update_expression()
+                }
+            }
+            _ => self.parse_update_expression(),
+        }
     }
 
     pub(super) fn is_update_expression(&self) -> bool {
         match self.token() {
+            SyntaxKind::PlusToken
+            | SyntaxKind::MinusToken
+            | SyntaxKind::TildeToken
+            | SyntaxKind::ExclamationToken
+            | SyntaxKind::DeleteKeyword
+            | SyntaxKind::TypeOfKeyword
+            | SyntaxKind::VoidKeyword
+            | SyntaxKind::AwaitKeyword => false,
+            SyntaxKind::LessThanToken => {
+                if self.language_variant() != LanguageVariant::JSX {
+                    false
+                } else {
+                    true
+                }
+            }
             _ => true,
         }
     }
 
-    pub(super) fn parse_update_expression(&self) -> Node {
-        if self.token() == SyntaxKind::PlusPlusToken {
+    pub(super) fn parse_update_expression(&self) -> Rc<Node> {
+        if matches!(
+            self.token(),
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) {
             let pos = self.get_node_pos();
-            let operator = self.token();
-            let operand = self.next_token_and(|| self.parse_left_hand_side_expression_or_higher());
             return self
                 .finish_node(
-                    self.factory
-                        .create_prefix_unary_expression(self, operator, operand.into()),
+                    self.factory.create_prefix_unary_expression(
+                        self,
+                        self.token(),
+                        self.next_token_and(|| {
+                            self.parse_left_hand_side_expression_or_higher().wrap()
+                        }),
+                    ),
                     pos,
                     None,
                 )
                 .into();
+        } else if self.language_variant() == LanguageVariant::JSX
+            && self.token() == SyntaxKind::LessThanToken
+            && self.look_ahead_bool(|| self.next_token_is_identifier_or_keyword_or_greater_than())
+        {
+            return self
+                .parse_jsx_element_or_self_closing_element_or_fragment(true, None, None)
+                .wrap();
         }
 
-        let expression = self.parse_left_hand_side_expression_or_higher();
+        let expression = self.parse_left_hand_side_expression_or_higher().wrap();
+
+        Debug_.assert(is_left_hand_side_expression(&expression), None);
+        if matches!(
+            self.token(),
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) && !self.scanner().has_preceding_line_break()
+        {
+            let operator = self.token();
+            self.next_token();
+            let expression_pos = expression.pos();
+            return self
+                .finish_node(
+                    self.factory
+                        .create_postfix_unary_expression(self, expression, operator),
+                    expression_pos,
+                    None,
+                )
+                .into();
+        }
 
         expression
     }
