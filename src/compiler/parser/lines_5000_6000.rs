@@ -4,13 +4,50 @@ use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    ArrayLiteralExpression, Block, DiagnosticMessage, Diagnostics, Node, ObjectLiteralExpression,
-    PropertyAssignment, ReturnStatement, SyntaxKind, TypeAssertion,
+    ArrayLiteralExpression, Block, DiagnosticMessage, Diagnostics, Node, NodeArray,
+    ObjectLiteralExpression, PropertyAssignment, ReturnStatement, SyntaxKind, TypeAssertion,
 };
 
 impl ParserType {
     pub(super) fn parse_super_expression(&self) -> Node /*MemberExpression*/ {
-        unimplemented!()
+        let pos = self.get_node_pos();
+        let expression = self.parse_token_node();
+        if self.token() == SyntaxKind::LessThanToken {
+            let start_pos = self.get_node_pos();
+            let type_arguments = self.try_parse(|| self.parse_type_arguments_in_expression());
+            if type_arguments.is_some() {
+                self.parse_error_at(
+                    start_pos,
+                    self.get_node_pos(),
+                    &Diagnostics::super_may_not_use_type_arguments,
+                    None,
+                );
+            }
+        }
+
+        if matches!(
+            self.token(),
+            SyntaxKind::OpenParenToken | SyntaxKind::DotToken | SyntaxKind::OpenBracketToken
+        ) {
+            return expression.into();
+        }
+
+        self.parse_expected_token(
+            SyntaxKind::DotToken,
+            Some(&Diagnostics::super_must_be_followed_by_an_argument_list_or_member_access),
+            None,
+        );
+        self.finish_node(
+            self.factory
+                .create_property_access_expression(
+                    self,
+                    expression.into(),
+                    self.parse_right_side_of_dot(true, true).wrap(),
+                )
+                .into(),
+            pos,
+            None,
+        )
     }
 
     pub(super) fn parse_jsx_element_or_self_closing_element_or_fragment(
@@ -19,7 +56,146 @@ impl ParserType {
         top_invalid_node_position: Option<isize>,
         opening_tag: Option<Rc<Node /*JsxOpeningElement | JsxOpeningFragment*/>>,
     ) -> Node /*JsxElement | JsxSelfClosingElement | JsxFragment*/ {
-        unimplemented!()
+        let pos = self.get_node_pos();
+        let opening = self
+            .parse_jsx_opening_or_self_closing_element_or_opening_fragment(in_expression_context);
+        let result: Node;
+        if opening.kind() == SyntaxKind::JsxOpeningElement {
+            let mut children = self.parse_jsx_children(&opening);
+            let closing_element: JsxClosingElement;
+
+            let opening_as_jsx_opening_element = opening.as_jsx_opening_element();
+            let last_child = if children.is_empty() {
+                None
+            } else {
+                Some(&children[children.len() - 1])
+            };
+            if let Some(last_child) = last_child.filter(|last_child| {
+                if last_child.kind() != SyntaxKind::JsxElement {
+                    return false;
+                }
+                let last_child_as_jsx_element = last_child.as_jsx_element();
+                !tag_names_are_equivalent(
+                    &last_child.opening_element.as_jsx_opening_element().tag_name,
+                    &last_child.closing_element.as_jsx_closing_element().tag_name,
+                ) && tag_names_are_equivalent(
+                    &opening_as_jsx_opening_element.tag_name,
+                    &last_child.closing_element.as_jsx_closing_element().tag_name,
+                )
+            }) {
+                let last_child_as_jsx_element = last_child.as_jsx_element();
+                let end = last_child_as_jsx_element.children.end();
+                let last_child_opening_element_pos =
+                    last_child_as_jsx_element.opening_element.pos();
+                let new_last = self.finish_node(
+                    self.factory.create_jsx_element(
+                        last_child_as_jsx_element.opening_element.clone(),
+                        last_child_as_jsx_element.children.clone(),
+                        self.finish_node(
+                            self.factory.create_jsx_closing_element(
+                                self,
+                                self.finish_node(
+                                    self.factory.create_identifier(self, ""),
+                                    end,
+                                    Some(end),
+                                ),
+                            ),
+                            end,
+                            Some(end),
+                        ),
+                    ),
+                    last_child_opening_element_pos,
+                    Some(end),
+                );
+
+                let children_pos = children.pos();
+                let children = children.to_vec();
+                children[children.len() - 1] = new_last;
+                let children = self.create_node_array(children, children_pos, end);
+                closing_element = last_child_as_jsx_element.closing_element.clone();
+            } else {
+                closing_element = self.parse_jsx_closing_element(&opening, in_expression_context);
+                if !tag_names_are_equivalent(
+                    &opening_as_jsx_opening_element.tag_name,
+                    &closing_element.tag_name,
+                ) {
+                    if let Some(opening_tag) = opening_tag.filter(|opening_tag| {
+                        is_jsx_opening_element(&opening_tag)
+                            && tag_names_are_equivalent(
+                                &closing_element.tag_name,
+                                &opening_tag.as_jsx_opening_element().tag_name,
+                            )
+                    }) {
+                        self.parse_error_at_range(
+                            &opening_as_jsx_opening_element.tag_name,
+                            &Diagnostics::JSX_element_0_has_no_corresponding_closing_tag,
+                            Some(vec![get_text_of_node_from_source_text(
+                                self.source_text_as_chars(),
+                                &opening_as_jsx_opening_element.tag_name,
+                            )]),
+                        );
+                    } else {
+                        self.parse_error_at_range(
+                            &closing_element.tag_name,
+                            &Diagnostics::Expected_corresponding_JSX_closing_tag_for_0,
+                            Some(vec![get_text_of_node_from_source_text(
+                                self.source_text_as_chars(),
+                                &opening_as_jsx_opening_element.tag_name,
+                            )]),
+                        );
+                    }
+                }
+            }
+            result = self.finish_node(
+                self.factory
+                    .create_jsx_element(self, opening, children, closing_element),
+                pos,
+                None,
+            );
+        } else if opening.kind() == SyntaxKind::JsxOpeningFragment {
+            let children = self.parse_jsx_children(&opening);
+            result = self.finish_node(
+                self.factory.create_jsx_fragment(
+                    self,
+                    opening,
+                    children,
+                    self.parse_jsx_closing_fragment(in_expression_context),
+                ),
+                pos,
+                None,
+            );
+        } else {
+            Debug_.assert(opening.kind() == SyntaxKind::JsxSelfClosingElement);
+            result = opening;
+        }
+
+        if in_expression_context && self.token() == SyntaxKind::LessThanToken {
+            let top_bad_pos = top_invalid_node_position.unwrap_or_else(|| result.pos());
+            let invalid_element = self.try_parse(|| {
+                self.parse_jsx_element_or_self_closing_element_or_fragment(true, top_bad_pos)
+            });
+            if let Some(invalid_element) = invalid_element {
+                let operator_token = self.create_missing_node(SyntaxKind::CommaToken, false);
+                set_text_range_pos_width(&operator_token, invalid_element.pos(), 0);
+                self.parse_error_at(
+                    skip_trivia(self.source_text_as_chars(), top_bad_pos),
+                    invalid_element.end(),
+                    &Diagnostics::JSX_expressions_must_have_one_parent_element,
+                );
+                return self.finish_node(
+                    self.factory.create_binary_expression(
+                        self,
+                        result,
+                        operator_token,
+                        invalid_element,
+                    ),
+                    pos,
+                    None,
+                );
+            }
+        }
+
+        result
     }
 
     pub(super) fn parse_type_assertion(&self) -> TypeAssertion {
@@ -39,6 +215,10 @@ impl ParserType {
 
     pub(super) fn parse_call_expression_rest(&self, pos: isize, expression: Node) -> Node {
         expression
+    }
+
+    pub(super) fn parse_type_arguments_in_expression(&self) -> Option<NodeArray /*<TypeNode>*/> {
+        unimplemented!()
     }
 
     pub(super) fn parse_primary_expression(&self) -> Node {
