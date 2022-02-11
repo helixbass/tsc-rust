@@ -4,12 +4,12 @@ use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    get_full_width, is_jsdoc_nullable_type, is_modifier_kind, set_text_range, some,
-    token_is_identifier_or_keyword, token_to_string, Diagnostics, ImportTypeNode,
-    IndexSignatureDeclaration, InferTypeNode, KeywordTypeNode, LiteralTypeNode, MappedTypeNode,
-    Node, NodeArray, NodeFactory, NodeFlags, NodeInterface, ParameterDeclaration,
-    ReadonlyTextRange, SyntaxKind, TupleTypeNode, TypeLiteralNode, TypeOperatorNode,
-    TypeParameterDeclaration, TypeQueryNode,
+    get_full_width, is_function_type_node, is_jsdoc_nullable_type, is_modifier_kind,
+    set_text_range, some, token_is_identifier_or_keyword, token_to_string, DiagnosticMessage,
+    Diagnostics, ImportTypeNode, IndexSignatureDeclaration, InferTypeNode, KeywordTypeNode,
+    LiteralTypeNode, MappedTypeNode, Node, NodeArray, NodeFactory, NodeFlags, NodeInterface,
+    ParameterDeclaration, ReadonlyTextRange, SyntaxKind, TupleTypeNode, TypeLiteralNode,
+    TypeOperatorNode, TypeParameterDeclaration, TypeQueryNode,
 };
 
 impl ParserType {
@@ -1200,46 +1200,61 @@ impl ParserType {
     pub(super) fn parse_function_or_constructor_type_to_error(
         &self,
         is_in_union_type: bool,
-    ) -> Option<Node> {
+    ) -> Option<Node /*TypeNode*/> {
+        if self.is_start_of_function_type_or_constructor_type() {
+            let type_ = self.parse_function_or_constructor_type();
+            let diagnostic: &DiagnosticMessage;
+            if is_function_type_node(&type_) {
+                diagnostic = if is_in_union_type {
+                    &Diagnostics::Function_type_notation_must_be_parenthesized_when_used_in_a_union_type
+                } else {
+                    &Diagnostics::Function_type_notation_must_be_parenthesized_when_used_in_an_intersection_type
+                };
+            } else {
+                diagnostic = if is_in_union_type {
+                    &Diagnostics::Constructor_type_notation_must_be_parenthesized_when_used_in_a_union_type
+                } else {
+                    &Diagnostics::Constructor_type_notation_must_be_parenthesized_when_used_in_an_intersection_type
+                };
+            }
+            self.parse_error_at_range(&type_, diagnostic, None);
+            return Some(type_);
+        }
         None
     }
 
-    pub(super) fn parse_union_or_intersection_type<TReturn: Into<Node>>(
+    pub(super) fn parse_union_or_intersection_type<
+        TParseConstituentType: FnMut() -> Node,
+        TCreateTypeNode: FnMut(NodeArray) -> Node,
+    >(
         &self,
         operator: SyntaxKind, /*SyntaxKind.BarToken | SyntaxKind.AmpersandToken*/
-        parse_constituent_type: fn(&ParserType) -> Node,
-        create_type_node: fn(&NodeFactory<ParserType>, &ParserType, NodeArray) -> TReturn,
+        mut parse_constituent_type: TParseConstituentType,
+        mut create_type_node: TCreateTypeNode,
     ) -> Node {
         let pos = self.get_node_pos();
         let is_union_type = operator == SyntaxKind::BarToken;
         let has_leading_operator = self.parse_optional(operator);
         let mut type_: Option<Node> = Some(if has_leading_operator {
             self.parse_function_or_constructor_type_to_error(is_union_type)
-                .unwrap_or_else(|| parse_constituent_type(self))
+                .unwrap_or_else(|| parse_constituent_type())
         } else {
-            parse_constituent_type(self)
+            parse_constituent_type()
         });
         if self.token() == operator || has_leading_operator {
             let mut types: Vec<Rc<Node>> = vec![type_.take().unwrap().wrap()];
             while self.parse_optional(operator) {
                 types.push(
                     self.parse_function_or_constructor_type_to_error(is_union_type)
-                        .unwrap_or_else(|| parse_constituent_type(self))
-                        .into(),
+                        .unwrap_or_else(|| parse_constituent_type())
+                        .wrap(),
                 );
             }
-            type_ = Some(
-                self.finish_node(
-                    create_type_node(
-                        &self.factory,
-                        self,
-                        self.create_node_array(types, pos, None, None),
-                    )
-                    .into(),
-                    pos,
-                    None,
-                ),
-            );
+            type_ = Some(self.finish_node(
+                create_type_node(self.create_node_array(types, pos, None, None)),
+                pos,
+                None,
+            ));
         }
         type_.unwrap()
     }
@@ -1247,17 +1262,83 @@ impl ParserType {
     pub(super) fn parse_intersection_type_or_higher(&self) -> Node {
         self.parse_union_or_intersection_type(
             SyntaxKind::AmpersandToken,
-            ParserType::parse_type_operator_or_higher,
-            NodeFactory::create_intersection_type_node,
+            || self.parse_type_operator_or_higher(),
+            |types| self.factory.create_intersection_type_node(self, types),
         )
     }
 
     pub(super) fn parse_union_type_or_higher(&self) -> Node {
         self.parse_union_or_intersection_type(
             SyntaxKind::BarToken,
-            ParserType::parse_intersection_type_or_higher,
-            NodeFactory::create_union_type_node,
+            || self.parse_intersection_type_or_higher(),
+            |types| self.factory.create_union_type_node(self, types),
         )
+    }
+
+    pub(super) fn next_token_is_new_keyword(&self) -> bool {
+        self.next_token();
+        self.token() == SyntaxKind::NewKeyword
+    }
+
+    pub(super) fn is_start_of_function_type_or_constructor_type(&self) -> bool {
+        if self.token() == SyntaxKind::LessThanToken {
+            return true;
+        }
+        if self.token() == SyntaxKind::OpenParenToken
+            && self.look_ahead_bool(|| self.is_unambiguously_start_of_function_type())
+        {
+            return true;
+        }
+        self.token() == SyntaxKind::NewKeyword
+            || self.token() == SyntaxKind::AbstractKeyword
+                && self.look_ahead_bool(|| self.next_token_is_new_keyword())
+    }
+
+    pub(super) fn skip_parameter_start(&self) -> bool {
+        if is_modifier_kind(self.token()) {
+            self.parse_modifiers(None, None);
+        }
+        if self.is_identifier() || self.token() == SyntaxKind::ThisKeyword {
+            self.next_token();
+            return true;
+        }
+        if matches!(
+            self.token(),
+            SyntaxKind::OpenBracketToken | SyntaxKind::OpenBraceToken
+        ) {
+            let previous_error_count = self.parse_diagnostics().len();
+            self.parse_identifier_or_pattern(None);
+            return previous_error_count == self.parse_diagnostics().len();
+        }
+        false
+    }
+
+    pub(super) fn is_unambiguously_start_of_function_type(&self) -> bool {
+        self.next_token();
+        if matches!(
+            self.token(),
+            SyntaxKind::CloseParenToken | SyntaxKind::DotDotDotToken
+        ) {
+            return true;
+        }
+        if self.skip_parameter_start() {
+            if matches!(
+                self.token(),
+                SyntaxKind::ColonToken
+                    | SyntaxKind::CommaToken
+                    | SyntaxKind::QuestionToken
+                    | SyntaxKind::EqualsToken
+            ) {
+                return true;
+            }
+            if self.token() == SyntaxKind::CloseParenToken {
+                self.next_token();
+                if self.token() == SyntaxKind::EqualsGreaterThanToken {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     pub(super) fn parse_type_or_type_predicate(&self) -> Node {
