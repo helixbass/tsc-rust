@@ -1341,7 +1341,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_type_or_type_predicate(&self) -> Node {
+    pub(super) fn parse_type_or_type_predicate(&self) -> Node /*TypeNode*/ {
         let pos = self.get_node_pos();
         let type_predicate_variable = if self.is_identifier() {
             self.try_parse(|| self.parse_type_predicate_prefix())
