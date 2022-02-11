@@ -3,15 +3,12 @@
 use bitflags::bitflags;
 use std::rc::Rc;
 
-use super::{ParserType, SignatureFlags};
+use super::ParserType;
 use crate::{
-    append, for_each, for_each_child_returns, is_class_member_modifier, is_export_assignment,
-    is_export_declaration, is_external_module_reference, is_import_declaration,
-    is_import_equals_declaration, is_keyword, is_meta_property, is_modifier_kind,
-    modifiers_to_flags, some, token_is_identifier_or_keyword, BaseNode, BaseNodeFactory, Block,
-    Debug_, Decorator, Diagnostic, DiagnosticMessage, Diagnostics, FunctionDeclaration,
-    InterfaceDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
-    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
+    for_each, for_each_child_returns, is_export_assignment, is_export_declaration,
+    is_external_module_reference, is_import_declaration, is_import_equals_declaration,
+    is_meta_property, some, BaseNode, BaseNodeFactory, Diagnostic, InterfaceDeclaration, Node,
+    NodeArray, NodeFlags, NodeInterface, SyntaxKind, TypeAliasDeclaration,
 };
 
 impl ParserType {

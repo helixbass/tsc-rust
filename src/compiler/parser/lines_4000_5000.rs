@@ -2,11 +2,10 @@
 
 use std::rc::Rc;
 
-use super::{ParserType, ParsingContext, SignatureFlags};
+use super::ParserType;
 use crate::{
-    get_binary_operator_precedence, ArrayLiteralExpression, BinaryExpression, Block,
-    DiagnosticMessage, Diagnostics, Identifier, Node, NodeFlags, ObjectLiteralExpression,
-    OperatorPrecedence, PrefixUnaryExpression, PropertyAssignment, ReturnStatement, SyntaxKind,
+    get_binary_operator_precedence, BinaryExpression, Node, NodeFlags, OperatorPrecedence,
+    PrefixUnaryExpression, SyntaxKind,
 };
 
 impl ParserType {

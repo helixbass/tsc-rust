@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::{
     file_extension_is_one_of, for_each_child_bool, Debug_, DiagnosticMessage, Extension,
     IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType, Node, NodeArray,
-    NodeInterface, ParserType, ReadonlyTextRange, TextChangeRange,
+    NodeInterface, ParserType, ReadonlyTextRange,
 };
 
 impl IncrementalParserType {

@@ -1,12 +1,6 @@
-use std::cell::{Cell, Ref, RefCell};
-use std::convert::TryInto;
 use std::rc::Rc;
 
-use crate::{
-    file_extension_is_one_of, for_each_child_bool, Debug_, DiagnosticMessage, Extension,
-    IncrementalParserSyntaxCursorReparseTopLevelAwait, Node, NodeArray, NodeInterface, ParserType,
-    ReadonlyTextRange, TextChangeRange,
-};
+use crate::{Node, TextChangeRange};
 
 pub fn IncrementalParser() -> IncrementalParserType {
     IncrementalParserType::new()

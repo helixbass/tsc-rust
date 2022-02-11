@@ -1,12 +1,9 @@
 #![allow(non_upper_case_globals)]
 
-use std::rc::Rc;
-
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    get_binary_operator_precedence, ArrayLiteralExpression, BinaryExpression, Block,
-    DiagnosticMessage, Diagnostics, Identifier, Node, NodeFlags, ObjectLiteralExpression,
-    OperatorPrecedence, PrefixUnaryExpression, PropertyAssignment, ReturnStatement, SyntaxKind,
+    ArrayLiteralExpression, Block, DiagnosticMessage, Diagnostics, Node, ObjectLiteralExpression,
+    PropertyAssignment, ReturnStatement, SyntaxKind,
 };
 
 impl ParserType {
