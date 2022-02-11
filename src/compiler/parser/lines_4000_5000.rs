@@ -6,10 +6,11 @@ use std::rc::Rc;
 use super::{ParserType, SignatureFlags, Tristate};
 use crate::{
     get_binary_operator_precedence, is_assignment_operator, is_async_modifier,
-    is_jsdoc_function_type, is_left_hand_side_expression, is_modifier_kind, node_is_present, some,
-    token_to_string, ArrowFunction, BinaryExpression, Debug_, Diagnostics, LanguageVariant, Node,
-    NodeArray, NodeFlags, NodeInterface, OperatorPrecedence, PrefixUnaryExpression,
-    ReadonlyTextRange, SyntaxKind, YieldExpression,
+    is_jsdoc_function_type, is_left_hand_side_expression, is_modifier_kind, node_is_present,
+    skip_trivia, some, token_to_string, ArrowFunction, AsExpression, AwaitExpression,
+    BinaryExpression, Debug_, DeleteExpression, Diagnostics, LanguageVariant, Node, NodeArray,
+    NodeFlags, NodeInterface, OperatorPrecedence, PrefixUnaryExpression, ReadonlyTextRange,
+    SyntaxKind, TypeOfExpression, VoidExpression, YieldExpression,
 };
 
 impl ParserType {
@@ -712,7 +713,8 @@ impl ParserType {
             .into();
     }
 
-    pub(super) fn parse_binary_expression_or_higher(&self, precedence: OperatorPrecedence) -> Node {
+    pub(super) fn parse_binary_expression_or_higher(&self, precedence: OperatorPrecedence) -> Node /*Expression*/
+    {
         let pos = self.get_node_pos();
         let left_operand = self.parse_unary_expression_or_higher();
         self.parse_binary_expression_rest(precedence, left_operand, pos)
@@ -729,21 +731,40 @@ impl ParserType {
         pos: isize,
     ) -> Node {
         loop {
+            self.re_scan_greater_token();
             let new_precedence = get_binary_operator_precedence(self.token());
 
-            let consume_current_operator = new_precedence > precedence;
+            let consume_current_operator = if self.token() == SyntaxKind::AsteriskAsteriskToken {
+                new_precedence >= precedence
+            } else {
+                new_precedence > precedence
+            };
 
             if !consume_current_operator {
                 break;
             }
 
-            let operator_token = self.parse_token_node();
-            let right = self.parse_binary_expression_or_higher(new_precedence);
+            if self.token() == SyntaxKind::InKeyword && self.in_disallow_in_context() {
+                break;
+            }
+
+            if self.token() == SyntaxKind::AsKeyword {
+                if self.scanner().has_preceding_line_break() {
+                    break;
+                } else {
+                    self.next_token();
+                    left_operand = self
+                        .make_as_expression(left_operand.wrap(), self.parse_type().wrap())
+                        .into();
+                }
+            }
+
             left_operand = self
                 .make_binary_expression(
                     left_operand.wrap(),
-                    operator_token.into(),
-                    right.wrap(),
+                    self.parse_token_node().into(),
+                    self.parse_binary_expression_or_higher(new_precedence)
+                        .wrap(),
                     pos,
                 )
                 .into();
@@ -753,6 +774,10 @@ impl ParserType {
     }
 
     pub(super) fn is_binary_operator(&self) -> bool {
+        if self.in_disallow_in_context() && self.token() == SyntaxKind::InKeyword {
+            return false;
+        }
+
         get_binary_operator_precedence(self.token()) > OperatorPrecedence::Comma
     }
 
@@ -771,6 +796,15 @@ impl ParserType {
         )
     }
 
+    pub(super) fn make_as_expression(&self, left: Rc<Node>, right: Rc<Node>) -> AsExpression {
+        let left_pos = left.pos();
+        self.finish_node(
+            self.factory.create_as_expression(self, left, right),
+            left_pos,
+            None,
+        )
+    }
+
     pub(super) fn parse_prefix_unary_expression(&self) -> PrefixUnaryExpression {
         let pos = self.get_node_pos();
         self.finish_node(
@@ -784,13 +818,102 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_unary_expression_or_higher(&self) -> Node {
-        if self.is_update_expression() {
-            let update_expression = self.parse_update_expression();
-            return update_expression;
+    pub(super) fn parse_delete_expression(&self) -> DeleteExpression {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_delete_expression(
+                self,
+                self.next_token_and(|| self.parse_simple_unary_expression().wrap()),
+            ),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_type_of_expression(&self) -> TypeOfExpression {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_type_of_expression(
+                self,
+                self.next_token_and(|| self.parse_simple_unary_expression().wrap()),
+            ),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_void_expression(&self) -> VoidExpression {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_void_expression(
+                self,
+                self.next_token_and(|| self.parse_simple_unary_expression().wrap()),
+            ),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn is_await_expression(&self) -> bool {
+        if self.token() == SyntaxKind::AwaitKeyword {
+            if self.in_await_context() {
+                return true;
+            }
+
+            return self.look_ahead_bool(|| {
+                self.next_token_is_identifier_or_keyword_or_literal_on_same_line()
+            });
         }
 
-        panic!("Unimplemented");
+        false
+    }
+
+    pub(super) fn parse_await_expression(&self) -> AwaitExpression {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_await_expression(
+                self,
+                self.next_token_and(|| self.parse_simple_unary_expression().wrap()),
+            ),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_unary_expression_or_higher(&self) -> Node {
+        if self.is_update_expression() {
+            let pos = self.get_node_pos();
+            let update_expression = self.parse_update_expression();
+            return if self.token() == SyntaxKind::AsteriskAsteriskToken {
+                self.parse_binary_expression_rest(
+                    get_binary_operator_precedence(self.token()),
+                    update_expression,
+                    pos,
+                )
+            } else {
+                update_expression
+            };
+        }
+
+        let unary_operator = self.token();
+        let simple_unary_expression = self.parse_simple_unary_expression();
+        if self.token() == SyntaxKind::AsteriskAsteriskToken {
+            let pos = skip_trivia(
+                self.source_text_as_chars(),
+                simple_unary_expression.pos(),
+                None,
+                None,
+                None,
+            );
+            let end = simple_unary_expression.end();
+            if simple_unary_expression.kind() == SyntaxKind::TypeAssertionExpression {
+                self.parse_error_at(pos, end, &Diagnostics::A_type_assertion_expression_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses, None);
+            } else {
+                self.parse_error_at(pos, end, &Diagnostics::An_unary_expression_with_the_0_operator_is_not_allowed_in_the_left_hand_side_of_an_exponentiation_expression_Consider_enclosing_the_expression_in_parentheses,
+                                    Some(vec![token_to_string(unary_operator).unwrap().to_owned()]));
+            }
+        }
+        simple_unary_expression
     }
 
     pub(super) fn parse_simple_unary_expression(&self) -> Node {
