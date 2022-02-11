@@ -553,6 +553,10 @@ pub fn node_is_missing<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
     node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
 }
 
+pub fn node_is_present<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
+    !node_is_missing(node)
+}
+
 pub fn is_any_import_syntax(node: &Node) -> bool {
     matches!(
         node.kind(),

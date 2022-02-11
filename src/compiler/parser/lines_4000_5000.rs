@@ -6,9 +6,10 @@ use std::rc::Rc;
 use super::{ParserType, SignatureFlags, Tristate};
 use crate::{
     get_binary_operator_precedence, is_assignment_operator, is_async_modifier,
-    is_jsdoc_function_type, is_left_hand_side_expression, is_modifier_kind, some, ArrowFunction,
-    BinaryExpression, Debug_, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
-    OperatorPrecedence, PrefixUnaryExpression, ReadonlyTextRange, SyntaxKind, YieldExpression,
+    is_jsdoc_function_type, is_left_hand_side_expression, is_modifier_kind, node_is_present, some,
+    token_to_string, ArrowFunction, BinaryExpression, Debug_, Diagnostics, LanguageVariant, Node,
+    NodeArray, NodeFlags, NodeInterface, OperatorPrecedence, PrefixUnaryExpression,
+    ReadonlyTextRange, SyntaxKind, YieldExpression,
 };
 
 impl ParserType {
@@ -671,8 +672,44 @@ impl ParserType {
         &self,
         left_operand: Rc<Node>,
         pos: isize,
-    ) -> Rc<Node> {
-        left_operand
+    ) -> Rc<Node /*Expression*/> {
+        let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
+        if question_token.is_none() {
+            return left_operand;
+        }
+        let question_token = question_token.unwrap();
+
+        let when_true = self.do_outside_of_context(self.disallow_in_and_decorator_context, || {
+            self.parse_assignment_expression_or_higher()
+        });
+        let colon_token = self.parse_expected_token(SyntaxKind::ColonToken, None, None);
+        let is_colon_token_present = node_is_present(Some(&colon_token));
+        return self
+            .finish_node(
+                self.factory.create_conditional_expression(
+                    self,
+                    left_operand,
+                    Some(question_token.wrap()),
+                    when_true,
+                    Some(colon_token.wrap()),
+                    if is_colon_token_present {
+                        self.parse_assignment_expression_or_higher()
+                    } else {
+                        self.create_missing_node(
+                            SyntaxKind::Identifier,
+                            false,
+                            &Diagnostics::_0_expected,
+                            Some(vec![token_to_string(SyntaxKind::ColonToken)
+                                .unwrap()
+                                .to_owned()]),
+                        )
+                        .wrap()
+                    },
+                ),
+                pos,
+                None,
+            )
+            .into();
     }
 
     pub(super) fn parse_binary_expression_or_higher(&self, precedence: OperatorPrecedence) -> Node {
