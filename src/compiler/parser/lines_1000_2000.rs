@@ -1345,8 +1345,7 @@ impl ParserType {
         let expression = self.allow_in_and(|| self.parse_expression());
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
-            self.factory
-                .create_computed_property_name(self, expression.wrap()),
+            self.factory.create_computed_property_name(self, expression),
             pos,
             None,
         )

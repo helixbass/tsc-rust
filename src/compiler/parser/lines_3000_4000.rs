@@ -503,9 +503,7 @@ impl ParserType {
                 type_.map(|type_| type_.wrap()),
             );
             if self.token() == SyntaxKind::EqualsToken {
-                node_as_property_signature.initializer = self
-                    .parse_initializer()
-                    .map(|initializer| initializer.wrap());
+                node_as_property_signature.initializer = self.parse_initializer();
             }
             node = node_as_property_signature.into();
         }

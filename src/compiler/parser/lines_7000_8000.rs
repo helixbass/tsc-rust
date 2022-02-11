@@ -262,3 +262,10 @@ bitflags! {
         const Count = 1 << 25;
     }
 }
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub(super) enum Tristate {
+    False,
+    True,
+    Unknown,
+}

@@ -253,7 +253,7 @@ pub use compiler::utilities::{
     get_source_file_of_node, get_syntactic_modifier_flags, get_text_of_identifier_or_literal,
     has_dynamic_name, has_static_modifier, has_syntactic_modifier, is_access_expression,
     is_ambient_module, is_any_import_or_re_export, is_assignment_expression,
-    is_bindable_static_element_access_expression, is_block_or_catch_scoped,
+    is_assignment_operator, is_bindable_static_element_access_expression, is_block_or_catch_scoped,
     is_external_or_common_js_module, is_function_block, is_function_expression_or_arrow_function,
     is_import_call, is_in_js_file, is_jsdoc_type_alias, is_keyword,
     is_logical_or_coalescing_assignment_operator, is_object_literal_method,

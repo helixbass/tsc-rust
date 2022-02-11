@@ -21,7 +21,7 @@ impl ParserType {
                 self.parse_error_for_missing_semicolon_after(&expression);
             }
             self.factory
-                .create_expression_statement(self, expression.wrap())
+                .create_expression_statement(self, expression)
                 .into()
         };
         self.finish_node(node, pos, None)
@@ -40,6 +40,16 @@ impl ParserType {
     pub(super) fn next_token_is_function_keyword_on_same_line(&self) -> bool {
         self.next_token();
         self.token() == SyntaxKind::FunctionKeyword && !self.scanner().has_preceding_line_break()
+    }
+
+    pub(super) fn next_token_is_identifier_or_keyword_or_literal_on_same_line(&self) -> bool {
+        self.next_token();
+        (token_is_identifier_or_keyword(self.token())
+            || matches!(
+                self.token(),
+                SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral | SyntaxKind::StringLiteral
+            ))
+            && !self.scanner().has_preceding_line_break()
     }
 
     pub(super) fn is_declaration(&self) -> bool {
@@ -235,7 +245,7 @@ impl ParserType {
             Some(name),
             exclamation_token.map(Into::into),
             type_.map(|type_| type_.wrap()),
-            initializer.map(|initializer| initializer.wrap()),
+            initializer,
         );
         self.finish_node(node, pos, None)
     }
@@ -494,5 +504,9 @@ impl ParserType {
             append(list, Some(modifier.wrap()));
         }
         list.map(|list| self.create_node_array(list, pos, None, None))
+    }
+
+    pub(super) fn parse_modifiers_for_arrow_function(&self) -> Option<NodeArray /*<Modifier>*/> {
+        unimplemented!()
     }
 }

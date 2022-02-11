@@ -942,7 +942,7 @@ impl ParserType {
         self.finish_node(
             self.factory.create_template_span(
                 self,
-                self.allow_in_and(|| self.parse_expression()).wrap(),
+                self.allow_in_and(|| self.parse_expression()),
                 self.parse_literal_of_template_span(is_tagged_template)
                     .wrap(),
             ),

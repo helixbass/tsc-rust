@@ -444,6 +444,10 @@ impl ParserType {
         self.parsing_context.set(Some(parsing_context));
     }
 
+    pub(super) fn maybe_not_parenthesized_arrow(&self) -> RefMut<Option<HashSet<usize>>> {
+        self.not_parenthesized_arrow.borrow_mut()
+    }
+
     pub(super) fn not_parenthesized_arrow(&self) -> RefMut<HashSet<usize>> {
         RefMut::map(self.not_parenthesized_arrow.borrow_mut(), |option| {
             option.as_mut().unwrap()

@@ -1,5 +1,7 @@
 #![allow(non_upper_case_globals)]
 
+use std::rc::Rc;
+
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     ArrayLiteralExpression, Block, DiagnosticMessage, Diagnostics, Node, ObjectLiteralExpression,
@@ -35,7 +37,7 @@ impl ParserType {
         self.parse_identifier(Some(&Diagnostics::Expression_expected), None)
     }
 
-    pub(super) fn parse_argument_or_array_literal_element(&self) -> Node {
+    pub(super) fn parse_argument_or_array_literal_element(&self) -> Rc<Node> {
         if false {
             unimplemented!()
         } else if false {
@@ -51,7 +53,7 @@ impl ParserType {
         let multi_line = self.scanner().has_preceding_line_break();
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayLiteralMembers,
-            || self.parse_argument_or_array_literal_element().wrap(),
+            || self.parse_argument_or_array_literal_element(),
             None,
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
@@ -201,7 +203,7 @@ impl ParserType {
             self.factory
                 .create_if_statement(
                     self,
-                    expression.wrap(),
+                    expression,
                     then_statement.wrap(),
                     else_statement.map(|else_statement| else_statement.wrap()),
                 )
