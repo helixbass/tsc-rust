@@ -7,8 +7,10 @@ use super::ParserType;
 use crate::{
     for_each, for_each_child_returns, is_export_assignment, is_export_declaration,
     is_external_module_reference, is_import_declaration, is_import_equals_declaration,
-    is_meta_property, some, BaseNode, BaseNodeFactory, Diagnostic, InterfaceDeclaration, Node,
-    NodeArray, NodeFlags, NodeInterface, SyntaxKind, TypeAliasDeclaration,
+    is_meta_property, some, BaseNode, BaseNodeFactory, Diagnostic, EnumDeclaration,
+    ExportAssignment, ExportDeclaration, InterfaceDeclaration, ModuleDeclaration,
+    NamespaceExportDeclaration, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
+    TypeAliasDeclaration,
 };
 
 impl ParserType {
@@ -30,6 +32,7 @@ impl ParserType {
     pub(super) fn parse_interface_declaration(
         &self,
         pos: isize,
+        has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> InterfaceDeclaration {
@@ -53,6 +56,7 @@ impl ParserType {
     pub(super) fn parse_type_alias_declaration(
         &self,
         pos: isize,
+        has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> TypeAliasDeclaration {
@@ -77,6 +81,26 @@ impl ParserType {
         self.finish_node(node, pos, None)
     }
 
+    pub(super) fn parse_enum_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> EnumDeclaration {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_module_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> ModuleDeclaration {
+        unimplemented!()
+    }
+
     pub(super) fn next_token_is_open_paren(&self) -> bool {
         self.next_token() == SyntaxKind::OpenParenToken
     }
@@ -87,6 +111,46 @@ impl ParserType {
 
     pub(super) fn next_token_is_slash(&self) -> bool {
         self.next_token() == SyntaxKind::SlashToken
+    }
+
+    pub(super) fn parse_namespace_export_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> NamespaceExportDeclaration {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_import_declaration_or_import_equals_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> Node /*ImportEqualsDeclaration | ImportDeclaration*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_export_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> ExportDeclaration {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_export_assignment(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> ExportAssignment {
+        unimplemented!()
     }
 
     pub(super) fn set_external_module_indicator(&self, source_file: &Node /*SourceFile*/) {

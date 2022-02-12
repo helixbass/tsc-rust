@@ -5,11 +5,11 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     append, is_class_member_modifier, is_identifier, is_keyword, is_modifier_kind,
-    modifiers_to_flags, some, token_is_identifier_or_keyword, BaseNode, Block, CaseBlock,
-    CatchClause, ClassDeclaration, ClassExpression, Debug_, DebuggerStatement, Decorator,
-    DefaultClause, DiagnosticMessage, Diagnostics, FunctionDeclaration, MethodDeclaration,
-    ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SwitchStatement, SyntaxKind,
-    ThrowStatement, TryStatement, VariableDeclaration, VariableDeclarationList,
+    modifiers_to_flags, set_text_range_pos, some, token_is_identifier_or_keyword, BaseNode, Block,
+    CaseBlock, CatchClause, ClassDeclaration, ClassExpression, Debug_, DebuggerStatement,
+    Decorator, DefaultClause, DiagnosticMessage, Diagnostics, FunctionDeclaration,
+    MethodDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SwitchStatement,
+    SyntaxKind, ThrowStatement, TryStatement, VariableDeclaration, VariableDeclarationList,
 };
 
 impl ParserType {
@@ -511,18 +511,65 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Node {
+    ) -> Node /*Statement*/ {
         match self.token() {
-            SyntaxKind::VarKeyword | SyntaxKind::ConstKeyword => {
+            SyntaxKind::VarKeyword | SyntaxKind::LetKeyword | SyntaxKind::ConstKeyword => {
                 self.parse_variable_statement(pos, has_jsdoc, decorators, modifiers)
             }
+            SyntaxKind::FunctionKeyword => self
+                .parse_function_declaration(pos, has_jsdoc, decorators, modifiers)
+                .into(),
+            SyntaxKind::ClassKeyword => self
+                .parse_class_declaration(pos, has_jsdoc, decorators, modifiers)
+                .into(),
             SyntaxKind::InterfaceKeyword => self
-                .parse_interface_declaration(pos, decorators, modifiers)
+                .parse_interface_declaration(pos, has_jsdoc, decorators, modifiers)
                 .into(),
             SyntaxKind::TypeKeyword => self
-                .parse_type_alias_declaration(pos, decorators, modifiers)
+                .parse_type_alias_declaration(pos, has_jsdoc, decorators, modifiers)
                 .into(),
-            _ => unimplemented!(),
+            SyntaxKind::EnumKeyword => self
+                .parse_enum_declaration(pos, has_jsdoc, decorators, modifiers)
+                .into(),
+            SyntaxKind::GlobalKeyword
+            | SyntaxKind::ModuleKeyword
+            | SyntaxKind::NamespaceKeyword => self
+                .parse_module_declaration(pos, has_jsdoc, decorators, modifiers)
+                .into(),
+            SyntaxKind::ImportKeyword => self
+                .parse_import_declaration_or_import_equals_declaration(
+                    pos, has_jsdoc, decorators, modifiers,
+                ),
+            SyntaxKind::ExportKeyword => {
+                self.next_token();
+                match self.token() {
+                    SyntaxKind::DefaultKeyword | SyntaxKind::EqualsToken => self
+                        .parse_export_assignment(pos, has_jsdoc, decorators, modifiers)
+                        .into(),
+                    SyntaxKind::AsKeyword => self
+                        .parse_namespace_export_declaration(pos, has_jsdoc, decorators, modifiers)
+                        .into(),
+                    _ => self
+                        .parse_export_declaration(pos, has_jsdoc, decorators, modifiers)
+                        .into(),
+                }
+            }
+            _ => {
+                if decorators.is_some() || modifiers.is_some() {
+                    let missing = self.create_missing_node(
+                        SyntaxKind::MissingDeclaration,
+                        true,
+                        Some(&Diagnostics::Declaration_expected),
+                        None,
+                    );
+                    set_text_range_pos(&missing, pos);
+                    missing.set_decorators(decorators);
+                    missing.set_modifiers(modifiers);
+                    return missing;
+                }
+                // return undefined!;
+                panic!("Need to make this an Option?")
+            }
         }
     }
 

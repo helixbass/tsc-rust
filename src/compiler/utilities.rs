@@ -3050,7 +3050,7 @@ pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
     )
 }
 
-fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize) -> &TRange {
+pub fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize) -> &TRange {
     range.set_pos(pos);
     range
 }

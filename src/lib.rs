@@ -262,7 +262,7 @@ pub use compiler::utilities::{
     is_this_identifier, is_type_alias, is_type_node_kind, is_write_only_access, modifier_to_flag,
     modifiers_to_flags, node_is_missing, node_is_present, object_allocator, parse_pseudo_big_int,
     position_is_synthesized, pseudo_big_int_to_string, set_parent, set_parent_recursive,
-    set_text_range_pos_end, set_text_range_pos_width, set_value_declaration,
+    set_text_range_pos, set_text_range_pos_end, set_text_range_pos_width, set_value_declaration,
     using_single_line_string_writer, Associativity, FunctionFlags, GetLiteralTextFlags,
     OperatorPrecedence,
 };
