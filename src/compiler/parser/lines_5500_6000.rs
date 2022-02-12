@@ -7,9 +7,9 @@ use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     add_related_info, create_detached_diagnostic, is_async_modifier, last_or_undefined, some,
     ArrayLiteralExpression, Block, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, FunctionExpression, Node, NodeArray,
-    NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression, ReturnStatement,
-    SyntaxKind,
+    DiagnosticRelatedInformationInterface, Diagnostics, DoStatement, FunctionExpression,
+    IfStatement, Node, NodeArray, NodeFlags, NodeInterface, ObjectLiteralExpression,
+    ParenthesizedExpression, ReturnStatement, SyntaxKind, WhileStatement,
 };
 
 impl ParserType {
@@ -464,6 +464,7 @@ impl ParserType {
         diagnostic_message: Option<&DiagnosticMessage>,
     ) -> Block {
         let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
         let open_brace_position = self.scanner().get_token_pos();
         if self.parse_expected(SyntaxKind::OpenBraceToken, diagnostic_message, None)
             || ignore_missing_open_brace
@@ -473,22 +474,47 @@ impl ParserType {
                 self.parse_statement().wrap()
             });
             if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
-                unimplemented!()
+                let parse_diagnostics = self.parse_diagnostics();
+                let last_error = last_or_undefined(&*parse_diagnostics);
+                if let Some(last_error) = last_error {
+                    if last_error.code() == Diagnostics::_0_expected.code {
+                        add_related_info(
+                            last_error,
+                            vec![Rc::new(
+                                create_detached_diagnostic(
+                                    self.file_name(),
+                                    open_brace_position.try_into().unwrap(),
+                                    1,
+                                    &Diagnostics::The_parser_expected_to_find_a_to_match_the_token_here,
+                                    None,
+                                )
+                                .into(),
+                            )],
+                        );
+                    }
+                }
             }
-            let result = self.finish_node(
-                self.factory
-                    .create_block(self, statements, Some(multi_line)),
-                pos,
-                None,
+            let result = self.with_jsdoc(
+                self.finish_node(
+                    self.factory
+                        .create_block(self, statements, Some(multi_line)),
+                    pos,
+                    None,
+                ),
+                has_jsdoc,
             );
             if self.token() == SyntaxKind::EqualsToken {
-                unimplemented!()
+                self.parse_error_at_current_token(&Diagnostics::Declaration_or_statement_expected_This_follows_a_block_of_statements_so_if_you_intended_to_write_a_destructuring_assignment_you_might_need_to_wrap_the_the_whole_assignment_in_parentheses, None);
+                self.next_token();
             }
 
-            return result;
+            result
         } else {
             let statements = self.create_missing_list();
-            self.finish_node(self.factory.create_block(self, statements, None), pos, None)
+            self.with_jsdoc(
+                self.finish_node(self.factory.create_block(self, statements, None), pos, None),
+                has_jsdoc,
+            )
         }
     }
 
@@ -527,14 +553,19 @@ impl ParserType {
         block
     }
 
-    pub(super) fn parse_empty_statement(&self) -> Node {
+    pub(super) fn parse_empty_statement(&self) -> Node /*Statement*/ {
         let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::SemicolonToken, None, None);
-        self.finish_node(self.factory.create_empty_statement(self).into(), pos, None)
+        self.with_jsdoc(
+            self.finish_node(self.factory.create_empty_statement(self).into(), pos, None),
+            has_jsdoc,
+        )
     }
 
-    pub(super) fn parse_if_statement(&self) -> Node {
+    pub(super) fn parse_if_statement(&self) -> IfStatement {
         let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::IfKeyword, None, None);
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
         let expression = self.allow_in_and(|| self.parse_expression());
@@ -545,17 +576,59 @@ impl ParserType {
         } else {
             None
         };
-        self.finish_node(
-            self.factory
-                .create_if_statement(
+        self.with_jsdoc(
+            self.finish_node(
+                self.factory.create_if_statement(
                     self,
                     expression,
                     then_statement.wrap(),
-                    else_statement.map(|else_statement| else_statement.wrap()),
-                )
-                .into(),
-            pos,
-            None,
+                    else_statement.map(Node::wrap),
+                ),
+                pos,
+                None,
+            ),
+            has_jsdoc,
+        )
+    }
+
+    pub(super) fn parse_do_statement(&self) -> DoStatement {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        self.parse_expected(SyntaxKind::DoKeyword, None, None);
+        let statement = self.parse_statement();
+        self.parse_expected(SyntaxKind::WhileKeyword, None, None);
+        self.parse_expected(SyntaxKind::OpenParenToken, None, None);
+        let expression = self.allow_in_and(|| self.parse_expression());
+        self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+
+        self.parse_optional(SyntaxKind::SemicolonToken);
+        self.with_jsdoc(
+            self.finish_node(
+                self.factory
+                    .create_do_statement(self, statement.wrap(), expression),
+                pos,
+                None,
+            ),
+            has_jsdoc,
+        )
+    }
+
+    pub(super) fn parse_while_statement(&self) -> WhileStatement {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        self.parse_expected(SyntaxKind::WhileKeyword, None, None);
+        self.parse_expected(SyntaxKind::OpenParenToken, None, None);
+        let expression = self.allow_in_and(|| self.parse_expression());
+        self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+        let statement = self.parse_statement();
+        self.with_jsdoc(
+            self.finish_node(
+                self.factory
+                    .create_while_statement(self, expression, statement.wrap()),
+                pos,
+                None,
+            ),
+            has_jsdoc,
         )
     }
 

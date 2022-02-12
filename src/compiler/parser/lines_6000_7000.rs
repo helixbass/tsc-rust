@@ -104,7 +104,7 @@ impl ParserType {
                     .into()
             }
             SyntaxKind::OpenBraceToken => return self.parse_block(false, None).into(),
-            SyntaxKind::IfKeyword => return self.parse_if_statement(),
+            SyntaxKind::IfKeyword => return self.parse_if_statement().into(),
             SyntaxKind::ReturnKeyword => return self.parse_return_statement().into(),
             SyntaxKind::ConstKeyword => {
                 if self.is_start_of_declaration() {
