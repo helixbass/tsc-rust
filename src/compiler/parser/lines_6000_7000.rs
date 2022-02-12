@@ -5,11 +5,12 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     append, is_class_member_modifier, is_identifier, is_keyword, is_modifier_kind,
-    modifiers_to_flags, set_text_range_pos, some, token_is_identifier_or_keyword, BaseNode, Block,
-    CaseBlock, CatchClause, ClassDeclaration, ClassExpression, Debug_, DebuggerStatement,
-    Decorator, DefaultClause, DiagnosticMessage, Diagnostics, FunctionDeclaration,
-    MethodDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SwitchStatement,
-    SyntaxKind, ThrowStatement, TryStatement, VariableDeclaration, VariableDeclarationList,
+    modifiers_to_flags, set_text_range_pos, some, token_is_identifier_or_keyword,
+    ArrayBindingPattern, BaseNode, BindingElement, Block, CaseBlock, CatchClause, ClassDeclaration,
+    ClassExpression, Debug_, DebuggerStatement, Decorator, DefaultClause, DiagnosticMessage,
+    Diagnostics, FunctionDeclaration, MethodDeclaration, ModifierFlags, Node, NodeArray, NodeFlags,
+    NodeInterface, ObjectBindingPattern, SwitchStatement, SyntaxKind, ThrowStatement, TryStatement,
+    VariableDeclaration, VariableDeclarationList,
 };
 
 impl ParserType {
@@ -592,20 +593,117 @@ impl ParserType {
         Some(self.parse_function_block(flags, diagnostic_message))
     }
 
+    pub(super) fn parse_array_binding_element(&self) -> Node /*ArrayBindingElement*/ {
+        let pos = self.get_node_pos();
+        if self.token() == SyntaxKind::CommaToken {
+            return self.finish_node(
+                self.factory.create_omitted_expression(self).into(),
+                pos,
+                None,
+            );
+        }
+        let dot_dot_dot_token = self
+            .parse_optional_token(SyntaxKind::DotDotDotToken)
+            .map(Node::wrap);
+        let name = self.parse_identifier_or_pattern(None);
+        let initializer = self.parse_initializer();
+        self.finish_node(
+            self.factory
+                .create_binding_element(
+                    self,
+                    dot_dot_dot_token,
+                    Option::<Rc<Node>>::None,
+                    name,
+                    initializer,
+                )
+                .into(),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_object_binding_element(&self) -> BindingElement {
+        let pos = self.get_node_pos();
+        let dot_dot_dot_token = self
+            .parse_optional_token(SyntaxKind::DotDotDotToken)
+            .map(Node::wrap);
+        let token_is_identifier = self.is_binding_identifier();
+        let mut property_name: Option<Rc<Node>> = Some(self.parse_property_name().wrap());
+        let name: Rc<Node>;
+        if token_is_identifier && self.token() != SyntaxKind::ColonToken {
+            name = property_name.clone().unwrap();
+            property_name = None;
+        } else {
+            self.parse_expected(SyntaxKind::ColonToken, None, None);
+            name = self.parse_identifier_or_pattern(None);
+        }
+        let initializer = self.parse_initializer();
+        self.finish_node(
+            self.factory.create_binding_element(
+                self,
+                dot_dot_dot_token,
+                property_name,
+                name,
+                initializer,
+            ),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_object_binding_pattern(&self) -> ObjectBindingPattern {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
+        let elements = self.parse_delimited_list(
+            ParsingContext::ObjectBindingElements,
+            || self.parse_object_binding_element().into(),
+            None,
+        );
+        self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
+        self.finish_node(
+            self.factory.create_object_binding_pattern(self, elements),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_array_binding_pattern(&self) -> ArrayBindingPattern {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
+        let elements = self.parse_delimited_list(
+            ParsingContext::ArrayBindingElements,
+            || self.parse_array_binding_element().into(),
+            None,
+        );
+        self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
+        self.finish_node(
+            self.factory.create_array_binding_pattern(self, elements),
+            pos,
+            None,
+        )
+    }
+
     pub(super) fn is_binding_identifier_or_private_identifier_or_pattern(&self) -> bool {
-        self.is_binding_identifier()
+        matches!(
+            self.token(),
+            SyntaxKind::OpenBraceToken
+                | SyntaxKind::OpenBracketToken
+                | SyntaxKind::PrivateIdentifier
+        ) || self.is_binding_identifier()
     }
 
     pub(super) fn parse_identifier_or_pattern(
         &self,
         private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Rc<Node> {
+    ) -> Rc<Node /*Identifier | BindingPattern*/> {
+        if self.token() == SyntaxKind::OpenBracketToken {
+            return self.parse_array_binding_pattern().into();
+        }
+        if self.token() == SyntaxKind::OpenBraceToken {
+            return self.parse_object_binding_pattern().into();
+        }
         self.parse_binding_identifier(private_identifier_diagnostic_message)
             .wrap()
-    }
-
-    pub(super) fn parse_variable_declaration_no_exclamation(&self) -> VariableDeclaration {
-        self.parse_variable_declaration(Some(false))
     }
 
     pub(super) fn parse_variable_declaration_allow_exclamation(&self) -> VariableDeclaration {
@@ -618,19 +716,20 @@ impl ParserType {
     ) -> VariableDeclaration {
         let allow_exclamation = allow_exclamation.unwrap_or(false);
         let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
         let name = self.parse_identifier_or_pattern(Some(
             &Diagnostics::Private_identifiers_are_not_allowed_in_variable_declarations,
         ));
-        let mut exclamation_token: Option<BaseNode> = None;
+        let mut exclamation_token: Option<Rc<Node>> = None;
         if allow_exclamation
             && name.kind() == SyntaxKind::Identifier
             && self.token() == SyntaxKind::ExclamationToken
             && !self.scanner().has_preceding_line_break()
         {
-            exclamation_token = Some(self.parse_token_node());
+            exclamation_token = Some(self.parse_token_node().into());
         }
         let type_ = self.parse_type_annotation();
-        let initializer = if false {
+        let initializer = if self.is_in_or_of_keyword(self.token()) {
             None
         } else {
             self.parse_initializer()
@@ -638,11 +737,11 @@ impl ParserType {
         let node = self.factory.create_variable_declaration(
             self,
             Some(name),
-            exclamation_token.map(Into::into),
-            type_.map(|type_| type_.wrap()),
+            exclamation_token,
+            type_.map(Node::wrap),
             initializer,
         );
-        self.finish_node(node, pos, None)
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn parse_variable_declaration_list(
