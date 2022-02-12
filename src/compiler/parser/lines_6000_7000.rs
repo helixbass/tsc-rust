@@ -4,11 +4,12 @@ use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    append, is_class_member_modifier, is_keyword, is_modifier_kind, modifiers_to_flags, some,
-    token_is_identifier_or_keyword, BaseNode, Block, CaseBlock, CatchClause, ClassExpression,
-    Debug_, Decorator, DefaultClause, DiagnosticMessage, Diagnostics, FunctionDeclaration,
-    MethodDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SwitchStatement,
-    SyntaxKind, ThrowStatement, TryStatement, VariableDeclaration, VariableDeclarationList,
+    append, is_class_member_modifier, is_identifier, is_keyword, is_modifier_kind,
+    modifiers_to_flags, some, token_is_identifier_or_keyword, BaseNode, Block, CaseBlock,
+    CatchClause, ClassDeclaration, ClassExpression, Debug_, DebuggerStatement, Decorator,
+    DefaultClause, DiagnosticMessage, Diagnostics, FunctionDeclaration, MethodDeclaration,
+    ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SwitchStatement, SyntaxKind,
+    ThrowStatement, TryStatement, VariableDeclaration, VariableDeclarationList,
 };
 
 impl ParserType {
@@ -149,20 +150,42 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_expression_or_labeled_statement(&self) -> Node {
+    pub(super) fn parse_debugger_statement(&self) -> DebuggerStatement {
         let pos = self.get_node_pos();
-        let expression = self.parse_expression();
-        let node: Node = if false {
-            unimplemented!()
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        self.parse_expected(SyntaxKind::DebuggerKeyword, None, None);
+        self.parse_semicolon();
+        self.with_jsdoc(
+            self.finish_node(self.factory.create_debugger_statement(self), pos, None),
+            has_jsdoc,
+        )
+    }
+
+    pub(super) fn parse_expression_or_labeled_statement(&self) -> Node /*ExpressionStatement | LabeledStatement*/
+    {
+        let pos = self.get_node_pos();
+        let mut has_jsdoc = self.has_preceding_jsdoc_comment();
+        let node: Node;
+        let has_paren = self.token() == SyntaxKind::OpenParenToken;
+        let expression = self.allow_in_and(|| self.parse_expression());
+        if is_identifier(&expression) && self.parse_optional(SyntaxKind::ColonToken) {
+            node = self
+                .factory
+                .create_labeled_statement(self, expression, self.parse_statement().wrap())
+                .into();
         } else {
             if !self.try_parse_semicolon() {
                 self.parse_error_for_missing_semicolon_after(&expression);
             }
-            self.factory
+            node = self
+                .factory
                 .create_expression_statement(self, expression)
-                .into()
+                .into();
+            if has_paren {
+                has_jsdoc = false;
+            }
         };
-        self.finish_node(node, pos, None)
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn next_token_is_identifier_or_keyword_on_same_line(&self) -> bool {
@@ -193,20 +216,75 @@ impl ParserType {
     pub(super) fn is_declaration(&self) -> bool {
         loop {
             match self.token() {
-                SyntaxKind::VarKeyword | SyntaxKind::ConstKeyword => {
+                SyntaxKind::VarKeyword
+                | SyntaxKind::LetKeyword
+                | SyntaxKind::ConstKeyword
+                | SyntaxKind::FunctionKeyword
+                | SyntaxKind::ClassKeyword
+                | SyntaxKind::EnumKeyword => {
                     return true;
                 }
                 SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
                     return self.next_token_is_identifier_on_same_line();
                 }
-                SyntaxKind::DeclareKeyword => {
+                SyntaxKind::ModuleKeyword | SyntaxKind::NamespaceKeyword => {
+                    return self.next_token_is_identifier_or_string_literal_on_same_line();
+                }
+                SyntaxKind::AbstractKeyword
+                | SyntaxKind::AsyncKeyword
+                | SyntaxKind::DeclareKeyword
+                | SyntaxKind::PrivateKeyword
+                | SyntaxKind::ProtectedKeyword
+                | SyntaxKind::PublicKeyword
+                | SyntaxKind::ReadonlyKeyword => {
                     self.next_token();
                     if self.scanner().has_preceding_line_break() {
                         return false;
                     }
                     continue;
                 }
-                _ => unimplemented!(),
+                SyntaxKind::GlobalKeyword => {
+                    self.next_token();
+                    return matches!(
+                        self.token(),
+                        SyntaxKind::OpenBraceToken
+                            | SyntaxKind::Identifier
+                            | SyntaxKind::ExportKeyword
+                    );
+                }
+                SyntaxKind::ImportKeyword => {
+                    self.next_token();
+                    return matches!(
+                        self.token(),
+                        SyntaxKind::StringLiteral
+                            | SyntaxKind::AsteriskToken
+                            | SyntaxKind::OpenBraceToken
+                    ) || token_is_identifier_or_keyword(self.token());
+                }
+                SyntaxKind::ExportKeyword => {
+                    let mut current_token = self.next_token();
+                    if current_token == SyntaxKind::TypeKeyword {
+                        current_token = self.look_ahead(|| Some(self.next_token())).unwrap();
+                    }
+                    if matches!(
+                        current_token,
+                        SyntaxKind::EqualsToken
+                            | SyntaxKind::AsteriskToken
+                            | SyntaxKind::OpenBraceToken
+                            | SyntaxKind::DefaultKeyword
+                            | SyntaxKind::AsKeyword
+                    ) {
+                        return true;
+                    }
+                    continue;
+                }
+                SyntaxKind::StaticKeyword => {
+                    self.next_token();
+                    continue;
+                }
+                _ => {
+                    return false;
+                }
             }
         }
     }
@@ -217,39 +295,147 @@ impl ParserType {
 
     pub(super) fn is_start_of_statement(&self) -> bool {
         match self.token() {
-            SyntaxKind::SemicolonToken
+            SyntaxKind::AtToken
+            | SyntaxKind::SemicolonToken
+            | SyntaxKind::OpenBraceToken
             | SyntaxKind::VarKeyword
+            | SyntaxKind::LetKeyword
             | SyntaxKind::FunctionKeyword
+            | SyntaxKind::ClassKeyword
+            | SyntaxKind::EnumKeyword
             | SyntaxKind::IfKeyword
-            | SyntaxKind::ReturnKeyword => true,
-            SyntaxKind::ConstKeyword => self.is_start_of_declaration(),
-            SyntaxKind::DeclareKeyword | SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
-                true
+            | SyntaxKind::DoKeyword
+            | SyntaxKind::WhileKeyword
+            | SyntaxKind::ForKeyword
+            | SyntaxKind::ContinueKeyword
+            | SyntaxKind::BreakKeyword
+            | SyntaxKind::ReturnKeyword
+            | SyntaxKind::WithKeyword
+            | SyntaxKind::SwitchKeyword
+            | SyntaxKind::ThrowKeyword
+            | SyntaxKind::TryKeyword
+            | SyntaxKind::DebuggerKeyword
+            | SyntaxKind::CatchKeyword
+            | SyntaxKind::FinallyKeyword => true,
+
+            SyntaxKind::ImportKeyword => {
+                self.is_start_of_declaration()
+                    || self.look_ahead_bool(|| self.next_token_is_open_paren_or_less_than_or_dot())
+            }
+
+            SyntaxKind::ConstKeyword | SyntaxKind::ExportKeyword => self.is_start_of_declaration(),
+
+            SyntaxKind::AsyncKeyword
+            | SyntaxKind::DeclareKeyword
+            | SyntaxKind::InterfaceKeyword
+            | SyntaxKind::ModuleKeyword
+            | SyntaxKind::NamespaceKeyword
+            | SyntaxKind::TypeKeyword
+            | SyntaxKind::GlobalKeyword => true,
+            SyntaxKind::PublicKeyword
+            | SyntaxKind::PrivateKeyword
+            | SyntaxKind::ProtectedKeyword
+            | SyntaxKind::StaticKeyword
+            | SyntaxKind::ReadonlyKeyword => {
+                self.is_start_of_declaration()
+                    || !self
+                        .look_ahead_bool(|| self.next_token_is_identifier_or_keyword_on_same_line())
             }
             _ => self.is_start_of_expression(),
         }
     }
 
+    pub(super) fn next_token_is_binding_identifier_or_start_of_destructuring(&self) -> bool {
+        self.next_token();
+        self.is_binding_identifier()
+            || matches!(
+                self.token(),
+                SyntaxKind::OpenBraceToken | SyntaxKind::OpenBracketToken
+            )
+    }
+
+    pub(super) fn is_let_declaration(&self) -> bool {
+        self.look_ahead_bool(|| self.next_token_is_binding_identifier_or_start_of_destructuring())
+    }
+
     pub(super) fn parse_statement(&self) -> Node {
         match self.token() {
             SyntaxKind::SemicolonToken => return self.parse_empty_statement(),
+            SyntaxKind::OpenBraceToken => return self.parse_block(false, None).into(),
             SyntaxKind::VarKeyword => {
-                return self.parse_variable_statement(self.get_node_pos(), None, None)
+                return self.parse_variable_statement(
+                    self.get_node_pos(),
+                    self.has_preceding_jsdoc_comment(),
+                    None,
+                    None,
+                )
+            }
+            SyntaxKind::LetKeyword => {
+                if self.is_let_declaration() {
+                    return self.parse_variable_statement(
+                        self.get_node_pos(),
+                        self.has_preceding_jsdoc_comment(),
+                        None,
+                        None,
+                    );
+                }
             }
             SyntaxKind::FunctionKeyword => {
                 return self
-                    .parse_function_declaration(self.get_node_pos(), None, None)
+                    .parse_function_declaration(
+                        self.get_node_pos(),
+                        self.has_preceding_jsdoc_comment(),
+                        None,
+                        None,
+                    )
                     .into()
             }
-            SyntaxKind::OpenBraceToken => return self.parse_block(false, None).into(),
-            SyntaxKind::IfKeyword => return self.parse_if_statement().into(),
-            SyntaxKind::ReturnKeyword => return self.parse_return_statement().into(),
-            SyntaxKind::ConstKeyword => {
-                if self.is_start_of_declaration() {
-                    return self.parse_declaration();
-                }
+            SyntaxKind::ClassKeyword => {
+                return self
+                    .parse_class_declaration(
+                        self.get_node_pos(),
+                        self.has_preceding_jsdoc_comment(),
+                        None,
+                        None,
+                    )
+                    .into()
             }
-            SyntaxKind::DeclareKeyword | SyntaxKind::InterfaceKeyword | SyntaxKind::TypeKeyword => {
+            SyntaxKind::IfKeyword => return self.parse_if_statement().into(),
+            SyntaxKind::DoKeyword => return self.parse_do_statement().into(),
+            SyntaxKind::WhileKeyword => return self.parse_while_statement().into(),
+            SyntaxKind::ForKeyword => return self.parse_for_or_for_in_or_for_of_statement(),
+            SyntaxKind::ContinueKeyword => {
+                return self.parse_break_or_continue_statement(SyntaxKind::ContinueStatement)
+            }
+            SyntaxKind::BreakKeyword => {
+                return self.parse_break_or_continue_statement(SyntaxKind::BreakStatement)
+            }
+            SyntaxKind::ReturnKeyword => return self.parse_return_statement().into(),
+            SyntaxKind::WithKeyword => return self.parse_with_statement().into(),
+            SyntaxKind::SwitchKeyword => return self.parse_switch_statement().into(),
+            SyntaxKind::ThrowKeyword => return self.parse_throw_statement().into(),
+            SyntaxKind::TryKeyword | SyntaxKind::CatchKeyword | SyntaxKind::FinallyKeyword => {
+                return self.parse_try_statement().into()
+            }
+            SyntaxKind::DebuggerKeyword => return self.parse_debugger_statement().into(),
+            SyntaxKind::AtToken => return self.parse_declaration(),
+            SyntaxKind::AsyncKeyword
+            | SyntaxKind::InterfaceKeyword
+            | SyntaxKind::TypeKeyword
+            | SyntaxKind::ModuleKeyword
+            | SyntaxKind::NamespaceKeyword
+            | SyntaxKind::DeclareKeyword
+            | SyntaxKind::ConstKeyword
+            | SyntaxKind::EnumKeyword
+            | SyntaxKind::ExportKeyword
+            | SyntaxKind::ImportKeyword
+            | SyntaxKind::PrivateKeyword
+            | SyntaxKind::ProtectedKeyword
+            | SyntaxKind::PublicKeyword
+            | SyntaxKind::AbstractKeyword
+            | SyntaxKind::StaticKeyword
+            | SyntaxKind::ReadonlyKeyword
+            | SyntaxKind::GlobalKeyword => {
                 if self.is_start_of_declaration() {
                     return self.parse_declaration();
                 }
@@ -284,6 +470,7 @@ impl ParserType {
         }
 
         let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
         let decorators = self.parse_decorators();
         let modifiers = self.parse_modifiers(None, None);
         if is_ambient {
@@ -291,10 +478,10 @@ impl ParserType {
                 m.set_flags(m.flags() | NodeFlags::Ambient);
             }
             self.do_inside_of_context(NodeFlags::Ambient, move || {
-                self.parse_declaration_worker(pos, decorators, modifiers)
+                self.parse_declaration_worker(pos, has_jsdoc, decorators, modifiers)
             })
         } else {
-            self.parse_declaration_worker(pos, decorators, modifiers)
+            self.parse_declaration_worker(pos, has_jsdoc, decorators, modifiers)
         }
     }
 
@@ -305,12 +492,13 @@ impl ParserType {
     pub(super) fn parse_declaration_worker(
         &self,
         pos: isize,
+        has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> Node {
         match self.token() {
             SyntaxKind::VarKeyword | SyntaxKind::ConstKeyword => {
-                self.parse_variable_statement(pos, decorators, modifiers)
+                self.parse_variable_statement(pos, has_jsdoc, decorators, modifiers)
             }
             SyntaxKind::InterfaceKeyword => self
                 .parse_interface_declaration(pos, decorators, modifiers)
@@ -320,6 +508,12 @@ impl ParserType {
                 .into(),
             _ => unimplemented!(),
         }
+    }
+
+    pub(super) fn next_token_is_identifier_or_string_literal_on_same_line(&self) -> bool {
+        self.next_token();
+        !self.scanner().has_preceding_line_break()
+            && (self.is_identifier() || self.token() == SyntaxKind::StringLiteral)
     }
 
     pub(super) fn parse_function_block_or_semicolon(
@@ -427,6 +621,7 @@ impl ParserType {
     pub(super) fn parse_variable_statement(
         &self,
         pos: isize,
+        has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> Node {
@@ -444,6 +639,7 @@ impl ParserType {
     pub(super) fn parse_function_declaration(
         &self,
         pos: isize,
+        has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> FunctionDeclaration {
@@ -667,6 +863,16 @@ impl ParserType {
     }
 
     pub(super) fn parse_class_expression(&self) -> ClassExpression {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_class_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> ClassDeclaration {
         unimplemented!()
     }
 }
