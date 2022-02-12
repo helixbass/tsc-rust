@@ -333,7 +333,7 @@ fn get_source_text_of_node_from_source_file(
     )
 }
 
-fn get_text_of_node_from_source_text(
+pub fn get_text_of_node_from_source_text(
     source_text: &SourceTextAsChars,
     node: &Node,
     include_trivia: Option<bool>,

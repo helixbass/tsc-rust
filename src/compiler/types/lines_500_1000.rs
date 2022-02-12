@@ -819,6 +819,18 @@ impl Node {
     pub fn as_base_jsdoc_unary_type(&self) -> &BaseJSDocUnaryType {
         enum_unwrapped!(self, [Node, BaseJSDocUnaryType])
     }
+
+    pub fn as_jsx_opening_element(&self) -> &JsxOpeningElement {
+        enum_unwrapped!(self, [Node, JsxOpeningElement])
+    }
+
+    pub fn as_jsx_element(&self) -> &JsxElement {
+        enum_unwrapped!(self, [Node, JsxElement])
+    }
+
+    pub fn as_jsx_closing_element(&self) -> &JsxClosingElement {
+        enum_unwrapped!(self, [Node, JsxClosingElement])
+    }
 }
 
 #[derive(Debug)]

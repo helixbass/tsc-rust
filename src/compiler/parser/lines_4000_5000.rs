@@ -697,7 +697,7 @@ impl ParserType {
                         self.create_missing_node(
                             SyntaxKind::Identifier,
                             false,
-                            &Diagnostics::_0_expected,
+                            Some(&Diagnostics::_0_expected),
                             Some(vec![token_to_string(SyntaxKind::ColonToken)
                                 .unwrap()
                                 .to_owned()]),

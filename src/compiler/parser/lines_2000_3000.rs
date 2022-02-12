@@ -828,7 +828,7 @@ impl ParserType {
                 return self.create_missing_node(
                     SyntaxKind::Identifier,
                     true,
-                    &Diagnostics::Identifier_expected,
+                    Some(&Diagnostics::Identifier_expected),
                     None,
                 );
             }
@@ -842,7 +842,7 @@ impl ParserType {
                 self.create_missing_node(
                     SyntaxKind::Identifier,
                     true,
-                    &Diagnostics::Identifier_expected,
+                    Some(&Diagnostics::Identifier_expected),
                     None,
                 )
             };

@@ -16,6 +16,10 @@ impl ParserType {
         None
     }
 
+    pub(super) fn try_parse_type_arguments(&self) -> Option<NodeArray /*<TypeNode>*/> {
+        unimplemented!()
+    }
+
     pub(super) fn is_heritage_clause(&self) -> bool {
         matches!(
             self.token(),

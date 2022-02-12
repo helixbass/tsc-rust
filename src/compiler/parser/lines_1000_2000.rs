@@ -1030,7 +1030,7 @@ impl ParserType {
             self.create_missing_node(
                 t,
                 false,
-                diagnostic_message.unwrap_or(&Diagnostics::_0_expected),
+                Some(diagnostic_message.unwrap_or(&Diagnostics::_0_expected)),
                 Some(args.unwrap_or_else(|| vec![token_to_string(t).unwrap().to_owned()])),
             )
             .into()
@@ -1042,7 +1042,7 @@ impl ParserType {
             self.create_missing_node(
                 t,
                 false,
-                &Diagnostics::_0_expected,
+                Some(&Diagnostics::_0_expected),
                 Some(vec![token_to_string(t).unwrap().to_owned()]),
             )
             .into()
@@ -1135,19 +1135,17 @@ impl ParserType {
         &self,
         kind: SyntaxKind,
         report_at_current_position: bool,
-        diagnostic_message: &DiagnosticMessage,
+        diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
     ) -> Node {
         if report_at_current_position {
             self.parse_error_at_position(
                 self.scanner().get_start_pos().try_into().unwrap(),
                 0,
-                diagnostic_message,
+                diagnostic_message.unwrap(),
                 args,
             );
-        } else
-        /*if diagnostic_message*/
-        {
+        } else if let Some(diagnostic_message) = diagnostic_message {
             self.parse_error_at_current_token(diagnostic_message, args);
         }
 
@@ -1263,7 +1261,7 @@ impl ParserType {
         self.create_missing_node(
             SyntaxKind::Identifier,
             report_at_current_position,
-            diagnostic_message.unwrap_or(default_message),
+            Some(diagnostic_message.unwrap_or(default_message)),
             Some(vec![msg_arg]),
         )
     }
