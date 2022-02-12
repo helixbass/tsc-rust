@@ -258,12 +258,13 @@ pub use compiler::utilities::{
     is_block_or_catch_scoped, is_external_or_common_js_module, is_function_block,
     is_function_expression_or_arrow_function, is_import_call, is_in_js_file, is_jsdoc_type_alias,
     is_keyword, is_logical_or_coalescing_assignment_operator, is_object_literal_method,
-    is_property_name_literal, is_super_property, is_this_identifier, is_type_alias,
-    is_type_node_kind, is_write_only_access, modifier_to_flag, modifiers_to_flags, node_is_missing,
-    node_is_present, object_allocator, parse_pseudo_big_int, position_is_synthesized,
-    pseudo_big_int_to_string, set_parent, set_parent_recursive, set_text_range_pos_end,
-    set_text_range_pos_width, set_value_declaration, using_single_line_string_writer,
-    Associativity, FunctionFlags, GetLiteralTextFlags, OperatorPrecedence,
+    is_property_name_literal, is_string_or_numeric_literal_like, is_super_property,
+    is_this_identifier, is_type_alias, is_type_node_kind, is_write_only_access, modifier_to_flag,
+    modifiers_to_flags, node_is_missing, node_is_present, object_allocator, parse_pseudo_big_int,
+    position_is_synthesized, pseudo_big_int_to_string, set_parent, set_parent_recursive,
+    set_text_range_pos_end, set_text_range_pos_width, set_value_declaration,
+    using_single_line_string_writer, Associativity, FunctionFlags, GetLiteralTextFlags,
+    OperatorPrecedence,
 };
 use compiler::utilities::{has_invalid_escape, set_localized_diagnostic_messages};
 pub use compiler::utilities_public::{

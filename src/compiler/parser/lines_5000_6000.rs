@@ -5,12 +5,13 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_text_of_node_from_source_text, is_jsx_opening_element, is_jsx_opening_fragment,
+    is_non_null_expression, is_private_identifier, is_string_or_numeric_literal_like,
     set_text_range_pos_width, skip_trivia, tag_names_are_equivalent,
     token_is_identifier_or_keyword, ArrayLiteralExpression, Block, Debug_, DiagnosticMessage,
-    Diagnostics, JsxAttributes, JsxClosingElement, JsxClosingFragment, JsxExpression,
-    JsxSpreadAttribute, JsxText, Node, NodeArray, NodeFlags, NodeInterface,
-    ObjectLiteralExpression, PropertyAssignment, ReadonlyTextRange, ReturnStatement, SyntaxKind,
-    TypeAssertion,
+    Diagnostics, ElementAccessExpression, JsxAttributes, JsxClosingElement, JsxClosingFragment,
+    JsxExpression, JsxSpreadAttribute, JsxText, Node, NodeArray, NodeFlags, NodeInterface,
+    ObjectLiteralExpression, PropertyAccessExpression, PropertyAssignment, ReadonlyTextRange,
+    ReturnStatement, SyntaxKind, TypeAssertion,
 };
 
 impl ParserType {
@@ -602,13 +603,166 @@ impl ParserType {
             })
     }
 
+    pub(super) fn try_reparse_optional_chain(&self, mut node: &Node /*Expression*/) -> bool {
+        if node.flags().intersects(NodeFlags::OptionalChain) {
+            return true;
+        }
+        if is_non_null_expression(node) {
+            let mut expr = &*node.as_non_null_expression().expression;
+            while is_non_null_expression(expr) && !expr.flags().intersects(NodeFlags::OptionalChain)
+            {
+                expr = &*expr.as_non_null_expression().expression;
+            }
+            if expr.flags().intersects(NodeFlags::OptionalChain) {
+                while is_non_null_expression(node) {
+                    node.set_flags(node.flags() | NodeFlags::OptionalChain);
+                    node = &*node.as_non_null_expression().expression;
+                }
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn parse_property_access_expression_rest(
+        &self,
+        pos: isize,
+        expression: Rc<Node /*LeftHandSideExpression*/>,
+        question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+    ) -> PropertyAccessExpression {
+        let name = self.parse_right_side_of_dot(true, true);
+        let is_optional_chain =
+            question_dot_token.is_some() || self.try_reparse_optional_chain(&expression);
+        let property_access = if is_optional_chain {
+            self.factory.create_property_access_chain(
+                self,
+                expression,
+                question_dot_token,
+                name.wrap(),
+            )
+        } else {
+            self.factory
+                .create_property_access_expression(self, expression, name.wrap())
+        };
+        if is_optional_chain && is_private_identifier(&property_access.name) {
+            self.parse_error_at_range(
+                &*property_access.name,
+                &Diagnostics::An_optional_chain_cannot_contain_private_identifiers,
+                None,
+            );
+        }
+        self.finish_node(property_access, pos, None)
+    }
+
+    pub(super) fn parse_element_access_expression_rest(
+        &self,
+        pos: isize,
+        expression: Rc<Node /*LeftHandSideExpression*/>,
+        question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+    ) -> ElementAccessExpression {
+        let argument_expression: Rc<Node /*Expression*/>;
+        if self.token() == SyntaxKind::CloseBracketToken {
+            argument_expression = self
+                .create_missing_node(
+                    SyntaxKind::Identifier,
+                    true,
+                    Some(&Diagnostics::An_element_access_expression_should_take_an_argument),
+                    None,
+                )
+                .wrap();
+        } else {
+            let argument = self.allow_in_and(|| self.parse_expression());
+            if is_string_or_numeric_literal_like(&argument) {
+                let argument_as_literal_like_node = argument.as_literal_like_node();
+                argument_as_literal_like_node
+                    .set_text(self.intern_identifier(&argument_as_literal_like_node.text()));
+            }
+            argument_expression = argument;
+        }
+
+        self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
+
+        let indexed_access =
+            if question_dot_token.is_some() || self.try_reparse_optional_chain(&expression) {
+                self.factory.create_element_access_chain(
+                    self,
+                    expression,
+                    question_dot_token,
+                    argument_expression,
+                )
+            } else {
+                self.factory
+                    .create_element_access_expression(self, expression, argument_expression)
+            };
+        self.finish_node(indexed_access, pos, None)
+    }
+
     pub(super) fn parse_member_expression_rest(
         &self,
         pos: isize,
-        expression: Node, /*LeftHandSideExpression*/
+        mut expression: Rc<Node /*LeftHandSideExpression*/>,
         allow_optional_chain: bool,
-    ) -> Node {
+    ) -> Rc<Node /*MemberExpression*/> {
         loop {
+            let mut question_dot_token = None;
+            let mut is_property_access = false;
+            if allow_optional_chain && self.is_start_of_optional_property_or_element_access_chain()
+            {
+                question_dot_token =
+                    Some(self.parse_expected_token(SyntaxKind::QuestionDotToken, None, None));
+                is_property_access = token_is_identifier_or_keyword(self.token());
+            } else {
+                is_property_access = self.parse_optional(SyntaxKind::DotToken);
+            }
+
+            if is_property_access {
+                expression = self
+                    .parse_property_access_expression_rest(
+                        pos,
+                        expression,
+                        question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                    )
+                    .into();
+                continue;
+            }
+
+            if question_dot_token.is_none()
+                && self.token() == SyntaxKind::ExclamationToken
+                && !self.scanner().has_preceding_line_break()
+            {
+                self.next_token();
+                expression = self
+                    .finish_node(
+                        self.factory.create_non_null_expression(self, expression),
+                        pos,
+                        None,
+                    )
+                    .into();
+            }
+
+            if (question_dot_token.is_some() || !self.in_decorator_context())
+                && self.parse_optional(SyntaxKind::OpenBracketToken)
+            {
+                expression = self
+                    .parse_element_access_expression_rest(
+                        pos,
+                        expression,
+                        question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                    )
+                    .into();
+                continue;
+            }
+
+            if self.is_template_start_of_tagged_template() {
+                expression = self.parse_tagged_template_rest(
+                    pos,
+                    expression,
+                    question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                    None,
+                );
+                continue;
+            }
+
             return expression;
         }
     }
@@ -620,7 +774,17 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_call_expression_rest(&self, pos: isize, expression: Node) -> Node {
+    pub(super) fn parse_tagged_template_rest(
+        &self,
+        pos: isize,
+        tag: Rc<Node /*LeftHandSideExpression*/>,
+        question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
+        type_arguments: Option<NodeArray /*TypeNode*/>,
+    ) -> Rc<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_call_expression_rest(&self, pos: isize, expression: Rc<Node>) -> Rc<Node> {
         expression
     }
 

@@ -968,9 +968,7 @@ impl ParserType {
                     self.factory.create_prefix_unary_expression(
                         self,
                         self.token(),
-                        self.next_token_and(|| {
-                            self.parse_left_hand_side_expression_or_higher().wrap()
-                        }),
+                        self.next_token_and(|| self.parse_left_hand_side_expression_or_higher()),
                     ),
                     pos,
                     None,
@@ -985,7 +983,7 @@ impl ParserType {
                 .wrap();
         }
 
-        let expression = self.parse_left_hand_side_expression_or_higher().wrap();
+        let expression = self.parse_left_hand_side_expression_or_higher();
 
         Debug_.assert(is_left_hand_side_expression(&expression), None);
         if matches!(
@@ -1009,10 +1007,11 @@ impl ParserType {
         expression
     }
 
-    pub(super) fn parse_left_hand_side_expression_or_higher(&self) -> Node /*LeftHandSideExpression*/
-    {
+    pub(super) fn parse_left_hand_side_expression_or_higher(
+        &self,
+    ) -> Rc<Node /*LeftHandSideExpression*/> {
         let pos = self.get_node_pos();
-        let expression: Node;
+        let expression: Rc<Node>;
         if self.token() == SyntaxKind::ImportKeyword {
             if self.look_ahead_bool(|| self.next_token_is_open_paren_or_less_than()) {
                 self.set_source_flags(
@@ -1022,23 +1021,23 @@ impl ParserType {
             } else if self.look_ahead_bool(|| self.next_token_is_dot()) {
                 self.next_token();
                 self.next_token();
-                expression = self.finish_node(
-                    self.factory
-                        .create_meta_property(
+                expression = self
+                    .finish_node(
+                        self.factory.create_meta_property(
                             self,
                             SyntaxKind::ImportKeyword,
                             self.parse_identifier_name(None).wrap(),
-                        )
-                        .into(),
-                    pos,
-                    None,
-                );
+                        ),
+                        pos,
+                        None,
+                    )
+                    .into();
             } else {
                 expression = self.parse_member_expression_or_higher();
             }
         } else {
             expression = if self.token() == SyntaxKind::SuperKeyword {
-                self.parse_super_expression()
+                self.parse_super_expression().wrap()
             } else {
                 self.parse_member_expression_or_higher()
             };
@@ -1047,9 +1046,9 @@ impl ParserType {
         self.parse_call_expression_rest(pos, expression)
     }
 
-    pub(super) fn parse_member_expression_or_higher(&self) -> Node /*MemberExpression*/ {
+    pub(super) fn parse_member_expression_or_higher(&self) -> Rc<Node /*MemberExpression*/> {
         let pos = self.get_node_pos();
         let expression = self.parse_primary_expression();
-        self.parse_member_expression_rest(pos, expression, true)
+        self.parse_member_expression_rest(pos, expression.wrap(), true)
     }
 }

@@ -831,6 +831,10 @@ impl Node {
     pub fn as_jsx_closing_element(&self) -> &JsxClosingElement {
         enum_unwrapped!(self, [Node, JsxClosingElement])
     }
+
+    pub fn as_non_null_expression(&self) -> &NonNullExpression {
+        enum_unwrapped!(self, [Node, NonNullExpression])
+    }
 }
 
 #[derive(Debug)]
