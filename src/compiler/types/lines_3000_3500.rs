@@ -476,8 +476,8 @@ impl HasTypeInterface for JSDocTypeExpression {
         Some(self.type_.clone())
     }
 
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self.type_ = type_;
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
     }
 }
 
@@ -550,8 +550,8 @@ impl HasTypeInterface for BaseJSDocUnaryType {
         self.type_.clone()
     }
 
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self.type_ = Some(type_);
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_;
     }
 }
 

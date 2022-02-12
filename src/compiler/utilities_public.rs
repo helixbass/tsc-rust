@@ -1141,7 +1141,11 @@ pub fn get_effective_type_parameter_declarations(
             }
         });
     }
-    if let Some(type_parameters) = node.as_has_type_parameters().maybe_type_parameters() {
+    if let Some(type_parameters) = node
+        .as_has_type_parameters()
+        .maybe_type_parameters()
+        .as_ref()
+    {
         return type_parameters.into();
     }
     if is_in_js_file(Some(node)) {
@@ -1153,8 +1157,9 @@ pub fn get_effective_type_parameter_declarations(
         if let Some(type_tag) = type_tag {
             if is_function_type_node(&*type_tag) {
                 let type_tag_as_function_type_node = type_tag.as_function_type_node();
-                if let Some(type_tag_type_parameters) =
-                    type_tag_as_function_type_node.maybe_type_parameters()
+                if let Some(type_tag_type_parameters) = type_tag_as_function_type_node
+                    .maybe_type_parameters()
+                    .as_ref()
                 {
                     return type_tag_type_parameters.to_vec();
                 }

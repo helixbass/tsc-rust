@@ -1091,7 +1091,7 @@ impl From<BaseNode> for Rc<Node> {
 
 pub trait HasTypeInterface {
     fn maybe_type(&self) -> Option<Rc<Node>>;
-    fn set_type(&mut self, type_: Rc<Node>);
+    fn set_type(&mut self, type_: Option<Rc<Node>>);
 }
 
 pub trait HasInitializerInterface {

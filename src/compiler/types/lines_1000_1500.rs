@@ -378,8 +378,8 @@ impl HasTypeInterface for BaseVariableLikeDeclaration {
         self.type_.as_ref().map(Clone::clone)
     }
 
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self.type_ = Some(type_);
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_;
     }
 }
 
@@ -511,8 +511,8 @@ impl HasTypeInterface for BaseSignatureDeclaration {
         self.type_.clone()
     }
 
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self.type_ = Some(type_);
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_;
     }
 }
 

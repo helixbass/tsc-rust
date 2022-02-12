@@ -5,8 +5,9 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     append, is_class_member_modifier, is_keyword, is_modifier_kind, modifiers_to_flags,
-    ArrayBindingPattern, ClassDeclaration, ClassExpression, Debug_, Decorator, DiagnosticMessage,
-    Diagnostics, FunctionDeclaration, MethodDeclaration, ModifierFlags, Node, NodeArray, NodeFlags,
+    ArrayBindingPattern, ClassDeclaration, ClassExpression, ConstructorDeclaration, Debug_,
+    Decorator, DiagnosticMessage, Diagnostics, FunctionDeclaration, HasTypeInterface,
+    HasTypeParametersInterface, MethodDeclaration, ModifierFlags, Node, NodeArray, NodeFlags,
     NodeInterface, ObjectBindingPattern, SyntaxKind, VariableDeclaration, VariableDeclarationList,
 };
 
@@ -166,7 +167,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Node {
+    ) -> Node /*VariableStatement*/ {
         let declaration_list = self.parse_variable_declaration_list(false);
         self.parse_semicolon();
         let node = self.factory.create_variable_statement(
@@ -175,7 +176,7 @@ impl ParserType {
             Into::<Rc<Node>>::into(declaration_list),
         );
         node.set_decorators(decorators);
-        self.finish_node(node.into(), pos, None)
+        self.with_jsdoc(self.finish_node(node.into(), pos, None), has_jsdoc)
     }
 
     pub(super) fn parse_function_declaration(
@@ -220,14 +221,61 @@ impl ParserType {
             self,
             decorators,
             modifiers,
-            asterisk_token.map(Into::into),
-            name.map(|name| name.wrap()),
+            asterisk_token.map(Node::wrap),
+            name.map(Node::wrap),
             type_parameters,
             parameters,
-            type_.map(|type_| type_.wrap()),
+            type_.map(Node::wrap),
             body.map(Into::into),
         );
-        self.finish_node(node, pos, None)
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
+    pub(super) fn parse_constructor_name(&self) -> bool {
+        if self.token() == SyntaxKind::ConstructorKeyword {
+            return self.parse_expected(SyntaxKind::ConstructorKeyword, None, None);
+        }
+        if self.token() == SyntaxKind::StringLiteral
+            && self.look_ahead(|| Some(self.next_token())).unwrap() == SyntaxKind::OpenParenToken
+        {
+            return self.try_parse_bool(|| {
+                let literal_node = self.parse_literal_node();
+                let literal_node_text = literal_node.as_literal_like_node().text();
+                &*literal_node_text == "constructor"
+            });
+        }
+        false
+    }
+
+    pub(super) fn try_parse_constructor_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> Option<ConstructorDeclaration> {
+        self.try_parse(|| {
+            if self.parse_constructor_name() {
+                let type_parameters = self.parse_type_parameters();
+                let parameters = self.parse_parameters(SignatureFlags::None);
+                let type_ = self.parse_return_type(SyntaxKind::ColonToken, false);
+                let body = self.parse_function_block_or_semicolon(
+                    SignatureFlags::None,
+                    Some(&Diagnostics::or_expected),
+                );
+                let mut node = self.factory.create_constructor_declaration(
+                    self,
+                    decorators,
+                    modifiers,
+                    parameters,
+                    body.map(Into::into),
+                );
+                *node.maybe_type_parameters() = type_parameters;
+                node.set_type(type_.map(Node::wrap));
+                return Some(self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc));
+            }
+            None
+        })
     }
 
     pub(super) fn parse_method_declaration(

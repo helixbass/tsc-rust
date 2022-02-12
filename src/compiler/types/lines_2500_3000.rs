@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::cell::{Cell, Ref, RefCell};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
@@ -874,8 +874,8 @@ impl HasTypeInterface for PropertySignature {
         self.type_.clone()
     }
 
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self.type_ = Some(type_);
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_;
     }
 }
 
@@ -1045,7 +1045,7 @@ impl HasElementsInterface for ArrayBindingPattern {
 }
 
 pub trait HasTypeParametersInterface {
-    fn maybe_type_parameters(&self) -> Option<&NodeArray>;
+    fn maybe_type_parameters(&self) -> RefMut<Option<NodeArray>>;
 }
 
 pub trait GenericNamedDeclarationInterface:
@@ -1057,7 +1057,7 @@ pub trait GenericNamedDeclarationInterface:
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseGenericNamedDeclaration {
     _named_declaration: BaseNamedDeclaration,
-    pub type_parameters: Option<NodeArray /*<TypeParameterDeclaration>*/>,
+    type_parameters: RefCell<Option<NodeArray /*<TypeParameterDeclaration>*/>>,
 }
 
 impl BaseGenericNamedDeclaration {
@@ -1067,14 +1067,14 @@ impl BaseGenericNamedDeclaration {
     ) -> Self {
         Self {
             _named_declaration: base_named_declaration,
-            type_parameters,
+            type_parameters: RefCell::new(type_parameters),
         }
     }
 }
 
 impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
-    fn maybe_type_parameters(&self) -> Option<&NodeArray> {
-        self.type_parameters.as_ref()
+    fn maybe_type_parameters(&self) -> RefMut<Option<NodeArray>> {
+        self.type_parameters.borrow_mut()
     }
 }
 

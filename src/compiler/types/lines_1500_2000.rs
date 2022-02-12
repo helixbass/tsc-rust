@@ -413,8 +413,8 @@ impl HasTypeInterface for NamedTupleMember {
         Some(self.type_.clone())
     }
 
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self.type_ = type_;
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
     }
 }
 
@@ -455,8 +455,8 @@ impl HasTypeInterface for RestTypeNode {
         Some(self.type_.clone())
     }
 
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self.type_ = type_;
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
     }
 }
 
@@ -573,8 +573,8 @@ impl HasTypeInterface for ParenthesizedTypeNode {
         Some(self.type_.clone())
     }
 
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self.type_ = type_;
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
     }
 }
 
@@ -601,8 +601,8 @@ impl HasTypeInterface for TypeOperatorNode {
         Some(self.type_.clone())
     }
 
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self.type_ = type_;
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
     }
 }
 
@@ -663,8 +663,8 @@ impl HasTypeInterface for MappedTypeNode {
         self.type_.clone()
     }
 
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self.type_ = Some(type_);
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_;
     }
 }
 
@@ -744,8 +744,8 @@ impl HasTypeInterface for TemplateLiteralTypeSpan {
         Some(self.type_.clone())
     }
 
-    fn set_type(&mut self, type_: Rc<Node>) {
-        self.type_ = type_;
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_.unwrap();
     }
 }
 
