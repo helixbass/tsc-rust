@@ -6,10 +6,10 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     add_related_info, create_detached_diagnostic, is_async_modifier, last_or_undefined, some,
-    ArrayLiteralExpression, Block, Debug_, DiagnosticMessage,
+    ArrayLiteralExpression, Block, CaseClause, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, DoStatement, FunctionExpression,
     IfStatement, Node, NodeArray, NodeFlags, NodeInterface, ObjectLiteralExpression,
-    ParenthesizedExpression, ReturnStatement, SyntaxKind, WhileStatement,
+    ParenthesizedExpression, ReturnStatement, SyntaxKind, WhileStatement, WithStatement,
 };
 
 impl ParserType {
@@ -632,18 +632,167 @@ impl ParserType {
         )
     }
 
+    pub(super) fn parse_for_or_for_in_or_for_of_statement(&self) -> Node /*Statement*/ {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        self.parse_expected(SyntaxKind::ForKeyword, None, None);
+        let await_token = self.parse_optional_token(SyntaxKind::AwaitKeyword);
+        self.parse_expected(SyntaxKind::OpenParenToken, None, None);
+
+        let mut initializer: Option<Rc<Node /*VariableDeclarationList | Expression*/>> = None;
+        if self.token() != SyntaxKind::SemicolonToken {
+            if matches!(
+                self.token(),
+                SyntaxKind::VarKeyword | SyntaxKind::LetKeyword | SyntaxKind::ConstKeyword
+            ) {
+                initializer = Some(self.parse_variable_declaration_list(true).into());
+            } else {
+                initializer = Some(self.disallow_in_and(|| self.parse_expression()));
+            }
+        }
+
+        let node: Node /*IterationStatement*/;
+        if if await_token.is_some() {
+            self.parse_expected(SyntaxKind::OfKeyword, None, None)
+        } else {
+            self.parse_optional(SyntaxKind::OfKeyword)
+        } {
+            let expression = self.allow_in_and(|| self.parse_assignment_expression_or_higher());
+            self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+            node = self
+                .factory
+                .create_for_of_statement(
+                    self,
+                    await_token.map(Node::wrap),
+                    initializer.unwrap(),
+                    expression,
+                    self.parse_statement().wrap(),
+                )
+                .into();
+        } else if self.parse_optional(SyntaxKind::InKeyword) {
+            let expression = self.allow_in_and(|| self.parse_expression());
+            self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+            node = self
+                .factory
+                .create_for_in_statement(
+                    self,
+                    initializer.unwrap(),
+                    expression,
+                    self.parse_statement().wrap(),
+                )
+                .into();
+        } else {
+            self.parse_expected(SyntaxKind::SemicolonToken, None, None);
+            let condition: Option<Rc<Node>> = if !matches!(
+                self.token(),
+                SyntaxKind::SemicolonToken | SyntaxKind::CloseParenToken
+            ) {
+                Some(self.allow_in_and(|| self.parse_expression()))
+            } else {
+                None
+            };
+            self.parse_expected(SyntaxKind::SemicolonToken, None, None);
+            let incrementor: Option<Rc<Node>> = if self.token() != SyntaxKind::CloseParenToken {
+                Some(self.allow_in_and(|| self.parse_expression()))
+            } else {
+                None
+            };
+            self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+            node = self
+                .factory
+                .create_for_statement(
+                    self,
+                    initializer,
+                    condition,
+                    incrementor,
+                    self.parse_statement().wrap(),
+                )
+                .into();
+        }
+
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
+    pub(super) fn parse_break_or_continue_statement(&self, kind: SyntaxKind) -> Node /*BreakOrContinueStatement*/
+    {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+
+        self.parse_expected(
+            if kind == SyntaxKind::BreakStatement {
+                SyntaxKind::BreakKeyword
+            } else {
+                SyntaxKind::ContinueKeyword
+            },
+            None,
+            None,
+        );
+        let label: Option<Rc<Node>> = if self.can_parse_semicolon() {
+            None
+        } else {
+            Some(self.parse_identifier(None, None).wrap())
+        };
+
+        self.parse_semicolon();
+        let node: Node = if kind == SyntaxKind::BreakStatement {
+            self.factory.create_break_statement(self, label).into()
+        } else {
+            self.factory.create_continue_statement(self, label).into()
+        };
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
     pub(super) fn parse_return_statement(&self) -> ReturnStatement {
         let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::ReturnKeyword, None, None);
-        let expression = if self.can_parse_semicolon() {
+        let expression: Option<Rc<Node>> = if self.can_parse_semicolon() {
             None
         } else {
             Some(self.allow_in_and(|| self.parse_expression()))
         };
         self.parse_semicolon();
+        self.with_jsdoc(
+            self.finish_node(
+                self.factory.create_return_statement(self, expression),
+                pos,
+                None,
+            ),
+            has_jsdoc,
+        )
+    }
+
+    pub(super) fn parse_with_statement(&self) -> WithStatement {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        self.parse_expected(SyntaxKind::WithKeyword, None, None);
+        self.parse_expected(SyntaxKind::OpenParenToken, None, None);
+        let expression = self.allow_in_and(|| self.parse_expression());
+        self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+        let statement: Rc<Node> =
+            self.do_inside_of_context(NodeFlags::InWithStatement, || self.parse_statement().wrap());
+        self.with_jsdoc(
+            self.finish_node(
+                self.factory
+                    .create_with_statement(self, expression, statement),
+                pos,
+                None,
+            ),
+            has_jsdoc,
+        )
+    }
+
+    pub(super) fn parse_case_clause(&self) -> CaseClause {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::CaseKeyword, None, None);
+        let expression = self.allow_in_and(|| self.parse_expression());
+        self.parse_expected(SyntaxKind::ColonToken, None, None);
+        let statements = self.parse_list(ParsingContext::SwitchClauseStatements, &mut || {
+            self.parse_statement().wrap()
+        });
         self.finish_node(
             self.factory
-                .create_return_statement(self, expression.map(Into::into)),
+                .create_case_clause(self, expression, statements),
             pos,
             None,
         )

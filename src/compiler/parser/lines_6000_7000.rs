@@ -250,7 +250,10 @@ impl ParserType {
         self.finish_node(node, pos, None)
     }
 
-    pub(super) fn parse_variable_declaration_list(&self) -> VariableDeclarationList {
+    pub(super) fn parse_variable_declaration_list(
+        &self,
+        in_for_statement_initializer: bool,
+    ) -> VariableDeclarationList {
         let pos = self.get_node_pos();
 
         let mut flags = NodeFlags::None;
@@ -289,7 +292,7 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> Node {
-        let declaration_list = self.parse_variable_declaration_list();
+        let declaration_list = self.parse_variable_declaration_list(false);
         self.parse_semicolon();
         let node = self.factory.create_variable_statement(
             self,
