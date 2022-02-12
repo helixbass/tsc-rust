@@ -113,6 +113,9 @@ impl ParserType {
         let mut flags = NodeFlags::None;
         match self.token() {
             SyntaxKind::VarKeyword => (),
+            SyntaxKind::LetKeyword => {
+                flags |= NodeFlags::Const;
+            }
             SyntaxKind::ConstKeyword => {
                 flags |= NodeFlags::Const;
             }
@@ -122,14 +125,27 @@ impl ParserType {
         self.next_token();
 
         let declarations: NodeArray;
-        if false {
-            unimplemented!()
+        if self.token() == SyntaxKind::OfKeyword
+            && self.look_ahead_bool(|| self.can_follow_contextual_of_keyword())
+        {
+            declarations = self.create_missing_list();
         } else {
+            let saved_disallow_in = self.in_disallow_in_context();
+            self.set_disallow_in_context(in_for_statement_initializer);
+
             declarations = self.parse_delimited_list(
                 ParsingContext::VariableDeclarations,
-                || self.parse_variable_declaration_allow_exclamation().into(),
+                || {
+                    if in_for_statement_initializer {
+                        self.parse_variable_declaration(None).into()
+                    } else {
+                        self.parse_variable_declaration_allow_exclamation().into()
+                    }
+                },
                 None,
             );
+
+            self.set_disallow_in_context(saved_disallow_in);
         }
 
         self.finish_node(
@@ -138,6 +154,10 @@ impl ParserType {
             pos,
             None,
         )
+    }
+
+    pub(super) fn can_follow_contextual_of_keyword(&self) -> bool {
+        self.next_token_is_identifier() && self.next_token() == SyntaxKind::CloseParenToken
     }
 
     pub(super) fn parse_variable_statement(
