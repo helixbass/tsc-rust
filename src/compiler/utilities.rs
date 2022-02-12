@@ -2502,8 +2502,8 @@ pub fn attach_file_to_diagnostic(
         ),
         None,
     ));
-    if let Some(related_information) = diagnostic.maybe_related_information() {
-        diagnostic_with_location.set_related_information(
+    if let Some(related_information) = diagnostic.related_information().as_ref() {
+        *diagnostic_with_location.related_information() = Some(
             related_information
                 .iter()
                 .map(|related| {
@@ -2668,11 +2668,11 @@ fn compare_diagnostics_skip_related_information<
 }
 
 fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic) -> Comparison {
-    if d1.maybe_related_information().is_none() && d2.maybe_related_information().is_none() {
+    if d1.related_information().is_none() && d2.related_information().is_none() {
         return Comparison::EqualTo;
     }
-    if let Some(d1_related_information) = d1.maybe_related_information() {
-        if let Some(d2_related_information) = d2.maybe_related_information() {
+    if let Some(d1_related_information) = d1.related_information().as_ref() {
+        if let Some(d2_related_information) = d2.related_information().as_ref() {
             let compared = compare_values(
                 Some(d1_related_information.len()),
                 Some(d2_related_information.len()),
@@ -2696,7 +2696,7 @@ fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic) -> Comparison {
             return Comparison::EqualTo;
         }
     }
-    if d1.maybe_related_information().is_some() {
+    if d1.related_information().is_some() {
         Comparison::LessThan
     } else {
         Comparison::GreaterThan
@@ -3011,6 +3011,25 @@ pub fn get_script_kind_from_file_name(file_name: &str) -> ScriptKind {
 
 pub fn position_is_synthesized(pos: isize) -> bool {
     !(pos >= 0)
+}
+
+pub fn add_related_info(
+    diagnostic: &Diagnostic,
+    related_information: Vec<Rc<DiagnosticRelatedInformation>>,
+) {
+    if related_information.is_empty() {
+        return /*diagnostic*/;
+    }
+    let mut diagnostic_related_information = diagnostic.related_information();
+    if diagnostic_related_information.is_none() {
+        *diagnostic_related_information = Some(vec![]);
+    }
+    // Debug.assert(diagnostic.relatedInformation !== emptyArray, "Diagnostic had empty array singleton for related info, but is still being constructed!");
+    diagnostic_related_information
+        .as_mut()
+        .unwrap()
+        .extend(related_information);
+    // return diagnostic;
 }
 
 pub fn parse_pseudo_big_int(string_value: &str) -> String {

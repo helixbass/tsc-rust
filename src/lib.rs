@@ -236,7 +236,7 @@ use compiler::types::{
     CommandLineOptionType, EmitNode, ReadonlyPragmaMap, StringOrDiagnosticMessage,
 };
 pub use compiler::utilities::{
-    attach_file_to_diagnostics, chain_diagnostic_messages, compare_diagnostics,
+    add_related_info, attach_file_to_diagnostics, chain_diagnostic_messages, compare_diagnostics,
     contains_parse_error, create_compiler_diagnostic, create_detached_diagnostic,
     create_diagnostic_collection, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, create_symbol_table, create_text_writer,

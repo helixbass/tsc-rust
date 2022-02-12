@@ -1,12 +1,14 @@
 #![allow(non_upper_case_globals)]
 
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    ArrayLiteralExpression, Block, DiagnosticMessage, Diagnostics, FunctionExpression, Node,
-    NodeArray, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
-    PropertyAssignment, ReturnStatement, SyntaxKind,
+    add_related_info, create_detached_diagnostic, last_or_undefined, ArrayLiteralExpression, Block,
+    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, FunctionExpression,
+    Node, NodeArray, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
+    ReturnStatement, SyntaxKind,
 };
 
 impl ParserType {
@@ -292,6 +294,7 @@ impl ParserType {
 
     pub(super) fn parse_object_literal_expression(&self) -> ObjectLiteralExpression {
         let pos = self.get_node_pos();
+        let open_brace_position = self.scanner().get_token_pos();
         self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
         let multi_line = self.scanner().has_preceding_line_break();
         let properties = self.parse_delimited_list(
@@ -300,7 +303,25 @@ impl ParserType {
             Some(true),
         );
         if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
-            unimplemented!()
+            let parse_diagnostics = self.parse_diagnostics();
+            let last_error = last_or_undefined(&*parse_diagnostics);
+            if let Some(last_error) = last_error {
+                if last_error.code() == Diagnostics::_0_expected.code {
+                    add_related_info(
+                        last_error,
+                        vec![Rc::new(
+                            create_detached_diagnostic(
+                                self.file_name(),
+                                open_brace_position.try_into().unwrap(),
+                                1,
+                                &Diagnostics::The_parser_expected_to_find_a_to_match_the_token_here,
+                                None,
+                            )
+                            .into(),
+                        )],
+                    );
+                }
+            }
         }
         self.finish_node(
             self.factory
