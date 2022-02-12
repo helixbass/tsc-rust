@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    ArrayLiteralExpression, Block, DiagnosticMessage, Diagnostics, Node, NodeArray,
+    ArrayLiteralExpression, Block, DiagnosticMessage, Diagnostics, Node, NodeArray, NodeFlags,
     ObjectLiteralExpression, PropertyAssignment, ReturnStatement, SyntaxKind,
 };
 
@@ -21,7 +21,59 @@ impl ParserType {
     }
 
     pub(super) fn parse_type_arguments_in_expression(&self) -> Option<NodeArray /*<TypeNode>*/> {
-        unimplemented!()
+        if self.context_flags().intersects(NodeFlags::JavaScriptFile) {
+            return None;
+        }
+
+        if self.re_scan_less_than_token() != SyntaxKind::LessThanToken {
+            return None;
+        }
+        self.next_token();
+
+        let type_arguments = self.parse_delimited_list(
+            ParsingContext::TypeArguments,
+            || self.parse_type().wrap(),
+            None,
+        );
+        if !self.parse_expected(SyntaxKind::GreaterThanToken, None, None) {
+            return None;
+        }
+
+        if
+        /*typeArguments &&*/
+        self.can_follow_type_arguments_in_expression() {
+            Some(type_arguments)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn can_follow_type_arguments_in_expression(&self) -> bool {
+        match self.token() {
+            SyntaxKind::OpenParenToken
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateHead
+            | SyntaxKind::DotToken
+            | SyntaxKind::CloseParenToken
+            | SyntaxKind::CloseBracketToken
+            | SyntaxKind::ColonToken
+            | SyntaxKind::SemicolonToken
+            | SyntaxKind::QuestionToken
+            | SyntaxKind::EqualsEqualsToken
+            | SyntaxKind::EqualsEqualsEqualsToken
+            | SyntaxKind::ExclamationEqualsToken
+            | SyntaxKind::ExclamationEqualsEqualsToken
+            | SyntaxKind::AmpersandAmpersandToken
+            | SyntaxKind::BarBarToken
+            | SyntaxKind::QuestionQuestionToken
+            | SyntaxKind::CaretToken
+            | SyntaxKind::AmpersandToken
+            | SyntaxKind::BarToken
+            | SyntaxKind::CloseBraceToken
+            | SyntaxKind::EndOfFileToken => true,
+            SyntaxKind::CommaToken | SyntaxKind::OpenBraceToken => false,
+            _ => false,
+        }
     }
 
     pub(super) fn parse_primary_expression(&self) -> Node {
