@@ -2,16 +2,15 @@
 
 use std::rc::Rc;
 
-use super::{ParserType, ParsingContext, SignatureFlags};
+use super::{ParserType, ParsingContext};
 use crate::{
     get_text_of_node_from_source_text, is_jsx_opening_element, is_jsx_opening_fragment,
     is_non_null_expression, is_private_identifier, is_string_or_numeric_literal_like,
     set_text_range_pos_width, skip_trivia, tag_names_are_equivalent,
-    token_is_identifier_or_keyword, ArrayLiteralExpression, Block, Debug_, DiagnosticMessage,
-    Diagnostics, ElementAccessExpression, JsxAttributes, JsxClosingElement, JsxClosingFragment,
-    JsxExpression, JsxSpreadAttribute, JsxText, Node, NodeArray, NodeFlags, NodeInterface,
-    ObjectLiteralExpression, PropertyAccessExpression, PropertyAssignment, ReadonlyTextRange,
-    ReturnStatement, SyntaxKind, TypeAssertion,
+    token_is_identifier_or_keyword, Debug_, Diagnostics, ElementAccessExpression, JsxAttributes,
+    JsxClosingElement, JsxClosingFragment, JsxExpression, JsxSpreadAttribute, JsxText, Node,
+    NodeArray, NodeFlags, NodeInterface, PropertyAccessExpression, ReadonlyTextRange, SyntaxKind,
+    TypeAssertion,
 };
 
 impl ParserType {
