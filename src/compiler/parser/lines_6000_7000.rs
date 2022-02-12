@@ -5,9 +5,9 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     append, is_class_member_modifier, is_keyword, is_modifier_kind, modifiers_to_flags, some,
-    token_is_identifier_or_keyword, BaseNode, Block, Debug_, Decorator, DiagnosticMessage,
-    Diagnostics, FunctionDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface,
-    SyntaxKind, VariableDeclaration, VariableDeclarationList,
+    token_is_identifier_or_keyword, BaseNode, Block, ClassExpression, Debug_, Decorator,
+    DiagnosticMessage, Diagnostics, FunctionDeclaration, ModifierFlags, Node, NodeArray, NodeFlags,
+    NodeInterface, SyntaxKind, VariableDeclaration, VariableDeclarationList,
 };
 
 impl ParserType {
@@ -507,6 +507,10 @@ impl ParserType {
     }
 
     pub(super) fn parse_modifiers_for_arrow_function(&self) -> Option<NodeArray /*<Modifier>*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_class_expression(&self) -> ClassExpression {
         unimplemented!()
     }
 }

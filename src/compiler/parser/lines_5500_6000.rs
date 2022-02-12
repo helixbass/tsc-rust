@@ -4,8 +4,9 @@ use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    ArrayLiteralExpression, Block, DiagnosticMessage, Diagnostics, Node, NodeArray, NodeFlags,
-    ObjectLiteralExpression, PropertyAssignment, ReturnStatement, SyntaxKind,
+    ArrayLiteralExpression, Block, DiagnosticMessage, Diagnostics, FunctionExpression, Node,
+    NodeArray, NodeFlags, ObjectLiteralExpression, ParenthesizedExpression, PropertyAssignment,
+    ReturnStatement, SyntaxKind,
 };
 
 impl ParserType {
@@ -76,22 +77,56 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_primary_expression(&self) -> Node {
+    pub(super) fn parse_primary_expression(&self) -> Node /*PrimaryExpression*/ {
         match self.token() {
             SyntaxKind::NumericLiteral
             | SyntaxKind::BigIntLiteral
             | SyntaxKind::StringLiteral
-            | SyntaxKind::NoSubstitutionTemplateLiteral => return self.parse_literal_node().into(),
-            SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => {
-                return self.parse_token_node().into()
-            }
+            | SyntaxKind::NoSubstitutionTemplateLiteral => return self.parse_literal_node(),
+            SyntaxKind::ThisKeyword
+            | SyntaxKind::SuperKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword => return self.parse_token_node().into(),
+            SyntaxKind::OpenParenToken => return self.parse_parenthesized_expression().into(),
             SyntaxKind::OpenBracketToken => return self.parse_array_literal_expression().into(),
             SyntaxKind::OpenBraceToken => return self.parse_object_literal_expression().into(),
+            SyntaxKind::AsyncKeyword => {
+                if self.look_ahead_bool(|| self.next_token_is_function_keyword_on_same_line()) {
+                    return self.parse_function_expression().into();
+                }
+            }
+            SyntaxKind::ClassKeyword => return self.parse_class_expression().into(),
+            SyntaxKind::FunctionKeyword => return self.parse_function_expression().into(),
+            SyntaxKind::NewKeyword => return self.parse_new_expression_or_new_dot_target(),
+            SyntaxKind::SlashToken | SyntaxKind::SlashEqualsToken => {
+                if self.re_scan_slash_token() == SyntaxKind::RegularExpressionLiteral {
+                    return self.parse_literal_node();
+                }
+            }
             SyntaxKind::TemplateHead => return self.parse_template_expression(false).into(),
+            SyntaxKind::PrivateIdentifier => return self.parse_private_identifier(),
             _ => (),
         }
 
         self.parse_identifier(Some(&Diagnostics::Expression_expected), None)
+    }
+
+    pub(super) fn parse_parenthesized_expression(&self) -> ParenthesizedExpression {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        self.parse_expected(SyntaxKind::OpenParenToken, None, None);
+        let expression = self.allow_in_and(|| self.parse_expression());
+        self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+        self.with_jsdoc(
+            self.finish_node(
+                self.factory
+                    .create_parenthesized_expression(self, expression),
+                pos,
+                None,
+            ),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_argument_or_array_literal_element(&self) -> Rc<Node> {
@@ -167,12 +202,21 @@ impl ParserType {
         )
     }
 
+    pub(super) fn parse_function_expression(&self) -> FunctionExpression {
+        unimplemented!()
+    }
+
     pub(super) fn parse_optional_binding_identifier(&self) -> Option<Node> {
         if self.is_binding_identifier() {
             Some(self.parse_binding_identifier(None))
         } else {
             None
         }
+    }
+
+    pub(super) fn parse_new_expression_or_new_dot_target(&self) -> Node /*NewExpression | MetaProperty*/
+    {
+        unimplemented!()
     }
 
     pub(super) fn parse_block(
