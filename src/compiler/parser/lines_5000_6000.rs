@@ -781,7 +781,22 @@ impl ParserType {
         question_dot_token: Option<Rc<Node /*QuestionDotToken*/>>,
         type_arguments: Option<NodeArray /*TypeNode*/>,
     ) -> Rc<Node> {
-        unimplemented!()
+        let mut tag_expression = self.factory.create_tagged_template_expression(
+            self,
+            tag.clone(),
+            type_arguments,
+            if self.token() == SyntaxKind::NoSubstitutionTemplateLiteral {
+                self.re_scan_template_head_or_no_substitution_template();
+                self.parse_literal_node().wrap()
+            } else {
+                self.parse_template_expression(true).into()
+            },
+        );
+        if question_dot_token.is_some() || tag.flags().intersects(NodeFlags::OptionalChain) {
+            tag_expression.set_flags(tag_expression.flags() | NodeFlags::OptionalChain);
+        }
+        tag_expression.question_dot_token = question_dot_token;
+        self.finish_node(tag_expression, pos, None).into()
     }
 
     pub(super) fn parse_call_expression_rest(&self, pos: isize, expression: Rc<Node>) -> Rc<Node> {
