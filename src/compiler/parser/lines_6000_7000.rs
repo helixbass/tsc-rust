@@ -5,12 +5,150 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     append, is_class_member_modifier, is_keyword, is_modifier_kind, modifiers_to_flags, some,
-    token_is_identifier_or_keyword, BaseNode, Block, ClassExpression, Debug_, Decorator,
-    DiagnosticMessage, Diagnostics, FunctionDeclaration, MethodDeclaration, ModifierFlags, Node,
-    NodeArray, NodeFlags, NodeInterface, SyntaxKind, VariableDeclaration, VariableDeclarationList,
+    token_is_identifier_or_keyword, BaseNode, Block, CaseBlock, CatchClause, ClassExpression,
+    Debug_, Decorator, DefaultClause, DiagnosticMessage, Diagnostics, FunctionDeclaration,
+    MethodDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SwitchStatement,
+    SyntaxKind, ThrowStatement, TryStatement, VariableDeclaration, VariableDeclarationList,
 };
 
 impl ParserType {
+    pub(super) fn parse_default_clause(&self) -> DefaultClause {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::DefaultKeyword, None, None);
+        self.parse_expected(SyntaxKind::ColonToken, None, None);
+        let statements = self.parse_list(ParsingContext::SwitchClauseStatements, &mut || {
+            self.parse_statement().wrap()
+        });
+        self.finish_node(
+            self.factory.create_default_clause(self, statements),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_case_or_default_clause(&self) -> Node /*CaseOrDefaultClause*/ {
+        if self.token() == SyntaxKind::CaseKeyword {
+            self.parse_case_clause().into()
+        } else {
+            self.parse_default_clause().into()
+        }
+    }
+
+    pub(super) fn parse_case_block(&self) -> CaseBlock {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
+        let clauses = self.parse_list(ParsingContext::SwitchClauses, &mut || {
+            self.parse_case_or_default_clause().wrap()
+        });
+        self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
+        self.finish_node(self.factory.create_case_block(self, clauses), pos, None)
+    }
+
+    pub(super) fn parse_switch_statement(&self) -> SwitchStatement {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        self.parse_expected(SyntaxKind::SwitchKeyword, None, None);
+        self.parse_expected(SyntaxKind::OpenParenToken, None, None);
+        let expression = self.allow_in_and(|| self.parse_expression());
+        self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+        let case_block = self.parse_case_block();
+        self.with_jsdoc(
+            self.finish_node(
+                self.factory
+                    .create_switch_statement(self, expression, case_block.into()),
+                pos,
+                None,
+            ),
+            has_jsdoc,
+        )
+    }
+
+    pub(super) fn parse_throw_statement(&self) -> ThrowStatement {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        self.parse_expected(SyntaxKind::ThrowKeyword, None, None);
+
+        let mut expression: Option<Rc<Node>> = if self.scanner().has_preceding_line_break() {
+            None
+        } else {
+            Some(self.allow_in_and(|| self.parse_expression()))
+        };
+        if expression.is_none() {
+            self.increment_identifier_count();
+            expression = Some(
+                self.finish_node(
+                    self.factory
+                        .create_identifier(self, "", Option::<NodeArray>::None, None),
+                    self.get_node_pos(),
+                    None,
+                )
+                .into(),
+            );
+        }
+        let expression = expression.unwrap();
+        if !self.try_parse_semicolon() {
+            self.parse_error_for_missing_semicolon_after(&expression);
+        }
+        self.with_jsdoc(
+            self.finish_node(
+                self.factory.create_throw_statement(self, expression),
+                pos,
+                None,
+            ),
+            has_jsdoc,
+        )
+    }
+
+    pub(super) fn parse_try_statement(&self) -> TryStatement {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+
+        self.parse_expected(SyntaxKind::TryKeyword, None, None);
+        let try_block: Rc<Node> = self.parse_block(false, None).into();
+        let catch_clause: Option<Rc<Node>> = if self.token() == SyntaxKind::CatchKeyword {
+            Some(self.parse_catch_clause().into())
+        } else {
+            None
+        };
+
+        let mut finally_block: Option<Rc<Node>> = None;
+        if catch_clause.is_none() || self.token() == SyntaxKind::FinallyKeyword {
+            self.parse_expected(SyntaxKind::FinallyKeyword, None, None);
+            finally_block = Some(self.parse_block(false, None).into());
+        }
+
+        self.with_jsdoc(
+            self.finish_node(
+                self.factory
+                    .create_try_statement(self, try_block, catch_clause, finally_block),
+                pos,
+                None,
+            ),
+            has_jsdoc,
+        )
+    }
+
+    pub(super) fn parse_catch_clause(&self) -> CatchClause {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::CatchKeyword, None, None);
+
+        let variable_declaration: Option<Rc<Node>>;
+        if self.parse_optional(SyntaxKind::OpenParenToken) {
+            variable_declaration = Some(self.parse_variable_declaration(None).into());
+            self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+        } else {
+            variable_declaration = None;
+        }
+
+        let block = self.parse_block(false, None);
+        self.finish_node(
+            self.factory
+                .create_catch_clause(self, variable_declaration, block.into()),
+            pos,
+            None,
+        )
+    }
+
     pub(super) fn parse_expression_or_labeled_statement(&self) -> Node {
         let pos = self.get_node_pos();
         let expression = self.parse_expression();
