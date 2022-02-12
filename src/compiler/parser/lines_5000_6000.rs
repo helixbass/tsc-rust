@@ -799,8 +799,111 @@ impl ParserType {
         self.finish_node(tag_expression, pos, None).into()
     }
 
-    pub(super) fn parse_call_expression_rest(&self, pos: isize, expression: Rc<Node>) -> Rc<Node> {
+    pub(super) fn parse_call_expression_rest(
+        &self,
+        pos: isize,
+        mut expression: Rc<Node>,
+    ) -> Rc<Node> {
+        loop {
+            expression = self.parse_member_expression_rest(pos, expression, true);
+            let question_dot_token = self.parse_optional_token(SyntaxKind::QuestionDotToken);
+            if !self.context_flags().intersects(NodeFlags::JavaScriptFile)
+                && matches!(
+                    self.token(),
+                    SyntaxKind::LessThanToken | SyntaxKind::LessThanLessThanToken
+                )
+            {
+                let type_arguments = self.try_parse(|| self.parse_type_arguments_in_expression());
+                if let Some(type_arguments) = type_arguments {
+                    if self.is_template_start_of_tagged_template() {
+                        expression = self.parse_tagged_template_rest(
+                            pos,
+                            expression,
+                            question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                            Some(type_arguments),
+                        );
+                        continue;
+                    }
+
+                    let argument_list = self.parse_argument_list();
+                    let call_expr = if question_dot_token.is_some()
+                        || self.try_reparse_optional_chain(&expression)
+                    {
+                        self.factory.create_call_chain(
+                            self,
+                            expression,
+                            question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                            Some(type_arguments),
+                            Some(argument_list),
+                        )
+                    } else {
+                        self.factory.create_call_expression(
+                            self,
+                            expression,
+                            Some(type_arguments),
+                            Some(argument_list),
+                        )
+                    };
+                    expression = self.finish_node(call_expr, pos, None).into();
+                    continue;
+                }
+            } else if self.token() == SyntaxKind::OpenParenToken {
+                let argument_list = self.parse_argument_list();
+                let call_expr = if question_dot_token.is_some()
+                    || self.try_reparse_optional_chain(&expression)
+                {
+                    self.factory.create_call_chain(
+                        self,
+                        expression,
+                        question_dot_token.map(|question_dot_token| question_dot_token.wrap()),
+                        Option::<NodeArray>::None,
+                        Some(argument_list),
+                    )
+                } else {
+                    self.factory.create_call_expression(
+                        self,
+                        expression,
+                        Option::<NodeArray>::None,
+                        Some(argument_list),
+                    )
+                };
+                expression = self.finish_node(call_expr, pos, None).into();
+                continue;
+            }
+            if let Some(question_dot_token) = question_dot_token {
+                let name = self.create_missing_node(
+                    SyntaxKind::Identifier,
+                    false,
+                    Some(&Diagnostics::Identifier_expected),
+                    None,
+                );
+                expression = self
+                    .finish_node(
+                        self.factory.create_property_access_chain(
+                            self,
+                            expression,
+                            Some(question_dot_token.wrap()),
+                            name.wrap(),
+                        ),
+                        pos,
+                        None,
+                    )
+                    .into();
+            }
+            break;
+        }
         expression
+    }
+
+    pub(super) fn parse_argument_list(&self) -> NodeArray /*<Expression>*/ {
+        self.parse_expected(SyntaxKind::OpenParenToken, None, None);
+        let result = self.parse_delimited_list(
+            ParsingContext::ArgumentExpressions,
+            || self.parse_argument_expression(),
+            None,
+        );
+        self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+        result
     }
 
     pub(super) fn parse_type_arguments_in_expression(&self) -> Option<NodeArray /*<TypeNode>*/> {
@@ -833,6 +936,12 @@ impl ParserType {
         } else {
             self.parse_assignment_expression_or_higher()
         }
+    }
+
+    pub(super) fn parse_argument_expression(&self) -> Rc<Node /*Expression*/> {
+        self.do_outside_of_context(self.disallow_in_and_decorator_context, || {
+            self.parse_argument_or_array_literal_element()
+        })
     }
 
     pub(super) fn parse_array_literal_expression(&self) -> ArrayLiteralExpression {
