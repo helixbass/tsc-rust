@@ -575,7 +575,31 @@ impl ParserType {
     }
 
     pub(super) fn parse_type_assertion(&self) -> TypeAssertion {
-        unimplemented!()
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::LessThanToken, None, None);
+        let type_ = self.parse_type();
+        self.parse_expected(SyntaxKind::GreaterThanToken, None, None);
+        let expression = self.parse_simple_unary_expression();
+        self.finish_node(
+            self.factory
+                .create_type_assertion(self, type_.wrap(), expression),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn next_token_is_identifier_or_keyword_or_open_bracket_or_template(&self) -> bool {
+        self.next_token();
+        token_is_identifier_or_keyword(self.token())
+            || self.token() == SyntaxKind::OpenBracketToken
+            || self.is_template_start_of_tagged_template()
+    }
+
+    pub(super) fn is_start_of_optional_property_or_element_access_chain(&self) -> bool {
+        self.token() == SyntaxKind::QuestionDotToken
+            && self.look_ahead_bool(|| {
+                self.next_token_is_identifier_or_keyword_or_open_bracket_or_template()
+            })
     }
 
     pub(super) fn parse_member_expression_rest(
@@ -587,6 +611,13 @@ impl ParserType {
         loop {
             return expression;
         }
+    }
+
+    pub(super) fn is_template_start_of_tagged_template(&self) -> bool {
+        matches!(
+            self.token(),
+            SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::TemplateHead
+        )
     }
 
     pub(super) fn parse_call_expression_rest(&self, pos: isize, expression: Node) -> Node {
