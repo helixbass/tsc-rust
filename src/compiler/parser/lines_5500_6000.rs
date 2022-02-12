@@ -471,7 +471,7 @@ impl ParserType {
         {
             let multi_line = self.scanner().has_preceding_line_break();
             let statements = self.parse_list(ParsingContext::BlockStatements, &mut || {
-                self.parse_statement().wrap()
+                self.parse_statement()
             });
             if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
                 let parse_diagnostics = self.parse_diagnostics();
@@ -578,12 +578,8 @@ impl ParserType {
         };
         self.with_jsdoc(
             self.finish_node(
-                self.factory.create_if_statement(
-                    self,
-                    expression,
-                    then_statement.wrap(),
-                    else_statement.map(Node::wrap),
-                ),
+                self.factory
+                    .create_if_statement(self, expression, then_statement, else_statement),
                 pos,
                 None,
             ),
@@ -605,7 +601,7 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory
-                    .create_do_statement(self, statement.wrap(), expression),
+                    .create_do_statement(self, statement, expression),
                 pos,
                 None,
             ),
@@ -624,7 +620,7 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory
-                    .create_while_statement(self, expression, statement.wrap()),
+                    .create_while_statement(self, expression, statement),
                 pos,
                 None,
             ),
@@ -666,7 +662,7 @@ impl ParserType {
                     await_token.map(Node::wrap),
                     initializer.unwrap(),
                     expression,
-                    self.parse_statement().wrap(),
+                    self.parse_statement(),
                 )
                 .into();
         } else if self.parse_optional(SyntaxKind::InKeyword) {
@@ -678,7 +674,7 @@ impl ParserType {
                     self,
                     initializer.unwrap(),
                     expression,
-                    self.parse_statement().wrap(),
+                    self.parse_statement(),
                 )
                 .into();
         } else {
@@ -705,7 +701,7 @@ impl ParserType {
                     initializer,
                     condition,
                     incrementor,
-                    self.parse_statement().wrap(),
+                    self.parse_statement(),
                 )
                 .into();
         }
@@ -770,7 +766,7 @@ impl ParserType {
         let expression = self.allow_in_and(|| self.parse_expression());
         self.parse_expected(SyntaxKind::CloseParenToken, None, None);
         let statement: Rc<Node> =
-            self.do_inside_of_context(NodeFlags::InWithStatement, || self.parse_statement().wrap());
+            self.do_inside_of_context(NodeFlags::InWithStatement, || self.parse_statement());
         self.with_jsdoc(
             self.finish_node(
                 self.factory
@@ -788,7 +784,7 @@ impl ParserType {
         let expression = self.allow_in_and(|| self.parse_expression());
         self.parse_expected(SyntaxKind::ColonToken, None, None);
         let statements = self.parse_list(ParsingContext::SwitchClauseStatements, &mut || {
-            self.parse_statement().wrap()
+            self.parse_statement()
         });
         self.finish_node(
             self.factory

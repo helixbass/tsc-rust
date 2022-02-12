@@ -58,7 +58,7 @@ impl ParserType {
         self.next_token();
 
         let statements = self.parse_list(ParsingContext::SourceElements, &mut || {
-            self.parse_statement().wrap()
+            self.parse_statement()
         });
         Debug_.assert(self.token() == SyntaxKind::EndOfFileToken, None);
         let end_of_file_token = self.add_jsdoc_comment(self.parse_token_node());
@@ -206,7 +206,7 @@ impl ParserType {
                         let start_pos = self.scanner().get_start_pos();
                         let statement: Rc<Node> = self
                             .parse_list_element(ParsingContext::SourceElements, &mut || {
-                                self.parse_statement().wrap()
+                                self.parse_statement()
                             });
                         statements.push(statement.clone());
                         if start_pos == self.scanner().get_start_pos() {
