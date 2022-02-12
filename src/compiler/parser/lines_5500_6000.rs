@@ -6,9 +6,10 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     add_related_info, create_detached_diagnostic, is_async_modifier, last_or_undefined, some,
-    ArrayLiteralExpression, Block, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    Diagnostics, FunctionExpression, Node, NodeArray, NodeFlags, NodeInterface,
-    ObjectLiteralExpression, ParenthesizedExpression, ReturnStatement, SyntaxKind,
+    ArrayLiteralExpression, Block, Debug_, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, FunctionExpression, Node, NodeArray,
+    NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression, ReturnStatement,
+    SyntaxKind,
 };
 
 impl ParserType {
@@ -400,7 +401,7 @@ impl ParserType {
         self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
-    pub(super) fn parse_optional_binding_identifier(&self) -> Option<Node> {
+    pub(super) fn parse_optional_binding_identifier(&self) -> Option<Node /*Identifier*/> {
         if self.is_binding_identifier() {
             Some(self.parse_binding_identifier(None))
         } else {
@@ -410,7 +411,51 @@ impl ParserType {
 
     pub(super) fn parse_new_expression_or_new_dot_target(&self) -> Node /*NewExpression | MetaProperty*/
     {
-        unimplemented!()
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::NewKeyword, None, None);
+        if self.parse_optional(SyntaxKind::DotToken) {
+            let name: Rc<Node> = self.parse_identifier_name(None).wrap();
+            return self.finish_node(
+                self.factory
+                    .create_meta_property(self, SyntaxKind::NewKeyword, name)
+                    .into(),
+                pos,
+                None,
+            );
+        }
+
+        let expression_pos = self.get_node_pos();
+        let mut expression: Rc<Node /*MemberExpression*/> = self.parse_primary_expression().wrap();
+        let mut type_arguments: Option<NodeArray>;
+        loop {
+            expression = self.parse_member_expression_rest(expression_pos, expression, false);
+            type_arguments = self.try_parse(|| self.parse_type_arguments_in_expression());
+            if self.is_template_start_of_tagged_template() {
+                Debug_.assert(type_arguments.is_some(), Some("Expected a type argument list; all plain tagged template starts should be consumed in 'parseMemberExpressionRest'"));
+                expression = self.parse_tagged_template_rest(
+                    expression_pos,
+                    expression,
+                    None,
+                    type_arguments,
+                );
+                type_arguments = None;
+            }
+            break;
+        }
+
+        let mut arguments_array: Option<NodeArray> = None;
+        if self.token() == SyntaxKind::OpenParenToken {
+            arguments_array = Some(self.parse_argument_list());
+        } else if type_arguments.is_some() {
+            self.parse_error_at(pos, self.scanner().get_start_pos().try_into().unwrap(), &Diagnostics::A_new_expression_with_type_arguments_must_always_be_followed_by_a_parenthesized_argument_list, None);
+        }
+        self.finish_node(
+            self.factory
+                .create_new_expression(self, expression, type_arguments, arguments_array)
+                .into(),
+            pos,
+            None,
+        )
     }
 
     pub(super) fn parse_block(
