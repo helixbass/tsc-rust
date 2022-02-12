@@ -923,6 +923,7 @@ pub struct PropertyAssignment {
     _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
     pub initializer: Rc<Node /*Expression*/>,
     pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+    pub exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
 }
 
 impl PropertyAssignment {
@@ -931,6 +932,7 @@ impl PropertyAssignment {
             _named_declaration: base_named_declaration,
             initializer,
             question_token: None,
+            exclamation_token: None,
         }
     }
 }

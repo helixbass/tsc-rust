@@ -5,8 +5,8 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     ArrayLiteralExpression, Block, DiagnosticMessage, Diagnostics, FunctionExpression, Node,
-    NodeArray, NodeFlags, ObjectLiteralExpression, ParenthesizedExpression, PropertyAssignment,
-    ReturnStatement, SyntaxKind,
+    NodeArray, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
+    PropertyAssignment, ReturnStatement, SyntaxKind,
 };
 
 impl ParserType {
@@ -129,11 +129,27 @@ impl ParserType {
         )
     }
 
+    pub(super) fn parse_spread_element(&self) -> Node /*Expression*/ {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::DotDotDotToken, None, None);
+        let expression = self.parse_assignment_expression_or_higher();
+        self.finish_node(
+            self.factory.create_spread_element(self, expression).into(),
+            pos,
+            None,
+        )
+    }
+
     pub(super) fn parse_argument_or_array_literal_element(&self) -> Rc<Node> {
-        if false {
-            unimplemented!()
-        } else if false {
-            unimplemented!()
+        if self.token() == SyntaxKind::DotDotDotToken {
+            self.parse_spread_element().wrap()
+        } else if self.token() == SyntaxKind::CommaToken {
+            self.finish_node(
+                self.factory.create_omitted_expression(self),
+                self.get_node_pos(),
+                None,
+            )
+            .into()
         } else {
             self.parse_assignment_expression_or_higher()
         }
@@ -163,23 +179,115 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_object_literal_element(&self) -> Node {
+    pub(super) fn parse_object_literal_element(&self) -> Node /*ObjectLiteralElementLike*/ {
         let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
 
+        if self
+            .parse_optional_token(SyntaxKind::DotDotDotToken)
+            .is_some()
+        {
+            let expression = self.parse_assignment_expression_or_higher();
+            return self.with_jsdoc(
+                self.finish_node(
+                    self.factory
+                        .create_spread_assignment(self, expression)
+                        .into(),
+                    pos,
+                    None,
+                ),
+                has_jsdoc,
+            );
+        }
+
+        let decorators = self.parse_decorators();
+        let modifiers = self.parse_modifiers(None, None);
+
+        if self.parse_contextual_modifier(SyntaxKind::GetKeyword) {
+            return self.parse_accessor_declaration(
+                pos,
+                has_jsdoc,
+                decorators,
+                modifiers,
+                SyntaxKind::GetAccessor,
+            );
+        }
+        if self.parse_contextual_modifier(SyntaxKind::SetKeyword) {
+            return self.parse_accessor_declaration(
+                pos,
+                has_jsdoc,
+                decorators,
+                modifiers,
+                SyntaxKind::SetAccessor,
+            );
+        }
+
+        let asterisk_token = self
+            .parse_optional_token(SyntaxKind::AsteriskToken)
+            .map(|asterisk_token| asterisk_token.wrap());
         let token_is_identifier = self.is_identifier();
-        let name = self.parse_property_name();
+        let name: Rc<Node> = self.parse_property_name().wrap();
 
-        let node: PropertyAssignment;
-        if false {
-            unimplemented!()
+        let question_token: Option<Rc<Node>> = self
+            .parse_optional_token(SyntaxKind::QuestionToken)
+            .map(|question_token| question_token.wrap());
+        let exclamation_token: Option<Rc<Node>> = self
+            .parse_optional_token(SyntaxKind::ExclamationToken)
+            .map(|exclamation_token| exclamation_token.wrap());
+
+        if asterisk_token.is_some()
+            || matches!(
+                self.token(),
+                SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+            )
+        {
+            return self
+                .parse_method_declaration(
+                    pos,
+                    has_jsdoc,
+                    decorators,
+                    modifiers,
+                    asterisk_token,
+                    name,
+                    question_token,
+                    exclamation_token,
+                    None,
+                )
+                .into();
+        }
+
+        let node: Node;
+        let is_shorthand_property_assignment =
+            token_is_identifier && self.token() != SyntaxKind::ColonToken;
+        if is_shorthand_property_assignment {
+            let equals_token: Option<Rc<Node>> = self
+                .parse_optional_token(SyntaxKind::EqualsToken)
+                .map(|equals_token| equals_token.wrap());
+            let object_assignment_initializer = if equals_token.is_some() {
+                Some(self.allow_in_and(|| self.parse_assignment_expression_or_higher()))
+            } else {
+                None
+            };
+            let mut node_as_shorthand_property_assignment = self
+                .factory
+                .create_shorthand_property_assignment(self, name, object_assignment_initializer);
+            node_as_shorthand_property_assignment.equals_token = equals_token;
+            node_as_shorthand_property_assignment.question_token = question_token;
+            node_as_shorthand_property_assignment.exclamation_token = exclamation_token;
+            node = node_as_shorthand_property_assignment.into();
         } else {
             self.parse_expected(SyntaxKind::ColonToken, None, None);
             let initializer = self.allow_in_and(|| self.parse_assignment_expression_or_higher());
-            node = self
-                .factory
-                .create_property_assignment(self, name.wrap(), initializer.into());
+            let mut node_as_property_assignment =
+                self.factory
+                    .create_property_assignment(self, name, initializer);
+            node_as_property_assignment.question_token = question_token;
+            node_as_property_assignment.exclamation_token = exclamation_token;
+            node = node_as_property_assignment.into();
         }
-        self.finish_node(node.into(), pos, None)
+        node.set_decorators(decorators);
+        node.set_modifiers(modifiers);
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn parse_object_literal_expression(&self) -> ObjectLiteralExpression {

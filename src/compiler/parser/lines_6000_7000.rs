@@ -6,8 +6,8 @@ use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     append, is_class_member_modifier, is_keyword, is_modifier_kind, modifiers_to_flags, some,
     token_is_identifier_or_keyword, BaseNode, Block, ClassExpression, Debug_, Decorator,
-    DiagnosticMessage, Diagnostics, FunctionDeclaration, ModifierFlags, Node, NodeArray, NodeFlags,
-    NodeInterface, SyntaxKind, VariableDeclaration, VariableDeclarationList,
+    DiagnosticMessage, Diagnostics, FunctionDeclaration, MethodDeclaration, ModifierFlags, Node,
+    NodeArray, NodeFlags, NodeInterface, SyntaxKind, VariableDeclaration, VariableDeclarationList,
 };
 
 impl ParserType {
@@ -349,6 +349,21 @@ impl ParserType {
             body.map(Into::into),
         );
         self.finish_node(node, pos, None)
+    }
+
+    pub(super) fn parse_method_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
+        name: Rc<Node /*PropertyName*/>,
+        question_token: Option<Rc<Node /*QuestionToken*/>>,
+        exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
+        diagnostic_message: Option<&DiagnosticMessage>,
+    ) -> MethodDeclaration {
+        unimplemented!()
     }
 
     pub(super) fn parse_accessor_declaration(
