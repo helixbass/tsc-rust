@@ -5,10 +5,10 @@ use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    add_related_info, create_detached_diagnostic, last_or_undefined, ArrayLiteralExpression, Block,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, FunctionExpression,
-    Node, NodeArray, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
-    ReturnStatement, SyntaxKind,
+    add_related_info, create_detached_diagnostic, is_async_modifier, last_or_undefined, some,
+    ArrayLiteralExpression, Block, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    Diagnostics, FunctionExpression, Node, NodeArray, NodeFlags, NodeInterface,
+    ObjectLiteralExpression, ParenthesizedExpression, ReturnStatement, SyntaxKind,
 };
 
 impl ParserType {
@@ -332,7 +332,72 @@ impl ParserType {
     }
 
     pub(super) fn parse_function_expression(&self) -> FunctionExpression {
-        unimplemented!()
+        let saved_decorator_context = self.in_decorator_context();
+        self.set_decorator_context(false);
+
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        let modifiers = self.parse_modifiers(None, None);
+        self.parse_expected(SyntaxKind::FunctionKeyword, None, None);
+        let asterisk_token: Option<Rc<Node>> = self
+            .parse_optional_token(SyntaxKind::AsteriskToken)
+            .map(Node::wrap);
+        let is_generator = if asterisk_token.is_some() {
+            SignatureFlags::Yield
+        } else {
+            SignatureFlags::None
+        };
+        let is_async = if some(
+            modifiers.as_deref(),
+            Some(|modifier: &Rc<Node>| is_async_modifier(modifier)),
+        ) {
+            SignatureFlags::Await
+        } else {
+            SignatureFlags::None
+        };
+        let name: Option<Rc<Node>> =
+            if is_generator != SignatureFlags::None && is_async != SignatureFlags::None {
+                self.do_in_yield_and_await_context(|| {
+                    self.parse_optional_binding_identifier()
+                        .map(|node| node.wrap())
+                })
+            } else if is_generator != SignatureFlags::None {
+                self.do_in_yield_context(|| {
+                    self.parse_optional_binding_identifier()
+                        .map(|node| node.wrap())
+                })
+            } else if is_async != SignatureFlags::None {
+                self.do_in_await_context(|| {
+                    self.parse_optional_binding_identifier()
+                        .map(|node| node.wrap())
+                })
+            } else {
+                self.parse_optional_binding_identifier()
+                    .map(|node| node.wrap())
+            };
+
+        let type_parameters = self.parse_type_parameters();
+        let parameters = self.parse_parameters(is_generator | is_async);
+        let type_: Option<Rc<Node>> = self
+            .parse_return_type(SyntaxKind::ColonToken, false)
+            .map(Node::wrap);
+        let body: Rc<Node> = self
+            .parse_function_block(is_generator | is_async, None)
+            .into();
+
+        self.set_decorator_context(saved_decorator_context);
+
+        let node = self.factory.create_function_expression(
+            self,
+            modifiers,
+            asterisk_token,
+            name,
+            type_parameters,
+            parameters,
+            type_,
+            body,
+        );
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn parse_optional_binding_identifier(&self) -> Option<Node> {
