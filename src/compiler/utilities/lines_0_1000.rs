@@ -15,9 +15,9 @@ use crate::{
     is_source_file, is_white_space_like, module_resolution_option_declarations,
     node_is_synthesized, options_affecting_program_structure, skip_trivia, text_substring,
     CharacterCodes, CommandLineOption, CompilerOptions, Debug_, EmitFlags, EmitTextWriter,
-    LiteralLikeNodeInterface, Node, NodeArray, NodeFlags, NodeInterface, ReadonlyTextRange,
-    SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolWriter, SyntaxKind, UnderscoreEscapedMap,
+    LiteralLikeNodeInterface, Node, NodeArray, NodeFlags, NodeInterface, ReadonlyCollection,
+    ReadonlyTextRange, SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, UnderscoreEscapedMap,
 };
 
 // resolvingEmptyArray: never[] = [];
@@ -306,6 +306,26 @@ pub fn for_each_entry<
 ) -> Option<TReturn> {
     for (key, value) in map {
         let result = callback(value, key);
+        if result.is_some() {
+            return result;
+        }
+    }
+    None
+}
+
+pub fn for_each_key<
+    'a,
+    TKey,
+    TReturn,
+    TMap: ReadonlyCollection<'a, TKey> + 'a,
+    TCallback: FnMut(TKey) -> Option<TReturn>,
+>(
+    map: TMap,
+    mut callback: TCallback,
+) -> Option<TReturn> {
+    let iterator = map.keys();
+    for key in iterator {
+        let result = callback(key);
         if result.is_some() {
             return result;
         }

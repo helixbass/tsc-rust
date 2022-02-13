@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{hash_map, hash_set, HashMap, HashSet};
+use std::hash::Hash;
 use std::ops::Deref;
 
 pub type MapLike<TValue> = HashMap<String, TValue>;
@@ -45,6 +46,84 @@ impl<TItem> Deref for SortedArray<TItem> {
         &self._vec
     }
 }
+
+pub trait ReadonlyCollection<'a, TKeyRef> {
+    type Iter: Iterator<Item = TKeyRef>;
+    fn size(&self) -> usize;
+    fn has(&self, key: TKeyRef) -> bool;
+    fn keys(&'a self) -> Self::Iter;
+}
+
+impl<'a, TKey: Eq + Hash + 'a, TValue: 'a> ReadonlyCollection<'a, &'a TKey>
+    for HashMap<TKey, TValue>
+{
+    type Iter = hash_map::Keys<'a, TKey, TValue>;
+
+    fn size(&self) -> usize {
+        self.len()
+    }
+
+    fn has(&self, key: &TKey) -> bool {
+        self.contains_key(key)
+    }
+
+    fn keys(&'a self) -> Self::Iter {
+        self.keys()
+    }
+}
+
+impl<'a, TKey: Eq + Hash + 'a> ReadonlyCollection<'a, &'a TKey> for HashSet<TKey> {
+    type Iter = hash_set::Iter<'a, TKey>;
+
+    fn size(&self) -> usize {
+        self.len()
+    }
+
+    fn has(&self, key: &TKey) -> bool {
+        self.contains(key)
+    }
+
+    fn keys(&'a self) -> Self::Iter {
+        self.iter()
+    }
+}
+
+// pub enum ReadonlyCollection<'collection, TKey: Eq + Hash, TValue> {
+//     HashMap(&'collection HashMap<TKey, TValue>),
+//     HashSet(&'collection HashSet<TKey>),
+// }
+
+// impl<'collection, TKey: Eq + Hash, TValue> ReadonlyCollection<'collection, TKey, TValue> {
+//     pub fn size(&self) -> usize {
+//         match self {
+//             ReadonlyCollection::HashMap(hash_map) => hash_map.len(),
+//             ReadonlyCollection::HashSet(hash_set) => hash_set.len(),
+//         }
+//     }
+
+//     pub fn has(&self, key: &TKey) -> bool {
+//         match self {
+//             ReadonlyCollection::HashMap(hash_map) => hash_map.contains_key(key),
+//             ReadonlyCollection::HashSet(hash_set) => hash_set.contains(key),
+//         }
+//     }
+// }
+
+// impl<'collection, TKey: Eq + Hash, TValue> From<&'collection HashMap<TKey, TValue>>
+//     for ReadonlyCollection<'collection, TKey, TValue>
+// {
+//     fn from(value: &'collection HashMap<TKey, TValue>) -> Self {
+//         Self::HashMap(value)
+//     }
+// }
+
+// impl<'collection, TKey: Eq + Hash, TValue> From<&'collection HashSet<TKey>>
+//     for ReadonlyCollection<'collection, TKey, TValue>
+// {
+//     fn from(value: &'collection HashSet<TKey>) -> Self {
+//         Self::HashSet(value)
+//     }
+// }
 
 pub type Push<TItem> = Vec<TItem>;
 

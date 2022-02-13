@@ -23,7 +23,9 @@ pub use compiler::core::{
     sort_and_deduplicate, starts_with, string_contains, trim_string_start, AssertionLevel,
     GetCanonicalFileName,
 };
-pub use compiler::core_public::{Comparer, Comparison, MapLike, Push, SortedArray};
+pub use compiler::core_public::{
+    Comparer, Comparison, MapLike, Push, ReadonlyCollection, SortedArray,
+};
 pub use compiler::debug::Debug_;
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::emitter::create_printer;
