@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
-    BindingLikeDeclarationInterface, HasExpressionInterface, HasInitializerInterface,
+    BindingLikeDeclarationInterface, FlowNode, HasExpressionInterface, HasInitializerInterface,
     HasTypeInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, SyntaxKind, VariableLikeDeclarationInterface,
 };
@@ -26,6 +26,146 @@ impl MetaProperty {
             keyword_token,
             name,
         }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxElement {
+    _node: BaseNode,
+    pub opening_element: Rc<Node /*JsxOpeningElement*/>,
+    pub children: NodeArray, /*<JsxChild>*/
+    pub closing_element: Rc<Node /*JsxClosingElement*/>,
+}
+
+impl JsxElement {
+    pub fn new(
+        base_node: BaseNode,
+        opening_element: Rc<Node>,
+        children: NodeArray,
+        closing_element: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            opening_element,
+            children,
+            closing_element,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxAttributes {
+    _node: BaseNode,
+    pub properties: NodeArray, /*<JsxAttributeLike>*/
+}
+
+impl JsxAttributes {
+    pub fn new(base_node: BaseNode, properties: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            properties,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxOpeningElement {
+    _node: BaseNode,
+    pub tag_name: Rc<Node /*JsxTagNameExpression*/>,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    pub attributes: Rc<Node /*JsxAttributes*/>,
+}
+
+impl JsxOpeningElement {
+    pub fn new(
+        base_node: BaseNode,
+        tag_name: Rc<Node>,
+        type_arguments: Option<NodeArray>,
+        attributes: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            tag_name,
+            type_arguments,
+            attributes,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxSelfClosingElement {
+    _node: BaseNode,
+    pub tag_name: Rc<Node /*JsxTagNameExpression*/>,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    pub attributes: Rc<Node /*JsxAttributes*/>,
+}
+
+impl JsxSelfClosingElement {
+    pub fn new(
+        base_node: BaseNode,
+        tag_name: Rc<Node>,
+        type_arguments: Option<NodeArray>,
+        attributes: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            tag_name,
+            type_arguments,
+            attributes,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxFragment {
+    _node: BaseNode,
+    pub opening_fragment: Rc<Node /*JsxOpeningFragment*/>,
+    pub children: NodeArray, /*<JsxChild>*/
+    pub closing_fragment: Rc<Node /*JsxClosingFragment*/>,
+}
+
+impl JsxFragment {
+    pub fn new(
+        base_node: BaseNode,
+        opening_fragment: Rc<Node>,
+        children: NodeArray,
+        closing_fragment: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            opening_fragment,
+            children,
+            closing_fragment,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxOpeningFragment {
+    _node: BaseNode,
+}
+
+impl JsxOpeningFragment {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxClosingFragment {
+    _node: BaseNode,
+}
+
+impl JsxClosingFragment {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
     }
 }
 
@@ -68,6 +208,66 @@ impl HasInitializerInterface for JsxAttribute {
 
     fn set_initializer(&mut self, initializer: Rc<Node>) {
         self.initializer = Some(initializer);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxSpreadAttribute {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl JsxSpreadAttribute {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for JsxSpreadAttribute {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxClosingElement {
+    _node: BaseNode,
+    pub tag_name: Rc<Node /*JsxTagNameExpression*/>,
+}
+
+impl JsxClosingElement {
+    pub fn new(base_node: BaseNode, tag_name: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            tag_name,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JsxExpression {
+    _node: BaseNode,
+    pub dot_dot_dot_token: Option<Rc<Node /*Token<SyntaxKind.DotDotDotToken>*/>>,
+    pub expression: Option<Rc<Node /*Expression*/>>,
+}
+
+impl JsxExpression {
+    pub fn new(
+        base_node: BaseNode,
+        dot_dot_dot_token: Option<Rc<Node>>,
+        expression: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            dot_dot_dot_token,
+            expression,
+        }
     }
 }
 
@@ -135,6 +335,18 @@ pub struct DebuggerStatement {
 }
 
 impl DebuggerStatement {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct MissingDeclaration {
+    _node: BaseNode,
+}
+
+impl MissingDeclaration {
     pub fn new(base_node: BaseNode) -> Self {
         Self { _node: base_node }
     }
@@ -466,6 +678,44 @@ impl CaseBlock {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct CaseClause {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+    pub statements: NodeArray, /*<Statement>*/
+    pub(crate) fallthrough_flow_node: Option<FlowNode>,
+}
+
+impl CaseClause {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, statements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            statements,
+            fallthrough_flow_node: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct DefaultClause {
+    _node: BaseNode,
+    pub statements: NodeArray, /*<Statement>*/
+    pub(crate) fallthrough_flow_node: Option<FlowNode>,
+}
+
+impl DefaultClause {
+    pub fn new(base_node: BaseNode, statements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            statements,
+            fallthrough_flow_node: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct LabeledStatement {
     _node: BaseNode,
     pub label: Rc<Node /*Identifier*/>,
@@ -525,6 +775,28 @@ impl TryStatement {
             try_block,
             catch_clause,
             finally_block,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct CatchClause {
+    _node: BaseNode,
+    pub variable_declaration: Option<Rc<Node /*VariableDeclaration*/>>,
+    pub block: Rc<Node /*Block*/>,
+}
+
+impl CatchClause {
+    pub fn new(
+        base_node: BaseNode,
+        variable_declaration: Option<Rc<Node>>,
+        block: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            variable_declaration,
+            block,
         }
     }
 }
@@ -908,6 +1180,24 @@ impl InterfaceDeclaration {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct HeritageClause {
+    _node: BaseNode,
+    pub token: SyntaxKind, /*SyntaxKind.ExtendsKeyword | SyntaxKind.ImplementsKeyword*/
+    pub types: NodeArray,  /*<ExpressionWithTypeArguments>*/
+}
+
+impl HeritageClause {
+    pub fn new(base_node: BaseNode, token: SyntaxKind, types: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            token,
+            types,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
@@ -1005,6 +1295,38 @@ impl ModuleDeclaration {
 }
 
 impl NamedDeclarationInterface for ModuleDeclaration {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocNamespaceDeclaration {
+    _node: BaseNode,
+    pub name: Rc<Node /*Identifier*/>,
+    pub body: Option<Rc<Node /*JSDocNamespaceBody*/>>,
+}
+
+impl JSDocNamespaceDeclaration {
+    pub fn new(base_node: BaseNode, name: Rc<Node>, body: Option<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+            body,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for JSDocNamespaceDeclaration {
     fn maybe_name(&self) -> Option<Rc<Node>> {
         Some(self.name.clone())
     }

@@ -3,19 +3,21 @@
 use std::borrow::Borrow;
 use std::rc::Rc;
 
-use super::propagate_child_flags;
+use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_outer_expression, BaseNodeFactory, Node, NodeArray, NodeArrayOrVec, NodeFactory,
-    NodeInterface, OuterExpressionKinds, PropertyAssignment, ShorthandPropertyAssignment,
-    SourceFile, SpreadAssignment, SyntaxKind, TransformFlags,
+    is_outer_expression, BaseNodeFactory, BaseUnparsedNode, Bundle, EnumMember, InputFiles,
+    LanguageVariant, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeInterface, OuterExpressionKinds, PropertyAssignment, ScriptKind, ScriptTarget,
+    ShorthandPropertyAssignment, SourceFile, SpreadAssignment, StringOrRcNode, SyntaxKind,
+    TransformFlags, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
-    pub fn create_property_assignment(
+    pub fn create_property_assignment<TName: Into<StringOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: Rc<Node>,
-        initializer: Rc<Node>,
+        name: TName, /*PropertyName*/
+        initializer: Rc<Node /*Expression*/>,
     ) -> PropertyAssignment {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -24,15 +26,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             Option::<NodeArray>::None,
             Some(name),
         );
-        let node = PropertyAssignment::new(node, initializer);
+        let mut node = PropertyAssignment::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expression_for_disallowed_comma(base_factory, &initializer),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.name()))
+                | propagate_child_flags(Some(&*node.initializer)),
+        );
         node
     }
 
-    pub fn create_shorthand_property_assignment(
+    pub fn create_shorthand_property_assignment<TName: Into<StringOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        name: Rc<Node>,
-        object_assignment_initializer: Option<Rc<Node>>,
+        name: TName, /*Identifier*/
+        object_assignment_initializer: Option<Rc<Node /*Expression*/>>,
     ) -> ShorthandPropertyAssignment {
         let node = self.create_base_named_declaration(
             base_factory,
@@ -52,11 +62,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             }),
         );
         node.add_transform_flags(
-            propagate_child_flags(
-                node.object_assignment_initializer
-                    .as_ref()
-                    .map(|rc| rc.clone()),
-            ) | TransformFlags::ContainsES2015,
+            propagate_child_flags(node.object_assignment_initializer.clone())
+                | TransformFlags::ContainsES2015,
         );
         node
     }
@@ -80,19 +87,138 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_source_file<TNodes: Into<NodeArrayOrVec>>(
+    pub fn create_enum_member<TName: Into<StringOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
-        statements: TNodes,
-    ) -> SourceFile {
-        let node = base_factory.create_base_source_file_node(SyntaxKind::SourceFile);
-        let node = SourceFile::new(
+        name: TName, /*Identifier*/
+        initializer: Option<Rc<Node /*Expression*/>>,
+    ) -> EnumMember {
+        let node = self.create_base_node(base_factory, SyntaxKind::EnumMember);
+        let mut node = EnumMember::new(
             node,
-            self.create_node_array(Some(statements), None),
-            "".to_string(),
-            "".to_string(),
+            self.as_name(base_factory, Some(name)).unwrap(),
+            initializer.map(|initializer| {
+                self.parenthesizer_rules()
+                    .parenthesize_expression_for_disallowed_comma(base_factory, &initializer)
+            }),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.name))
+                | propagate_child_flags(node.initializer.clone())
+                | TransformFlags::ContainsTypeScript,
         );
         node
+    }
+
+    pub fn create_source_file<TStatements: Into<NodeArrayOrVec>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        statements: TStatements,
+        end_of_file_token: Rc<Node /*EndOfFileToken*/>,
+        flags: NodeFlags,
+    ) -> SourceFile {
+        let node = base_factory.create_base_source_file_node(SyntaxKind::SourceFile);
+        let mut node = SourceFile::new(
+            node,
+            self.create_node_array(Some(statements), None),
+            end_of_file_token,
+            "".to_string(),
+            "".to_string(),
+            ScriptTarget::ES3,
+            LanguageVariant::Standard,
+            ScriptKind::Unknown,
+            false,
+            false,
+        );
+        node.add_transform_flags(
+            propagate_children_flags(Some(&node.statements))
+                | propagate_child_flags(Some(&*node.end_of_file_token)),
+        );
+        node
+    }
+
+    pub fn create_bundle(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        source_files: Vec<Rc<Node /*<SourceFile>*/>>,
+        prepends: Option<Vec<Rc<Node /*<UnparsedSource | InputFiles>*/>>>,
+    ) -> Bundle {
+        let prepends = prepends.unwrap_or_else(|| vec![]);
+        let node = self.create_base_node(base_factory, SyntaxKind::Bundle);
+        Bundle::new(node, prepends, source_files)
+    }
+
+    pub fn create_unparsed_source(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        prologues: Vec<Rc<Node /*<UnparsedPrologue>*/>>,
+        synthetic_references: Option<Vec<Rc<Node /*<UnparsedSyntheticReference*/>>>,
+        texts: Vec<Rc<Node /*<UnparsedSourceText>*/>>,
+    ) -> UnparsedSource {
+        let node = self.create_base_node(base_factory, SyntaxKind::UnparsedSource);
+        UnparsedSource::new(
+            node,
+            prologues,
+            synthetic_references,
+            texts,
+            "".to_owned(),
+            "".to_owned(),
+            vec![],
+            vec![],
+        )
+        // node.getLineAndCharacterOfPosition = pos => getLineAndCharacterOfPosition(node, pos);
+    }
+
+    fn create_base_unparsed_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        kind: SyntaxKind,
+        data: Option<String>,
+    ) -> BaseUnparsedNode {
+        let node = self.create_base_node(base_factory, kind);
+        BaseUnparsedNode::new(node, data)
+    }
+
+    fn create_unparsed_prologue(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        data: Option<String>,
+    ) -> UnparsedPrologue {
+        let node = self.create_base_unparsed_node(base_factory, SyntaxKind::UnparsedPrologue, data);
+        UnparsedPrologue::new(node)
+    }
+
+    fn create_unparsed_prepend(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        data: Option<String>,
+        texts: Vec<Rc<Node /*UnparsedTextLike*/>>,
+    ) -> UnparsedPrepend {
+        let node = self.create_base_unparsed_node(base_factory, SyntaxKind::UnparsedPrepend, data);
+        UnparsedPrepend::new(node, texts)
+    }
+
+    fn create_unparsed_text_like(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        data: Option<String>,
+        internal: bool,
+    ) -> UnparsedTextLike {
+        let node = self.create_base_unparsed_node(
+            base_factory,
+            if internal {
+                SyntaxKind::UnparsedInternalText
+            } else {
+                SyntaxKind::UnparsedText
+            },
+            data,
+        );
+        UnparsedTextLike::new(node)
+    }
+
+    fn create_input_files(&self, base_factory: &TBaseNodeFactory) -> InputFiles {
+        let node = self.create_base_node(base_factory, SyntaxKind::InputFiles);
+        InputFiles::new(node, "".to_owned(), "".to_owned())
     }
 
     fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {

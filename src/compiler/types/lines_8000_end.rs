@@ -14,6 +14,8 @@ pub struct Printer {
     pub write: fn(&Printer, &str),
 }
 
+pub(crate) type BuildInfo = ();
+
 pub struct PrinterOptions {}
 
 pub trait EmitTextWriter: SymbolWriter {

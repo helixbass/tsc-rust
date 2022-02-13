@@ -3,7 +3,10 @@
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
-use super::{BaseNode, BaseTextRange, Diagnostic, NodeArray, Path, Symbol, TypeCheckerHost};
+use super::{
+    BaseNode, BaseTextRange, BuildInfo, Diagnostic, EmitHelper, FileReference, LanguageVariant,
+    Node, NodeArray, Path, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
+};
 use local_macros::ast_type;
 
 pub type SourceTextAsChars = Vec<char>;
@@ -51,11 +54,21 @@ pub struct SourceFile {
     _node: BaseNode,
     _symbols_without_a_symbol_table_strong_references: RefCell<Vec<Rc<Symbol>>>,
     pub statements: NodeArray,
+    pub end_of_file_token: Rc<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
 
     file_name: RefCell<String>,
     path: RefCell<Option<Path>>,
     pub text: String,
     pub text_as_chars: SourceTextAsChars,
+
+    language_variant: LanguageVariant,
+    is_declaration_file: bool,
+
+    has_no_default_lib: bool,
+
+    language_version: ScriptTarget,
+
+    script_kind: ScriptKind,
 
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
@@ -66,20 +79,32 @@ impl SourceFile {
     pub fn new(
         base_node: BaseNode,
         statements: NodeArray,
+        end_of_file_token: Rc<Node>,
         file_name: String,
         text: String,
+        language_version: ScriptTarget,
+        language_variant: LanguageVariant,
+        script_kind: ScriptKind,
+        is_declaration_file: bool,
+        has_no_default_lib: bool,
     ) -> Self {
         let text_as_chars = text.chars().collect();
         Self {
             _node: base_node,
             _symbols_without_a_symbol_table_strong_references: RefCell::new(vec![]),
             statements,
+            end_of_file_token,
             file_name: RefCell::new(file_name),
             path: RefCell::new(None),
             text,
             text_as_chars,
             parse_diagnostics: RefCell::new(None),
             line_map: RefCell::new(None),
+            language_version,
+            language_variant,
+            script_kind,
+            is_declaration_file,
+            has_no_default_lib,
         }
     }
 
@@ -142,6 +167,190 @@ impl SourceFileLike for SourceFile {
         allow_edits: Option<bool>,
     ) -> Option<usize> {
         None
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct Bundle {
+    _node: BaseNode,
+    pub prepends: Vec<Rc<Node /*InputFiles | UnparsedSource*/>>,
+    pub source_files: Vec<Rc<Node /*SourceFile*/>>,
+    pub(crate) synthetic_file_references: Option<Vec<FileReference>>,
+    pub(crate) synthetic_type_references: Option<Vec<FileReference>>,
+    pub(crate) synthetic_lib_references: Option<Vec<FileReference>>,
+    pub(crate) has_no_default_lib: Option<bool>,
+}
+
+impl Bundle {
+    pub fn new(base_node: BaseNode, prepends: Vec<Rc<Node>>, source_files: Vec<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            prepends,
+            source_files,
+            synthetic_file_references: None,
+            synthetic_type_references: None,
+            synthetic_lib_references: None,
+            has_no_default_lib: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct InputFiles {
+    _node: BaseNode,
+    pub javascript_path: Option<String>,
+    pub javascript_text: String,
+    pub javascript_map_path: Option<String>,
+    pub javascript_map_text: Option<String>,
+    pub declaration_path: Option<String>,
+    pub declaration_text: String,
+    pub declaration_map_path: Option<String>,
+    pub declaration_map_text: Option<String>,
+    pub(crate) build_info_path: Option<String>,
+    pub(crate) build_info: Option<BuildInfo>,
+    pub(crate) old_file_of_current_emit: Option<bool>,
+}
+
+impl InputFiles {
+    pub fn new(base_node: BaseNode, javascript_text: String, declaration_text: String) -> Self {
+        Self {
+            _node: base_node,
+            javascript_text,
+            declaration_text,
+            javascript_path: None,
+            javascript_map_path: None,
+            javascript_map_text: None,
+            declaration_path: None,
+            declaration_map_path: None,
+            declaration_map_text: None,
+            build_info_path: None,
+            build_info: None,
+            old_file_of_current_emit: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct UnparsedSource {
+    _node: BaseNode,
+    pub file_name: String,
+    pub text: String,
+    pub prologues: Vec<Rc<Node /*UnparsedPrologue*/>>,
+    pub helpers: Option<Vec<Rc<EmitHelper /*UnscopedEmitHelper*/>>>,
+
+    pub referenced_files: Vec<FileReference>,
+    pub type_reference_directives: Option<Vec<String>>,
+    pub lib_reference_directives: Vec<FileReference>,
+    pub has_no_default_lib: Option<bool>,
+
+    pub source_map_path: Option<String>,
+    pub source_map_text: Option<String>,
+    pub synthetic_references: Option<Vec<Rc<Node /*UnparsedSyntheticReference*/>>>,
+    pub texts: Vec<Rc<Node /*UnparsedSourceText*/>>,
+    pub(crate) old_file_of_current_emit: Option<bool>,
+}
+
+// TODO: implement SourceFileLike for UnparsedSource
+impl UnparsedSource {
+    pub fn new(
+        base_node: BaseNode,
+        prologues: Vec<Rc<Node>>,
+        synthetic_references: Option<Vec<Rc<Node>>>,
+        texts: Vec<Rc<Node>>,
+        file_name: String,
+        text: String,
+        referenced_files: Vec<FileReference>,
+        lib_reference_directives: Vec<FileReference>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            prologues,
+            synthetic_references,
+            texts,
+            file_name,
+            text,
+            referenced_files,
+            lib_reference_directives,
+            helpers: None,
+            type_reference_directives: None,
+            has_no_default_lib: None,
+            source_map_path: None,
+            source_map_text: None,
+            old_file_of_current_emit: None,
+        }
+    }
+}
+
+pub trait UnparsedSectionInterface {
+    fn maybe_data(&self) -> Option<&str>;
+}
+
+#[derive(Debug)]
+#[ast_type(impl_from = false)]
+pub struct BaseUnparsedNode {
+    _node: BaseNode,
+    data: Option<String>,
+}
+
+impl BaseUnparsedNode {
+    pub fn new(base_node: BaseNode, data: Option<String>) -> Self {
+        Self {
+            _node: base_node,
+            data,
+        }
+    }
+}
+
+impl UnparsedSectionInterface for BaseUnparsedNode {
+    fn maybe_data(&self) -> Option<&str> {
+        self.data.as_deref()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "UnparsedSectionInterface")]
+pub struct UnparsedPrologue {
+    _unparsed_node: BaseUnparsedNode,
+}
+
+impl UnparsedPrologue {
+    pub fn new(base_unparsed_node: BaseUnparsedNode) -> Self {
+        Self {
+            _unparsed_node: base_unparsed_node,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "UnparsedSectionInterface")]
+pub struct UnparsedPrepend {
+    _unparsed_node: BaseUnparsedNode,
+    texts: Vec<Rc<Node /*UnparsedTextLike*/>>,
+}
+
+impl UnparsedPrepend {
+    pub fn new(base_unparsed_node: BaseUnparsedNode, texts: Vec<Rc<Node>>) -> Self {
+        Self {
+            _unparsed_node: base_unparsed_node,
+            texts,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "UnparsedSectionInterface")]
+pub struct UnparsedTextLike {
+    _unparsed_node: BaseUnparsedNode,
+}
+
+impl UnparsedTextLike {
+    pub fn new(base_unparsed_node: BaseUnparsedNode) -> Self {
+        Self {
+            _unparsed_node: base_unparsed_node,
+        }
     }
 }
 

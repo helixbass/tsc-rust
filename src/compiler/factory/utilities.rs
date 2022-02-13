@@ -1,10 +1,11 @@
+use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
     get_emit_flags, get_jsdoc_type_tag, is_assignment_expression, is_declaration_binding_element,
-    is_in_js_file, is_object_literal_element_like, is_parenthesized_expression, is_spread_element,
-    EmitFlags, HasInitializerInterface, NamedDeclarationInterface, Node, NodeInterface,
-    OuterExpressionKinds, SyntaxKind,
+    is_identifier, is_in_js_file, is_object_literal_element_like, is_parenthesized_expression,
+    is_spread_element, EmitFlags, HasInitializerInterface, NamedDeclarationInterface, Node,
+    NodeInterface, OuterExpressionKinds, SyntaxKind,
 };
 
 pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
@@ -116,4 +117,29 @@ pub fn get_elements_of_binding_or_assignment_pattern(
         }
         _ => panic!("Unexpected kind"),
     }
+}
+
+pub(crate) fn get_jsdoc_type_alias_name<TFullName: Borrow<Node>>(
+    full_name: Option<TFullName /*JSDocNamespaceBody*/>,
+) -> Option<Rc<Node /*Identifier*/>> {
+    full_name.map(|full_name| {
+        let full_name = full_name.borrow();
+        let mut right_node = full_name.node_wrapper();
+        loop {
+            if is_identifier(&right_node)
+                || right_node.as_jsdoc_namespace_declaration().body.is_none()
+            {
+                return if is_identifier(&right_node) {
+                    right_node
+                } else {
+                    right_node.as_jsdoc_namespace_declaration().name.clone()
+                };
+            }
+            right_node = right_node
+                .as_jsdoc_namespace_declaration()
+                .body
+                .clone()
+                .unwrap();
+        }
+    })
 }

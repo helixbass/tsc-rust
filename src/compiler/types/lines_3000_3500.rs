@@ -4,10 +4,33 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use super::{
-    BaseNamedDeclaration, BaseNode, HasIsTypeOnlyInterface, HasTypeInterface,
-    NamedDeclarationInterface, Node, NodeArray, SyntaxKind, TextRange,
+    BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasExpressionInterface,
+    HasIsTypeOnlyInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
+    SyntaxKind, TextRange,
 };
 use local_macros::ast_type;
+
+#[derive(Debug)]
+#[ast_type]
+pub struct ExternalModuleReference {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl ExternalModuleReference {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for ExternalModuleReference {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
 
 #[derive(Debug)]
 #[ast_type]
@@ -213,6 +236,22 @@ impl NamedImports {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct NamedExports {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<ExportSpecifier>*/
+}
+
+impl NamedExports {
+    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ImportSpecifier {
     _node: BaseNode,
     pub property_name: Option<Rc<Node /*Identifier*/>>,
@@ -320,6 +359,31 @@ impl ExportAssignment {
     }
 }
 
+#[derive(Debug)]
+pub struct FileReference {
+    pos: Cell<isize>,
+    end: Cell<isize>,
+    file_name: String,
+}
+
+impl TextRange for FileReference {
+    fn pos(&self) -> isize {
+        self.pos.get()
+    }
+
+    fn set_pos(&self, pos: isize) {
+        self.pos.set(pos);
+    }
+
+    fn end(&self) -> isize {
+        self.end.get()
+    }
+
+    fn set_end(&self, end: isize) {
+        self.end.set(end);
+    }
+}
+
 pub type CommentKind = SyntaxKind; /*SyntaxKind.SingleLineCommentTrivia | SyntaxKind.MultiLineCommentTrivia*/
 
 pub struct CommentRange {
@@ -418,6 +482,36 @@ impl HasTypeInterface for JSDocTypeExpression {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct JSDocNameReference {
+    _node: BaseNode,
+    pub name: Rc<Node /*EntityName | JSDocMemberName*/>,
+}
+
+impl JSDocNameReference {
+    pub fn new(base_node: BaseNode, name: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+        }
+    }
+}
+
+impl NamedDeclarationInterface for JSDocNameReference {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        Some(self.name.clone())
+    }
+
+    fn name(&self) -> Rc<Node> {
+        self.name.clone()
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        self.name = name;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JSDocMemberName {
     _node: BaseNode,
     pub left: Rc<Node /*EntityName | JSDocMemberName*/>,
@@ -461,6 +555,22 @@ impl HasTypeInterface for BaseJSDocUnaryType {
 }
 
 #[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+)]
+pub struct JSDocFunctionType {
+    _signature_declaration: BaseSignatureDeclaration,
+}
+
+impl JSDocFunctionType {
+    pub fn new(signature_declaration: BaseSignatureDeclaration) -> Self {
+        Self {
+            _signature_declaration: signature_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDoc {
     _node: BaseNode,
@@ -471,8 +581,8 @@ pub struct JSDoc {
 impl JSDoc {
     pub fn new(
         base_node: BaseNode,
-        tags: Option<NodeArray>,
         comment: Option<StringOrNodeArray>,
+        tags: Option<NodeArray>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -812,9 +922,9 @@ pub struct JSDocCallbackTag {
 impl JSDocCallbackTag {
     pub fn new(
         base_jsdoc_tag: BaseJSDocTag,
+        type_expression: Rc<Node>,
         full_name: Option<Rc<Node>>,
         name: Option<Rc<Node>>,
-        type_expression: Rc<Node>,
     ) -> Self {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
@@ -840,6 +950,31 @@ impl NamedDeclarationInterface for JSDocCallbackTag {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct JSDocSignature {
+    _node: BaseNode,
+    pub type_parameters: Option<NodeArray /*<JSDocTemplateTag>*/>,
+    pub parameters: NodeArray, /*<JSDocParameterTag>*/
+    pub type_: Option<Rc<Node /*JSDocReturnTag*/>>,
+}
+
+impl JSDocSignature {
+    pub fn new(
+        base_node: BaseNode,
+        type_parameters: Option<NodeArray>,
+        parameters: NodeArray,
+        type_: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            type_parameters,
+            parameters,
+            type_,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
 pub struct JSDocPropertyLikeTag {
     _base_jsdoc_tag: BaseJSDocTag,
@@ -852,8 +987,8 @@ pub struct JSDocPropertyLikeTag {
 impl JSDocPropertyLikeTag {
     pub fn new(
         base_jsdoc_tag: BaseJSDocTag,
-        name: Rc<Node>,
         type_expression: Option<Rc<Node>>,
+        name: Rc<Node>,
         is_name_first: bool,
         is_bracketed: bool,
     ) -> Self {
@@ -878,6 +1013,28 @@ impl NamedDeclarationInterface for JSDocPropertyLikeTag {
 
     fn set_name(&mut self, name: Rc<Node>) {
         self.name = name;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct JSDocTypeLiteral {
+    _node: BaseNode,
+    pub js_doc_property_tags: Option<NodeArray /*<JSDocPropertyLikeTag>*/>,
+    pub is_array_type: bool,
+}
+
+impl JSDocTypeLiteral {
+    pub fn new(
+        base_node: BaseNode,
+        js_doc_property_tags: Option<NodeArray>,
+        is_array_type: bool,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            js_doc_property_tags,
+            is_array_type,
+        }
     }
 }
 

@@ -7,25 +7,30 @@ use std::rc::{Rc, Weak};
 use super::{
     ArrayBindingPattern, ArrayLiteralExpression, ArrayTypeNode, ArrowFunction, AsExpression,
     AssertClause, AssertEntry, AwaitExpression, BaseJSDocUnaryType, BigIntLiteral,
-    BinaryExpression, BindingElement, Block, BreakStatement, CallExpression,
-    CallSignatureDeclaration, CaseBlock, ClassDeclaration, ClassExpression,
-    ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
-    ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContinueStatement,
-    DebuggerStatement, Decorator, DeleteExpression, DoStatement, ElementAccessExpression, EmitNode,
-    EmptyStatement, EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration,
-    ExportSpecifier, ExpressionStatement, ExpressionWithTypeArguments, ForInStatement,
+    BinaryExpression, BindingElement, Block, BreakStatement, Bundle, CallExpression,
+    CallSignatureDeclaration, CaseBlock, CaseClause, CatchClause, ClassDeclaration,
+    ClassExpression, ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalExpression,
+    ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
+    ConstructorTypeNode, ContinueStatement, DebuggerStatement, Decorator, DefaultClause,
+    DeleteExpression, DoStatement, ElementAccessExpression, EmitNode, EmptyStatement,
+    EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration, ExportSpecifier,
+    ExpressionStatement, ExpressionWithTypeArguments, ExternalModuleReference, ForInStatement,
     ForOfStatement, ForStatement, FunctionDeclaration, FunctionExpression,
     FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
     HasElementsInterface, HasExpressionInterface, HasIsTypeOnlyInterface,
     HasQuestionDotTokenInterface, HasTypeArgumentsInterface, HasTypeParametersInterface,
-    Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
-    ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
-    InferTypeNode, InterfaceDeclaration, IntersectionTypeNode, JSDoc, JSDocLink, JSDocLinkCode,
-    JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocPropertyLikeTag, JSDocTag,
-    JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypedefTag,
-    JsxAttribute, JsxText, KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface,
-    LiteralTypeNode, MappedTypeNode, MemberNameInterface, MetaProperty, MethodDeclaration,
-    MethodSignature, ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface,
+    HeritageClause, Identifier, IfStatement, ImportClause, ImportDeclaration,
+    ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration,
+    IndexedAccessTypeNode, InferTypeNode, InputFiles, InterfaceDeclaration, IntersectionTypeNode,
+    JSDoc, JSDocFunctionType, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
+    JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration, JSDocPropertyLikeTag,
+    JSDocSignature, JSDocTag, JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
+    JSDocTypeLikeTagInterface, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes,
+    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
+    JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
+    KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
+    MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
+    ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface, NamedExports,
     NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration, NamespaceImport,
     NewExpression, NodeArray, NonNullExpression, NumericLiteral, ObjectBindingPattern,
     ObjectLiteralExpression, OmittedExpression, OptionalTypeNode, ParameterDeclaration,
@@ -40,7 +45,8 @@ use super::{
     TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, ThrowStatement, TransformFlags,
     TryStatement, TupleTypeNode, TypeAliasDeclaration, TypeAssertion, TypeElement, TypeLiteralNode,
     TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration, TypePredicateNode, TypeQueryNode,
-    TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, VariableDeclaration,
+    TypeReferenceNode, UnionOrIntersectionTypeNodeInterface, UnionTypeNode, UnparsedPrepend,
+    UnparsedPrologue, UnparsedSource, UnparsedTextLike, VariableDeclaration,
     VariableDeclarationList, VariableLikeDeclarationInterface, VariableStatement, VoidExpression,
     WhileStatement, WithStatement, YieldExpression,
 };
@@ -313,6 +319,34 @@ pub enum Node {
     NamespaceImport(NamespaceImport),
     NamespaceExport(NamespaceExport),
     NamedImports(NamedImports),
+    NamedExports(NamedExports),
+    MissingDeclaration(MissingDeclaration),
+    ExternalModuleReference(ExternalModuleReference),
+    JSDocFunctionType(JSDocFunctionType),
+    JSDocTypeLiteral(JSDocTypeLiteral),
+    JSDocSignature(JSDocSignature),
+    JSDocNamespaceDeclaration(JSDocNamespaceDeclaration),
+    JSDocNameReference(JSDocNameReference),
+    JsxElement(JsxElement),
+    JsxSelfClosingElement(JsxSelfClosingElement),
+    JsxOpeningElement(JsxOpeningElement),
+    JsxClosingElement(JsxClosingElement),
+    JsxFragment(JsxFragment),
+    JsxOpeningFragment(JsxOpeningFragment),
+    JsxClosingFragment(JsxClosingFragment),
+    JsxAttributes(JsxAttributes),
+    JsxSpreadAttribute(JsxSpreadAttribute),
+    JsxExpression(JsxExpression),
+    CaseClause(CaseClause),
+    DefaultClause(DefaultClause),
+    HeritageClause(HeritageClause),
+    CatchClause(CatchClause),
+    Bundle(Bundle),
+    UnparsedSource(UnparsedSource),
+    UnparsedPrologue(UnparsedPrologue),
+    UnparsedPrepend(UnparsedPrepend),
+    UnparsedTextLike(UnparsedTextLike),
+    InputFiles(InputFiles),
 }
 
 impl Node {
@@ -510,6 +544,13 @@ impl Node {
         match self {
             Node::TemplateLiteralLikeNode(node) => node,
             _ => panic!("Expected template literal like node"),
+        }
+    }
+
+    pub fn as_jsdoc_tag(&self) -> &dyn JSDocTagInterface {
+        match self {
+            Node::JSDocTag(node) => node,
+            _ => panic!("Expected JSDoc tag"),
         }
     }
 
@@ -719,6 +760,10 @@ impl Node {
 
     pub fn as_spread_assignment(&self) -> &SpreadAssignment {
         enum_unwrapped!(self, [Node, SpreadAssignment])
+    }
+
+    pub fn as_jsdoc_namespace_declaration(&self) -> &JSDocNamespaceDeclaration {
+        enum_unwrapped!(self, [Node, JSDocNamespaceDeclaration])
     }
 }
 
