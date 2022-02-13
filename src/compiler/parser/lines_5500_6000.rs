@@ -99,7 +99,7 @@ impl ParserType {
                     return self.parse_function_expression().into();
                 }
             }
-            SyntaxKind::ClassKeyword => return self.parse_class_expression().into(),
+            SyntaxKind::ClassKeyword => return self.parse_class_expression(),
             SyntaxKind::FunctionKeyword => return self.parse_function_expression().into(),
             SyntaxKind::NewKeyword => return self.parse_new_expression_or_new_dot_target(),
             SyntaxKind::SlashToken | SyntaxKind::SlashEqualsToken => {

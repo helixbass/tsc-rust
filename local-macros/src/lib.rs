@@ -365,7 +365,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_question_token()
                     }
 
-                    fn maybe_exclamation_token(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                    fn maybe_exclamation_token(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
                         self.#first_field_name.maybe_exclamation_token()
                     }
                 }
@@ -800,7 +800,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_exclamation_token(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                    fn maybe_exclamation_token(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_exclamation_token()),*
                         }

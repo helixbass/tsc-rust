@@ -4,11 +4,14 @@ use std::rc::Rc;
 
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
-    append, is_class_member_modifier, is_keyword, is_modifier_kind, modifiers_to_flags,
-    ArrayBindingPattern, ClassDeclaration, ClassExpression, ConstructorDeclaration, Debug_,
-    Decorator, DiagnosticMessage, Diagnostics, FunctionDeclaration, HasTypeInterface,
-    HasTypeParametersInterface, MethodDeclaration, ModifierFlags, Node, NodeArray, NodeFlags,
-    NodeInterface, ObjectBindingPattern, SyntaxKind, VariableDeclaration, VariableDeclarationList,
+    append, is_async_modifier, is_class_member_modifier, is_keyword, is_modifier_kind,
+    modifiers_to_flags, some, token_is_identifier_or_keyword, ArrayBindingPattern, Block,
+    ClassDeclaration, ClassExpression, ClassStaticBlockDeclaration, ConstructorDeclaration, Debug_,
+    Decorator, DiagnosticMessage, Diagnostics, FunctionDeclaration,
+    FunctionLikeDeclarationInterface, HasTypeInterface, HasTypeParametersInterface,
+    MethodDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface,
+    ObjectBindingPattern, PropertyDeclaration, SyntaxKind, VariableDeclaration,
+    VariableDeclarationList,
 };
 
 impl ParserType {
@@ -290,7 +293,110 @@ impl ParserType {
         exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
         diagnostic_message: Option<&DiagnosticMessage>,
     ) -> MethodDeclaration {
-        unimplemented!()
+        let is_generator = if asterisk_token.is_some() {
+            SignatureFlags::Yield
+        } else {
+            SignatureFlags::None
+        };
+        let is_async = if some(
+            modifiers.as_deref(),
+            Some(|modifier: &Rc<Node>| is_async_modifier(modifier)),
+        ) {
+            SignatureFlags::Await
+        } else {
+            SignatureFlags::None
+        };
+        let type_parameters = self.parse_type_parameters();
+        let parameters = self.parse_parameters(is_generator | is_async);
+        let type_ = self.parse_return_type(SyntaxKind::ColonToken, false);
+        let body =
+            self.parse_function_block_or_semicolon(is_generator | is_async, diagnostic_message);
+        let node = self.factory.create_method_declaration(
+            self,
+            decorators,
+            modifiers,
+            asterisk_token,
+            name,
+            question_token,
+            type_parameters,
+            parameters,
+            type_.map(Node::wrap),
+            body.map(Into::into),
+        );
+        *node.maybe_exclamation_token() = exclamation_token;
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
+    pub(super) fn parse_property_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        name: Rc<Node /*PropertyName*/>,
+        question_token: Option<Rc<Node /*QuestionToken*/>>,
+    ) -> PropertyDeclaration {
+        let exclamation_token: Option<Rc<Node>> =
+            if question_token.is_none() && !self.scanner().has_preceding_line_break() {
+                self.parse_optional_token(SyntaxKind::ExclamationToken)
+                    .map(Node::wrap)
+            } else {
+                None
+            };
+        let type_ = self.parse_type_annotation();
+        let initializer = self.do_outside_of_context(
+            NodeFlags::YieldContext | NodeFlags::AwaitContext | NodeFlags::DisallowInContext,
+            || self.parse_initializer(),
+        );
+        self.parse_semicolon_after_property_name(&*name, type_.as_ref(), initializer.clone());
+        let node = self.factory.create_property_declaration(
+            self,
+            decorators,
+            modifiers,
+            name,
+            question_token.or(exclamation_token),
+            type_.map(Node::wrap),
+            initializer,
+        );
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
+    pub(super) fn parse_property_or_method_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> Node /*PropertyDeclaration | MethodDeclaration*/ {
+        let asterisk_token: Option<Rc<Node>> = self
+            .parse_optional_token(SyntaxKind::AsteriskToken)
+            .map(Node::wrap);
+        let name = self.parse_property_name().wrap();
+        let question_token: Option<Rc<Node>> = self
+            .parse_optional_token(SyntaxKind::QuestionToken)
+            .map(Node::wrap);
+        if asterisk_token.is_some()
+            || matches!(
+                self.token(),
+                SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
+            )
+        {
+            return self
+                .parse_method_declaration(
+                    pos,
+                    has_jsdoc,
+                    decorators,
+                    modifiers,
+                    asterisk_token,
+                    name,
+                    question_token,
+                    None,
+                    Some(&Diagnostics::or_expected),
+                )
+                .into();
+        }
+        self.parse_property_declaration(pos, has_jsdoc, decorators, modifiers, name, question_token)
+            .into()
     }
 
     pub(super) fn parse_accessor_declaration(
@@ -301,7 +407,33 @@ impl ParserType {
         modifiers: Option<NodeArray>,
         kind: SyntaxKind, /*AccessorDeclaration["kind"]*/
     ) -> Node /*AccessorDeclaration*/ {
-        unimplemented!()
+        let name: Rc<Node> = self.parse_property_name().wrap();
+        let type_parameters = self.parse_type_parameters();
+        let parameters = self.parse_parameters(SignatureFlags::None);
+        let type_: Option<Rc<Node>> = self
+            .parse_return_type(SyntaxKind::ColonToken, false)
+            .map(Node::wrap);
+        let body: Option<Rc<Node>> = self
+            .parse_function_block_or_semicolon(SignatureFlags::None, None)
+            .map(Into::into);
+        let node: Node = if kind == SyntaxKind::GetAccessor {
+            self.factory
+                .create_get_accessor_declaration(
+                    self, decorators, modifiers, name, parameters, type_, body,
+                )
+                .into()
+        } else {
+            let mut node_as_set_accessor_declaration =
+                self.factory.create_set_accessor_declaration(
+                    self, decorators, modifiers, name, parameters, body,
+                );
+            if let Some(type_) = type_ {
+                node_as_set_accessor_declaration.set_type(Some(type_));
+            }
+            node_as_set_accessor_declaration.into()
+        };
+        *node.as_has_type_parameters().maybe_type_parameters() = type_parameters;
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn is_class_member_start(&self) -> bool {
@@ -358,12 +490,61 @@ impl ParserType {
         false
     }
 
+    pub(super) fn parse_class_static_block_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> ClassStaticBlockDeclaration {
+        self.parse_expected_token(SyntaxKind::StaticKeyword, None, None);
+        let body: Rc<Node> = self.parse_class_static_block_body().into();
+        self.with_jsdoc(
+            self.finish_node(
+                self.factory
+                    .create_class_static_block_declaration(self, decorators, modifiers, body),
+                pos,
+                None,
+            ),
+            has_jsdoc,
+        )
+    }
+
+    pub(super) fn parse_class_static_block_body(&self) -> Block {
+        let saved_yield_context = self.in_yield_context();
+        let saved_await_context = self.in_await_context();
+
+        self.set_yield_context(false);
+        self.set_await_context(true);
+
+        let body = self.parse_block(false, None);
+
+        self.set_yield_context(saved_yield_context);
+        self.set_await_context(saved_await_context);
+
+        body
+    }
+
+    pub(super) fn parse_decorator_expression(&self) -> Rc<Node /*LeftHandSideExpression*/> {
+        if self.in_await_context() && self.token() == SyntaxKind::AwaitKeyword {
+            let pos = self.get_node_pos();
+            let await_expression: Rc<Node> = self
+                .parse_identifier(Some(&Diagnostics::Expression_expected), None)
+                .wrap();
+            self.next_token();
+            let member_expression = self.parse_member_expression_rest(pos, await_expression, true);
+            return self.parse_call_expression_rest(pos, member_expression);
+        }
+        self.parse_left_hand_side_expression_or_higher()
+    }
+
     pub(super) fn try_parse_decorator(&self) -> Option<Decorator> {
         let pos = self.get_node_pos();
         if !self.parse_optional(SyntaxKind::AtToken) {
             return None;
         }
-        unimplemented!()
+        let expression = self.do_in_decorator_context(|| self.parse_decorator_expression());
+        Some(self.finish_node(self.factory.create_decorator(self, expression), pos, None))
     }
 
     pub(super) fn parse_decorators(&self) -> Option<NodeArray /*<Decorator>*/> {
@@ -398,7 +579,9 @@ impl ParserType {
         let kind = self.token();
 
         if self.token() == SyntaxKind::ConstKeyword && permit_invalid_const_as_modifier {
-            unimplemented!()
+            if !self.try_parse_bool(|| self.next_token_is_on_same_line_and_can_follow_modifier()) {
+                return None;
+            }
         } else if stop_on_start_of_class_static_block
             && self.token() == SyntaxKind::StaticKeyword
             && self.look_ahead_bool(|| self.next_token_is_open_brace())
@@ -449,11 +632,141 @@ impl ParserType {
     }
 
     pub(super) fn parse_modifiers_for_arrow_function(&self) -> Option<NodeArray /*<Modifier>*/> {
-        unimplemented!()
+        let mut modifiers: Option<NodeArray> = None;
+        if self.token() == SyntaxKind::AsyncKeyword {
+            let pos = self.get_node_pos();
+            self.next_token();
+            let modifier: Rc<Node> = self
+                .finish_node(
+                    self.factory.create_token(self, SyntaxKind::AsyncKeyword),
+                    pos,
+                    None,
+                )
+                .into();
+            modifiers = Some(self.create_node_array(vec![modifier], pos, None, None));
+        }
+        modifiers
     }
 
-    pub(super) fn parse_class_expression(&self) -> ClassExpression {
-        unimplemented!()
+    pub(super) fn parse_class_element(&self) -> Node /*ClassElement*/ {
+        let pos = self.get_node_pos();
+        if self.token() == SyntaxKind::SemicolonToken {
+            self.next_token();
+            return self.finish_node(
+                self.factory.create_semicolon_class_element(self).into(),
+                pos,
+                None,
+            );
+        }
+
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        let decorators = self.parse_decorators();
+        let modifiers = self.parse_modifiers(Some(true), Some(true));
+        if self.token() == SyntaxKind::StaticKeyword
+            && self.look_ahead_bool(|| self.next_token_is_open_brace())
+        {
+            return self
+                .parse_class_static_block_declaration(pos, has_jsdoc, decorators, modifiers)
+                .into();
+        }
+
+        if self.parse_contextual_modifier(SyntaxKind::GetKeyword) {
+            return self.parse_accessor_declaration(
+                pos,
+                has_jsdoc,
+                decorators,
+                modifiers,
+                SyntaxKind::GetAccessor,
+            );
+        }
+
+        if self.parse_contextual_modifier(SyntaxKind::SetKeyword) {
+            return self.parse_accessor_declaration(
+                pos,
+                has_jsdoc,
+                decorators,
+                modifiers,
+                SyntaxKind::SetAccessor,
+            );
+        }
+
+        if matches!(
+            self.token(),
+            SyntaxKind::ConstructorKeyword | SyntaxKind::StringLiteral
+        ) {
+            let constructor_declaration = self.try_parse_constructor_declaration(
+                pos,
+                has_jsdoc,
+                decorators.clone(),
+                modifiers.clone(),
+            );
+            if let Some(constructor_declaration) = constructor_declaration {
+                return constructor_declaration.into();
+            }
+        }
+
+        if self.is_index_signature() {
+            return self
+                .parse_index_signature_declaration(pos, has_jsdoc, decorators, modifiers)
+                .into();
+        }
+
+        if token_is_identifier_or_keyword(self.token())
+            || matches!(
+                self.token(),
+                SyntaxKind::StringLiteral
+                    | SyntaxKind::NumericLiteral
+                    | SyntaxKind::AsteriskToken
+                    | SyntaxKind::OpenBracketToken
+            )
+        {
+            let is_ambient = some(
+                modifiers.as_ref().map(|node_array| {
+                    let node_array: &[Rc<Node>] = node_array;
+                    node_array
+                }),
+                Some(|modifier: &Rc<Node>| self.is_declare_modifier(modifier)),
+            );
+            if is_ambient {
+                for m in modifiers.as_ref().unwrap() {
+                    m.set_flags(m.flags() | NodeFlags::Ambient);
+                }
+                return self.do_inside_of_context(NodeFlags::Ambient, || {
+                    self.parse_property_or_method_declaration(pos, has_jsdoc, decorators, modifiers)
+                });
+            } else {
+                return self
+                    .parse_property_or_method_declaration(pos, has_jsdoc, decorators, modifiers);
+            }
+        }
+
+        if decorators.is_some() || modifiers.is_some() {
+            let name: Rc<Node> = self
+                .create_missing_node(
+                    SyntaxKind::Identifier,
+                    true,
+                    Some(&Diagnostics::Declaration_expected),
+                    None,
+                )
+                .wrap();
+            return self
+                .parse_property_declaration(pos, has_jsdoc, decorators, modifiers, name, None)
+                .into();
+        }
+
+        Debug_.fail(Some(
+            "Should not have attempted to parse class member declaration.",
+        ))
+    }
+
+    pub(super) fn parse_class_expression(&self) -> Node /*ClassExpression*/ {
+        self.parse_class_declaration_or_expression(
+            self.get_node_pos(),
+            self.has_preceding_jsdoc_comment(),
+            None,
+            None,
+            SyntaxKind::ClassExpression,
+        )
     }
 
     pub(super) fn parse_class_declaration(
@@ -462,7 +775,13 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> ClassDeclaration {
-        unimplemented!()
+    ) -> Node /*ClassDeclaration*/ {
+        self.parse_class_declaration_or_expression(
+            pos,
+            has_jsdoc,
+            decorators,
+            modifiers,
+            SyntaxKind::ClassDeclaration,
+        )
     }
 }

@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell, RefMut};
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -567,7 +567,7 @@ pub trait FunctionLikeDeclarationInterface {
     fn maybe_body(&self) -> Option<Rc<Node>>;
     fn maybe_asterisk_token(&self) -> Option<Rc<Node>>;
     fn maybe_question_token(&self) -> Option<Rc<Node>>;
-    fn maybe_exclamation_token(&self) -> Option<Rc<Node>>;
+    fn maybe_exclamation_token(&self) -> RefMut<Option<Rc<Node>>>;
 }
 
 #[derive(Debug)]
@@ -579,7 +579,7 @@ pub struct BaseFunctionLikeDeclaration {
     _signature_declaration: BaseSignatureDeclaration,
     pub asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
     pub question_token: Option<Rc<Node /*QuestionToken*/>>,
-    pub exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
+    pub exclamation_token: RefCell<Option<Rc<Node /*ExclamationToken*/>>>,
     body: Option<Rc<Node /*Block | Expression*/>>,
 }
 
@@ -590,7 +590,7 @@ impl BaseFunctionLikeDeclaration {
             body,
             asterisk_token: None,
             question_token: None,
-            exclamation_token: None,
+            exclamation_token: RefCell::new(None),
         }
     }
 }
@@ -608,8 +608,8 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
         self.question_token.clone()
     }
 
-    fn maybe_exclamation_token(&self) -> Option<Rc<Node>> {
-        self.exclamation_token.clone()
+    fn maybe_exclamation_token(&self) -> RefMut<Option<Rc<Node>>> {
+        self.exclamation_token.borrow_mut()
     }
 }
 

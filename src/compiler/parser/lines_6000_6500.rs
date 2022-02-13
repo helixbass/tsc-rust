@@ -399,7 +399,7 @@ impl ParserType {
                         None,
                         None,
                     )
-                    .into()
+                    .wrap()
             }
             SyntaxKind::IfKeyword => return self.parse_if_statement().into(),
             SyntaxKind::DoKeyword => return self.parse_do_statement().into(),
@@ -516,9 +516,9 @@ impl ParserType {
             SyntaxKind::FunctionKeyword => self
                 .parse_function_declaration(pos, has_jsdoc, decorators, modifiers)
                 .into(),
-            SyntaxKind::ClassKeyword => self
-                .parse_class_declaration(pos, has_jsdoc, decorators, modifiers)
-                .into(),
+            SyntaxKind::ClassKeyword => {
+                self.parse_class_declaration(pos, has_jsdoc, decorators, modifiers)
+            }
             SyntaxKind::InterfaceKeyword => self
                 .parse_interface_declaration(pos, has_jsdoc, decorators, modifiers)
                 .into(),

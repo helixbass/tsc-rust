@@ -6,20 +6,147 @@ use std::rc::Rc;
 use super::ParserType;
 use crate::{
     for_each, for_each_child_returns, is_export_assignment, is_export_declaration,
-    is_external_module_reference, is_import_declaration, is_import_equals_declaration,
-    is_meta_property, some, BaseNode, BaseNodeFactory, Diagnostic, EnumDeclaration,
-    ExportAssignment, ExportDeclaration, InterfaceDeclaration, ModuleDeclaration,
-    NamespaceExportDeclaration, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
-    TypeAliasDeclaration,
+    is_export_modifier, is_external_module_reference, is_import_declaration,
+    is_import_equals_declaration, is_meta_property, some, BaseNode, BaseNodeFactory, Debug_,
+    Diagnostic, EnumDeclaration, ExportAssignment, ExportDeclaration, ExpressionWithTypeArguments,
+    HeritageClause, InterfaceDeclaration, ModuleDeclaration, NamespaceExportDeclaration, Node,
+    NodeArray, NodeFlags, NodeInterface, SyntaxKind, TypeAliasDeclaration,
 };
 
 impl ParserType {
+    pub(super) fn parse_class_declaration_or_expression(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        kind: SyntaxKind, /*ClassLikeDeclaration["kind"]*/
+    ) -> Node /*ClassLikeDeclaration*/ {
+        let saved_await_context = self.in_await_context();
+        self.parse_expected(SyntaxKind::ClassKeyword, None, None);
+
+        let name: Option<Rc<Node>> = self
+            .parse_name_of_class_declaration_or_expression()
+            .map(Node::wrap);
+        let type_parameters = self.parse_type_parameters();
+        if some(
+            modifiers.as_ref().map(|node_array| {
+                let node_array: &[Rc<Node>] = node_array;
+                node_array
+            }),
+            Some(|modifier: &Rc<Node>| is_export_modifier(modifier)),
+        ) {
+            self.set_await_context(true);
+        }
+        let heritage_clauses = self.parse_heritage_clauses();
+
+        let members: NodeArray;
+        if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
+            members = self.parse_class_members();
+            self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
+        } else {
+            members = self.create_missing_list();
+        }
+        self.set_await_context(saved_await_context);
+        let node: Node = if kind == SyntaxKind::ClassDeclaration {
+            self.factory
+                .create_class_declaration(
+                    self,
+                    decorators,
+                    modifiers,
+                    name,
+                    type_parameters,
+                    heritage_clauses,
+                    members,
+                )
+                .into()
+        } else {
+            self.factory
+                .create_class_expression(
+                    self,
+                    decorators,
+                    modifiers,
+                    name,
+                    type_parameters,
+                    heritage_clauses,
+                    members,
+                )
+                .into()
+        };
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
+    pub(super) fn parse_name_of_class_declaration_or_expression(
+        &self,
+    ) -> Option<Node /*Identifier*/> {
+        if self.is_binding_identifier() && !self.is_implements_clause() {
+            Some(self.create_identifier(self.is_binding_identifier(), None, None))
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn is_implements_clause(&self) -> bool {
+        self.token() == SyntaxKind::ImplementsKeyword
+            && self.look_ahead_bool(|| self.next_token_is_identifier_or_keyword())
+    }
+
     pub(super) fn parse_heritage_clauses(&self) -> Option<NodeArray /*<HeritageClause>*/> {
+        if self.is_heritage_clause() {
+            return Some(self.parse_list(ParsingContext::HeritageClauses, &mut || {
+                self.parse_heritage_clause().into()
+            }));
+        }
+
         None
     }
 
+    pub(super) fn parse_heritage_clause(&self) -> HeritageClause {
+        let pos = self.get_node_pos();
+        let tok = self.token();
+        Debug_.assert(
+            matches!(
+                tok,
+                SyntaxKind::ExtendsKeyword | SyntaxKind::ImplementsKeyword
+            ),
+            None,
+        );
+        self.next_token();
+        let types = self.parse_delimited_list(
+            ParsingContext::HeritageClauseElement,
+            || self.parse_expression_with_type_arguments().into(),
+            None,
+        );
+        self.finish_node(
+            self.factory.create_heritage_clause(self, tok, types),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_expression_with_type_arguments(&self) -> ExpressionWithTypeArguments {
+        let pos = self.get_node_pos();
+        let expression = self.parse_left_hand_side_expression_or_higher();
+        let type_arguments = self.try_parse_type_arguments();
+        self.finish_node(
+            self.factory
+                .create_expression_with_type_arguments(self, expression, type_arguments),
+            pos,
+            None,
+        )
+    }
+
     pub(super) fn try_parse_type_arguments(&self) -> Option<NodeArray /*<TypeNode>*/> {
-        unimplemented!()
+        if self.token() == SyntaxKind::LessThanToken {
+            Some(self.parse_bracketed_list(
+                ParsingContext::TypeArguments,
+                || self.parse_type().wrap(),
+                SyntaxKind::LessThanToken,
+                SyntaxKind::GreaterThanToken,
+            ))
+        } else {
+            None
+        }
     }
 
     pub(super) fn is_heritage_clause(&self) -> bool {
@@ -27,6 +154,12 @@ impl ParserType {
             self.token(),
             SyntaxKind::ExtendsKeyword | SyntaxKind::ImplementsKeyword
         )
+    }
+
+    pub(super) fn parse_class_members(&self) -> NodeArray /*<ClassElement>*/ {
+        self.parse_list(ParsingContext::ClassMembers, &mut || {
+            self.parse_class_element().wrap()
+        })
     }
 
     pub(super) fn parse_interface_declaration(

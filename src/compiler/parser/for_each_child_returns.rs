@@ -325,7 +325,7 @@ pub fn for_each_child_returns<
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -399,7 +399,7 @@ pub fn for_each_child_returns<
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -447,7 +447,7 @@ pub fn for_each_child_returns<
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -495,7 +495,7 @@ pub fn for_each_child_returns<
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -543,7 +543,7 @@ pub fn for_each_child_returns<
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -591,7 +591,7 @@ pub fn for_each_child_returns<
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -639,7 +639,7 @@ pub fn for_each_child_returns<
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
