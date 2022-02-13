@@ -19,20 +19,20 @@ use crate::{
     is_element_access_expression, is_export_declaration, is_expression_statement, is_function_like,
     is_function_like_or_class_static_block_declaration, is_identifier, is_jsdoc,
     is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_tag, is_left_hand_side_expression,
-    is_module_declaration, is_numeric_literal, is_object_literal_expression,
-    is_parenthesized_expression, is_private_identifier, is_property_access_expression,
-    is_source_file, is_string_literal_like, is_variable_statement, is_void_expression,
-    is_white_space_like, last, length, module_resolution_option_declarations,
-    options_affecting_program_structure, skip_outer_expressions, str_to_source_text_as_chars,
+    is_module_declaration, is_no_substituion_template_literal, is_numeric_literal,
+    is_object_literal_expression, is_parenthesized_expression, is_private_identifier,
+    is_property_access_expression, is_source_file, is_string_literal_like, is_variable_statement,
+    is_void_expression, is_white_space_like, last, length, module_resolution_option_declarations,
+    options_affecting_program_structure, skip_outer_expressions, some, str_to_source_text_as_chars,
     text_substring, AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface,
     CompilerOptions, CompilerOptionsValue, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitTextWriter, Expression, LiteralLikeNode, LiteralLikeNodeInterface, MapLike,
-    ModifierFlags, ModuleKind, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags,
-    OuterExpressionKinds, PrefixUnaryExpression, PseudoBigInt, ReadonlyTextRange, ScriptTarget,
-    Signature, SignatureFlags, SortedArray, SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextSpan,
-    TransformFlags, TransientSymbolInterface, Type, TypeFlags, TypeInterface, UnderscoreEscapedMap,
-    __String, compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
+    EmitFlags, EmitTextWriter, LiteralLikeNodeInterface, MapLike, ModifierFlags, ModuleKind, Node,
+    NodeArray, NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds, PrefixUnaryExpression,
+    PseudoBigInt, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SortedArray,
+    SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TokenFlags, TransformFlags,
+    TransientSymbolInterface, Type, TypeFlags, TypeInterface, UnderscoreEscapedMap, __String,
+    compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
     escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
     insert_sorted, is_big_int_literal, is_member_name, is_type_alias_declaration, skip_trivia,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType,
@@ -365,7 +365,7 @@ fn get_text_of_node(node: &Node, include_trivia: Option<bool>) -> String {
     )
 }
 
-fn get_emit_flags(node: &Node) -> EmitFlags {
+pub fn get_emit_flags(node: &Node) -> EmitFlags {
     EmitFlags::None
 }
 
@@ -389,9 +389,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
     }
 
     match node {
-        Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::StringLiteral(
-            node_as_string_literal,
-        ))) => {
+        Node::StringLiteral(node_as_string_literal) => {
             let escape_text = if flags.intersects(GetLiteralTextFlags::JsxAttributeEscape) {
                 unimplemented!()
             } else if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
@@ -419,9 +417,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 )
             }
         }
-        Node::Expression(Expression::LiteralLikeNode(
-            LiteralLikeNode::TemplateLiteralLikeNode(node_as_template_literal_like_node),
-        )) => {
+        Node::TemplateLiteralLikeNode(node_as_template_literal_like_node) => {
             let escape_text = if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
                 || get_emit_flags(node).intersects(EmitFlags::NoAsciiEscaping)
             {
@@ -448,8 +444,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 _ => panic!("Unexpected TemplateLiteralLikeNode kind"),
             }
         }
-        Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::NumericLiteral(_)))
-        | Node::Expression(Expression::LiteralLikeNode(LiteralLikeNode::BigIntLiteral(_))) => {
+        Node::NumericLiteral(_) | Node::BigIntLiteral(_) => {
             node.as_literal_like_node().text().to_string()
         }
         _ => Debug_.fail(Some(&format!(
@@ -674,7 +669,7 @@ pub fn is_external_or_common_js_module(file: &Node /*SourceFile*/) -> bool {
 
 pub fn is_import_call(n: &Node) -> bool {
     match n {
-        Node::Expression(Expression::CallExpression(call_expression)) => {
+        Node::CallExpression(call_expression) => {
             call_expression.expression.kind() == SyntaxKind::ImportKeyword
         }
         _ => false,
@@ -1383,6 +1378,14 @@ pub fn is_property_name_literal(node: &Node) -> bool {
     }
 }
 
+pub fn get_text_of_identifier_or_literal(node: &Node) -> String {
+    if is_member_name(node) {
+        id_text(node)
+    } else {
+        node.as_literal_like_node().text().to_owned()
+    }
+}
+
 pub fn get_escaped_text_of_identifier_or_literal(node: &Node) -> __String {
     if is_member_name(node) {
         node.as_member_name().escaped_text()
@@ -1477,11 +1480,9 @@ pub fn get_expression_precedence(expression: &Node) -> OperatorPrecedence {
 
 pub fn get_operator(expression: &Node) -> SyntaxKind {
     match expression {
-        Node::Expression(Expression::BinaryExpression(expression)) => {
-            expression.operator_token.kind()
-        }
-        Node::Expression(Expression::PrefixUnaryExpression(expression)) => expression.operator,
-        Node::Expression(Expression::PostfixUnaryExpression(expression)) => expression.operator,
+        Node::BinaryExpression(expression) => expression.operator_token.kind(),
+        Node::PrefixUnaryExpression(expression) => expression.operator,
+        Node::PostfixUnaryExpression(expression) => expression.operator,
         _ => expression.kind(),
     }
 }
@@ -1712,6 +1713,22 @@ fn escape_template_substitution(str: &str) -> String {
         .to_string()
 }
 
+pub(crate) fn has_invalid_escape(template: &Node /*TemplateLiteral*/) -> bool {
+    /*template &&*/
+    if is_no_substituion_template_literal(template) {
+        matches!(template.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None)
+    } else {
+        let template_as_template_expression = template.as_template_expression();
+        matches!(template_as_template_expression.head.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None)
+            || some(
+                Some(&template_as_template_expression.template_spans),
+                Some(
+                    |span: &Rc<Node>| matches!(span.as_template_span().literal.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None),
+                ),
+            )
+    }
+}
+
 fn escape_non_ascii_string(
     s: &str,
     quote_char: Option<
@@ -1916,6 +1933,22 @@ pub fn create_text_writer(new_line: &str) -> TextWriter {
     // text_writer.reset()
 }
 
+pub fn is_this_identifier<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+    if node.is_none() {
+        return false;
+    }
+    let node = node.unwrap();
+    let node = node.borrow();
+    node.kind() == SyntaxKind::Identifier && identifier_is_this_keyword(node)
+}
+
+pub fn identifier_is_this_keyword(id: &Node /*Identifier*/) -> bool {
+    matches!(
+        id.as_identifier().original_keyword_kind,
+        Some(SyntaxKind::ThisKeyword)
+    )
+}
+
 pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
     let type_ = node
         .maybe_as_has_type()
@@ -1959,16 +1992,23 @@ pub fn is_non_type_alias_template(tag: &Node /*JSDocTag*/) -> bool {
             }))
 }
 
-pub fn has_syntactic_modifier(node: &Node, flags: ModifierFlags) -> bool {
+pub fn has_syntactic_modifier<TNode: NodeInterface>(node: &TNode, flags: ModifierFlags) -> bool {
     get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
 }
 
-fn get_selected_syntactic_modifier_flags(node: &Node, flags: ModifierFlags) -> ModifierFlags {
+pub fn has_static_modifier<TNode: NodeInterface>(node: &TNode) -> bool {
+    has_syntactic_modifier(node, ModifierFlags::Static)
+}
+
+fn get_selected_syntactic_modifier_flags<TNode: NodeInterface>(
+    node: &TNode,
+    flags: ModifierFlags,
+) -> ModifierFlags {
     get_syntactic_modifier_flags(node) & flags
 }
 
-fn get_modifier_flags_worker(
-    node: &Node,
+fn get_modifier_flags_worker<TNode: NodeInterface>(
+    node: &TNode,
     include_jsdoc: bool,
     always_include_jsdoc: Option<bool>,
 ) -> ModifierFlags {
@@ -1997,11 +2037,11 @@ pub fn get_effective_modifier_flags_always_include_jsdoc(node: &Node) -> Modifie
     get_modifier_flags_worker(node, true, Some(true))
 }
 
-pub fn get_syntactic_modifier_flags(node: &Node) -> ModifierFlags {
+pub fn get_syntactic_modifier_flags<TNode: NodeInterface>(node: &TNode) -> ModifierFlags {
     get_modifier_flags_worker(node, false, None)
 }
 
-fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
+fn get_syntactic_modifier_flags_no_cache<TNode: NodeInterface>(node: &TNode) -> ModifierFlags {
     let mut flags = modifiers_to_flags(node.maybe_modifiers());
     if node.flags().intersects(NodeFlags::NestedNamespace) || false {
         flags |= ModifierFlags::Export;
@@ -2037,6 +2077,15 @@ pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
     }
 }
 
+pub fn is_logical_or_coalescing_assignment_operator(token: SyntaxKind) -> bool {
+    matches!(
+        token,
+        SyntaxKind::BarBarEqualsToken
+            | SyntaxKind::AmpersandAmpersandEqualsToken
+            | SyntaxKind::QuestionQuestionEqualsToken
+    )
+}
+
 pub fn is_assignment_operator(token: SyntaxKind) -> bool {
     token >= SyntaxKind::FirstAssignment && token <= SyntaxKind::LastAssignment
 }
@@ -2060,7 +2109,7 @@ pub fn is_entity_name_expression(node: &Node) -> bool {
 
 pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
     match node {
-        Node::Expression(Expression::Identifier(_)) => node.node_wrapper(),
+        Node::Identifier(_) => node.node_wrapper(),
         _ => unimplemented!(),
     }
 }
@@ -2127,10 +2176,7 @@ fn access_kind(node: &Node) -> AccessKind {
     match &*parent {
         /*ParenthesizedExpression*/
         /*PostfixUnaryExpression*/
-        Node::Expression(Expression::PrefixUnaryExpression(PrefixUnaryExpression {
-            operator,
-            ..
-        })) => {
+        Node::PrefixUnaryExpression(PrefixUnaryExpression { operator, .. }) => {
             if matches!(
                 operator,
                 SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
@@ -2140,11 +2186,11 @@ fn access_kind(node: &Node) -> AccessKind {
                 AccessKind::Read
             }
         }
-        Node::Expression(Expression::BinaryExpression(_)) => unimplemented!(),
+        Node::BinaryExpression(_) => unimplemented!(),
         /*PropertyAccessExpression*/
         /*PropertyAssignment*/
         /*ShorthandPropertyAssignment*/
-        Node::Expression(Expression::ArrayLiteralExpression(_)) => access_kind(&*parent),
+        Node::ArrayLiteralExpression(_) => access_kind(&*parent),
         _ => AccessKind::Read,
     }
 }

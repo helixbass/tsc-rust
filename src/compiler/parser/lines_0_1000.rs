@@ -10,11 +10,11 @@ use super::{Parser, ParsingContext};
 use crate::{
     create_node_factory, create_scanner, maybe_text_char_at_index, normalize_path,
     object_allocator, BaseNode, BaseNodeFactory, CharacterCodes, Diagnostic, DiagnosticMessage,
-    Expression, FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
     HasTypeParametersInterface, Identifier, NamedDeclarationInterface, Node, NodeArray,
     NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, Scanner, ScriptTarget,
-    SignatureDeclarationInterface, SourceTextAsChars, Statement, SyntaxKind,
-    TemplateLiteralLikeNode, TypeElement, TypeNode,
+    SignatureDeclarationInterface, SourceTextAsChars, SyntaxKind, TemplateLiteralLikeNode,
+    TypeElement,
 };
 use local_macros::ast_type;
 
@@ -264,7 +264,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_node(&mut cb_node, variable_declaration.maybe_type());
             visit_node(&mut cb_node, variable_declaration.maybe_initializer())
         }
-        Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
+        Node::FunctionDeclaration(function_declaration) => {
             visit_nodes(
                 &mut cb_node,
                 Some(&mut cb_nodes),
@@ -292,7 +292,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             visit_node(&mut cb_node, function_declaration.maybe_type());
             visit_node(&mut cb_node, function_declaration.maybe_body())
         }
-        Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
+        Node::TypeReferenceNode(type_reference_node) => {
             visit_node(&mut cb_node, Some(type_reference_node.type_name.clone()));
             visit_nodes(
                 &mut cb_node,
@@ -300,38 +300,34 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 type_reference_node.type_arguments.as_ref(),
             )
         }
-        Node::TypeNode(TypeNode::ArrayTypeNode(array_type)) => {
+        Node::ArrayTypeNode(array_type) => {
             visit_node(&mut cb_node, Some(array_type.element_type.clone()))
         }
-        Node::TypeNode(TypeNode::UnionTypeNode(union_type)) => {
+        Node::UnionTypeNode(union_type) => {
             visit_nodes(&mut cb_node, Some(&mut cb_nodes), Some(&union_type.types))
         }
-        Node::TypeNode(TypeNode::IntersectionTypeNode(intersection_type)) => visit_nodes(
+        Node::IntersectionTypeNode(intersection_type) => visit_nodes(
             &mut cb_node,
             Some(&mut cb_nodes),
             Some(&intersection_type.types),
         ),
-        Node::TypeNode(TypeNode::LiteralTypeNode(literal_type)) => {
+        Node::LiteralTypeNode(literal_type) => {
             visit_node(&mut cb_node, Some(literal_type.literal.clone()))
         }
-        Node::Expression(Expression::ArrayLiteralExpression(array_literal_expression)) => {
-            visit_nodes(
-                &mut cb_node,
-                Some(&mut cb_nodes),
-                Some(&array_literal_expression.elements),
-            )
-        }
-        Node::Expression(Expression::ObjectLiteralExpression(object_literal_expression)) => {
-            visit_nodes(
-                &mut cb_node,
-                Some(&mut cb_nodes),
-                Some(&object_literal_expression.properties),
-            )
-        }
-        Node::Expression(Expression::PrefixUnaryExpression(prefix_unary_expression)) => {
+        Node::ArrayLiteralExpression(array_literal_expression) => visit_nodes(
+            &mut cb_node,
+            Some(&mut cb_nodes),
+            Some(&array_literal_expression.elements),
+        ),
+        Node::ObjectLiteralExpression(object_literal_expression) => visit_nodes(
+            &mut cb_node,
+            Some(&mut cb_nodes),
+            Some(&object_literal_expression.properties),
+        ),
+        Node::PrefixUnaryExpression(prefix_unary_expression) => {
             visit_node(&mut cb_node, Some(prefix_unary_expression.operand.clone()))
         }
-        Node::Statement(Statement::VariableStatement(variable_statement)) => {
+        Node::VariableStatement(variable_statement) => {
             visit_nodes(
                 &mut cb_node,
                 Some(&mut cb_nodes),
@@ -352,7 +348,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             Some(&mut cb_nodes),
             Some(&variable_declaration_list.declarations),
         ),
-        Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
+        Node::InterfaceDeclaration(interface_declaration) => {
             visit_nodes(
                 &mut cb_node,
                 Some(&mut cb_nodes),
@@ -375,7 +371,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
                 Some(&interface_declaration.members),
             )
         }
-        Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
+        Node::TypeAliasDeclaration(type_alias_declaration) => {
             visit_nodes(
                 &mut cb_node,
                 Some(&mut cb_nodes),
@@ -394,7 +390,7 @@ pub fn for_each_child<TNodeCallback: FnMut(&Node), TNodesCallback: FnMut(&NodeAr
             );
             visit_node(&mut cb_node, Some(type_alias_declaration.type_.clone()))
         }
-        Node::Expression(Expression::TemplateExpression(template_expression)) => {
+        Node::TemplateExpression(template_expression) => {
             visit_node(&mut cb_node, Some(&*template_expression.head));
             visit_nodes(
                 &mut cb_node,

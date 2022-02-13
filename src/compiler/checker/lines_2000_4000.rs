@@ -6,7 +6,7 @@ use std::rc::Rc;
 use super::ResolveNameNameArg;
 use crate::{
     declaration_name_to_string, get_first_identifier, node_is_missing,
-    unescape_leading_underscores, Debug_, Expression, Node, NodeInterface, Symbol, SymbolFlags,
+    unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
     SymbolInterface, TypeChecker,
 };
 
@@ -37,7 +37,7 @@ impl TypeChecker {
 
         let symbol: Option<Rc<Symbol>>;
         match name {
-            Node::Expression(Expression::Identifier(name_as_identifier)) => {
+            Node::Identifier(name_as_identifier) => {
                 let message = if false {
                     unimplemented!()
                 } else {

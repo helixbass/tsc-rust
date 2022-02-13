@@ -8,10 +8,10 @@ use std::rc::Rc;
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
     get_check_flags, pseudo_big_int_to_string, BaseLiteralType, BigIntLiteralType, CheckFlags,
-    Debug_, DiagnosticMessage, Expression, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    Debug_, DiagnosticMessage, LiteralTypeInterface, NamedDeclarationInterface, Node,
     NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression, PseudoBigInt,
     RelationComparisonResult, StringLiteralType, Symbol, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypeNode,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     UnionOrIntersectionType,
 };
 use local_macros::enum_unwrapped;
@@ -185,23 +185,17 @@ impl TypeChecker {
 
     pub(super) fn get_type_from_type_node_worker(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
         match node {
-            Node::TypeNode(TypeNode::KeywordTypeNode(_)) => match node.kind() {
+            Node::KeywordTypeNode(_) => match node.kind() {
                 SyntaxKind::StringKeyword => self.string_type(),
                 SyntaxKind::NumberKeyword => self.number_type(),
                 SyntaxKind::BigIntKeyword => self.bigint_type(),
                 SyntaxKind::BooleanKeyword => self.boolean_type(),
                 _ => unimplemented!(),
             },
-            Node::TypeNode(TypeNode::LiteralTypeNode(_)) => {
-                self.get_type_from_literal_type_node(node)
-            }
-            Node::TypeNode(TypeNode::TypeReferenceNode(_)) => {
-                self.get_type_from_type_reference(node)
-            }
-            Node::TypeNode(TypeNode::ArrayTypeNode(_)) => {
-                self.get_type_from_array_or_tuple_type_node(node)
-            }
-            Node::TypeNode(TypeNode::UnionTypeNode(_)) => self.get_type_from_union_type_node(node),
+            Node::LiteralTypeNode(_) => self.get_type_from_literal_type_node(node),
+            Node::TypeReferenceNode(_) => self.get_type_from_type_reference(node),
+            Node::ArrayTypeNode(_) => self.get_type_from_array_or_tuple_type_node(node),
+            Node::UnionTypeNode(_) => self.get_type_from_union_type_node(node),
             _ => unimplemented!(),
         }
     }
@@ -407,7 +401,7 @@ impl TypeChecker {
         source: &Type,
         target: &Type,
         error_node: Option<&Node>,
-        expr: Option<&Expression>,
+        expr: Option<&Node>,
         head_message: Option<DiagnosticMessage>,
     ) -> bool {
         self.check_type_related_to_and_optionally_elaborate(
@@ -426,7 +420,7 @@ impl TypeChecker {
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
         error_node: Option<&Node>,
-        expr: Option<&Expression>,
+        expr: Option<&Node>,
         head_message: Option<DiagnosticMessage>,
     ) -> bool {
         if self.is_type_related_to(source, target, relation) {
@@ -442,7 +436,7 @@ impl TypeChecker {
 
     pub(super) fn elaborate_error(
         &self,
-        node: Option<&Expression>,
+        node: Option<&Node>,
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
@@ -453,13 +447,8 @@ impl TypeChecker {
         }
         let node = node.unwrap();
         match node {
-            Expression::ObjectLiteralExpression(object_literal_expression) => {
-                return self.elaborate_object_literal(
-                    object_literal_expression,
-                    source,
-                    target,
-                    relation,
-                );
+            Node::ObjectLiteralExpression(node) => {
+                return self.elaborate_object_literal(node, source, target, relation);
             }
             _ => (),
         }

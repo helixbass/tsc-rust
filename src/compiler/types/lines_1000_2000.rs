@@ -1,18 +1,18 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
-    ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseLiteralLikeNode,
-    BaseNode, BinaryExpression, CallExpression, ConditionalExpression, ElementAccessExpression,
-    FunctionExpression, HasExpressionInterface, HasInitializerInterface, HasTypeInterface,
-    JSDocTypeExpression, LiteralLikeNode, NewExpression, Node, NodeInterface, NonNullExpression,
-    ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression, ReadonlyTextRange,
-    SpreadElement, SyntaxKind, TaggedTemplateExpression, TemplateExpression, TransformFlags,
-    TypeAssertion, VoidExpression, __String,
+    ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseJSDocUnaryType,
+    BaseLiteralLikeNode, BaseNode, BinaryExpression, CallExpression, ConditionalExpression,
+    ElementAccessExpression, FlowNode, FunctionExpression, HasExpressionInterface,
+    HasInitializerInterface, HasTypeInterface, JSDocTypeExpression, NewExpression, Node,
+    NodeInterface, NonNullExpression, ObjectLiteralExpression, ParenthesizedExpression,
+    PropertyAccessExpression, ReadonlyTextRange, SpreadElement, SyntaxKind,
+    TaggedTemplateExpression, TemplateExpression, TransformFlags, TypeAssertion, __String,
 };
 use local_macros::ast_type;
 
@@ -122,6 +122,7 @@ impl Deref for NodeArray {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum NodeArrayOrVec {
     NodeArray(NodeArray),
     Vec(Vec<Rc<Node>>),
@@ -136,6 +137,42 @@ impl From<NodeArray> for NodeArrayOrVec {
 impl From<Vec<Rc<Node>>> for NodeArrayOrVec {
     fn from(vec: Vec<Rc<Node>>) -> Self {
         NodeArrayOrVec::Vec(vec)
+    }
+}
+
+impl Deref for NodeArrayOrVec {
+    type Target = [Rc<Node>];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            NodeArrayOrVec::NodeArray(node_array) => node_array.deref(),
+            NodeArrayOrVec::Vec(vec) => vec.deref(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum RcNodeOrNodeArrayOrVec {
+    RcNode(Rc<Node>),
+    NodeArray(NodeArray),
+    Vec(Vec<Rc<Node>>),
+}
+
+impl From<Rc<Node>> for RcNodeOrNodeArrayOrVec {
+    fn from(value: Rc<Node>) -> Self {
+        Self::RcNode(value)
+    }
+}
+
+impl From<NodeArray> for RcNodeOrNodeArrayOrVec {
+    fn from(value: NodeArray) -> Self {
+        Self::NodeArray(value)
+    }
+}
+
+impl From<Vec<Rc<Node>>> for RcNodeOrNodeArrayOrVec {
+    fn from(value: Vec<Rc<Node>>) -> Self {
+        Self::Vec(value)
     }
 }
 
@@ -156,11 +193,14 @@ bitflags! {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct Identifier {
     _node: BaseNode,
     pub escaped_text: __String,
-    auto_generate_flags: Option<GeneratedIdentifierFlags>,
+    pub original_keyword_kind: Option<SyntaxKind>,
+    pub(crate) auto_generate_flags: Option<GeneratedIdentifierFlags>,
+    pub(crate) auto_generate_id: Option<usize>,
+    pub(crate) type_arguments: Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>,
 }
 
 impl Identifier {
@@ -168,7 +208,10 @@ impl Identifier {
         Self {
             _node: base_node,
             escaped_text,
+            original_keyword_kind: None,
             auto_generate_flags: None,
+            auto_generate_id: None,
+            type_arguments: None,
         }
     }
 
@@ -195,17 +238,12 @@ pub struct QualifiedName {
 }
 
 impl QualifiedName {
-    pub fn new(
-        base_node: BaseNode,
-        left: Rc<Node>,
-        right: Rc<Node>,
-        jsdoc_dot_pos: Option<usize>,
-    ) -> Self {
+    pub fn new(base_node: BaseNode, left: Rc<Node>, right: Rc<Node>) -> Self {
         Self {
             _node: base_node,
             left,
             right,
-            jsdoc_dot_pos,
+            jsdoc_dot_pos: None,
         }
     }
 }
@@ -326,6 +364,66 @@ impl HasTypeInterface for BaseVariableLikeDeclaration {
 impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 
 #[derive(Debug)]
+#[ast_type]
+pub struct ComputedPropertyName {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl ComputedPropertyName {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for ComputedPropertyName {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct PrivateIdentifier {
+    _node: BaseNode,
+    pub escaped_text: __String,
+}
+
+impl PrivateIdentifier {
+    pub fn new(base_node: BaseNode, escaped_text: __String) -> Self {
+        Self {
+            _node: base_node,
+            escaped_text,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct Decorator {
+    _node: BaseNode,
+    pub expression: Rc<Node /*LeftHandSideExpression*/>,
+}
+
+impl Decorator {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for Decorator {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct TypeParameterDeclaration {
     _named_declaration: BaseNamedDeclaration,
@@ -347,13 +445,6 @@ impl TypeParameterDeclaration {
             expression: None,
         }
     }
-}
-
-#[derive(Debug)]
-#[ast_type]
-pub struct Decorator {
-    _node: BaseNode,
-    expression: Rc<Node /*LeftHandSideExpression*/>,
 }
 
 #[derive(Debug)]
@@ -411,6 +502,38 @@ impl SignatureDeclarationInterface for BaseSignatureDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+)]
+pub struct CallSignatureDeclaration {
+    _signature_declaration: BaseSignatureDeclaration,
+}
+
+impl CallSignatureDeclaration {
+    pub fn new(signature_declaration: BaseSignatureDeclaration) -> Self {
+        Self {
+            _signature_declaration: signature_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+)]
+pub struct ConstructSignatureDeclaration {
+    _signature_declaration: BaseSignatureDeclaration,
+}
+
+impl ConstructSignatureDeclaration {
+    pub fn new(signature_declaration: BaseSignatureDeclaration) -> Self {
+        Self {
+            _signature_declaration: signature_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
     ancestors = "SignatureDeclarationBase",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
 )]
@@ -433,8 +556,8 @@ pub trait FunctionLikeDeclarationInterface {
 pub struct BaseFunctionLikeDeclaration {
     _signature_declaration: BaseSignatureDeclaration,
     pub asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
-    question_token: Option<Rc<Node /*QuestionToken*/>>,
-    exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+    pub exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
     body: Option<Rc<Node /*Block | Expression*/>>,
 }
 
@@ -470,7 +593,6 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
-    ancestors = "Statement",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
 )]
 pub struct FunctionDeclaration {
@@ -487,16 +609,156 @@ impl FunctionDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+)]
+pub struct MethodSignature {
+    _signature_declaration: BaseSignatureDeclaration,
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+}
+
+impl MethodSignature {
+    pub fn new(
+        signature_declaration: BaseSignatureDeclaration,
+        question_token: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _signature_declaration: signature_declaration,
+            question_token,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct MethodDeclaration {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+}
+
+impl MethodDeclaration {
+    pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct ConstructorDeclaration {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+}
+
+impl ConstructorDeclaration {
+    pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct SemicolonClassElement {
+    _node: BaseNode,
+}
+
+impl SemicolonClassElement {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct GetAccessorDeclaration {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+}
+
+impl GetAccessorDeclaration {
+    pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct SetAccessorDeclaration {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+}
+
+impl SetAccessorDeclaration {
+    pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
+)]
+pub struct IndexSignatureDeclaration {
+    _signature_declaration: BaseSignatureDeclaration,
+}
+
+impl IndexSignatureDeclaration {
+    pub fn new(signature_declaration: BaseSignatureDeclaration) -> Self {
+        Self {
+            _signature_declaration: signature_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
+)]
+pub struct ClassStaticBlockDeclaration {
+    _generic_named_declaration: BaseGenericNamedDeclaration,
+    pub body: Rc<Node /*Block*/>,
+    end_flow_node: RefCell<Option<FlowNode>>,
+    return_flow_node: RefCell<Option<FlowNode>>,
+}
+
+impl ClassStaticBlockDeclaration {
+    pub fn new(generic_named_declaration: BaseGenericNamedDeclaration, body: Rc<Node>) -> Self {
+        Self {
+            _generic_named_declaration: generic_named_declaration,
+            body,
+            end_flow_node: RefCell::new(None),
+            return_flow_node: RefCell::new(None),
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
 )]
 pub struct VariableDeclaration {
     _variable_like_declaration: BaseVariableLikeDeclaration,
+    pub exclamation_token: Option<Rc<Node /*ExclamationToken*/>>,
 }
 
 impl VariableDeclaration {
-    pub fn new(base_variable_like_declaration: BaseVariableLikeDeclaration) -> Self {
+    pub fn new(
+        base_variable_like_declaration: BaseVariableLikeDeclaration,
+        exclamation_token: Option<Rc<Node>>,
+    ) -> Self {
         Self {
             _variable_like_declaration: base_variable_like_declaration,
+            exclamation_token,
         }
     }
 }
@@ -543,22 +805,6 @@ impl ParameterDeclaration {
 
 #[derive(Debug)]
 #[ast_type]
-pub enum TypeNode {
-    KeywordTypeNode(KeywordTypeNode),
-    UnionTypeNode(UnionTypeNode),
-    IntersectionTypeNode(IntersectionTypeNode),
-    LiteralTypeNode(LiteralTypeNode),
-    TypeReferenceNode(TypeReferenceNode),
-    TypePredicateNode(TypePredicateNode),
-    TypeLiteralNode(TypeLiteralNode),
-    ArrayTypeNode(ArrayTypeNode),
-    JSDocTypeExpression(JSDocTypeExpression),
-    FunctionTypeNode(FunctionTypeNode),
-    ParenthesizedTypeNode(ParenthesizedTypeNode),
-}
-
-#[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
 pub struct KeywordTypeNode {
     _node: BaseNode,
 }
@@ -576,8 +822,47 @@ impl From<BaseNode> for KeywordTypeNode {
 }
 
 #[derive(Debug)]
+#[ast_type]
+pub struct ImportTypeNode {
+    _node: BaseNode,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    pub is_type_of: bool,
+    pub argument: Rc<Node /*<TypeNode>*/>,
+    pub qualifier: Option<Rc<Node /*<EntityName>*/>>,
+}
+
+impl ImportTypeNode {
+    pub fn new(
+        base_node: BaseNode,
+        argument: Rc<Node>,
+        qualifier: Option<Rc<Node>>,
+        type_arguments: Option<NodeArray>,
+        is_type_of: bool,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            type_arguments,
+            is_type_of,
+            argument,
+            qualifier,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct ThisTypeNode {
+    _node: BaseNode,
+}
+
+impl ThisTypeNode {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(
-    ancestors = "TypeNode",
     interfaces = "NamedDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
 )]
 pub struct FunctionTypeNode {
@@ -592,12 +877,28 @@ impl FunctionTypeNode {
     }
 }
 
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
+)]
+pub struct ConstructorTypeNode {
+    _signature_declaration: BaseSignatureDeclaration,
+}
+
+impl ConstructorTypeNode {
+    pub fn new(base_signature_declaration: BaseSignatureDeclaration) -> Self {
+        Self {
+            _signature_declaration: base_signature_declaration,
+        }
+    }
+}
+
 pub trait HasTypeArgumentsInterface {
     fn maybe_type_arguments(&self) -> Option<&NodeArray>;
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct TypeReferenceNode {
     _node: BaseNode,
     pub type_name: Rc<Node /*EntityName*/>,
@@ -625,7 +926,7 @@ impl HasTypeArgumentsInterface for TypeReferenceNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct TypePredicateNode {
     _node: BaseNode,
     pub asserts_modifier: Option<Rc<Node /*AssertsToken*/>>,
@@ -650,7 +951,23 @@ impl TypePredicateNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
+pub struct TypeQueryNode {
+    _node: BaseNode,
+    pub expr_name: Rc<Node /*EntityName*/>,
+}
+
+impl TypeQueryNode {
+    pub fn new(base_node: BaseNode, expr_name: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expr_name,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct TypeLiteralNode {
     _node: BaseNode,
     pub members: NodeArray, /*<TypeElement>*/
@@ -666,7 +983,7 @@ impl TypeLiteralNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct ArrayTypeNode {
     _node: BaseNode,
     pub element_type: Rc<Node /*TypeNode*/>,
@@ -681,12 +998,108 @@ impl ArrayTypeNode {
     }
 }
 
+#[derive(Debug)]
+#[ast_type]
+pub struct TupleTypeNode {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<TypeNode | NamedTupleMember>*/
+}
+
+impl TupleTypeNode {
+    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct NamedTupleMember {
+    _node: BaseNode,
+    pub dot_dot_dot_token: Option<Rc<Node /*DotDotDotToken*/>>,
+    pub name: Rc<Node /*Identifier*/>,
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl NamedTupleMember {
+    pub fn new(
+        base_node: BaseNode,
+        dot_dot_dot_token: Option<Rc<Node>>,
+        name: Rc<Node>,
+        question_token: Option<Rc<Node>>,
+        type_: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            dot_dot_dot_token,
+            name,
+            question_token,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for NamedTupleMember {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = type_;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct OptionalTypeNode {
+    _node: BaseNode,
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl OptionalTypeNode {
+    pub fn new(base_node: BaseNode, type_: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct RestTypeNode {
+    _node: BaseNode,
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl RestTypeNode {
+    pub fn new(base_node: BaseNode, type_: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for RestTypeNode {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = type_;
+    }
+}
+
 pub trait UnionOrIntersectionTypeNodeInterface {
     fn types(&self) -> &NodeArray;
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct UnionTypeNode {
     _node: BaseNode,
     pub types: NodeArray, /*<TypeNode>*/
@@ -708,7 +1121,7 @@ impl UnionOrIntersectionTypeNodeInterface for UnionTypeNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct IntersectionTypeNode {
     _node: BaseNode,
     pub types: NodeArray, /*<TypeNode>*/
@@ -730,7 +1143,51 @@ impl UnionOrIntersectionTypeNodeInterface for IntersectionTypeNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
+pub struct ConditionalTypeNode {
+    _node: BaseNode,
+    pub check_type: Rc<Node /*TypeNode*/>,
+    pub extends_type: Rc<Node /*TypeNode*/>,
+    pub true_type: Rc<Node /*TypeNode*/>,
+    pub false_type: Rc<Node /*TypeNode*/>,
+}
+
+impl ConditionalTypeNode {
+    pub fn new(
+        base_node: BaseNode,
+        check_type: Rc<Node>,
+        extends_type: Rc<Node>,
+        true_type: Rc<Node>,
+        false_type: Rc<Node>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            check_type,
+            extends_type,
+            true_type,
+            false_type,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct InferTypeNode {
+    _node: BaseNode,
+    pub type_parameter: Rc<Node /*TypeParameterDeclaration*/>,
+}
+
+impl InferTypeNode {
+    pub fn new(base_node: BaseNode, type_parameter: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_parameter,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ParenthesizedTypeNode {
     _node: BaseNode,
     pub type_: Rc<Node /*TypeNode*/>,
@@ -756,7 +1213,97 @@ impl HasTypeInterface for ParenthesizedTypeNode {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
+pub struct TypeOperatorNode {
+    _node: BaseNode,
+    pub operator: SyntaxKind, /*SyntaxKind.KeyOfKeyword | SyntaxKind.UniqueKeyword | SyntaxKind.ReadonlyKeyword*/
+    pub type_: Rc<Node /*TypeNode*/>,
+}
+
+impl TypeOperatorNode {
+    pub fn new(base_node: BaseNode, operator: SyntaxKind, type_: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            operator,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for TypeOperatorNode {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = type_;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct IndexedAccessTypeNode {
+    _node: BaseNode,
+    pub object_type: Rc<Node /*TypeNode*/>,
+    pub index_type: Rc<Node /*TypeNode*/>,
+}
+
+impl IndexedAccessTypeNode {
+    pub fn new(base_node: BaseNode, object_type: Rc<Node>, index_type: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            object_type,
+            index_type,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct MappedTypeNode {
+    _node: BaseNode,
+    pub readonly_token: Option<Rc<Node /*ReadonlyToken | PlusToken | MinusToken*/>>,
+    pub type_parameter: Rc<Node /*TypeParameterDeclaration*/>,
+    pub name_type: Option<Rc<Node /*TypeNode*/>>,
+    pub question_token: Option<Rc<Node /*QuestionToken | PlusToken | MinusToken*/>>,
+    pub type_: Option<Rc<Node /*TypeNode*/>>,
+    pub members: Option<NodeArray /*<TypeElement>*/>,
+}
+
+impl MappedTypeNode {
+    pub fn new(
+        base_node: BaseNode,
+        readonly_token: Option<Rc<Node>>,
+        type_parameter: Rc<Node>,
+        name_type: Option<Rc<Node>>,
+        question_token: Option<Rc<Node>>,
+        type_: Option<Rc<Node>>,
+        members: Option<NodeArray>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            readonly_token,
+            type_parameter,
+            name_type,
+            question_token,
+            type_,
+            members,
+        }
+    }
+}
+
+impl HasTypeInterface for MappedTypeNode {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = Some(type_);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct LiteralTypeNode {
     _node: BaseNode,
     pub literal: Rc<Node>, // TODO: should be weak?
@@ -772,19 +1319,19 @@ impl LiteralTypeNode {
 }
 
 #[derive(Debug)]
-#[ast_type(
-    ancestors = "LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface"
-)]
+#[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct StringLiteral {
     _literal_like_node: BaseLiteralLikeNode,
-    pub single_quote: Option<bool>,
+    pub(crate) text_source_node:
+        Option<Rc<Node /*Identifier | StringLiteralLike | NumericLiteral*/>>,
+    pub(crate) single_quote: Option<bool>,
 }
 
 impl StringLiteral {
     pub fn new(base_literal_like_node: BaseLiteralLikeNode, single_quote: Option<bool>) -> Self {
         Self {
             _literal_like_node: base_literal_like_node,
+            text_source_node: None,
             single_quote,
         }
     }
@@ -792,40 +1339,64 @@ impl StringLiteral {
 
 #[derive(Debug)]
 #[ast_type]
-pub enum Expression {
-    PartiallyEmittedExpression(PartiallyEmittedExpression),
-    TokenExpression(BaseNode),
-    Identifier(Identifier),
-    PrefixUnaryExpression(PrefixUnaryExpression),
-    BinaryExpression(BinaryExpression),
-    LiteralLikeNode(LiteralLikeNode),
-    TemplateExpression(TemplateExpression),
-    ParenthesizedExpression(ParenthesizedExpression),
-    ArrayLiteralExpression(ArrayLiteralExpression),
-    ObjectLiteralExpression(ObjectLiteralExpression),
-    AsExpression(AsExpression),
-    TypeAssertion(TypeAssertion),
-    NonNullExpression(NonNullExpression),
-    CallExpression(CallExpression),
-    PropertyAccessExpression(PropertyAccessExpression),
-    ElementAccessExpression(ElementAccessExpression),
-    VoidExpression(VoidExpression),
-    NewExpression(NewExpression),
-    PostfixUnaryExpression(PostfixUnaryExpression),
-    ConditionalExpression(ConditionalExpression),
-    TaggedTemplateExpression(TaggedTemplateExpression),
-    FunctionExpression(FunctionExpression),
-    SpreadElement(SpreadElement),
+pub struct TemplateLiteralTypeNode {
+    pub _node: BaseNode,
+    pub head: Rc<Node /*TemplateHead*/>,
+    pub template_spans: NodeArray, /*<TemplateLiteralTypeSpan>*/
 }
 
-impl From<BaseNode> for Expression {
-    fn from(base_node: BaseNode) -> Self {
-        Expression::TokenExpression(base_node)
+impl TemplateLiteralTypeNode {
+    pub fn new(base_node: BaseNode, head: Rc<Node>, template_spans: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            head,
+            template_spans,
+        }
     }
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
+pub struct TemplateLiteralTypeSpan {
+    pub _node: BaseNode,
+    pub type_: Rc<Node /*TypeNode*/>,
+    pub literal: Rc<Node /*TemplateMiddle | TemplateTail*/>,
+}
+
+impl TemplateLiteralTypeSpan {
+    pub fn new(base_node: BaseNode, type_: Rc<Node>, literal: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+            literal,
+        }
+    }
+}
+
+impl HasTypeInterface for TemplateLiteralTypeSpan {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        Some(self.type_.clone())
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = type_;
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct OmittedExpression {
+    pub _node: BaseNode,
+}
+
+impl OmittedExpression {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct PartiallyEmittedExpression {
     pub _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
@@ -847,7 +1418,7 @@ impl HasExpressionInterface for PartiallyEmittedExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct PrefixUnaryExpression {
     pub _node: BaseNode,
     pub operator: SyntaxKind, /*PrefixUnaryOperator*/
@@ -865,7 +1436,7 @@ impl PrefixUnaryExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct PostfixUnaryExpression {
     pub _node: BaseNode,
     pub operand: Rc<Node /*LeftHandSideExpression*/>,
@@ -878,6 +1449,116 @@ impl PostfixUnaryExpression {
             _node: base_node,
             operand,
             operator,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct DeleteExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*UnaryExpression*/>,
+}
+
+impl DeleteExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for DeleteExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct TypeOfExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*UnaryExpression*/>,
+}
+
+impl TypeOfExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for TypeOfExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct VoidExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*UnaryExpression*/>,
+}
+
+impl VoidExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for VoidExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct AwaitExpression {
+    _node: BaseNode,
+    pub expression: Rc<Node /*UnaryExpression*/>,
+}
+
+impl AwaitExpression {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for AwaitExpression {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct YieldExpression {
+    _node: BaseNode,
+    pub asterisk_token: Option<Rc<Node /*AsteriskToken*/>>,
+    pub expression: Option<Rc<Node /*Expression*/>>,
+}
+
+impl YieldExpression {
+    pub fn new(
+        base_node: BaseNode,
+        expression: Option<Rc<Node>>,
+        asterisk_token: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            asterisk_token,
         }
     }
 }

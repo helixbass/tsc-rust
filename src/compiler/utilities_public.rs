@@ -29,10 +29,10 @@ use crate::{
     is_type_literal_node, is_type_node_kind, is_type_reference_node, is_variable_declaration_list,
     is_variable_statement, is_white_space_like, modifier_to_flag, normalize_path, path_is_relative,
     set_localized_diagnostic_messages, set_ui_locale, skip_outer_expressions, some,
-    AssignmentDeclarationKind, CharacterCodes, CompilerOptions, Debug_, Diagnostics, Expression,
+    AssignmentDeclarationKind, CharacterCodes, CompilerOptions, Debug_, Diagnostics,
     GeneratedIdentifierFlags, HasTypeParametersInterface, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeArray, NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Statement,
-    Symbol, SymbolInterface, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
+    Node, NodeArray, NodeFlags, NodeInterface, OuterExpressionKinds, Push, ScriptTarget, Symbol,
+    SymbolInterface, SyntaxKind, System, TextChangeRange, TextRange, TextSpan, __String,
     compare_diagnostics, is_block, is_module_block, is_source_file, sort_and_deduplicate,
     Diagnostic, SortedArray,
 };
@@ -556,7 +556,7 @@ fn name_for_nameless_jsdoc_typedef(
         return get_declaration_identifier(&host_node);
     }
     match &*host_node {
-        Node::Statement(Statement::VariableStatement(host_node)) => {
+        Node::VariableStatement(host_node) => {
             if
             /*hostNode.declarationList &&*/
             !host_node
@@ -573,10 +573,10 @@ fn name_for_nameless_jsdoc_typedef(
                 );
             }
         }
-        Node::Statement(Statement::ExpressionStatement(host_node)) => {
+        Node::ExpressionStatement(host_node) => {
             let mut expr = host_node.expression.clone();
             match &*expr {
-                Node::Expression(Expression::BinaryExpression(expr_as_binary_expression))
+                Node::BinaryExpression(expr_as_binary_expression)
                     if expr_as_binary_expression.operator_token.kind()
                         == SyntaxKind::EqualsToken =>
                 {
@@ -585,10 +585,10 @@ fn name_for_nameless_jsdoc_typedef(
                 _ => (),
             }
             match &*expr {
-                Node::Expression(Expression::PropertyAccessExpression(expr)) => {
+                Node::PropertyAccessExpression(expr) => {
                     return Some(expr.name());
                 }
-                Node::Expression(Expression::ElementAccessExpression(expr)) => {
+                Node::ElementAccessExpression(expr) => {
                     let arg = expr.argument_expression.clone();
                     if is_identifier(&*arg) {
                         return Some(arg);
@@ -597,10 +597,10 @@ fn name_for_nameless_jsdoc_typedef(
                 _ => (),
             }
         }
-        Node::Expression(Expression::ParenthesizedExpression(host_node)) => {
+        Node::ParenthesizedExpression(host_node) => {
             return get_declaration_identifier(&host_node.expression);
         }
-        Node::Statement(Statement::LabeledStatement(host_node)) => {
+        Node::LabeledStatement(host_node) => {
             if is_declaration(&host_node.statement) || is_expression(&host_node.statement) {
                 return get_declaration_identifier(&host_node.statement);
             }
@@ -749,7 +749,7 @@ pub(crate) fn get_assigned_name(node: &Node) -> Option<Rc<Node /*DeclarationName
         Node::PropertyAssignment(_) | Node::BindingElement(_) => {
             return node_parent.as_named_declaration().maybe_name();
         }
-        Node::Expression(Expression::BinaryExpression(node_parent)) => {
+        Node::BinaryExpression(node_parent) => {
             if ptr::eq(node, &*node_parent.right) {
                 if is_identifier(&*node_parent.left) {
                     return Some(node_parent.left.clone());
@@ -957,7 +957,7 @@ pub fn get_jsdoc_template_tag(node: &Node) -> Option<Rc<Node /*JSDocTemplateTag*
 
 pub fn get_jsdoc_type_tag(node: &Node) -> Option<Rc<Node /*JSDocTypeTag*/>> {
     let tag = get_first_jsdoc_tag(node, is_jsdoc_type_tag, None);
-    // if matches!(tag, Some(tag) if matches!(tag.as_jsdoc_type_tag().type_expression, Some(type_expression) /*if type_expression.type_.is_some()*/))
+    // if matches!(tag, Some(tag) if matches!(tag.as_jsdoc_type_like_tag().type_expression, Some(type_expression) /*if type_expression.type_.is_some()*/))
     if tag.is_some() {
         return tag;
     }
@@ -980,9 +980,10 @@ pub fn get_jsdoc_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
 pub fn get_jsdoc_return_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
     let return_tag = get_jsdoc_return_tag(node);
     if let Some(return_tag) = return_tag {
-        let return_tag_as_jsdoc_return_tag = return_tag.as_jsdoc_return_tag();
-        if let Some(return_tag_as_jsdoc_return_tag_type_expression) =
-            return_tag_as_jsdoc_return_tag.type_expression.as_ref()
+        let return_tag_as_jsdoc_return_tag = return_tag.as_jsdoc_type_like_tag();
+        if let Some(return_tag_as_jsdoc_return_tag_type_expression) = return_tag_as_jsdoc_return_tag
+            .maybe_type_expression()
+            .as_ref()
         {
             return Some(
                 return_tag_as_jsdoc_return_tag_type_expression
@@ -995,11 +996,8 @@ pub fn get_jsdoc_return_type(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
     let type_tag = get_jsdoc_type_tag(node);
     if let Some(type_tag) = type_tag {
         // && typeTag.typeExpression
-        let type_ = &type_tag
-            .as_jsdoc_type_tag()
-            .type_expression
-            .as_jsdoc_type_expression()
-            .type_;
+        let type_tag_type_expression = &type_tag.as_jsdoc_type_like_tag().type_expression();
+        let type_ = &type_tag_type_expression.as_jsdoc_type_expression().type_;
         if is_type_literal_node(&**type_) {
             let sig = find(&type_.as_type_literal_node().members, |node, _| {
                 is_call_signature_declaration(&**node)
@@ -1243,7 +1241,7 @@ pub(crate) fn is_outermost_optional_chain(node: &Node /*OptionalChain*/) -> bool
 
 pub fn is_nullish_coalesce(node: &Node) -> bool {
     match node {
-        Node::Expression(Expression::BinaryExpression(node)) => {
+        Node::BinaryExpression(node) => {
             node.operator_token.kind() == SyntaxKind::QuestionQuestionToken
         }
         _ => false,
@@ -1254,7 +1252,7 @@ pub fn is_const_type_reference(node: &Node) -> bool {
     // match node {
     //     Node::TypeNode(TypeNode::TypeReferenceNode(node)) => {
     //         match &*node.type_name {
-    //             Node::Expression(Expression::Identifier(type_name)) =>
+    //             Node::Identifier(type_name) =>
     //                 type_name.escaped_text.eq_str("const") && node.type_arguments.is_none(),
     //             _ => false,
     //         }

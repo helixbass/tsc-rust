@@ -1,17 +1,18 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefMut;
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
-    add_range, append_if_unique, create_base_node_factory, is_named_declaration, is_property_name,
-    set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, EmitFlags, EmitNode, Node,
-    NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, PseudoBigInt, SourceMapRange,
-    SyntaxKind, TransformFlags,
+    add_range, append_if_unique, create_base_node_factory, create_scanner, is_named_declaration,
+    is_property_name, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, Debug_,
+    EmitFlags, EmitNode, LanguageVariant, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
+    NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SourceMapRange,
+    StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -22,8 +23,40 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         array.map(|array| self.create_node_array(Some(array), None))
     }
 
-    pub(super) fn as_name(&self, name: Rc<Node>) -> Rc<Node> {
-        name
+    pub(super) fn as_name<TName: Into<StringOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        name: Option<TName>,
+    ) -> Option<Rc<Node>> {
+        name.map(|name| match name.into() {
+            StringOrRcNode::String(name) => self
+                .create_identifier(base_factory, &name, Option::<NodeArray>::None, None)
+                .into(),
+            StringOrRcNode::RcNode(name) => name,
+        })
+    }
+
+    pub(super) fn as_expression<TValue: Into<StringOrNumberOrBoolOrRcNode>>(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        value: Option<TValue>,
+    ) -> Option<Rc<Node>> {
+        value.map(|value| match value.into() {
+            StringOrNumberOrBoolOrRcNode::String(value) => self
+                .create_string_literal(base_factory, value, None, None)
+                .into(),
+            StringOrNumberOrBoolOrRcNode::Number(value) => self
+                .create_numeric_literal(base_factory, value, None)
+                .into(),
+            StringOrNumberOrBoolOrRcNode::Bool(value) => {
+                if value {
+                    self.create_true(base_factory).into()
+                } else {
+                    self.create_false(base_factory).into()
+                }
+            }
+            StringOrNumberOrBoolOrRcNode::RcNode(value) => value,
+        })
     }
 
     pub(super) fn as_token(
@@ -76,6 +109,116 @@ pub(super) fn update_with_original(updated: Rc<Node>, original: &Node) -> Rc<Nod
         set_text_range(&*updated, Some(original));
     }
     updated
+}
+
+pub(super) fn get_default_tag_name_for_kind(kind: SyntaxKind) -> &'static str {
+    match kind {
+        SyntaxKind::JSDocTypeTag => "type",
+        SyntaxKind::JSDocReturnTag => "returns",
+        SyntaxKind::JSDocThisTag => "this",
+        SyntaxKind::JSDocEnumTag => "enum",
+        SyntaxKind::JSDocAuthorTag => "author",
+        SyntaxKind::JSDocClassTag => "class",
+        SyntaxKind::JSDocPublicTag => "public",
+        SyntaxKind::JSDocPrivateTag => "private",
+        SyntaxKind::JSDocProtectedTag => "protected",
+        SyntaxKind::JSDocReadonlyTag => "readonly",
+        SyntaxKind::JSDocOverrideTag => "override",
+        SyntaxKind::JSDocTemplateTag => "template",
+        SyntaxKind::JSDocTypedefTag => "typedef",
+        SyntaxKind::JSDocParameterTag => "parameter",
+        SyntaxKind::JSDocPropertyTag => "prop",
+        SyntaxKind::JSDocCallbackTag => "callback",
+        SyntaxKind::JSDocAugmentsTag => "augments",
+        SyntaxKind::JSDocImplementsTag => "implements",
+        _ => Debug_.fail(Some(&format!(
+            "Unsupported kind: {}",
+            Debug_.format_syntax_kind(Some(kind))
+        ))),
+    }
+}
+
+thread_local! {
+    pub(super) static raw_text_scanner: RefCell<Option<Scanner>> = RefCell::new(None);
+}
+
+pub(super) enum CookedText {
+    InvalidValue,
+    String(String),
+}
+
+pub(super) fn get_cooked_text(
+    kind: SyntaxKind, /*TemplateLiteralToken["kind"]*/
+    raw_text: &str,
+) -> CookedText {
+    raw_text_scanner.with(|raw_text_scanner_| {
+        let mut raw_text_scanner_ref = raw_text_scanner_.borrow_mut();
+        if raw_text_scanner_ref.is_none() {
+            *raw_text_scanner_ref = Some(create_scanner(
+                ScriptTarget::Latest,
+                false,
+                Some(LanguageVariant::Standard),
+                None,
+                None,
+                None,
+                None,
+            ));
+        }
+        let mut raw_text_scanner_ref = raw_text_scanner_ref.as_mut().unwrap();
+        match kind {
+            SyntaxKind::NoSubstitutionTemplateLiteral => {
+                let text = format!("`{}`", raw_text);
+                raw_text_scanner_ref.set_text(Some(text.chars().collect()), Some(text), None, None);
+            }
+            SyntaxKind::TemplateHead => {
+                let text = format!("`{}${{", raw_text);
+                raw_text_scanner_ref.set_text(Some(text.chars().collect()), Some(text), None, None);
+            }
+            SyntaxKind::TemplateMiddle => {
+                let text = format!("}}{}${{", raw_text);
+                raw_text_scanner_ref.set_text(Some(text.chars().collect()), Some(text), None, None);
+            }
+            SyntaxKind::TemplateTail => {
+                let text = format!("}}{}`", raw_text);
+                raw_text_scanner_ref.set_text(Some(text.chars().collect()), Some(text), None, None);
+            }
+            _ => panic!("Unexpected kind"),
+        }
+
+        let mut token = raw_text_scanner_ref.scan(None);
+        if token == SyntaxKind::CloseBraceToken {
+            token = raw_text_scanner_ref.re_scan_template_token(None, false);
+        }
+
+        if raw_text_scanner_ref.is_unterminated() {
+            raw_text_scanner_ref.set_text(None, None, None, None);
+            return CookedText::InvalidValue;
+        }
+
+        let mut token_value: Option<String> = None;
+        match token {
+            SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateHead
+            | SyntaxKind::TemplateMiddle
+            | SyntaxKind::TemplateTail => {
+                token_value = Some(raw_text_scanner_ref.get_token_value());
+            }
+            _ => (),
+        }
+
+        if token_value.is_none() || raw_text_scanner_ref.scan(None) != SyntaxKind::EndOfFileToken {
+            raw_text_scanner_ref.set_text(None, None, None, None);
+            return CookedText::InvalidValue;
+        }
+        let token_value = token_value.unwrap();
+
+        raw_text_scanner_ref.set_text(None, None, None, None);
+        CookedText::String(token_value)
+    })
+}
+
+pub(super) fn propagate_identifier_name_flags(node: &Node /*Identifier*/) -> TransformFlags {
+    propagate_child_flags(Some(node)) & !TransformFlags::ContainsPossibleTopLevelAwait
 }
 
 pub(super) fn propagate_property_name_flags_of_child(

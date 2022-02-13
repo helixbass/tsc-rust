@@ -14,7 +14,7 @@ use super::{
 use local_macros::ast_type;
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct BinaryExpression {
     pub _node: BaseNode,
     pub left: Rc<Node>,
@@ -49,9 +49,9 @@ impl BinaryExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct ConditionalExpression {
-    pub _node: BaseNode,
+    _node: BaseNode,
     pub condition: Rc<Node /*Expression*/>,
     pub question_token: Rc<Node /*QuestionToken*/>,
     pub when_true: Rc<Node /*Expression*/>,
@@ -62,11 +62,11 @@ pub struct ConditionalExpression {
 impl ConditionalExpression {
     pub fn new(
         base_node: BaseNode,
-        condition: Rc<Node>,
-        question_token: Rc<Node>,
-        when_true: Rc<Node>,
-        colon_token: Rc<Node>,
-        when_false: Rc<Node>,
+        condition: Rc<Node /*Expression*/>,
+        question_token: Rc<Node /*QuestionToken*/>,
+        when_true: Rc<Node /*Expression*/>,
+        colon_token: Rc<Node /*ColonToken*/>,
+        when_false: Rc<Node /*Expression*/>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -81,7 +81,6 @@ impl ConditionalExpression {
 
 #[derive(Debug)]
 #[ast_type(
-    ancestors = "Expression",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
 )]
 pub struct FunctionExpression {
@@ -97,12 +96,33 @@ impl FunctionExpression {
 }
 
 #[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct ArrowFunction {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+    pub equals_greater_than_token: Rc<Node /*EqualsGreaterThanToken*/>,
+}
+
+impl ArrowFunction {
+    pub fn new(
+        function_like_declaration: BaseFunctionLikeDeclaration,
+        equals_greater_than_token: Rc<Node>,
+    ) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
+            equals_greater_than_token,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[ast_type(impl_from = false)]
 pub struct BaseLiteralLikeNode {
     _node: BaseNode,
     text: String,
-    is_unterminated: Option<bool>,
-    has_extended_unicode_escape: Option<bool>,
+    is_unterminated: Cell<Option<bool>>,
+    has_extended_unicode_escape: Cell<Option<bool>>,
 }
 
 impl BaseLiteralLikeNode {
@@ -110,8 +130,8 @@ impl BaseLiteralLikeNode {
         Self {
             _node: base_node,
             text,
-            is_unterminated: None,
-            has_extended_unicode_escape: None,
+            is_unterminated: Cell::new(None),
+            has_extended_unicode_escape: Cell::new(None),
         }
     }
 }
@@ -122,44 +142,33 @@ impl LiteralLikeNodeInterface for BaseLiteralLikeNode {
     }
 
     fn is_unterminated(&self) -> Option<bool> {
-        self.is_unterminated
+        self.is_unterminated.get()
     }
 
-    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>) {
-        self.is_unterminated = is_unterminated;
+    fn set_is_unterminated(&self, is_unterminated: Option<bool>) {
+        self.is_unterminated.set(is_unterminated);
     }
 
     fn has_extended_unicode_escape(&self) -> Option<bool> {
-        self.has_extended_unicode_escape
+        self.has_extended_unicode_escape.get()
     }
 
-    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>) {
-        self.has_extended_unicode_escape = has_extended_unicode_escape;
+    fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>) {
+        self.has_extended_unicode_escape
+            .set(has_extended_unicode_escape);
     }
 }
 
 pub trait LiteralLikeNodeInterface {
     fn text(&self) -> &str;
     fn is_unterminated(&self) -> Option<bool>;
-    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>);
+    fn set_is_unterminated(&self, is_unterminated: Option<bool>);
     fn has_extended_unicode_escape(&self) -> Option<bool>;
-    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>);
+    fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>);
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression", interfaces = "LiteralLikeNodeInterface")]
-pub enum LiteralLikeNode {
-    StringLiteral(StringLiteral),
-    TemplateLiteralLikeNode(TemplateLiteralLikeNode),
-    NumericLiteral(NumericLiteral),
-    BigIntLiteral(BigIntLiteral),
-}
-
-#[derive(Debug)]
-#[ast_type(
-    ancestors = "LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface"
-)]
+#[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct TemplateLiteralLikeNode {
     _literal_like_node: BaseLiteralLikeNode,
     pub raw_text: Option<String>,
@@ -195,6 +204,20 @@ pub trait TemplateLiteralLikeNodeInterface {
     fn maybe_template_flags(&self) -> Option<TokenFlags>;
 }
 
+#[derive(Debug)]
+#[ast_type(interfaces = "LiteralLikeNodeInterface")]
+pub struct RegularExpressionLiteral {
+    _literal_like_node: BaseLiteralLikeNode,
+}
+
+impl RegularExpressionLiteral {
+    pub fn new(base_literal_like_node: BaseLiteralLikeNode) -> Self {
+        Self {
+            _literal_like_node: base_literal_like_node,
+        }
+    }
+}
+
 bitflags! {
     pub struct TokenFlags: u32 {
         const None = 0;
@@ -218,27 +241,26 @@ bitflags! {
 }
 
 #[derive(Debug)]
-#[ast_type(
-    ancestors = "LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface"
-)]
+#[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct NumericLiteral {
     _literal_like_node: BaseLiteralLikeNode,
+    pub(crate) numeric_literal_flags: TokenFlags,
 }
 
 impl NumericLiteral {
-    pub fn new(base_literal_like_node: BaseLiteralLikeNode) -> Self {
+    pub fn new(
+        base_literal_like_node: BaseLiteralLikeNode,
+        numeric_literal_flags: TokenFlags,
+    ) -> Self {
         Self {
             _literal_like_node: base_literal_like_node,
+            numeric_literal_flags,
         }
     }
 }
 
 #[derive(Debug)]
-#[ast_type(
-    ancestors = "LiteralLikeNode, Expression",
-    interfaces = "LiteralLikeNodeInterface"
-)]
+#[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct BigIntLiteral {
     _literal_like_node: BaseLiteralLikeNode,
 }
@@ -252,29 +274,7 @@ impl BigIntLiteral {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
-pub struct VoidExpression {
-    _node: BaseNode,
-    pub expression: Rc<Node /*UnaryExpression*/>,
-}
-
-impl VoidExpression {
-    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
-        Self {
-            _node: base_node,
-            expression,
-        }
-    }
-}
-
-impl HasExpressionInterface for VoidExpression {
-    fn expression(&self) -> Rc<Node> {
-        self.expression.clone()
-    }
-}
-
-#[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct TemplateExpression {
     _node: BaseNode,
     pub head: Rc<Node /*TemplateHead*/>,
@@ -314,7 +314,7 @@ pub trait HasExpressionInterface {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct ParenthesizedExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
@@ -336,23 +336,25 @@ impl HasExpressionInterface for ParenthesizedExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct ArrayLiteralExpression {
     _node: BaseNode,
     pub elements: NodeArray, /*<Expression>*/
+    pub(crate) multi_line: Option<bool>,
 }
 
 impl ArrayLiteralExpression {
-    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+    pub fn new(base_node: BaseNode, elements: NodeArray, multi_line: Option<bool>) -> Self {
         Self {
             _node: base_node,
             elements,
+            multi_line,
         }
     }
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct SpreadElement {
     _node: BaseNode,
     pub expression: Rc<Node /*<Expression>*/>,
@@ -374,17 +376,19 @@ impl HasExpressionInterface for SpreadElement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct ObjectLiteralExpression {
     _node: BaseNode,
     pub properties: NodeArray, /*<ObjectLiteralElementLike>*/
+    pub multi_line: Option<bool>,
 }
 
 impl ObjectLiteralExpression {
-    pub fn new(base_node: BaseNode, properties: NodeArray) -> Self {
+    pub fn new(base_node: BaseNode, properties: NodeArray, multi_line: Option<bool>) -> Self {
         Self {
             _node: base_node,
             properties,
+            multi_line,
         }
     }
 }
@@ -394,7 +398,7 @@ pub trait HasQuestionDotTokenInterface {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct PropertyAccessExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
@@ -445,7 +449,7 @@ impl HasQuestionDotTokenInterface for PropertyAccessExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct ElementAccessExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
@@ -482,7 +486,7 @@ impl HasQuestionDotTokenInterface for ElementAccessExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct CallExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
@@ -522,7 +526,35 @@ impl HasQuestionDotTokenInterface for CallExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
+pub struct ExpressionWithTypeArguments {
+    _node: BaseNode,
+    pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    pub expression: Rc<Node /*LeftHandSideExpression*/>,
+}
+
+impl ExpressionWithTypeArguments {
+    pub fn new(
+        base_node: BaseNode,
+        expression: Rc<Node>,
+        type_arguments: Option<NodeArray>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            type_arguments,
+        }
+    }
+}
+
+impl HasExpressionInterface for ExpressionWithTypeArguments {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct NewExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*LeftHandSideExpression*/>,
@@ -553,7 +585,7 @@ impl HasExpressionInterface for NewExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct TaggedTemplateExpression {
     _node: BaseNode,
     pub tag: Rc<Node /*LeftHandSideExpression*/>,
@@ -587,7 +619,7 @@ impl HasTypeArgumentsInterface for TaggedTemplateExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct AsExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
@@ -611,7 +643,7 @@ impl HasExpressionInterface for AsExpression {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct TypeAssertion {
     _node: BaseNode,
     pub type_: Rc<Node /*TypeNode*/>,
@@ -619,7 +651,7 @@ pub struct TypeAssertion {
 }
 
 impl TypeAssertion {
-    pub fn new(base_node: BaseNode, type_: Rc<Node>, expression: Rc<Node>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, type_: Rc<Node>) -> Self {
         Self {
             _node: base_node,
             type_,
@@ -635,7 +667,7 @@ impl HasExpressionInterface for TypeAssertion {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Expression")]
+#[ast_type]
 pub struct NonNullExpression {
     _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
@@ -653,6 +685,24 @@ impl NonNullExpression {
 impl HasExpressionInterface for NonNullExpression {
     fn expression(&self) -> Rc<Node> {
         self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct MetaProperty {
+    _node: BaseNode,
+    pub keyword_token: SyntaxKind, /*SyntaxKind.NewKeyword | SyntaxKind.ImportKeyword*/
+    pub name: Rc<Node /*Identifier*/>,
+}
+
+impl MetaProperty {
+    pub fn new(base_node: BaseNode, keyword_token: SyntaxKind, name: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            keyword_token,
+            name,
+        }
     }
 }
 
@@ -700,37 +750,75 @@ impl HasInitializerInterface for JsxAttribute {
 
 #[derive(Debug)]
 #[ast_type]
-pub enum Statement {
-    FunctionDeclaration(FunctionDeclaration),
-    EmptyStatement(EmptyStatement),
-    Block(Block),
-    VariableStatement(VariableStatement),
-    ExpressionStatement(ExpressionStatement),
-    IfStatement(IfStatement),
-    ReturnStatement(ReturnStatement),
-    InterfaceDeclaration(InterfaceDeclaration),
-    TypeAliasDeclaration(TypeAliasDeclaration),
-    ForStatement(ForStatement),
-    ForInStatement(ForInStatement),
-    ForOfStatement(ForOfStatement),
-    ModuleDeclaration(ModuleDeclaration),
-    LabeledStatement(LabeledStatement),
-    ExportAssignment(ExportAssignment),
-    ImportEqualsDeclaration(ImportEqualsDeclaration),
-    ImportClause(ImportClause),
-    ExportDeclaration(ExportDeclaration),
-    ImportSpecifier(ImportSpecifier),
-    ExportSpecifier(ExportSpecifier),
+pub struct JsxText {
+    _node: BaseNode,
+    pub text: String,
+    pub is_unterminated: Cell<Option<bool>>,
+    pub has_extended_unicode_escape: Cell<Option<bool>>,
+    pub contains_only_trivia_white_spaces: bool,
+}
+
+impl JsxText {
+    pub fn new(base_node: BaseNode, text: String, contains_only_trivia_white_spaces: bool) -> Self {
+        Self {
+            _node: base_node,
+            text,
+            is_unterminated: Cell::new(None),
+            has_extended_unicode_escape: Cell::new(None),
+            contains_only_trivia_white_spaces,
+        }
+    }
+}
+
+impl LiteralLikeNodeInterface for JsxText {
+    fn text(&self) -> &str {
+        &self.text
+    }
+
+    fn is_unterminated(&self) -> Option<bool> {
+        self.is_unterminated.get()
+    }
+
+    fn set_is_unterminated(&self, is_unterminated: Option<bool>) {
+        self.is_unterminated.set(is_unterminated);
+    }
+
+    fn has_extended_unicode_escape(&self) -> Option<bool> {
+        self.has_extended_unicode_escape.get()
+    }
+
+    fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>) {
+        self.has_extended_unicode_escape
+            .set(has_extended_unicode_escape);
+    }
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct EmptyStatement {
-    pub _node: BaseNode,
+    _node: BaseNode,
+}
+
+impl EmptyStatement {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
+pub struct DebuggerStatement {
+    _node: BaseNode,
+}
+
+impl DebuggerStatement {
+    pub fn new(base_node: BaseNode) -> Self {
+        Self { _node: base_node }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct Block {
     _node: BaseNode,
     pub statements: NodeArray, /*<Statement>*/
@@ -748,7 +836,7 @@ impl Block {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct VariableStatement {
     _node: BaseNode,
     pub declaration_list: Rc</*VariableDeclarationList*/ Node>,
@@ -764,7 +852,7 @@ impl VariableStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ExpressionStatement {
     _node: BaseNode,
     pub expression: Rc</*Expression*/ Node>,
@@ -780,7 +868,7 @@ impl ExpressionStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct IfStatement {
     _node: BaseNode,
     pub expression: Rc</*Expression*/ Node>,
@@ -805,7 +893,43 @@ impl IfStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
+pub struct DoStatement {
+    _node: BaseNode,
+    pub statement: Rc</*Statement*/ Node>,
+    pub expression: Rc</*Expression*/ Node>,
+}
+
+impl DoStatement {
+    pub fn new(base_node: BaseNode, statement: Rc<Node>, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            statement,
+            expression,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct WhileStatement {
+    _node: BaseNode,
+    pub statement: Rc</*Statement*/ Node>,
+    pub expression: Rc</*Expression*/ Node>,
+}
+
+impl WhileStatement {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, statement: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            statement,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ForStatement {
     _node: BaseNode,
     pub statement: Rc<Node /*Statement*/>,
@@ -817,10 +941,10 @@ pub struct ForStatement {
 impl ForStatement {
     pub fn new(
         base_node: BaseNode,
-        statement: Rc<Node>,
         initializer: Option<Rc<Node>>,
         condition: Option<Rc<Node>>,
         incrementor: Option<Rc<Node>>,
+        statement: Rc<Node>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -843,7 +967,7 @@ impl HasInitializerInterface for ForStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ForInStatement {
     _node: BaseNode,
     pub statement: Rc<Node /*Statement*/>,
@@ -854,9 +978,9 @@ pub struct ForInStatement {
 impl ForInStatement {
     pub fn new(
         base_node: BaseNode,
-        statement: Rc<Node>,
         initializer: Rc<Node>,
         expression: Rc<Node>,
+        statement: Rc<Node>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -878,7 +1002,7 @@ impl HasInitializerInterface for ForInStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ForOfStatement {
     _node: BaseNode,
     pub await_modifier: Option<Rc<Node /*AwaitKeywordToken*/>>,
@@ -891,9 +1015,9 @@ impl ForOfStatement {
     pub fn new(
         base_node: BaseNode,
         await_modifier: Option<Rc<Node>>,
-        statement: Rc<Node>,
         initializer: Rc<Node>,
         expression: Rc<Node>,
+        statement: Rc<Node>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -916,7 +1040,39 @@ impl HasInitializerInterface for ForOfStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
+pub struct BreakStatement {
+    _node: BaseNode,
+    pub label: Option<Rc<Node /*Identifier*/>>,
+}
+
+impl BreakStatement {
+    pub fn new(base_node: BaseNode, label: Option<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            label,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct ContinueStatement {
+    _node: BaseNode,
+    pub label: Option<Rc<Node /*Identifier*/>>,
+}
+
+impl ContinueStatement {
+    pub fn new(base_node: BaseNode, label: Option<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            label,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ReturnStatement {
     _node: BaseNode,
     pub expression: Option<Rc</*Expression*/ Node>>,
@@ -932,7 +1088,61 @@ impl ReturnStatement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
+pub struct WithStatement {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+    pub statement: Rc<Node /*Statement*/>,
+}
+
+impl WithStatement {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, statement: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            statement,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct SwitchStatement {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+    pub case_block: Rc<Node /*CaseBlock*/>,
+    pub possibly_exhaustive: Option<bool>,
+}
+
+impl SwitchStatement {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>, case_block: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+            case_block,
+            possibly_exhaustive: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct CaseBlock {
+    _node: BaseNode,
+    pub clauses: NodeArray, /*<CaseOrDefaultClause>*/
+}
+
+impl CaseBlock {
+    pub fn new(base_node: BaseNode, clauses: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            clauses,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct LabeledStatement {
     _node: BaseNode,
     pub label: Rc<Node /*Identifier*/>,
@@ -945,6 +1155,53 @@ impl LabeledStatement {
             _node: base_node,
             label,
             statement,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct ThrowStatement {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+impl ThrowStatement {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for ThrowStatement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct TryStatement {
+    _node: BaseNode,
+    pub try_block: Rc<Node /*Block*/>,
+    pub catch_clause: Option<Rc<Node /*CatchClause*/>>,
+    pub finally_block: Option<Rc<Node /*Block*/>>,
+}
+
+impl TryStatement {
+    pub fn new(
+        base_node: BaseNode,
+        try_block: Rc<Node>,
+        catch_clause: Option<Rc<Node>>,
+        finally_block: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            try_block,
+            catch_clause,
+            finally_block,
         }
     }
 }
@@ -1210,6 +1467,10 @@ impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
 
 impl GenericNamedDeclarationInterface for BaseGenericNamedDeclaration {}
 
+pub trait InterfaceOrClassLikeDeclarationInterface {
+    fn maybe_heritage_clauses(&self) -> Option<&NodeArray>;
+}
+
 #[derive(Debug)]
 #[ast_type(
     impl_from = false,
@@ -1217,20 +1478,94 @@ impl GenericNamedDeclarationInterface for BaseGenericNamedDeclaration {}
 )]
 pub struct BaseInterfaceOrClassLikeDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
+    heritage_clauses: Option<NodeArray /*<HeritageClause>*/>,
 }
 
 impl BaseInterfaceOrClassLikeDeclaration {
-    pub fn new(base_generic_named_declaration: BaseGenericNamedDeclaration) -> Self {
+    pub fn new(
+        base_generic_named_declaration: BaseGenericNamedDeclaration,
+        heritage_clauses: Option<NodeArray>,
+    ) -> Self {
         Self {
             _generic_named_declaration: base_generic_named_declaration,
+            heritage_clauses,
+        }
+    }
+}
+
+impl InterfaceOrClassLikeDeclarationInterface for BaseInterfaceOrClassLikeDeclaration {
+    fn maybe_heritage_clauses(&self) -> Option<&NodeArray> {
+        self.heritage_clauses.as_ref()
+    }
+}
+
+pub trait ClassLikeDeclarationInterface {
+    fn members(&self) -> &NodeArray;
+}
+
+#[derive(Debug)]
+#[ast_type(
+    impl_from = false,
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface"
+)]
+pub struct ClassLikeDeclarationBase {
+    _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration,
+    members: NodeArray, /*<ClassElement>*/
+}
+
+impl ClassLikeDeclarationBase {
+    pub fn new(
+        base_interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration,
+        members: NodeArray,
+    ) -> Self {
+        Self {
+            _interface_or_class_like_declaration: base_interface_or_class_like_declaration,
+            members,
+        }
+    }
+}
+
+impl ClassLikeDeclarationInterface for ClassLikeDeclarationBase {
+    fn members(&self) -> &NodeArray {
+        &self.members
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface, ClassLikeDeclarationInterface"
+)]
+pub struct ClassDeclaration {
+    _class_like_declaration: ClassLikeDeclarationBase,
+}
+
+impl ClassDeclaration {
+    pub fn new(base_class_like_declaration: ClassLikeDeclarationBase) -> Self {
+        Self {
+            _class_like_declaration: base_class_like_declaration,
         }
     }
 }
 
 #[derive(Debug)]
 #[ast_type(
-    ancestors = "Statement",
-    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface, ClassLikeDeclarationInterface"
+)]
+pub struct ClassExpression {
+    _class_like_declaration: ClassLikeDeclarationBase,
+}
+
+impl ClassExpression {
+    pub fn new(base_class_like_declaration: ClassLikeDeclarationBase) -> Self {
+        Self {
+            _class_like_declaration: base_class_like_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, InterfaceOrClassLikeDeclarationInterface"
 )]
 pub struct InterfaceDeclaration {
     _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration, /*name: Identifier*/
@@ -1251,7 +1586,6 @@ impl InterfaceDeclaration {
 
 #[derive(Debug)]
 #[ast_type(
-    ancestors = "Statement",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
 pub struct TypeAliasDeclaration {
@@ -1314,7 +1648,23 @@ impl HasInitializerInterface for EnumMember {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
+pub struct EnumDeclaration {
+    _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
+    pub members: NodeArray,                   /*<EnumMember>*/
+}
+
+impl EnumDeclaration {
+    pub fn new(base_named_declaration: BaseNamedDeclaration, members: NodeArray) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+            members,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ModuleDeclaration {
     _node: BaseNode,
     pub name: Rc<Node /*ModuleName*/>,
@@ -1345,12 +1695,28 @@ impl NamedDeclarationInterface for ModuleDeclaration {
     }
 }
 
+#[derive(Debug)]
+#[ast_type]
+pub struct ModuleBlock {
+    _node: BaseNode,
+    pub statements: NodeArray, /*<Statement>*/
+}
+
+impl ModuleBlock {
+    pub fn new(base_node: BaseNode, statements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            statements,
+        }
+    }
+}
+
 pub trait HasIsTypeOnlyInterface {
     fn is_type_only(&self) -> bool;
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement", interfaces = "NamedDeclarationInterface")]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct ImportEqualsDeclaration {
     _named_declaration: BaseNamedDeclaration,
     pub is_type_only: bool,
@@ -1378,7 +1744,32 @@ impl HasIsTypeOnlyInterface for ImportEqualsDeclaration {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
+pub struct ImportDeclaration {
+    _node: BaseNode,
+    pub import_clause: Option<Rc<Node /*ImportClause*/>>,
+    pub module_specifier: Rc<Node /*Expression*/>,
+    pub assert_clause: Option<Rc<Node /*AssertClause*/>>,
+}
+
+impl ImportDeclaration {
+    pub fn new(
+        base_node: BaseNode,
+        import_clause: Option<Rc<Node>>,
+        module_specifier: Rc<Node>,
+        assert_clause: Option<Rc<Node>>,
+    ) -> Self {
+        Self {
+            _node: base_node,
+            import_clause,
+            module_specifier,
+            assert_clause,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ImportClause {
     _node: BaseNode,
     pub is_type_only: bool,
@@ -1423,7 +1814,89 @@ impl HasIsTypeOnlyInterface for ImportClause {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
+pub struct AssertEntry {
+    _node: BaseNode,
+    pub name: Rc<Node /*AssertionKey*/>,
+    pub value: Rc<Node /*StringLiteral*/>,
+}
+
+impl AssertEntry {
+    pub fn new(base_node: BaseNode, name: Rc<Node>, value: Rc<Node /*StringLiteral*/>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+            value,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct AssertClause {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<AssertEntry>*/
+    pub multi_line: Option<bool>,
+}
+
+impl AssertClause {
+    pub fn new(base_node: BaseNode, elements: NodeArray, multi_line: Option<bool>) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+            multi_line,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct NamespaceImport {
+    _node: BaseNode,
+    pub name: Rc<Node /*Identifier*/>,
+}
+
+impl NamespaceImport {
+    pub fn new(base_node: BaseNode, name: Rc<Node /*Identifier*/>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct NamespaceExport {
+    _node: BaseNode,
+    pub name: Rc<Node /*Identifier*/>,
+}
+
+impl NamespaceExport {
+    pub fn new(base_node: BaseNode, name: Rc<Node /*Identifier*/>) -> Self {
+        Self {
+            _node: base_node,
+            name,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
+pub struct NamespaceExportDeclaration {
+    _named_declaration: BaseNamedDeclaration,
+}
+
+impl NamespaceExportDeclaration {
+    pub fn new(base_named_declaration: BaseNamedDeclaration) -> Self {
+        Self {
+            _named_declaration: base_named_declaration,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ExportDeclaration {
     _node: BaseNode,
     pub is_type_only: bool,
@@ -1457,7 +1930,23 @@ impl HasIsTypeOnlyInterface for ExportDeclaration {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
+pub struct NamedImports {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<ImportSpecifier>*/
+}
+
+impl NamedImports {
+    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct ImportSpecifier {
     _node: BaseNode,
     pub property_name: Option<Rc<Node /*Identifier*/>>,
@@ -1468,9 +1957,9 @@ pub struct ImportSpecifier {
 impl ImportSpecifier {
     pub fn new(
         base_node: BaseNode,
+        is_type_only: bool,
         property_name: Option<Rc<Node>>,
         name: Rc<Node>,
-        is_type_only: bool,
     ) -> Self {
         Self {
             _node: base_node,
@@ -1502,7 +1991,7 @@ impl HasIsTypeOnlyInterface for ImportSpecifier {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ExportSpecifier {
     _node: BaseNode,
     pub is_type_only: bool,
@@ -1547,7 +2036,7 @@ impl HasIsTypeOnlyInterface for ExportSpecifier {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "Statement")]
+#[ast_type]
 pub struct ExportAssignment {
     _node: BaseNode,
     pub is_export_equals: Option<bool>,
@@ -1636,7 +2125,7 @@ impl TextRange for SynthesizedComment {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeNode")]
+#[ast_type]
 pub struct JSDocTypeExpression {
     _node: BaseNode,
     pub type_: Rc<Node /*TypeNode*/>,
@@ -1681,6 +2170,32 @@ impl JSDocMemberName {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct BaseJSDocUnaryType {
+    _node: BaseNode,
+    pub type_: Option<Rc<Node /*TypeNode*/>>,
+}
+
+impl BaseJSDocUnaryType {
+    pub fn new(base_node: BaseNode, type_: Option<Rc<Node>>) -> Self {
+        Self {
+            _node: base_node,
+            type_,
+        }
+    }
+}
+
+impl HasTypeInterface for BaseJSDocUnaryType {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Rc<Node>) {
+        self.type_ = Some(type_);
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct JSDoc {
     _node: BaseNode,
     pub tags: Option<NodeArray /*<JSDocTag>*/>,
@@ -1707,12 +2222,9 @@ pub enum JSDocTag {
     BaseJSDocTag(BaseJSDocTag),
     JSDocAugmentsTag(JSDocAugmentsTag),
     JSDocImplementsTag(JSDocImplementsTag),
-    JSDocEnumTag(JSDocEnumTag),
-    JSDocThisTag(JSDocThisTag),
+    BaseJSDocTypeLikeTag(BaseJSDocTypeLikeTag),
     JSDocTemplateTag(JSDocTemplateTag),
     JSDocSeeTag(JSDocSeeTag),
-    JSDocReturnTag(JSDocReturnTag),
-    JSDocTypeTag(JSDocTypeTag),
     JSDocTypedefTag(JSDocTypedefTag),
     JSDocCallbackTag(JSDocCallbackTag),
     JSDocPropertyLikeTag(JSDocPropertyLikeTag),
@@ -1834,6 +2346,18 @@ pub enum StringOrNodeArray {
     NodeArray(NodeArray),
 }
 
+impl From<String> for StringOrNodeArray {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<NodeArray> for StringOrNodeArray {
+    fn from(value: NodeArray) -> Self {
+        Self::NodeArray(value)
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(ancestors = "JSDocTag")]
 pub struct BaseJSDocTag {
@@ -1902,15 +2426,20 @@ impl JSDocImplementsTag {
     }
 }
 
-#[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
-pub struct JSDocEnumTag {
-    _base_jsdoc_tag: BaseJSDocTag,
-    pub type_expression: Rc<Node /*JSDocTypeExpression*/>,
+pub trait JSDocTypeLikeTagInterface: JSDocTagInterface {
+    fn maybe_type_expression(&self) -> Option<Rc<Node>>;
+    fn type_expression(&self) -> Rc<Node>;
 }
 
-impl JSDocEnumTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Rc<Node>) -> Self {
+#[derive(Debug)]
+#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+pub struct BaseJSDocTypeLikeTag {
+    _base_jsdoc_tag: BaseJSDocTag,
+    type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+}
+
+impl BaseJSDocTypeLikeTag {
+    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Option<Rc<Node>>) -> Self {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
             type_expression,
@@ -1918,19 +2447,13 @@ impl JSDocEnumTag {
     }
 }
 
-#[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
-pub struct JSDocThisTag {
-    _base_jsdoc_tag: BaseJSDocTag,
-    pub type_expression: Rc<Node /*JSDocTypeExpression*/>,
-}
+impl JSDocTypeLikeTagInterface for BaseJSDocTypeLikeTag {
+    fn maybe_type_expression(&self) -> Option<Rc<Node>> {
+        self.type_expression.clone()
+    }
 
-impl JSDocThisTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Rc<Node>) -> Self {
-        Self {
-            _base_jsdoc_tag: base_jsdoc_tag,
-            type_expression,
-        }
+    fn type_expression(&self) -> Rc<Node> {
+        self.type_expression.clone().unwrap()
     }
 }
 
@@ -1968,38 +2491,6 @@ impl JSDocSeeTag {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
             name,
-        }
-    }
-}
-
-#[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
-pub struct JSDocReturnTag {
-    _base_jsdoc_tag: BaseJSDocTag,
-    pub type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
-}
-
-impl JSDocReturnTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Option<Rc<Node>>) -> Self {
-        Self {
-            _base_jsdoc_tag: base_jsdoc_tag,
-            type_expression,
-        }
-    }
-}
-
-#[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
-pub struct JSDocTypeTag {
-    _base_jsdoc_tag: BaseJSDocTag,
-    pub type_expression: Rc<Node /*JSDocTypeExpression*/>,
-}
-
-impl JSDocTypeTag {
-    pub fn new(base_jsdoc_tag: BaseJSDocTag, type_expression: Rc<Node>) -> Self {
-        Self {
-            _base_jsdoc_tag: base_jsdoc_tag,
-            type_expression,
         }
     }
 }
@@ -2123,6 +2614,8 @@ impl NamedDeclarationInterface for JSDocPropertyLikeTag {
         self.name = name;
     }
 }
+
+pub type FlowNode = ();
 
 pub type SourceTextAsChars = Vec<char>;
 

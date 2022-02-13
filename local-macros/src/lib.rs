@@ -293,7 +293,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.is_unterminated()
                     }
 
-                    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>) {
+                    fn set_is_unterminated(&self, is_unterminated: Option<bool>) {
                         self.#first_field_name.set_is_unterminated(is_unterminated);
                     }
 
@@ -301,7 +301,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.has_extended_unicode_escape()
                     }
 
-                    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>) {
+                    fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>) {
                         self.#first_field_name.set_has_extended_unicode_escape(has_extended_unicode_escape);
                     }
                 }
@@ -368,6 +368,25 @@ fn get_ast_struct_interface_impl(
                 }
             }
         }
+        "InterfaceOrClassLikeDeclarationInterface" => {
+            quote! {
+                impl crate::InterfaceOrClassLikeDeclarationInterface for #ast_type_name {
+                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<&crate::NodeArray> {
+                        self.#first_field_name.maybe_heritage_clauses()
+                    }
+                }
+            }
+        }
+        "ClassLikeDeclarationInterface" => {
+            quote! {
+                impl crate::ClassLikeDeclarationInterface for #ast_type_name {
+                    fn members(&self) -> &crate::NodeArray {
+                        self.#first_field_name.members()
+                    }
+                }
+            }
+        }
+
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
@@ -625,7 +644,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_is_unterminated(&mut self, is_unterminated: Option<bool>) {
+                    fn set_is_unterminated(&self, is_unterminated: Option<bool>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_is_unterminated(is_unterminated)),*
                         }
@@ -637,7 +656,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_has_extended_unicode_escape(&mut self, has_extended_unicode_escape: Option<bool>) {
+                    fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_has_extended_unicode_escape(has_extended_unicode_escape)),*
                         }
@@ -770,6 +789,28 @@ fn get_ast_enum_interface_impl(
                     fn maybe_comment(&self) -> ::std::option::Option<&crate::StringOrNodeArray> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_comment()),*
+                        }
+                    }
+                }
+            }
+        }
+        "InterfaceOrClassLikeDeclarationInterface" => {
+            quote! {
+                impl crate::InterfaceOrClassLikeDeclarationInterface for #ast_type_name {
+                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<&crate::NodeArray> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_heritage_clauses()),*
+                        }
+                    }
+                }
+            }
+        }
+        "ClassLikeDeclarationInterface" => {
+            quote! {
+                impl crate::ClassLikeDeclarationInterface for #ast_type_name {
+                    fn members(&self) -> &crate::NodeArray {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.members()),*
                         }
                     }
                 }

@@ -10,9 +10,9 @@ use crate::{
     for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
     is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
     is_function_like, is_property_name_literal, object_allocator, set_parent,
-    set_value_declaration, BaseSymbol, Expression, ExpressionStatement, IfStatement,
-    InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Statement,
-    SymbolFlags, SymbolInterface, TypeElement,
+    set_value_declaration, BaseSymbol, ExpressionStatement, IfStatement, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
+    TypeElement,
 };
 
 bitflags! {
@@ -282,30 +282,30 @@ impl BinderType {
 
     fn bind_children(&self, node: &Node) {
         match node {
-            Node::Statement(Statement::IfStatement(if_statement)) => {
+            Node::IfStatement(if_statement) => {
                 self.bind_if_statement(if_statement);
             }
-            Node::Statement(Statement::ReturnStatement(_)) => {
+            Node::ReturnStatement(_) => {
                 self.bind_return_or_throw(node);
             }
-            Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
+            Node::ExpressionStatement(expression_statement) => {
                 self.bind_expression_statement(expression_statement);
             }
-            Node::Expression(Expression::PrefixUnaryExpression(_)) => {
+            Node::PrefixUnaryExpression(_) => {
                 self.bind_prefix_unary_expression_flow(node);
             }
-            Node::Expression(Expression::BinaryExpression(_)) => unimplemented!(),
+            Node::BinaryExpression(_) => unimplemented!(),
             Node::VariableDeclaration(_) => {
                 self.bind_variable_declaration_flow(node);
             }
             Node::SourceFile(source_file) => {
                 self.bind_each_functions_first(&source_file.statements);
             }
-            Node::Statement(Statement::Block(block)) => {
+            Node::Block(block) => {
                 self.bind_each_functions_first(&block.statements);
             }
-            Node::Expression(Expression::ArrayLiteralExpression(_))
-            | Node::Expression(Expression::ObjectLiteralExpression(_))
+            Node::ArrayLiteralExpression(_)
+            | Node::ObjectLiteralExpression(_)
             | Node::PropertyAssignment(_) => {
                 // self.set_in_assignment_pattern(save_in_assignment_pattern);
                 self.bind_each_child(node);
@@ -336,9 +336,7 @@ impl BinderType {
 
     fn bind_return_or_throw(&self, node: &Node) {
         self.bind(match node {
-            Node::Statement(Statement::ReturnStatement(return_statement)) => {
-                return_statement.expression.clone()
-            }
+            Node::ReturnStatement(return_statement) => return_statement.expression.clone(),
             _ => panic!("Expected return or throw"),
         });
     }
@@ -519,24 +517,18 @@ impl BinderType {
                 SymbolFlags::Property,
                 SymbolFlags::PropertyExcludes,
             ),
-            Node::Statement(Statement::FunctionDeclaration(_)) => {
-                self.bind_function_declaration(node)
-            }
-            Node::Expression(Expression::ObjectLiteralExpression(_)) => {
-                self.bind_object_literal_expression(node)
-            }
-            Node::Statement(Statement::InterfaceDeclaration(_)) => self
-                .bind_block_scoped_declaration(
-                    node,
-                    SymbolFlags::Interface,
-                    SymbolFlags::InterfaceExcludes,
-                ),
-            Node::Statement(Statement::TypeAliasDeclaration(_)) => self
-                .bind_block_scoped_declaration(
-                    node,
-                    SymbolFlags::TypeAlias,
-                    SymbolFlags::TypeAliasExcludes,
-                ),
+            Node::FunctionDeclaration(_) => self.bind_function_declaration(node),
+            Node::ObjectLiteralExpression(_) => self.bind_object_literal_expression(node),
+            Node::InterfaceDeclaration(_) => self.bind_block_scoped_declaration(
+                node,
+                SymbolFlags::Interface,
+                SymbolFlags::InterfaceExcludes,
+            ),
+            Node::TypeAliasDeclaration(_) => self.bind_block_scoped_declaration(
+                node,
+                SymbolFlags::TypeAlias,
+                SymbolFlags::TypeAliasExcludes,
+            ),
             _ => (),
         }
     }

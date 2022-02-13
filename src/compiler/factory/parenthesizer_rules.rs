@@ -403,15 +403,31 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
         base_node_factory: &TBaseNodeFactory,
-        elements: NodeArray,
+        elements: NodeArrayOrVec,
     ) -> NodeArray {
         let result = same_map(Some(&elements), |element, _| {
             self.parenthesize_expression_for_disallowed_comma(base_node_factory, element)
         });
-        let mut node_array = self
-            .factory
-            .create_node_array(result, Some(elements.has_trailing_comma));
-        set_text_range(&mut node_array, Some(&elements));
+        let node_array = self.factory.create_node_array(
+            result,
+            match &elements {
+                NodeArrayOrVec::NodeArray(elements) => Some(elements.has_trailing_comma),
+                NodeArrayOrVec::Vec(_) => None,
+            },
+        );
+        // set_text_range(
+        //     &mut node_array,
+        //     match elements {
+        //         NodeArrayOrVec::NodeArray(elements) => Some(&elements),
+        //         NodeArrayOrVec::Vec(_) => None,
+        //     },
+        // );
+        match elements {
+            NodeArrayOrVec::NodeArray(elements) => {
+                set_text_range(&node_array, Some(&elements));
+            }
+            NodeArrayOrVec::Vec(_) => (),
+        }
         node_array
     }
 
@@ -585,7 +601,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> ParenthesizerRules<TBaseNodeFa
     fn parenthesize_type_arguments(
         &self,
         base_node_factory: &TBaseNodeFactory,
-        type_arguments: Option<NodeArray>,
+        type_arguments: Option<NodeArrayOrVec>,
     ) -> Option<NodeArray> {
         if some(
             type_arguments.as_deref(),
@@ -712,9 +728,14 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
         base_node_factory: &TBaseNodeFactory,
-        elements: NodeArray,
+        elements: NodeArrayOrVec,
     ) -> NodeArray {
-        elements
+        match elements {
+            NodeArrayOrVec::NodeArray(elements) => elements,
+            NodeArrayOrVec::Vec(_) => {
+                panic!("Expected NodeArray")
+            }
+        }
     }
 
     fn parenthesize_expression_for_disallowed_comma(
@@ -781,8 +802,13 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
     fn parenthesize_type_arguments(
         &self,
         base_node_factory: &TBaseNodeFactory,
-        type_parameters: Option<NodeArray>,
+        type_parameters: Option<NodeArrayOrVec>,
     ) -> Option<NodeArray> {
-        type_parameters
+        type_parameters.map(|type_parameters| match type_parameters {
+            NodeArrayOrVec::NodeArray(type_parameters) => type_parameters,
+            NodeArrayOrVec::Vec(_) => {
+                panic!("Expected NodeArray")
+            }
+        })
     }
 }

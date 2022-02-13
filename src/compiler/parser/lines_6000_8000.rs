@@ -7,22 +7,22 @@ use super::{ParserType, SignatureFlags};
 use crate::{
     append, modifiers_to_flags, some, BaseNode, BaseNodeFactory, Block, Debug_, Decorator,
     DiagnosticMessage, Diagnostics, FunctionDeclaration, InterfaceDeclaration, ModifierFlags, Node,
-    NodeArray, NodeFlags, NodeInterface, Statement, SyntaxKind, TypeAliasDeclaration,
-    VariableDeclaration, VariableDeclarationList,
+    NodeArray, NodeFlags, NodeInterface, SyntaxKind, TypeAliasDeclaration, VariableDeclaration,
+    VariableDeclarationList,
 };
 
 impl ParserType {
-    pub(super) fn parse_expression_or_labeled_statement(&self) -> Statement {
+    pub(super) fn parse_expression_or_labeled_statement(&self) -> Node {
         let pos = self.get_node_pos();
         let expression = self.parse_expression();
-        let node: Statement = if false {
+        let node: Node = if false {
             unimplemented!()
         } else {
             if !self.try_parse_semicolon() {
                 self.parse_error_for_missing_semicolon_after(&expression);
             }
             self.factory
-                .create_expression_statement(self, expression)
+                .create_expression_statement(self, expression.wrap())
                 .into()
         };
         self.finish_node(node, pos, None)
@@ -78,7 +78,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_statement(&self) -> Statement {
+    pub(super) fn parse_statement(&self) -> Node {
         match self.token() {
             SyntaxKind::SemicolonToken => return self.parse_empty_statement(),
             SyntaxKind::VarKeyword => {
@@ -111,7 +111,7 @@ impl ParserType {
         modifier.kind() == SyntaxKind::DeclareKeyword
     }
 
-    pub(super) fn parse_declaration(&self) -> Statement {
+    pub(super) fn parse_declaration(&self) -> Node {
         let is_ambient = some(
             self.look_ahead(|| {
                 self.parse_decorators();
@@ -146,7 +146,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn try_reuse_ambient_declaration(&self) -> Option<Statement> {
+    pub(super) fn try_reuse_ambient_declaration(&self) -> Option<Node> {
         None
     }
 
@@ -155,7 +155,7 @@ impl ParserType {
         pos: isize,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Statement {
+    ) -> Node {
         match self.token() {
             SyntaxKind::VarKeyword | SyntaxKind::ConstKeyword => {
                 self.parse_variable_statement(pos, decorators, modifiers)
@@ -196,21 +196,30 @@ impl ParserType {
     }
 
     pub(super) fn parse_variable_declaration_no_exclamation(&self) -> VariableDeclaration {
-        self.parse_variable_declaration(false)
+        self.parse_variable_declaration(Some(false))
     }
 
     pub(super) fn parse_variable_declaration_allow_exclamation(&self) -> VariableDeclaration {
-        self.parse_variable_declaration(true)
+        self.parse_variable_declaration(Some(true))
     }
 
     pub(super) fn parse_variable_declaration(
         &self,
-        allow_exclamation: bool,
+        allow_exclamation: Option<bool>,
     ) -> VariableDeclaration {
+        let allow_exclamation = allow_exclamation.unwrap_or(false);
         let pos = self.get_node_pos();
         let name = self.parse_identifier_or_pattern(Some(
             &Diagnostics::Private_identifiers_are_not_allowed_in_variable_declarations,
         ));
+        let mut exclamation_token: Option<BaseNode> = None;
+        if allow_exclamation
+            && name.kind() == SyntaxKind::Identifier
+            && self.token() == SyntaxKind::ExclamationToken
+            && !self.scanner().has_preceding_line_break()
+        {
+            exclamation_token = Some(self.parse_token_node());
+        }
         let type_ = self.parse_type_annotation();
         let initializer = if false {
             None
@@ -220,8 +229,9 @@ impl ParserType {
         let node = self.factory.create_variable_declaration(
             self,
             Some(name),
-            type_.map(|type_| type_.into()),
-            initializer.map(|initializer| initializer.into()),
+            exclamation_token.map(Into::into),
+            type_.map(|type_| type_.wrap()),
+            initializer.map(|initializer| initializer.wrap()),
         );
         self.finish_node(node, pos, None)
     }
@@ -264,12 +274,14 @@ impl ParserType {
         pos: isize,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Statement {
+    ) -> Node {
         let declaration_list = self.parse_variable_declaration_list();
         self.parse_semicolon();
-        let node = self
-            .factory
-            .create_variable_statement(self, modifiers, declaration_list);
+        let node = self.factory.create_variable_statement(
+            self,
+            modifiers,
+            Into::<Rc<Node>>::into(declaration_list),
+        );
         node.set_decorators(decorators);
         self.finish_node(node.into(), pos, None)
     }
@@ -316,10 +328,10 @@ impl ParserType {
             decorators,
             modifiers,
             asterisk_token.map(Into::into),
-            name.map(Into::into),
+            name.map(Into::<Rc<Node>>::into),
             type_parameters,
             parameters,
-            type_.map(Into::into),
+            type_.map(|type_| type_.wrap()),
             body.map(Into::into),
         );
         self.finish_node(node, pos, None)
@@ -415,6 +427,10 @@ impl ParserType {
         list.map(|list| self.create_node_array(list, pos, None, None))
     }
 
+    pub(super) fn parse_heritage_clauses(&self) -> Option<NodeArray /*<HeritageClause>*/> {
+        None
+    }
+
     pub(super) fn parse_interface_declaration(
         &self,
         pos: isize,
@@ -424,13 +440,15 @@ impl ParserType {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None, None);
         let name = self.parse_identifier(None, None);
         let type_parameters = self.parse_type_parameters();
+        let heritage_clauses = self.parse_heritage_clauses();
         let members = self.parse_object_type_members();
         let node = self.factory.create_interface_declaration(
             self,
             decorators,
             modifiers,
-            name.into(),
+            Into::<Rc<Node>>::into(name),
             type_parameters,
+            heritage_clauses,
             members,
         );
         self.finish_node(node, pos, None)
@@ -456,9 +474,9 @@ impl ParserType {
             self,
             decorators,
             modifiers,
-            name.into(),
+            Into::<Rc<Node>>::into(name),
             type_parameters,
-            type_.into(),
+            type_.wrap(),
         );
         self.finish_node(node, pos, None)
     }

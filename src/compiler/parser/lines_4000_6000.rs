@@ -5,9 +5,8 @@ use std::rc::Rc;
 use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_binary_operator_precedence, ArrayLiteralExpression, BinaryExpression, Block,
-    DiagnosticMessage, Diagnostics, Expression, Identifier, Node, NodeFlags,
-    ObjectLiteralExpression, OperatorPrecedence, PropertyAssignment, ReturnStatement, Statement,
-    SyntaxKind, TypeNode,
+    DiagnosticMessage, Diagnostics, Identifier, Node, NodeFlags, ObjectLiteralExpression,
+    OperatorPrecedence, PropertyAssignment, ReturnStatement, SyntaxKind,
 };
 
 impl ParserType {
@@ -20,17 +19,17 @@ impl ParserType {
         None
     }
 
-    pub(super) fn parse_type(&self) -> TypeNode {
+    pub(super) fn parse_type(&self) -> Node {
         self.do_outside_of_context(NodeFlags::TypeExcludesFlags, || self.parse_type_worker())
     }
 
-    pub(super) fn parse_type_worker(&self) -> TypeNode {
+    pub(super) fn parse_type_worker(&self) -> Node {
         let pos = self.get_node_pos();
         let type_ = self.parse_union_type_or_higher();
         type_
     }
 
-    pub(super) fn parse_type_annotation(&self) -> Option<TypeNode> {
+    pub(super) fn parse_type_annotation(&self) -> Option<Node> {
         if self.parse_optional(SyntaxKind::ColonToken) {
             Some(self.parse_type())
         } else {
@@ -83,13 +82,13 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_expression(&self) -> Expression {
+    pub(super) fn parse_expression(&self) -> Node {
         let expr = self.parse_assignment_expression_or_higher();
 
         expr
     }
 
-    pub(super) fn parse_initializer(&self) -> Option<Expression> {
+    pub(super) fn parse_initializer(&self) -> Option<Node> {
         if self.parse_optional(SyntaxKind::EqualsToken) {
             Some(self.parse_assignment_expression_or_higher())
         } else {
@@ -97,7 +96,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_assignment_expression_or_higher(&self) -> Expression {
+    pub(super) fn parse_assignment_expression_or_higher(&self) -> Node {
         let expr = self.parse_binary_expression_or_higher(OperatorPrecedence::Lowest);
 
         self.parse_conditional_expression_rest(expr)
@@ -108,14 +107,11 @@ impl ParserType {
         !self.scanner().has_preceding_line_break() && self.is_identifier()
     }
 
-    pub(super) fn parse_conditional_expression_rest(&self, left_operand: Expression) -> Expression {
+    pub(super) fn parse_conditional_expression_rest(&self, left_operand: Node) -> Node {
         left_operand
     }
 
-    pub(super) fn parse_binary_expression_or_higher(
-        &self,
-        precedence: OperatorPrecedence,
-    ) -> Expression {
+    pub(super) fn parse_binary_expression_or_higher(&self, precedence: OperatorPrecedence) -> Node {
         let pos = self.get_node_pos();
         let left_operand = self.parse_unary_expression_or_higher();
         self.parse_binary_expression_rest(precedence, left_operand, pos)
@@ -124,9 +120,9 @@ impl ParserType {
     pub(super) fn parse_binary_expression_rest(
         &self,
         precedence: OperatorPrecedence,
-        mut left_operand: Expression,
+        mut left_operand: Node,
         pos: isize,
-    ) -> Expression {
+    ) -> Node {
         loop {
             let new_precedence = get_binary_operator_precedence(self.token());
 
@@ -152,9 +148,9 @@ impl ParserType {
 
     pub(super) fn make_binary_expression<TNode: Into<Rc<Node>>>(
         &self,
-        left: Expression,
+        left: Node,
         operator_token: TNode,
-        right: Expression,
+        right: Node,
         pos: isize,
     ) -> BinaryExpression {
         self.finish_node(
@@ -169,7 +165,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_unary_expression_or_higher(&self) -> Expression {
+    pub(super) fn parse_unary_expression_or_higher(&self) -> Node {
         if self.is_update_expression() {
             let update_expression = self.parse_update_expression();
             return update_expression;
@@ -184,7 +180,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_update_expression(&self) -> Expression {
+    pub(super) fn parse_update_expression(&self) -> Node {
         if self.token() == SyntaxKind::PlusPlusToken {
             let pos = self.get_node_pos();
             let operator = self.token();
@@ -205,28 +201,28 @@ impl ParserType {
         expression
     }
 
-    pub(super) fn parse_left_hand_side_expression_or_higher(&self) -> Expression {
+    pub(super) fn parse_left_hand_side_expression_or_higher(&self) -> Node {
         let expression = self.parse_member_expression_or_higher();
 
         self.parse_call_expression_rest(expression)
     }
 
-    pub(super) fn parse_member_expression_or_higher(&self) -> Expression {
+    pub(super) fn parse_member_expression_or_higher(&self) -> Node {
         let expression = self.parse_primary_expression();
         self.parse_member_expression_rest(expression)
     }
 
-    pub(super) fn parse_member_expression_rest(&self, expression: Expression) -> Expression {
+    pub(super) fn parse_member_expression_rest(&self, expression: Node) -> Node {
         loop {
             return expression;
         }
     }
 
-    pub(super) fn parse_call_expression_rest(&self, expression: Expression) -> Expression {
+    pub(super) fn parse_call_expression_rest(&self, expression: Node) -> Node {
         expression
     }
 
-    pub(super) fn parse_primary_expression(&self) -> Expression {
+    pub(super) fn parse_primary_expression(&self) -> Node {
         match self.token() {
             SyntaxKind::NumericLiteral
             | SyntaxKind::BigIntLiteral
@@ -245,7 +241,7 @@ impl ParserType {
             .into()
     }
 
-    pub(super) fn parse_argument_or_array_literal_element(&self) -> Expression {
+    pub(super) fn parse_argument_or_array_literal_element(&self) -> Node {
         if false {
             unimplemented!()
         } else if false {
@@ -258,6 +254,7 @@ impl ParserType {
     pub(super) fn parse_array_literal_expression(&self) -> ArrayLiteralExpression {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::OpenBracketToken, None, None);
+        let multi_line = self.scanner().has_preceding_line_break();
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayLiteralMembers,
             ParserType::parse_argument_or_array_literal_element,
@@ -266,7 +263,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
             self.factory
-                .create_array_literal_expression(self, Some(elements)),
+                .create_array_literal_expression(self, Some(elements), Some(multi_line)),
             pos,
             None,
         )
@@ -294,6 +291,7 @@ impl ParserType {
     pub(super) fn parse_object_literal_expression(&self) -> ObjectLiteralExpression {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::OpenBraceToken, None, None);
+        let multi_line = self.scanner().has_preceding_line_break();
         let properties = self.parse_delimited_list(
             ParsingContext::ObjectLiteralMembers,
             ParserType::parse_object_literal_element,
@@ -304,7 +302,7 @@ impl ParserType {
         }
         self.finish_node(
             self.factory
-                .create_object_literal_expression(self, Some(properties)),
+                .create_object_literal_expression(self, Some(properties), Some(multi_line)),
             pos,
             None,
         )
@@ -386,13 +384,13 @@ impl ParserType {
         block
     }
 
-    pub(super) fn parse_empty_statement(&self) -> Statement {
+    pub(super) fn parse_empty_statement(&self) -> Node {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::SemicolonToken, None, None);
         self.finish_node(self.factory.create_empty_statement(self).into(), pos, None)
     }
 
-    pub(super) fn parse_if_statement(&self) -> Statement {
+    pub(super) fn parse_if_statement(&self) -> Node {
         let pos = self.get_node_pos();
         self.parse_expected(SyntaxKind::IfKeyword, None, None);
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
@@ -406,7 +404,12 @@ impl ParserType {
         };
         self.finish_node(
             self.factory
-                .create_if_statement(self, expression, then_statement, else_statement)
+                .create_if_statement(
+                    self,
+                    expression.wrap(),
+                    then_statement.wrap(),
+                    else_statement.map(|else_statement| else_statement.wrap()),
+                )
                 .into(),
             pos,
             None,

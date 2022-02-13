@@ -5,8 +5,8 @@ use std::convert::TryInto;
 use super::{ParserType, ParsingContext};
 use crate::{
     is_literal_kind, is_template_literal_kind, token_to_string, Debug_, DiagnosticMessage,
-    Diagnostics, LiteralLikeNode, LiteralLikeNodeInterface, Node, NodeArray, NodeInterface,
-    SyntaxKind, TemplateExpression, TemplateSpan, TokenFlags, TypeNode,
+    Diagnostics, LiteralLikeNodeInterface, Node, NodeArray, NodeInterface, SyntaxKind,
+    TemplateExpression, TemplateSpan, TokenFlags,
 };
 
 impl ParserType {
@@ -258,12 +258,11 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_literal_node(&self) -> LiteralLikeNode {
+    pub(super) fn parse_literal_node(&self) -> Node {
         self.parse_literal_like_node(self.token())
     }
 
-    pub(super) fn parse_template_head(&self, is_tagged_template: bool) -> LiteralLikeNode /*TemplateHead*/
-    {
+    pub(super) fn parse_template_head(&self, is_tagged_template: bool) -> Node /*TemplateHead*/ {
         if is_tagged_template {
             self.re_scan_template_head_or_no_substitution_template();
         }
@@ -275,7 +274,7 @@ impl ParserType {
         fragment
     }
 
-    pub(super) fn parse_template_middle_or_template_tail(&self) -> LiteralLikeNode /*TemplateMiddle | TemplateTail*/
+    pub(super) fn parse_template_middle_or_template_tail(&self) -> Node /*TemplateMiddle | TemplateTail*/
     {
         let fragment = self.parse_literal_like_node(self.token());
         Debug_.assert(
@@ -308,9 +307,9 @@ impl ParserType {
             .collect()
     }
 
-    pub(super) fn parse_literal_like_node(&self, kind: SyntaxKind) -> LiteralLikeNode {
+    pub(super) fn parse_literal_like_node(&self, kind: SyntaxKind) -> Node {
         let pos = self.get_node_pos();
-        let mut node: LiteralLikeNode = if is_template_literal_kind(kind) {
+        let mut node: Node = if is_template_literal_kind(kind) {
             self.factory
                 .create_template_literal_like_node(
                     self,
@@ -344,12 +343,13 @@ impl ParserType {
             Debug_.fail(None)
         };
 
+        let node_as_literal_like_node = node.as_literal_like_node();
         if self.scanner().has_extended_unicode_escape() {
-            node.set_has_extended_unicode_escape(Some(true));
+            node_as_literal_like_node.set_has_extended_unicode_escape(Some(true));
         }
 
         if self.scanner().is_unterminated() {
-            node.set_is_unterminated(Some(true));
+            node_as_literal_like_node.set_is_unterminated(Some(true));
         }
 
         self.next_token();
@@ -376,7 +376,7 @@ impl ParserType {
         None
     }
 
-    pub(super) fn parse_type_reference(&self) -> TypeNode {
+    pub(super) fn parse_type_reference(&self) -> Node {
         let pos = self.get_node_pos();
         let name = self.parse_entity_name_of_type_reference().wrap();
         let type_arguments = self.parse_type_arguments_of_type_reference();

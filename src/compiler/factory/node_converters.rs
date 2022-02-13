@@ -74,7 +74,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                     .map(Clone::clone),
                 node_as_function_declaration.parameters().clone(),
                 node_as_function_declaration.maybe_type(),
-                node_as_function_declaration.maybe_body(),
+                node_as_function_declaration.maybe_body().unwrap(),
             )
             .into();
         set_original_node(updated.clone(), Some(node.node_wrapper()));
@@ -219,6 +219,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                     Some(&node_as_object_binding_pattern.elements),
                     |element, _| self.convert_to_object_assignment_element(base_factory, element),
                 ),
+                None,
             );
             let ret = set_text_range(&*Into::<Rc<Node>>::into(ret), Some(node)).node_wrapper();
             set_original_node(ret.clone(), Some(node.node_wrapper()));
@@ -240,6 +241,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                     Some(&node_as_array_binding_pattern.elements),
                     |element, _| self.convert_to_array_assignment_element(base_factory, element),
                 ),
+                None,
             );
             let ret = set_text_range(&*Into::<Rc<Node>>::into(ret), Some(node)).node_wrapper();
             set_original_node(ret.clone(), Some(node.node_wrapper()));

@@ -4,9 +4,9 @@ use std::rc::Rc;
 
 use crate::{
     get_literal_text, id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_,
-    EmitHint, EmitTextWriter, Expression, GetLiteralTextFlags, HasTypeInterface, ListFormat,
+    EmitHint, EmitTextWriter, GetLiteralTextFlags, HasTypeInterface, ListFormat,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, PrinterOptions, Symbol,
-    TypeElement, TypeNode,
+    TypeElement,
 };
 
 #[derive(PartialEq, Eq)]
@@ -120,20 +120,14 @@ impl Printer {
     fn pipeline_emit_with_hint_worker(&mut self, mut hint: EmitHint, node: &Node) {
         if hint == EmitHint::Unspecified {
             match node {
-                Node::Expression(Expression::Identifier(_)) => return self.emit_identifier(node),
+                Node::Identifier(_) => return self.emit_identifier(node),
                 Node::TypeElement(TypeElement::PropertySignature(_)) => {
                     return self.emit_property_signature(node)
                 }
-                Node::TypeNode(TypeNode::TypeReferenceNode(_)) => {
-                    return self.emit_type_reference(node)
-                }
-                Node::TypeNode(TypeNode::TypeLiteralNode(_)) => {
-                    return self.emit_type_literal(node)
-                }
-                Node::TypeNode(TypeNode::UnionTypeNode(_)) => return self.emit_union_type(node),
-                Node::TypeNode(TypeNode::LiteralTypeNode(_)) => {
-                    return self.emit_literal_type(node)
-                }
+                Node::TypeReferenceNode(_) => return self.emit_type_reference(node),
+                Node::TypeLiteralNode(_) => return self.emit_type_literal(node),
+                Node::UnionTypeNode(_) => return self.emit_union_type(node),
+                Node::LiteralTypeNode(_) => return self.emit_literal_type(node),
                 _ => (),
             }
             if is_expression(node) {
@@ -142,7 +136,12 @@ impl Printer {
         }
         if hint == EmitHint::Expression {
             match node {
-                Node::Expression(Expression::LiteralLikeNode(_)) => {
+                Node::StringLiteral(_)
+                | Node::TemplateLiteralLikeNode(_)
+                | Node::NumericLiteral(_)
+                | Node::BigIntLiteral(_)
+                | Node::RegularExpressionLiteral(_)
+                | Node::JsxText(_) => {
                     return self.emit_literal(node, false);
                 }
                 _ => (),

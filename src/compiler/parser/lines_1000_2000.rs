@@ -8,7 +8,7 @@ use crate::{
     attach_file_to_diagnostics, create_detached_diagnostic, is_modifier_kind,
     is_template_literal_kind, last_or_undefined, set_text_range_pos_end,
     token_is_identifier_or_keyword, token_to_string, BaseNode, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, Expression, Identifier, Node, NodeArray,
+    DiagnosticRelatedInformationInterface, Diagnostics, Identifier, Node, NodeArray,
     NodeArrayOrVec, NodeFlags, NodeInterface, SourceFile, SyntaxKind,
 };
 use local_macros::enum_unwrapped;
@@ -312,7 +312,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_error_for_missing_semicolon_after(&self, node: &Expression) {
+    pub(super) fn parse_error_for_missing_semicolon_after(&self, node: &Node) {
         unimplemented!()
     }
 
@@ -449,7 +449,12 @@ impl ParserType {
 
         let pos = self.get_node_pos();
         let result = if kind == SyntaxKind::Identifier {
-            MissingNode::Identifier(self.factory.create_identifier(self, ""))
+            MissingNode::Identifier(self.factory.create_identifier(
+                self,
+                "",
+                Option::<NodeArray>::None,
+                None,
+            ))
         } else if is_template_literal_kind(kind) {
             MissingNode::TemplateLiteralLikeNode(self.factory.create_template_literal_like_node(
                 self,
@@ -476,9 +481,19 @@ impl ParserType {
     ) -> Identifier {
         if is_identifier {
             let pos = self.get_node_pos();
+            let original_keyword_kind = self.token();
             let text = self.intern_identifier(&self.scanner().get_token_value());
             self.next_token_without_check();
-            return self.finish_node(self.factory.create_identifier(self, &text), pos, None);
+            return self.finish_node(
+                self.factory.create_identifier(
+                    self,
+                    &text,
+                    Option::<NodeArray>::None,
+                    Some(original_keyword_kind),
+                ),
+                pos,
+                None,
+            );
         }
 
         let report_at_current_position = self.token() == SyntaxKind::EndOfFileToken;

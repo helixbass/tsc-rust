@@ -1,9 +1,15 @@
 use std::rc::Rc;
 
 use crate::{
-    get_jsdoc_type_tag, is_in_js_file, is_parenthesized_expression, Node, NodeInterface,
+    get_emit_flags, get_jsdoc_type_tag, is_assignment_expression, is_declaration_binding_element,
+    is_in_js_file, is_object_literal_element_like, is_parenthesized_expression, is_spread_element,
+    EmitFlags, HasInitializerInterface, NamedDeclarationInterface, Node, NodeInterface,
     OuterExpressionKinds, SyntaxKind,
 };
+
+pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
+    get_emit_flags(node).intersects(EmitFlags::LocalName)
+}
 
 pub fn is_comma_sequence(node: &Node /*Expression*/) -> bool {
     node.kind() == SyntaxKind::BinaryExpression
@@ -46,4 +52,68 @@ pub fn skip_outer_expressions(node: &Node, kinds: Option<OuterExpressionKinds>) 
         node = node.as_has_expression().expression();
     }
     node
+}
+
+pub fn get_target_of_binding_or_assignment_element(
+    binding_element: &Node, /*BindingOrAssignmentElement*/
+) -> Option<Rc<Node /*BindingOrAssignmentElementTarget*/>> {
+    if is_declaration_binding_element(binding_element) {
+        return binding_element.as_named_declaration().maybe_name();
+    }
+
+    if is_object_literal_element_like(binding_element) {
+        match binding_element.kind() {
+            SyntaxKind::PropertyAssignment => {
+                return get_target_of_binding_or_assignment_element(
+                    &binding_element
+                        .as_property_assignment()
+                        .maybe_initializer()
+                        .unwrap(),
+                );
+            }
+
+            SyntaxKind::ShorthandPropertyAssignment => {
+                return binding_element
+                    .as_shorthand_property_assignment()
+                    .maybe_name();
+            }
+
+            SyntaxKind::SpreadAssignment => {
+                return get_target_of_binding_or_assignment_element(
+                    &binding_element.as_spread_assignment().expression,
+                );
+            }
+            _ => (),
+        }
+
+        return None;
+    }
+
+    if is_assignment_expression(binding_element, Some(true)) {
+        return get_target_of_binding_or_assignment_element(
+            &binding_element.as_binary_expression().left,
+        );
+    }
+
+    if is_spread_element(binding_element) {
+        return get_target_of_binding_or_assignment_element(
+            &binding_element.as_spread_element().expression,
+        );
+    }
+
+    Some(binding_element.node_wrapper())
+}
+
+pub fn get_elements_of_binding_or_assignment_pattern(
+    name: &Node, /*BindingOrAssignmentPattern*/
+) -> Vec<Rc<Node /*BindingOrAssignmentElement*/>> {
+    match name.kind() {
+        SyntaxKind::ObjectBindingPattern
+        | SyntaxKind::ArrayBindingPattern
+        | SyntaxKind::ArrayLiteralExpression => name.as_has_elements().elements().to_vec(),
+        SyntaxKind::ObjectLiteralExpression => {
+            name.as_object_literal_expression().properties.to_vec()
+        }
+        _ => panic!("Unexpected kind"),
+    }
 }

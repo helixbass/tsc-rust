@@ -1127,7 +1127,7 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory> {
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
         base_factory: &TBaseNodeFactory,
-        elements: NodeArray, /*<Expression>*/
+        elements: NodeArrayOrVec, /*<Expression>*/
     ) -> NodeArray /*<Expression>*/;
     fn parenthesize_expression_for_disallowed_comma(
         &self,
@@ -1167,7 +1167,7 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory> {
     fn parenthesize_type_arguments(
         &self,
         base_factory: &TBaseNodeFactory,
-        type_parameters: Option<NodeArray /*<TypeNode>*/>,
+        type_parameters: Option<NodeArrayOrVec /*<TypeNode>*/>,
     ) -> Option<NodeArray /*<TypeNode>*/>;
 }
 
