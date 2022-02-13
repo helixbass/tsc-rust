@@ -4,14 +4,14 @@ use std::rc::Rc;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    is_external_module_reference, modifiers_to_flags, AsExpression, AssertClause, AssertEntry,
-    BaseNodeFactory, Block, BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_,
-    DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement,
-    ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    is_external_module_reference, modifiers_to_flags, AsExpression, BaseNodeFactory, Block,
+    BreakStatement, CaseBlock, ClassDeclaration, ContinueStatement, Debug_, DebuggerStatement,
+    DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments,
+    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
     FunctionLikeDeclarationInterface, IfStatement, ImportClause, ImportDeclaration,
     ImportEqualsDeclaration, InterfaceDeclaration, LabeledStatement, MetaProperty, ModifierFlags,
-    ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, NamespaceImport, Node, NodeArray,
-    NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
+    ModuleBlock, ModuleDeclaration, NamespaceExportDeclaration, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, NonNullExpression, OmittedExpression,
     RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement, StringOrRcNode,
     SwitchStatement, SyntaxKind, TemplateSpan, ThrowStatement, TransformFlags, TryStatement,
     TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement,
@@ -192,7 +192,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             },
         );
         node.add_transform_flags(propagate_child_flags(Some(&*node.declaration_list)));
-        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Ambient) {
+        if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Ambient) {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         node
@@ -574,7 +574,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node.asterisk_token = asterisk_token;
         let mut node = FunctionDeclaration::new(node);
         if node.maybe_body().is_none()
-            || modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Ambient)
+            || modifiers_to_flags(node.maybe_modifiers().as_ref())
+                .intersects(ModifierFlags::Ambient)
         {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
@@ -582,7 +583,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 propagate_child_flags(node.maybe_asterisk_token())
                     | TransformFlags::ContainsHoistedDeclarationOrCompletion,
             );
-            if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Async) {
+            if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Async)
+            {
                 match node.maybe_asterisk_token() {
                     Some(_) => {
                         node.add_transform_flags(TransformFlags::ContainsES2018);
@@ -626,7 +628,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             members,
         );
         let mut node = ClassDeclaration::new(node);
-        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Ambient) {
+        if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Ambient) {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(TransformFlags::ContainsES2015);
@@ -755,7 +757,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                         | NodeFlags::GlobalAugmentation)),
         );
         let mut node = ModuleDeclaration::new(node, name, body);
-        if modifiers_to_flags(node.maybe_modifiers()).intersects(ModifierFlags::Ambient) {
+        if modifiers_to_flags(node.maybe_modifiers().as_ref()).intersects(ModifierFlags::Ambient) {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
         } else {
             node.add_transform_flags(

@@ -119,6 +119,8 @@ bitflags! {
     }
 }
 
+pub(crate) type ReadonlyPragmaMap = HashMap<String, ()>;
+
 #[derive(Clone, Debug)]
 pub struct PseudoBigInt {
     pub negative: bool,

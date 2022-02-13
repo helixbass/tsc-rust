@@ -113,8 +113,12 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_decorators(decorators)
                     }
 
-                    fn maybe_modifiers(&self) -> ::std::option::Option<&crate::NodeArray> {
+                    fn maybe_modifiers(&self) -> ::std::cell::Ref<::std::option::Option<crate::NodeArray>> {
                         self.#first_field_name.maybe_modifiers()
+                    }
+
+                    fn set_modifiers(&self, modifiers: ::std::option::Option<crate::NodeArray>) {
+                        self.#first_field_name.set_modifiers(modifiers)
                     }
 
                     fn maybe_id(&self) -> ::std::option::Option<crate::NodeId> {
@@ -193,8 +197,16 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_js_doc_cache()
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::vec::Vec<::std::rc::Rc<crate::Node>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>>) {
                         self.#first_field_name.set_js_doc_cache(js_doc_cache)
+                    }
+
+                    fn maybe_intersects_change(&self) -> ::std::option::Option<bool> {
+                        self.#first_field_name.maybe_intersects_change()
+                    }
+
+                    fn set_intersects_change(&self, intersects_change: ::std::option::Option<bool>) {
+                        self.#first_field_name.set_intersects_change(intersects_change)
                     }
                 }
             }
@@ -285,8 +297,12 @@ fn get_ast_struct_interface_impl(
         "LiteralLikeNodeInterface" => {
             quote! {
                 impl crate::LiteralLikeNodeInterface for #ast_type_name {
-                    fn text(&self) -> &str {
+                    fn text(&self) -> ::std::cell::Ref<String> {
                         self.#first_field_name.text()
+                    }
+
+                    fn set_text(&self, text: String) {
+                        self.#first_field_name.set_text(text)
                     }
 
                     fn is_unterminated(&self) -> Option<bool> {
@@ -480,9 +496,15 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_modifiers(&self) -> ::std::option::Option<&crate::NodeArray> {
+                    fn maybe_modifiers(&self) -> ::std::cell::Ref<::std::option::Option<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_modifiers()),*
+                        }
+                    }
+
+                    fn set_modifiers(&self, modifiers: ::std::option::Option<crate::NodeArray>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_modifiers(modifiers)),*
                         }
                     }
 
@@ -600,9 +622,21 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::vec::Vec<::std::rc::Rc<crate::Node>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_js_doc_cache(js_doc_cache)),*
+                        }
+                    }
+
+                    fn maybe_intersects_change(&self) -> ::std::option::Option<bool> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_intersects_change()),*
+                        }
+                    }
+
+                    fn set_intersects_change(&self, intersects_change: ::std::option::Option<bool>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_intersects_change(intersects_change)),*
                         }
                     }
                 }
@@ -640,9 +674,15 @@ fn get_ast_enum_interface_impl(
         "LiteralLikeNodeInterface" => {
             quote! {
                 impl crate::LiteralLikeNodeInterface for #ast_type_name {
-                    fn text(&self) -> &str {
+                    fn text(&self) -> ::std::cell::Ref<String> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.text()),*
+                        }
+                    }
+
+                    fn set_text(&self, text: String) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_text(text)),*
                         }
                     }
 

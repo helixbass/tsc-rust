@@ -731,7 +731,8 @@ impl Scanner {
         if len >= 2 && len <= 12 {
             let ch = self.token_value().chars().nth(0).unwrap();
             if ch >= CharacterCodes::a && ch <= CharacterCodes::z {
-                let keyword = text_to_keyword.get(&self.token_value());
+                let token_value_as_str: &str = &self.token_value();
+                let keyword = text_to_keyword.get(&token_value_as_str);
                 if let Some(keyword) = keyword {
                     return self.set_token(*keyword);
                 }

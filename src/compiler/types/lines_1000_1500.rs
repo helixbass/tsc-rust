@@ -196,6 +196,7 @@ pub struct Identifier {
     pub(crate) auto_generate_flags: Option<GeneratedIdentifierFlags>,
     pub(crate) auto_generate_id: Option<usize>,
     pub(crate) type_arguments: Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>,
+    jsdoc_dot_pos: Cell<Option<isize>>,
 }
 
 impl Identifier {
@@ -207,6 +208,7 @@ impl Identifier {
             auto_generate_flags: None,
             auto_generate_id: None,
             type_arguments: None,
+            jsdoc_dot_pos: Cell::new(None),
         }
     }
 
@@ -221,6 +223,21 @@ impl MemberNameInterface for Identifier {
     }
 }
 
+pub trait HasJSDocDotPosInterface {
+    fn maybe_jsdoc_dot_pos(&self) -> Option<isize>;
+    fn set_jsdoc_dot_pos(&self, jsdoc_dot_pos: Option<isize>);
+}
+
+impl HasJSDocDotPosInterface for Identifier {
+    fn maybe_jsdoc_dot_pos(&self) -> Option<isize> {
+        self.jsdoc_dot_pos.get()
+    }
+
+    fn set_jsdoc_dot_pos(&self, jsdoc_dot_pos: Option<isize>) {
+        self.jsdoc_dot_pos.set(jsdoc_dot_pos);
+    }
+}
+
 pub type ModifiersArray = NodeArray; /*<Modifier>*/
 
 #[derive(Debug)]
@@ -229,7 +246,7 @@ pub struct QualifiedName {
     _node: BaseNode,
     pub left: Rc<Node /*EntityName*/>,
     pub right: Rc<Node /*Identifier*/>,
-    pub(crate) jsdoc_dot_pos: Option<usize>,
+    jsdoc_dot_pos: Cell<Option<isize>>,
 }
 
 impl QualifiedName {
@@ -238,8 +255,18 @@ impl QualifiedName {
             _node: base_node,
             left,
             right,
-            jsdoc_dot_pos: None,
+            jsdoc_dot_pos: Cell::new(None),
         }
+    }
+}
+
+impl HasJSDocDotPosInterface for QualifiedName {
+    fn maybe_jsdoc_dot_pos(&self) -> Option<isize> {
+        self.jsdoc_dot_pos.get()
+    }
+
+    fn set_jsdoc_dot_pos(&self, jsdoc_dot_pos: Option<isize>) {
+        self.jsdoc_dot_pos.set(jsdoc_dot_pos);
     }
 }
 

@@ -1,4 +1,5 @@
 use std::array::IntoIter;
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -8,9 +9,9 @@ use crate::{
     CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
     CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType,
     CommandLineOptionOfListType, CommandLineOptionOfNumberType, CommandLineOptionOfStringType,
-    CommandLineOptionType, CompilerOptions, Diagnostics, ImportsNotUsedAsValues, JsxEmit,
-    ModuleKind, ModuleResolutionKind, NewLineKind, ParsedCommandLine, ScriptTarget,
-    StringOrDiagnosticMessage, TsConfigOnlyOption,
+    CommandLineOptionType, CompilerOptions, Diagnostic, Diagnostics, ImportsNotUsedAsValues,
+    JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind, Node, ParsedCommandLine, Push,
+    ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
 };
 
 thread_local! {
@@ -3103,4 +3104,17 @@ fn parse_command_line_worker(command_line: &[String]) -> ParsedCommandLine {
         }),
         file_names: command_line.to_vec(),
     }
+}
+
+pub(crate) type JsonConversionNotifier = ();
+
+pub(crate) fn convert_to_object_worker<TRootExpression: Borrow<Node>>(
+    source_file: &Node, /*JsonSourceFile*/
+    root_expression: Option<TRootExpression>,
+    errors: &mut Push<Rc<Diagnostic>>,
+    return_value: bool,
+    known_root_options: Option<CommandLineOption>,
+    json_conversion_notifier: Option<JsonConversionNotifier>,
+) {
+    unimplemented!()
 }

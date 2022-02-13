@@ -5,14 +5,76 @@ use std::cell::Cell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{BaseTextRange, Node, SyntaxKind, SynthesizedComment, TextRange};
+use super::{BaseTextRange, Node, ScriptTarget, SyntaxKind, SynthesizedComment, TextRange};
 
 pub trait ModuleResolutionHost {
     fn read_file(&self, file_name: &str) -> Option<String>;
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Extension {
+    Ts,
+    Tsx,
+    Dts,
+    Js,
+    Jsx,
+    Json,
+    TsBuildInfo,
+    Mjs,
+    Mts,
+    Dmts,
+    Cjs,
+    Cts,
+    Dcts,
+}
+
+impl Extension {
+    pub fn maybe_from_str(extension: &str) -> Option<Self> {
+        let extension_lowercase = extension.to_lowercase();
+        let extension: &str = &extension_lowercase;
+        match extension {
+            ".ts" => Some(Self::Ts),
+            ".tsx" => Some(Self::Tsx),
+            ".d.ts" => Some(Self::Dts),
+            ".js" => Some(Self::Js),
+            ".jsx" => Some(Self::Jsx),
+            ".json" => Some(Self::Json),
+            ".tsbuildinfo" => Some(Self::TsBuildInfo),
+            ".mjs" => Some(Self::Mjs),
+            ".mts" => Some(Self::Mts),
+            ".d.mts" => Some(Self::Dmts),
+            ".cjs" => Some(Self::Cjs),
+            ".cts" => Some(Self::Cts),
+            ".d.cts" => Some(Self::Dcts),
+            _ => None,
+        }
+    }
+
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::Ts => ".ts",
+            Self::Tsx => ".tsx",
+            Self::Dts => ".d.ts",
+            Self::Js => ".js",
+            Self::Jsx => ".jsx",
+            Self::Json => ".json",
+            Self::TsBuildInfo => ".tsbuildinfo",
+            Self::Mjs => ".mjs",
+            Self::Mts => ".mts",
+            Self::Dmts => ".d.mts",
+            Self::Cjs => ".cjs",
+            Self::Cts => ".cts",
+            Self::Dcts => ".d.cts",
+        }
+    }
+}
+
 pub trait CompilerHost: ModuleResolutionHost {
-    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_source_file(
+        &self,
+        file_name: &str,
+        language_version: ScriptTarget,
+    ) -> Option<Rc<Node /*SourceFile*/>>;
     fn get_current_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
 }

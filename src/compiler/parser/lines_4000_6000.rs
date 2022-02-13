@@ -6,17 +6,21 @@ use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     get_binary_operator_precedence, ArrayLiteralExpression, BinaryExpression, Block,
     DiagnosticMessage, Diagnostics, Identifier, Node, NodeFlags, ObjectLiteralExpression,
-    OperatorPrecedence, PropertyAssignment, ReturnStatement, SyntaxKind,
+    OperatorPrecedence, PrefixUnaryExpression, PropertyAssignment, ReturnStatement, SyntaxKind,
 };
 
 impl ParserType {
-    pub(super) fn parse_type_predicate_prefix(&self) -> Option<Identifier> {
+    pub(super) fn parse_type_predicate_prefix(&self) -> Option<Node> {
         let id = self.parse_identifier(None, None);
         if self.token() == SyntaxKind::IsKeyword && !self.scanner().has_preceding_line_break() {
             self.next_token();
             return Some(id);
         }
         None
+    }
+
+    pub(super) fn parse_asserts_type_predicate(&self) -> Node /*TypeNode*/ {
+        unimplemented!()
     }
 
     pub(super) fn parse_type(&self) -> Node {
@@ -117,6 +121,10 @@ impl ParserType {
         self.parse_binary_expression_rest(precedence, left_operand, pos)
     }
 
+    pub(super) fn is_in_or_of_keyword(&self, t: SyntaxKind) -> bool {
+        matches!(t, SyntaxKind::InKeyword | SyntaxKind::OfKeyword)
+    }
+
     pub(super) fn parse_binary_expression_rest(
         &self,
         precedence: OperatorPrecedence,
@@ -165,6 +173,19 @@ impl ParserType {
         )
     }
 
+    pub(super) fn parse_prefix_unary_expression(&self) -> PrefixUnaryExpression {
+        let pos = self.get_node_pos();
+        self.finish_node(
+            self.factory.create_prefix_unary_expression(
+                self,
+                self.token(),
+                self.next_token_and(|| self.parse_simple_unary_expression().wrap()),
+            ),
+            pos,
+            None,
+        )
+    }
+
     pub(super) fn parse_unary_expression_or_higher(&self) -> Node {
         if self.is_update_expression() {
             let update_expression = self.parse_update_expression();
@@ -172,6 +193,10 @@ impl ParserType {
         }
 
         panic!("Unimplemented");
+    }
+
+    pub(super) fn parse_simple_unary_expression(&self) -> Node {
+        unimplemented!()
     }
 
     pub(super) fn is_update_expression(&self) -> bool {
@@ -184,8 +209,7 @@ impl ParserType {
         if self.token() == SyntaxKind::PlusPlusToken {
             let pos = self.get_node_pos();
             let operator = self.token();
-            let operand =
-                self.next_token_and(ParserType::parse_left_hand_side_expression_or_higher);
+            let operand = self.next_token_and(|| self.parse_left_hand_side_expression_or_higher());
             return self
                 .finish_node(
                     self.factory
@@ -238,7 +262,6 @@ impl ParserType {
         }
 
         self.parse_identifier(Some(&Diagnostics::Expression_expected), None)
-            .into()
     }
 
     pub(super) fn parse_argument_or_array_literal_element(&self) -> Node {
@@ -257,7 +280,7 @@ impl ParserType {
         let multi_line = self.scanner().has_preceding_line_break();
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayLiteralMembers,
-            ParserType::parse_argument_or_array_literal_element,
+            || self.parse_argument_or_array_literal_element().wrap(),
             None,
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
@@ -294,7 +317,7 @@ impl ParserType {
         let multi_line = self.scanner().has_preceding_line_break();
         let properties = self.parse_delimited_list(
             ParsingContext::ObjectLiteralMembers,
-            ParserType::parse_object_literal_element,
+            || self.parse_object_literal_element().wrap(),
             Some(true),
         );
         if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
@@ -308,7 +331,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_optional_binding_identifier(&self) -> Option<Identifier> {
+    pub(super) fn parse_optional_binding_identifier(&self) -> Option<Node> {
         if self.is_binding_identifier() {
             Some(self.parse_binding_identifier(None))
         } else {
@@ -327,8 +350,9 @@ impl ParserType {
             || ignore_missing_open_brace
         {
             let multi_line = self.scanner().has_preceding_line_break();
-            let statements =
-                self.parse_list(ParsingContext::BlockStatements, ParserType::parse_statement);
+            let statements = self.parse_list(ParsingContext::BlockStatements, &mut || {
+                self.parse_statement().wrap()
+            });
             if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
                 unimplemented!()
             }

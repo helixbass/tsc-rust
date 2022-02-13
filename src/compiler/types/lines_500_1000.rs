@@ -18,9 +18,9 @@ use super::{
     ExpressionWithTypeArguments, ExternalModuleReference, ForInStatement, ForOfStatement,
     ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
     FunctionTypeNode, GetAccessorDeclaration, HasElementsInterface, HasExpressionInterface,
-    HasIsTypeOnlyInterface, HasQuestionDotTokenInterface, HasTypeArgumentsInterface,
-    HasTypeParametersInterface, HeritageClause, Identifier, IfStatement, ImportClause,
-    ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
+    HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasQuestionDotTokenInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause, Identifier, IfStatement,
+    ImportClause, ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
     IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InputFiles,
     InterfaceDeclaration, IntersectionTypeNode, JSDoc, JSDocAugmentsTag, JSDocCallbackTag,
     JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface,
@@ -153,7 +153,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn add_transform_flags(&mut self, flags: TransformFlags);
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>>;
     fn set_decorators(&self, decorators: Option<NodeArray>);
-    fn maybe_modifiers(&self) -> Option<&NodeArray>;
+    fn maybe_modifiers(&self) -> Ref<Option<NodeArray>>;
+    fn set_modifiers(&self, modifiers: Option<NodeArray>);
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
     fn set_id(&self, id: NodeId);
@@ -173,7 +174,15 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Vec<Rc<Node /*JSDoc*/>>);
     fn maybe_js_doc_cache(&self) -> Option<Vec<Rc<Node /*JSDocTag*/>>>;
-    fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node /*JSDocTag*/>>);
+    fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Rc<Node /*JSDocTag*/>>>);
+    // IncrementalElement
+    fn maybe_intersects_change(&self) -> Option<bool>;
+    fn set_intersects_change(&self, intersects_change: Option<bool>);
+    // fn maybe_length(&self) -> Option<usize>;
+    // fn set_length(&self, length: Option<usize>);
+    // _children: Node[] | undefined;
+    // IncrementalNode
+    // hasBeenIncrementallyParsed: boolean;
 }
 
 #[derive(Debug)]
@@ -571,6 +580,14 @@ impl Node {
         }
     }
 
+    pub fn as_has_jsdoc_dot_pos(&self) -> &dyn HasJSDocDotPosInterface {
+        match self {
+            Node::Identifier(node) => node,
+            Node::QualifiedName(node) => node,
+            _ => panic!("Expected has JSDoc dot pos"),
+        }
+    }
+
     pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
         enum_unwrapped!(self, [Node, VariableDeclarationList])
     }
@@ -782,6 +799,26 @@ impl Node {
     pub fn as_jsdoc_namespace_declaration(&self) -> &JSDocNamespaceDeclaration {
         enum_unwrapped!(self, [Node, JSDocNamespaceDeclaration])
     }
+
+    pub fn as_import_equals_declaration(&self) -> &ImportEqualsDeclaration {
+        enum_unwrapped!(self, [Node, ImportEqualsDeclaration])
+    }
+
+    pub fn as_meta_property(&self) -> &MetaProperty {
+        enum_unwrapped!(self, [Node, MetaProperty])
+    }
+
+    pub fn as_method_declaration(&self) -> &MethodDeclaration {
+        enum_unwrapped!(self, [Node, MethodDeclaration])
+    }
+
+    pub fn as_parenthesized_type_node(&self) -> &ParenthesizedTypeNode {
+        enum_unwrapped!(self, [Node, ParenthesizedTypeNode])
+    }
+
+    pub fn as_base_jsdoc_unary_type(&self) -> &BaseJSDocUnaryType {
+        enum_unwrapped!(self, [Node, BaseJSDocUnaryType])
+    }
 }
 
 #[derive(Debug)]
@@ -792,7 +829,7 @@ pub struct BaseNode {
     modifier_flags_cache: Cell<ModifierFlags>,
     transform_flags: TransformFlags,
     pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
-    pub modifiers: Option<ModifiersArray>,
+    pub modifiers: RefCell<Option<ModifiersArray>>,
     pub id: Cell<Option<NodeId>>,
     pub parent: RefCell<Option<Weak<Node>>>,
     pub original: RefCell<Option<Weak<Node>>>,
@@ -803,6 +840,7 @@ pub struct BaseNode {
     emit_node: RefCell<Option<EmitNode>>,
     js_doc: RefCell<Option<Vec<Weak<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
+    intersects_change: Cell<Option<bool>>,
 }
 
 impl BaseNode {
@@ -820,7 +858,7 @@ impl BaseNode {
             modifier_flags_cache: Cell::new(ModifierFlags::None),
             transform_flags,
             decorators: RefCell::new(None),
-            modifiers: None,
+            modifiers: RefCell::new(None),
             id: Cell::new(None),
             parent: RefCell::new(None),
             original: RefCell::new(None),
@@ -831,6 +869,7 @@ impl BaseNode {
             emit_node: RefCell::new(None),
             js_doc: RefCell::new(None),
             js_doc_cache: RefCell::new(None),
+            intersects_change: Cell::new(None),
         }
     }
 }
@@ -889,8 +928,12 @@ impl NodeInterface for BaseNode {
         *self.decorators.borrow_mut() = decorators;
     }
 
-    fn maybe_modifiers(&self) -> Option<&NodeArray> {
-        self.modifiers.as_ref()
+    fn maybe_modifiers(&self) -> Ref<Option<NodeArray>> {
+        self.modifiers.borrow()
+    }
+
+    fn set_modifiers(&self, modifiers: Option<NodeArray>) {
+        *self.modifiers.borrow_mut() = modifiers;
     }
 
     fn maybe_id(&self) -> Option<NodeId> {
@@ -984,9 +1027,17 @@ impl NodeInterface for BaseNode {
             .map(|vec| vec.iter().map(|weak| weak.upgrade().unwrap()).collect())
     }
 
-    fn set_js_doc_cache(&self, js_doc_cache: Vec<Rc<Node>>) {
-        *self.js_doc_cache.borrow_mut() =
-            Some(js_doc_cache.iter().map(|rc| Rc::downgrade(rc)).collect());
+    fn set_js_doc_cache(&self, js_doc_cache: Option<Vec<Rc<Node>>>) {
+        *self.js_doc_cache.borrow_mut() = js_doc_cache
+            .map(|js_doc_cache| js_doc_cache.iter().map(|rc| Rc::downgrade(rc)).collect());
+    }
+
+    fn maybe_intersects_change(&self) -> Option<bool> {
+        self.intersects_change.get()
+    }
+
+    fn set_intersects_change(&self, intersects_change: Option<bool>) {
+        self.intersects_change.set(intersects_change);
     }
 }
 

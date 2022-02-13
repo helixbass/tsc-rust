@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::Cell;
+use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
 use super::{
@@ -117,7 +117,7 @@ impl ArrowFunction {
 #[ast_type(impl_from = false)]
 pub struct BaseLiteralLikeNode {
     _node: BaseNode,
-    text: String,
+    text: RefCell<String>,
     is_unterminated: Cell<Option<bool>>,
     has_extended_unicode_escape: Cell<Option<bool>>,
 }
@@ -126,7 +126,7 @@ impl BaseLiteralLikeNode {
     pub fn new(base_node: BaseNode, text: String) -> Self {
         Self {
             _node: base_node,
-            text,
+            text: RefCell::new(text),
             is_unterminated: Cell::new(None),
             has_extended_unicode_escape: Cell::new(None),
         }
@@ -134,8 +134,12 @@ impl BaseLiteralLikeNode {
 }
 
 impl LiteralLikeNodeInterface for BaseLiteralLikeNode {
-    fn text(&self) -> &str {
-        &self.text
+    fn text(&self) -> Ref<String> {
+        self.text.borrow()
+    }
+
+    fn set_text(&self, text: String) {
+        *self.text.borrow_mut() = text;
     }
 
     fn is_unterminated(&self) -> Option<bool> {
@@ -157,7 +161,8 @@ impl LiteralLikeNodeInterface for BaseLiteralLikeNode {
 }
 
 pub trait LiteralLikeNodeInterface {
-    fn text(&self) -> &str;
+    fn text(&self) -> Ref<String>;
+    fn set_text(&self, text: String);
     fn is_unterminated(&self) -> Option<bool>;
     fn set_is_unterminated(&self, is_unterminated: Option<bool>);
     fn has_extended_unicode_escape(&self) -> Option<bool>;

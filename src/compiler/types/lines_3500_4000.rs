@@ -1,12 +1,14 @@
 #![allow(non_upper_case_globals)]
 
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
     BaseNode, BaseTextRange, BuildInfo, Diagnostic, EmitHelper, FileReference, LanguageVariant,
-    Node, NodeArray, Path, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
+    Node, NodeArray, Path, ReadonlyPragmaMap, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
 };
+use crate::PragmaContext;
 use local_macros::ast_type;
 
 pub type SourceTextAsChars = Vec<char>;
@@ -35,9 +37,15 @@ pub fn text_str_num_chars(text: &str, start: usize, end: usize) -> usize {
     text[start..end].chars().count()
 }
 
+#[derive(Debug)]
+pub struct AmdDependency {
+    path: String,
+    name: Option<String>,
+}
+
 pub trait SourceFileLike {
-    fn text(&self) -> &str;
-    fn text_as_chars(&self) -> &SourceTextAsChars;
+    fn text(&self) -> Ref<String>;
+    fn text_as_chars(&self) -> Ref<SourceTextAsChars>;
     fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>>;
     fn line_map(&self) -> Ref<Vec<usize>>;
     fn maybe_get_position_of_line_and_character(
@@ -58,21 +66,38 @@ pub struct SourceFile {
 
     file_name: RefCell<String>,
     path: RefCell<Option<Path>>,
-    pub text: String,
-    pub text_as_chars: SourceTextAsChars,
+    text: RefCell<String>,
+    text_as_chars: RefCell<SourceTextAsChars>,
 
-    language_variant: LanguageVariant,
-    is_declaration_file: bool,
+    amd_dependencies: RefCell<Option<Vec<AmdDependency>>>,
+    referenced_files: RefCell<Option<Vec<FileReference>>>,
+    type_reference_directives: RefCell<Option<Vec<FileReference>>>,
+    lib_reference_directives: RefCell<Option<Vec<FileReference>>>,
+    language_variant: Cell<LanguageVariant>,
+    is_declaration_file: Cell<bool>,
 
-    has_no_default_lib: bool,
+    has_no_default_lib: Cell<bool>,
 
-    language_version: ScriptTarget,
+    language_version: Cell<ScriptTarget>,
 
-    script_kind: ScriptKind,
+    script_kind: Cell<ScriptKind>,
+
+    external_module_indicator: RefCell<Option<Rc<Node>>>,
+
+    identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
+    node_count: Cell<Option<usize>>,
+    identifier_count: Cell<Option<usize>>,
 
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
+    bind_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+    bind_suggestion_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+
+    js_doc_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
+
     line_map: RefCell<Option<Vec<usize>>>,
+    comment_directives: RefCell<Option<Vec<CommentDirective>>>,
+    pragmas: RefCell<Option<ReadonlyPragmaMap>>,
 }
 
 impl SourceFile {
@@ -96,15 +121,28 @@ impl SourceFile {
             end_of_file_token,
             file_name: RefCell::new(file_name),
             path: RefCell::new(None),
-            text,
-            text_as_chars,
+            text: RefCell::new(text),
+            text_as_chars: RefCell::new(text_as_chars),
+            amd_dependencies: RefCell::new(None),
+            referenced_files: RefCell::new(None),
+            type_reference_directives: RefCell::new(None),
+            lib_reference_directives: RefCell::new(None),
+            identifiers: RefCell::new(None),
+            node_count: Cell::new(None),
+            identifier_count: Cell::new(None),
             parse_diagnostics: RefCell::new(None),
+            bind_diagnostics: RefCell::new(None),
+            bind_suggestion_diagnostics: RefCell::new(None),
+            js_doc_diagnostics: RefCell::new(None),
             line_map: RefCell::new(None),
-            language_version,
-            language_variant,
-            script_kind,
-            is_declaration_file,
-            has_no_default_lib,
+            language_version: Cell::new(language_version),
+            language_variant: Cell::new(language_variant),
+            script_kind: Cell::new(script_kind),
+            external_module_indicator: RefCell::new(None),
+            is_declaration_file: Cell::new(is_declaration_file),
+            has_no_default_lib: Cell::new(has_no_default_lib),
+            comment_directives: RefCell::new(None),
+            pragmas: RefCell::new(None),
         }
     }
 
@@ -124,14 +162,179 @@ impl SourceFile {
         *self.path.borrow_mut() = Some(path);
     }
 
-    pub fn parse_diagnostics(&self) -> Ref<Vec<Rc<Diagnostic>>> {
-        Ref::map(self.parse_diagnostics.borrow(), |option| {
+    pub fn set_text(&self, text: String) {
+        *self.text_as_chars.borrow_mut() = text.chars().collect();
+        *self.text.borrow_mut() = text;
+    }
+
+    pub fn has_no_default_lib(&self) -> bool {
+        self.has_no_default_lib.get()
+    }
+
+    pub fn set_has_no_default_lib(&self, has_no_default_lib: bool) {
+        self.has_no_default_lib.set(has_no_default_lib);
+    }
+
+    pub fn language_version(&self) -> ScriptTarget {
+        self.language_version.get()
+    }
+
+    pub fn set_language_version(&self, language_version: ScriptTarget) {
+        self.language_version.set(language_version);
+    }
+
+    pub fn script_kind(&self) -> ScriptKind {
+        self.script_kind.get()
+    }
+
+    pub fn set_script_kind(&self, script_kind: ScriptKind) {
+        self.script_kind.set(script_kind);
+    }
+
+    pub fn amd_dependencies(&self) -> Ref<Vec<AmdDependency>> {
+        Ref::map(self.amd_dependencies.borrow(), |option| {
             option.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_amd_dependencies(&self, amd_dependencies: Vec<AmdDependency>) {
+        *self.amd_dependencies.borrow_mut() = Some(amd_dependencies);
+    }
+
+    pub fn referenced_files(&self) -> Ref<Vec<FileReference>> {
+        Ref::map(self.referenced_files.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_referenced_files(&self, referenced_files: Vec<FileReference>) {
+        *self.referenced_files.borrow_mut() = Some(referenced_files);
+    }
+
+    pub fn type_reference_directives(&self) -> Ref<Vec<FileReference>> {
+        Ref::map(self.type_reference_directives.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_type_reference_directives(&self, type_reference_directives: Vec<FileReference>) {
+        *self.type_reference_directives.borrow_mut() = Some(type_reference_directives);
+    }
+
+    pub fn lib_reference_directives(&self) -> Ref<Vec<FileReference>> {
+        Ref::map(self.lib_reference_directives.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    pub fn set_lib_reference_directives(&self, lib_reference_directives: Vec<FileReference>) {
+        *self.lib_reference_directives.borrow_mut() = Some(lib_reference_directives);
+    }
+
+    pub fn language_variant(&self) -> LanguageVariant {
+        self.language_variant.get()
+    }
+
+    pub fn set_language_variant(&self, language_variant: LanguageVariant) {
+        self.language_variant.set(language_variant);
+    }
+
+    pub fn is_declaration_file(&self) -> bool {
+        self.is_declaration_file.get()
+    }
+
+    pub fn set_is_declaration_file(&self, is_declaration_file: bool) {
+        self.is_declaration_file.set(is_declaration_file);
+    }
+
+    pub(crate) fn maybe_external_module_indicator(&self) -> Option<Rc<Node>> {
+        self.external_module_indicator.borrow().clone()
+    }
+
+    pub(crate) fn set_external_module_indicator(
+        &self,
+        external_module_indicator: Option<Rc<Node>>,
+    ) {
+        *self.external_module_indicator.borrow_mut() = external_module_indicator;
+    }
+
+    pub fn identifiers(&self) -> Rc<RefCell<HashMap<String, String>>> {
+        self.identifiers.borrow().clone().unwrap()
+    }
+
+    pub fn set_identifiers(&self, identifiers: Rc<RefCell<HashMap<String, String>>>) {
+        *self.identifiers.borrow_mut() = Some(identifiers);
+    }
+
+    pub fn node_count(&self) -> usize {
+        self.node_count.get().unwrap()
+    }
+
+    pub fn set_node_count(&self, node_count: usize) {
+        self.node_count.set(Some(node_count))
+    }
+
+    pub fn identifier_count(&self) -> usize {
+        self.identifier_count.get().unwrap()
+    }
+
+    pub fn set_identifier_count(&self, identifier_count: usize) {
+        self.identifier_count.set(Some(identifier_count))
+    }
+
+    pub fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
+        RefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
+            option.as_mut().unwrap()
         })
     }
 
     pub fn set_parse_diagnostics(&self, parse_diagnostics: Vec<Rc<Diagnostic>>) {
         *self.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
+    }
+
+    pub fn bind_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
+        RefMut::map(self.bind_diagnostics.borrow_mut(), |option| {
+            option.as_mut().unwrap()
+        })
+    }
+
+    pub fn set_bind_diagnostics(&self, bind_diagnostics: Option<Vec<Rc<Diagnostic>>>) {
+        *self.bind_diagnostics.borrow_mut() = bind_diagnostics;
+    }
+
+    pub fn maybe_bind_suggestion_diagnostics(&self) -> RefMut<Option<Vec<Rc<Diagnostic>>>> {
+        self.bind_suggestion_diagnostics.borrow_mut()
+    }
+
+    pub fn set_bind_suggestion_diagnostics(
+        &self,
+        bind_suggestion_diagnostics: Option<Vec<Rc<Diagnostic>>>,
+    ) {
+        *self.bind_suggestion_diagnostics.borrow_mut() = bind_suggestion_diagnostics;
+    }
+
+    pub fn maybe_js_doc_diagnostics(&self) -> RefMut<Option<Vec<Rc<Diagnostic>>>> {
+        self.js_doc_diagnostics.borrow_mut()
+    }
+
+    pub fn set_js_doc_diagnostics(&self, js_doc_diagnostics: Vec<Rc<Diagnostic>>) {
+        *self.js_doc_diagnostics.borrow_mut() = Some(js_doc_diagnostics);
+    }
+
+    pub fn maybe_comment_directives(&self) -> Ref<Option<Vec<CommentDirective>>> {
+        self.comment_directives.borrow()
+    }
+
+    pub fn set_comment_directives(&self, comment_directives: Option<Vec<CommentDirective>>) {
+        *self.comment_directives.borrow_mut() = comment_directives;
+    }
+
+    pub fn pragmas(&self) -> Ref<ReadonlyPragmaMap> {
+        Ref::map(self.pragmas.borrow(), |option| option.as_ref().unwrap())
+    }
+
+    pub fn set_pragmas(&self, pragmas: ReadonlyPragmaMap) {
+        *self.pragmas.borrow_mut() = Some(pragmas);
     }
 
     pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
@@ -142,12 +345,12 @@ impl SourceFile {
 }
 
 impl SourceFileLike for SourceFile {
-    fn text(&self) -> &str {
-        &self.text
+    fn text(&self) -> Ref<String> {
+        self.text.borrow()
     }
 
-    fn text_as_chars(&self) -> &SourceTextAsChars {
-        &self.text_as_chars
+    fn text_as_chars(&self) -> Ref<SourceTextAsChars> {
+        self.text_as_chars.borrow()
     }
 
     fn maybe_line_map(&self) -> RefMut<Option<Vec<usize>>> {
@@ -169,6 +372,8 @@ impl SourceFileLike for SourceFile {
         None
     }
 }
+
+impl PragmaContext for SourceFile {}
 
 #[derive(Debug)]
 #[ast_type]

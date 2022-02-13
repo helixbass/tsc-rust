@@ -12,25 +12,28 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    add_range, compare_strings_case_sensitive_maybe, compute_line_starts, filter, find_ancestor,
-    first_or_undefined, flat_map, get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache,
-    get_jsdoc_tags, get_jsdoc_type_parameter_tags, get_jsdoc_type_parameter_tags_no_cache,
-    has_initializer, has_jsdoc_nodes, id_text, is_binary_expression, is_call_expression,
-    is_element_access_expression, is_export_declaration, is_expression_statement, is_function_like,
-    is_function_like_or_class_static_block_declaration, is_identifier, is_jsdoc,
-    is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_tag, is_left_hand_side_expression,
-    is_module_declaration, is_no_substituion_template_literal, is_numeric_literal,
-    is_object_literal_expression, is_parenthesized_expression, is_private_identifier,
-    is_property_access_expression, is_source_file, is_string_literal_like, is_variable_statement,
-    is_void_expression, is_white_space_like, last, length, module_resolution_option_declarations,
+    add_range, compare_strings_case_sensitive_maybe, compute_line_starts, concatenate, filter,
+    find_ancestor, first_or_undefined, flat_map, for_each_child_bool, get_jsdoc_parameter_tags,
+    get_jsdoc_parameter_tags_no_cache, get_jsdoc_tags, get_jsdoc_type_parameter_tags,
+    get_jsdoc_type_parameter_tags_no_cache, get_leading_comment_ranges,
+    get_trailing_comment_ranges, has_initializer, has_jsdoc_nodes, id_text, is_binary_expression,
+    is_call_expression, is_element_access_expression, is_export_declaration,
+    is_expression_statement, is_function_like, is_function_like_or_class_static_block_declaration,
+    is_identifier, is_jsdoc, is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_tag,
+    is_left_hand_side_expression, is_module_declaration, is_no_substituion_template_literal,
+    is_numeric_literal, is_object_literal_expression, is_parenthesized_expression,
+    is_private_identifier, is_property_access_expression, is_source_file, is_string_literal_like,
+    is_variable_statement, is_void_expression, is_white_space_like, last, length,
+    maybe_text_char_at_index, module_resolution_option_declarations,
     options_affecting_program_structure, skip_outer_expressions, some, str_to_source_text_as_chars,
     text_substring, AssignmentDeclarationKind, CommandLineOption, CommandLineOptionInterface,
-    CompilerOptions, CompilerOptionsValue, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
-    EmitFlags, EmitTextWriter, LiteralLikeNodeInterface, MapLike, ModifierFlags, ModuleKind, Node,
-    NodeArray, NodeFlags, NodeInterface, ObjectFlags, OuterExpressionKinds, PrefixUnaryExpression,
-    PseudoBigInt, ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SortedArray,
+    CommentRange, CompilerOptions, CompilerOptionsValue, DiagnosticWithDetachedLocation,
+    DiagnosticWithLocation, EmitFlags, EmitTextWriter, Extension, LanguageVariant,
+    LiteralLikeNodeInterface, MapLike, ModifierFlags, ModuleKind, Node, NodeArray, NodeFlags,
+    NodeInterface, ObjectFlags, OuterExpressionKinds, PrefixUnaryExpression, PseudoBigInt,
+    ReadonlyTextRange, ScriptKind, ScriptTarget, Signature, SignatureFlags, SortedArray,
     SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolWriter, SyntaxKind, TextSpan, TokenFlags, TransformFlags,
+    SymbolTracker, SymbolWriter, SyntaxKind, TextRange, TextSpan, TokenFlags, TransformFlags,
     TransientSymbolInterface, Type, TypeFlags, TypeInterface, UnderscoreEscapedMap, __String,
     compare_strings_case_sensitive, compare_values, create_text_span_from_bounds,
     escape_leading_underscores, for_each, get_combined_node_flags, get_name_of_declaration,
@@ -324,7 +327,7 @@ fn get_source_text_of_node_from_source_file(
 ) -> String {
     let include_trivia = include_trivia.unwrap_or(false);
     get_text_of_node_from_source_text(
-        source_file.as_source_file().text_as_chars(),
+        &*source_file.as_source_file().text_as_chars(),
         node,
         Some(include_trivia),
     )
@@ -403,7 +406,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 format!(
                     "'{}'",
                     escape_text(
-                        node_as_string_literal.text(),
+                        &*node_as_string_literal.text(),
                         Some(CharacterCodes::single_quote)
                     )
                 )
@@ -411,7 +414,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 format!(
                     "\"{}\"",
                     escape_text(
-                        node_as_string_literal.text(),
+                        &*node_as_string_literal.text(),
                         Some(CharacterCodes::double_quote)
                     )
                 )
@@ -431,7 +434,7 @@ pub fn get_literal_text<TNodeRef: Borrow<Node>>(
                 .clone()
                 .unwrap_or_else(|| {
                     escape_template_substitution(&escape_text(
-                        node_as_template_literal_like_node.text(),
+                        &*node_as_template_literal_like_node.text(),
                         Some(CharacterCodes::backtick),
                     ))
                 });
@@ -504,6 +507,30 @@ pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWr
 
 pub fn get_full_width(node: &Node) -> isize {
     node.end() - node.pos()
+}
+
+pub fn contains_parse_error(node: &Node) -> bool {
+    aggregate_child_data(node);
+    node.flags()
+        .intersects(NodeFlags::ThisNodeOrAnySubNodesHasError)
+}
+
+fn aggregate_child_data(node: &Node) {
+    if !node.flags().intersects(NodeFlags::HasAggregatedChildData) {
+        let this_node_or_any_sub_nodes_has_error =
+            node.flags().intersects(NodeFlags::ThisNodeHasError)
+                || for_each_child_bool(
+                    node,
+                    |child| contains_parse_error(child),
+                    Option::<fn(&NodeArray) -> bool>::None,
+                );
+
+        if this_node_or_any_sub_nodes_has_error {
+            node.set_flags(node.flags() | NodeFlags::ThisNodeOrAnySubNodesHasError);
+        }
+
+        node.set_flags(node.flags() | NodeFlags::HasAggregatedChildData);
+    }
 }
 
 pub fn get_source_file_of_node(node: &Node) -> Rc<Node /*SourceFile*/> {
@@ -695,6 +722,40 @@ pub fn is_super_property(node: &Node) -> bool {
         node.kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
     ) && node.as_has_expression().expression().kind() == SyntaxKind::SuperKeyword
+}
+
+pub fn get_jsdoc_comment_ranges<TNode: NodeInterface>(
+    node: &TNode,
+    text: &SourceTextAsChars,
+) -> Option<Vec<CommentRange>> {
+    let comment_ranges = if matches!(
+        node.kind(),
+        SyntaxKind::Parameter
+            | SyntaxKind::TypeParameter
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::VariableDeclaration
+    ) {
+        Some(concatenate(
+            // TODO: should get_trailing_comment_ranges()/get_leading_comment_ranges() accept isize instead?
+            get_trailing_comment_ranges(text, node.pos().try_into().unwrap())
+                .unwrap_or_else(|| vec![]),
+            get_leading_comment_ranges(text, node.pos().try_into().unwrap())
+                .unwrap_or_else(|| vec![]),
+        ))
+    } else {
+        get_leading_comment_ranges(text, node.pos().try_into().unwrap())
+    };
+    filter(comment_ranges.as_deref(), |comment| {
+        matches!(maybe_text_char_at_index(text, (comment.pos() + 1).try_into().unwrap()), Some(ch) if ch == CharacterCodes::asterisk)
+            && matches!(maybe_text_char_at_index(text, (comment.pos() + 2).try_into().unwrap()), Some(ch) if ch == CharacterCodes::asterisk)
+            && match maybe_text_char_at_index(text, (comment.pos() + 3).try_into().unwrap()) {
+                None => true,
+                Some(ch) if ch != CharacterCodes::slash => true,
+                _ => false,
+            }
+    })
 }
 
 pub fn is_variable_like(node: &Node) -> bool {
@@ -903,7 +964,7 @@ fn is_void_zero(node: &Node) -> bool {
     }
     let node_expression_as_numeric_literal =
         node_as_void_expression.expression.as_numeric_literal();
-    node_expression_as_numeric_literal.text() == "0"
+    &*node_expression_as_numeric_literal.text() == "0"
 }
 
 pub fn get_element_or_property_access_argument_expression_or_name(
@@ -932,7 +993,7 @@ pub fn get_element_or_property_access_name(node: &Node, /*AccessExpression*/) ->
         }
         if is_string_literal_like(&*name) || is_numeric_literal(&*name) {
             return Some(escape_leading_underscores(
-                name.as_literal_like_node().text(),
+                &*name.as_literal_like_node().text(),
             ));
         }
         None
@@ -1390,7 +1451,7 @@ pub fn get_escaped_text_of_identifier_or_literal(node: &Node) -> __String {
     if is_member_name(node) {
         node.as_member_name().escaped_text()
     } else {
-        escape_leading_underscores(node.as_literal_like_node().text())
+        escape_leading_underscores(&*node.as_literal_like_node().text())
     }
 }
 
@@ -2042,7 +2103,7 @@ pub fn get_syntactic_modifier_flags<TNode: NodeInterface>(node: &TNode) -> Modif
 }
 
 fn get_syntactic_modifier_flags_no_cache<TNode: NodeInterface>(node: &TNode) -> ModifierFlags {
-    let mut flags = modifiers_to_flags(node.maybe_modifiers());
+    let mut flags = modifiers_to_flags(node.maybe_modifiers().as_ref());
     if node.flags().intersects(NodeFlags::NestedNamespace) || false {
         flags |= ModifierFlags::Export;
     }
@@ -2423,7 +2484,7 @@ pub fn attach_file_to_diagnostic(
 ) -> DiagnosticWithLocation {
     let file_as_source_file = file.as_source_file();
     let file_name = file_as_source_file.file_name();
-    let length: isize = file_as_source_file.text.len().try_into().unwrap();
+    let length: isize = file_as_source_file.text().len().try_into().unwrap();
     Debug_.assert_equal(&diagnostic.file_name, &*file_name, None, None);
     Debug_.assert_less_than_or_equal(diagnostic.start(), length);
     Debug_.assert_less_than_or_equal(diagnostic.start() + diagnostic.length(), length);
@@ -2683,6 +2744,15 @@ fn compare_message_text(t1: &DiagnosticMessageText, t2: &DiagnosticMessageText) 
     Comparison::EqualTo
 }
 
+pub fn get_language_variant(script_kind: ScriptKind) -> LanguageVariant {
+    match script_kind {
+        ScriptKind::TSX | ScriptKind::JSX | ScriptKind::JS | ScriptKind::JSON => {
+            LanguageVariant::JSX
+        }
+        _ => LanguageVariant::Standard,
+    }
+}
+
 pub fn get_emit_script_target(compiler_options: &CompilerOptions) -> ScriptTarget {
     compiler_options.target.unwrap_or_else(|| {
         if matches!(compiler_options.module, Some(ModuleKind::Node12)) {
@@ -2909,6 +2979,32 @@ pub fn get_compiler_option_value(
     }
 }
 
+pub fn ensure_script_kind(file_name: &str, script_kind: Option<ScriptKind>) -> ScriptKind {
+    script_kind.unwrap_or_else(|| {
+        let script_kind = get_script_kind_from_file_name(file_name);
+        if script_kind == ScriptKind::Unknown {
+            ScriptKind::TS
+        } else {
+            script_kind
+        }
+    })
+}
+
+pub fn get_script_kind_from_file_name(file_name: &str) -> ScriptKind {
+    let ext = file_name
+        .rfind('.')
+        .map(|extension_index| file_name[extension_index..].to_owned())
+        .and_then(|ext| Extension::maybe_from_str(&ext));
+    match ext {
+        Some(Extension::Js) | Some(Extension::Cjs) | Some(Extension::Mjs) => ScriptKind::JS,
+        Some(Extension::Jsx) => ScriptKind::JSX,
+        Some(Extension::Ts) | Some(Extension::Cts) | Some(Extension::Mts) => ScriptKind::TS,
+        Some(Extension::Tsx) => ScriptKind::TSX,
+        Some(Extension::Json) => ScriptKind::JSON,
+        _ => ScriptKind::Unknown,
+    }
+}
+
 pub fn position_is_synthesized(pos: isize) -> bool {
     !(pos >= 0)
 }
@@ -2945,11 +3041,23 @@ pub fn set_text_range_pos_end<TRange: ReadonlyTextRange>(range: &TRange, pos: is
     set_text_range_end(set_text_range_pos(range, pos), end);
 }
 
+pub fn set_text_range_pos_width<TRange: ReadonlyTextRange>(
+    range: &TRange,
+    pos: isize,
+    width: isize,
+) {
+    set_text_range_pos_end(range, pos, pos + width);
+}
+
 pub fn set_parent(child: &Node, parent: Option<Rc<Node>>) -> &Node {
     if let Some(parent) = parent {
         child.set_parent(parent.clone());
     }
     child
+}
+
+pub fn set_parent_recursive<TNode: Borrow<Node>>(root_node: Option<TNode>, incremental: bool) {
+    unimplemented!()
 }
 
 pub fn is_function_expression_or_arrow_function(node: &Node) -> bool {

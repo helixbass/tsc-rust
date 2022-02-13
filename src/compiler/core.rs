@@ -2,9 +2,10 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
+use std::mem;
 use std::ptr;
 
-use crate::{Comparison, Debug_, SortedArray};
+use crate::{text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
     array.map_or(0, |array| array.len())
@@ -68,6 +69,18 @@ pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .enumerate()
         .find(|(index, value)| predicate(value, *index))
         .map(|(_, value)| value)
+}
+
+pub fn find_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: &[TItem],
+    mut predicate: TCallback,
+    start_index: Option<usize>,
+) -> Option<usize> {
+    array
+        .into_iter()
+        .enumerate()
+        .skip(start_index.unwrap_or(0))
+        .position(|(index, value)| predicate(value, index))
 }
 
 pub fn contains<TItem: Eq>(array: Option<&[TItem]>, value: &TItem) -> bool {
@@ -147,6 +160,26 @@ pub fn flat_map<
         result = Some(some_result);
     }
     result.unwrap_or(vec![])
+}
+
+pub fn map_defined<
+    TCollection: IntoIterator,
+    TReturn,
+    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
+>(
+    array: Option<TCollection>,
+    mut map_fn: TCallback,
+) -> Vec<TReturn> {
+    let mut result = vec![];
+    if let Some(array) = array {
+        for (i, item) in array.into_iter().enumerate() {
+            let mapped = map_fn(item, i);
+            if let Some(mapped) = mapped {
+                result.push(mapped);
+            }
+        }
+    }
+    result
 }
 
 pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(
@@ -630,6 +663,113 @@ pub fn set_ui_locale(value: Option<String>) {
             })
         }
     })
+}
+
+pub fn get_spelling_suggestion<
+    'candidates,
+    TCandidate,
+    TGetName: FnMut(&TCandidate) -> Option<String>,
+>(
+    name: &str,
+    candidates: &'candidates [TCandidate],
+    mut get_name: TGetName,
+) -> Option<&'candidates TCandidate> {
+    let name_len_as_f64 = name.len() as f64;
+    let maximum_length_difference = f64::min(2.0, (name_len_as_f64 * 0.34).floor());
+    let mut best_distance = (name_len_as_f64 * 0.4).floor() + 1.0;
+    let mut best_candidate = None;
+    for candidate in candidates {
+        let candidate_name = get_name(candidate);
+        if let Some(candidate_name) = candidate_name {
+            if (TryInto::<isize>::try_into(candidate_name.len()).unwrap()
+                - TryInto::<isize>::try_into(name.len()).unwrap())
+            .abs() as f64
+                <= maximum_length_difference
+            {
+                if candidate_name == name {
+                    continue;
+                }
+                if candidate_name.len() < 3 && candidate_name.to_lowercase() != name.to_lowercase()
+                {
+                    continue;
+                }
+
+                let distance = levenshtein_with_max(
+                    &name.chars().collect(),
+                    &candidate_name.chars().collect(),
+                    best_distance - 0.1,
+                );
+                if distance.is_none() {
+                    continue;
+                }
+                let distance = distance.unwrap();
+
+                Debug_.assert(distance < best_distance, None);
+                best_distance = distance;
+                best_candidate = Some(candidate);
+            }
+        }
+    }
+    best_candidate
+}
+
+fn levenshtein_with_max(s1: &SourceTextAsChars, s2: &SourceTextAsChars, max: f64) -> Option<f64> {
+    let mut previous: Vec<f64> = Vec::with_capacity(s2.len() + 1);
+    let mut current: Vec<f64> = Vec::with_capacity(s2.len() + 1);
+    let big = max + 0.01;
+
+    for i in 0..=s2.len() {
+        previous[i] = i as f64;
+    }
+
+    let s2_len_as_f64 = s2.len() as f64;
+    for i in 1..=s1.len() {
+        let i_as_f64 = i as f64;
+        let c1 = text_char_at_index(s1, i - 1);
+        let min_j = (if i_as_f64 > max { i_as_f64 - max } else { 1.0 }).ceil() as usize;
+        let max_j = (if s2_len_as_f64 > max + i_as_f64 {
+            max + i_as_f64
+        } else {
+            s2_len_as_f64
+        })
+        .floor() as usize;
+        current[0] = i_as_f64;
+        let mut col_min = i_as_f64;
+        for j in 1..min_j {
+            current[j] = big;
+        }
+        for j in min_j..=max_j {
+            let substitution_distance = if s1[i - 1].to_lowercase().eq(s2[j - 1].to_lowercase()) {
+                previous[j - 1] + 0.1
+            } else {
+                previous[j - 1] + 2.0
+            };
+            let dist = if c1 == text_char_at_index(s2, j - 1) {
+                previous[j - 1]
+            } else {
+                (previous[j] + 1.0)
+                    .min(current[j - 1] + 1.0)
+                    .min(substitution_distance)
+            };
+            current[j] = dist;
+            col_min = col_min.min(dist);
+        }
+        for j in max_j + 1..=s2.len() {
+            current[j] = big;
+        }
+        if col_min > max {
+            return None;
+        }
+
+        mem::swap(&mut previous, &mut current);
+    }
+
+    let res = previous[s2.len()];
+    if res > max {
+        None
+    } else {
+        Some(res)
+    }
 }
 
 pub fn ends_with(str_: &str, suffix: &str) -> bool {

@@ -8,7 +8,8 @@ mod rust_helpers;
 pub use compiler::binder::bind_source_file;
 pub use compiler::checker::{create_type_checker, NodeBuilder};
 use compiler::command_line_parser::{
-    module_resolution_option_declarations, options_affecting_program_structure,
+    convert_to_object_worker, module_resolution_option_declarations,
+    options_affecting_program_structure,
 };
 pub use compiler::command_line_parser::{parse_command_line, OptionsNameMap};
 pub use compiler::core::{
@@ -16,10 +17,11 @@ pub use compiler::core::{
     compare_strings_case_insensitive, compare_strings_case_sensitive,
     compare_strings_case_sensitive_maybe, compare_values, concatenate, contains, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, filter,
-    find, first_defined, first_or_undefined, flat_map, for_each, get_string_comparer,
-    insert_sorted, last, last_or_undefined, length, map, maybe_for_each, range_equals, same_map,
-    set_ui_locale, some, sort_and_deduplicate, starts_with, string_contains, trim_string_start,
-    AssertionLevel, GetCanonicalFileName,
+    find, find_index, first_defined, first_or_undefined, flat_map, for_each,
+    get_spelling_suggestion, get_string_comparer, insert_sorted, last, last_or_undefined, length,
+    map, map_defined, maybe_for_each, range_equals, same_map, set_ui_locale, some,
+    sort_and_deduplicate, starts_with, string_contains, trim_string_start, AssertionLevel,
+    GetCanonicalFileName,
 };
 pub use compiler::core_public::{Comparer, Comparison, MapLike, Push, SortedArray};
 pub use compiler::debug::Debug_;
@@ -103,7 +105,15 @@ pub use compiler::factory::utilities::{
     is_comma_sequence, is_local_name, is_outer_expression, skip_outer_expressions,
 };
 pub use compiler::factory::utilities_public::set_text_range;
-pub use compiler::parser::{create_source_file, for_each_child, MissingNode, ParserType};
+pub use compiler::parser::{
+    create_source_file, for_each_child, for_each_child_bool, for_each_child_returns,
+    is_external_module, IncrementalParser, IncrementalParserSyntaxCursor,
+    IncrementalParserSyntaxCursorInterface, IncrementalParserSyntaxCursorReparseTopLevelAwait,
+    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
+};
+use compiler::parser::{
+    is_declaration_file_name, process_comment_pragmas, process_pragmas_into_fields, PragmaContext,
+};
 pub use compiler::path::{
     alt_directory_separator, change_any_extension, combine_paths, compare_paths,
     compare_paths_case_insensitive, compare_paths_case_sensitive, contains_path,
@@ -165,17 +175,17 @@ pub use compiler::types::{
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, DoStatement, ElementAccessExpression,
     EmitFlags, EmitHelper, EmitHint, EmitTextWriter, EmptyStatement, EnumDeclaration, EnumMember,
     ExitStatus, ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
-    ExpressionWithTypeArguments, ExternalModuleReference, FileReference, FlowNode, ForInStatement,
-    ForOfStatement, ForStatement, FreshableIntrinsicType, FunctionDeclaration, FunctionExpression,
-    FunctionLikeDeclarationBase, FunctionLikeDeclarationInterface, FunctionTypeNode,
-    GeneratedIdentifierFlags, GenericNamedDeclarationInterface, GenericTypeInterface,
-    GenericableTypeInterface, GetAccessorDeclaration, HasElementsInterface, HasExpressionInterface,
-    HasInitializerInterface, HasIsTypeOnlyInterface, HasQuestionDotTokenInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, HeritageClause,
-    Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
-    ImportSpecifier, ImportTypeNode, ImportsNotUsedAsValues, IndexSignatureDeclaration,
-    IndexedAccessTypeNode, InferTypeNode, InputFiles, InterfaceDeclaration,
-    InterfaceOrClassLikeDeclarationInterface, InterfaceType,
+    ExpressionWithTypeArguments, Extension, ExternalModuleReference, FileReference, FlowNode,
+    ForInStatement, ForOfStatement, ForStatement, FreshableIntrinsicType, FunctionDeclaration,
+    FunctionExpression, FunctionLikeDeclarationBase, FunctionLikeDeclarationInterface,
+    FunctionTypeNode, GeneratedIdentifierFlags, GenericNamedDeclarationInterface,
+    GenericTypeInterface, GenericableTypeInterface, GetAccessorDeclaration, HasElementsInterface,
+    HasExpressionInterface, HasInitializerInterface, HasIsTypeOnlyInterface,
+    HasJSDocDotPosInterface, HasQuestionDotTokenInterface, HasTypeArgumentsInterface,
+    HasTypeInterface, HasTypeParametersInterface, HeritageClause, Identifier, IfStatement,
+    ImportClause, ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
+    ImportsNotUsedAsValues, IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode,
+    InputFiles, InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface, InterfaceType,
     InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, IntersectionTypeNode,
     IntrinsicType, IntrinsicTypeInterface, JSDoc, JSDocAugmentsTag, JSDocCallbackTag,
     JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface,
@@ -221,12 +231,15 @@ pub use compiler::types::{
     VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
     VariableStatement, VoidExpression, WhileStatement, WithStatement, YieldExpression, __String,
 };
-use compiler::types::{CommandLineOptionType, EmitNode, StringOrDiagnosticMessage};
+use compiler::types::{
+    CommandLineOptionType, EmitNode, ReadonlyPragmaMap, StringOrDiagnosticMessage,
+};
 pub use compiler::utilities::{
     attach_file_to_diagnostics, chain_diagnostic_messages, compare_diagnostics,
-    create_compiler_diagnostic, create_detached_diagnostic, create_diagnostic_collection,
-    create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain, create_symbol_table,
-    create_text_writer, declaration_name_to_string, entity_name_to_string,
+    contains_parse_error, create_compiler_diagnostic, create_detached_diagnostic,
+    create_diagnostic_collection, create_diagnostic_for_node,
+    create_diagnostic_for_node_from_message_chain, create_symbol_table, create_text_writer,
+    declaration_name_to_string, ensure_script_kind, entity_name_to_string,
     get_assignment_declaration_kind, get_binary_operator_precedence, get_check_flags,
     get_containing_function_or_class_static_block, get_declaration_of_kind,
     get_effective_initializer, get_effective_modifier_flags,
@@ -234,20 +247,22 @@ pub use compiler::utilities::{
     get_effective_type_annotation_node, get_element_or_property_access_argument_expression_or_name,
     get_emit_flags, get_emit_script_target, get_escaped_text_of_identifier_or_literal,
     get_expression_associativity, get_expression_precedence, get_first_identifier, get_full_width,
-    get_function_flags, get_jsdoc_comments_and_tags, get_jsdoc_type_parameter_declarations,
-    get_leftmost_expression, get_literal_text, get_object_flags, get_operator_associativity,
-    get_operator_precedence, get_source_file_of_node, get_syntactic_modifier_flags,
-    get_text_of_identifier_or_literal, has_dynamic_name, has_static_modifier,
-    has_syntactic_modifier, is_access_expression, is_ambient_module, is_any_import_or_re_export,
-    is_assignment_expression, is_bindable_static_element_access_expression,
-    is_block_or_catch_scoped, is_external_or_common_js_module, is_function_block,
-    is_function_expression_or_arrow_function, is_import_call, is_in_js_file, is_jsdoc_type_alias,
-    is_keyword, is_logical_or_coalescing_assignment_operator, is_object_literal_method,
+    get_function_flags, get_jsdoc_comment_ranges, get_jsdoc_comments_and_tags,
+    get_jsdoc_type_parameter_declarations, get_language_variant, get_leftmost_expression,
+    get_literal_text, get_object_flags, get_operator_associativity, get_operator_precedence,
+    get_source_file_of_node, get_syntactic_modifier_flags, get_text_of_identifier_or_literal,
+    has_dynamic_name, has_static_modifier, has_syntactic_modifier, is_access_expression,
+    is_ambient_module, is_any_import_or_re_export, is_assignment_expression,
+    is_bindable_static_element_access_expression, is_block_or_catch_scoped,
+    is_external_or_common_js_module, is_function_block, is_function_expression_or_arrow_function,
+    is_import_call, is_in_js_file, is_jsdoc_type_alias, is_keyword,
+    is_logical_or_coalescing_assignment_operator, is_object_literal_method,
     is_property_name_literal, is_super_property, is_this_identifier, is_type_alias,
     is_type_node_kind, is_write_only_access, modifier_to_flag, modifiers_to_flags, node_is_missing,
     object_allocator, parse_pseudo_big_int, position_is_synthesized, pseudo_big_int_to_string,
-    set_parent, set_text_range_pos_end, set_value_declaration, using_single_line_string_writer,
-    Associativity, FunctionFlags, GetLiteralTextFlags, OperatorPrecedence,
+    set_parent, set_parent_recursive, set_text_range_pos_end, set_text_range_pos_width,
+    set_value_declaration, using_single_line_string_writer, Associativity, FunctionFlags,
+    GetLiteralTextFlags, OperatorPrecedence,
 };
 use compiler::utilities::{has_invalid_escape, set_localized_diagnostic_messages};
 pub use compiler::utilities_public::{

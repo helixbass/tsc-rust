@@ -5,10 +5,13 @@ use std::rc::Rc;
 
 use super::{ParserType, SignatureFlags};
 use crate::{
-    append, modifiers_to_flags, some, BaseNode, BaseNodeFactory, Block, Debug_, Decorator,
-    DiagnosticMessage, Diagnostics, FunctionDeclaration, InterfaceDeclaration, ModifierFlags, Node,
-    NodeArray, NodeFlags, NodeInterface, SyntaxKind, TypeAliasDeclaration, VariableDeclaration,
-    VariableDeclarationList,
+    append, for_each, for_each_child_returns, is_class_member_modifier, is_export_assignment,
+    is_export_declaration, is_external_module_reference, is_import_declaration,
+    is_import_equals_declaration, is_keyword, is_meta_property, is_modifier_kind,
+    modifiers_to_flags, some, token_is_identifier_or_keyword, BaseNode, BaseNodeFactory, Block,
+    Debug_, Decorator, Diagnostic, DiagnosticMessage, Diagnostics, FunctionDeclaration,
+    InterfaceDeclaration, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
+    TypeAliasDeclaration, VariableDeclaration, VariableDeclarationList,
 };
 
 impl ParserType {
@@ -26,6 +29,11 @@ impl ParserType {
                 .into()
         };
         self.finish_node(node, pos, None)
+    }
+
+    pub(super) fn next_token_is_identifier_or_keyword_on_same_line(&self) -> bool {
+        self.next_token();
+        token_is_identifier_or_keyword(self.token()) && !self.scanner().has_preceding_line_break()
     }
 
     pub(super) fn next_token_is_class_keyword_on_same_line(&self) -> bool {
@@ -192,7 +200,7 @@ impl ParserType {
         private_identifier_diagnostic_message: Option<&DiagnosticMessage>,
     ) -> Rc<Node> {
         self.parse_binding_identifier(private_identifier_diagnostic_message)
-            .into()
+            .wrap()
     }
 
     pub(super) fn parse_variable_declaration_no_exclamation(&self) -> VariableDeclaration {
@@ -256,7 +264,7 @@ impl ParserType {
         } else {
             declarations = self.parse_delimited_list(
                 ParsingContext::VariableDeclarations,
-                ParserType::parse_variable_declaration_allow_exclamation,
+                || self.parse_variable_declaration_allow_exclamation().into(),
                 None,
             );
         }
@@ -328,13 +336,78 @@ impl ParserType {
             decorators,
             modifiers,
             asterisk_token.map(Into::into),
-            name.map(Into::<Rc<Node>>::into),
+            name.map(|name| name.wrap()),
             type_parameters,
             parameters,
             type_.map(|type_| type_.wrap()),
             body.map(Into::into),
         );
         self.finish_node(node, pos, None)
+    }
+
+    pub(super) fn parse_accessor_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        kind: SyntaxKind, /*AccessorDeclaration["kind"]*/
+    ) -> Node /*AccessorDeclaration*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn is_class_member_start(&self) -> bool {
+        let mut id_token: Option<SyntaxKind> = None;
+
+        if self.token() == SyntaxKind::AtToken {
+            return true;
+        }
+
+        while is_modifier_kind(self.token()) {
+            id_token = Some(self.token());
+            if is_class_member_modifier(id_token.unwrap()) {
+                return true;
+            }
+
+            self.next_token();
+        }
+
+        if self.token() == SyntaxKind::AsteriskToken {
+            return true;
+        }
+
+        if self.is_literal_property_name() {
+            id_token = Some(self.token());
+            self.next_token();
+        }
+
+        if self.token() == SyntaxKind::OpenBracketToken {
+            return true;
+        }
+
+        if let Some(id_token) = id_token {
+            if !is_keyword(id_token)
+                || matches!(id_token, SyntaxKind::SetKeyword | SyntaxKind::GetKeyword)
+            {
+                return true;
+            }
+
+            match self.token() {
+                SyntaxKind::OpenParenToken
+                | SyntaxKind::LessThanToken
+                | SyntaxKind::ExclamationToken
+                | SyntaxKind::ColonToken
+                | SyntaxKind::EqualsToken
+                | SyntaxKind::QuestionToken => {
+                    return true;
+                }
+                _ => {
+                    return self.can_parse_semicolon();
+                }
+            }
+        }
+
+        false
     }
 
     pub(super) fn try_parse_decorator(&self) -> Option<Decorator> {
@@ -347,7 +420,7 @@ impl ParserType {
 
     pub(super) fn parse_decorators(&self) -> Option<NodeArray /*<Decorator>*/> {
         let pos = self.get_node_pos();
-        let mut list: Option<Vec<Node>> = None;
+        let mut list: Option<Vec<Rc<Node>>> = None;
         loop {
             let decorator = self.try_parse_decorator();
             if decorator.is_none() {
@@ -403,7 +476,7 @@ impl ParserType {
         stop_on_start_of_class_static_block: Option<bool>,
     ) -> Option<NodeArray /*<Modifier>*/> {
         let pos = self.get_node_pos();
-        let mut list: Option<Vec<Node>> = None;
+        let mut list: Option<Vec<Rc<Node>>> = None;
         let mut has_seen_static = false;
         loop {
             let modifier = self.try_parse_modifier(
@@ -422,13 +495,20 @@ impl ParserType {
                 list = Some(vec![]);
             }
             let list = list.as_mut().unwrap();
-            append(list, Some(modifier));
+            append(list, Some(modifier.wrap()));
         }
         list.map(|list| self.create_node_array(list, pos, None, None))
     }
 
     pub(super) fn parse_heritage_clauses(&self) -> Option<NodeArray /*<HeritageClause>*/> {
         None
+    }
+
+    pub(super) fn is_heritage_clause(&self) -> bool {
+        matches!(
+            self.token(),
+            SyntaxKind::ExtendsKeyword | SyntaxKind::ImplementsKeyword
+        )
     }
 
     pub(super) fn parse_interface_declaration(
@@ -446,7 +526,7 @@ impl ParserType {
             self,
             decorators,
             modifiers,
-            Into::<Rc<Node>>::into(name),
+            name.wrap(),
             type_parameters,
             heritage_clauses,
             members,
@@ -474,37 +554,156 @@ impl ParserType {
             self,
             decorators,
             modifiers,
-            Into::<Rc<Node>>::into(name),
+            name.wrap(),
             type_parameters,
             type_.wrap(),
         );
         self.finish_node(node, pos, None)
     }
 
+    pub(super) fn next_token_is_open_paren(&self) -> bool {
+        self.next_token() == SyntaxKind::OpenParenToken
+    }
+
     pub(super) fn next_token_is_open_brace(&self) -> bool {
         self.next_token() == SyntaxKind::OpenBraceToken
     }
+
+    pub(super) fn next_token_is_slash(&self) -> bool {
+        self.next_token() == SyntaxKind::SlashToken
+    }
+
+    pub(super) fn set_external_module_indicator(&self, source_file: &Node /*SourceFile*/) {
+        let source_file_as_source_file = source_file.as_source_file();
+        source_file_as_source_file.set_external_module_indicator(
+            for_each(&source_file_as_source_file.statements, |statement, _| {
+                self.is_an_external_module_indicator_node(statement)
+            })
+            .or_else(|| self.get_import_meta_if_necessary(source_file)),
+        );
+    }
+
+    pub(super) fn is_an_external_module_indicator_node(&self, node: &Node) -> Option<Rc<Node>> {
+        if self.has_modifier_of_kind(node, SyntaxKind::ExportKeyword)
+            || is_import_equals_declaration(node)
+                && is_external_module_reference(
+                    &node.as_import_equals_declaration().module_reference,
+                )
+            || is_import_declaration(node)
+            || is_export_assignment(node)
+            || is_export_declaration(node)
+        {
+            Some(node.node_wrapper())
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_import_meta_if_necessary(
+        &self,
+        source_file: &Node, /*SourceFile*/
+    ) -> Option<Rc<Node>> {
+        if source_file
+            .flags()
+            .intersects(NodeFlags::PossiblyContainsImportMeta)
+        {
+            self.walk_tree_for_external_module_indicators(source_file)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn walk_tree_for_external_module_indicators(&self, node: &Node) -> Option<Rc<Node>> {
+        if self.is_import_meta(node) {
+            Some(node.node_wrapper())
+        } else {
+            for_each_child_returns(
+                node,
+                |child| self.walk_tree_for_external_module_indicators(child),
+                Option::<fn(&NodeArray) -> Option<Rc<Node>>>::None,
+            )
+        }
+    }
+
+    pub(super) fn has_modifier_of_kind(&self, node: &Node, kind: SyntaxKind) -> bool {
+        let modifiers = node.maybe_modifiers();
+        let modifiers: Option<&[Rc<Node>]> = modifiers.as_ref().map(|node_array| {
+            let slice_ref: &[Rc<Node>] = node_array;
+            slice_ref
+        });
+        some(modifiers, Some(|m: &Rc<Node>| m.kind() == kind))
+    }
+
+    pub(super) fn is_import_meta(&self, node: &Node) -> bool {
+        if !is_meta_property(node) {
+            return false;
+        }
+        let node_as_meta_property = node.as_meta_property();
+        node_as_meta_property.keyword_token == SyntaxKind::ImportKeyword
+            && node_as_meta_property
+                .name
+                .as_identifier()
+                .escaped_text
+                .eq_str("meta")
+    }
+
+    pub fn JSDocParser_parse_jsdoc_type_expression_for_tests(
+        &self,
+        content: String,
+        start: Option<usize>,
+        length: Option<usize>,
+    ) -> Option<ParsedJSDocTypeExpression> {
+        unimplemented!()
+    }
+
+    pub fn JSDocParser_parse_isolated_jsdoc_comment(
+        &self,
+        content: String,
+        start: Option<usize>,
+        length: Option<usize>,
+    ) -> Option<ParsedIsolatedJSDocComment> {
+        unimplemented!()
+    }
+
+    pub fn JSDocParser_parse_jsdoc_comment<TNode: NodeInterface>(
+        &self,
+        parent: &TNode,
+        start: usize,
+        length: usize,
+    ) -> Option<Rc<Node /*JSDoc*/>> {
+        unimplemented!()
+    }
+}
+
+pub struct ParsedJSDocTypeExpression {
+    pub js_doc_type_expression: Rc<Node /*JSDocTypeExpression*/>,
+    pub diagnostics: Vec<Rc<Diagnostic>>,
+}
+
+pub struct ParsedIsolatedJSDocComment {
+    pub js_doc: Rc<Node /*JSDoc*/>,
+    pub diagnostics: Vec<Rc<Diagnostic>>,
 }
 
 impl BaseNodeFactory for ParserType {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.SourceFileConstructor()(kind, 0, 0)
+        self.count_node(self.SourceFileConstructor()(kind, 0, 0))
     }
 
     fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.IdentifierConstructor()(kind, 0, 0)
+        self.count_node(self.IdentifierConstructor()(kind, 0, 0))
     }
 
     fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.PrivateIdentifierConstructor()(kind, 0, 0)
+        self.count_node(self.PrivateIdentifierConstructor()(kind, 0, 0))
     }
 
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.TokenConstructor()(kind, 0, 0)
+        self.count_node(self.TokenConstructor()(kind, 0, 0))
     }
 
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.NodeConstructor()(kind, 0, 0)
+        self.count_node(self.NodeConstructor()(kind, 0, 0))
     }
 }
 
@@ -525,12 +724,29 @@ bitflags! {
         const None = 0;
         const SourceElements = 1 << 0;
         const BlockStatements = 1 << 1;
+        const SwitchClauses = 1 << 2;
+        const SwitchClauseStatements = 1 << 3;
         const TypeMembers = 1 << 4;
+        const ClassMembers = 1 << 5;
+        const EnumMembers = 1 << 6;
+        const HeritageClauseElement = 1 << 7;
         const VariableDeclarations = 1 << 8;
+        const ObjectBindingElements = 1 << 9;
+        const ArrayBindingElements = 1 << 10;
+        const ArgumentExpressions = 1 << 11;
         const ObjectLiteralMembers = 1 << 12;
+        const JsxAttributes = 1 << 13;
+        const JsxChildren = 1 << 14;
         const ArrayLiteralMembers = 1 << 15;
         const Parameters = 1 << 16;
+        const JSDocParameters = 1 << 17;
+        const RestProperties = 1 << 18;
         const TypeParameters = 1 << 19;
         const TypeArguments = 1 << 20;
+        const TupleElementTypes = 1 << 21;
+        const HeritageClauses = 1 << 22;
+        const ImportOrExportSpecifiers = 1 << 23;
+        const AssertEntries = 1 << 24;
+        const Count = 1 << 25;
     }
 }
