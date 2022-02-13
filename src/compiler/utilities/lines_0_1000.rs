@@ -314,10 +314,9 @@ pub fn for_each_entry<
 }
 
 pub fn for_each_key<
-    'a,
     TKey,
     TReturn,
-    TMap: ReadonlyCollection<'a, TKey> + 'a,
+    TMap: ReadonlyCollection<TKey>,
     TCallback: FnMut(TKey) -> Option<TReturn>,
 >(
     map: TMap,
@@ -332,7 +331,6 @@ pub fn for_each_key<
     }
     None
 }
-
 fn get_source_text_of_node_from_source_file(
     source_file: &Node, /*SourceFile*/
     node: &Node,

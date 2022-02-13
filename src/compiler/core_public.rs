@@ -47,17 +47,17 @@ impl<TItem> Deref for SortedArray<TItem> {
     }
 }
 
-pub trait ReadonlyCollection<'a, TKeyRef> {
+pub trait ReadonlyCollection<TKeyRef> {
     type Iter: Iterator<Item = TKeyRef>;
     fn size(&self) -> usize;
     fn has(&self, key: TKeyRef) -> bool;
-    fn keys(&'a self) -> Self::Iter;
+    fn keys(&self) -> Self::Iter;
 }
 
-impl<'a, TKey: Eq + Hash + 'a, TValue: 'a> ReadonlyCollection<'a, &'a TKey>
-    for HashMap<TKey, TValue>
+impl<'hash_map, TKey: Eq + Hash, TValue> ReadonlyCollection<&'hash_map TKey>
+    for &'hash_map HashMap<TKey, TValue>
 {
-    type Iter = hash_map::Keys<'a, TKey, TValue>;
+    type Iter = hash_map::Keys<'hash_map, TKey, TValue>;
 
     fn size(&self) -> usize {
         self.len()
@@ -67,13 +67,13 @@ impl<'a, TKey: Eq + Hash + 'a, TValue: 'a> ReadonlyCollection<'a, &'a TKey>
         self.contains_key(key)
     }
 
-    fn keys(&'a self) -> Self::Iter {
-        self.keys()
+    fn keys(&self) -> Self::Iter {
+        HashMap::keys(self)
     }
 }
 
-impl<'a, TKey: Eq + Hash + 'a> ReadonlyCollection<'a, &'a TKey> for HashSet<TKey> {
-    type Iter = hash_set::Iter<'a, TKey>;
+impl<'hash_set, TKey: Eq + Hash> ReadonlyCollection<&'hash_set TKey> for &'hash_set HashSet<TKey> {
+    type Iter = hash_set::Iter<'hash_set, TKey>;
 
     fn size(&self) -> usize {
         self.len()
@@ -83,7 +83,7 @@ impl<'a, TKey: Eq + Hash + 'a> ReadonlyCollection<'a, &'a TKey> for HashSet<TKey
         self.contains(key)
     }
 
-    fn keys(&'a self) -> Self::Iter {
+    fn keys(&self) -> Self::Iter {
         self.iter()
     }
 }
