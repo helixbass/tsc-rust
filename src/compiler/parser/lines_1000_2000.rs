@@ -465,7 +465,7 @@ impl ParserType {
         self.do_inside_of_context(NodeFlags::YieldContext | NodeFlags::AwaitContext, func)
     }
 
-    pub(super) fn do_ouside_of_yield_and_await_context<TReturn, TFunc: FnOnce() -> TReturn>(
+    pub(super) fn do_outside_of_yield_and_await_context<TReturn, TFunc: FnOnce() -> TReturn>(
         &self,
         func: TFunc,
     ) -> TReturn {

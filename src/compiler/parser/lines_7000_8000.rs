@@ -8,9 +8,10 @@ use crate::{
     for_each, for_each_child_returns, is_export_assignment, is_export_declaration,
     is_export_modifier, is_external_module_reference, is_import_declaration,
     is_import_equals_declaration, is_meta_property, some, BaseNode, BaseNodeFactory, Debug_,
-    Diagnostic, EnumDeclaration, ExportAssignment, ExportDeclaration, ExpressionWithTypeArguments,
-    HeritageClause, InterfaceDeclaration, ModuleDeclaration, NamespaceExportDeclaration, Node,
-    NodeArray, NodeFlags, NodeInterface, SyntaxKind, TypeAliasDeclaration,
+    Diagnostic, EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration,
+    ExpressionWithTypeArguments, HeritageClause, InterfaceDeclaration, ModuleDeclaration,
+    NamespaceExportDeclaration, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
+    TypeAliasDeclaration,
 };
 
 impl ParserType {
@@ -183,7 +184,7 @@ impl ParserType {
             heritage_clauses,
             members,
         );
-        self.finish_node(node, pos, None)
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn parse_type_alias_declaration(
@@ -197,8 +198,9 @@ impl ParserType {
         let name = self.parse_identifier(None, None);
         let type_parameters = self.parse_type_parameters();
         self.parse_expected(SyntaxKind::EqualsToken, None, None);
-        let type_ = if false {
-            unimplemented!()
+        let type_ = if self.token() == SyntaxKind::IntrinsicKeyword {
+            self.try_parse(|| self.parse_keyword_and_no_dot())
+                .unwrap_or_else(|| self.parse_type())
         } else {
             self.parse_type()
         };
@@ -211,7 +213,22 @@ impl ParserType {
             type_parameters,
             type_.wrap(),
         );
-        self.finish_node(node, pos, None)
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
+    pub(super) fn parse_enum_member(&self) -> EnumMember {
+        let pos = self.get_node_pos();
+        let has_jsdoc = self.has_preceding_jsdoc_comment();
+        let name: Rc<Node> = self.parse_property_name().wrap();
+        let initializer = self.allow_in_and(|| self.parse_initializer());
+        self.with_jsdoc(
+            self.finish_node(
+                self.factory.create_enum_member(self, name, initializer),
+                pos,
+                None,
+            ),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_enum_declaration(
@@ -221,7 +238,25 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> EnumDeclaration {
-        unimplemented!()
+        self.parse_expected(SyntaxKind::EnumKeyword, None, None);
+        let name: Rc<Node> = self.parse_identifier(None, None).wrap();
+        let members: NodeArray;
+        if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
+            members = self.do_outside_of_yield_and_await_context(|| {
+                self.parse_delimited_list(
+                    ParsingContext::EnumMembers,
+                    || self.parse_enum_member().into(),
+                    None,
+                )
+            });
+            self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
+        } else {
+            members = self.create_missing_list();
+        }
+        let node =
+            self.factory
+                .create_enum_declaration(self, decorators, modifiers, name, Some(members));
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn parse_module_declaration(
