@@ -9,9 +9,9 @@ use crate::{
     is_export_modifier, is_external_module_reference, is_import_declaration,
     is_import_equals_declaration, is_meta_property, some, BaseNode, BaseNodeFactory, Debug_,
     Diagnostic, EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration,
-    ExpressionWithTypeArguments, HeritageClause, InterfaceDeclaration, ModuleDeclaration,
-    NamespaceExportDeclaration, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
-    TypeAliasDeclaration,
+    ExpressionWithTypeArguments, HeritageClause, InterfaceDeclaration, ModuleBlock,
+    ModuleDeclaration, NamespaceExportDeclaration, Node, NodeArray, NodeFlags, NodeInterface,
+    SyntaxKind, TypeAliasDeclaration,
 };
 
 impl ParserType {
@@ -259,6 +259,92 @@ impl ParserType {
         self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
+    pub(super) fn parse_module_block(&self) -> ModuleBlock {
+        let pos = self.get_node_pos();
+        let statements: NodeArray;
+        if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
+            statements = self.parse_list(ParsingContext::BlockStatements, &mut || {
+                self.parse_statement()
+            });
+            self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
+        } else {
+            statements = self.create_missing_list();
+        }
+        self.finish_node(
+            self.factory.create_module_block(self, Some(statements)),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_module_or_namespace_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        flags: NodeFlags,
+    ) -> ModuleDeclaration {
+        let namespace_flag = flags & NodeFlags::Namespace;
+        let name: Rc<Node> = self.parse_identifier(None, None).wrap();
+        let body: Rc<Node> = if self.parse_optional(SyntaxKind::DotToken) {
+            self.parse_module_or_namespace_declaration(
+                self.get_node_pos(),
+                false,
+                None,
+                None,
+                NodeFlags::NestedNamespace | namespace_flag,
+            )
+            .into()
+        } else {
+            self.parse_module_block().into()
+        };
+        let node = self.factory.create_module_declaration(
+            self,
+            decorators,
+            modifiers,
+            name,
+            Some(body),
+            Some(flags),
+        );
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
+    pub(super) fn parse_ambient_external_module_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+    ) -> ModuleDeclaration {
+        let mut flags = NodeFlags::None;
+        let name: Rc<Node>;
+        if self.token() == SyntaxKind::GlobalKeyword {
+            name = self.parse_identifier(None, None).wrap();
+            flags |= NodeFlags::GlobalAugmentation;
+        } else {
+            name = self.parse_literal_node().wrap();
+            let name_as_literal_like_node = name.as_literal_like_node();
+            name_as_literal_like_node
+                .set_text(self.intern_identifier(&name_as_literal_like_node.text()));
+        }
+        let mut body: Option<Rc<Node>> = None;
+        if self.token() == SyntaxKind::OpenBraceToken {
+            body = Some(self.parse_module_block().into());
+        } else {
+            self.parse_semicolon();
+        }
+        let node = self.factory.create_module_declaration(
+            self,
+            decorators,
+            modifiers,
+            name,
+            body,
+            Some(flags),
+        );
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
     pub(super) fn parse_module_declaration(
         &self,
         pos: isize,
@@ -266,7 +352,26 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> ModuleDeclaration {
-        unimplemented!()
+        let mut flags = NodeFlags::None;
+        if self.token() == SyntaxKind::GlobalKeyword {
+            return self
+                .parse_ambient_external_module_declaration(pos, has_jsdoc, decorators, modifiers);
+        } else if self.parse_optional(SyntaxKind::NamespaceKeyword) {
+            flags |= NodeFlags::Namespace;
+        } else {
+            self.parse_expected(SyntaxKind::ModuleKeyword, None, None);
+            if self.token() == SyntaxKind::StringLiteral {
+                return self.parse_ambient_external_module_declaration(
+                    pos, has_jsdoc, decorators, modifiers,
+                );
+            }
+        }
+        self.parse_module_or_namespace_declaration(pos, has_jsdoc, decorators, modifiers, flags)
+    }
+
+    pub(super) fn is_external_module_reference(&self) -> bool {
+        self.token() == SyntaxKind::RequireKeyword
+            && self.look_ahead_bool(|| self.next_token_is_open_paren())
     }
 
     pub(super) fn next_token_is_open_paren(&self) -> bool {
