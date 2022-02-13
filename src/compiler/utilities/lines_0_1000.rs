@@ -4,20 +4,26 @@ use bitflags::bitflags;
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::convert::TryInto;
+use std::hash::Hash;
 use std::ptr;
 use std::rc::Rc;
 
 use super::escape_template_substitution;
 use crate::{
-    escape_non_ascii_string, for_each_child_bool, get_combined_node_flags,
-    get_compiler_option_value, get_root_declaration, id_text, is_big_int_literal,
-    is_export_declaration, is_identifier, is_module_declaration, is_private_identifier,
-    is_source_file, is_white_space_like, module_resolution_option_declarations,
-    node_is_synthesized, options_affecting_program_structure, skip_trivia, text_substring,
+    create_mode_aware_cache, escape_non_ascii_string, for_each_child_bool, get_combined_node_flags,
+    get_compiler_option_value, get_line_and_character_of_position, get_line_starts,
+    get_mode_for_resolution_at_index, get_root_declaration, id_text, is_big_int_literal,
+    is_export_declaration, is_identifier, is_line_break, is_module_declaration,
+    is_private_identifier, is_source_file, is_white_space_like,
+    module_resolution_option_declarations, node_is_synthesized,
+    options_affecting_program_structure, skip_trivia, text_char_at_index, text_substring,
     CharacterCodes, CommandLineOption, CompilerOptions, Debug_, EmitFlags, EmitTextWriter,
-    LiteralLikeNodeInterface, Node, NodeArray, NodeFlags, NodeInterface, ReadonlyCollection,
-    ReadonlyTextRange, SourceFileLike, SourceTextAsChars, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, UnderscoreEscapedMap,
+    LiteralLikeNodeInterface, ModeAwareCache, ModuleKind, Node, NodeArray, NodeFlags,
+    NodeInterface, PackageId, ProjectReference, ReadonlyCollection, ReadonlyTextRange,
+    ResolvedModuleFull, ResolvedTypeReferenceDirective, SourceFileLike, SourceTextAsChars, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind,
+    UnderscoreEscapedMap,
 };
 
 // resolvingEmptyArray: never[] = [];
@@ -331,6 +337,318 @@ pub fn for_each_key<
     }
     None
 }
+
+pub fn copy_entries<TKey: Clone + Eq + Hash, TValue: Clone>(
+    source: &HashMap<TKey, TValue>,
+    target: &mut HashMap<TKey, TValue>,
+) {
+    for (key, value) in source {
+        target.insert(key.clone(), value.clone());
+    }
+}
+
+pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWriter>>)>(
+    action: TAction,
+) -> String {
+    let string_writer = string_writer();
+    let old_string = (*string_writer).borrow().get_text();
+    action(string_writer.clone());
+    let mut string_writer = string_writer.borrow_mut();
+    let ret = string_writer.get_text();
+    string_writer.clear();
+    string_writer.write_keyword(&old_string);
+    ret
+}
+
+pub fn get_full_width(node: &Node) -> isize {
+    node.end() - node.pos()
+}
+
+pub fn get_resolved_module<TSourceFile: Borrow<Node>>(
+    source_file: Option<TSourceFile>, /*SourceFile*/
+    module_name_text: &str,
+    mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
+) -> Option<Rc<ResolvedModuleFull>> {
+    if let Some(source_file) = source_file {
+        let source_file = source_file.borrow();
+        if let Some(source_file_resolved_modules) = source_file
+            .as_source_file()
+            .maybe_resolved_modules()
+            .as_ref()
+        {
+            return source_file_resolved_modules
+                .get(module_name_text, mode)
+                .map(Clone::clone);
+        }
+    }
+    None
+}
+
+pub fn set_resolved_module(
+    source_file: &Node, /*SourceFile*/
+    module_name_text: String,
+    resolved_module: Rc<ResolvedModuleFull>,
+    mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
+) {
+    let mut source_file_resolved_modules = source_file.as_source_file().maybe_resolved_modules();
+    if source_file_resolved_modules.is_none() {
+        *source_file_resolved_modules = Some(create_mode_aware_cache());
+    }
+
+    source_file_resolved_modules
+        .as_ref()
+        .unwrap()
+        .set(module_name_text, mode, resolved_module);
+}
+
+pub fn set_resolved_type_reference_directive(
+    source_file: &Node, /*SourceFile*/
+    type_reference_directive_name: String,
+    resolved_type_reference_directive /*?*/: Rc<ResolvedTypeReferenceDirective>,
+) {
+    let mut source_file_resolved_type_reference_directive_names = source_file
+        .as_source_file()
+        .maybe_resolved_type_reference_directive_names();
+    if source_file_resolved_type_reference_directive_names.is_none() {
+        *source_file_resolved_type_reference_directive_names = Some(create_mode_aware_cache());
+    }
+
+    source_file_resolved_type_reference_directive_names
+        .as_ref()
+        .unwrap()
+        .set(
+            type_reference_directive_name,
+            None,
+            resolved_type_reference_directive,
+        );
+}
+
+pub fn project_reference_is_equal_to(
+    old_ref: &ProjectReference,
+    new_ref: &ProjectReference,
+) -> bool {
+    old_ref.path == new_ref.path
+        && old_ref.prepend.unwrap_or(false) == new_ref.prepend.unwrap_or(false)
+        && old_ref.circular.unwrap_or(false) == new_ref.circular.unwrap_or(false)
+}
+
+pub fn module_resolution_is_equal_to(
+    old_resolution: &ResolvedModuleFull,
+    new_resolution: &ResolvedModuleFull,
+) -> bool {
+    old_resolution.is_external_library_import == new_resolution.is_external_library_import
+        && old_resolution.extension == new_resolution.extension
+        && old_resolution.resolved_file_name == new_resolution.resolved_file_name
+        && old_resolution.original_path == new_resolution.original_path
+        && package_id_is_equal(
+            old_resolution.package_id.as_ref(),
+            new_resolution.package_id.as_ref(),
+        )
+}
+
+fn package_id_is_equal(a: Option<&PackageId>, b: Option<&PackageId>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) =>
+        /*a === b ||*/
+        {
+            a.name == b.name && a.sub_module_name == b.sub_module_name && a.version == b.version
+        }
+        _ => false,
+    }
+}
+
+pub fn package_id_to_string(package_id: &PackageId) -> String {
+    let full_name: Cow<str> = if !package_id.sub_module_name.is_empty() {
+        format!("{}/{}", package_id.name, package_id.sub_module_name).into()
+    } else {
+        (&package_id.name).into()
+    };
+    format!("{}@{}", full_name, package_id.version)
+}
+
+pub fn type_directive_is_equal_to(
+    old_resolution: &ResolvedTypeReferenceDirective,
+    new_resolution: &ResolvedTypeReferenceDirective,
+) -> bool {
+    old_resolution.resolved_file_name == new_resolution.resolved_file_name
+        && old_resolution.primary == new_resolution.primary
+        && old_resolution.original_path == new_resolution.original_path
+}
+
+pub fn has_changes_in_resolutions<
+    TValue,
+    TName: AsRef<str>,
+    TOldSourceFile: Borrow<Node>,
+    TComparer: FnMut(&TValue, &TValue) -> bool,
+>(
+    names: &[TName],
+    new_resolutions: &[TValue],
+    old_resolutions: Option<ModeAwareCache<TValue>>,
+    old_source_file: Option<TOldSourceFile /*SourceFile*/>,
+    mut comparer: TComparer,
+) -> bool {
+    Debug_.assert(names.len() == new_resolutions.len(), None);
+
+    for (i, name) in names.iter().enumerate() {
+        let name = name.as_ref();
+        let new_resolution = &new_resolutions[i];
+        let old_resolution = old_resolutions.as_ref().and_then(|old_resolutions| {
+            old_resolutions.get(
+                name,
+                old_source_file.as_ref().and_then(|old_source_file| {
+                    let old_source_file = old_source_file.borrow();
+                    get_mode_for_resolution_at_index(old_source_file.as_source_file(), i)
+                }),
+            )
+        });
+        let changed = match old_resolution {
+            Some(old_resolution) =>
+            /* !newResolution ||*/
+            {
+                !comparer(old_resolution, new_resolution)
+            }
+            None =>
+            /*newResolution*/
+            {
+                true
+            }
+        };
+        if changed {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn contains_parse_error(node: &Node) -> bool {
+    aggregate_child_data(node);
+    node.flags()
+        .intersects(NodeFlags::ThisNodeOrAnySubNodesHasError)
+}
+
+fn aggregate_child_data(node: &Node) {
+    if !node.flags().intersects(NodeFlags::HasAggregatedChildData) {
+        let this_node_or_any_sub_nodes_has_error =
+            node.flags().intersects(NodeFlags::ThisNodeHasError)
+                || for_each_child_bool(
+                    node,
+                    |child| contains_parse_error(child),
+                    Option::<fn(&NodeArray) -> bool>::None,
+                );
+
+        if this_node_or_any_sub_nodes_has_error {
+            node.set_flags(node.flags() | NodeFlags::ThisNodeOrAnySubNodesHasError);
+        }
+
+        node.set_flags(node.flags() | NodeFlags::HasAggregatedChildData);
+    }
+}
+
+pub fn get_source_file_of_node<TNode: Borrow<Node>>(
+    node: Option<TNode>,
+) -> Option<Rc<Node /*SourceFile*/>> {
+    let mut node = node.map(|node| {
+        let node = node.borrow();
+        node.node_wrapper()
+    });
+    while matches!(node.as_ref(), Some(node) if node.kind() != SyntaxKind::SourceFile) {
+        node = node.unwrap().maybe_parent();
+    }
+    node
+}
+
+pub fn get_source_file_of_module(module: &Symbol) -> Option<Rc<Node /*SourceFile*/>> {
+    get_source_file_of_node(
+        module
+            .maybe_value_declaration()
+            .as_ref()
+            .map(|weak| weak.upgrade().unwrap())
+            .or_else(|| get_non_augmentation_declaration(module)),
+    )
+}
+
+pub fn is_statement_with_locals(node: &Node) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::Block
+            | SyntaxKind::CaseBlock
+            | SyntaxKind::ForStatement
+            | SyntaxKind::ForInStatement
+            | SyntaxKind::ForOfStatement
+    )
+}
+
+pub fn get_start_position_of_line<TSourceFile: SourceFileLike>(
+    line: usize,
+    source_file: &TSourceFile,
+) -> usize {
+    // Debug.assert(line >= 0);
+    get_line_starts(source_file)[line]
+}
+
+pub fn node_pos_to_string(node: &Node) -> String {
+    let file = get_source_file_of_node(Some(node)).unwrap();
+    let file_as_source_file = file.as_source_file();
+    let loc =
+        get_line_and_character_of_position(file_as_source_file, node.pos().try_into().unwrap());
+    format!(
+        "{}({},{})",
+        file_as_source_file.file_name(),
+        loc.line + 1,
+        loc.character + 1
+    )
+}
+
+pub fn get_end_line_position<TSourceFile: SourceFileLike>(
+    line: usize,
+    source_file: &TSourceFile,
+) -> usize {
+    // Debug.assert(line >= 0);
+    let line_starts = get_line_starts(source_file);
+
+    let line_index = line;
+    let source_text = source_file.text_as_chars();
+    if line_index + 1 == line_starts.len() {
+        source_text.len() - 1
+    } else {
+        let start = line_starts[line_index];
+        let mut pos = line_starts[line_index + 1] - 1;
+        Debug_.assert(is_line_break(text_char_at_index(&source_text, pos)), None);
+        while start <= pos && is_line_break(text_char_at_index(&source_text, pos)) {
+            pos -= 1;
+        }
+        pos
+    }
+}
+
+pub fn is_file_level_unique_name<THasGlobalName: FnOnce(&str) -> bool>(
+    source_file: &Node, /*SourceFile*/
+    name: &str,
+    mut has_global_name: Option<THasGlobalName>,
+) -> bool {
+    (match has_global_name {
+        None => true,
+        Some(has_global_name) => has_global_name(name),
+    }) && !(*source_file.as_source_file().identifiers())
+        .borrow()
+        .contains_key(name)
+}
+
+pub fn node_is_missing<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+    if node.is_none() {
+        return true;
+    }
+    let node = node.unwrap();
+    let node = node.borrow();
+
+    node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
+}
+
+pub fn node_is_present<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+    !node_is_missing(node)
+}
+
 fn get_source_text_of_node_from_source_file(
     source_file: &Node, /*SourceFile*/
     node: &Node,
@@ -373,7 +691,7 @@ pub fn get_text_of_node_from_source_text(
 fn get_text_of_node(node: &Node, include_trivia: Option<bool>) -> String {
     let include_trivia = include_trivia.unwrap_or(false);
     get_source_text_of_node_from_source_file(
-        &*get_source_file_of_node(node),
+        &*get_source_file_of_node(Some(node)).unwrap(),
         node,
         Some(include_trivia),
     )
@@ -499,73 +817,27 @@ pub fn is_ambient_module(node: &Node) -> bool {
             || is_global_scope_augmentation(node))
 }
 
-pub fn is_global_scope_augmentation(node: &Node /*ModuleDeclaration*/) -> bool {
-    node.flags().intersects(NodeFlags::GlobalAugmentation)
+pub fn is_global_scope_augmentation(module: &Node /*ModuleDeclaration*/) -> bool {
+    module.flags().intersects(NodeFlags::GlobalAugmentation)
 }
 
-pub fn using_single_line_string_writer<TAction: FnOnce(Rc<RefCell<dyn EmitTextWriter>>)>(
-    action: TAction,
-) -> String {
-    let string_writer = string_writer();
-    let old_string = (*string_writer).borrow().get_text();
-    action(string_writer.clone());
-    let mut string_writer = string_writer.borrow_mut();
-    let ret = string_writer.get_text();
-    string_writer.clear();
-    string_writer.write_keyword(&old_string);
-    ret
+pub fn is_external_module_augmentation(node: &Node) -> bool {
+    unimplemented!()
 }
 
-pub fn get_full_width(node: &Node) -> isize {
-    node.end() - node.pos()
-}
-
-pub fn contains_parse_error(node: &Node) -> bool {
-    aggregate_child_data(node);
-    node.flags()
-        .intersects(NodeFlags::ThisNodeOrAnySubNodesHasError)
-}
-
-fn aggregate_child_data(node: &Node) {
-    if !node.flags().intersects(NodeFlags::HasAggregatedChildData) {
-        let this_node_or_any_sub_nodes_has_error =
-            node.flags().intersects(NodeFlags::ThisNodeHasError)
-                || for_each_child_bool(
-                    node,
-                    |child| contains_parse_error(child),
-                    Option::<fn(&NodeArray) -> bool>::None,
-                );
-
-        if this_node_or_any_sub_nodes_has_error {
-            node.set_flags(node.flags() | NodeFlags::ThisNodeOrAnySubNodesHasError);
-        }
-
-        node.set_flags(node.flags() | NodeFlags::HasAggregatedChildData);
-    }
-}
-
-pub fn get_source_file_of_node(node: &Node) -> Rc<Node /*SourceFile*/> {
-    if node.kind() == SyntaxKind::SourceFile {
-        unimplemented!()
-    }
-    let mut parent = node.parent();
-    while parent.kind() != SyntaxKind::SourceFile {
-        parent = parent.parent();
-    }
-    parent.clone()
-}
-
-pub fn node_is_missing<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
-    if node.is_none() {
-        return false;
-    }
-    let node = node.unwrap();
-    let node = node.borrow();
-    node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
-}
-
-pub fn node_is_present<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
-    !node_is_missing(node)
+pub fn get_non_augmentation_declaration(symbol: &Symbol) -> Option<Rc<Node /*Declaration*/>> {
+    symbol
+        .maybe_declarations()
+        .as_ref()
+        .and_then(|declarations| {
+            declarations
+                .iter()
+                .find(|d| {
+                    !is_external_module_augmentation(d)
+                        && !(is_module_declaration(d) && is_global_scope_augmentation(d))
+                })
+                .map(Clone::clone)
+        })
 }
 
 pub fn is_any_import_syntax(node: &Node) -> bool {

@@ -18,7 +18,7 @@ pub fn create_diagnostic_for_node(
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
-    let source_file = get_source_file_of_node(node);
+    let source_file = get_source_file_of_node(Some(node)).unwrap();
     create_diagnostic_for_node_in_source_file(&source_file, node, message, args)
 }
 
@@ -37,7 +37,7 @@ pub fn create_diagnostic_for_node_from_message_chain(
     message_chain: DiagnosticMessageChain,
     related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
-    let source_file = get_source_file_of_node(node);
+    let source_file = get_source_file_of_node(Some(node)).unwrap();
     let span = get_error_span_for_node(&source_file, node);
     create_file_diagnostic_from_message_chain(
         &source_file,

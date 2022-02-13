@@ -11,6 +11,22 @@ pub trait ModuleResolutionHost {
     fn read_file(&self, file_name: &str) -> Option<String>;
 }
 
+#[derive(Debug)]
+pub struct ResolvedModuleFull {
+    pub resolved_file_name: String,
+    pub is_external_library_import: Option<bool>,
+    pub original_path: Option<String>,
+    pub extension: Option<Extension>,
+    pub package_id: Option<PackageId>,
+}
+
+#[derive(Debug)]
+pub struct PackageId {
+    pub name: String,
+    pub sub_module_name: String,
+    pub version: String,
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Extension {
     Ts,
@@ -67,6 +83,15 @@ impl Extension {
             Self::Dcts => ".d.cts",
         }
     }
+}
+
+#[derive(Debug)]
+pub struct ResolvedTypeReferenceDirective {
+    pub primary: bool,
+    pub resolved_file_name: Option<String>,
+    pub original_path: Option<String>,
+    pub package_id: Option<PackageId>,
+    pub is_external_library_import: Option<bool>,
 }
 
 pub trait CompilerHost: ModuleResolutionHost {

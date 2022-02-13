@@ -14,6 +14,14 @@ pub struct PluginImport {
 }
 
 #[derive(Debug)]
+pub struct ProjectReference {
+    pub path: String,
+    pub original_path: Option<String>,
+    pub prepend: Option<bool>,
+    pub circular: Option<bool>,
+}
+
+#[derive(Debug)]
 pub enum CompilerOptionsValue {
     Bool(Option<bool>),
     String(Option<String>),

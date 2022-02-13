@@ -16,6 +16,10 @@ pub struct Printer {
 
 pub(crate) type BuildInfo = ();
 
+pub trait PrintHandlers {
+    fn has_global_name(&self, name: &str) -> Option<bool>;
+}
+
 pub struct PrinterOptions {}
 
 pub trait EmitTextWriter: SymbolWriter {

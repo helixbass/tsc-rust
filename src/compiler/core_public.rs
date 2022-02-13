@@ -125,13 +125,41 @@ impl<'hash_set, TKey: Eq + Hash> ReadonlyCollection<&'hash_set TKey> for &'hash_
 //     }
 // }
 
-pub type Push<TItem> = Vec<TItem>;
-
-// pub trait ReadonlyCollection<TKey> {
-//     fn size(&self) -> usize;
-//     fh has(&self, key: &TKey) -> bool;
-//     fn keys(&self) ->
+// pub trait ReadonlyESMap<TKeyRef, TValueRef> {
+//     type ValuesIter: Iterator<Item = TValueRef>;
+//     type EntriesIter: Iterator<Item = (TKeyRef, TValueRef)>;
+//     fn get(&self, key: TKeyRef) -> Option<TValueRef>;
+//     fn values(&self) -> Self::ValuesIter;
+//     fn entries(&self) -> Self::EntriesIter;
+//     fn for_each<TAction: FnMut(TValueRef, TKeyRef)>(&self, action: TAction);
 // }
+
+// impl<'hash_map, TKey: Eq + Hash, TValue> ReadonlyESMap<&'hash_map TKey, &'hash_map TValue>
+//     for &'hash_map HashMap<TKey, TValue>
+// {
+//     type ValuesIter = hash_map::Values<'hash_map, TKey, TValue>;
+//     type EntriesIter = hash_map::Iter<'hash_map, TKey, TValue>;
+
+//     fn get(&self, key: &TKey) -> Option<&TValue> {
+//         self.get(key)
+//     }
+
+//     fn values(&self) -> Self::ValuesIter {
+//         HashMap::values(self)
+//     }
+
+//     fn entries(&self) -> Self::EntriesIter {
+//         self.iter()
+//     }
+
+//     fn for_each<TAction: FnMut(&TValue, &TKey)>(&self, action: TAction) {
+//         for (key, value) in self.iter() {
+//             action(value, key);
+//         }
+//     }
+// }
+
+pub type Push<TItem> = Vec<TItem>;
 
 pub type Comparer<TValue> = fn(a: TValue, b: TValue) -> Comparison;
 // pub trait Comparer<TValue>: Fn(TValue, TValue) -> Comparison + 'static {}

@@ -3,9 +3,9 @@ use std::rc::Rc;
 use crate::{
     concatenate, create_source_file, create_type_checker, for_each, get_emit_script_target,
     get_sys, normalize_path, to_path as to_path_helper, CompilerHost, CompilerOptions,
-    CreateProgramOptions, Diagnostic, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node,
-    Path, Program, ScriptTarget, SourceFile, StructureIsReused, System, TypeChecker,
-    TypeCheckerHost,
+    CreateProgramOptions, Diagnostic, ModuleKind, ModuleResolutionHost,
+    ModuleSpecifierResolutionHost, Node, Path, Program, ScriptTarget, SourceFile,
+    StructureIsReused, System, TypeChecker, TypeCheckerHost,
 };
 
 fn create_compiler_host(
@@ -61,6 +61,17 @@ fn create_compiler_host_worker(
         set_parent_nodes,
         system: get_sys(),
     }
+}
+
+pub(crate) trait SourceFileImportsList {}
+
+impl SourceFileImportsList for SourceFile {}
+
+pub(crate) fn get_mode_for_resolution_at_index<TFile: SourceFileImportsList>(
+    file: &TFile,
+    index: usize,
+) -> Option<ModuleKind> {
+    unimplemented!()
 }
 
 struct ProgramConcrete {

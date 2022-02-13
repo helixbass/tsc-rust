@@ -7,6 +7,7 @@ pub mod debug;
 pub mod diagnostic_information_map_generated;
 pub mod emitter;
 pub mod factory;
+pub mod module_name_resolver;
 pub mod parser;
 pub mod path;
 pub mod program;

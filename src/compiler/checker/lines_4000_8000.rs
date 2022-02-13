@@ -191,7 +191,7 @@ impl TypeChecker {
                 create_printer(PrinterOptions {/*remove_comments: true*/})
             };
             let source_file = if let Some(enclosing_declaration) = enclosing_declaration {
-                Some(get_source_file_of_node(enclosing_declaration))
+                Some(get_source_file_of_node(Some(enclosing_declaration)).unwrap())
             } else {
                 None
             };
@@ -240,7 +240,7 @@ impl TypeChecker {
         let source_file: Option<Rc<Node /*SourceFile*/>> =
             if let Some(enclosing_declaration) = enclosing_declaration {
                 let enclosing_declaration = enclosing_declaration.borrow();
-                Some(get_source_file_of_node(enclosing_declaration))
+                Some(get_source_file_of_node(Some(enclosing_declaration)).unwrap())
             } else {
                 None
             };

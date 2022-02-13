@@ -107,6 +107,8 @@ pub use compiler::factory::utilities::{
     is_comma_sequence, is_local_name, is_outer_expression, skip_outer_expressions,
 };
 pub use compiler::factory::utilities_public::set_text_range;
+use compiler::module_name_resolver::create_mode_aware_cache;
+pub use compiler::module_name_resolver::ModeAwareCache;
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_returns,
     is_external_module, IncrementalParser, IncrementalParserSyntaxCursor,
@@ -134,6 +136,7 @@ pub use compiler::path::{
     starts_with_directory, to_path,
 };
 pub use compiler::program::create_program;
+use compiler::program::get_mode_for_resolution_at_index;
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position, compute_line_starts,
     compute_position_of_line_and_character, get_line_starts, get_lines_between_positions,
@@ -208,22 +211,23 @@ pub use compiler::types::{
     NodeId, NodeInterface, NodeLinks, NonNullExpression, NumberLiteralType, NumericLiteral,
     ObjectBindingPattern, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
     ObjectType, ObjectTypeInterface, OmittedExpression, OptionalTypeNode, OuterExpressionKinds,
-    ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode, ParenthesizerRules,
-    ParsedCommandLine, PartiallyEmittedExpression, Path, PostfixUnaryExpression,
-    PrefixUnaryExpression, Printer, PrinterOptions, PrivateIdentifier, Program,
-    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec, ReadonlyTextRange,
-    RegularExpressionLiteral, RelationComparisonResult, ResolvableTypeInterface,
-    ResolvedTypeInterface, RestTypeNode, ReturnStatement, ScriptKind, ScriptTarget,
-    SemicolonClassElement, SetAccessorDeclaration, ShorthandPropertyAssignment, Signature,
-    SignatureDeclarationBase, SignatureDeclarationInterface, SignatureFlags, SignatureKind,
-    SourceFile, SourceFileLike, SourceMapRange, SourceTextAsChars, SpreadAssignment, SpreadElement,
-    StringLiteral, StringLiteralType, StringOrNodeArray, StructureIsReused, SwitchStatement,
-    Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolLinks, SymbolTable,
-    SymbolTracker, SymbolWriter, SyntaxKind, SynthesizedComment, TaggedTemplateExpression,
-    TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface,
-    TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan, Ternary, TextChangeRange,
-    TextRange, TextSpan, ThisTypeNode, ThrowStatement, TokenFlags, TransformFlags, TransientSymbol,
+    PackageId, ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
+    ParenthesizerRules, ParsedCommandLine, PartiallyEmittedExpression, Path,
+    PostfixUnaryExpression, PrefixUnaryExpression, PrintHandlers, Printer, PrinterOptions,
+    PrivateIdentifier, Program, ProjectReference, PropertyAccessExpression, PropertyAssignment,
+    PropertyDeclaration, PropertySignature, PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec,
+    ReadonlyTextRange, RegularExpressionLiteral, RelationComparisonResult, ResolvableTypeInterface,
+    ResolvedModuleFull, ResolvedTypeInterface, ResolvedTypeReferenceDirective, RestTypeNode,
+    ReturnStatement, ScriptKind, ScriptTarget, SemicolonClassElement, SetAccessorDeclaration,
+    ShorthandPropertyAssignment, Signature, SignatureDeclarationBase,
+    SignatureDeclarationInterface, SignatureFlags, SignatureKind, SourceFile, SourceFileLike,
+    SourceMapRange, SourceTextAsChars, SpreadAssignment, SpreadElement, StringLiteral,
+    StringLiteralType, StringOrNodeArray, StructureIsReused, SwitchStatement, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker,
+    SymbolWriter, SyntaxKind, SynthesizedComment, TaggedTemplateExpression, TemplateExpression,
+    TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode,
+    TemplateLiteralTypeSpan, TemplateSpan, Ternary, TextChangeRange, TextRange, TextSpan,
+    ThisTypeNode, ThrowStatement, TokenFlags, TransformFlags, TransientSymbol,
     TransientSymbolInterface, TryStatement, TsConfigOnlyOption, TupleTypeNode, Type,
     TypeAliasDeclaration, TypeAssertion, TypeChecker, TypeCheckerHost, TypeFlags, TypeFormatFlags,
     TypeId, TypeInterface, TypeLiteralNode, TypeMapper, TypeOfExpression, TypeOperatorNode,
