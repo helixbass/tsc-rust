@@ -842,7 +842,25 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> ExportAssignment {
-        unimplemented!()
+        let saved_await_context = self.in_await_context();
+        self.set_await_context(true);
+        let mut is_export_equals: Option<bool> = None;
+        if self.parse_optional(SyntaxKind::EqualsToken) {
+            is_export_equals = Some(true);
+        } else {
+            self.parse_expected(SyntaxKind::DefaultKeyword, None, None);
+        }
+        let expression = self.parse_assignment_expression_or_higher();
+        self.parse_semicolon();
+        self.set_await_context(saved_await_context);
+        let node = self.factory.create_export_assignment(
+            self,
+            decorators,
+            modifiers,
+            is_export_equals,
+            expression,
+        );
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn set_external_module_indicator(&self, source_file: &Node /*SourceFile*/) {
