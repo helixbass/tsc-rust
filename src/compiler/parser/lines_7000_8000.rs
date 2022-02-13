@@ -1,16 +1,20 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use super::ParserType;
 use crate::{
-    for_each, for_each_child_returns, is_export_assignment, is_export_declaration,
-    is_export_modifier, is_external_module_reference, is_import_declaration,
-    is_import_equals_declaration, is_meta_property, some, BaseNode, BaseNodeFactory, Debug_,
-    Diagnostic, EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration,
-    ExpressionWithTypeArguments, HeritageClause, InterfaceDeclaration, ModuleBlock,
-    ModuleDeclaration, NamespaceExportDeclaration, Node, NodeArray, NodeFlags, NodeInterface,
+    add_related_info, create_detached_diagnostic, for_each, for_each_child_returns,
+    is_export_assignment, is_export_declaration, is_export_modifier, is_external_module_reference,
+    is_import_declaration, is_import_equals_declaration, is_keyword, is_meta_property,
+    last_or_undefined, some, token_is_identifier_or_keyword, AssertClause, AssertEntry, BaseNode,
+    BaseNodeFactory, Debug_, Diagnostic, DiagnosticRelatedInformationInterface, Diagnostics,
+    EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration, ExpressionWithTypeArguments,
+    ExternalModuleReference, HeritageClause, ImportClause, ImportEqualsDeclaration,
+    InterfaceDeclaration, ModuleBlock, ModuleDeclaration, NamespaceExport,
+    NamespaceExportDeclaration, NamespaceImport, Node, NodeArray, NodeFlags, NodeInterface,
     SyntaxKind, TypeAliasDeclaration,
 };
 
@@ -393,7 +397,14 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> NamespaceExportDeclaration {
-        unimplemented!()
+        self.parse_expected(SyntaxKind::AsKeyword, None, None);
+        self.parse_expected(SyntaxKind::NamespaceKeyword, None, None);
+        let name: Rc<Node> = self.parse_identifier(None, None).wrap();
+        self.parse_semicolon();
+        let node = self.factory.create_namespace_export_declaration(self, name);
+        node.set_decorators(decorators);
+        node.set_modifiers(modifiers);
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn parse_import_declaration_or_import_equals_declaration(
@@ -403,7 +414,372 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> Node /*ImportEqualsDeclaration | ImportDeclaration*/ {
-        unimplemented!()
+        self.parse_expected(SyntaxKind::ImportKeyword, None, None);
+
+        let after_import_pos = self.scanner().get_start_pos();
+
+        let mut identifier: Option<Rc<Node /*Identifier*/>> = None;
+        if self.is_identifier() {
+            identifier = Some(self.parse_identifier(None, None).wrap());
+        }
+
+        let mut is_type_only = false;
+        if self.token() != SyntaxKind::FromKeyword
+            && matches!(identifier.as_ref(), Some(identifier) if identifier.as_identifier().escaped_text.eq_str("type"))
+            && (self.is_identifier()
+                || self.token_after_import_definitely_produces_import_declaration())
+        {
+            is_type_only = true;
+            identifier = if self.is_identifier() {
+                Some(self.parse_identifier(None, None).wrap())
+            } else {
+                None
+            };
+        }
+
+        if identifier.is_some()
+            && !self.token_after_imported_identifier_definitely_produces_import_declaration()
+        {
+            return self
+                .parse_import_equals_declaration(
+                    pos,
+                    has_jsdoc,
+                    decorators,
+                    modifiers,
+                    identifier.unwrap(),
+                    is_type_only,
+                )
+                .into();
+        }
+
+        let mut import_clause: Option<Rc<Node>> = None;
+        if identifier.is_some()
+            || matches!(
+                self.token(),
+                SyntaxKind::AsteriskToken | SyntaxKind::OpenBraceToken
+            )
+        {
+            import_clause = Some(
+                self.parse_import_clause(identifier, after_import_pos, is_type_only)
+                    .into(),
+            );
+            self.parse_expected(SyntaxKind::FromKeyword, None, None);
+        }
+        let module_specifier = self.parse_module_specifier();
+
+        let mut assert_clause: Option<Rc<Node>> = None;
+        if self.token() == SyntaxKind::AssertKeyword && !self.scanner().has_preceding_line_break() {
+            assert_clause = Some(self.parse_assert_clause().into());
+        }
+
+        self.parse_semicolon();
+        let node = self.factory.create_import_declaration(
+            self,
+            decorators,
+            modifiers,
+            import_clause,
+            module_specifier,
+            assert_clause,
+        );
+        self.with_jsdoc(self.finish_node(node.into(), pos, None), has_jsdoc)
+    }
+
+    pub(super) fn parse_assert_entry(&self) -> AssertEntry {
+        let pos = self.get_node_pos();
+        let name: Rc<Node> = if token_is_identifier_or_keyword(self.token()) {
+            self.parse_identifier_name(None).wrap()
+        } else {
+            self.parse_literal_like_node(SyntaxKind::StringLiteral)
+                .wrap()
+        };
+        self.parse_expected(SyntaxKind::ColonToken, None, None);
+        let value: Rc<Node> = self
+            .parse_literal_like_node(SyntaxKind::StringLiteral)
+            .wrap();
+        self.finish_node(
+            self.factory.create_assert_entry(self, name, value),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_assert_clause(&self) -> AssertClause {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::AssertKeyword, None, None);
+        let open_brace_position = self.scanner().get_token_pos();
+        if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
+            let multi_line = self.scanner().has_preceding_line_break();
+            let elements = self.parse_delimited_list(
+                ParsingContext::AssertEntries,
+                || self.parse_assert_entry().into(),
+                Some(true),
+            );
+            if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
+                let parse_diagnostics = self.parse_diagnostics();
+                let last_error = last_or_undefined(&*parse_diagnostics);
+                if let Some(last_error) = last_error {
+                    if last_error.code() == Diagnostics::_0_expected.code {
+                        add_related_info(
+                            last_error,
+                            vec![Rc::new(
+                                create_detached_diagnostic(
+                                    self.file_name(),
+                                    open_brace_position.try_into().unwrap(),
+                                    1,
+                                    &Diagnostics::The_parser_expected_to_find_a_to_match_the_token_here,
+                                    None,
+                                )
+                                .into(),
+                            )],
+                        );
+                    }
+                }
+            }
+            self.finish_node(
+                self.factory
+                    .create_assert_clause(self, elements, Some(multi_line)),
+                pos,
+                None,
+            )
+        } else {
+            let elements = self.create_node_array(vec![], self.get_node_pos(), None, Some(false));
+            self.finish_node(
+                self.factory
+                    .create_assert_clause(self, elements, Some(false)),
+                pos,
+                None,
+            )
+        }
+    }
+
+    pub(super) fn token_after_import_definitely_produces_import_declaration(&self) -> bool {
+        matches!(
+            self.token(),
+            SyntaxKind::AsteriskToken | SyntaxKind::OpenBraceToken
+        )
+    }
+
+    pub(super) fn token_after_imported_identifier_definitely_produces_import_declaration(
+        &self,
+    ) -> bool {
+        matches!(
+            self.token(),
+            SyntaxKind::CommaToken | SyntaxKind::FromKeyword
+        )
+    }
+
+    pub(super) fn parse_import_equals_declaration(
+        &self,
+        pos: isize,
+        has_jsdoc: bool,
+        decorators: Option<NodeArray>,
+        modifiers: Option<NodeArray>,
+        identifier: Rc<Node /*Identifier*/>,
+        is_type_only: bool,
+    ) -> ImportEqualsDeclaration {
+        self.parse_expected(SyntaxKind::EqualsToken, None, None);
+        let module_reference: Rc<Node> = self.parse_module_reference().wrap();
+        self.parse_semicolon();
+        let node = self.factory.create_import_equals_declaration(
+            self,
+            decorators,
+            modifiers,
+            is_type_only,
+            identifier,
+            module_reference,
+        );
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+    }
+
+    pub(super) fn parse_import_clause(
+        &self,
+        identifier: Option<Rc<Node /*Identifier*/>>,
+        pos: usize,
+        is_type_only: bool,
+    ) -> ImportClause {
+        let mut named_bindings: Option<Rc<Node>> = None;
+        if identifier.is_none() || self.parse_optional(SyntaxKind::CommaToken) {
+            named_bindings = if self.token() == SyntaxKind::AsteriskToken {
+                Some(self.parse_namespace_import().into())
+            } else {
+                Some(
+                    self.parse_named_imports_or_exports(SyntaxKind::NamedImports)
+                        .wrap(),
+                )
+            }
+        }
+
+        self.finish_node(
+            self.factory
+                .create_import_clause(self, is_type_only, identifier, named_bindings),
+            pos.try_into().unwrap(),
+            None,
+        )
+    }
+
+    pub(super) fn parse_module_reference(&self) -> Node /*ExternalModuleReference | EntityName*/ {
+        if self.is_external_module_reference() {
+            self.parse_external_module_reference().into()
+        } else {
+            self.parse_entity_name(false, None)
+        }
+    }
+
+    pub(super) fn parse_external_module_reference(&self) -> ExternalModuleReference {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::RequireKeyword, None, None);
+        self.parse_expected(SyntaxKind::OpenParenToken, None, None);
+        let expression = self.parse_module_specifier();
+        self.parse_expected(SyntaxKind::CloseParenToken, None, None);
+        self.finish_node(
+            self.factory
+                .create_external_module_reference(self, expression),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_module_specifier(&self) -> Rc<Node /*Expression*/> {
+        if self.token() == SyntaxKind::StringLiteral {
+            let result = self.parse_literal_node();
+            let result_as_literal_like_node = result.as_literal_like_node();
+            result_as_literal_like_node
+                .set_text(self.intern_identifier(&result_as_literal_like_node.text()));
+            result.wrap()
+        } else {
+            self.parse_expression()
+        }
+    }
+
+    pub(super) fn parse_namespace_import(&self) -> NamespaceImport {
+        let pos = self.get_node_pos();
+        self.parse_expected(SyntaxKind::AsteriskToken, None, None);
+        self.parse_expected(SyntaxKind::AsKeyword, None, None);
+        let name = self.parse_identifier(None, None);
+        self.finish_node(
+            self.factory.create_namespace_import(self, name.wrap()),
+            pos,
+            None,
+        )
+    }
+
+    pub(super) fn parse_named_imports_or_exports(&self, kind: SyntaxKind) -> Node /*NamedImportsOrExports*/
+    {
+        let pos = self.get_node_pos();
+
+        let node: Node = if kind == SyntaxKind::NamedImports {
+            self.factory
+                .create_named_imports(
+                    self,
+                    self.parse_bracketed_list(
+                        ParsingContext::ImportOrExportSpecifiers,
+                        || self.parse_import_specifier().wrap(),
+                        SyntaxKind::OpenBraceToken,
+                        SyntaxKind::CloseBraceToken,
+                    ),
+                )
+                .into()
+        } else {
+            self.factory
+                .create_named_exports(
+                    self,
+                    self.parse_bracketed_list(
+                        ParsingContext::ImportOrExportSpecifiers,
+                        || self.parse_export_specifier().wrap(),
+                        SyntaxKind::OpenBraceToken,
+                        SyntaxKind::CloseBraceToken,
+                    ),
+                )
+                .into()
+        };
+        self.finish_node(node, pos, None)
+    }
+
+    pub(super) fn parse_export_specifier(&self) -> Node /*ExportSpecifier*/ {
+        self.parse_import_or_export_specifier(SyntaxKind::ExportSpecifier)
+    }
+
+    pub(super) fn parse_import_specifier(&self) -> Node /*ImportSpecifier*/ {
+        self.parse_import_or_export_specifier(SyntaxKind::ImportSpecifier)
+    }
+
+    pub(super) fn parse_import_or_export_specifier(&self, kind: SyntaxKind) -> Node /*ImportOrExportSpecifier*/
+    {
+        let pos = self.get_node_pos();
+        let mut check_identifier_is_keyword = is_keyword(self.token()) && !self.is_identifier();
+        let mut check_identifier_start = self.scanner().get_token_pos();
+        let mut check_identifier_end = self.scanner().get_text_pos();
+        let mut is_type_only = false;
+        let mut property_name: Option<Rc<Node>> = None;
+        let mut can_parse_as_keyword = false;
+        let mut name: Rc<Node> = self.parse_identifier_name(None).wrap();
+        let mut parse_name_with_keyword_check = || {
+            check_identifier_is_keyword = is_keyword(self.token()) && !self.is_identifier();
+            check_identifier_start = self.scanner().get_token_pos();
+            check_identifier_end = self.scanner().get_text_pos();
+            self.parse_identifier_name(None)
+        };
+        if name.as_identifier().escaped_text.eq_str("type") {
+            if self.token() == SyntaxKind::AsKeyword {
+                let first_as: Rc<Node> = self.parse_identifier_name(None).wrap();
+                if self.token() == SyntaxKind::AsKeyword {
+                    let second_as: Rc<Node> = self.parse_identifier_name(None).wrap();
+                    if token_is_identifier_or_keyword(self.token()) {
+                        is_type_only = true;
+                        property_name = Some(first_as);
+                        name = parse_name_with_keyword_check().wrap();
+                        can_parse_as_keyword = false;
+                    } else {
+                        property_name = Some(name);
+                        name = second_as;
+                        can_parse_as_keyword = false;
+                    }
+                } else if token_is_identifier_or_keyword(self.token()) {
+                    property_name = Some(name);
+                    can_parse_as_keyword = false;
+                    name = parse_name_with_keyword_check().wrap();
+                } else {
+                    is_type_only = true;
+                    name = first_as;
+                }
+            } else if token_is_identifier_or_keyword(self.token()) {
+                is_type_only = true;
+                name = parse_name_with_keyword_check().wrap();
+            }
+        }
+
+        if can_parse_as_keyword && self.token() == SyntaxKind::AsKeyword {
+            property_name = Some(name);
+            self.parse_expected(SyntaxKind::AsKeyword, None, None);
+            name = parse_name_with_keyword_check().wrap();
+        }
+        if kind == SyntaxKind::ImportSpecifier && check_identifier_is_keyword {
+            self.parse_error_at(
+                check_identifier_start.try_into().unwrap(),
+                check_identifier_end.try_into().unwrap(),
+                &Diagnostics::Identifier_expected,
+                None,
+            );
+        }
+        let node: Node = if kind == SyntaxKind::ImportSpecifier {
+            self.factory
+                .create_import_specifier(self, is_type_only, property_name, name)
+                .into()
+        } else {
+            self.factory
+                .create_export_specifier(self, is_type_only, property_name, name)
+                .into()
+        };
+        self.finish_node(node, pos, None)
+    }
+
+    pub(super) fn parse_namespace_export(&self, pos: isize) -> NamespaceExport {
+        self.finish_node(
+            self.factory
+                .create_namespace_export(self, self.parse_identifier_name(None).wrap()),
+            pos,
+            None,
+        )
     }
 
     pub(super) fn parse_export_declaration(
@@ -413,7 +789,50 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
     ) -> ExportDeclaration {
-        unimplemented!()
+        let saved_await_context = self.in_await_context();
+        self.set_await_context(true);
+        let mut export_clause: Option<Rc<Node>> = None;
+        let mut module_specifier: Option<Rc<Node>> = None;
+        let mut assert_clause: Option<Rc<Node>> = None;
+        let is_type_only = self.parse_optional(SyntaxKind::TypeKeyword);
+        let namespace_export_pos = self.get_node_pos();
+        if self.parse_optional(SyntaxKind::AsteriskToken) {
+            if self.parse_optional(SyntaxKind::AsKeyword) {
+                export_clause = Some(self.parse_namespace_export(namespace_export_pos).into());
+            }
+            self.parse_expected(SyntaxKind::FromKeyword, None, None);
+            module_specifier = Some(self.parse_module_specifier());
+        } else {
+            export_clause = Some(
+                self.parse_named_imports_or_exports(SyntaxKind::NamedExports)
+                    .wrap(),
+            );
+            if self.token() == SyntaxKind::FromKeyword
+                || self.token() == SyntaxKind::StringLiteral
+                    && !self.scanner().has_preceding_line_break()
+            {
+                self.parse_expected(SyntaxKind::FromKeyword, None, None);
+                module_specifier = Some(self.parse_module_specifier());
+            }
+        }
+        if module_specifier.is_some()
+            && self.token() == SyntaxKind::AssertKeyword
+            && !self.scanner().has_preceding_line_break()
+        {
+            assert_clause = Some(self.parse_assert_clause().into());
+        }
+        self.parse_semicolon();
+        self.set_await_context(saved_await_context);
+        let node = self.factory.create_export_declaration(
+            self,
+            decorators,
+            modifiers,
+            is_type_only,
+            export_clause,
+            module_specifier,
+            assert_clause,
+        );
+        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
     }
 
     pub(super) fn parse_export_assignment(
