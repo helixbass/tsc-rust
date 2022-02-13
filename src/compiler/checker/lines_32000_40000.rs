@@ -485,7 +485,11 @@ impl TypeChecker {
         node: &Node, /*InterfaceDeclaration*/
     ) {
         let node_as_interface_declaration = node.as_interface_declaration();
-        self.check_type_parameters(node_as_interface_declaration.maybe_type_parameters());
+        self.check_type_parameters(
+            node_as_interface_declaration
+                .maybe_type_parameters()
+                .as_ref(),
+        );
         for_each(&node_as_interface_declaration.members, |member, _| {
             self.check_source_element(Some(&**member));
             Option::<()>::None
@@ -497,7 +501,11 @@ impl TypeChecker {
         node: &Node, /*TypeAliasDeclaration*/
     ) {
         let node_as_type_alias_declaration = node.as_type_alias_declaration();
-        self.check_type_parameters(node_as_type_alias_declaration.maybe_type_parameters());
+        self.check_type_parameters(
+            node_as_type_alias_declaration
+                .maybe_type_parameters()
+                .as_ref(),
+        );
         if false {
             unimplemented!()
         } else {

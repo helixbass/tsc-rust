@@ -781,7 +781,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let node =
             self.create_base_named_declaration(base_factory, kind, decorators, modifiers, name);
         let mut node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
-        node.add_transform_flags(propagate_children_flags(node.maybe_type_parameters()));
+        let flags = propagate_children_flags(node.maybe_type_parameters().as_ref());
+        node.add_transform_flags(flags);
         if node.maybe_type_parameters().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }

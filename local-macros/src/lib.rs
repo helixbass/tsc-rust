@@ -252,7 +252,7 @@ fn get_ast_struct_interface_impl(
         "HasTypeParametersInterface" => {
             quote! {
                 impl crate::HasTypeParametersInterface for #ast_type_name {
-                    fn maybe_type_parameters(&self) -> ::std::option::Option<&crate::NodeArray> {
+                    fn maybe_type_parameters(&self) -> ::std::cell::RefMut<::std::option::Option<crate::NodeArray>> {
                         self.#first_field_name.maybe_type_parameters()
                     }
                 }
@@ -283,7 +283,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_type()
                     }
 
-                    fn set_type(&mut self, type_: ::std::rc::Rc<crate::Node>) {
+                    fn set_type(&mut self, type_: ::std::option::Option<::std::rc::Rc<crate::Node>>) {
                         self.#first_field_name.set_type(type_);
                     }
                 }
@@ -365,7 +365,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_question_token()
                     }
 
-                    fn maybe_exclamation_token(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                    fn maybe_exclamation_token(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
                         self.#first_field_name.maybe_exclamation_token()
                     }
                 }
@@ -738,7 +738,7 @@ fn get_ast_enum_interface_impl(
         "HasTypeParametersInterface" => {
             quote! {
                 impl crate::HasTypeParametersInterface for #ast_type_name {
-                    fn maybe_type_parameters(&self) -> ::std::option::Option<&crate::NodeArray> {
+                    fn maybe_type_parameters(&self) -> ::std::cell::RefMut<::std::option::Option<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_type_parameters()),*
                         }
@@ -800,7 +800,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_exclamation_token(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                    fn maybe_exclamation_token(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_exclamation_token()),*
                         }
@@ -817,7 +817,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_type(&mut self, type_: ::std::rc::Rc<crate::Node>) {
+                    fn set_type(&mut self, type_: ::std::option::Option<::std::rc::Rc<crate::Node>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_type(type_)),*
                         }

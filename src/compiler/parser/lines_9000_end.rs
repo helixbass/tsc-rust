@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::{
     file_extension_is_one_of, for_each_child_bool, Debug_, DiagnosticMessage, Extension,
     IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType, Node, NodeArray,
-    NodeInterface, ParserType, ReadonlyTextRange,
+    NodeInterface, ParserType, ReadonlyTextRange, SyntaxKind,
 };
 
 impl IncrementalParserType {
@@ -227,4 +227,36 @@ pub(crate) fn process_pragmas_into_fields<
     context: &TContext,
     report_diagnostic: TReportDiagnostic,
 ) {
+}
+
+pub(crate) fn tag_names_are_equivalent(
+    lhs: &Node, /*JsxTagNameExpression*/
+    rhs: &Node, /*JsxTagNameExpression*/
+) -> bool {
+    if lhs.kind() != rhs.kind() {
+        return false;
+    }
+
+    if lhs.kind() == SyntaxKind::Identifier {
+        return lhs.as_identifier().escaped_text == rhs.as_identifier().escaped_text;
+    }
+
+    if lhs.kind() == SyntaxKind::ThisKeyword {
+        return true;
+    }
+
+    let lhs_as_property_access_expression = lhs.as_property_access_expression();
+    let rhs_as_property_access_expression = rhs.as_property_access_expression();
+    lhs_as_property_access_expression
+        .name
+        .as_member_name()
+        .escaped_text()
+        == rhs_as_property_access_expression
+            .name
+            .as_member_name()
+            .escaped_text()
+        && tag_names_are_equivalent(
+            &lhs_as_property_access_expression.expression,
+            &rhs_as_property_access_expression.expression,
+        )
 }

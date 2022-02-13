@@ -292,17 +292,13 @@ impl Diagnostic {
 }
 
 pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
-    fn maybe_related_information(&self) -> Option<&[Rc<DiagnosticRelatedInformation>]>;
-    fn set_related_information(
-        &mut self,
-        related_information: Vec<Rc<DiagnosticRelatedInformation>>,
-    );
+    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>>;
 }
 
 #[derive(Clone, Debug)]
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
-    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+    related_information: RefCell<Option<Vec<Rc<DiagnosticRelatedInformation>>>>,
 }
 
 impl BaseDiagnostic {
@@ -312,7 +308,7 @@ impl BaseDiagnostic {
     ) -> Self {
         Self {
             _diagnostic_related_information: diagnostic_related_information,
-            related_information,
+            related_information: RefCell::new(related_information),
         }
     }
 }
@@ -352,15 +348,8 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
 }
 
 impl DiagnosticInterface for BaseDiagnostic {
-    fn maybe_related_information(&self) -> Option<&[Rc<DiagnosticRelatedInformation>]> {
-        self.related_information.as_deref()
-    }
-
-    fn set_related_information(
-        &mut self,
-        related_information: Vec<Rc<DiagnosticRelatedInformation>>,
-    ) {
-        self.related_information = Some(related_information);
+    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+        self.related_information.borrow_mut()
     }
 }
 
@@ -439,32 +428,13 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
 }
 
 impl DiagnosticInterface for Diagnostic {
-    fn maybe_related_information(&self) -> Option<&[Rc<DiagnosticRelatedInformation>]> {
+    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
         match self {
-            Diagnostic::DiagnosticWithLocation(diagnostic) => {
-                diagnostic.maybe_related_information()
-            }
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.related_information(),
             Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => {
-                diagnostic.maybe_related_information()
+                diagnostic.related_information()
             }
-            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.maybe_related_information(),
-        }
-    }
-
-    fn set_related_information(
-        &mut self,
-        related_information: Vec<Rc<DiagnosticRelatedInformation>>,
-    ) {
-        match self {
-            Diagnostic::DiagnosticWithLocation(diagnostic) => {
-                diagnostic.set_related_information(related_information)
-            }
-            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => {
-                diagnostic.set_related_information(related_information)
-            }
-            Diagnostic::BaseDiagnostic(diagnostic) => {
-                diagnostic.set_related_information(related_information)
-            }
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.related_information(),
         }
     }
 }
@@ -706,16 +676,8 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
 }
 
 impl DiagnosticInterface for DiagnosticWithLocation {
-    fn maybe_related_information(&self) -> Option<&[Rc<DiagnosticRelatedInformation>]> {
-        self._diagnostic.maybe_related_information()
-    }
-
-    fn set_related_information(
-        &mut self,
-        related_information: Vec<Rc<DiagnosticRelatedInformation>>,
-    ) {
-        self._diagnostic
-            .set_related_information(related_information)
+    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+        self._diagnostic.related_information()
     }
 }
 
@@ -783,22 +745,22 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
 }
 
 impl DiagnosticInterface for DiagnosticWithDetachedLocation {
-    fn maybe_related_information(&self) -> Option<&[Rc<DiagnosticRelatedInformation>]> {
-        self._diagnostic.maybe_related_information()
-    }
-
-    fn set_related_information(
-        &mut self,
-        related_information: Vec<Rc<DiagnosticRelatedInformation>>,
-    ) {
-        self._diagnostic
-            .set_related_information(related_information)
+    fn related_information(&self) -> RefMut<Option<Vec<Rc<DiagnosticRelatedInformation>>>> {
+        self._diagnostic.related_information()
     }
 }
 
 impl From<DiagnosticWithDetachedLocation> for Diagnostic {
     fn from(diagnostic_with_detached_location: DiagnosticWithDetachedLocation) -> Self {
         Diagnostic::DiagnosticWithDetachedLocation(diagnostic_with_detached_location)
+    }
+}
+
+impl From<DiagnosticWithDetachedLocation> for DiagnosticRelatedInformation {
+    fn from(diagnostic_with_detached_location: DiagnosticWithDetachedLocation) -> Self {
+        DiagnosticRelatedInformation::Diagnostic(Diagnostic::DiagnosticWithDetachedLocation(
+            diagnostic_with_detached_location,
+        ))
     }
 }
 

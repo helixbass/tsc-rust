@@ -58,7 +58,7 @@ impl ParserType {
         self.next_token();
 
         let statements = self.parse_list(ParsingContext::SourceElements, &mut || {
-            self.parse_statement().wrap()
+            self.parse_statement()
         });
         Debug_.assert(self.token() == SyntaxKind::EndOfFileToken, None);
         let end_of_file_token = self.add_jsdoc_comment(self.parse_token_node());
@@ -206,7 +206,7 @@ impl ParserType {
                         let start_pos = self.scanner().get_start_pos();
                         let statement: Rc<Node> = self
                             .parse_list_element(ParsingContext::SourceElements, &mut || {
-                                self.parse_statement().wrap()
+                                self.parse_statement()
                             });
                         statements.push(statement.clone());
                         if start_pos == self.scanner().get_start_pos() {
@@ -465,7 +465,7 @@ impl ParserType {
         self.do_inside_of_context(NodeFlags::YieldContext | NodeFlags::AwaitContext, func)
     }
 
-    pub(super) fn do_ouside_of_yield_and_await_context<TReturn, TFunc: FnOnce() -> TReturn>(
+    pub(super) fn do_outside_of_yield_and_await_context<TReturn, TFunc: FnOnce() -> TReturn>(
         &self,
         func: TFunc,
     ) -> TReturn {
@@ -1030,7 +1030,7 @@ impl ParserType {
             self.create_missing_node(
                 t,
                 false,
-                diagnostic_message.unwrap_or(&Diagnostics::_0_expected),
+                Some(diagnostic_message.unwrap_or(&Diagnostics::_0_expected)),
                 Some(args.unwrap_or_else(|| vec![token_to_string(t).unwrap().to_owned()])),
             )
             .into()
@@ -1042,7 +1042,7 @@ impl ParserType {
             self.create_missing_node(
                 t,
                 false,
-                &Diagnostics::_0_expected,
+                Some(&Diagnostics::_0_expected),
                 Some(vec![token_to_string(t).unwrap().to_owned()]),
             )
             .into()
@@ -1135,19 +1135,17 @@ impl ParserType {
         &self,
         kind: SyntaxKind,
         report_at_current_position: bool,
-        diagnostic_message: &DiagnosticMessage,
+        diagnostic_message: Option<&DiagnosticMessage>,
         args: Option<Vec<String>>,
     ) -> Node {
         if report_at_current_position {
             self.parse_error_at_position(
                 self.scanner().get_start_pos().try_into().unwrap(),
                 0,
-                diagnostic_message,
+                diagnostic_message.unwrap(),
                 args,
             );
-        } else
-        /*if diagnostic_message*/
-        {
+        } else if let Some(diagnostic_message) = diagnostic_message {
             self.parse_error_at_current_token(diagnostic_message, args);
         }
 
@@ -1263,7 +1261,7 @@ impl ParserType {
         self.create_missing_node(
             SyntaxKind::Identifier,
             report_at_current_position,
-            diagnostic_message.unwrap_or(default_message),
+            Some(diagnostic_message.unwrap_or(default_message)),
             Some(vec![msg_arg]),
         )
     }
@@ -1345,8 +1343,7 @@ impl ParserType {
         let expression = self.allow_in_and(|| self.parse_expression());
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
-            self.factory
-                .create_computed_property_name(self, expression.wrap()),
+            self.factory.create_computed_property_name(self, expression),
             pos,
             None,
         )

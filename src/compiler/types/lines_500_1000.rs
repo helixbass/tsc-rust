@@ -819,6 +819,22 @@ impl Node {
     pub fn as_base_jsdoc_unary_type(&self) -> &BaseJSDocUnaryType {
         enum_unwrapped!(self, [Node, BaseJSDocUnaryType])
     }
+
+    pub fn as_jsx_opening_element(&self) -> &JsxOpeningElement {
+        enum_unwrapped!(self, [Node, JsxOpeningElement])
+    }
+
+    pub fn as_jsx_element(&self) -> &JsxElement {
+        enum_unwrapped!(self, [Node, JsxElement])
+    }
+
+    pub fn as_jsx_closing_element(&self) -> &JsxClosingElement {
+        enum_unwrapped!(self, [Node, JsxClosingElement])
+    }
+
+    pub fn as_non_null_expression(&self) -> &NonNullExpression {
+        enum_unwrapped!(self, [Node, NonNullExpression])
+    }
 }
 
 #[derive(Debug)]
@@ -1075,7 +1091,7 @@ impl From<BaseNode> for Rc<Node> {
 
 pub trait HasTypeInterface {
     fn maybe_type(&self) -> Option<Rc<Node>>;
-    fn set_type(&mut self, type_: Rc<Node>);
+    fn set_type(&mut self, type_: Option<Rc<Node>>);
 }
 
 pub trait HasInitializerInterface {

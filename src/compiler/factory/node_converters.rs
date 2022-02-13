@@ -72,6 +72,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeConverters<TBaseNodeFactor
                 node_as_function_declaration.maybe_name(),
                 node_as_function_declaration
                     .maybe_type_parameters()
+                    .as_ref()
                     .map(Clone::clone),
                 node_as_function_declaration.parameters().clone(),
                 node_as_function_declaration.maybe_type(),

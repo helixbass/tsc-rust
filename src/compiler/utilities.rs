@@ -333,7 +333,7 @@ fn get_source_text_of_node_from_source_file(
     )
 }
 
-fn get_text_of_node_from_source_text(
+pub fn get_text_of_node_from_source_text(
     source_text: &SourceTextAsChars,
     node: &Node,
     include_trivia: Option<bool>,
@@ -551,6 +551,10 @@ pub fn node_is_missing<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
     let node = node.unwrap();
     let node = node.borrow();
     node.pos() == node.end() && node.pos() >= 0 && node.kind() != SyntaxKind::EndOfFileToken
+}
+
+pub fn node_is_present<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
+    !node_is_missing(node)
 }
 
 pub fn is_any_import_syntax(node: &Node) -> bool {
@@ -2498,8 +2502,8 @@ pub fn attach_file_to_diagnostic(
         ),
         None,
     ));
-    if let Some(related_information) = diagnostic.maybe_related_information() {
-        diagnostic_with_location.set_related_information(
+    if let Some(related_information) = diagnostic.related_information().as_ref() {
+        *diagnostic_with_location.related_information() = Some(
             related_information
                 .iter()
                 .map(|related| {
@@ -2664,11 +2668,11 @@ fn compare_diagnostics_skip_related_information<
 }
 
 fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic) -> Comparison {
-    if d1.maybe_related_information().is_none() && d2.maybe_related_information().is_none() {
+    if d1.related_information().is_none() && d2.related_information().is_none() {
         return Comparison::EqualTo;
     }
-    if let Some(d1_related_information) = d1.maybe_related_information() {
-        if let Some(d2_related_information) = d2.maybe_related_information() {
+    if let Some(d1_related_information) = d1.related_information().as_ref() {
+        if let Some(d2_related_information) = d2.related_information().as_ref() {
             let compared = compare_values(
                 Some(d1_related_information.len()),
                 Some(d2_related_information.len()),
@@ -2692,7 +2696,7 @@ fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic) -> Comparison {
             return Comparison::EqualTo;
         }
     }
-    if d1.maybe_related_information().is_some() {
+    if d1.related_information().is_some() {
         Comparison::LessThan
     } else {
         Comparison::GreaterThan
@@ -3009,6 +3013,25 @@ pub fn position_is_synthesized(pos: isize) -> bool {
     !(pos >= 0)
 }
 
+pub fn add_related_info(
+    diagnostic: &Diagnostic,
+    related_information: Vec<Rc<DiagnosticRelatedInformation>>,
+) {
+    if related_information.is_empty() {
+        return /*diagnostic*/;
+    }
+    let mut diagnostic_related_information = diagnostic.related_information();
+    if diagnostic_related_information.is_none() {
+        *diagnostic_related_information = Some(vec![]);
+    }
+    // Debug.assert(diagnostic.relatedInformation !== emptyArray, "Diagnostic had empty array singleton for related info, but is still being constructed!");
+    diagnostic_related_information
+        .as_mut()
+        .unwrap()
+        .extend(related_information);
+    // return diagnostic;
+}
+
 pub fn parse_pseudo_big_int(string_value: &str) -> String {
     string_value.to_string()
 }
@@ -3027,7 +3050,7 @@ pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
     )
 }
 
-fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize) -> &TRange {
+pub fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize) -> &TRange {
     range.set_pos(pos);
     range
 }

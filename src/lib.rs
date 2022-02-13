@@ -112,7 +112,8 @@ pub use compiler::parser::{
     IncrementalParserType, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
 };
 use compiler::parser::{
-    is_declaration_file_name, process_comment_pragmas, process_pragmas_into_fields, PragmaContext,
+    is_declaration_file_name, process_comment_pragmas, process_pragmas_into_fields,
+    tag_names_are_equivalent, PragmaContext,
 };
 pub use compiler::path::{
     alt_directory_separator, change_any_extension, combine_paths, compare_paths,
@@ -235,7 +236,7 @@ use compiler::types::{
     CommandLineOptionType, EmitNode, ReadonlyPragmaMap, StringOrDiagnosticMessage,
 };
 pub use compiler::utilities::{
-    attach_file_to_diagnostics, chain_diagnostic_messages, compare_diagnostics,
+    add_related_info, attach_file_to_diagnostics, chain_diagnostic_messages, compare_diagnostics,
     contains_parse_error, create_compiler_diagnostic, create_detached_diagnostic,
     create_diagnostic_collection, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, create_symbol_table, create_text_writer,
@@ -251,18 +252,19 @@ pub use compiler::utilities::{
     get_jsdoc_type_parameter_declarations, get_language_variant, get_leftmost_expression,
     get_literal_text, get_object_flags, get_operator_associativity, get_operator_precedence,
     get_source_file_of_node, get_syntactic_modifier_flags, get_text_of_identifier_or_literal,
-    has_dynamic_name, has_static_modifier, has_syntactic_modifier, is_access_expression,
-    is_ambient_module, is_any_import_or_re_export, is_assignment_expression,
-    is_bindable_static_element_access_expression, is_block_or_catch_scoped,
-    is_external_or_common_js_module, is_function_block, is_function_expression_or_arrow_function,
-    is_import_call, is_in_js_file, is_jsdoc_type_alias, is_keyword,
-    is_logical_or_coalescing_assignment_operator, is_object_literal_method,
-    is_property_name_literal, is_super_property, is_this_identifier, is_type_alias,
-    is_type_node_kind, is_write_only_access, modifier_to_flag, modifiers_to_flags, node_is_missing,
-    object_allocator, parse_pseudo_big_int, position_is_synthesized, pseudo_big_int_to_string,
-    set_parent, set_parent_recursive, set_text_range_pos_end, set_text_range_pos_width,
-    set_value_declaration, using_single_line_string_writer, Associativity, FunctionFlags,
-    GetLiteralTextFlags, OperatorPrecedence,
+    get_text_of_node_from_source_text, has_dynamic_name, has_static_modifier,
+    has_syntactic_modifier, is_access_expression, is_ambient_module, is_any_import_or_re_export,
+    is_assignment_expression, is_assignment_operator, is_bindable_static_element_access_expression,
+    is_block_or_catch_scoped, is_external_or_common_js_module, is_function_block,
+    is_function_expression_or_arrow_function, is_import_call, is_in_js_file, is_jsdoc_type_alias,
+    is_keyword, is_logical_or_coalescing_assignment_operator, is_object_literal_method,
+    is_property_name_literal, is_string_or_numeric_literal_like, is_super_property,
+    is_this_identifier, is_type_alias, is_type_node_kind, is_write_only_access, modifier_to_flag,
+    modifiers_to_flags, node_is_missing, node_is_present, object_allocator, parse_pseudo_big_int,
+    position_is_synthesized, pseudo_big_int_to_string, set_parent, set_parent_recursive,
+    set_text_range_pos, set_text_range_pos_end, set_text_range_pos_width, set_value_declaration,
+    using_single_line_string_writer, Associativity, FunctionFlags, GetLiteralTextFlags,
+    OperatorPrecedence,
 };
 use compiler::utilities::{has_invalid_escape, set_localized_diagnostic_messages};
 pub use compiler::utilities_public::{
