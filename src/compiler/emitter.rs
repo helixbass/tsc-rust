@@ -6,7 +6,6 @@ use crate::{
     get_literal_text, id_text, is_expression, is_identifier, is_keyword, token_to_string, Debug_,
     EmitHint, EmitTextWriter, GetLiteralTextFlags, HasTypeInterface, ListFormat,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, PrinterOptions, Symbol,
-    TypeElement,
 };
 
 #[derive(PartialEq, Eq)]
@@ -121,9 +120,7 @@ impl Printer {
         if hint == EmitHint::Unspecified {
             match node {
                 Node::Identifier(_) => return self.emit_identifier(node),
-                Node::TypeElement(TypeElement::PropertySignature(_)) => {
-                    return self.emit_property_signature(node)
-                }
+                Node::PropertySignature(_) => return self.emit_property_signature(node),
                 Node::TypeReferenceNode(_) => return self.emit_type_reference(node),
                 Node::TypeLiteralNode(_) => return self.emit_type_literal(node),
                 Node::UnionTypeNode(_) => return self.emit_union_type(node),

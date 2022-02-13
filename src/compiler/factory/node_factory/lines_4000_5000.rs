@@ -655,12 +655,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         tag_name: Rc<Node /*Identifier*/>,
         comment: Option<TComment>,
     ) -> BaseJSDocTag {
-        self.create_base_jsdoc_tag(
-            base_factory,
-            SyntaxKind::JSDocUnknownType,
-            tag_name,
-            comment,
-        )
+        self.create_base_jsdoc_tag(base_factory, SyntaxKind::JSDocTag, tag_name, comment)
     }
 
     pub fn create_jsdoc_text(&self, base_factory: &TBaseNodeFactory, text: String) -> JSDocText {

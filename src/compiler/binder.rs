@@ -12,7 +12,6 @@ use crate::{
     is_function_like, is_property_name_literal, object_allocator, set_parent,
     set_value_declaration, BaseSymbol, ExpressionStatement, IfStatement, InternalSymbolName,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
-    TypeElement,
 };
 
 bitflags! {
@@ -511,7 +510,7 @@ impl BinderType {
             Node::TypeParameterDeclaration(_) => self.bind_type_parameter(node),
             Node::ParameterDeclaration(_) => self.bind_parameter(node),
             Node::VariableDeclaration(_) => self.bind_variable_declaration_or_binding_element(node),
-            Node::TypeElement(TypeElement::PropertySignature(_)) => self.bind_property_worker(node),
+            Node::PropertySignature(_) => self.bind_property_worker(node),
             Node::PropertyAssignment(_) => self.bind_property_or_method_or_accessor(
                 node,
                 SymbolFlags::Property,

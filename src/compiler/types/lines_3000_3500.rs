@@ -592,20 +592,6 @@ impl JSDoc {
     }
 }
 
-#[derive(Debug)]
-#[ast_type(interfaces = "JSDocTagInterface")]
-pub enum JSDocTag {
-    BaseJSDocTag(BaseJSDocTag),
-    JSDocAugmentsTag(JSDocAugmentsTag),
-    JSDocImplementsTag(JSDocImplementsTag),
-    BaseJSDocTypeLikeTag(BaseJSDocTypeLikeTag),
-    JSDocTemplateTag(JSDocTemplateTag),
-    JSDocSeeTag(JSDocSeeTag),
-    JSDocTypedefTag(JSDocTypedefTag),
-    JSDocCallbackTag(JSDocCallbackTag),
-    JSDocPropertyLikeTag(JSDocPropertyLikeTag),
-}
-
 pub trait JSDocTagInterface {
     fn tag_name(&self) -> Rc<Node /*Identifier*/>;
     fn maybe_comment(&self) -> Option<&StringOrNodeArray /*<JSDocComment>*/>;
@@ -735,7 +721,7 @@ impl From<NodeArray> for StringOrNodeArray {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag")]
+#[ast_type]
 pub struct BaseJSDocTag {
     _node: BaseNode,
     tag_name: Rc<Node /*Identifier*/>,
@@ -767,7 +753,7 @@ impl JSDocTagInterface for BaseJSDocTag {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+#[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocAugmentsTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub class: Rc<
@@ -785,7 +771,7 @@ impl JSDocAugmentsTag {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+#[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocImplementsTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub class: Rc<
@@ -808,10 +794,10 @@ pub trait JSDocTypeLikeTagInterface: JSDocTagInterface {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+#[ast_type(interfaces = "JSDocTagInterface")]
 pub struct BaseJSDocTypeLikeTag {
     _base_jsdoc_tag: BaseJSDocTag,
-    type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
+    pub type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
 }
 
 impl BaseJSDocTypeLikeTag {
@@ -834,7 +820,7 @@ impl JSDocTypeLikeTagInterface for BaseJSDocTypeLikeTag {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+#[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocTemplateTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub constraint: Option<Rc<Node /*JSDocTypeExpression*/>>,
@@ -856,7 +842,7 @@ impl JSDocTemplateTag {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+#[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocSeeTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub name: Option<Rc<Node /*JSDocNameReference*/>>,
@@ -872,7 +858,7 @@ impl JSDocSeeTag {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+#[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocTypedefTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub full_name: Option<Rc<Node /*JSDocNamespaceDeclaration | Identifier*/>>,
@@ -911,7 +897,7 @@ impl NamedDeclarationInterface for JSDocTypedefTag {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+#[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocCallbackTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub full_name: Option<Rc<Node /*JSDocNamespaceDeclaration | Identifier*/>>,
@@ -975,7 +961,7 @@ impl JSDocSignature {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "JSDocTag", interfaces = "JSDocTagInterface")]
+#[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocPropertyLikeTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub name: Rc<Node /*EntityName*/>,

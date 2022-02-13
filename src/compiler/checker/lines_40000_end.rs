@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, for_each, is_external_or_common_js_module, Diagnostic, Node, NodeInterface,
-    SourceFile, TypeChecker, TypeCheckerHost, TypeElement,
+    SourceFile, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -18,9 +18,7 @@ impl TypeChecker {
 
     pub(super) fn check_source_element_worker(&mut self, node: &Node) {
         match node {
-            Node::TypeElement(TypeElement::PropertySignature(_)) => {
-                self.check_property_signature(node)
-            }
+            Node::PropertySignature(_) => self.check_property_signature(node),
             Node::TypeReferenceNode(_) => self.check_type_reference_node(node),
             Node::KeywordTypeNode(_) | Node::LiteralTypeNode(_) => (),
             Node::ArrayTypeNode(_) => self.check_array_type(node),

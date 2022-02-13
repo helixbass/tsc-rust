@@ -318,6 +318,22 @@ impl LiteralLikeNodeInterface for JsxText {
 
 #[derive(Debug)]
 #[ast_type]
+pub struct CommaListExpression {
+    _node: BaseNode,
+    pub elements: NodeArray, /*<Expression>*/
+}
+
+impl CommaListExpression {
+    pub fn new(base_node: BaseNode, elements: NodeArray) -> Self {
+        Self {
+            _node: base_node,
+            elements,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
 pub struct EmptyStatement {
     _node: BaseNode,
 }
@@ -802,12 +818,6 @@ impl CatchClause {
 }
 
 #[derive(Debug)]
-#[ast_type(interfaces = "NamedDeclarationInterface")]
-pub enum TypeElement {
-    PropertySignature(PropertySignature),
-}
-
-#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface"
 )]
@@ -832,7 +842,7 @@ impl BindingElement {
 }
 
 #[derive(Debug)]
-#[ast_type(ancestors = "TypeElement", interfaces = "NamedDeclarationInterface")]
+#[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct PropertySignature {
     _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
     pub question_token: Option<Rc<Node /*QuestionToken*/>>,
@@ -908,6 +918,7 @@ impl PropertyDeclaration {
 pub struct PropertyAssignment {
     _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
     pub initializer: Rc<Node /*Expression*/>,
+    pub question_token: Option<Rc<Node /*QuestionToken*/>>,
 }
 
 impl PropertyAssignment {
@@ -915,6 +926,7 @@ impl PropertyAssignment {
         Self {
             _named_declaration: base_named_declaration,
             initializer,
+            question_token: None,
         }
     }
 }
