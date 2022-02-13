@@ -8,14 +8,29 @@ use super::{
     aggregate_children_flags, update_with_original, update_without_original, PseudoBigIntOrString,
 };
 use crate::{
-    create_parenthesizer_rules, escape_leading_underscores, null_parenthesizer_rules,
-    pseudo_big_int_to_string, BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration,
-    BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode,
-    BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
-    BaseVariableLikeDeclaration, BigIntLiteral, Debug_, Identifier, LiteralLikeNode,
-    LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface,
-    NumericLiteral, ParenthesizerRules, ReadonlyTextRange, StringLiteral, SyntaxKind, TokenFlags,
+    create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
+    null_node_converters, null_parenthesizer_rules, pseudo_big_int_to_string,
+    BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
+    BaseInterfaceOrClassLikeDeclaration, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
+    BaseNodeFactory, BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral,
+    BinaryExpression, Debug_, Identifier, LiteralLikeNode, LiteralLikeNodeInterface, Node,
+    NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, NumericLiteral,
+    ParenthesizerRules, ReadonlyTextRange, StringLiteral, SyntaxKind, TokenFlags,
 };
+
+thread_local! {
+    pub(super) static next_auto_generate_id: RefCell<usize> = RefCell::new(0);
+}
+
+pub(super) fn get_next_auto_generate_id() -> usize {
+    next_auto_generate_id.with(|_next_auto_generate_id| *_next_auto_generate_id.borrow())
+}
+
+pub(super) fn increment_next_auto_generate_id() {
+    next_auto_generate_id.with(|_next_auto_generate_id| {
+        *_next_auto_generate_id.borrow_mut() += 1;
+    });
+}
 
 bitflags! {
     pub struct NodeFactoryFlags: u32 {
@@ -38,6 +53,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         let factory_ = Rc::new(Self {
             flags,
             parenthesizer_rules: RefCell::new(None),
+            converters: RefCell::new(None),
         });
         factory_.set_parenthesizer_rules(
             /*memoize(*/
@@ -45,6 +61,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 Box::new(null_parenthesizer_rules())
             } else {
                 Box::new(create_parenthesizer_rules(factory_.clone()))
+            },
+        );
+        factory_.set_converters(
+            /*memoize(*/
+            if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
+                Box::new(null_node_converters())
+            } else {
+                Box::new(create_node_converters(factory_.clone()))
             },
         );
         factory_
@@ -69,6 +93,26 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         Ref::map(self.parenthesizer_rules.borrow(), |option| {
             option.as_ref().unwrap()
         })
+    }
+
+    pub(crate) fn set_converters(
+        &self,
+        node_converters: Box<dyn NodeConverters<TBaseNodeFactory>>,
+    ) {
+        *self.converters.borrow_mut() = Some(node_converters);
+    }
+
+    pub(crate) fn converters(&self) -> Ref<Box<dyn NodeConverters<TBaseNodeFactory>>> {
+        Ref::map(self.converters.borrow(), |option| option.as_ref().unwrap())
+    }
+
+    pub fn create_assignment(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        left: Rc<Node /*Expression*/>,
+        right: Rc<Node /*Expression*/>,
+    ) -> BinaryExpression {
+        self.create_binary_expression(base_factory, left, SyntaxKind::EqualsToken, right)
     }
 
     pub fn create_node_array<TElements: Into<NodeArrayOrVec>>(

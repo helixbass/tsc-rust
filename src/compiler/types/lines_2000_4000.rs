@@ -5,9 +5,9 @@ use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
-    BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseTextRange,
-    BaseVariableLikeDeclaration, BindingLikeDeclarationInterface, Diagnostic, FunctionDeclaration,
-    HasInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseNamedDeclaration, BaseNode,
+    BaseTextRange, BaseVariableLikeDeclaration, BindingLikeDeclarationInterface, Diagnostic,
+    FunctionDeclaration, HasInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Path, StringLiteral, Symbol,
     SyntaxKind, TextRange, TypeCheckerHost, VariableLikeDeclarationInterface,
 };
@@ -75,6 +75,23 @@ impl ConditionalExpression {
             when_true,
             colon_token,
             when_false,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(
+    ancestors = "Expression",
+    interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface"
+)]
+pub struct FunctionExpression {
+    _function_like_declaration: BaseFunctionLikeDeclaration,
+}
+
+impl FunctionExpression {
+    pub fn new(function_like_declaration: BaseFunctionLikeDeclaration) -> Self {
+        Self {
+            _function_like_declaration: function_like_declaration,
         }
     }
 }
@@ -331,6 +348,28 @@ impl ArrayLiteralExpression {
             _node: base_node,
             elements,
         }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type(ancestors = "Expression")]
+pub struct SpreadElement {
+    _node: BaseNode,
+    pub expression: Rc<Node /*<Expression>*/>,
+}
+
+impl SpreadElement {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for SpreadElement {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 
@@ -1060,6 +1099,30 @@ impl ShorthandPropertyAssignment {
             equals_token: None,
             object_assignment_initializer,
         }
+    }
+}
+
+#[derive(Debug)]
+#[ast_type]
+pub struct SpreadAssignment {
+    _node: BaseNode,
+    pub expression: Rc<Node /*Expression*/>,
+}
+
+// TODO: should implement NamedDeclarationInterface for SpreadAssignment since it extends
+// NamedDeclaration (even though it appears to never have a populated name field?
+impl SpreadAssignment {
+    pub fn new(base_node: BaseNode, expression: Rc<Node>) -> Self {
+        Self {
+            _node: base_node,
+            expression,
+        }
+    }
+}
+
+impl HasExpressionInterface for SpreadAssignment {
+    fn expression(&self) -> Rc<Node> {
+        self.expression.clone()
     }
 }
 

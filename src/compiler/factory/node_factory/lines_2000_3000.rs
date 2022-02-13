@@ -7,10 +7,10 @@ use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     is_call_chain, is_import_keyword, is_omitted_expression, is_super_property, last_or_undefined,
     ArrayLiteralExpression, BaseLiteralLikeNode, BaseNode, BaseNodeFactory, BinaryExpression,
-    CallExpression, Debug_, LiteralTypeNode, Node, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, ObjectLiteralExpression, ParenthesizedExpression, ParenthesizedTypeNode,
-    PrefixUnaryExpression, SyntaxKind, TemplateExpression, TemplateLiteralLikeNode, TokenFlags,
-    TransformFlags,
+    CallExpression, Debug_, FunctionExpression, LiteralTypeNode, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeFlags, NodeInterface, ObjectLiteralExpression, ParenthesizedExpression,
+    ParenthesizedTypeNode, PrefixUnaryExpression, SpreadElement, SyntaxKind, SyntaxKindOrRcNode,
+    TemplateExpression, TemplateLiteralLikeNode, TokenFlags, TransformFlags,
 };
 
 impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> {
@@ -279,6 +279,32 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn create_function_expression(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        modifiers: Option<NodeArray>,
+        asterisk_token: Option<Rc<Node>>,
+        name: Option<Rc<Node>>,
+        type_parameters: Option<NodeArray>,
+        parameters: NodeArray,
+        type_: Option<Rc<Node>>,
+        body: Option<Rc<Node>>,
+    ) -> FunctionExpression {
+        let mut node = self.create_base_function_like_declaration(
+            base_factory,
+            SyntaxKind::FunctionExpression,
+            None,
+            modifiers,
+            name,
+            type_parameters,
+            Some(parameters),
+            type_,
+            body,
+        );
+        node.asterisk_token = asterisk_token;
+        FunctionExpression::new(node)
+    }
+
     pub fn create_prefix_unary_expression(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -290,15 +316,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
-    pub fn create_binary_expression(
+    pub fn create_binary_expression<TOperator: Into<SyntaxKindOrRcNode>>(
         &self,
         base_factory: &TBaseNodeFactory,
         left: Rc<Node /*Expression*/>,
-        operator: Rc<Node>,
+        operator: TOperator,
         right: Rc<Node /*Expression*/>,
     ) -> BinaryExpression {
         let node = self.create_base_expression(base_factory, SyntaxKind::BinaryExpression);
-        let node = BinaryExpression::new(node, left, operator, right);
+        let operator_token = self.as_token(base_factory, operator.into());
+        let operator_kind = operator_token.kind();
+        let node = BinaryExpression::new(node, left, operator_token, right);
         node
     }
 
@@ -332,6 +360,25 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
             node,
             raw_text,
             Some(template_flags & TokenFlags::TemplateLiteralLikeFlags),
+        );
+        node
+    }
+
+    pub fn create_spread_element(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        expression: Rc<Node /*Expression*/>,
+    ) -> SpreadElement {
+        let node = self.create_base_expression(base_factory, SyntaxKind::SpreadElement);
+        let mut node = SpreadElement::new(
+            node,
+            self.parenthesizer_rules()
+                .parenthesize_expression_for_disallowed_comma(base_factory, &expression),
+        );
+        node.add_transform_flags(
+            propagate_child_flags(Some(&*node.expression))
+                | TransformFlags::ContainsES2015
+                | TransformFlags::ContainsRestOrSpread,
         );
         node
     }

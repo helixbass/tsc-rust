@@ -508,8 +508,26 @@ fn binary_search_key_copy_key<
     !low
 }
 
+pub fn cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: Option<TIn>, test: TTest) -> TIn {
+    if let Some(value) = value {
+        if test(&value) {
+            return value;
+        }
+    }
+
+    Debug_.fail(Some("Invalid cast. The supplied value {:?} did not pass the test." /*'${Debug.getFunctionName(test)'*/));
+}
+
 fn identity<TValue>(x: TValue) -> TValue {
     x
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum AssertionLevel {
+    None = 0,
+    Normal = 1,
+    Aggressive = 2,
+    VeryAggressive = 3,
 }
 
 pub fn equate_values<TValue: PartialEq + ?Sized>(a: &TValue, b: &TValue) -> bool {

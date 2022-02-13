@@ -8,11 +8,11 @@ use std::rc::Rc;
 use super::{
     ArrayLiteralExpression, AsExpression, BaseGenericNamedDeclaration, BaseLiteralLikeNode,
     BaseNode, BinaryExpression, CallExpression, ConditionalExpression, ElementAccessExpression,
-    HasExpressionInterface, HasInitializerInterface, HasTypeInterface, JSDocTypeExpression,
-    LiteralLikeNode, NewExpression, Node, NodeInterface, NonNullExpression,
+    FunctionExpression, HasExpressionInterface, HasInitializerInterface, HasTypeInterface,
+    JSDocTypeExpression, LiteralLikeNode, NewExpression, Node, NodeInterface, NonNullExpression,
     ObjectLiteralExpression, ParenthesizedExpression, PropertyAccessExpression, ReadonlyTextRange,
-    SyntaxKind, TaggedTemplateExpression, TemplateExpression, TransformFlags, TypeAssertion,
-    VoidExpression, __String,
+    SpreadElement, SyntaxKind, TaggedTemplateExpression, TemplateExpression, TransformFlags,
+    TypeAssertion, VoidExpression, __String,
 };
 use local_macros::ast_type;
 
@@ -814,6 +814,8 @@ pub enum Expression {
     PostfixUnaryExpression(PostfixUnaryExpression),
     ConditionalExpression(ConditionalExpression),
     TaggedTemplateExpression(TaggedTemplateExpression),
+    FunctionExpression(FunctionExpression),
+    SpreadElement(SpreadElement),
 }
 
 impl From<BaseNode> for Expression {

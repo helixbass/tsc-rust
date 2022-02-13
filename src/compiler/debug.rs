@@ -1,12 +1,43 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
+use std::cell::Cell;
 use std::fmt;
 
-use crate::NodeArray;
+use crate::{AssertionLevel, Node, NodeArray};
+
+enum AssertionKeys {
+    AssertNode,
+}
+
+thread_local! {
+    static current_assertion_level: Cell<AssertionLevel> = Cell::new(AssertionLevel::None);
+}
 
 pub struct DebugType {}
 
 impl DebugType {
+    fn new() -> Self {
+        Self {}
+    }
+
+    fn current_assertion_level(&self) -> AssertionLevel {
+        current_assertion_level.with(|current_assertion_level_| current_assertion_level_.get())
+    }
+
+    fn should_assert(&self, level: AssertionLevel) -> bool {
+        self.current_assertion_level() >= level
+    }
+
+    fn should_assert_function(&self, level: AssertionLevel, name: AssertionKeys) -> bool {
+        if !self.should_assert(level) {
+            // assertionCache[name] = { level, assertion: Debug[name] };
+            // (Debug as any)[name] = noop;
+            return false;
+        }
+        true
+    }
+
     pub fn fail(&self, message: Option<&str>) -> ! {
         let message = match message {
             Some(message) => format!("Debug failure. {}", message),
@@ -63,11 +94,25 @@ impl DebugType {
         self.fail(Some(message));
     }
 
+    pub fn assert_node<TNode: Borrow<Node>, TTest: FnOnce(&Node) -> bool>(
+        &self,
+        node: Option<TNode>,
+        test: Option<TTest>,
+        message: Option<&str>,
+    ) {
+        if self.should_assert_function(AssertionLevel::Normal, AssertionKeys::AssertNode) {
+            self.assert(
+                node.is_some() && (test.is_none() || (test.unwrap())(node.unwrap().borrow())),
+                Some(message.unwrap_or("Unexpected node.")),
+            );
+        }
+    }
+
     pub fn attach_node_array_debug_info(&self, array: &mut NodeArray) {
         // TODO: implement this?
     }
 }
 
 lazy_static! {
-    pub static ref Debug_: DebugType = DebugType {};
+    pub static ref Debug_: DebugType = DebugType::new();
 }
