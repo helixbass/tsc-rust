@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
@@ -205,7 +206,7 @@ impl SymbolTracker for SingleLineStringWriter {
 
     fn report_inaccessible_unique_symbol_error(&mut self) {}
 
-    fn report_private_in_base_of_class_expression(&mut self, property_name: &str) {}
+    fn report_private_in_base_of_class_expression(&mut self, _property_name: &str) {}
 }
 
 pub fn changes_affect_module_resolution(
@@ -287,11 +288,29 @@ pub fn for_each_ancestor<
                 }
             }
         }
-        if is_source_file(&*node) {
+        if is_source_file(&node) {
             return None;
         }
         node = node.parent();
     }
+}
+
+pub fn for_each_entry<
+    TKey,
+    TValue,
+    TReturn,
+    TCallback: FnMut(&TValue, &TKey) -> Option<TReturn>,
+>(
+    map: &HashMap<TKey, TValue>, /*ReadonlyESMap*/
+    mut callback: TCallback,
+) -> Option<TReturn> {
+    for (key, value) in map {
+        let result = callback(value, key);
+        if result.is_some() {
+            return result;
+        }
+    }
+    None
 }
 
 fn get_source_text_of_node_from_source_file(
