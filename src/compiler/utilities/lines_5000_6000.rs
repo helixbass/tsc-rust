@@ -306,6 +306,7 @@ pub fn create_detached_diagnostic(
     DiagnosticWithDetachedLocation::new(
         BaseDiagnostic::new(
             BaseDiagnosticRelatedInformation::new(
+                message.category,
                 message.code,
                 None,
                 Some(start),
@@ -339,6 +340,7 @@ pub fn attach_file_to_diagnostic(
     Debug_.assert_less_than_or_equal(diagnostic.start() + diagnostic.length(), length);
     let mut diagnostic_with_location = DiagnosticWithLocation::new(BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
+            diagnostic.category(),
             diagnostic.code(),
             Some(file.node_wrapper()),
             Some(diagnostic.start()),
@@ -407,6 +409,7 @@ pub fn create_file_diagnostic(
 
     DiagnosticWithLocation::new(BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
+            message.category,
             message.code,
             Some(file.node_wrapper()),
             Some(start),
@@ -430,7 +433,14 @@ pub fn create_compiler_diagnostic(
     }
 
     BaseDiagnostic::new(
-        BaseDiagnosticRelatedInformation::new(message.code, None, None, None, text),
+        BaseDiagnosticRelatedInformation::new(
+            message.category,
+            message.code,
+            None,
+            None,
+            None,
+            text,
+        ),
         None,
     )
 }

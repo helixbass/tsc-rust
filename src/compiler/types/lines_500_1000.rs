@@ -864,6 +864,26 @@ impl Node {
     pub fn as_private_identifier(&self) -> &PrivateIdentifier {
         enum_unwrapped!(self, [Node, PrivateIdentifier])
     }
+
+    pub fn as_arrow_function(&self) -> &ArrowFunction {
+        enum_unwrapped!(self, [Node, ArrowFunction])
+    }
+
+    pub fn as_case_clause(&self) -> &CaseClause {
+        enum_unwrapped!(self, [Node, CaseClause])
+    }
+
+    pub fn as_default_clause(&self) -> &DefaultClause {
+        enum_unwrapped!(self, [Node, DefaultClause])
+    }
+
+    pub fn as_import_type_node(&self) -> &ImportTypeNode {
+        enum_unwrapped!(self, [Node, ImportTypeNode])
+    }
+
+    pub fn as_type_assertion_expression(&self) -> &TypeAssertion {
+        enum_unwrapped!(self, [Node, TypeAssertion])
+    }
 }
 
 #[derive(Debug)]

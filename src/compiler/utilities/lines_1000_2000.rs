@@ -1,17 +1,26 @@
 #![allow(non_upper_case_globals)]
 
 use regex::Regex;
-use std::convert::TryInto;
+use std::borrow::Borrow;
+use std::convert::{TryFrom, TryInto};
 use std::rc::Rc;
 
 use crate::{
-    concatenate, create_file_diagnostic, create_text_span_from_bounds, filter, find_ancestor,
-    get_leading_comment_ranges, get_source_file_of_node, get_trailing_comment_ranges,
-    is_function_like, is_function_like_or_class_static_block_declaration, maybe_text_char_at_index,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, CharacterCodes, CommentRange,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation,
-    DiagnosticWithLocation, Node, NodeInterface, ReadonlyTextRange, SourceTextAsChars, SyntaxKind,
-    TextRange, TextSpan,
+    concatenate, contains_rc, create_file_diagnostic, create_scanner, create_text_span,
+    create_text_span_from_bounds, every, filter, find_ancestor, get_combined_modifier_flags,
+    get_combined_node_flags, get_emit_flags, get_end_line_position, get_leading_comment_ranges,
+    get_line_and_character_of_position, get_source_file_of_node, get_trailing_comment_ranges,
+    is_expression_with_type_arguments_in_class_extends_clause, is_function_declaration,
+    is_function_like, is_function_like_or_class_static_block_declaration, is_identifier,
+    is_import_type_node, is_jsdoc, is_jsx_text, is_literal_type_node, is_meta_property,
+    is_parameter_property_declaration, is_string_literal, is_variable_statement,
+    maybe_text_char_at_index, node_is_missing, skip_trivia, BaseDiagnostic,
+    BaseDiagnosticRelatedInformation, CharacterCodes, CommentRange, Debug_, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticWithLocation, EmitFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange,
+    TextSpan,
 };
 
 pub fn create_diagnostic_for_node(
@@ -23,7 +32,23 @@ pub fn create_diagnostic_for_node(
     create_diagnostic_for_node_in_source_file(&source_file, node, message, args)
 }
 
-fn create_diagnostic_for_node_in_source_file(
+pub fn create_diagnostic_for_node_array(
+    source_file: &Node, /*SourceFile*/
+    nodes: &NodeArray,
+    message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
+) -> DiagnosticWithLocation {
+    let start = skip_trivia(
+        &source_file.as_source_file().text_as_chars(),
+        nodes.pos(),
+        None,
+        None,
+        None,
+    );
+    create_file_diagnostic(&source_file, start, nodes.end() - start, message, args)
+}
+
+pub fn create_diagnostic_for_node_in_source_file(
     source_file: &Node, /*SourceFile*/
     node: &Node,
     message: &DiagnosticMessage,
@@ -49,6 +74,36 @@ pub fn create_diagnostic_for_node_from_message_chain(
     )
 }
 
+fn assert_diagnostic_location<TFile: Borrow<Node>>(
+    file: Option<TFile /*SourceFile*/>,
+    start: isize,
+    length: isize,
+) {
+    Debug_.assert_greater_than_or_equal(start, 0);
+    Debug_.assert_greater_than_or_equal(length, 0);
+
+    if let Some(file) = file {
+        let file = file.borrow();
+        let file_as_source_file = file.as_source_file();
+        Debug_.assert_less_than_or_equal(
+            start,
+            file_as_source_file
+                .text_as_chars()
+                .len()
+                .try_into()
+                .unwrap(),
+        );
+        Debug_.assert_less_than_or_equal(
+            start + length,
+            file_as_source_file
+                .text_as_chars()
+                .len()
+                .try_into()
+                .unwrap(),
+        );
+    }
+}
+
 fn create_file_diagnostic_from_message_chain(
     file: &Node, /*SourceFile*/
     start: isize,
@@ -56,29 +111,278 @@ fn create_file_diagnostic_from_message_chain(
     message_chain: DiagnosticMessageChain,
     related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
-    // assert_diagnostic_location(&*file, start, length);
+    assert_diagnostic_location(Some(file), start, length);
     DiagnosticWithLocation::new(BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
+            message_chain.category,
             message_chain.code,
             Some(file.node_wrapper()),
             Some(start),
             Some(length),
-            message_chain,
+            if message_chain.next.is_some() {
+                Into::<DiagnosticMessageText>::into(message_chain)
+            } else {
+                Into::<DiagnosticMessageText>::into(message_chain.message_text)
+            },
         ),
         related_information,
     ))
 }
 
-fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -> TextSpan {
-    let error_node = node;
+fn create_diagnostic_for_file_from_message_chain(
+    source_file: &Node, /*SourceFile*/
+    message_chain: DiagnosticMessageChain,
+    related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
+) -> DiagnosticWithLocation {
+    DiagnosticWithLocation::new(BaseDiagnostic::new(
+        BaseDiagnosticRelatedInformation::new(
+            message_chain.category,
+            message_chain.code,
+            Some(source_file.node_wrapper()),
+            Some(0),
+            Some(0),
+            if message_chain.next.is_some() {
+                Into::<DiagnosticMessageText>::into(message_chain)
+            } else {
+                Into::<DiagnosticMessageText>::into(message_chain.message_text)
+            },
+        ),
+        related_information,
+    ))
+}
 
-    let pos = error_node.pos();
+fn create_diagnostic_for_range<TRange: TextRange>(
+    source_file: &Node, /*SourceFile*/
+    range: TRange,
+    message: &DiagnosticMessage,
+) -> DiagnosticWithLocation {
+    DiagnosticWithLocation::new(BaseDiagnostic::new(
+        BaseDiagnosticRelatedInformation::new(
+            message.category,
+            message.code,
+            Some(source_file.node_wrapper()),
+            Some(range.pos()),
+            Some(range.end() - range.pos()),
+            message.message.to_owned(),
+        ),
+        None,
+    ))
+}
+
+fn get_span_of_token_at_position(source_file: &Node /*SourceFile*/, pos: usize) -> TextSpan {
+    let source_file_as_source_file = source_file.as_source_file();
+    let scanner = create_scanner(
+        source_file_as_source_file.language_version(),
+        true,
+        Some(source_file_as_source_file.language_variant()),
+        Some(source_file_as_source_file.text_as_chars().to_owned()),
+        Some(source_file_as_source_file.text().to_owned()),
+        // /*onError: */ undefined,
+        Some(pos),
+        None,
+    );
+    scanner.scan(None);
+    let start = scanner.get_token_pos();
+    create_text_span_from_bounds(
+        start.try_into().unwrap(),
+        scanner.get_text_pos().try_into().unwrap(),
+    )
+}
+
+fn get_error_span_for_arrow_function(
+    source_file: &Node, /*SourceFile*/
+    node: &Node,        /*ArrowFunction*/
+) -> TextSpan {
+    let source_file_as_source_file = source_file.as_source_file();
+    let pos = skip_trivia(
+        &source_file_as_source_file.text_as_chars(),
+        node.pos(),
+        None,
+        None,
+        None,
+    );
+    let node_as_arrow_function = node.as_arrow_function();
+    if let Some(node_body) = node_as_arrow_function.maybe_body() {
+        if node_body.kind() == SyntaxKind::Block {
+            let start_line = get_line_and_character_of_position(
+                source_file_as_source_file,
+                node_body.pos().try_into().unwrap(),
+            )
+            .line;
+            let end_line = get_line_and_character_of_position(
+                source_file_as_source_file,
+                node_body.end().try_into().unwrap(),
+            )
+            .line;
+            if start_line < end_line {
+                return create_text_span(
+                    pos,
+                    isize::try_from(get_end_line_position(
+                        start_line,
+                        source_file_as_source_file,
+                    ))
+                    .unwrap()
+                        - pos
+                        + 1,
+                );
+            }
+        }
+    }
+    create_text_span_from_bounds(pos, node.end())
+}
+
+fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -> TextSpan {
+    let mut error_node: Option<Rc<Node>> = Some(node.node_wrapper());
+    let source_file_as_source_file = source_file.as_source_file();
+    match node.kind() {
+        SyntaxKind::SourceFile => {
+            let pos = skip_trivia(
+                &source_file_as_source_file.text_as_chars(),
+                0,
+                Some(false),
+                None,
+                None,
+            );
+            let pos_as_usize = usize::try_from(pos).unwrap();
+            if pos_as_usize == source_file_as_source_file.text_as_chars().len() {
+                return create_text_span(0, 0);
+            }
+            return get_span_of_token_at_position(source_file, pos_as_usize);
+        }
+        SyntaxKind::VariableDeclaration
+        | SyntaxKind::BindingElement
+        | SyntaxKind::ClassDeclaration
+        | SyntaxKind::ClassExpression
+        | SyntaxKind::InterfaceDeclaration
+        | SyntaxKind::ModuleDeclaration
+        | SyntaxKind::EnumDeclaration
+        | SyntaxKind::EnumMember
+        | SyntaxKind::FunctionDeclaration
+        | SyntaxKind::FunctionExpression
+        | SyntaxKind::MethodDeclaration
+        | SyntaxKind::GetAccessor
+        | SyntaxKind::SetAccessor
+        | SyntaxKind::TypeAliasDeclaration
+        | SyntaxKind::PropertyDeclaration
+        | SyntaxKind::PropertySignature
+        | SyntaxKind::NamespaceImport => {
+            error_node = node.as_named_declaration().maybe_name();
+        }
+        SyntaxKind::ArrowFunction => {
+            return get_error_span_for_arrow_function(source_file, node);
+        }
+        SyntaxKind::CaseClause => {
+            let node_as_case_clause = node.as_case_clause();
+            let start = skip_trivia(
+                &source_file_as_source_file.text_as_chars(),
+                node.pos(),
+                None,
+                None,
+                None,
+            );
+            let end = if !node_as_case_clause.statements.is_empty() {
+                node_as_case_clause.statements[0].pos()
+            } else {
+                node.end()
+            };
+            return create_text_span_from_bounds(start, end);
+        }
+        SyntaxKind::DefaultClause => {
+            let node_as_default_clause = node.as_default_clause();
+            let start = skip_trivia(
+                &source_file_as_source_file.text_as_chars(),
+                node.pos(),
+                None,
+                None,
+                None,
+            );
+            let end = if !node_as_default_clause.statements.is_empty() {
+                node_as_default_clause.statements[0].pos()
+            } else {
+                node.end()
+            };
+            return create_text_span_from_bounds(start, end);
+        }
+        _ => (),
+    }
+
+    if error_node.is_none() {
+        return get_span_of_token_at_position(source_file, node.pos().try_into().unwrap());
+    }
+    let error_node = error_node.unwrap();
+
+    Debug_.assert(!is_jsdoc(&error_node), None);
+
+    let is_missing = node_is_missing(Some(&*error_node));
+    let pos = if is_missing || is_jsx_text(&error_node) {
+        error_node.pos()
+    } else {
+        skip_trivia(
+            &source_file_as_source_file.text_as_chars(),
+            error_node.pos(),
+            None,
+            None,
+            None,
+        )
+    };
+
+    if is_missing {
+        Debug_.assert(
+            pos == error_node.pos(),
+            Some("This failure could trigger https://github.com/Microsoft/TypeScript/issues/20809"),
+        );
+        Debug_.assert(
+            pos == error_node.end(),
+            Some("This failure could trigger https://github.com/Microsoft/TypeScript/issues/20809"),
+        );
+    } else {
+        Debug_.assert(
+            pos >= error_node.pos(),
+            Some("This failure could trigger https://github.com/Microsoft/TypeScript/issues/20809"),
+        );
+        Debug_.assert(
+            pos <= error_node.end(),
+            Some("This failure could trigger https://github.com/Microsoft/TypeScript/issues/20809"),
+        );
+    }
 
     create_text_span_from_bounds(pos, error_node.end())
 }
 
 pub fn is_external_or_common_js_module(file: &Node /*SourceFile*/) -> bool {
-    false
+    let file_as_source_file = file.as_source_file();
+    file_as_source_file
+        .maybe_external_module_indicator()
+        .is_some()
+        || file_as_source_file
+            .maybe_common_js_module_indicator()
+            .is_some()
+}
+
+pub fn is_json_source_file(file: &Node /*SourceFile*/) -> bool {
+    file.as_source_file().script_kind() == ScriptKind::JSON
+}
+
+pub fn is_enum_const(node: &Node /*EnumDeclaration*/) -> bool {
+    get_combined_modifier_flags(node).intersects(ModifierFlags::Const)
+}
+
+pub fn is_declaration_readonly(declaration: &Node /*Declaration*/) -> bool {
+    get_combined_modifier_flags(declaration).intersects(ModifierFlags::Readonly)
+        && !is_parameter_property_declaration(declaration, &declaration.parent())
+}
+
+pub fn is_var_const(node: &Node /*VariableDeclaration | VariableDeclarationList*/) -> bool {
+    get_combined_node_flags(node).intersects(NodeFlags::Const)
+}
+
+pub fn is_let(node: &Node) -> bool {
+    get_combined_node_flags(node).intersects(NodeFlags::Let)
+}
+
+pub fn is_super_call(n: &Node) -> bool {
+    n.kind() == SyntaxKind::CallExpression
+        && n.as_call_expression().expression.kind() == SyntaxKind::SuperKeyword
 }
 
 pub fn is_import_call(n: &Node) -> bool {
@@ -90,30 +394,75 @@ pub fn is_import_call(n: &Node) -> bool {
     }
 }
 
+pub fn is_import_meta(n: &Node) -> bool {
+    if !is_meta_property(n) {
+        return false;
+    }
+    let n_as_meta_property = n.as_meta_property();
+    n_as_meta_property.keyword_token == SyntaxKind::ImportKeyword
+        && n.as_meta_property()
+            .name
+            .as_identifier()
+            .escaped_text
+            .eq_str("meta")
+}
+
+pub fn is_literal_import_type_node(n: &Node) -> bool {
+    if !is_import_type_node(n) {
+        return false;
+    }
+    let n_as_import_type_node = n.as_import_type_node();
+    if !is_literal_type_node(&n_as_import_type_node.argument) {
+        return false;
+    }
+    let n_argument_as_literal_type_node = n_as_import_type_node.argument.as_literal_type_node();
+    is_string_literal(&n_argument_as_literal_type_node.literal)
+}
+
 pub fn is_prologue_directive(node: &Node) -> bool {
     node.kind() == SyntaxKind::ExpressionStatement
         && node.as_expression_statement().expression.kind() == SyntaxKind::StringLiteral
 }
 
-pub fn is_object_literal_method(node: &Node) -> bool {
-    /*node &&*/
-    node.kind() == SyntaxKind::MethodDeclaration
-        && node.parent().kind() == SyntaxKind::ObjectLiteralExpression
+pub fn is_custom_prologue(node: &Node /*Statement*/) -> bool {
+    get_emit_flags(node).intersects(EmitFlags::CustomPrologue)
 }
 
-pub fn get_containing_function_or_class_static_block(
+pub fn is_hoisted_function(node: &Node /*Statement*/) -> bool {
+    is_custom_prologue(node) && is_function_declaration(node)
+}
+
+fn is_hoisted_variable(node: &Node /*VariableDeclaration*/) -> bool {
+    let node_as_variable_declaration = node.as_variable_declaration();
+    is_identifier(&node_as_variable_declaration.name())
+        && node_as_variable_declaration.maybe_initializer().is_none()
+}
+
+pub fn is_hoisted_variable_statement(node: &Node /*Statement*/) -> bool {
+    is_custom_prologue(node)
+        && is_variable_statement(node)
+        && every(
+            &node
+                .as_variable_statement()
+                .declaration_list
+                .as_variable_declaration_list()
+                .declarations,
+            |declaration, _| is_hoisted_variable(declaration),
+        )
+}
+
+pub fn get_leading_comment_ranges_of_node(
     node: &Node,
-) -> Option<Rc<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
-    find_ancestor(node.maybe_parent(), |node: &Node| {
-        is_function_like_or_class_static_block_declaration(Some(node))
-    })
-}
-
-pub fn is_super_property(node: &Node) -> bool {
-    matches!(
-        node.kind(),
-        SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-    ) && node.as_has_expression().expression().kind() == SyntaxKind::SuperKeyword
+    source_file_of_node: &Node, /*SourceFile*/
+) -> Option<Vec<CommentRange>> {
+    if node.kind() != SyntaxKind::JsxText {
+        get_leading_comment_ranges(
+            &source_file_of_node.as_source_file().text_as_chars(),
+            node.pos().try_into().unwrap(),
+        )
+    } else {
+        None
+    }
 }
 
 pub fn get_jsdoc_comment_ranges<TNode: NodeInterface>(
@@ -169,6 +518,140 @@ lazy_static! {
     pub(super) static ref default_lib_reference_reg_ex: Regex =
         Regex::new(r#"(///\s*<reference\s+no-default-lib\s*=\s*)(('[^']*')|("[^"]*"))\s*/>"#)
             .unwrap();
+}
+
+pub fn is_part_of_type_node(node: &Node) -> bool {
+    if SyntaxKind::FirstTypeNode <= node.kind() && node.kind() <= SyntaxKind::LastTypeNode {
+        return true;
+    }
+
+    let mut node = node.node_wrapper();
+    match node.kind() {
+        SyntaxKind::AnyKeyword
+        | SyntaxKind::UnknownKeyword
+        | SyntaxKind::NumberKeyword
+        | SyntaxKind::BigIntKeyword
+        | SyntaxKind::StringKeyword
+        | SyntaxKind::BooleanKeyword
+        | SyntaxKind::SymbolKeyword
+        | SyntaxKind::ObjectKeyword
+        | SyntaxKind::UndefinedKeyword
+        | SyntaxKind::NeverKeyword => {
+            return true;
+        }
+        SyntaxKind::VoidKeyword => {
+            return node.parent().kind() != SyntaxKind::VoidExpression;
+        }
+        SyntaxKind::ExpressionWithTypeArguments => {
+            return !is_expression_with_type_arguments_in_class_extends_clause(&node)
+        }
+        SyntaxKind::TypeParameter => {
+            return matches!(
+                node.parent().kind(),
+                SyntaxKind::MappedType | SyntaxKind::InferType
+            );
+        }
+
+        SyntaxKind::Identifier => {
+            if node.parent().kind() == SyntaxKind::QualifiedName
+                && Rc::ptr_eq(&node.parent().as_qualified_name().right, &node)
+            {
+                node = node.parent();
+            } else if node.parent().kind() == SyntaxKind::PropertyAccessExpression
+                && Rc::ptr_eq(&node.parent().as_property_access_expression().name, &node)
+            {
+                node = node.parent();
+            }
+            Debug_.assert(matches!(node.kind(), SyntaxKind::Identifier | SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression), Some("'node' was expected to be a qualified name, identifier or property access in 'isPartOfTypeNode'."));
+            let parent = node.parent();
+            if parent.kind() == SyntaxKind::TypeQuery {
+                return false;
+            }
+            if parent.kind() == SyntaxKind::ImportType {
+                return !parent.as_import_type_node().is_type_of;
+            }
+            if SyntaxKind::FirstTypeNode <= parent.kind()
+                && parent.kind() <= SyntaxKind::LastTypeNode
+            {
+                return true;
+            }
+            match parent.kind() {
+                SyntaxKind::ExpressionWithTypeArguments => {
+                    return !is_expression_with_type_arguments_in_class_extends_clause(&parent);
+                }
+                SyntaxKind::TypeParameter => {
+                    return matches!(parent.as_type_parameter_declaration().constraint.clone(), Some(constraint) if Rc::ptr_eq(&node, &constraint));
+                }
+                SyntaxKind::JSDocTemplateTag => {
+                    return matches!(parent.as_jsdoc_template_tag().constraint.clone(), Some(constraint) if Rc::ptr_eq(&node, &constraint));
+                }
+                SyntaxKind::PropertyDeclaration
+                | SyntaxKind::PropertySignature
+                | SyntaxKind::Parameter
+                | SyntaxKind::VariableDeclaration => {
+                    return matches!(parent.as_has_type().maybe_type(), Some(type_) if Rc::ptr_eq(&node, &type_));
+                }
+                SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction
+                | SyntaxKind::Constructor
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::MethodSignature
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor => {
+                    return matches!(parent.as_function_like_declaration().maybe_type(), Some(type_) if Rc::ptr_eq(&node, &type_));
+                }
+                SyntaxKind::CallSignature
+                | SyntaxKind::ConstructSignature
+                | SyntaxKind::IndexSignature => {
+                    return matches!(parent.as_signature_declaration().maybe_type(), Some(type_) if Rc::ptr_eq(&node, &type_));
+                }
+                SyntaxKind::TypeAssertionExpression => {
+                    return Rc::ptr_eq(&node, &parent.as_type_assertion_expression().type_);
+                }
+                SyntaxKind::CallExpression => {
+                    return contains_rc(
+                        parent.as_call_expression().type_arguments.as_deref(),
+                        &node,
+                    );
+                }
+                SyntaxKind::NewExpression => {
+                    return contains_rc(
+                        parent.as_new_expression().type_arguments.as_deref(),
+                        &node,
+                    );
+                }
+                SyntaxKind::TaggedTemplateExpression => {
+                    return false;
+                }
+                _ => (),
+            }
+        }
+        _ => (),
+    }
+
+    false
+}
+
+pub fn is_object_literal_method(node: &Node) -> bool {
+    /*node &&*/
+    node.kind() == SyntaxKind::MethodDeclaration
+        && node.parent().kind() == SyntaxKind::ObjectLiteralExpression
+}
+
+pub fn get_containing_function_or_class_static_block(
+    node: &Node,
+) -> Option<Rc<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
+    find_ancestor(node.maybe_parent(), |node: &Node| {
+        is_function_like_or_class_static_block_declaration(Some(node))
+    })
+}
+
+pub fn is_super_property(node: &Node) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+    ) && node.as_has_expression().expression().kind() == SyntaxKind::SuperKeyword
 }
 
 pub fn is_variable_like(node: &Node) -> bool {

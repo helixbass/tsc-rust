@@ -376,6 +376,10 @@ pub fn is_assignment_expression(node: &Node, exclude_compound_assignment: Option
     }) && is_left_hand_side_expression(&*node_as_binary_expression.left)
 }
 
+pub fn is_expression_with_type_arguments_in_class_extends_clause(node: &Node) -> bool {
+    unimplemented!()
+}
+
 pub fn is_entity_name_expression(node: &Node) -> bool {
     node.kind() == SyntaxKind::Identifier || is_property_access_entity_name_expression(node)
 }

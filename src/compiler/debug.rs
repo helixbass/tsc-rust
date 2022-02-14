@@ -78,6 +78,12 @@ impl DebugType {
         }
     }
 
+    pub fn assert_greater_than_or_equal<TValue: Ord + fmt::Debug>(&self, a: TValue, b: TValue) {
+        if a < b {
+            self.fail(Some(&format!("Expected {:?} >= {:?}", a, b)));
+        }
+    }
+
     pub fn assert_is_defined<TValue>(&self, value: &Option<TValue>, message: Option<&str>) {
         if value.is_none() {
             self.fail(message);

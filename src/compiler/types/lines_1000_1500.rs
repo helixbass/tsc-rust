@@ -563,7 +563,7 @@ pub enum FunctionLikeDeclarationBase {
     BaseFunctionLikeDeclaration(BaseFunctionLikeDeclaration),
 }
 
-pub trait FunctionLikeDeclarationInterface {
+pub trait FunctionLikeDeclarationInterface: SignatureDeclarationInterface {
     fn maybe_body(&self) -> Option<Rc<Node>>;
     fn maybe_asterisk_token(&self) -> Option<Rc<Node>>;
     fn maybe_question_token(&self) -> Option<Rc<Node>>;

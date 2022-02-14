@@ -4,6 +4,7 @@ use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::mem;
 use std::ptr;
+use std::rc::Rc;
 
 use crate::{text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
 
@@ -85,6 +86,12 @@ pub fn find_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
 
 pub fn contains<TItem: Eq>(array: Option<&[TItem]>, value: &TItem) -> bool {
     array.map_or(false, |array| array.iter().any(|item| item == value))
+}
+
+pub fn contains_rc<TItem>(array: Option<&[Rc<TItem>]>, value: &Rc<TItem>) -> bool {
+    array.map_or(false, |array| {
+        array.iter().any(|item| Rc::ptr_eq(item, value))
+    })
 }
 
 pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {

@@ -23,7 +23,12 @@ pub fn chain_diagnostic_messages(
     if let Some(args) = args {
         text = format_string_from_args(&text, args);
     }
-    DiagnosticMessageChain::new(text, message.code, details.map(|details| vec![details]))
+    DiagnosticMessageChain::new(
+        text,
+        message.category,
+        message.code,
+        details.map(|details| vec![details]),
+    )
 }
 
 fn get_diagnostic_file_path<
