@@ -84,6 +84,7 @@ pub struct SourceFile {
     script_kind: Cell<ScriptKind>,
 
     external_module_indicator: RefCell<Option<Rc<Node>>>,
+    common_js_module_indicator: RefCell<Option<Rc<Node>>>,
 
     identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
     node_count: Cell<Option<usize>>,
@@ -143,6 +144,7 @@ impl SourceFile {
             language_variant: Cell::new(language_variant),
             script_kind: Cell::new(script_kind),
             external_module_indicator: RefCell::new(None),
+            common_js_module_indicator: RefCell::new(None),
             is_declaration_file: Cell::new(is_declaration_file),
             has_no_default_lib: Cell::new(has_no_default_lib),
             comment_directives: RefCell::new(None),
@@ -262,6 +264,17 @@ impl SourceFile {
         external_module_indicator: Option<Rc<Node>>,
     ) {
         *self.external_module_indicator.borrow_mut() = external_module_indicator;
+    }
+
+    pub(crate) fn maybe_common_js_module_indicator(&self) -> Option<Rc<Node>> {
+        self.common_js_module_indicator.borrow().clone()
+    }
+
+    pub(crate) fn set_common_js_module_indicator(
+        &self,
+        common_js_module_indicator: Option<Rc<Node>>,
+    ) {
+        *self.common_js_module_indicator.borrow_mut() = common_js_module_indicator;
     }
 
     pub fn identifiers(&self) -> Rc<RefCell<HashMap<String, String>>> {

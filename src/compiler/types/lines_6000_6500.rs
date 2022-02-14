@@ -231,7 +231,7 @@ pub struct CompilerOptions {
     // [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ModuleKind {
     None = 0,
     CommonJS = 1,

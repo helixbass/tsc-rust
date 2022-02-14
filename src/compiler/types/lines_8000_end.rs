@@ -5,8 +5,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
+use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::SortedArray;
+use local_macros::ast_type;
 
 pub struct Printer {
     pub current_source_file: Option<Rc<Node /*SourceFile*/>>,
@@ -99,6 +100,13 @@ pub struct DiagnosticCollection {
     pub file_diagnostics: HashMap<String, SortedArray<Rc<Diagnostic>>>,
 }
 
+#[derive(Debug)]
+#[ast_type]
+pub struct SyntaxList {
+    _node: BaseNode,
+    pub _children: Vec<Rc<Node>>,
+}
+
 bitflags! {
     pub struct ListFormat: u32 {
         const None = 0;
@@ -124,6 +132,23 @@ bitflags! {
 }
 
 pub(crate) type ReadonlyPragmaMap = HashMap<String, ()>;
+
+pub struct CommentDirectivesMap {
+    pub directives_by_line: HashMap<String, Rc<CommentDirective>>,
+    pub used_lines: HashMap<String, bool>,
+}
+
+impl CommentDirectivesMap {
+    pub fn new(
+        directives_by_line: HashMap<String, Rc<CommentDirective>>,
+        used_lines: HashMap<String, bool>,
+    ) -> Self {
+        Self {
+            directives_by_line,
+            used_lines,
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct PseudoBigInt {

@@ -529,11 +529,7 @@ pub fn id_text(identifier_or_private_name: &Node, /*Identifier | PrivateIdentifi
 }
 
 pub fn symbol_name(symbol: &Symbol) -> String {
-    match symbol
-        .maybe_value_declaration()
-        .as_ref()
-        .map(|weak| weak.upgrade().unwrap())
-    {
+    match symbol.maybe_value_declaration().as_ref() {
         Some(symbol_value_declaration)
             if is_private_identifier_class_element_declaration(&symbol_value_declaration) =>
         {

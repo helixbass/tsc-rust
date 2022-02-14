@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use regex::Regex;
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -89,6 +90,11 @@ pub fn is_import_call(n: &Node) -> bool {
     }
 }
 
+pub fn is_prologue_directive(node: &Node) -> bool {
+    node.kind() == SyntaxKind::ExpressionStatement
+        && node.as_expression_statement().expression.kind() == SyntaxKind::StringLiteral
+}
+
 pub fn is_object_literal_method(node: &Node) -> bool {
     /*node &&*/
     node.kind() == SyntaxKind::MethodDeclaration
@@ -142,6 +148,27 @@ pub fn get_jsdoc_comment_ranges<TNode: NodeInterface>(
                 _ => false,
             }
     })
+}
+
+lazy_static! {
+    pub static ref full_triple_slash_reference_path_reg_ex: Regex =
+        Regex::new(r#"^(///\s*<reference\s+path\s*=\s*)(('[^']*')|("[^"]*")).*?/>"#).unwrap();
+}
+
+lazy_static! {
+    pub(super) static ref full_triple_slash_reference_type_reference_directive_reg_ex: Regex =
+        Regex::new(r#"^(///\s*<reference\s+types\s*=\s*)(('[^']*')|("[^"]*")).*?/>"#).unwrap();
+}
+
+lazy_static! {
+    pub static ref full_triple_slash_amd_reference_path_reg_ex: Regex =
+        Regex::new(r#"^(///\s*<amd-dependency\s+path\s*=\s*)(('[^']*')|("[^"]*")).*?/>"#).unwrap();
+}
+
+lazy_static! {
+    pub(super) static ref default_lib_reference_reg_ex: Regex =
+        Regex::new(r#"(///\s*<reference\s+no-default-lib\s*=\s*)(('[^']*')|("[^"]*"))\s*/>"#)
+            .unwrap();
 }
 
 pub fn is_variable_like(node: &Node) -> bool {

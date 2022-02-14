@@ -226,7 +226,7 @@ impl TypeChecker {
                             self.error(
                                 error_location,
                                 &name_not_found_message,
-                                Some(vec![self.diagnostic_name(name_arg)]),
+                                Some(vec![self.diagnostic_name(name_arg).into_owned()]),
                             );
                         }
                     }

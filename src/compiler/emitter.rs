@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
 
@@ -359,7 +359,7 @@ impl Printer {
         unimplemented!()
     }
 
-    fn get_literal_text_of_node(&self, node: &Node) -> String {
+    fn get_literal_text_of_node(&self, node: &Node) -> Cow<'static, str> {
         let flags = GetLiteralTextFlags::None;
 
         get_literal_text(node, self.current_source_file.clone(), flags)

@@ -41,7 +41,7 @@ use super::{
     QualifiedName, ReadonlyTextRange, RegularExpressionLiteral, RestTypeNode, ReturnStatement,
     SemicolonClassElement, SetAccessorDeclaration, ShorthandPropertyAssignment,
     SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, SpreadAssignment,
-    SpreadElement, StringLiteral, SwitchStatement, Symbol, SymbolTable, SyntaxKind,
+    SpreadElement, StringLiteral, SwitchStatement, Symbol, SymbolTable, SyntaxKind, SyntaxList,
     TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
     TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode, TemplateLiteralTypeSpan,
     TemplateSpan, ThisTypeNode, ThrowStatement, TransformFlags, TryStatement, TupleTypeNode,
@@ -367,6 +367,7 @@ pub enum Node {
     UnparsedTextLike(UnparsedTextLike),
     InputFiles(InputFiles),
     CommaListExpression(CommaListExpression),
+    SyntaxList(SyntaxList),
 }
 
 impl Node {
@@ -834,6 +835,34 @@ impl Node {
 
     pub fn as_non_null_expression(&self) -> &NonNullExpression {
         enum_unwrapped!(self, [Node, NonNullExpression])
+    }
+
+    pub fn as_syntax_list(&self) -> &SyntaxList {
+        enum_unwrapped!(self, [Node, SyntaxList])
+    }
+
+    pub fn as_export_declaration(&self) -> &ExportDeclaration {
+        enum_unwrapped!(self, [Node, ExportDeclaration])
+    }
+
+    pub fn as_namespace_export(&self) -> &NamespaceExport {
+        enum_unwrapped!(self, [Node, NamespaceExport])
+    }
+
+    pub fn as_string_literal(&self) -> &StringLiteral {
+        enum_unwrapped!(self, [Node, StringLiteral])
+    }
+
+    pub fn as_index_signature_declaration(&self) -> &IndexSignatureDeclaration {
+        enum_unwrapped!(self, [Node, IndexSignatureDeclaration])
+    }
+
+    pub fn as_computed_property_name(&self) -> &ComputedPropertyName {
+        enum_unwrapped!(self, [Node, ComputedPropertyName])
+    }
+
+    pub fn as_private_identifier(&self) -> &PrivateIdentifier {
+        enum_unwrapped!(self, [Node, PrivateIdentifier])
     }
 }
 

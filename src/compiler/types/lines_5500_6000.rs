@@ -145,6 +145,13 @@ impl Signature {
     }
 }
 
+pub struct IndexInfo {
+    pub key_type: Rc<Type>,
+    pub type_: Rc<Type>,
+    pub is_readonly: bool,
+    pub declaration: Option<Rc<Node /*IndexSignatureDeclaration*/>>,
+}
+
 #[derive(Clone, Debug)]
 pub enum TypeMapper {
     Simple(TypeMapperSimple),

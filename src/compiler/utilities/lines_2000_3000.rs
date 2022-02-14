@@ -25,6 +25,12 @@ pub fn is_in_js_file<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
     })
 }
 
+pub fn is_in_jsdoc<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+    node.map_or(false, |node| {
+        node.borrow().flags().intersects(NodeFlags::JSDoc)
+    })
+}
+
 pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> Option<Rc<Node>> {
     node.as_has_initializer().maybe_initializer()
 }

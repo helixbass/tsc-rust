@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::rc::Rc;
 
 use super::ResolveNameNameArg;
@@ -11,9 +11,11 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn diagnostic_name(&self, name_arg: ResolveNameNameArg) -> String {
+    pub(super) fn diagnostic_name(&self, name_arg: ResolveNameNameArg) -> Cow<'static, str> {
         match name_arg {
-            ResolveNameNameArg::__String(__string) => unescape_leading_underscores(&__string),
+            ResolveNameNameArg::__String(__string) => {
+                unescape_leading_underscores(&__string).into()
+            }
             ResolveNameNameArg::Node(node) => declaration_name_to_string(Some(&*node)),
         }
     }

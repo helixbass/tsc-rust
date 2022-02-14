@@ -451,6 +451,15 @@ pub(crate) fn has_invalid_escape(template: &Node /*TemplateLiteral*/) -> bool {
     }
 }
 
+pub fn escape_string(
+    s: &str,
+    quote_char: Option<
+        char, /*CharacterCodes.doubleQuote | CharacterCodes.singleQuote | CharacterCodes.backtick*/
+    >,
+) -> String {
+    unimplemented!()
+}
+
 pub fn escape_non_ascii_string(
     s: &str,
     quote_char: Option<
@@ -458,4 +467,11 @@ pub fn escape_non_ascii_string(
     >,
 ) -> String {
     s.to_string()
+}
+
+pub fn escape_jsx_attribute_string(
+    s: &str,
+    quote_char: Option<char /*CharacterCodes.doubleQuote | CharacterCodes.singleQuote*/>,
+) -> String {
+    unimplemented!()
 }

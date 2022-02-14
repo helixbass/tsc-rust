@@ -201,7 +201,7 @@ impl TemplateLiteralLikeNodeInterface for TemplateLiteralLikeNode {
     }
 }
 
-pub trait TemplateLiteralLikeNodeInterface {
+pub trait TemplateLiteralLikeNodeInterface: LiteralLikeNodeInterface {
     fn maybe_raw_text(&self) -> Option<&str>;
     fn maybe_template_flags(&self) -> Option<TokenFlags>;
 }

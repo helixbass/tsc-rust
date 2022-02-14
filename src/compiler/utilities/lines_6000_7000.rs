@@ -192,6 +192,10 @@ pub fn get_emit_script_target(compiler_options: &CompilerOptions) -> ScriptTarge
     })
 }
 
+pub fn get_emit_module_kind(compiler_options: &CompilerOptions) -> ModuleKind {
+    unimplemented!()
+}
+
 fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> CompilerOptionsValue {
     match name {
         "all" => CompilerOptionsValue::Bool(options.all.clone()),

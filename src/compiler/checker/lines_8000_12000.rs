@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -65,7 +65,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         context: Option<&NodeBuilderContext>,
-    ) -> String {
+    ) -> Cow<'static, str> {
         if let Some(declarations) = &*symbol.maybe_declarations() {
             if !declarations.is_empty() {
                 let declaration = first_defined(declarations, |d, _| {
@@ -185,12 +185,7 @@ impl TypeChecker {
         symbol: &Symbol,
     ) -> Rc<Type> {
         Debug_.assert_is_defined(&symbol.maybe_value_declaration(), None);
-        let declaration = symbol
-            .maybe_value_declaration()
-            .as_ref()
-            .unwrap()
-            .upgrade()
-            .unwrap();
+        let declaration = symbol.maybe_value_declaration().unwrap();
 
         let type_: Rc<Type>;
         if false {
@@ -270,10 +265,7 @@ impl TypeChecker {
         symbol: &Symbol,
     ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
         let declaration = if symbol.flags().intersects(SymbolFlags::Class) {
-            symbol
-                .maybe_value_declaration()
-                .as_ref()
-                .map(|weak| weak.upgrade().unwrap())
+            symbol.maybe_value_declaration()
         } else {
             get_declaration_of_kind(symbol, SyntaxKind::InterfaceDeclaration)
         };

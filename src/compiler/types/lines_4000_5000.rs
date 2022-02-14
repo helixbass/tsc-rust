@@ -230,7 +230,7 @@ pub trait SymbolInterface {
     fn escaped_name(&self) -> &__String;
     fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>>;
     fn set_declarations(&self, declarations: Vec<Rc<Node>>);
-    fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>>;
+    fn maybe_value_declaration(&self) -> Option<Rc<Node>>;
     fn set_value_declaration(&self, node: Rc<Node>);
     fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
@@ -313,8 +313,11 @@ impl SymbolInterface for BaseSymbol {
         *self.declarations.borrow_mut() = Some(declarations);
     }
 
-    fn maybe_value_declaration(&self) -> Ref<Option<Weak<Node>>> {
-        self.value_declaration.borrow()
+    fn maybe_value_declaration(&self) -> Option<Rc<Node>> {
+        self.value_declaration
+            .borrow()
+            .as_ref()
+            .map(|weak| weak.upgrade().unwrap())
     }
 
     fn set_value_declaration(&self, node: Rc<Node>) {
