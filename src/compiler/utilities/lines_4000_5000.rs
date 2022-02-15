@@ -206,6 +206,12 @@ pub fn create_text_writer(new_line: &str) -> TextWriter {
     // text_writer.reset()
 }
 
+pub fn get_first_constructor_with_body(
+    node: &Node, /*ClassLikeDeclaration*/
+) -> Option<Rc<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
+    unimplemented!()
+}
+
 pub fn is_this_identifier<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
     if node.is_none() {
         return false;

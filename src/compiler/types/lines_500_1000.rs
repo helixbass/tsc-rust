@@ -900,6 +900,54 @@ impl Node {
     pub fn as_array_literal_expression(&self) -> &ArrayLiteralExpression {
         enum_unwrapped!(self, [Node, ArrayLiteralExpression])
     }
+
+    pub fn as_expression_with_type_arguments(&self) -> &ExpressionWithTypeArguments {
+        enum_unwrapped!(self, [Node, ExpressionWithTypeArguments])
+    }
+
+    pub fn as_jsx_self_closing_element(&self) -> &JsxSelfClosingElement {
+        enum_unwrapped!(self, [Node, JsxSelfClosingElement])
+    }
+
+    pub fn as_as_expression(&self) -> &AsExpression {
+        enum_unwrapped!(self, [Node, AsExpression])
+    }
+
+    pub fn as_for_of_statement(&self) -> &ForOfStatement {
+        enum_unwrapped!(self, [Node, ForOfStatement])
+    }
+
+    pub fn as_for_in_statement(&self) -> &ForInStatement {
+        enum_unwrapped!(self, [Node, ForInStatement])
+    }
+
+    pub fn as_for_statement(&self) -> &ForStatement {
+        enum_unwrapped!(self, [Node, ForStatement])
+    }
+
+    pub fn as_throw_statement(&self) -> &ThrowStatement {
+        enum_unwrapped!(self, [Node, ThrowStatement])
+    }
+
+    pub fn as_switch_statement(&self) -> &SwitchStatement {
+        enum_unwrapped!(self, [Node, SwitchStatement])
+    }
+
+    pub fn as_with_statement(&self) -> &WithStatement {
+        enum_unwrapped!(self, [Node, WithStatement])
+    }
+
+    pub fn as_return_statement(&self) -> &ReturnStatement {
+        enum_unwrapped!(self, [Node, ReturnStatement])
+    }
+
+    pub fn as_while_statement(&self) -> &WhileStatement {
+        enum_unwrapped!(self, [Node, WhileStatement])
+    }
+
+    pub fn as_do_statement(&self) -> &DoStatement {
+        enum_unwrapped!(self, [Node, DoStatement])
+    }
 }
 
 #[derive(Debug)]
