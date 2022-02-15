@@ -146,6 +146,10 @@ pub fn is_access_expression(node: &Node) -> bool {
     )
 }
 
+pub fn get_leftmost_access_expression(node: &Node /*Expression*/) -> Rc<Node /*Expression*/> {
+    unimplemented!()
+}
+
 pub fn get_leftmost_expression(
     node: &Node, /*Expression*/
     stop_at_call_expressions: bool,

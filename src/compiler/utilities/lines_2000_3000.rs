@@ -5,24 +5,104 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    add_range, filter, first_or_undefined, get_jsdoc_parameter_tags,
-    get_jsdoc_parameter_tags_no_cache, get_jsdoc_type_parameter_tags,
-    get_jsdoc_type_parameter_tags_no_cache, has_initializer, has_jsdoc_nodes, id_text,
+    is_property_assignment, NamedDeclarationInterface, NodeFlags, NodeInterface,
+    OuterExpressionKinds, Symbol, SymbolInterface, SyntaxKind, __String, add_range,
+    escape_leading_underscores, every, filter, first_or_undefined, for_each,
+    get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache, get_jsdoc_type_parameter_tags,
+    get_jsdoc_type_parameter_tags_no_cache, get_leftmost_access_expression,
+    get_source_text_of_node_from_source_file, has_initializer, has_jsdoc_nodes, id_text,
     is_access_expression, is_assignment_expression, is_binary_expression, is_call_expression,
     is_dynamic_name, is_element_access_expression, is_entity_name_expression,
-    is_expression_statement, is_identifier, is_jsdoc, is_jsdoc_type_tag, is_module_declaration,
-    is_numeric_literal, is_object_literal_expression, is_parenthesized_expression,
-    is_property_access_expression, is_prototype_access, is_string_literal_like,
-    is_string_or_numeric_literal_like, is_variable_like, is_variable_statement, is_void_expression,
-    last, length, skip_outer_expressions, AssignmentDeclarationKind, LiteralLikeNodeInterface,
-    Node, NodeFlags, NodeInterface, OuterExpressionKinds, Symbol, SymbolInterface, SyntaxKind,
-    __String, escape_leading_underscores, is_type_alias_declaration,
+    is_expression_statement, is_identifier, is_jsdoc, is_jsdoc_type_tag, is_json_source_file,
+    is_module_declaration, is_namespace_export, is_numeric_literal, is_object_literal_expression,
+    is_parenthesized_expression, is_property_access_expression, is_prototype_access,
+    is_string_literal_like, is_string_or_numeric_literal_like, is_type_alias_declaration,
+    is_type_reference_node, is_variable_declaration, is_variable_like, is_variable_statement,
+    is_void_expression, last, length, maybe_text_char_at_index, skip_outer_expressions,
+    AssignmentDeclarationKind, CharacterCodes, Debug_, HasInitializerInterface,
+    LiteralLikeNodeInterface, Node,
 };
+
+pub fn is_part_of_type_query(node: &Node) -> bool {
+    let mut node = node.node_wrapper();
+    while matches!(
+        node.kind(),
+        SyntaxKind::QualifiedName | SyntaxKind::Identifier
+    ) {
+        node = node.parent();
+    }
+    node.kind() == SyntaxKind::TypeQuery
+}
+
+pub fn is_namespace_reexport_declaration(node: &Node) -> bool {
+    is_namespace_export(node)
+        && node
+            .parent()
+            .as_export_declaration()
+            .module_specifier
+            .is_some()
+}
+
+pub fn is_external_module_import_equals_declaration(node: &Node) -> bool {
+    node.kind() == SyntaxKind::ImportEqualsDeclaration
+        && node.as_import_equals_declaration().module_reference.kind()
+            == SyntaxKind::ExternalModuleReference
+}
+
+pub fn get_external_module_import_equals_declaration_expression(
+    node: &Node,
+) -> Rc<Node /*Expression*/> {
+    Debug_.assert(is_external_module_import_equals_declaration(node), None);
+    node.as_import_equals_declaration()
+        .module_reference
+        .as_external_module_reference()
+        .expression
+        .clone()
+}
+
+pub fn get_external_module_require_argument(node: &Node) -> Option<Rc<Node /*StringLiteral*/>> {
+    if is_require_variable_declaration(node) {
+        Some(
+            get_leftmost_access_expression(
+                &node.as_variable_declaration().maybe_initializer().unwrap(),
+            )
+            .as_call_expression()
+            .arguments[0]
+                .clone(),
+        )
+    } else {
+        None
+    }
+}
+
+pub fn is_internal_module_import_equals_declaration(node: &Node) -> bool {
+    node.kind() == SyntaxKind::ImportEqualsDeclaration
+        && node.as_import_equals_declaration().module_reference.kind()
+            != SyntaxKind::ExternalModuleReference
+}
+
+pub fn is_source_file_js(file: &Node /*SourceFile*/) -> bool {
+    is_in_js_file(Some(file))
+}
+
+pub fn is_source_file_not_js(file: &Node /*SourceFile*/) -> bool {
+    !is_in_js_file(Some(file))
+}
 
 pub fn is_in_js_file<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
     node.map_or(false, |node| {
         node.borrow().flags().intersects(NodeFlags::JavaScriptFile)
     })
+}
+
+pub fn is_in_json_file<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
+    node.map_or(false, |node| {
+        node.borrow().flags().intersects(NodeFlags::JsonFile)
+    })
+}
+
+pub fn is_source_file_not_json(file: &Node /*SourceFile*/) -> bool {
+    !is_json_source_file(file)
 }
 
 pub fn is_in_jsdoc<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
@@ -31,8 +111,333 @@ pub fn is_in_jsdoc<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
     })
 }
 
+pub fn is_jsdoc_index_signature(
+    node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+) -> bool {
+    if !is_type_reference_node(node) {
+        return false;
+    }
+    let node_as_type_reference_node = node.as_type_reference_node();
+    if !(is_identifier(&node_as_type_reference_node.type_name)
+        && node_as_type_reference_node
+            .type_name
+            .as_identifier()
+            .escaped_text
+            .eq_str("Object")
+        && node_as_type_reference_node.type_arguments.is_some())
+    {
+        return false;
+    }
+    let node_type_arguments = node_as_type_reference_node.type_arguments.as_ref().unwrap();
+    node_type_arguments.len() == 2
+        && matches!(
+            node_type_arguments[0].kind(),
+            SyntaxKind::StringKeyword | SyntaxKind::NumberKeyword
+        )
+}
+
+pub fn is_require_call(call_expression: &Node, require_string_literal_like_argument: bool) -> bool {
+    if call_expression.kind() != SyntaxKind::CallExpression {
+        return false;
+    }
+    let call_expression_as_call_expression = call_expression.as_call_expression();
+    let expression = &call_expression_as_call_expression.expression;
+    let args = &call_expression_as_call_expression.arguments;
+
+    if expression.kind() != SyntaxKind::Identifier
+        || !expression.as_identifier().escaped_text.eq_str("require")
+    {
+        return false;
+    }
+
+    if args.len() != 1 {
+        return false;
+    }
+    let arg = &args[0];
+    !require_string_literal_like_argument || is_string_literal_like(arg)
+}
+
+pub fn is_require_variable_declaration(node: &Node) -> bool {
+    let mut node = node.node_wrapper();
+    if node.kind() == SyntaxKind::BindingElement {
+        node = node.parent().parent();
+    }
+    if !is_variable_declaration(&node) {
+        return false;
+    }
+    let node_as_variable_declaration = node.as_variable_declaration();
+    let node_initializer = node_as_variable_declaration.maybe_initializer();
+    if node_initializer.is_none() {
+        return false;
+    }
+    let node_initializer = node_initializer.unwrap();
+    is_require_call(&get_leftmost_access_expression(&node_initializer), true)
+}
+
+pub fn is_require_variable_statement(node: &Node) -> bool {
+    if !is_variable_statement(node) {
+        return false;
+    }
+    let node_as_variable_statement = node.as_variable_statement();
+    let node_declaration_list_as_variable_declaration_list = node_as_variable_statement
+        .declaration_list
+        .as_variable_declaration_list();
+    !node_declaration_list_as_variable_declaration_list
+        .declarations
+        .is_empty()
+        && every(
+            &node_declaration_list_as_variable_declaration_list.declarations,
+            |decl, _| is_require_variable_declaration(decl),
+        )
+}
+
+pub fn is_single_or_double_quote(char_code: char) -> bool {
+    matches!(
+        char_code,
+        CharacterCodes::single_quote | CharacterCodes::double_quote
+    )
+}
+
+pub fn is_string_double_quoted(
+    str: &Node,         /*StringLiteralLike*/
+    source_file: &Node, /*SourceFile*/
+) -> bool {
+    matches!(
+        maybe_text_char_at_index(
+            &get_source_text_of_node_from_source_file(source_file, str, None)
+                .chars()
+                .collect(),
+            0
+        ),
+        Some(CharacterCodes::double_quote)
+    )
+}
+
+pub fn is_assignment_declaration(decl: &Node /*Declaration*/) -> bool {
+    is_binary_expression(decl)
+        || is_access_expression(decl)
+        || is_identifier(decl)
+        || is_call_expression(decl)
+}
+
 pub fn get_effective_initializer(node: &Node, /*HasExpressionInitializer*/) -> Option<Rc<Node>> {
-    node.as_has_initializer().maybe_initializer()
+    let node_initializer = node.as_has_initializer().maybe_initializer();
+    if is_in_js_file(Some(node)) {
+        if let Some(node_initializer) = node_initializer.as_ref() {
+            if is_binary_expression(node_initializer) {
+                let node_initializer_as_binary_expression = node_initializer.as_binary_expression();
+                if matches!(
+                    node_initializer_as_binary_expression.operator_token.kind(),
+                    SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
+                ) {
+                    if let Some(node_name) = node.as_named_declaration().maybe_name() {
+                        if is_entity_name_expression(&node_name)
+                            && is_same_entity_name(
+                                &node_name,
+                                &node_initializer_as_binary_expression.left,
+                            )
+                        {
+                            return Some(node_initializer_as_binary_expression.right.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    node_initializer
+}
+
+pub fn get_declared_expando_initializer(
+    node: &Node, /*HasExpressionInitializer*/
+) -> Option<Rc<Node /*Expression*/>> {
+    let init = get_effective_initializer(node);
+    init.and_then(|init| {
+        get_expando_initializer(
+            &init,
+            is_prototype_access(&node.as_named_declaration().name()),
+        )
+    })
+}
+
+pub fn has_expando_value_property(
+    node: &Node, /*ObjectLiteralExpression*/
+    is_prototype_assignment: bool,
+) -> Option<Rc<Node /*Expression*/>> {
+    for_each(&node.as_object_literal_expression().properties, |p, _| {
+        if !is_property_assignment(p) {
+            return None;
+        }
+        let p_as_property_assignment = p.as_property_assignment();
+        if !is_identifier(&p_as_property_assignment.name())
+            && p_as_property_assignment
+                .name()
+                .as_identifier()
+                .escaped_text
+                .eq_str("value")
+        {
+            return None;
+        }
+        let p_initializer = p_as_property_assignment.maybe_initializer();
+        if p_initializer.is_none() {
+            return None;
+        }
+        let p_initializer = p_initializer.unwrap();
+        get_expando_initializer(&p_initializer, is_prototype_assignment)
+    })
+}
+
+pub fn get_assigned_expando_initializer<TNode: Borrow<Node>>(
+    node: Option<TNode>,
+) -> Option<Rc<Node /*Expression*/>> {
+    if node.is_none() {
+        return None;
+    }
+    let node = node.unwrap();
+    let node = node.borrow();
+    let node_parent = node.maybe_parent();
+    if let Some(node_parent) = node_parent {
+        if is_binary_expression(&node_parent) {
+            let node_parent_as_binary_expression = node_parent.as_binary_expression();
+            if node_parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken {
+                let is_prototype_assignment =
+                    is_prototype_access(&node_parent_as_binary_expression.left);
+                return get_expando_initializer(
+                    &node_parent_as_binary_expression.right,
+                    is_prototype_assignment,
+                )
+                .or_else(|| {
+                    get_defaulted_expando_initializer(
+                        &node_parent_as_binary_expression.left,
+                        &node_parent_as_binary_expression.right,
+                        is_prototype_assignment,
+                    )
+                });
+            }
+        }
+    }
+    if is_call_expression(node) && is_bindable_object_define_property_call(node) {
+        let node_as_call_expression = node.as_call_expression();
+        let result = has_expando_value_property(
+            &node_as_call_expression.arguments[2],
+            &*node_as_call_expression.arguments[1]
+                .as_literal_like_node()
+                .text()
+                == "prototype",
+        );
+        if result.is_some() {
+            return result;
+        }
+    }
+    None
+}
+
+pub fn get_expando_initializer(
+    initializer: &Node,
+    is_prototype_assignment: bool,
+) -> Option<Rc<Node /*Expression*/>> {
+    if is_call_expression(initializer) {
+        let e = skip_parentheses(&initializer.as_call_expression().expression, None);
+        return if matches!(
+            e.kind(),
+            SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+        ) {
+            Some(initializer.node_wrapper())
+        } else {
+            None
+        };
+    }
+    if matches!(
+        initializer.kind(),
+        SyntaxKind::FunctionExpression | SyntaxKind::ClassExpression | SyntaxKind::ArrowFunction
+    ) {
+        return Some(initializer.node_wrapper());
+    }
+    if is_object_literal_expression(initializer)
+        && (initializer
+            .as_object_literal_expression()
+            .properties
+            .is_empty()
+            || is_prototype_assignment)
+    {
+        return Some(initializer.node_wrapper());
+    }
+    None
+}
+
+pub fn get_defaulted_expando_initializer(
+    name: &Node,        /*Expression*/
+    initializer: &Node, /*Expression*/
+    is_prototype_assignment: bool,
+) -> Option<Rc<Node /*Expression*/>> {
+    let e: Option<Rc<Node>> = if is_binary_expression(initializer) {
+        let initializer_as_binary_expression = initializer.as_binary_expression();
+        if matches!(
+            initializer_as_binary_expression.operator_token.kind(),
+            SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
+        ) {
+            get_expando_initializer(
+                &initializer_as_binary_expression.right,
+                is_prototype_assignment,
+            )
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    e.filter(|e| is_same_entity_name(name, &initializer.as_binary_expression().left))
+}
+
+pub fn is_defaulted_expando_initializer(node: &Node /*BinaryExpression*/) -> bool {
+    let node_parent = node.parent();
+    let name: Option<Rc<Node>> = if is_variable_declaration(&node_parent) {
+        Some(node_parent.as_variable_declaration().name())
+    } else if is_binary_expression(&node_parent)
+        && node_parent.as_binary_expression().operator_token.kind() == SyntaxKind::EqualsToken
+    {
+        Some(node_parent.as_binary_expression().left.clone())
+    } else {
+        None
+    };
+    if name.is_none() {
+        return false;
+    }
+    let name = name.unwrap();
+    let node_as_binary_expression = node.as_binary_expression();
+    get_expando_initializer(&node_as_binary_expression.right, is_prototype_access(&name)).is_some()
+        && is_entity_name_expression(&name)
+        && is_same_entity_name(&name, &node_as_binary_expression.left)
+}
+
+pub fn get_name_of_expando(node: &Node, /*Declaration*/) -> Option<Rc<Node /*DeclarationName*/>> {
+    let node_parent = node.parent();
+    if is_binary_expression(&node_parent) {
+        let parent = if matches!(
+            node_parent.as_binary_expression().operator_token.kind(),
+            SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
+        ) && is_binary_expression(&node_parent.parent())
+        {
+            node_parent.parent()
+        } else {
+            node_parent
+        };
+        let parent_as_binary_expression = parent.as_binary_expression();
+        if parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken
+            && is_identifier(&parent_as_binary_expression.left)
+        {
+            return Some(parent_as_binary_expression.left.clone());
+        }
+    } else if is_variable_declaration(&node_parent) {
+        return Some(node_parent.as_variable_declaration().name());
+    }
+    None
+}
+
+pub fn is_same_entity_name(
+    name: &Node,        /*Expression*/
+    initializer: &Node, /*Expression*/
+) -> bool {
+    unimplemented!()
 }
 
 pub fn get_right_most_assigned_expression(node: &Node, /*Expression*/) -> Rc<Node /*Expression*/> {

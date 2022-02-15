@@ -948,6 +948,10 @@ impl Node {
     pub fn as_do_statement(&self) -> &DoStatement {
         enum_unwrapped!(self, [Node, DoStatement])
     }
+
+    pub fn as_external_module_reference(&self) -> &ExternalModuleReference {
+        enum_unwrapped!(self, [Node, ExternalModuleReference])
+    }
 }
 
 #[derive(Debug)]
