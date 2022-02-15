@@ -7,20 +7,21 @@ use std::rc::Rc;
 
 use crate::{
     concatenate, contains_rc, create_file_diagnostic, create_scanner, create_text_span,
-    create_text_span_from_bounds, every, filter, find_ancestor, get_combined_modifier_flags,
-    get_combined_node_flags, get_emit_flags, get_end_line_position, get_leading_comment_ranges,
-    get_line_and_character_of_position, get_source_file_of_node, get_trailing_comment_ranges,
+    create_text_span_from_bounds, every, filter, for_each_child, for_each_child_bool,
+    get_combined_modifier_flags, get_combined_node_flags, get_emit_flags, get_end_line_position,
+    get_leading_comment_ranges, get_line_and_character_of_position, get_source_file_of_node,
+    get_trailing_comment_ranges, has_effective_readonly_modifier, has_static_modifier, is_accessor,
     is_expression_with_type_arguments_in_class_extends_clause, is_function_declaration,
-    is_function_like, is_function_like_or_class_static_block_declaration, is_identifier,
-    is_import_type_node, is_jsdoc, is_jsx_text, is_literal_type_node, is_meta_property,
-    is_parameter_property_declaration, is_string_literal, is_variable_statement,
-    maybe_text_char_at_index, node_is_missing, skip_trivia, BaseDiagnostic,
-    BaseDiagnosticRelatedInformation, CharacterCodes, CommentRange, Debug_, DiagnosticMessage,
-    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticWithLocation, EmitFlags, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange,
-    TextSpan,
+    is_function_like, is_identifier, is_import_type_node, is_jsdoc, is_jsx_text,
+    is_literal_type_node, is_meta_property, is_parameter_property_declaration,
+    is_property_declaration, is_property_signature, is_string_literal, is_variable_declaration,
+    is_variable_statement, maybe_text_char_at_index, node_is_missing, single_or_undefined,
+    skip_trivia, BaseDiagnostic, BaseDiagnosticRelatedInformation, CharacterCodes,
+    ClassLikeDeclarationInterface, CommentRange, Debug_, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticWithLocation, EmitFlags,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ReadonlyTextRange,
+    ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange, TextSpan,
 };
 
 pub fn create_diagnostic_for_node(
@@ -633,25 +634,167 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
     false
 }
 
-pub fn is_object_literal_method(node: &Node) -> bool {
-    /*node &&*/
-    node.kind() == SyntaxKind::MethodDeclaration
-        && node.parent().kind() == SyntaxKind::ObjectLiteralExpression
+pub fn is_child_of_node_with_kind(node: &Node, kind: SyntaxKind) -> bool {
+    let mut node: Option<Rc<Node>> = Some(node.node_wrapper());
+    while let Some(node_present) = node {
+        if node_present.kind() == kind {
+            return true;
+        }
+        node = node_present.maybe_parent();
+    }
+    false
 }
 
-pub fn get_containing_function_or_class_static_block(
+pub fn for_each_return_statement<TVisitor: FnMut(&Node)>(
+    body: &Node, /*Block | Statement*/
+    mut visitor: TVisitor,
+) {
+    for_each_return_statement_traverse(body, &mut visitor)
+}
+
+fn for_each_return_statement_traverse<TVisitor: FnMut(&Node)>(node: &Node, visitor: &mut TVisitor) {
+    match node.kind() {
+        SyntaxKind::ReturnStatement => {
+            visitor(node);
+        }
+        SyntaxKind::CaseBlock
+        | SyntaxKind::Block
+        | SyntaxKind::IfStatement
+        | SyntaxKind::DoStatement
+        | SyntaxKind::WhileStatement
+        | SyntaxKind::ForStatement
+        | SyntaxKind::ForInStatement
+        | SyntaxKind::ForOfStatement
+        | SyntaxKind::WithStatement
+        | SyntaxKind::SwitchStatement
+        | SyntaxKind::CaseClause
+        | SyntaxKind::DefaultClause
+        | SyntaxKind::LabeledStatement
+        | SyntaxKind::TryStatement
+        | SyntaxKind::CatchClause => {
+            for_each_child(
+                node,
+                |node| for_each_return_statement_traverse(node, visitor),
+                Option::<fn(&NodeArray)>::None,
+            );
+        }
+        _ => (),
+    };
+}
+
+pub fn for_each_return_statement_bool<TVisitor: FnMut(&Node) -> bool>(
+    body: &Node, /*Block | Statement*/
+    mut visitor: TVisitor,
+) -> bool {
+    for_each_return_statement_bool_traverse(body, &mut visitor)
+}
+
+fn for_each_return_statement_bool_traverse<TVisitor: FnMut(&Node) -> bool>(
     node: &Node,
-) -> Option<Rc<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
-    find_ancestor(node.maybe_parent(), |node: &Node| {
-        is_function_like_or_class_static_block_declaration(Some(node))
-    })
+    visitor: &mut TVisitor,
+) -> bool {
+    match node.kind() {
+        SyntaxKind::ReturnStatement => visitor(node),
+        SyntaxKind::CaseBlock
+        | SyntaxKind::Block
+        | SyntaxKind::IfStatement
+        | SyntaxKind::DoStatement
+        | SyntaxKind::WhileStatement
+        | SyntaxKind::ForStatement
+        | SyntaxKind::ForInStatement
+        | SyntaxKind::ForOfStatement
+        | SyntaxKind::WithStatement
+        | SyntaxKind::SwitchStatement
+        | SyntaxKind::CaseClause
+        | SyntaxKind::DefaultClause
+        | SyntaxKind::LabeledStatement
+        | SyntaxKind::TryStatement
+        | SyntaxKind::CatchClause => for_each_child_bool(
+            node,
+            |node| for_each_return_statement_bool_traverse(node, visitor),
+            Option::<fn(&NodeArray) -> bool>::None,
+        ),
+        _ => false,
+    }
 }
 
-pub fn is_super_property(node: &Node) -> bool {
-    matches!(
-        node.kind(),
-        SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-    ) && node.as_has_expression().expression().kind() == SyntaxKind::SuperKeyword
+pub fn for_each_yield_expression<TVisitor: FnMut(&Node)>(
+    body: &Node, /*Block*/
+    mut visitor: TVisitor,
+) {
+    for_each_yield_expression_traverse(body, &mut visitor)
+}
+
+fn for_each_yield_expression_traverse<TVisitor: FnMut(&Node)>(node: &Node, visitor: &mut TVisitor) {
+    match node.kind() {
+        SyntaxKind::YieldExpression => {
+            visitor(node);
+            let operand = node.as_yield_expression().expression.as_ref();
+            if let Some(operand) = operand {
+                for_each_yield_expression_traverse(operand, visitor);
+            }
+            return;
+        }
+        SyntaxKind::EnumDeclaration
+        | SyntaxKind::InterfaceDeclaration
+        | SyntaxKind::ModuleDeclaration
+        | SyntaxKind::TypeAliasDeclaration => {
+            return;
+        }
+        _ => {
+            if is_function_like(Some(node)) {
+                if let Some(node_name) = node.as_signature_declaration().maybe_name() {
+                    if node_name.kind() == SyntaxKind::ComputedPropertyName {
+                        for_each_yield_expression_traverse(
+                            &node_name.as_computed_property_name().expression,
+                            visitor,
+                        );
+                        return;
+                    }
+                }
+            } else if !is_part_of_type_node(node) {
+                for_each_child(
+                    node,
+                    |node| for_each_yield_expression_traverse(node, visitor),
+                    Option::<fn(&NodeArray)>::None,
+                );
+            }
+        }
+    };
+}
+
+pub fn get_rest_parameter_element_type<TNode: Borrow<Node>>(
+    node: Option<TNode /*TypeNode*/>,
+) -> Option<Rc<Node /*TypeNode*/>> {
+    if node.is_none() {
+        return None;
+    }
+    let node = node.unwrap();
+    let node = node.borrow();
+    match node.kind() {
+        SyntaxKind::ArrayType => Some(node.as_array_type_node().element_type.clone()),
+        SyntaxKind::TypeReference => {
+            single_or_undefined(node.as_type_reference_node().type_arguments.as_deref())
+                .map(Clone::clone)
+        }
+        _ => None,
+    }
+}
+
+// TODO: could presumably return Option<&NodeArray> instead of cloning
+pub fn get_members_of_declaration(
+    node: &Node, /*Declaration*/
+) -> Option<NodeArray /*<ClassElement | TypeElement | ObjectLiteralElement*/> {
+    match node.kind() {
+        SyntaxKind::InterfaceDeclaration => Some(node.as_interface_declaration().members.clone()),
+        SyntaxKind::ClassDeclaration => Some(node.as_class_declaration().members().clone()),
+        SyntaxKind::ClassExpression => Some(node.as_class_expression().members().clone()),
+        SyntaxKind::TypeLiteral => Some(node.as_type_literal_node().members.clone()),
+        SyntaxKind::ObjectLiteralExpression => {
+            Some(node.as_object_literal_expression().properties.clone())
+        }
+        _ => None,
+    }
 }
 
 pub fn is_variable_like(node: &Node) -> bool {
@@ -670,7 +813,25 @@ pub fn is_variable_like(node: &Node) -> bool {
     /*}*/
 }
 
-pub fn is_function_block(node: &Node) -> bool {
-    /*node &&*/
-    node.kind() == SyntaxKind::Block && is_function_like(node.maybe_parent())
+pub fn is_variable_like_or_accessor(node: &Node) -> bool {
+    is_variable_like(node) || is_accessor(node)
+}
+
+pub fn is_variable_declaration_in_variable_statement(node: &Node, /*VariableDeclaration*/) -> bool {
+    node.parent().kind() == SyntaxKind::VariableDeclarationList
+        && node.parent().parent().kind() == SyntaxKind::VariableStatement
+}
+
+pub fn is_valid_es_symbol_declaration(node: &Node) -> bool {
+    if is_variable_declaration(node) {
+        is_var_const(node)
+            && is_identifier(&node.as_variable_declaration().name())
+            && is_variable_declaration_in_variable_statement(node)
+    } else if is_property_declaration(node) {
+        has_effective_readonly_modifier(node) && has_static_modifier(node)
+    } else if is_property_signature(node) {
+        has_effective_readonly_modifier(node)
+    } else {
+        false
+    }
 }

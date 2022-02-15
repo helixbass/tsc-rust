@@ -176,7 +176,21 @@ pub trait SymbolWriter: SymbolTracker {
     fn clear(&mut self);
 }
 
-pub type TypePredicate = ();
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum TypePredicateKind {
+    This,
+    Identifier,
+    AssertsThis,
+    AssertsIdentifier,
+}
+
+#[derive(Debug)]
+pub struct TypePredicate {
+    pub kind: TypePredicateKind,
+    pub parameter_name: Option<String>,
+    pub parameter_index: Option<usize>,
+    pub type_: Option<Rc<Type>>,
+}
 
 bitflags! {
     pub struct SymbolFlags: u32 {

@@ -884,6 +884,22 @@ impl Node {
     pub fn as_type_assertion_expression(&self) -> &TypeAssertion {
         enum_unwrapped!(self, [Node, TypeAssertion])
     }
+
+    pub fn as_yield_expression(&self) -> &YieldExpression {
+        enum_unwrapped!(self, [Node, YieldExpression])
+    }
+
+    pub fn as_class_declaration(&self) -> &ClassDeclaration {
+        enum_unwrapped!(self, [Node, ClassDeclaration])
+    }
+
+    pub fn as_class_expression(&self) -> &ClassExpression {
+        enum_unwrapped!(self, [Node, ClassExpression])
+    }
+
+    pub fn as_array_literal_expression(&self) -> &ArrayLiteralExpression {
+        enum_unwrapped!(self, [Node, ArrayLiteralExpression])
+    }
 }
 
 #[derive(Debug)]

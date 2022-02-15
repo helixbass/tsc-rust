@@ -412,6 +412,13 @@ pub fn last<TItem>(array: &[TItem]) -> &TItem {
     array.last().unwrap()
 }
 
+pub fn single_or_undefined<TItem>(array: Option<&[TItem]>) -> Option<&TItem> {
+    match array {
+        Some(array) if array.len() == 1 => Some(&array[0]),
+        _ => None,
+    }
+}
+
 pub fn binary_search<
     TKey,
     TItem,
@@ -546,6 +553,16 @@ fn binary_search_key_copy_key<
     }
 
     !low
+}
+
+pub fn try_cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> Option<TIn> {
+    if
+    /*value !== undefined &&*/
+    test(&value) {
+        Some(value)
+    } else {
+        None
+    }
 }
 
 pub fn cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: Option<TIn>, test: TTest) -> TIn {

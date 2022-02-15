@@ -265,12 +265,24 @@ pub fn is_non_type_alias_template(tag: &Node /*JSDocTag*/) -> bool {
             }))
 }
 
+pub fn has_effective_modifier(node: &Node, flags: ModifierFlags) -> bool {
+    get_selected_effective_modifier_flags(node, flags) != ModifierFlags::None
+}
+
 pub fn has_syntactic_modifier<TNode: NodeInterface>(node: &TNode, flags: ModifierFlags) -> bool {
     get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
 }
 
 pub fn has_static_modifier<TNode: NodeInterface>(node: &TNode) -> bool {
     has_syntactic_modifier(node, ModifierFlags::Static)
+}
+
+pub fn has_effective_readonly_modifier(node: &Node) -> bool {
+    has_effective_modifier(node, ModifierFlags::Readonly)
+}
+
+fn get_selected_effective_modifier_flags(node: &Node, flags: ModifierFlags) -> ModifierFlags {
+    get_effective_modifier_flags(node) & flags
 }
 
 fn get_selected_syntactic_modifier_flags<TNode: NodeInterface>(
