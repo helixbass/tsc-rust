@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
@@ -35,14 +36,17 @@ impl __String {
         self.0.chars()
     }
 
-    // TODO: should implement via Deref instead?
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
     // TODO: should implement via some trait?
     pub fn eq_str(&self, str: &str) -> bool {
         &self.0 == str
+    }
+}
+
+impl Deref for __String {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

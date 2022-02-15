@@ -1,11 +1,13 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::ops::Deref;
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    is_property_assignment, NamedDeclarationInterface, NodeFlags, NodeInterface,
+    get_text_of_identifier_or_literal, is_private_identifier, is_property_assignment,
+    is_property_name_literal, NamedDeclarationInterface, NodeFlags, NodeInterface,
     OuterExpressionKinds, Symbol, SymbolInterface, SyntaxKind, __String, add_range,
     escape_leading_underscores, every, filter, first_or_undefined, for_each,
     get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache, get_jsdoc_type_parameter_tags,
@@ -437,12 +439,46 @@ pub fn is_same_entity_name(
     name: &Node,        /*Expression*/
     initializer: &Node, /*Expression*/
 ) -> bool {
-    unimplemented!()
+    if is_property_name_literal(name) && is_property_name_literal(initializer) {
+        return get_text_of_identifier_or_literal(name)
+            == get_text_of_identifier_or_literal(initializer);
+    }
+    if is_identifier(name) && is_literal_like_access(initializer) {
+        let initializer_as_has_expression = initializer.as_has_expression();
+        if initializer_as_has_expression.expression().kind() == SyntaxKind::ThisKeyword
+            || is_identifier(&initializer_as_has_expression.expression())
+                && matches!(
+                    initializer_as_has_expression
+                        .expression()
+                        .as_identifier()
+                        .escaped_text
+                        .deref(),
+                    "window" | "self" | "global"
+                )
+        {
+            let name_or_argument = get_name_or_argument(initializer);
+            if is_private_identifier(&name_or_argument) {
+                Debug_.fail(Some(
+                    "Unexpected PrivateIdentifier in name expression with literal-like access.",
+                ));
+            }
+            return is_same_entity_name(name, &name_or_argument);
+        }
+    }
+    if is_literal_like_access(name) && is_literal_like_access(initializer) {
+        return get_element_or_property_access_name(name)
+            == get_element_or_property_access_name(initializer)
+            && is_same_entity_name(
+                &name.as_has_expression().expression(),
+                &initializer.as_has_expression().expression(),
+            );
+    }
+    false
 }
 
 pub fn get_right_most_assigned_expression(node: &Node, /*Expression*/) -> Rc<Node /*Expression*/> {
     let mut node = node.node_wrapper();
-    while is_assignment_expression(&*node, Some(true)) {
+    while is_assignment_expression(&node, Some(true)) {
         node = node.as_binary_expression().right.clone();
     }
     node
@@ -452,14 +488,14 @@ pub fn is_exports_identifier(node: &Node) -> bool {
     if !is_identifier(node) {
         return false;
     }
-    node.as_identifier().escaped_text.as_str() == "exports"
+    node.as_identifier().escaped_text.eq_str("exports")
 }
 
 pub fn is_module_identifier(node: &Node) -> bool {
     if !is_identifier(node) {
         return false;
     }
-    node.as_identifier().escaped_text.as_str() == "module"
+    node.as_identifier().escaped_text.eq_str("module")
 }
 
 pub fn is_module_exports_access_expression(node: &Node) -> bool {
@@ -490,24 +526,28 @@ pub fn is_bindable_object_define_property_call(expr: &Node /*CallExpression*/) -
         return false;
     }
     let expr_arguments = &expr.arguments;
-    if !is_property_access_expression(&*expr.expression) {
+    if !is_property_access_expression(&expr.expression) {
         return false;
     }
     let expr_expression_as_property_access_expression =
         expr.expression.as_property_access_expression();
-    if !is_identifier(&*expr_expression_as_property_access_expression.expression) {
+    if !is_identifier(&expr_expression_as_property_access_expression.expression) {
         return false;
     }
-    if !(id_text(&*expr_expression_as_property_access_expression.expression) == "Object") {
+    if !(id_text(&expr_expression_as_property_access_expression.expression) == "Object") {
         return false;
     }
-    if !(id_text(&*expr_expression_as_property_access_expression.name) == "defineProperty") {
+    if !(id_text(&expr_expression_as_property_access_expression.name) == "defineProperty") {
         return false;
     }
-    if !is_string_or_numeric_literal_like(&*expr_arguments[1]) {
+    if !is_string_or_numeric_literal_like(&expr_arguments[1]) {
         return false;
     }
     is_bindable_static_name_expression(&expr_arguments[0], Some(true))
+}
+
+pub fn is_literal_like_access(node: &Node) -> bool {
+    is_property_access_expression(node) || is_literal_like_element_access(node)
 }
 
 pub fn is_literal_like_element_access(node: &Node) -> bool {
@@ -515,7 +555,7 @@ pub fn is_literal_like_element_access(node: &Node) -> bool {
         return false;
     }
     let node_as_element_access_expression = node.as_element_access_expression();
-    is_string_or_numeric_literal_like(&*node_as_element_access_expression.argument_expression)
+    is_string_or_numeric_literal_like(&node_as_element_access_expression.argument_expression)
 }
 
 pub fn is_bindable_static_access_expression(
@@ -527,7 +567,7 @@ pub fn is_bindable_static_access_expression(
         let node_as_property_access_expression = node.as_property_access_expression();
         if !exclude_this_keyword_unwrapped
             && node_as_property_access_expression.expression.kind() == SyntaxKind::ThisKeyword
-            || is_identifier(&*node_as_property_access_expression.name)
+            || is_identifier(&node_as_property_access_expression.name)
                 && is_bindable_static_name_expression(
                     &node_as_property_access_expression.expression,
                     Some(true),
@@ -562,6 +602,17 @@ pub fn is_bindable_static_name_expression(node: &Node, exclude_this_keyword: Opt
         || is_bindable_static_access_expression(node, exclude_this_keyword)
 }
 
+pub fn get_name_or_argument(
+    expr: &Node, /*PropertyAccessExpression | LiteralLikeElementAccessExpression*/
+) -> Rc<Node> {
+    if is_property_access_expression(expr) {
+        return expr.as_property_access_expression().name();
+    }
+    expr.as_element_access_expression()
+        .argument_expression
+        .clone()
+}
+
 fn get_assignment_declaration_kind_worker(
     expr: &Node, /*BinaryExpression | CallExpression*/
 ) -> AssignmentDeclarationKind {
@@ -569,9 +620,8 @@ fn get_assignment_declaration_kind_worker(
         if !is_bindable_object_define_property_call(expr) {
             return AssignmentDeclarationKind::None;
         }
-        let expr_as_bindable_object_define_property_call_arguments =
-            &expr.as_call_expression().arguments;
-        let entity_name = &expr_as_bindable_object_define_property_call_arguments[0];
+        let expr_arguments = &expr.as_call_expression().arguments;
+        let entity_name = &expr_arguments[0];
         if is_exports_identifier(entity_name) || is_module_exports_access_expression(entity_name) {
             return AssignmentDeclarationKind::ObjectDefinePropertyExports;
         }
@@ -587,7 +637,7 @@ fn get_assignment_declaration_kind_worker(
     }
     let expr_as_binary_expression = expr.as_binary_expression();
     if expr_as_binary_expression.operator_token.kind() != SyntaxKind::EqualsToken
-        || !is_access_expression(&*expr_as_binary_expression.left)
+        || !is_access_expression(&expr_as_binary_expression.left)
         || is_void_zero(&get_right_most_assigned_expression(expr))
     {
         return AssignmentDeclarationKind::None;
@@ -598,7 +648,7 @@ fn get_assignment_declaration_kind_worker(
             Some(name) => name.eq_str("prototype"),
             None => false,
         }
-        && is_object_literal_expression(&*get_initializer_of_binary_expression(expr))
+        && is_object_literal_expression(&get_initializer_of_binary_expression(expr))
     {
         return AssignmentDeclarationKind::Prototype;
     }
@@ -610,7 +660,7 @@ fn is_void_zero(node: &Node) -> bool {
         return false;
     }
     let node_as_void_expression = node.as_void_expression();
-    if !is_numeric_literal(&*node_as_void_expression.expression) {
+    if !is_numeric_literal(&node_as_void_expression.expression) {
         return false;
     }
     let node_expression_as_numeric_literal =
@@ -618,7 +668,7 @@ fn is_void_zero(node: &Node) -> bool {
     &*node_expression_as_numeric_literal.text() == "0"
 }
 
-pub fn get_element_or_property_access_argument_expression_or_name(
+pub(crate) fn get_element_or_property_access_argument_expression_or_name(
     node: &Node, /*AccessExpression*/
 ) -> Option<
     Rc<
@@ -630,21 +680,23 @@ pub fn get_element_or_property_access_argument_expression_or_name(
     }
     let node_as_element_access_expression = node.as_element_access_expression();
     let arg = skip_parentheses(&node_as_element_access_expression.argument_expression, None);
-    if is_numeric_literal(&*arg) || is_string_literal_like(&*arg) {
+    if is_numeric_literal(&arg) || is_string_literal_like(&arg) {
         return Some(arg);
     }
     Some(node.node_wrapper())
 }
 
-pub fn get_element_or_property_access_name(node: &Node, /*AccessExpression*/) -> Option<__String> {
+pub(crate) fn get_element_or_property_access_name(
+    node: &Node, /*AccessExpression*/
+) -> Option<__String> {
     let name = get_element_or_property_access_argument_expression_or_name(node);
     name.and_then(|name| {
-        if is_identifier(&*name) {
+        if is_identifier(&name) {
             return Some(name.as_identifier().escaped_text.clone());
         }
-        if is_string_literal_like(&*name) || is_numeric_literal(&*name) {
+        if is_string_literal_like(&name) || is_numeric_literal(&name) {
             return Some(escape_leading_underscores(
-                &*name.as_literal_like_node().text(),
+                &name.as_literal_like_node().text(),
             ));
         }
         None
@@ -665,7 +717,7 @@ pub fn get_assignment_declaration_property_access_kind(
         }
 
         let mut next_to_last = lhs.node_wrapper();
-        while !is_identifier(&*next_to_last.as_has_expression().expression()) {
+        while !is_identifier(&next_to_last.as_has_expression().expression()) {
             next_to_last = next_to_last.as_has_expression().expression();
         }
         let id = next_to_last.as_has_expression().expression();
@@ -681,7 +733,7 @@ pub fn get_assignment_declaration_property_access_kind(
             return AssignmentDeclarationKind::ExportsProperty;
         }
         if is_bindable_static_name_expression(&lhs, Some(true))
-            || is_element_access_expression(&*lhs) && is_dynamic_name(&lhs)
+            || is_element_access_expression(&lhs) && is_dynamic_name(&lhs)
         {
             return AssignmentDeclarationKind::Property;
         }
@@ -693,7 +745,7 @@ pub fn get_initializer_of_binary_expression(
     expr: &Node, /*BinaryExpression*/
 ) -> Rc<Node /*Expression*/> {
     let mut expr = expr.node_wrapper();
-    while is_binary_expression(&*expr.as_binary_expression().right) {
+    while is_binary_expression(&expr.as_binary_expression().right) {
         expr = expr.as_binary_expression().right.clone();
     }
     expr.as_binary_expression().right.clone()

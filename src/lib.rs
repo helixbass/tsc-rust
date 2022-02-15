@@ -256,8 +256,7 @@ pub use compiler::utilities::{
     get_compiler_option_value, get_containing_function_or_class_static_block,
     get_declaration_of_kind, get_effective_initializer, get_effective_modifier_flags,
     get_effective_modifier_flags_always_include_jsdoc, get_effective_return_type_node,
-    get_effective_type_annotation_node, get_element_or_property_access_argument_expression_or_name,
-    get_element_or_property_access_name, get_emit_flags, get_emit_module_kind,
+    get_effective_type_annotation_node, get_emit_flags, get_emit_module_kind,
     get_emit_script_target, get_end_line_position, get_escaped_text_of_identifier_or_literal,
     get_expression_associativity, get_expression_precedence, get_first_constructor_with_body,
     get_first_identifier, get_full_width, get_function_flags, get_jsdoc_comment_ranges,
@@ -285,7 +284,10 @@ pub use compiler::utilities::{
     set_value_declaration, using_single_line_string_writer, walk_up_parenthesized_expressions,
     Associativity, FunctionFlags, GetLiteralTextFlags, OperatorPrecedence,
 };
-use compiler::utilities::{has_invalid_escape, set_localized_diagnostic_messages};
+use compiler::utilities::{
+    get_element_or_property_access_argument_expression_or_name,
+    get_element_or_property_access_name, has_invalid_escape, set_localized_diagnostic_messages,
+};
 pub use compiler::utilities_public::{
     collapse_text_change_ranges_across_multiple_versions, create_text_change_range,
     create_text_span, create_text_span_from_bounds, decoded_text_span_intersects_with,
