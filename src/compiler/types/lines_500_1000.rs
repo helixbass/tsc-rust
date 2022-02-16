@@ -952,6 +952,10 @@ impl Node {
     pub fn as_external_module_reference(&self) -> &ExternalModuleReference {
         enum_unwrapped!(self, [Node, ExternalModuleReference])
     }
+
+    pub fn as_import_declaration(&self) -> &ImportDeclaration {
+        enum_unwrapped!(self, [Node, ImportDeclaration])
+    }
 }
 
 #[derive(Debug)]

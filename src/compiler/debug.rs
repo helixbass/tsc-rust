@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::cell::Cell;
 use std::fmt;
 
-use crate::{AssertionLevel, Node, NodeArray, SyntaxKind};
+use crate::{AssertionLevel, Node, NodeArray, NodeInterface, SyntaxKind};
 
 enum AssertionKeys {
     AssertNode,
@@ -41,9 +41,20 @@ impl DebugType {
     pub fn fail(&self, message: Option<&str>) -> ! {
         let message = match message {
             Some(message) => format!("Debug failure. {}", message),
-            None => "Debug failure.".to_string(),
+            None => "Debug failure.".to_owned(),
         };
         panic!("{}", message);
+    }
+
+    pub fn fail_bad_syntax_kind(&self, node: &Node, message: Option<&str>) -> ! {
+        self.fail(Some(&format!(
+            "{}\r\nNode {} was unexpected.",
+            &message.map_or_else(
+                || "Unexpected node.".to_owned(),
+                |message| message.to_owned()
+            ),
+            self.format_syntax_kind(Some(node.kind()))
+        )))
     }
 
     pub fn assert(&self, expression: bool, message: Option<&str>) {
