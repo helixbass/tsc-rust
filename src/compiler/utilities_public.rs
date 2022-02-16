@@ -462,7 +462,7 @@ pub fn is_parse_tree_node(node: &Node) -> bool {
     !node.flags().intersects(NodeFlags::Synthesized)
 }
 
-pub fn get_parse_tree_node<TNode: Borrow<Node>, TNodeTest: FnOnce(Option<Rc<Node>>) -> bool>(
+pub fn get_parse_tree_node<TNode: Borrow<Node>, TNodeTest: FnOnce(&Node) -> bool>(
     node: Option<TNode>,
     node_test: Option<TNodeTest>,
 ) -> Option<Rc<Node>> {
@@ -484,7 +484,7 @@ pub fn get_parse_tree_node<TNode: Borrow<Node>, TNodeTest: FnOnce(Option<Rc<Node
         if is_parse_tree_node(&node_present) {
             return if match node_test {
                 None => true,
-                Some(node_test) => node_test(node.clone()),
+                Some(node_test) => node_test(&node_present),
             } {
                 node
             } else {

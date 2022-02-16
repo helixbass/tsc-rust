@@ -22,35 +22,35 @@ use super::{
     HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause, Identifier, IfStatement,
     ImportClause, ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
     IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InputFiles,
-    InterfaceDeclaration, IntersectionTypeNode, JSDoc, JSDocAugmentsTag, JSDocCallbackTag,
-    JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface,
-    JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration,
-    JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTagInterface, JSDocTemplateTag,
-    JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral, JSDocTypedefTag,
-    JsxAttribute, JsxAttributes, JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression,
-    JsxFragment, JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute,
-    JsxText, KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode,
-    MappedTypeNode, MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature,
-    MissingDeclaration, ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface,
-    NamedExports, NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration,
-    NamespaceImport, NewExpression, NodeArray, NonNullExpression, NumericLiteral,
-    ObjectBindingPattern, ObjectLiteralExpression, OmittedExpression, OptionalTypeNode,
-    ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
-    PartiallyEmittedExpression, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
-    PropertyAccessExpression, PropertyAssignment, PropertyDeclaration, PropertySignature,
-    QualifiedName, ReadonlyTextRange, RegularExpressionLiteral, RestTypeNode, ReturnStatement,
-    SemicolonClassElement, SetAccessorDeclaration, ShorthandPropertyAssignment,
-    SignatureDeclarationBase, SignatureDeclarationInterface, SourceFile, SpreadAssignment,
-    SpreadElement, StringLiteral, SwitchStatement, Symbol, SymbolTable, SyntaxKind, SyntaxList,
-    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
-    TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode, TemplateLiteralTypeSpan,
-    TemplateSpan, ThisTypeNode, ThrowStatement, TransformFlags, TryStatement, TupleTypeNode,
-    TypeAliasDeclaration, TypeAssertion, TypeLiteralNode, TypeOfExpression, TypeOperatorNode,
-    TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode,
-    UnionOrIntersectionTypeNodeInterface, UnionTypeNode, UnparsedPrepend, UnparsedPrologue,
-    UnparsedSource, UnparsedTextLike, VariableDeclaration, VariableDeclarationList,
-    VariableLikeDeclarationInterface, VariableStatement, VoidExpression, WhileStatement,
-    WithStatement, YieldExpression,
+    InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface, IntersectionTypeNode, JSDoc,
+    JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
+    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
+    JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature,
+    JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes, JsxClosingElement,
+    JsxClosingFragment, JsxElement, JsxExpression, JsxFragment, JsxOpeningElement,
+    JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText, KeywordTypeNode,
+    LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
+    MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
+    ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface, NamedExports,
+    NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration, NamespaceImport,
+    NewExpression, NodeArray, NonNullExpression, NumericLiteral, ObjectBindingPattern,
+    ObjectLiteralExpression, OmittedExpression, OptionalTypeNode, ParameterDeclaration,
+    ParenthesizedExpression, ParenthesizedTypeNode, PartiallyEmittedExpression,
+    PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier, PropertyAccessExpression,
+    PropertyAssignment, PropertyDeclaration, PropertySignature, QualifiedName, ReadonlyTextRange,
+    RegularExpressionLiteral, RestTypeNode, ReturnStatement, SemicolonClassElement,
+    SetAccessorDeclaration, ShorthandPropertyAssignment, SignatureDeclarationBase,
+    SignatureDeclarationInterface, SourceFile, SpreadAssignment, SpreadElement, StringLiteral,
+    SwitchStatement, Symbol, SymbolTable, SyntaxKind, SyntaxList, TaggedTemplateExpression,
+    TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface,
+    TemplateLiteralTypeNode, TemplateLiteralTypeSpan, TemplateSpan, ThisTypeNode, ThrowStatement,
+    TransformFlags, TryStatement, TupleTypeNode, TypeAliasDeclaration, TypeAssertion,
+    TypeLiteralNode, TypeOfExpression, TypeOperatorNode, TypeParameterDeclaration,
+    TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionOrIntersectionTypeNodeInterface,
+    UnionTypeNode, UnparsedPrepend, UnparsedPrologue, UnparsedSource, UnparsedTextLike,
+    VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
+    VariableStatement, VoidExpression, WhileStatement, WithStatement, YieldExpression,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -589,6 +589,17 @@ impl Node {
         }
     }
 
+    pub fn as_interface_or_class_like_declaration(
+        &self,
+    ) -> &dyn InterfaceOrClassLikeDeclarationInterface {
+        match self {
+            Node::ClassDeclaration(node) => node,
+            Node::ClassExpression(node) => node,
+            Node::InterfaceDeclaration(node) => node,
+            _ => panic!("Expected interface or class like declaration"),
+        }
+    }
+
     pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
         enum_unwrapped!(self, [Node, VariableDeclarationList])
     }
@@ -979,6 +990,30 @@ impl Node {
 
     pub fn as_jsdoc_signature(&self) -> &JSDocSignature {
         enum_unwrapped!(self, [Node, JSDocSignature])
+    }
+
+    pub fn as_import_specifier(&self) -> &ImportSpecifier {
+        enum_unwrapped!(self, [Node, ImportSpecifier])
+    }
+
+    pub fn as_jsdoc_augments_tag(&self) -> &JSDocAugmentsTag {
+        enum_unwrapped!(self, [Node, JSDocAugmentsTag])
+    }
+
+    pub fn as_heritage_clause(&self) -> &HeritageClause {
+        enum_unwrapped!(self, [Node, HeritageClause])
+    }
+
+    pub fn as_jsdoc_implements_tag(&self) -> &JSDocImplementsTag {
+        enum_unwrapped!(self, [Node, JSDocImplementsTag])
+    }
+
+    pub fn as_jsx_expression(&self) -> &JsxExpression {
+        enum_unwrapped!(self, [Node, JsxExpression])
+    }
+
+    pub fn as_jsx_text(&self) -> &JsxText {
+        enum_unwrapped!(self, [Node, JsxText])
     }
 }
 

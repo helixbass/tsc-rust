@@ -6,7 +6,7 @@ mod execute_command_line;
 mod rust_helpers;
 
 pub use compiler::binder::bind_source_file;
-pub use compiler::checker::{create_type_checker, NodeBuilder};
+pub use compiler::checker::{create_type_checker, get_symbol_id, NodeBuilder};
 use compiler::command_line_parser::{
     convert_to_object_worker, module_resolution_option_declarations,
     options_affecting_program_structure,
@@ -20,8 +20,9 @@ pub use compiler::core::{
     every, filter, find, find_index, first_defined, first_or_undefined, flat_map, for_each,
     for_each_bool, get_spelling_suggestion, get_string_comparer, insert_sorted, last,
     last_or_undefined, length, map, map_defined, maybe_for_each, range_equals, same_map,
-    set_ui_locale, single_or_undefined, some, sort_and_deduplicate, starts_with, string_contains,
-    trim_string_start, try_cast, AssertionLevel, GetCanonicalFileName,
+    set_ui_locale, single_element_array, single_or_undefined, some, sort_and_deduplicate,
+    starts_with, string_contains, trim_string_start, try_cast, AssertionLevel,
+    GetCanonicalFileName,
 };
 pub use compiler::core_public::{
     Comparer, Comparison, MapLike, Push, ReadonlyCollection, SortedArray,
