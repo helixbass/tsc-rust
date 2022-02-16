@@ -26,6 +26,19 @@ pub fn for_each<
         .find_map(|(index, item)| callback(item, index))
 }
 
+pub fn for_each_bool<
+    TCollection: IntoIterator,
+    TCallback: FnMut(TCollection::Item, usize) -> bool,
+>(
+    array: TCollection,
+    mut callback: TCallback,
+) -> bool {
+    array
+        .into_iter()
+        .enumerate()
+        .any(|(index, item)| callback(item, index))
+}
+
 pub fn maybe_for_each<
     TCollection: IntoIterator,
     TReturn,

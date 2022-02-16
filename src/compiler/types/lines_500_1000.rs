@@ -956,6 +956,30 @@ impl Node {
     pub fn as_import_declaration(&self) -> &ImportDeclaration {
         enum_unwrapped!(self, [Node, ImportDeclaration])
     }
+
+    pub fn as_import_clause(&self) -> &ImportClause {
+        enum_unwrapped!(self, [Node, ImportClause])
+    }
+
+    pub fn as_named_imports(&self) -> &NamedImports {
+        enum_unwrapped!(self, [Node, NamedImports])
+    }
+
+    pub fn as_method_signature(&self) -> &MethodSignature {
+        enum_unwrapped!(self, [Node, MethodSignature])
+    }
+
+    pub fn as_property_declaration(&self) -> &PropertyDeclaration {
+        enum_unwrapped!(self, [Node, PropertyDeclaration])
+    }
+
+    pub fn as_jsdoc_function_type(&self) -> &JSDocFunctionType {
+        enum_unwrapped!(self, [Node, JSDocFunctionType])
+    }
+
+    pub fn as_jsdoc_signature(&self) -> &JSDocSignature {
+        enum_unwrapped!(self, [Node, JSDocSignature])
+    }
 }
 
 #[derive(Debug)]
