@@ -2,26 +2,21 @@
 
 use std::borrow::Borrow;
 use std::ops::Deref;
-use std::ptr;
 use std::rc::Rc;
 
 use crate::{
     get_jsdoc_type_tag, get_text_of_identifier_or_literal, is_effective_module_declaration,
     is_external_module_reference, is_function_like, is_private_identifier, is_property_assignment,
     is_property_name_literal, skip_parentheses, try_cast, try_get_import_from_module_specifier,
-    NamedDeclarationInterface, NodeFlags, NodeInterface, OuterExpressionKinds, Symbol,
-    SymbolInterface, SyntaxKind, __String, add_range, escape_leading_underscores, every, filter,
-    first_or_undefined, for_each, get_jsdoc_parameter_tags, get_jsdoc_parameter_tags_no_cache,
-    get_jsdoc_type_parameter_tags, get_jsdoc_type_parameter_tags_no_cache,
-    get_leftmost_access_expression, get_source_text_of_node_from_source_file, has_initializer,
-    has_jsdoc_nodes, id_text, is_access_expression, is_assignment_expression, is_binary_expression,
-    is_call_expression, is_dynamic_name, is_element_access_expression, is_entity_name_expression,
-    is_expression_statement, is_identifier, is_jsdoc, is_jsdoc_type_tag, is_json_source_file,
-    is_module_declaration, is_namespace_export, is_numeric_literal, is_object_literal_expression,
-    is_parenthesized_expression, is_property_access_expression, is_prototype_access,
-    is_string_literal_like, is_string_or_numeric_literal_like, is_type_alias_declaration,
-    is_type_reference_node, is_variable_declaration, is_variable_like, is_variable_statement,
-    is_void_expression, last, length, maybe_text_char_at_index, skip_outer_expressions,
+    NamedDeclarationInterface, NodeFlags, NodeInterface, Symbol, SymbolInterface, SyntaxKind,
+    __String, escape_leading_underscores, every, for_each, get_leftmost_access_expression,
+    get_source_text_of_node_from_source_file, id_text, is_access_expression,
+    is_assignment_expression, is_binary_expression, is_call_expression, is_dynamic_name,
+    is_element_access_expression, is_entity_name_expression, is_identifier, is_json_source_file,
+    is_namespace_export, is_numeric_literal, is_object_literal_expression,
+    is_property_access_expression, is_prototype_access, is_string_literal_like,
+    is_string_or_numeric_literal_like, is_type_reference_node, is_variable_declaration,
+    is_variable_statement, is_void_expression, length, maybe_text_char_at_index,
     AssignmentDeclarationKind, CharacterCodes, Debug_, HasInitializerInterface,
     LiteralLikeNodeInterface, Node,
 };
