@@ -4,7 +4,7 @@ use bitflags::bitflags;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{CompilerOptions, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
+use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{BaseNodeFactory, NodeFactoryFlags};
 
 bitflags! {
@@ -211,6 +211,25 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
 }
 
 pub struct TransformationContext {}
+
+pub trait TransformationResult {
+    fn transformed(&self) -> Vec<Rc<Node>>;
+
+    fn diagnostics(&self) -> Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>;
+
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node>;
+
+    fn emit_node_with_notification(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn FnMut(EmitHint, &Node),
+    );
+
+    fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool>;
+
+    fn dispose(&self);
+}
 
 pub type TransformerFactory = Rc<dyn Fn(Rc<TransformationContext>) -> Transformer>;
 

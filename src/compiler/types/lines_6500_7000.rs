@@ -5,7 +5,12 @@ use std::cell::Cell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{BaseTextRange, Node, ScriptTarget, SyntaxKind, SynthesizedComment, TextRange};
+use super::{
+    BaseTextRange, CompilerOptions, FileReference, ModuleSpecifierResolutionHost, Node,
+    RedirectTargetsMap, ResolvedProjectReference, ScriptReferenceHost, ScriptTarget, SyntaxKind,
+    SynthesizedComment, TextRange,
+};
+use crate::ProgramBuildInfo;
 
 pub trait ModuleResolutionHost {
     fn read_file(&self, file_name: &str) -> Option<String>;
@@ -407,4 +412,48 @@ bitflags! {
 pub enum EmitHint {
     Expression,
     Unspecified,
+}
+
+pub trait SourceFileMayBeEmittedHost {
+    fn get_compiler_options(&self) -> Rc<CompilerOptions>;
+    fn is_source_file_from_external_library(&self, file: &Node /*SourceFile*/) -> bool;
+    fn get_resolved_project_reference_to_redirect(
+        &self,
+        file_name: &str,
+    ) -> Option<ResolvedProjectReference>;
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
+}
+
+pub trait EmitHost:
+    ScriptReferenceHost + ModuleSpecifierResolutionHost + SourceFileMayBeEmittedHost
+{
+    fn get_source_files(&self) -> Vec<Rc<Node /*SourceFile*/>>;
+    fn use_case_sensitive_file_names(&self) -> bool;
+    fn get_current_directory(&self) -> String;
+
+    fn get_lib_file_from_reference(&self, ref_: &FileReference) -> Option<Rc<Node /*SourceFile*/>>;
+
+    fn get_common_source_directory(&self) -> String;
+    fn get_canonical_file_name(&self, file_name: &str) -> String;
+    fn get_new_line(&self) -> String;
+
+    fn is_emit_blocked(&self, emit_file_name: &str) -> bool;
+
+    fn get_prepend_nodes(&self) -> Vec<Rc<Node /*InputFiles | UnparsedSource*/>>;
+
+    fn write_file(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&dyn FnMut(&str)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    ); // WriteFileCallback
+    fn get_program_build_info(&self) -> Option<ProgramBuildInfo>;
+    fn get_source_file_from_reference(
+        &self,
+        referencing_file: &Node, /*SourceFile | UnparsedSource*/
+        ref_: &FileReference,
+    ) -> Option<Rc<Node /*SourceFile*/>>;
+    fn redirect_targets_map(&self) -> &RedirectTargetsMap;
 }

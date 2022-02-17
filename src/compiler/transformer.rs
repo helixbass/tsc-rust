@@ -9,9 +9,9 @@ use crate::{
     transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
     transform_system_module, transform_type_script, BaseNodeFactory, BaseNodeFactorySynthetic,
     CompilerOptions, CoreTransformationContext, CustomTransformer, CustomTransformers, EmitHint,
-    EmitResolver, EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory,
-    NodeInterface, ScriptTarget, TransformationContext, Transformer, TransformerFactory,
-    TransformerFactoryOrCustomTransformerFactory,
+    EmitHost, EmitResolver, EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node,
+    NodeFactory, NodeInterface, ScriptTarget, TransformationContext, TransformationResult,
+    Transformer, TransformerFactory, TransformerFactoryOrCustomTransformerFactory,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
@@ -227,7 +227,7 @@ pub fn no_emit_substitution(_hint: EmitHint, node: &Node) -> Rc<Node> {
 pub fn no_emit_notification<TCallback: FnMut(EmitHint, &Node)>(
     hint: EmitHint,
     node: &Node,
-    callback: TCallback,
+    mut callback: TCallback,
 ) {
     callback(hint, node)
 }
@@ -244,7 +244,8 @@ pub fn transform_nodes<
     nodes: &[Rc<Node>],
     transformers: &[TransformerFactory],
     allow_dts_files: bool,
-) -> TransformationResult {
+    // ) -> impl TransformationResult {
+) -> Box<dyn TransformationResult> {
     unimplemented!()
 }
 

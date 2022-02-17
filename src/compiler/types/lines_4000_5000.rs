@@ -7,12 +7,20 @@ use std::rc::{Rc, Weak};
 
 use super::{
     BaseType, CompilerOptions, DiagnosticCollection, ModuleSpecifierResolutionHost, Node,
-    NodeCheckFlags, NodeId, NodeLinks, ObjectFlags, RelationComparisonResult, SymbolTable,
-    SymbolTracker, TransformationContext, TransformerFactory, Type, TypeFlags, TypeMapper,
-    __String,
+    NodeCheckFlags, NodeId, NodeLinks, ObjectFlags, ParsedCommandLine, Path,
+    RelationComparisonResult, SymbolTable, SymbolTracker, TransformationContext,
+    TransformerFactory, Type, TypeFlags, TypeMapper, __String,
 };
 use crate::{NodeBuilder, Number, StringOrNumber};
 use local_macros::symbol_type;
+
+pub type RedirectTargetsMap = HashMap<Path, Vec<String>>;
+
+pub struct ResolvedProjectReference {
+    pub command_line: ParsedCommandLine,
+    pub source_file: Rc<Node /*SourceFile*/>,
+    pub references: Option<Vec<Option<ResolvedProjectReference>>>,
+}
 
 #[derive(Eq, PartialEq)]
 pub enum StructureIsReused {
@@ -225,6 +233,12 @@ pub trait SymbolWriter: SymbolTracker {
     fn clear(&mut self);
 }
 
+pub enum SymbolAccessibility {
+    Accessible,
+    NotAccessible,
+    CannotBeNamed,
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TypePredicateKind {
     This,
@@ -239,6 +253,21 @@ pub struct TypePredicate {
     pub parameter_name: Option<String>,
     pub parameter_index: Option<usize>,
     pub type_: Option<Rc<Type>>,
+}
+
+pub struct SymbolVisibilityResult {
+    pub accessibility: SymbolAccessibility,
+    pub aliases_to_make_visible: Option<Vec<Rc<Node /*LateVisibilityPaintedStatement*/>>>,
+    pub error_symbol_name: Option<String>,
+    pub error_node: Option<Rc<Node>>,
+}
+
+pub struct SymbolAccessibilityResult {
+    pub accessibility: SymbolAccessibility,
+    pub aliases_to_make_visible: Option<Vec<Rc<Node /*LateVisibilityPaintedStatement*/>>>,
+    pub error_symbol_name: Option<String>,
+    pub error_node: Option<Rc<Node>>,
+    pub error_module_name: Option<String>,
 }
 
 pub struct AllAccessorDeclarations {
