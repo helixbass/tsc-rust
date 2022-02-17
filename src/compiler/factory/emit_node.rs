@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 use std::cell::RefMut;
+use std::rc::Rc;
 
 use crate::{is_parse_tree_node, Debug_, EmitFlags, EmitNode, Node, NodeInterface};
 
@@ -31,6 +32,11 @@ pub fn dispose_emit_nodes<TSourceFile: Borrow<Node>>(
     source_file: Option<TSourceFile /*SourceFile*/>,
 ) {
     unimplemented!()
+}
+
+pub fn set_emit_flags(node: Rc<Node>, emit_flags: EmitFlags) -> Rc<Node> {
+    get_or_create_emit_node(&node).flags = Some(emit_flags);
+    node
 }
 
 pub(crate) fn get_starts_on_new_line(node: &Node) -> bool {

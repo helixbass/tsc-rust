@@ -369,6 +369,43 @@ pub enum EmitHelper {
     UnscopedEmitHelper(UnscopedEmitHelper),
 }
 
+impl EmitHelperBase for EmitHelper {
+    fn name(&self) -> &str {
+        match self {
+            Self::ScopedEmitHelper(emit_helper) => emit_helper.name(),
+            Self::UnscopedEmitHelper(emit_helper) => emit_helper.name(),
+        }
+    }
+
+    fn scoped(&self) -> bool {
+        match self {
+            Self::ScopedEmitHelper(emit_helper) => emit_helper.scoped(),
+            Self::UnscopedEmitHelper(emit_helper) => emit_helper.scoped(),
+        }
+    }
+
+    fn text(&self) -> &str {
+        match self {
+            Self::ScopedEmitHelper(emit_helper) => emit_helper.text(),
+            Self::UnscopedEmitHelper(emit_helper) => emit_helper.text(),
+        }
+    }
+
+    fn priority(&self) -> Option<usize> {
+        match self {
+            Self::ScopedEmitHelper(emit_helper) => emit_helper.priority(),
+            Self::UnscopedEmitHelper(emit_helper) => emit_helper.priority(),
+        }
+    }
+
+    fn dependencies(&self) -> Option<&[Rc<EmitHelper>]> {
+        match self {
+            Self::ScopedEmitHelper(emit_helper) => emit_helper.dependencies(),
+            Self::UnscopedEmitHelper(emit_helper) => emit_helper.dependencies(),
+        }
+    }
+}
+
 bitflags! {
     pub struct EmitFlags: u32 {
         const None = 0;

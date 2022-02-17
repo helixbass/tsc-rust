@@ -1,18 +1,20 @@
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use crate::{
-    add_range, chain_bundle, dispose_emit_nodes, factory as factory_static, get_emit_module_kind,
-    get_emit_script_target, get_jsx_transform_enabled, get_parse_tree_node,
-    get_source_file_of_node, is_bundle, is_source_file, map, transform_class_fields,
-    transform_declarations, transform_ecmascript_module, transform_es2015, transform_es2016,
-    transform_es2017, transform_es2018, transform_es2019, transform_es2020, transform_es2021,
-    transform_es5, transform_esnext, transform_generators, transform_jsx, transform_module,
-    transform_node_module, transform_system_module, transform_type_script, BaseNodeFactory,
-    BaseNodeFactorySynthetic, CompilerOptions, CoreTransformationContext, CustomTransformer,
-    CustomTransformers, Debug_, Diagnostic, EmitHelper, EmitHelperFactory, EmitHint, EmitHost,
-    EmitResolver, EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory,
+    add_range, append, chain_bundle, dispose_emit_nodes, factory as factory_static, get_emit_flags,
+    get_emit_module_kind, get_emit_script_target, get_jsx_transform_enabled, get_parse_tree_node,
+    get_source_file_of_node, is_bundle, is_source_file, map, set_emit_flags, some,
+    synthetic_factory, transform_class_fields, transform_declarations, transform_ecmascript_module,
+    transform_es2015, transform_es2016, transform_es2017, transform_es2018, transform_es2019,
+    transform_es2020, transform_es2021, transform_es5, transform_esnext, transform_generators,
+    transform_jsx, transform_module, transform_node_module, transform_system_module,
+    transform_type_script, BaseNodeFactory, BaseNodeFactorySynthetic, CompilerOptions,
+    CoreTransformationContext, CustomTransformer, CustomTransformers, Debug_, Diagnostic,
+    EmitFlags, EmitHelper, EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver,
+    EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeArray, NodeFactory, NodeFlags,
     NodeInterface, ScriptTarget, SyntaxKind, TransformationContext, TransformationResult,
     Transformer, TransformerFactory, TransformerFactoryOrCustomTransformerFactory,
 };
@@ -279,14 +281,24 @@ pub struct TransformNodesTransformationResult {
     // context: TransformNodesTransformationContext,
     nodes: Vec<Rc<Node>>,
     rc_wrapper: RefCell<Option<Weak<TransformNodesTransformationResult>>>,
+    enabled_syntax_kind_features: RefCell<HashMap<SyntaxKind, SyntaxKindFeatureFlags>>,
     lexical_environment_variable_declarations:
         RefCell<Option<Vec<Rc<Node /*VariableDeclaration*/>>>>,
     lexical_environment_function_declarations:
         RefCell<Option<Vec<Rc<Node /*FunctionDeclaration*/>>>>,
+    lexical_environment_statements: RefCell<Option<Vec<Rc<Node /*Statement*/>>>>,
+    lexical_environment_flags: Cell<LexicalEnvironmentFlags>,
     lexical_environment_variable_declarations_stack:
         RefCell<Option<Vec<Option<Vec<Rc<Node /*VariableDeclaration*/>>>>>>,
     lexical_environment_function_declarations_stack:
         RefCell<Option<Vec<Option<Vec<Rc<Node /*FunctionDeclaration*/>>>>>>,
+    lexical_environment_statements_stack: RefCell<Option<Vec<Option<Vec<Rc<Node /*Statement*/>>>>>>,
+    lexical_environment_flags_stack: RefCell<Option<Vec<LexicalEnvironmentFlags>>>,
+    lexical_environment_suspended: Cell<bool>,
+    block_scoped_variable_declarations_stack:
+        RefCell<Option<Vec<Option<Vec<Rc<Node /*Identifier*/>>>>>>,
+    block_scope_stack_offset: Cell<usize>,
+    block_scoped_variable_declarations: RefCell<Option<Vec<Rc<Node /*Identifier*/>>>>,
     emit_helpers: RefCell<Option<Vec<Rc<EmitHelper>>>>,
     diagnostics: RefCell<Vec<Rc<Diagnostic>>>,
     transformers: Vec<TransformerFactory>,
@@ -321,17 +333,26 @@ impl TransformNodesTransformationResult {
             lexical_environment_function_declarations: RefCell::new(
                 lexical_environment_function_declarations,
             ),
+            lexical_environment_statements: RefCell::new(Some(vec![])),
             lexical_environment_variable_declarations_stack: RefCell::new(Some(
                 lexical_environment_variable_declarations_stack,
             )),
             lexical_environment_function_declarations_stack: RefCell::new(Some(
                 lexical_environment_function_declarations_stack,
             )),
+            lexical_environment_statements_stack: RefCell::new(Some(vec![])),
+            lexical_environment_flags_stack: RefCell::new(Some(vec![])),
             emit_helpers: RefCell::new(emit_helpers),
             diagnostics: RefCell::new(diagnostics),
             transformers,
             transformers_with_context: RefCell::new(None),
             allow_dts_files,
+            enabled_syntax_kind_features: RefCell::new(HashMap::new()),
+            lexical_environment_flags: Cell::new(LexicalEnvironmentFlags::None),
+            lexical_environment_suspended: Cell::new(false),
+            block_scoped_variable_declarations_stack: RefCell::new(Some(vec![])),
+            block_scoped_variable_declarations: RefCell::new(Some(vec![])),
+            block_scope_stack_offset: Cell::new(0),
         });
         rc.set_rc_wrapper(rc.clone());
         rc
@@ -354,6 +375,10 @@ impl TransformNodesTransformationResult {
             .unwrap()
     }
 
+    fn lexical_environment_variable_declarations(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+        self.lexical_environment_variable_declarations.borrow_mut()
+    }
+
     fn set_lexical_environment_variable_declarations(
         &self,
         lexical_environment_variable_declarations: Option<Vec<Rc<Node>>>,
@@ -362,12 +387,37 @@ impl TransformNodesTransformationResult {
             lexical_environment_variable_declarations;
     }
 
+    fn lexical_environment_function_declarations(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+        self.lexical_environment_function_declarations.borrow_mut()
+    }
+
     fn set_lexical_environment_function_declarations(
         &self,
         lexical_environment_function_declarations: Option<Vec<Rc<Node>>>,
     ) {
         *self.lexical_environment_function_declarations.borrow_mut() =
             lexical_environment_function_declarations;
+    }
+
+    fn lexical_environment_statements(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+        self.lexical_environment_statements.borrow_mut()
+    }
+
+    fn set_lexical_environment_statements(
+        &self,
+        lexical_environment_statements: Option<Vec<Rc<Node>>>,
+    ) {
+        *self.lexical_environment_statements.borrow_mut() = lexical_environment_statements;
+    }
+
+    fn lexical_environment_variable_declarations_stack(
+        &self,
+    ) -> RefMut<Vec<Option<Vec<Rc<Node>>>>> {
+        RefMut::map(
+            self.lexical_environment_variable_declarations_stack
+                .borrow_mut(),
+            |option| option.as_mut().unwrap(),
+        )
     }
 
     fn set_lexical_environment_variable_declarations_stack(
@@ -379,6 +429,16 @@ impl TransformNodesTransformationResult {
             .borrow_mut() = lexical_environment_variable_declarations_stack;
     }
 
+    fn lexical_environment_function_declarations_stack(
+        &self,
+    ) -> RefMut<Vec<Option<Vec<Rc<Node>>>>> {
+        RefMut::map(
+            self.lexical_environment_function_declarations_stack
+                .borrow_mut(),
+            |option| option.as_mut().unwrap(),
+        )
+    }
+
     fn set_lexical_environment_function_declarations_stack(
         &self,
         lexical_environment_function_declarations_stack: Option<Vec<Option<Vec<Rc<Node>>>>>,
@@ -386,6 +446,54 @@ impl TransformNodesTransformationResult {
         *self
             .lexical_environment_function_declarations_stack
             .borrow_mut() = lexical_environment_function_declarations_stack;
+    }
+
+    fn lexical_environment_statements_stack(&self) -> RefMut<Vec<Option<Vec<Rc<Node>>>>> {
+        RefMut::map(
+            self.lexical_environment_statements_stack.borrow_mut(),
+            |option| option.as_mut().unwrap(),
+        )
+    }
+
+    fn lexical_environment_flags_stack(&self) -> RefMut<Vec<LexicalEnvironmentFlags>> {
+        RefMut::map(
+            self.lexical_environment_flags_stack.borrow_mut(),
+            |option| option.as_mut().unwrap(),
+        )
+    }
+
+    fn block_scoped_variable_declarations_stack(&self) -> RefMut<Vec<Option<Vec<Rc<Node>>>>> {
+        RefMut::map(
+            self.block_scoped_variable_declarations_stack.borrow_mut(),
+            |option| option.as_mut().unwrap(),
+        )
+    }
+
+    fn set_block_scoped_variable_declarations_stack(
+        &self,
+        block_scoped_variable_declarations_stack: Option<Vec<Option<Vec<Rc<Node>>>>>,
+    ) {
+        *self.block_scoped_variable_declarations_stack.borrow_mut() =
+            block_scoped_variable_declarations_stack;
+    }
+
+    fn block_scoped_variable_declarations(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+        self.block_scoped_variable_declarations.borrow_mut()
+    }
+
+    fn set_block_scoped_variable_declarations(
+        &self,
+        block_scoped_variable_declarations: Option<Vec<Rc<Node>>>,
+    ) {
+        *self.block_scoped_variable_declarations.borrow_mut() = block_scoped_variable_declarations;
+    }
+
+    fn emit_helpers(&self) -> Option<Vec<Rc<EmitHelper>>> {
+        self.emit_helpers.borrow().clone()
+    }
+
+    fn emit_helpers_mut(&self) -> RefMut<Option<Vec<Rc<EmitHelper>>>> {
+        self.emit_helpers.borrow_mut()
     }
 
     fn set_emit_helpers(&self, emit_helpers: Option<Vec<Rc<EmitHelper>>>) {
@@ -412,6 +520,36 @@ impl TransformNodesTransformationResult {
 
     fn transformed(&self) -> RefMut<Vec<Rc<Node>>> {
         self.transformed.borrow_mut()
+    }
+
+    fn enabled_syntax_kind_features(&self) -> RefMut<HashMap<SyntaxKind, SyntaxKindFeatureFlags>> {
+        self.enabled_syntax_kind_features.borrow_mut()
+    }
+
+    fn lexical_environment_flags(&self) -> LexicalEnvironmentFlags {
+        self.lexical_environment_flags.get()
+    }
+
+    fn set_lexical_environment_flags_(&self, lexical_environment_flags: LexicalEnvironmentFlags) {
+        self.lexical_environment_flags
+            .set(lexical_environment_flags)
+    }
+
+    fn lexical_environment_suspended(&self) -> bool {
+        self.lexical_environment_suspended.get()
+    }
+
+    fn set_lexical_environment_suspended(&self, lexical_environment_suspended: bool) {
+        self.lexical_environment_suspended
+            .set(lexical_environment_suspended)
+    }
+
+    fn block_scope_stack_offset(&self) -> usize {
+        self.block_scope_stack_offset.get()
+    }
+
+    fn set_block_scope_stack_offset(&self, block_scope_stack_offset: usize) {
+        self.block_scope_stack_offset.set(block_scope_stack_offset)
     }
 
     fn call(&self) {
@@ -472,44 +610,265 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
     fn factory(&self) -> Rc<NodeFactory<BaseNodeFactorySynthetic>> {
         unimplemented!()
     }
+
     fn get_compiler_options(&self) -> Rc<CompilerOptions> {
         unimplemented!()
     }
+
     fn start_lexical_environment(&self) {
-        unimplemented!()
+        Debug_.assert(
+            self.state() > TransformationState::Uninitialized,
+            Some("Cannot modify the lexical environment during initialization."),
+        );
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot modify the lexical environment after transformation has completed."),
+        );
+        Debug_.assert(
+            !self.lexical_environment_suspended(),
+            Some("Lexical environment is suspended."),
+        );
+
+        let mut lexical_environment_variable_declarations_stack =
+            self.lexical_environment_variable_declarations_stack();
+        lexical_environment_variable_declarations_stack
+            .push(self.lexical_environment_variable_declarations().take());
+        let mut lexical_environment_function_declarations_stack =
+            self.lexical_environment_function_declarations_stack();
+        lexical_environment_function_declarations_stack
+            .push(self.lexical_environment_function_declarations().take());
+        let mut lexical_environment_statements_stack = self.lexical_environment_statements_stack();
+        lexical_environment_statements_stack.push(self.lexical_environment_statements().take());
+        let mut lexical_environment_flags_stack = self.lexical_environment_flags_stack();
+        lexical_environment_flags_stack.push(self.lexical_environment_flags());
+        // lexicalEnvironmentStackOffset++;
+        // lexicalEnvironmentVariableDeclarations = undefined!;
+        // lexicalEnvironmentFunctionDeclarations = undefined!;
+        // lexicalEnvironmentStatements = undefined!;
+        self.set_lexical_environment_flags_(LexicalEnvironmentFlags::None);
     }
+
     fn set_lexical_environment_flags(&self, flags: LexicalEnvironmentFlags, value: bool) {
-        unimplemented!()
+        self.set_lexical_environment_flags_(if value {
+            self.lexical_environment_flags() | flags
+        } else {
+            self.lexical_environment_flags() & !flags
+        });
     }
+
     fn get_lexical_environment_flags(&self) -> LexicalEnvironmentFlags {
-        unimplemented!()
+        self.lexical_environment_flags()
     }
+
     fn suspend_lexical_environment(&self) {
-        unimplemented!()
+        Debug_.assert(
+            self.state() > TransformationState::Uninitialized,
+            Some("Cannot modify the lexical environment during initialization."),
+        );
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot modify the lexical environment after transformation has completed."),
+        );
+        Debug_.assert(
+            !self.lexical_environment_suspended(),
+            Some("Lexical environment is already suspended."),
+        );
+        self.set_lexical_environment_suspended(true);
     }
+
     fn resume_lexical_environment(&self) {
-        unimplemented!()
+        Debug_.assert(
+            self.state() > TransformationState::Uninitialized,
+            Some("Cannot modify the lexical environment during initialization."),
+        );
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot modify the lexical environment after transformation has completed."),
+        );
+        Debug_.assert(
+            self.lexical_environment_suspended(),
+            Some("Lexical environment is not suspended."),
+        );
+        self.set_lexical_environment_suspended(false);
     }
+
     fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
         unimplemented!()
     }
-    fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
-        unimplemented!()
+
+    fn hoist_function_declaration(&self, func: &Node /*FunctionDeclaration*/) {
+        Debug_.assert(
+            self.state() > TransformationState::Uninitialized,
+            Some("Cannot modify the lexical environment during initialization."),
+        );
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot modify the lexical environment after transformation has completed."),
+        );
+        set_emit_flags(func.node_wrapper(), EmitFlags::CustomPrologue);
+        let mut lexical_environment_function_declarations =
+            self.lexical_environment_function_declarations();
+        if lexical_environment_function_declarations.is_none() {
+            *lexical_environment_function_declarations = Some(vec![func.node_wrapper()]);
+        } else {
+            lexical_environment_function_declarations
+                .as_mut()
+                .unwrap()
+                .push(func.node_wrapper());
+        }
     }
-    fn hoist_variable_declaration(&self, _node: &Node /*Identifier*/) {
-        unimplemented!()
+
+    fn hoist_variable_declaration(&self, name: &Node /*Identifier*/) {
+        Debug_.assert(
+            self.state() > TransformationState::Uninitialized,
+            Some("Cannot modify the lexical environment during initialization."),
+        );
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot modify the lexical environment after transformation has completed."),
+        );
+        let decl = set_emit_flags(
+            synthetic_factory.with(|synthetic_factory_| {
+                self.factory()
+                    .create_variable_declaration(
+                        synthetic_factory_,
+                        Some(name.node_wrapper()),
+                        None,
+                        None,
+                        None,
+                    )
+                    .into()
+            }),
+            EmitFlags::NoNestedSourceMaps,
+        );
+        let mut lexical_environment_variable_declarations =
+            self.lexical_environment_variable_declarations();
+        if lexical_environment_variable_declarations.is_none() {
+            *lexical_environment_variable_declarations = Some(vec![decl]);
+        } else {
+            lexical_environment_variable_declarations
+                .as_mut()
+                .unwrap()
+                .push(decl);
+        }
+        let lexical_environment_flags = self.lexical_environment_flags();
+        if lexical_environment_flags.intersects(LexicalEnvironmentFlags::InParameters) {
+            self.set_lexical_environment_flags_(
+                lexical_environment_flags | LexicalEnvironmentFlags::VariablesHoistedInParameters,
+            );
+        }
     }
+
     fn start_block_scope(&self) {
-        unimplemented!()
+        Debug_.assert(
+            self.state() > TransformationState::Uninitialized,
+            Some("Cannot start a block scope during initialization."),
+        );
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot start a block scope after transformation has completed."),
+        );
+        let mut block_scoped_variable_declarations_stack =
+            self.block_scoped_variable_declarations_stack();
+        block_scoped_variable_declarations_stack
+            .push(self.block_scoped_variable_declarations().take());
+        self.set_block_scope_stack_offset(self.block_scope_stack_offset() + 1);
+        // blockScopedVariableDeclarations = undefined!;
     }
+
     fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
-        unimplemented!()
+        Debug_.assert(
+            self.state() > TransformationState::Uninitialized,
+            Some("Cannot end a block scope during initialization."),
+        );
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot end a block scope after transformation has completed."),
+        );
+        let block_scoped_variable_declarations = self.block_scoped_variable_declarations();
+        let statements: Option<Vec<Rc<Node>>> = if some(
+            block_scoped_variable_declarations.as_deref(),
+            Option::<fn(&Rc<Node>) -> bool>::None,
+        ) {
+            Some(vec![synthetic_factory.with(|synthetic_factory_| {
+                self.factory()
+                    .create_variable_statement(
+                        synthetic_factory_,
+                        Option::<NodeArray>::None,
+                        Into::<Rc<Node>>::into(
+                            self.factory().create_variable_declaration_list(
+                                synthetic_factory_,
+                                block_scoped_variable_declarations
+                                    .as_ref()
+                                    .unwrap()
+                                    .iter()
+                                    .map(|identifier| {
+                                        self.factory()
+                                            .create_variable_declaration(
+                                                synthetic_factory_,
+                                                Some(identifier.clone()),
+                                                None,
+                                                None,
+                                                None,
+                                            )
+                                            .into()
+                                    })
+                                    .collect::<Vec<Rc<Node>>>(),
+                                Some(NodeFlags::Let),
+                            ),
+                        ),
+                    )
+                    .into()
+            })])
+        } else {
+            None
+        };
+        self.set_block_scope_stack_offset(self.block_scope_stack_offset() - 1);
+        self.set_block_scoped_variable_declarations(
+            self.block_scoped_variable_declarations_stack()
+                .pop()
+                .unwrap(),
+        );
+        if self.block_scope_stack_offset() == 0 {
+            self.set_block_scoped_variable_declarations_stack(Some(vec![]));
+        }
+        statements
     }
-    fn add_block_scoped_variable(&self, node: &Node /*Identifier*/) {
-        unimplemented!()
+
+    fn add_block_scoped_variable(&self, name: &Node /*Identifier*/) {
+        Debug_.assert(
+            self.block_scope_stack_offset() > 0,
+            Some("Cannot add a block scoped variable outside of an iteration body."),
+        );
+        let mut block_scoped_variable_declarations = self.block_scoped_variable_declarations();
+        if block_scoped_variable_declarations.is_none() {
+            *block_scoped_variable_declarations = Some(vec![]);
+        }
+        block_scoped_variable_declarations
+            .as_mut()
+            .unwrap()
+            .push(name.node_wrapper());
     }
+
     fn add_initialization_statement(&self, node: &Node /*Statement*/) {
-        unimplemented!()
+        Debug_.assert(
+            self.state() > TransformationState::Uninitialized,
+            Some("Cannot modify the lexical environment during initialization."),
+        );
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot modify the lexical environment after transformation has completed."),
+        );
+        set_emit_flags(node.node_wrapper(), EmitFlags::CustomPrologue);
+        let mut lexical_environment_statements = self.lexical_environment_statements();
+        if lexical_environment_statements.is_none() {
+            *lexical_environment_statements = Some(vec![node.node_wrapper()]);
+        } else {
+            lexical_environment_statements
+                .as_mut()
+                .unwrap()
+                .push(node.node_wrapper());
+        }
     }
 }
 
@@ -517,33 +876,92 @@ impl TransformationContext for TransformNodesTransformationResult {
     fn get_emit_resolver(&self) -> Rc<dyn EmitResolver> {
         unimplemented!()
     }
+
     fn get_emit_host(&self) -> Rc<dyn EmitHost> {
         unimplemented!()
     }
+
     fn get_emit_helper_factory(&self) -> Rc<dyn EmitHelperFactory> {
         unimplemented!()
     }
-    fn request_emit_helper(&self, _helper: Rc<EmitHelper>) {
-        unimplemented!()
+
+    fn request_emit_helper(&self, helper: Rc<EmitHelper>) {
+        Debug_.assert(
+            self.state() > TransformationState::Uninitialized,
+            Some("Cannot modify the transformation context during initialization."),
+        );
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot modify the transformation context after transformation has completed."),
+        );
+        Debug_.assert(
+            !helper.scoped(),
+            Some("Cannot request a scoped emit helper."),
+        );
+        if let Some(helper_dependencies) = helper.dependencies() {
+            for h in helper_dependencies {
+                self.request_emit_helper(h.clone());
+            }
+        }
+        let mut emit_helpers = self.emit_helpers_mut();
+        if emit_helpers.is_none() {
+            *emit_helpers = Some(vec![]);
+        }
+        append(emit_helpers.as_mut().unwrap(), Some(helper));
     }
+
     fn read_emit_helpers(&self) -> Option<Vec<Rc<EmitHelper>>> {
-        unimplemented!()
+        Debug_.assert(
+            self.state() > TransformationState::Uninitialized,
+            Some("Cannot modify the transformation context during initialization."),
+        );
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot modify the transformation context after transformation has completed."),
+        );
+        let helpers = self.emit_helpers();
+        self.set_emit_helpers(None);
+        helpers
     }
-    fn enable_substitution(&self, _kind: SyntaxKind) {
-        unimplemented!()
+
+    fn enable_substitution(&self, kind: SyntaxKind) {
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot modify the transformation context after transformation has completed."),
+        );
+        let mut enabled_syntax_kind_features = self.enabled_syntax_kind_features();
+        let entry = enabled_syntax_kind_features
+            .entry(kind)
+            .or_insert(SyntaxKindFeatureFlags::None);
+        *entry |= SyntaxKindFeatureFlags::Substitution;
     }
-    fn is_substitution_enabled(&self, _node: &Node) -> bool {
-        unimplemented!()
+
+    fn is_substitution_enabled(&self, node: &Node) -> bool {
+        matches!(self.enabled_syntax_kind_features().get(&node.kind()), Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::Substitution))
+            && !get_emit_flags(node).intersects(EmitFlags::NoSubstitution)
     }
+
     fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node> {
         unimplemented!()
     }
-    fn enable_emit_notification(&self, _kind: SyntaxKind) {
-        unimplemented!()
+
+    fn enable_emit_notification(&self, kind: SyntaxKind) {
+        Debug_.assert(
+            self.state() < TransformationState::Completed,
+            Some("Cannot modify the transformation context after transformation has completed."),
+        );
+        let mut enabled_syntax_kind_features = self.enabled_syntax_kind_features();
+        let entry = enabled_syntax_kind_features
+            .entry(kind)
+            .or_insert(SyntaxKindFeatureFlags::None);
+        *entry |= SyntaxKindFeatureFlags::EmitNotifications;
     }
-    fn is_emit_notification_enabled(&self, _node: &Node) -> bool {
-        unimplemented!()
+
+    fn is_emit_notification_enabled(&self, node: &Node) -> bool {
+        matches!(self.enabled_syntax_kind_features().get(&node.kind()), Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::EmitNotifications))
+            && !get_emit_flags(node).intersects(EmitFlags::AdviseOnEmitNode)
     }
+
     fn on_emit_node(
         &self,
         hint: EmitHint,
@@ -552,6 +970,7 @@ impl TransformationContext for TransformNodesTransformationResult {
     ) {
         unimplemented!()
     }
+
     fn add_diagnostic(&self, _diag: Rc<Diagnostic /*DiagnosticWithLocation*/>) {
         unimplemented!()
     }
@@ -561,9 +980,11 @@ impl TransformationResult for TransformNodesTransformationResult {
     fn transformed(&self) -> Vec<Rc<Node>> {
         self.transformed.borrow().clone()
     }
+
     fn diagnostics(&self) -> Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>> {
         Some(self.diagnostics.borrow().clone())
     }
+
     fn substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node> {
         Debug_.assert(
             self.state() < TransformationState::Disposed,
@@ -576,6 +997,7 @@ impl TransformationResult for TransformNodesTransformationResult {
             node.node_wrapper()
         }
     }
+
     fn emit_node_with_notification(
         &self,
         hint: EmitHint,
@@ -594,11 +1016,13 @@ impl TransformationResult for TransformNodesTransformationResult {
         }
         // }
     }
+
     fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
         Some(TransformationContext::is_emit_notification_enabled(
             self, node,
         ))
     }
+
     fn dispose(&self) {
         if self.state() < TransformationState::Disposed {
             for node in &self.nodes {
@@ -638,26 +1062,39 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
     fn factory(&self) -> Rc<NodeFactory<BaseNodeFactorySynthetic>> {
         factory_static.with(|factory_| factory_.clone())
     }
+
     fn get_compiler_options(&self) -> Rc<CompilerOptions> {
         Rc::new(Default::default())
     }
+
     fn start_lexical_environment(&self) {}
+
     fn set_lexical_environment_flags(&self, _flags: LexicalEnvironmentFlags, _value: bool) {}
+
     fn get_lexical_environment_flags(&self) -> LexicalEnvironmentFlags {
         LexicalEnvironmentFlags::None
     }
+
     fn suspend_lexical_environment(&self) {}
+
     fn resume_lexical_environment(&self) {}
+
     fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
         None
     }
+
     fn hoist_function_declaration(&self, _node: &Node /*FunctionDeclaration*/) {}
+
     fn hoist_variable_declaration(&self, _node: &Node /*Identifier*/) {}
+
     fn start_block_scope(&self) {}
+
     fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
         None
     }
+
     fn add_block_scoped_variable(&self, _node: &Node /*Identifier*/) {}
+
     fn add_initialization_statement(&self, _node: &Node /*Statement*/) {}
 }
 
@@ -665,27 +1102,37 @@ impl TransformationContext for TransformationContextNull {
     fn get_emit_resolver(&self) -> Rc<dyn EmitResolver> {
         unimplemented!()
     }
+
     fn get_emit_host(&self) -> Rc<dyn EmitHost> {
         unimplemented!()
     }
+
     fn get_emit_helper_factory(&self) -> Rc<dyn EmitHelperFactory> {
         unimplemented!()
     }
+
     fn request_emit_helper(&self, _helper: Rc<EmitHelper>) {}
+
     fn read_emit_helpers(&self) -> Option<Vec<Rc<EmitHelper>>> {
         unimplemented!()
     }
+
     fn enable_substitution(&self, _kind: SyntaxKind) {}
+
     fn is_substitution_enabled(&self, _node: &Node) -> bool {
         unimplemented!()
     }
+
     fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node> {
         no_emit_substitution(hint, node)
     }
+
     fn enable_emit_notification(&self, _kind: SyntaxKind) {}
+
     fn is_emit_notification_enabled(&self, _node: &Node) -> bool {
         unimplemented!()
     }
+
     fn on_emit_node(
         &self,
         hint: EmitHint,
@@ -694,5 +1141,6 @@ impl TransformationContext for TransformationContextNull {
     ) {
         no_emit_notification(hint, node, emit_callback)
     }
+
     fn add_diagnostic(&self, _diag: Rc<Diagnostic /*DiagnosticWithLocation*/>) {}
 }
