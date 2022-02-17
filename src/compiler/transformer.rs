@@ -2,11 +2,14 @@ use bitflags::bitflags;
 use std::rc::Rc;
 
 use crate::{
-    add_range, chain_bundle, get_emit_module_kind, get_emit_script_target, map,
-    transform_ecmascript_module, transform_module, transform_node_module, transform_system_module,
-    BaseNodeFactorySynthetic, CompilerOptions, CoreTransformationContext, CustomTransformers,
-    EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory,
-    TransformationContext, Transformer, TransformerFactory,
+    add_range, chain_bundle, get_emit_module_kind, get_emit_script_target,
+    get_jsx_transform_enabled, map, transform_class_fields, transform_ecmascript_module,
+    transform_es2015, transform_es2016, transform_es2017, transform_es2018, transform_es2019,
+    transform_es2020, transform_es2021, transform_es5, transform_esnext, transform_generators,
+    transform_jsx, transform_module, transform_node_module, transform_system_module,
+    transform_type_script, BaseNodeFactorySynthetic, CompilerOptions, CoreTransformationContext,
+    CustomTransformers, EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory,
+    ScriptTarget, TransformationContext, Transformer, TransformerFactory,
     TransformerFactoryOrCustomTransformerFactory,
 };
 
@@ -74,6 +77,65 @@ fn get_script_transformers(
         custom_transformers
             .and_then(|custom_transformers| {
                 map(custom_transformers.before.as_ref(), |factory, _| {
+                    wrap_script_transformer_factory(factory)
+                })
+            })
+            .as_deref(),
+        None,
+        None,
+    );
+
+    transformers.push(transform_type_script());
+    transformers.push(transform_class_fields());
+
+    if get_jsx_transform_enabled(compiler_options) {
+        transformers.push(transform_jsx());
+    }
+
+    if language_version < ScriptTarget::ESNext {
+        transformers.push(transform_esnext());
+    }
+
+    if language_version < ScriptTarget::ES2021 {
+        transformers.push(transform_es2021());
+    }
+
+    if language_version < ScriptTarget::ES2020 {
+        transformers.push(transform_es2020());
+    }
+
+    if language_version < ScriptTarget::ES2019 {
+        transformers.push(transform_es2019());
+    }
+
+    if language_version < ScriptTarget::ES2018 {
+        transformers.push(transform_es2018());
+    }
+
+    if language_version < ScriptTarget::ES2017 {
+        transformers.push(transform_es2017());
+    }
+
+    if language_version < ScriptTarget::ES2016 {
+        transformers.push(transform_es2016());
+    }
+
+    if language_version < ScriptTarget::ES2015 {
+        transformers.push(transform_es2015());
+        transformers.push(transform_generators());
+    }
+
+    transformers.push(get_module_transformer(module_kind));
+
+    if language_version < ScriptTarget::ES5 {
+        transformers.push(transform_es5());
+    }
+
+    add_range(
+        &mut transformers,
+        custom_transformers
+            .and_then(|custom_transformers| {
+                map(custom_transformers.after.as_ref(), |factory, _| {
                     wrap_script_transformer_factory(factory)
                 })
             })

@@ -158,8 +158,10 @@ pub use compiler::scanner::{
 };
 pub use compiler::sys::{get_sys, System};
 pub use compiler::transformers::{
-    chain_bundle, transform_ecmascript_module, transform_module, transform_node_module,
-    transform_system_module,
+    chain_bundle, transform_class_fields, transform_ecmascript_module, transform_es2015,
+    transform_es2016, transform_es2017, transform_es2018, transform_es2019, transform_es2020,
+    transform_es2021, transform_es5, transform_esnext, transform_generators, transform_jsx,
+    transform_module, transform_node_module, transform_system_module, transform_type_script,
 };
 pub use compiler::types::{
     maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,
@@ -269,9 +271,9 @@ pub use compiler::utilities::{
     get_emit_script_target, get_end_line_position, get_escaped_text_of_identifier_or_literal,
     get_expression_associativity, get_expression_precedence, get_first_constructor_with_body,
     get_first_identifier, get_full_width, get_function_flags, get_jsdoc_comment_ranges,
-    get_jsdoc_comments_and_tags, get_jsdoc_type_parameter_declarations, get_language_variant,
-    get_leftmost_access_expression, get_leftmost_expression, get_literal_text,
-    get_locale_specific_message, get_object_flags, get_operator_associativity,
+    get_jsdoc_comments_and_tags, get_jsdoc_type_parameter_declarations, get_jsx_transform_enabled,
+    get_language_variant, get_leftmost_access_expression, get_leftmost_expression,
+    get_literal_text, get_locale_specific_message, get_object_flags, get_operator_associativity,
     get_operator_precedence, get_right_most_assigned_expression, get_root_declaration,
     get_source_file_of_node, get_source_text_of_node_from_source_file, get_strict_option_value,
     get_syntactic_modifier_flags, get_text_of_identifier_or_literal,
