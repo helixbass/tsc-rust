@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use std::cell::Cell;
 use std::rc::Rc;
 
 use crate::{
@@ -9,7 +10,7 @@ use crate::{
     transform_es5, transform_esnext, transform_generators, transform_jsx, transform_module,
     transform_node_module, transform_system_module, transform_type_script, BaseNodeFactory,
     BaseNodeFactorySynthetic, CompilerOptions, CoreTransformationContext, CustomTransformer,
-    CustomTransformers, Diagnostic, EmitHelper, EmitHelperFactory, EmitHint, EmitHost,
+    CustomTransformers, Debug_, Diagnostic, EmitHelper, EmitHelperFactory, EmitHint, EmitHost,
     EmitResolver, EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory,
     NodeInterface, ScriptTarget, SyntaxKind, TransformationContext, TransformationResult,
     Transformer, TransformerFactory, TransformerFactoryOrCustomTransformerFactory,
@@ -26,8 +27,8 @@ fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-enum TransformationState {
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum TransformationState {
     Uninitialized,
     Initialized,
     Completed,
@@ -237,57 +238,177 @@ pub fn transform_nodes<
 >(
     resolver: Option<&TResolver>,
     host: Option<&THost>,
-    factory: &NodeFactory<TBaseNodeFactory>,
+    factory: Rc<NodeFactory<TBaseNodeFactory>>,
     options: &CompilerOptions,
     nodes: &[Rc<Node>],
     transformers: &[TransformerFactory],
     allow_dts_files: bool,
     // ) -> impl TransformationResult {
-) -> Box<dyn TransformationResult> {
-    unimplemented!()
+) -> Rc<dyn TransformationResult> {
+    let state = TransformationState::Uninitialized;
+    let mut transformed: Vec<Rc<Node>> = vec![];
+    Rc::new(TransformNodesTransformationResult::new(
+        transformed,
+        state,
+        TransformNodesTransformationContext::new(),
+    ))
 }
 
-// impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContext {
-//     fn factory(&self) -> &NodeFactory<BaseNodeFactorySynthetic> {
-//         unimplemented!()
-//     }
-//     fn get_compiler_options(&self) -> &CompilerOptions {
-//         unimplemented!()
-//     }
-//     fn start_lexical_environment(&self) {
-//         unimplemented!()
-//     }
-//     fn set_lexical_environment_flags(&self, flags: LexicalEnvironmentFlags, value: bool) {
-//         unimplemented!()
-//     }
-//     fn get_lexical_environment_flags(&self) -> LexicalEnvironmentFlags {
-//         unimplemented!()
-//     }
-//     fn suspend_lexical_environment(&self) {
-//         unimplemented!()
-//     }
-//     fn resume_lexical_environment(&self) {
-//         unimplemented!()
-//     }
-//     fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
-//         unimplemented!()
-//     }
-//     fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
-//         unimplemented!()
-//     }
-//     fn start_block_scope(&self) {
-//         unimplemented!()
-//     }
-//     fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
-//         unimplemented!()
-//     }
-//     fn add_block_scoped_variable(&self, node: &Node /*Identifier*/) {
-//         unimplemented!()
-//     }
-//     fn add_initialization_statement(&self, node: &Node /*Statement*/) {
-//         unimplemented!()
-//     }
-// }
+pub struct TransformNodesTransformationResult {
+    transformed: Vec<Rc<Node>>,
+    state: Cell<TransformationState>,
+    context: TransformNodesTransformationContext,
+}
+
+impl TransformNodesTransformationResult {
+    pub fn new(
+        transformed: Vec<Rc<Node>>,
+        state: TransformationState,
+        context: TransformNodesTransformationContext,
+    ) -> Self {
+        Self {
+            transformed,
+            state: Cell::new(state),
+            context,
+        }
+    }
+
+    fn state(&self) -> TransformationState {
+        self.state.get()
+    }
+}
+
+impl TransformationResult for TransformNodesTransformationResult {
+    fn transformed(&self) -> Vec<Rc<Node>> {
+        self.transformed.clone()
+    }
+    fn diagnostics(&self) -> Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>> {
+        unimplemented!()
+    }
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node> {
+        Debug_.assert(
+            self.state() < TransformationState::Uninitialized,
+            Some("Cannot substitute a node after the result is disposed."),
+        );
+        /*node &&*/
+        if self.context.is_substitution_enabled(node) {
+            self.context.on_substitute_node(hint, node)
+        } else {
+            node.node_wrapper()
+        }
+    }
+    fn emit_node_with_notification(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &dyn FnMut(EmitHint, &Node),
+    ) {
+        unimplemented!()
+    }
+    fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool> {
+        unimplemented!()
+    }
+    fn dispose(&self) {
+        unimplemented!()
+    }
+}
+
+pub struct TransformNodesTransformationContext {}
+
+impl TransformNodesTransformationContext {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTransformationContext {
+    fn factory(&self) -> Rc<NodeFactory<BaseNodeFactorySynthetic>> {
+        unimplemented!()
+    }
+    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+        unimplemented!()
+    }
+    fn start_lexical_environment(&self) {
+        unimplemented!()
+    }
+    fn set_lexical_environment_flags(&self, flags: LexicalEnvironmentFlags, value: bool) {
+        unimplemented!()
+    }
+    fn get_lexical_environment_flags(&self) -> LexicalEnvironmentFlags {
+        unimplemented!()
+    }
+    fn suspend_lexical_environment(&self) {
+        unimplemented!()
+    }
+    fn resume_lexical_environment(&self) {
+        unimplemented!()
+    }
+    fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
+        unimplemented!()
+    }
+    fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
+        unimplemented!()
+    }
+    fn hoist_variable_declaration(&self, _node: &Node /*Identifier*/) {
+        unimplemented!()
+    }
+    fn start_block_scope(&self) {
+        unimplemented!()
+    }
+    fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
+        unimplemented!()
+    }
+    fn add_block_scoped_variable(&self, node: &Node /*Identifier*/) {
+        unimplemented!()
+    }
+    fn add_initialization_statement(&self, node: &Node /*Statement*/) {
+        unimplemented!()
+    }
+}
+
+impl TransformationContext for TransformNodesTransformationContext {
+    fn get_emit_resolver(&self) -> Rc<dyn EmitResolver> {
+        unimplemented!()
+    }
+    fn get_emit_host(&self) -> Rc<dyn EmitHost> {
+        unimplemented!()
+    }
+    fn get_emit_helper_factory(&self) -> Rc<dyn EmitHelperFactory> {
+        unimplemented!()
+    }
+    fn request_emit_helper(&self, _helper: Rc<EmitHelper>) {
+        unimplemented!()
+    }
+    fn read_emit_helpers(&self) -> Option<Vec<Rc<EmitHelper>>> {
+        unimplemented!()
+    }
+    fn enable_substitution(&self, _kind: SyntaxKind) {
+        unimplemented!()
+    }
+    fn is_substitution_enabled(&self, _node: &Node) -> bool {
+        unimplemented!()
+    }
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node> {
+        unimplemented!()
+    }
+    fn enable_emit_notification(&self, _kind: SyntaxKind) {
+        unimplemented!()
+    }
+    fn is_emit_notification_enabled(&self, _node: &Node) -> bool {
+        unimplemented!()
+    }
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &mut dyn FnMut(EmitHint, &Node),
+    ) {
+        unimplemented!()
+    }
+    fn add_diagnostic(&self, _diag: Rc<Diagnostic /*DiagnosticWithLocation*/>) {
+        unimplemented!()
+    }
+}
 
 lazy_static! {
     pub static ref null_transformation_context: TransformationContextNull =
