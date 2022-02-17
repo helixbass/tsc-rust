@@ -265,4 +265,5 @@ pub trait TransformationResult {
 
 pub type TransformerFactory = Rc<dyn Fn(Rc<dyn TransformationContext>) -> Transformer>;
 
-pub type Transformer = Rc<dyn FnMut(&Node) -> Rc<Node>>;
+// pub type Transformer = Rc<dyn FnMut(&Node) -> Rc<Node>>;
+pub type Transformer = Rc<dyn Fn(&Node) -> Rc<Node>>;
