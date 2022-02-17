@@ -3,14 +3,14 @@ use std::rc::Rc;
 
 use crate::{
     add_range, chain_bundle, get_emit_module_kind, get_emit_script_target,
-    get_jsx_transform_enabled, map, transform_class_fields, transform_ecmascript_module,
-    transform_es2015, transform_es2016, transform_es2017, transform_es2018, transform_es2019,
-    transform_es2020, transform_es2021, transform_es5, transform_esnext, transform_generators,
-    transform_jsx, transform_module, transform_node_module, transform_system_module,
-    transform_type_script, BaseNodeFactorySynthetic, CompilerOptions, CoreTransformationContext,
-    CustomTransformers, EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory,
-    ScriptTarget, TransformationContext, Transformer, TransformerFactory,
-    TransformerFactoryOrCustomTransformerFactory,
+    get_jsx_transform_enabled, map, transform_class_fields, transform_declarations,
+    transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
+    transform_es2018, transform_es2019, transform_es2020, transform_es2021, transform_es5,
+    transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
+    transform_system_module, transform_type_script, BaseNodeFactory, BaseNodeFactorySynthetic,
+    CompilerOptions, CoreTransformationContext, CustomTransformers, EmitTransformers,
+    LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory, ScriptTarget, TransformationContext,
+    Transformer, TransformerFactory, TransformerFactoryOrCustomTransformerFactory,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
@@ -150,7 +150,22 @@ fn get_script_transformers(
 fn get_declaration_transformers(
     custom_transformers: Option<&CustomTransformers>,
 ) -> Vec<TransformerFactory> {
-    unimplemented!()
+    let mut transformers: Vec<TransformerFactory> = vec![];
+    transformers.push(transform_declarations());
+    add_range(
+        &mut transformers,
+        custom_transformers
+            .and_then(|custom_transformers| {
+                map(
+                    custom_transformers.after_declarations.as_ref(),
+                    |factory, _| wrap_declaration_transformer_factory(factory),
+                )
+            })
+            .as_deref(),
+        None,
+        None,
+    );
+    transformers
 }
 
 fn wrap_custom_transformer_factory(
@@ -162,8 +177,24 @@ fn wrap_custom_transformer_factory(
 
 fn wrap_script_transformer_factory(
     transformer: &TransformerFactoryOrCustomTransformerFactory, /*<SourceFile>*/
-) -> TransformerFactory /*<SourceFile | Bundle>*/ {
+) -> TransformerFactory /*<Bundle | SourceFile>*/ {
     wrap_custom_transformer_factory(transformer, chain_bundle)
+}
+
+fn wrap_declaration_transformer_factory(
+    transformer: &TransformerFactoryOrCustomTransformerFactory, /*<Bundle | SourceFile>*/
+) -> TransformerFactory /*<Bundle | SourceFile>*/ {
+    wrap_custom_transformer_factory(transformer, passthrough_transformer)
+}
+
+fn passthrough_transformer<
+    TBaseNodeFactory: BaseNodeFactory,
+    TContext: CoreTransformationContext<TBaseNodeFactory>,
+>(
+    _context: Rc<TContext>,
+    transform_source_file: Transformer,
+) -> Transformer {
+    transform_source_file
 }
 
 impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContext {

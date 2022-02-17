@@ -158,10 +158,11 @@ pub use compiler::scanner::{
 };
 pub use compiler::sys::{get_sys, System};
 pub use compiler::transformers::{
-    chain_bundle, transform_class_fields, transform_ecmascript_module, transform_es2015,
-    transform_es2016, transform_es2017, transform_es2018, transform_es2019, transform_es2020,
-    transform_es2021, transform_es5, transform_esnext, transform_generators, transform_jsx,
-    transform_module, transform_node_module, transform_system_module, transform_type_script,
+    chain_bundle, transform_class_fields, transform_declarations, transform_ecmascript_module,
+    transform_es2015, transform_es2016, transform_es2017, transform_es2018, transform_es2019,
+    transform_es2020, transform_es2021, transform_es5, transform_esnext, transform_generators,
+    transform_jsx, transform_module, transform_node_module, transform_system_module,
+    transform_type_script,
 };
 pub use compiler::types::{
     maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,

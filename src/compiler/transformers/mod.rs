@@ -1,5 +1,7 @@
 mod class_fields;
 pub use class_fields::*;
+mod declarations;
+pub use declarations::*;
 mod esnext;
 pub use esnext::*;
 mod es2021;
