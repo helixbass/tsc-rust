@@ -250,6 +250,7 @@ pub fn transform_nodes<
     let mut lexical_environment_function_declarations: Option<Vec<Rc<Node>>> = None;
     let mut lexical_environment_variable_declarations_stack: Vec<Option<Vec<Rc<Node>>>> = vec![];
     let mut lexical_environment_function_declarations_stack: Vec<Option<Vec<Rc<Node>>>> = vec![];
+    let mut emit_helpers: Option<Vec<Rc<EmitHelper>>> = None;
     let state = TransformationState::Uninitialized;
     let mut transformed: Vec<Rc<Node>> = vec![];
     TransformNodesTransformationResult::new(
@@ -261,6 +262,7 @@ pub fn transform_nodes<
         lexical_environment_function_declarations,
         lexical_environment_variable_declarations_stack,
         lexical_environment_function_declarations_stack,
+        emit_helpers,
     )
 }
 
@@ -375,6 +377,7 @@ pub struct TransformNodesTransformationResult {
         RefCell<Option<Vec<Option<Vec<Rc<Node /*VariableDeclaration*/>>>>>>,
     lexical_environment_function_declarations_stack:
         RefCell<Option<Vec<Option<Vec<Rc<Node /*FunctionDeclaration*/>>>>>>,
+    emit_helpers: RefCell<Option<Vec<Rc<EmitHelper>>>>,
 }
 
 impl TransformNodesTransformationResult {
@@ -387,6 +390,7 @@ impl TransformNodesTransformationResult {
         lexical_environment_function_declarations: Option<Vec<Rc<Node>>>,
         lexical_environment_variable_declarations_stack: Vec<Option<Vec<Rc<Node>>>>,
         lexical_environment_function_declarations_stack: Vec<Option<Vec<Rc<Node>>>>,
+        emit_helpers: Option<Vec<Rc<EmitHelper>>>,
     ) -> Rc<Self> {
         let rc = Rc::new(Self {
             transformed,
@@ -406,6 +410,7 @@ impl TransformNodesTransformationResult {
             lexical_environment_function_declarations_stack: RefCell::new(Some(
                 lexical_environment_function_declarations_stack,
             )),
+            emit_helpers: RefCell::new(emit_helpers),
         });
         rc.set_rc_wrapper(rc.clone());
         rc
@@ -451,6 +456,14 @@ impl TransformNodesTransformationResult {
         *self
             .lexical_environment_function_declarations_stack
             .borrow_mut() = lexical_environment_function_declarations_stack;
+    }
+
+    fn set_emit_helpers(&self, emit_helpers: Option<Vec<Rc<EmitHelper>>>) {
+        *self.emit_helpers.borrow_mut() = emit_helpers;
+    }
+
+    fn set_state(&self, state: TransformationState) {
+        self.state.set(state);
     }
 }
 
@@ -600,6 +613,9 @@ impl TransformationResult for TransformNodesTransformationResult {
             self.set_lexical_environment_function_declarations_stack(None);
             // onSubstituteNode = undefined!;
             // onEmitNode = undefined!;
+            self.set_emit_helpers(None);
+
+            self.set_state(TransformationState::Disposed);
         }
     }
 }
