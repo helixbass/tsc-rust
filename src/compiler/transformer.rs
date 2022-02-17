@@ -183,9 +183,9 @@ fn wrap_custom_transformer(transformer: Rc<dyn CustomTransformer>) -> Transforme
 
 fn wrap_custom_transformer_factory(
     transformer: Rc<TransformerFactoryOrCustomTransformerFactory>,
-    handle_default: fn(Rc<TransformationContext>, Transformer) -> Transformer, /*<SourceFile | Bundle>*/
+    handle_default: fn(Rc<dyn TransformationContext>, Transformer) -> Transformer, /*<SourceFile | Bundle>*/
 ) -> TransformerFactory /*<SourceFile | Bundle>*/ {
-    let factory = move |context: Rc<TransformationContext>| match &*transformer.clone() {
+    let factory = move |context: Rc<dyn TransformationContext>| match &*transformer.clone() {
         TransformerFactoryOrCustomTransformerFactory::TransformerFactory(transformer) => {
             let custom_transformer = transformer(context.clone());
             handle_default(context.clone(), custom_transformer)
@@ -210,11 +210,8 @@ fn wrap_declaration_transformer_factory(
     wrap_custom_transformer_factory(transformer, passthrough_transformer)
 }
 
-fn passthrough_transformer<
-    TBaseNodeFactory: BaseNodeFactory,
-    TContext: CoreTransformationContext<TBaseNodeFactory>,
->(
-    _context: Rc<TContext>,
+fn passthrough_transformer(
+    _context: Rc<dyn TransformationContext>,
     transform_source_file: Transformer,
 ) -> Transformer {
     transform_source_file
@@ -249,44 +246,44 @@ pub fn transform_nodes<
     unimplemented!()
 }
 
-impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContext {
-    fn factory(&self) -> &NodeFactory<BaseNodeFactorySynthetic> {
-        unimplemented!()
-    }
-    fn get_compiler_options(&self) -> &CompilerOptions {
-        unimplemented!()
-    }
-    fn start_lexical_environment(&self) {
-        unimplemented!()
-    }
-    fn set_lexical_environment_flags(&self, flags: LexicalEnvironmentFlags, value: bool) {
-        unimplemented!()
-    }
-    fn get_lexical_environment_flags(&self) -> LexicalEnvironmentFlags {
-        unimplemented!()
-    }
-    fn suspend_lexical_environment(&self) {
-        unimplemented!()
-    }
-    fn resume_lexical_environment(&self) {
-        unimplemented!()
-    }
-    fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
-        unimplemented!()
-    }
-    fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
-        unimplemented!()
-    }
-    fn start_block_scope(&self) {
-        unimplemented!()
-    }
-    fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
-        unimplemented!()
-    }
-    fn add_block_scoped_variable(&self, node: &Node /*Identifier*/) {
-        unimplemented!()
-    }
-    fn add_initialization_statement(&self, node: &Node /*Statement*/) {
-        unimplemented!()
-    }
-}
+// impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContext {
+//     fn factory(&self) -> &NodeFactory<BaseNodeFactorySynthetic> {
+//         unimplemented!()
+//     }
+//     fn get_compiler_options(&self) -> &CompilerOptions {
+//         unimplemented!()
+//     }
+//     fn start_lexical_environment(&self) {
+//         unimplemented!()
+//     }
+//     fn set_lexical_environment_flags(&self, flags: LexicalEnvironmentFlags, value: bool) {
+//         unimplemented!()
+//     }
+//     fn get_lexical_environment_flags(&self) -> LexicalEnvironmentFlags {
+//         unimplemented!()
+//     }
+//     fn suspend_lexical_environment(&self) {
+//         unimplemented!()
+//     }
+//     fn resume_lexical_environment(&self) {
+//         unimplemented!()
+//     }
+//     fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
+//         unimplemented!()
+//     }
+//     fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
+//         unimplemented!()
+//     }
+//     fn start_block_scope(&self) {
+//         unimplemented!()
+//     }
+//     fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
+//         unimplemented!()
+//     }
+//     fn add_block_scoped_variable(&self, node: &Node /*Identifier*/) {
+//         unimplemented!()
+//     }
+//     fn add_initialization_statement(&self, node: &Node /*Statement*/) {
+//         unimplemented!()
+//     }
+// }

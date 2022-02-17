@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
-use crate::{BaseNodeFactory, NodeFactoryFlags};
+use crate::{BaseNodeFactory, BaseNodeFactorySynthetic, NodeFactoryFlags};
 
 bitflags! {
     pub struct OuterExpressionKinds: u32 {
@@ -210,7 +210,7 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
     fn add_initialization_statement(&self, node: &Node /*Statement*/);
 }
 
-pub struct TransformationContext {}
+pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> {}
 
 pub trait TransformationResult {
     fn transformed(&self) -> Vec<Rc<Node>>;
@@ -231,6 +231,6 @@ pub trait TransformationResult {
     fn dispose(&self);
 }
 
-pub type TransformerFactory = Rc<dyn Fn(Rc<TransformationContext>) -> Transformer>;
+pub type TransformerFactory = Rc<dyn Fn(Rc<dyn TransformationContext>) -> Transformer>;
 
 pub type Transformer = Rc<dyn FnMut(&Node) -> Rc<Node>>;

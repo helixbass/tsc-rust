@@ -28,7 +28,7 @@ pub enum StructureIsReused {
     Completely,
 }
 
-pub type CustomTransformerFactory = fn(Rc<TransformationContext>) -> Rc<dyn CustomTransformer>;
+pub type CustomTransformerFactory = fn(Rc<dyn TransformationContext>) -> Rc<dyn CustomTransformer>;
 
 pub trait CustomTransformer {
     fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Rc<Node /*SourceFile*/>;

@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{TransformationContext, Transformer, TransformerFactory};
 
-fn transform_node_module_fn(context: Rc<TransformationContext>) -> Transformer {
+fn transform_node_module_fn(context: Rc<dyn TransformationContext>) -> Transformer {
     unimplemented!()
 }
 
