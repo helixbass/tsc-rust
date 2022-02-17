@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{TransformationContext, Transformer, TransformerFactory};
 
-fn transform_esnext_fn(context: TransformationContext) -> Transformer {
+fn transform_esnext_fn(context: Rc<TransformationContext>) -> Transformer {
     unimplemented!()
 }
 

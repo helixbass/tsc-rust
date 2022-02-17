@@ -19,11 +19,11 @@ pub enum StructureIsReused {
     Completely,
 }
 
-pub type CustomTransformerFactory = fn(TransformationContext) -> Box<dyn CustomTransformer>;
+pub type CustomTransformerFactory = fn(Rc<TransformationContext>) -> Rc<dyn CustomTransformer>;
 
 pub trait CustomTransformer {
-    fn transform_source_file(&mut self, node: &Node /*SourceFile*/) -> Rc<Node /*SourceFile*/>;
-    fn transform_bundle(&mut self, node: &Node /*Bundle*/) -> Rc<Node /*Bundle*/>;
+    fn transform_source_file(&self, node: &Node /*SourceFile*/) -> Rc<Node /*SourceFile*/>;
+    fn transform_bundle(&self, node: &Node /*Bundle*/) -> Rc<Node /*Bundle*/>;
 }
 
 pub enum TransformerFactoryOrCustomTransformerFactory {
@@ -44,10 +44,10 @@ impl From<CustomTransformerFactory> for TransformerFactoryOrCustomTransformerFac
 }
 
 pub struct CustomTransformers {
-    pub before: Option<Vec<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>,
-    pub after: Option<Vec<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>,
+    pub before: Option<Vec<Rc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
+    pub after: Option<Vec<Rc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
     pub after_declarations:
-        Option<Vec<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>>,
+        Option<Vec<Rc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>>>,
 }
 
 pub struct EmitTransformers {

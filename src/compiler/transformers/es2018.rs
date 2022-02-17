@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{TransformationContext, Transformer, TransformerFactory};
 
-fn transform_es2018_fn(context: TransformationContext) -> Transformer {
+fn transform_es2018_fn(context: Rc<TransformationContext>) -> Transformer {
     unimplemented!()
 }
 

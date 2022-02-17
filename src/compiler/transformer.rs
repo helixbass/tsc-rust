@@ -3,14 +3,15 @@ use std::rc::Rc;
 
 use crate::{
     add_range, chain_bundle, get_emit_module_kind, get_emit_script_target,
-    get_jsx_transform_enabled, map, transform_class_fields, transform_declarations,
+    get_jsx_transform_enabled, is_bundle, map, transform_class_fields, transform_declarations,
     transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
     transform_es2018, transform_es2019, transform_es2020, transform_es2021, transform_es5,
     transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
     transform_system_module, transform_type_script, BaseNodeFactory, BaseNodeFactorySynthetic,
-    CompilerOptions, CoreTransformationContext, CustomTransformers, EmitTransformers,
-    LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory, ScriptTarget, TransformationContext,
-    Transformer, TransformerFactory, TransformerFactoryOrCustomTransformerFactory,
+    CompilerOptions, CoreTransformationContext, CustomTransformer, CustomTransformers,
+    EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory, ScriptTarget,
+    TransformationContext, Transformer, TransformerFactory,
+    TransformerFactoryOrCustomTransformerFactory,
 };
 
 fn get_module_transformer(module_kind: ModuleKind) -> TransformerFactory {
@@ -77,7 +78,7 @@ fn get_script_transformers(
         custom_transformers
             .and_then(|custom_transformers| {
                 map(custom_transformers.before.as_ref(), |factory, _| {
-                    wrap_script_transformer_factory(factory)
+                    wrap_script_transformer_factory(factory.clone())
                 })
             })
             .as_deref(),
@@ -136,7 +137,7 @@ fn get_script_transformers(
         custom_transformers
             .and_then(|custom_transformers| {
                 map(custom_transformers.after.as_ref(), |factory, _| {
-                    wrap_script_transformer_factory(factory)
+                    wrap_script_transformer_factory(factory.clone())
                 })
             })
             .as_deref(),
@@ -158,7 +159,7 @@ fn get_declaration_transformers(
             .and_then(|custom_transformers| {
                 map(
                     custom_transformers.after_declarations.as_ref(),
-                    |factory, _| wrap_declaration_transformer_factory(factory),
+                    |factory, _| wrap_declaration_transformer_factory(factory.clone()),
                 )
             })
             .as_deref(),
@@ -168,21 +169,43 @@ fn get_declaration_transformers(
     transformers
 }
 
+fn wrap_custom_transformer(transformer: Rc<dyn CustomTransformer>) -> Transformer /*<Bundle | SourceFile>*/
+{
+    let wrapped_transformer = move |node: &Node| -> Rc<Node> {
+        if is_bundle(node) {
+            transformer.transform_bundle(node)
+        } else {
+            transformer.transform_source_file(node)
+        }
+    };
+    Rc::new(wrapped_transformer)
+}
+
 fn wrap_custom_transformer_factory(
-    transformer: &TransformerFactoryOrCustomTransformerFactory,
+    transformer: Rc<TransformerFactoryOrCustomTransformerFactory>,
     handle_default: fn(Rc<TransformationContext>, Transformer) -> Transformer, /*<SourceFile | Bundle>*/
 ) -> TransformerFactory /*<SourceFile | Bundle>*/ {
-    unimplemented!()
+    let factory = move |context: Rc<TransformationContext>| match &*transformer.clone() {
+        TransformerFactoryOrCustomTransformerFactory::TransformerFactory(transformer) => {
+            let custom_transformer = transformer(context.clone());
+            handle_default(context.clone(), custom_transformer)
+        }
+        TransformerFactoryOrCustomTransformerFactory::CustomTransformerFactory(transformer) => {
+            let custom_transformer = transformer(context.clone());
+            wrap_custom_transformer(custom_transformer)
+        }
+    };
+    Rc::new(factory)
 }
 
 fn wrap_script_transformer_factory(
-    transformer: &TransformerFactoryOrCustomTransformerFactory, /*<SourceFile>*/
+    transformer: Rc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
     wrap_custom_transformer_factory(transformer, chain_bundle)
 }
 
 fn wrap_declaration_transformer_factory(
-    transformer: &TransformerFactoryOrCustomTransformerFactory, /*<Bundle | SourceFile>*/
+    transformer: Rc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
     wrap_custom_transformer_factory(transformer, passthrough_transformer)
 }

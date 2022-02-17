@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{TransformationContext, Transformer, TransformerFactory};
 
-fn transform_type_script_fn(context: TransformationContext) -> Transformer {
+fn transform_type_script_fn(context: Rc<TransformationContext>) -> Transformer {
     unimplemented!()
 }
 
