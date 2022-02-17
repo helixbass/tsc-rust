@@ -8,9 +8,9 @@ use crate::{
     transform_es2018, transform_es2019, transform_es2020, transform_es2021, transform_es5,
     transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
     transform_system_module, transform_type_script, BaseNodeFactory, BaseNodeFactorySynthetic,
-    CompilerOptions, CoreTransformationContext, CustomTransformer, CustomTransformers,
-    EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory, ScriptTarget,
-    TransformationContext, Transformer, TransformerFactory,
+    CompilerOptions, CoreTransformationContext, CustomTransformer, CustomTransformers, EmitHint,
+    EmitResolver, EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory,
+    NodeInterface, ScriptTarget, TransformationContext, Transformer, TransformerFactory,
     TransformerFactoryOrCustomTransformerFactory,
 };
 
@@ -218,6 +218,34 @@ fn passthrough_transformer<
     transform_source_file: Transformer,
 ) -> Transformer {
     transform_source_file
+}
+
+pub fn no_emit_substitution(_hint: EmitHint, node: &Node) -> Rc<Node> {
+    node.node_wrapper()
+}
+
+pub fn no_emit_notification<TCallback: FnMut(EmitHint, &Node)>(
+    hint: EmitHint,
+    node: &Node,
+    callback: TCallback,
+) {
+    callback(hint, node)
+}
+
+pub fn transform_nodes<
+    TResolver: EmitResolver,
+    THost: EmitHost,
+    TBaseNodeFactory: BaseNodeFactory,
+>(
+    resolver: Option<&TResolver>,
+    host: Option<&THost>,
+    factory: &NodeFactory<TBaseNodeFactory>,
+    options: &CompilerOptions,
+    nodes: &[Rc<Node>],
+    transformers: &[TransformerFactory],
+    allow_dts_files: bool,
+) -> TransformationResult {
+    unimplemented!()
 }
 
 impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContext {
