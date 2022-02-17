@@ -2,15 +2,16 @@ use bitflags::bitflags;
 use std::rc::Rc;
 
 use crate::{
-    add_range, chain_bundle, get_emit_module_kind, get_emit_script_target,
-    get_jsx_transform_enabled, is_bundle, map, transform_class_fields, transform_declarations,
-    transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
-    transform_es2018, transform_es2019, transform_es2020, transform_es2021, transform_es5,
-    transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
-    transform_system_module, transform_type_script, BaseNodeFactory, BaseNodeFactorySynthetic,
-    CompilerOptions, CoreTransformationContext, CustomTransformer, CustomTransformers, EmitHint,
-    EmitHost, EmitResolver, EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node,
-    NodeFactory, NodeInterface, ScriptTarget, TransformationContext, TransformationResult,
+    add_range, chain_bundle, factory as factory_static, get_emit_module_kind,
+    get_emit_script_target, get_jsx_transform_enabled, is_bundle, map, transform_class_fields,
+    transform_declarations, transform_ecmascript_module, transform_es2015, transform_es2016,
+    transform_es2017, transform_es2018, transform_es2019, transform_es2020, transform_es2021,
+    transform_es5, transform_esnext, transform_generators, transform_jsx, transform_module,
+    transform_node_module, transform_system_module, transform_type_script, BaseNodeFactory,
+    BaseNodeFactorySynthetic, CompilerOptions, CoreTransformationContext, CustomTransformer,
+    CustomTransformers, Diagnostic, EmitHelper, EmitHelperFactory, EmitHint, EmitHost,
+    EmitResolver, EmitTransformers, LexicalEnvironmentFlags, ModuleKind, Node, NodeFactory,
+    NodeInterface, ScriptTarget, SyntaxKind, TransformationContext, TransformationResult,
     Transformer, TransformerFactory, TransformerFactoryOrCustomTransformerFactory,
 };
 
@@ -221,10 +222,10 @@ pub fn no_emit_substitution(_hint: EmitHint, node: &Node) -> Rc<Node> {
     node.node_wrapper()
 }
 
-pub fn no_emit_notification<TCallback: FnMut(EmitHint, &Node)>(
+pub fn no_emit_notification(
     hint: EmitHint,
     node: &Node,
-    mut callback: TCallback,
+    callback: &mut dyn FnMut(EmitHint, &Node),
 ) {
     callback(hint, node)
 }
@@ -288,46 +289,78 @@ pub fn transform_nodes<
 //     }
 // }
 
+lazy_static! {
+    pub static ref null_transformation_context: TransformationContextNull =
+        TransformationContextNull::new();
+}
+
 pub struct TransformationContextNull {}
+
+impl TransformationContextNull {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 
 impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContextNull {
     fn factory(&self) -> Rc<NodeFactory<BaseNodeFactorySynthetic>> {
-        unimplemented!()
+        factory_static.with(|factory_| factory_.clone())
     }
-    fn get_compiler_options(&self) -> &CompilerOptions {
-        unimplemented!()
+    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+        Rc::new(Default::default())
     }
-    fn start_lexical_environment(&self) {
-        unimplemented!()
-    }
-    fn set_lexical_environment_flags(&self, flags: LexicalEnvironmentFlags, value: bool) {
-        unimplemented!()
-    }
+    fn start_lexical_environment(&self) {}
+    fn set_lexical_environment_flags(&self, _flags: LexicalEnvironmentFlags, _value: bool) {}
     fn get_lexical_environment_flags(&self) -> LexicalEnvironmentFlags {
-        unimplemented!()
+        LexicalEnvironmentFlags::None
     }
-    fn suspend_lexical_environment(&self) {
-        unimplemented!()
-    }
-    fn resume_lexical_environment(&self) {
-        unimplemented!()
-    }
+    fn suspend_lexical_environment(&self) {}
+    fn resume_lexical_environment(&self) {}
     fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
-        unimplemented!()
+        None
     }
-    fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
-        unimplemented!()
-    }
-    fn start_block_scope(&self) {
-        unimplemented!()
-    }
+    fn hoist_function_declaration(&self, _node: &Node /*FunctionDeclaration*/) {}
+    fn hoist_variable_declaration(&self, _node: &Node /*Identifier*/) {}
+    fn start_block_scope(&self) {}
     fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
+        None
+    }
+    fn add_block_scoped_variable(&self, _node: &Node /*Identifier*/) {}
+    fn add_initialization_statement(&self, _node: &Node /*Statement*/) {}
+}
+
+impl TransformationContext for TransformationContextNull {
+    fn get_emit_resolver(&self) -> Rc<dyn EmitResolver> {
         unimplemented!()
     }
-    fn add_block_scoped_variable(&self, node: &Node /*Identifier*/) {
+    fn get_emit_host(&self) -> Rc<dyn EmitHost> {
         unimplemented!()
     }
-    fn add_initialization_statement(&self, node: &Node /*Statement*/) {
+    fn get_emit_helper_factory(&self) -> Rc<dyn EmitHelperFactory> {
         unimplemented!()
     }
+    fn request_emit_helper(&self, _helper: Rc<EmitHelper>) {}
+    fn read_emit_helpers(&self) -> Option<Vec<Rc<EmitHelper>>> {
+        unimplemented!()
+    }
+    fn enable_substitution(&self, _kind: SyntaxKind) {}
+    fn is_substitution_enabled(&self, _node: &Node) -> bool {
+        unimplemented!()
+    }
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node> {
+        no_emit_substitution(hint, node)
+    }
+    fn enable_emit_notification(&self, _kind: SyntaxKind) {}
+    fn is_emit_notification_enabled(&self, _node: &Node) -> bool {
+        unimplemented!()
+    }
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &mut dyn FnMut(EmitHint, &Node),
+    ) {
+        no_emit_notification(hint, node, emit_callback)
+    }
+    fn add_diagnostic(&self, _diag: Rc<Diagnostic /*DiagnosticWithLocation*/>) {}
 }

@@ -189,7 +189,7 @@ bitflags! {
 pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
     fn factory(&self) -> Rc<NodeFactory<TBaseNodeFactory>>;
 
-    fn get_compiler_options(&self) -> &CompilerOptions;
+    fn get_compiler_options(&self) -> Rc<CompilerOptions>;
 
     fn start_lexical_environment(&self);
 
@@ -203,6 +203,8 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
     fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>>;
 
     fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/);
+
+    fn hoist_variable_declaration(&self, node: &Node /*Identifier*/);
 
     fn start_block_scope(&self);
 
@@ -232,7 +234,12 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
 
     fn is_emit_notification_enabled(&self, node: &Node) -> bool;
 
-    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn FnMut(EmitHint, &Node));
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &mut dyn FnMut(EmitHint, &Node),
+    );
 
     fn add_diagnostic(&self, diag: Rc<Diagnostic /*DiagnosticWithLocation*/>);
 }
