@@ -212,6 +212,6 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
 
 pub struct TransformationContext {}
 
-pub type TransformerFactory = fn(TransformationContext) -> Transformer;
+pub type TransformerFactory = Rc<dyn FnMut(TransformationContext) -> Transformer>;
 
-pub type Transformer = Box<dyn FnMut(&Node) -> Rc<Node>>;
+pub type Transformer = Rc<dyn FnMut(&Node) -> Rc<Node>>;

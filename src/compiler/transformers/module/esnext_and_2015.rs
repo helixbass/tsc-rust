@@ -1,5 +1,11 @@
-use crate::{TransformationContext, Transformer};
+use std::rc::Rc;
 
-pub fn transform_ecmascript_module(context: TransformationContext) -> Transformer {
+use crate::{TransformationContext, Transformer, TransformerFactory};
+
+fn transform_ecmascript_module_fn(context: TransformationContext) -> Transformer {
     unimplemented!()
+}
+
+pub fn transform_ecmascript_module() -> TransformerFactory {
+    Rc::new(|context| transform_ecmascript_module_fn(context))
 }

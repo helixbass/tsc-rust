@@ -158,7 +158,8 @@ pub use compiler::scanner::{
 };
 pub use compiler::sys::{get_sys, System};
 pub use compiler::transformers::{
-    transform_ecmascript_module, transform_module, transform_node_module, transform_system_module,
+    chain_bundle, transform_ecmascript_module, transform_module, transform_node_module,
+    transform_system_module,
 };
 pub use compiler::types::{
     maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,
