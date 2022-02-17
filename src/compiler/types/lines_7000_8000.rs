@@ -4,7 +4,7 @@ use bitflags::bitflags;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{Node, NodeArray, NodeArrayOrVec, SyntaxKind};
+use super::{CompilerOptions, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{BaseNodeFactory, NodeFactoryFlags};
 
 bitflags! {
@@ -174,3 +174,44 @@ pub struct NodeFactory<TBaseNodeFactory> {
     pub parenthesizer_rules: RefCell<Option<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>>,
     pub converters: RefCell<Option<Box<dyn NodeConverters<TBaseNodeFactory>>>>,
 }
+
+bitflags! {
+    pub struct LexicalEnvironmentFlags: u32 {
+        const None = 0;
+        const InParameters = 1 << 0;
+        const VariablesHoistedInParameters = 1 << 1;
+    }
+}
+
+pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
+    fn factory(&self) -> &NodeFactory<TBaseNodeFactory>;
+
+    fn get_compiler_options(&self) -> &CompilerOptions;
+
+    fn start_lexical_environment(&self);
+
+    fn set_lexical_environment_flags(&self, flags: LexicalEnvironmentFlags, value: bool);
+    fn get_lexical_environment_flags(&self) -> LexicalEnvironmentFlags;
+
+    fn suspend_lexical_environment(&self);
+
+    fn resume_lexical_environment(&self);
+
+    fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>>;
+
+    fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/);
+
+    fn start_block_scope(&self);
+
+    fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>>;
+
+    fn add_block_scoped_variable(&self, node: &Node /*Identifier*/);
+
+    fn add_initialization_statement(&self, node: &Node /*Statement*/);
+}
+
+pub struct TransformationContext {}
+
+pub type TransformerFactory = fn(TransformationContext) -> Transformer;
+
+pub type Transformer = Box<dyn FnMut(&Node) -> Rc<Node>>;

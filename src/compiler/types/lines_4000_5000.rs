@@ -7,8 +7,8 @@ use std::rc::{Rc, Weak};
 
 use super::{
     BaseType, CompilerOptions, DiagnosticCollection, ModuleSpecifierResolutionHost, Node, NodeId,
-    NodeLinks, ObjectFlags, RelationComparisonResult, SymbolTable, SymbolTracker, Type, TypeFlags,
-    TypeMapper, __String,
+    NodeLinks, ObjectFlags, RelationComparisonResult, SymbolTable, SymbolTracker,
+    TransformationContext, TransformerFactory, Type, TypeFlags, TypeMapper, __String,
 };
 use crate::{NodeBuilder, Number};
 use local_macros::symbol_type;
@@ -17,6 +17,54 @@ use local_macros::symbol_type;
 pub enum StructureIsReused {
     Not,
     Completely,
+}
+
+pub type CustomTransformerFactory = fn(TransformationContext) -> Box<dyn CustomTransformer>;
+
+pub trait CustomTransformer {
+    fn transform_source_file(&mut self, node: &Node /*SourceFile*/) -> Rc<Node /*SourceFile*/>;
+    fn transform_bundle(&mut self, node: &Node /*Bundle*/) -> Rc<Node /*Bundle*/>;
+}
+
+pub enum TransformerFactoryOrCustomTransformerFactory {
+    TransformerFactory(TransformerFactory),
+    CustomTransformerFactory(CustomTransformerFactory),
+}
+
+impl From<TransformerFactory> for TransformerFactoryOrCustomTransformerFactory {
+    fn from(value: TransformerFactory) -> Self {
+        Self::TransformerFactory(value)
+    }
+}
+
+impl From<CustomTransformerFactory> for TransformerFactoryOrCustomTransformerFactory {
+    fn from(value: CustomTransformerFactory) -> Self {
+        Self::CustomTransformerFactory(value)
+    }
+}
+
+pub struct CustomTransformers {
+    pub before: Option<Vec<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>,
+    pub after: Option<Vec<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>,
+    pub after_declarations:
+        Option<Vec<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>>,
+}
+
+pub struct EmitTransformers {
+    pub script_transformers: Vec<TransformerFactory /*<SourceFile | Bundle>*/>,
+    pub declaration_transformers: Vec<TransformerFactory /*<SourceFile | Bundle>*/>,
+}
+
+impl EmitTransformers {
+    pub fn new(
+        script_transformers: Vec<TransformerFactory>,
+        declaration_transformers: Vec<TransformerFactory>,
+    ) -> Self {
+        Self {
+            script_transformers,
+            declaration_transformers,
+        }
+    }
 }
 
 #[allow(non_camel_case_types)]
