@@ -287,3 +287,47 @@ pub fn transform_nodes<
 //         unimplemented!()
 //     }
 // }
+
+pub struct TransformationContextNull {}
+
+impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContextNull {
+    fn factory(&self) -> Rc<NodeFactory<BaseNodeFactorySynthetic>> {
+        unimplemented!()
+    }
+    fn get_compiler_options(&self) -> &CompilerOptions {
+        unimplemented!()
+    }
+    fn start_lexical_environment(&self) {
+        unimplemented!()
+    }
+    fn set_lexical_environment_flags(&self, flags: LexicalEnvironmentFlags, value: bool) {
+        unimplemented!()
+    }
+    fn get_lexical_environment_flags(&self) -> LexicalEnvironmentFlags {
+        unimplemented!()
+    }
+    fn suspend_lexical_environment(&self) {
+        unimplemented!()
+    }
+    fn resume_lexical_environment(&self) {
+        unimplemented!()
+    }
+    fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
+        unimplemented!()
+    }
+    fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
+        unimplemented!()
+    }
+    fn start_block_scope(&self) {
+        unimplemented!()
+    }
+    fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>> {
+        unimplemented!()
+    }
+    fn add_block_scoped_variable(&self, node: &Node /*Identifier*/) {
+        unimplemented!()
+    }
+    fn add_initialization_statement(&self, node: &Node /*Statement*/) {
+        unimplemented!()
+    }
+}

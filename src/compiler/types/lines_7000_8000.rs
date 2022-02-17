@@ -5,7 +5,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
-use crate::{BaseNodeFactory, BaseNodeFactorySynthetic, NodeFactoryFlags};
+use crate::{
+    BaseNodeFactory, BaseNodeFactorySynthetic, EmitHelper, EmitHelperFactory, EmitHost,
+    EmitResolver, NodeFactoryFlags,
+};
 
 bitflags! {
     pub struct OuterExpressionKinds: u32 {
@@ -184,7 +187,7 @@ bitflags! {
 }
 
 pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
-    fn factory(&self) -> &NodeFactory<TBaseNodeFactory>;
+    fn factory(&self) -> Rc<NodeFactory<TBaseNodeFactory>>;
 
     fn get_compiler_options(&self) -> &CompilerOptions;
 
@@ -210,7 +213,29 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
     fn add_initialization_statement(&self, node: &Node /*Statement*/);
 }
 
-pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> {}
+pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> {
+    fn get_emit_resolver(&self) -> Rc<dyn EmitResolver>;
+    fn get_emit_host(&self) -> Rc<dyn EmitHost>;
+    fn get_emit_helper_factory(&self) -> Rc<dyn EmitHelperFactory>;
+
+    fn request_emit_helper(&self, helper: Rc<EmitHelper>);
+
+    fn read_emit_helpers(&self) -> Option<Vec<Rc<EmitHelper>>>;
+
+    fn enable_substitution(&self, kind: SyntaxKind);
+
+    fn is_substitution_enabled(&self, node: &Node) -> bool;
+
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node>;
+
+    fn enable_emit_notification(&self, kind: SyntaxKind);
+
+    fn is_emit_notification_enabled(&self, node: &Node) -> bool;
+
+    fn on_emit_node(&self, hint: EmitHint, node: &Node, emit_callback: &dyn FnMut(EmitHint, &Node));
+
+    fn add_diagnostic(&self, diag: Rc<Diagnostic /*DiagnosticWithLocation*/>);
+}
 
 pub trait TransformationResult {
     fn transformed(&self) -> Vec<Rc<Node>>;
