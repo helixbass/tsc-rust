@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::cell::RefMut;
 
 use crate::{is_parse_tree_node, Debug_, EmitFlags, EmitNode, Node, NodeInterface};
@@ -24,6 +25,12 @@ pub(crate) fn get_or_create_emit_node(node: &Node) -> RefMut<EmitNode> {
     RefMut::map(node_emit_node, |node_emit_node| {
         node_emit_node.as_mut().unwrap()
     })
+}
+
+pub fn dispose_emit_nodes<TSourceFile: Borrow<Node>>(
+    source_file: Option<TSourceFile /*SourceFile*/>,
+) {
+    unimplemented!()
 }
 
 pub(crate) fn get_starts_on_new_line(node: &Node) -> bool {

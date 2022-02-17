@@ -35,6 +35,7 @@ pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
 };
 pub use compiler::factory::emit_helpers::EmitHelperFactory;
+pub use compiler::factory::emit_node::dispose_emit_nodes;
 use compiler::factory::emit_node::{get_starts_on_new_line, set_starts_on_new_line};
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{

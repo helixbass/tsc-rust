@@ -255,7 +255,7 @@ pub trait TransformationResult {
         &self,
         hint: EmitHint,
         node: &Node,
-        emit_callback: &dyn FnMut(EmitHint, &Node),
+        emit_callback: &mut dyn FnMut(EmitHint, &Node),
     );
 
     fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool>;
