@@ -6,16 +6,17 @@ use std::rc::Rc;
 
 use super::ParserType;
 use crate::{
-    add_related_info, create_detached_diagnostic, for_each, for_each_child_returns,
-    is_export_assignment, is_export_declaration, is_export_modifier, is_external_module_reference,
-    is_import_declaration, is_import_equals_declaration, is_keyword, is_meta_property,
-    last_or_undefined, some, token_is_identifier_or_keyword, AssertClause, AssertEntry, BaseNode,
-    BaseNodeFactory, Debug_, Diagnostic, DiagnosticRelatedInformationInterface, Diagnostics,
-    EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration, ExpressionWithTypeArguments,
-    ExternalModuleReference, HeritageClause, ImportClause, ImportEqualsDeclaration,
-    InterfaceDeclaration, ModuleBlock, ModuleDeclaration, NamespaceExport,
-    NamespaceExportDeclaration, NamespaceImport, Node, NodeArray, NodeFlags, NodeInterface,
-    SyntaxKind, TypeAliasDeclaration,
+    add_related_info, attach_file_to_diagnostics, create_detached_diagnostic, for_each,
+    for_each_child_returns, is_export_assignment, is_export_declaration, is_export_modifier,
+    is_external_module_reference, is_import_declaration, is_import_equals_declaration, is_keyword,
+    is_meta_property, last_or_undefined, some, token_is_identifier_or_keyword, AssertClause,
+    AssertEntry, BaseNode, BaseNodeFactory, Debug_, Diagnostic,
+    DiagnosticRelatedInformationInterface, Diagnostics, EnumDeclaration, EnumMember,
+    ExportAssignment, ExportDeclaration, ExpressionWithTypeArguments, ExternalModuleReference,
+    HeritageClause, ImportClause, ImportEqualsDeclaration, InterfaceDeclaration, ModuleBlock,
+    ModuleDeclaration, NamespaceExport, NamespaceExportDeclaration, NamespaceImport, Node,
+    NodeArray, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SyntaxKind,
+    TypeAliasDeclaration,
 };
 
 impl ParserType {
@@ -938,11 +939,67 @@ impl ParserType {
     }
 
     pub fn JSDocParser_parse_jsdoc_type_expression_for_tests(
-        &self,
+        &mut self,
         content: String,
         start: Option<usize>,
         length: Option<usize>,
     ) -> Option<ParsedJSDocTypeExpression> {
+        self.initialize_state(
+            "file.js",
+            content.clone(),
+            ScriptTarget::Latest,
+            None,
+            ScriptKind::JS,
+        );
+        self.scanner_mut().set_text(
+            Some(content.chars().collect()),
+            Some(content),
+            start,
+            length,
+        );
+        self.set_current_token(
+            self.scanner()
+                .scan(Some(&|message, length| self.scan_error(message, length))),
+        );
+        let js_doc_type_expression = self.JSDocParser_parse_jsdoc_type_expression(None);
+
+        let source_file = self.create_source_file(
+            "file.js",
+            ScriptTarget::Latest,
+            ScriptKind::JS,
+            false,
+            vec![],
+            self.factory
+                .create_token(self, SyntaxKind::EndOfFileToken)
+                .into(),
+            NodeFlags::None,
+        );
+        let diagnostics = attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file);
+        {
+            let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
+            if let Some(js_doc_diagnostics) = &*maybe_js_doc_diagnostics {
+                source_file
+                    .as_source_file()
+                    .set_js_doc_diagnostics(attach_file_to_diagnostics(
+                        js_doc_diagnostics,
+                        &source_file,
+                    ));
+            }
+        }
+
+        self.clear_state();
+
+        /*jsDocTypeExpression ?*/
+        Some(ParsedJSDocTypeExpression {
+            js_doc_type_expression,
+            diagnostics,
+        })
+    }
+
+    pub fn JSDocParser_parse_jsdoc_type_expression(
+        &self,
+        may_omit_braces: Option<bool>,
+    ) -> Rc<Node /*JSDocTypeExpression*/> {
         unimplemented!()
     }
 
