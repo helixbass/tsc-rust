@@ -257,7 +257,6 @@ pub fn transform_nodes(
     let transformation_result = TransformNodesTransformationResult::new(
         transformed,
         state,
-        // TransformNodesTransformationContext::new(),
         nodes.to_owned(),
         lexical_environment_variable_declarations,
         lexical_environment_function_declarations,
@@ -279,7 +278,6 @@ pub fn transform_nodes(
 pub struct TransformNodesTransformationResult {
     transformed: RefCell<Vec<Rc<Node>>>,
     state: Cell<TransformationState>,
-    // context: TransformNodesTransformationContext,
     nodes: Vec<Rc<Node>>,
     rc_wrapper: RefCell<Option<Weak<TransformNodesTransformationResult>>>,
     enabled_syntax_kind_features: RefCell<HashMap<SyntaxKind, SyntaxKindFeatureFlags>>,
@@ -316,7 +314,6 @@ impl TransformNodesTransformationResult {
     pub fn new(
         transformed: Vec<Rc<Node>>,
         state: TransformationState,
-        // context: TransformNodesTransformationContext,
         nodes: Vec<Rc<Node>>,
         lexical_environment_variable_declarations: Option<Vec<Rc<Node>>>,
         lexical_environment_function_declarations: Option<Vec<Rc<Node>>>,
@@ -334,7 +331,6 @@ impl TransformNodesTransformationResult {
         let rc = Rc::new(Self {
             transformed: RefCell::new(transformed),
             state: Cell::new(state),
-            // context,
             nodes,
             rc_wrapper: RefCell::new(None),
             lexical_environment_variable_declarations: RefCell::new(
