@@ -1000,7 +1000,57 @@ impl ParserType {
         &self,
         may_omit_braces: Option<bool>,
     ) -> Rc<Node /*JSDocTypeExpression*/> {
-        unimplemented!()
+        let may_omit_braces = may_omit_braces.unwrap_or(false);
+        let pos = self.get_node_pos();
+        let has_brace = if may_omit_braces {
+            self.parse_optional(SyntaxKind::OpenBraceToken)
+        } else {
+            self.parse_expected(SyntaxKind::OpenBraceToken, None, None)
+        };
+        let type_ = self.do_inside_of_context(NodeFlags::JSDoc, || self.parse_jsdoc_type());
+        if !may_omit_braces || has_brace {
+            self.parse_expected_jsdoc(SyntaxKind::CloseBraceToken);
+        }
+
+        let result = Into::<Rc<Node>>::into(
+            self.factory
+                .create_jsdoc_type_expression(self, type_.wrap()),
+        );
+        self.fixup_parent_references(&result);
+        self.finish_node_ref(&*result, pos, None);
+        result
+    }
+
+    pub fn JSDocParser_parse_jsdoc_name_reference(&self) -> Rc<Node /*JSDocNameReference*/> {
+        let pos = self.get_node_pos();
+        let has_brace = self.parse_optional(SyntaxKind::OpenBraceToken);
+        let p2 = self.get_node_pos();
+        let mut entity_name: Rc<Node /*EntityName | JSDocMemberName*/> =
+            self.parse_entity_name(false, None).wrap();
+        while self.token() == SyntaxKind::PrivateIdentifier {
+            self.re_scan_hash_token();
+            self.next_token_jsdoc();
+            entity_name = self
+                .finish_node(
+                    self.factory.create_jsdoc_member_name(
+                        self,
+                        entity_name,
+                        self.parse_identifier(None, None).wrap(),
+                    ),
+                    p2,
+                    None,
+                )
+                .into();
+        }
+        if has_brace {
+            self.parse_expected_jsdoc(SyntaxKind::CloseBraceToken);
+        }
+
+        let result =
+            Into::<Rc<Node>>::into(self.factory.create_jsdoc_name_reference(self, entity_name));
+        self.fixup_parent_references(&result);
+        self.finish_node_ref(&*result, pos, None);
+        result
     }
 
     pub fn JSDocParser_parse_isolated_jsdoc_comment(

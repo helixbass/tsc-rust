@@ -1108,14 +1108,14 @@ impl ParserType {
         array
     }
 
-    pub(super) fn finish_node<TNode: NodeInterface>(
+    pub(super) fn finish_node_ref<TNode: NodeInterface>(
         &self,
-        node: TNode,
+        node: &TNode,
         pos: isize,
         end: Option<isize>,
-    ) -> TNode {
+    ) {
         set_text_range_pos_end(
-            &node,
+            node,
             pos,
             end.unwrap_or_else(|| self.scanner().get_start_pos().try_into().unwrap()),
         );
@@ -1127,6 +1127,15 @@ impl ParserType {
             self.set_parse_error_before_next_finished_node(false);
             node.set_flags(node.flags() | NodeFlags::ThisNodeHasError);
         }
+    }
+
+    pub(super) fn finish_node<TNode: NodeInterface>(
+        &self,
+        node: TNode,
+        pos: isize,
+        end: Option<isize>,
+    ) -> TNode {
+        self.finish_node_ref(&node, pos, end);
 
         node
     }
