@@ -1,22 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::convert::TryInto;
 use std::rc::Rc;
 
 use super::ParserType;
 use crate::{
-    add_related_info, attach_file_to_diagnostics, create_detached_diagnostic, for_each,
-    for_each_child_returns, is_export_assignment, is_export_declaration, is_export_modifier,
-    is_external_module_reference, is_import_declaration, is_import_equals_declaration, is_keyword,
-    is_meta_property, last_or_undefined, some, token_is_identifier_or_keyword, AssertClause,
-    AssertEntry, BaseNode, BaseNodeFactory, Debug_, Diagnostic,
-    DiagnosticRelatedInformationInterface, Diagnostics, EnumDeclaration, EnumMember,
-    ExportAssignment, ExportDeclaration, ExpressionWithTypeArguments, ExternalModuleReference,
-    HeritageClause, ImportClause, ImportEqualsDeclaration, InterfaceDeclaration, ModuleBlock,
-    ModuleDeclaration, NamespaceExport, NamespaceExportDeclaration, NamespaceImport, Node,
-    NodeArray, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SyntaxKind,
-    TypeAliasDeclaration,
+    attach_file_to_diagnostics, for_each, for_each_child_returns, is_export_assignment,
+    is_export_declaration, is_external_module_reference, is_import_declaration,
+    is_import_equals_declaration, is_meta_property, some, BaseNode, BaseNodeFactory, Diagnostic,
+    ExportAssignment, Node, NodeArray, NodeFlags, NodeInterface, ScriptKind, ScriptTarget,
+    SyntaxKind,
 };
 
 impl ParserType {
