@@ -8,8 +8,8 @@ use crate::{
     attach_file_to_diagnostics, for_each, for_each_child_returns, is_export_assignment,
     is_export_declaration, is_external_module_reference, is_import_declaration,
     is_import_equals_declaration, is_meta_property, some, BaseNode, BaseNodeFactory, Diagnostic,
-    ExportAssignment, Node, NodeArray, NodeFlags, NodeInterface, ScriptKind, ScriptTarget,
-    SyntaxKind,
+    ExportAssignment, JSDoc, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
+    ScriptKind, ScriptTarget, SyntaxKind,
 };
 
 impl ParserType {
@@ -231,12 +231,45 @@ impl ParserType {
     }
 
     pub fn JSDocParser_parse_isolated_jsdoc_comment(
-        &self,
+        &mut self,
         content: String,
         start: Option<usize>,
         length: Option<usize>,
     ) -> Option<ParsedIsolatedJSDocComment> {
-        unimplemented!()
+        self.initialize_state(
+            "",
+            content.clone(),
+            ScriptTarget::Latest,
+            None,
+            ScriptKind::JS,
+        );
+        let js_doc: Option<Rc<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
+            self.JSDocParser_parse_jsdoc_comment_worker(start, length)
+                .map(Into::into)
+        });
+
+        let source_file = self.create_source_file(
+            "",
+            ScriptTarget::Latest,
+            ScriptKind::JS,
+            false,
+            vec![],
+            self.factory
+                .create_token(self, SyntaxKind::EndOfFileToken)
+                .into(),
+            NodeFlags::None,
+        );
+        source_file.as_source_file().set_text(content);
+        source_file
+            .as_source_file()
+            .set_language_variant(LanguageVariant::Standard);
+        let diagnostics = attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file);
+        self.clear_state();
+
+        js_doc.map(|js_doc| ParsedIsolatedJSDocComment {
+            js_doc,
+            diagnostics,
+        })
     }
 
     pub fn JSDocParser_parse_jsdoc_comment<TNode: NodeInterface>(
@@ -245,6 +278,14 @@ impl ParserType {
         start: usize,
         length: usize,
     ) -> Option<Rc<Node /*JSDoc*/>> {
+        unimplemented!()
+    }
+
+    pub fn JSDocParser_parse_jsdoc_comment_worker(
+        &self,
+        start: Option<usize>,
+        length: Option<usize>,
+    ) -> Option<JSDoc> {
         unimplemented!()
     }
 }
