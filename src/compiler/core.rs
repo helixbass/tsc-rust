@@ -592,6 +592,14 @@ fn identity<TValue>(x: TValue) -> TValue {
     x
 }
 
+pub fn not_implemented() -> ! {
+    unimplemented!()
+}
+
+// pub fn memoize<TReturn: Clone, TCallback: Fn() -> TReturn>(callback: TCallback) -> impl Fn() -> TReturn {
+
+// }
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum AssertionLevel {
     None = 0,

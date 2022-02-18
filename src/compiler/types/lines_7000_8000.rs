@@ -218,7 +218,7 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
 pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> {
     fn get_emit_resolver(&self) -> Rc<dyn EmitResolver>;
     fn get_emit_host(&self) -> Rc<dyn EmitHost>;
-    fn get_emit_helper_factory(&self) -> Rc<dyn EmitHelperFactory>;
+    fn get_emit_helper_factory(&self) -> Rc<EmitHelperFactory>;
 
     fn request_emit_helper(&self, helper: Rc<EmitHelper>);
 

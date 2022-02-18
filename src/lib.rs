@@ -20,8 +20,8 @@ pub use compiler::core::{
     ends_with, equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values,
     every, filter, find, find_index, first_defined, first_or_undefined, flat_map, for_each,
     for_each_bool, get_spelling_suggestion, get_string_comparer, insert_sorted, last,
-    last_or_undefined, length, map, map_defined, maybe_for_each, range_equals, same_map,
-    set_ui_locale, single_element_array, single_or_undefined, some, sort_and_deduplicate,
+    last_or_undefined, length, map, map_defined, maybe_for_each, not_implemented, range_equals,
+    same_map, set_ui_locale, single_element_array, single_or_undefined, some, sort_and_deduplicate,
     starts_with, string_contains, trim_string_start, try_cast, AssertionLevel,
     GetCanonicalFileName,
 };
@@ -34,7 +34,7 @@ pub use compiler::emitter::create_printer;
 pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
 };
-pub use compiler::factory::emit_helpers::EmitHelperFactory;
+pub use compiler::factory::emit_helpers::{create_emit_helper_factory, EmitHelperFactory};
 pub use compiler::factory::emit_node::{dispose_emit_nodes, set_emit_flags};
 use compiler::factory::emit_node::{get_starts_on_new_line, set_starts_on_new_line};
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
