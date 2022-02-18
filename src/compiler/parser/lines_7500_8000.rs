@@ -7,9 +7,9 @@ use super::ParserType;
 use crate::{
     attach_file_to_diagnostics, for_each, for_each_child_returns, is_export_assignment,
     is_export_declaration, is_external_module_reference, is_import_declaration,
-    is_import_equals_declaration, is_meta_property, some, BaseNode, BaseNodeFactory, Diagnostic,
-    ExportAssignment, JSDoc, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
-    ScriptKind, ScriptTarget, SyntaxKind,
+    is_import_equals_declaration, is_meta_property, set_parent, some, BaseNode, BaseNodeFactory,
+    Diagnostic, ExportAssignment, JSDoc, LanguageVariant, Node, NodeArray, NodeFlags,
+    NodeInterface, ScriptKind, ScriptTarget, SyntaxKind,
 };
 
 impl ParserType {
@@ -275,7 +275,34 @@ impl ParserType {
         start: usize,
         length: usize,
     ) -> Option<Rc<Node /*JSDoc*/>> {
-        unimplemented!()
+        let save_token = self.current_token();
+        let save_parse_diagnostics_length = self.parse_diagnostics().len();
+        let save_parse_error_before_next_finished_node =
+            self.parse_error_before_next_finished_node();
+
+        let comment: Option<Rc<Node>> = self.do_inside_of_context(NodeFlags::JSDoc, || {
+            self.JSDocParser_parse_jsdoc_comment_worker(Some(start), Some(length))
+                .map(Into::into)
+        });
+        if let Some(comment) = comment.as_ref() {
+            set_parent(comment, Some(parent.node_wrapper()));
+        }
+
+        if self.context_flags().intersects(NodeFlags::JavaScriptFile) {
+            let mut js_doc_diagnostics = self.maybe_js_doc_diagnostics();
+            if js_doc_diagnostics.is_none() {
+                *js_doc_diagnostics = Some(vec![]);
+            }
+            js_doc_diagnostics
+                .as_mut()
+                .unwrap()
+                .append(&mut self.parse_diagnostics().clone());
+        }
+        self.set_current_token(save_token);
+        self.parse_diagnostics()
+            .truncate(save_parse_diagnostics_length);
+        self.set_parse_error_before_next_finished_node(save_parse_error_before_next_finished_node);
+        comment
     }
 
     pub fn JSDocParser_parse_jsdoc_comment_worker(
