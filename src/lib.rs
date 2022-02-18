@@ -122,8 +122,8 @@ pub use compiler::parser::{
     IncrementalParserType, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
 };
 use compiler::parser::{
-    is_declaration_file_name, process_comment_pragmas, process_pragmas_into_fields,
-    tag_names_are_equivalent, PragmaContext,
+    is_declaration_file_name, is_jsdoc_like_text, process_comment_pragmas,
+    process_pragmas_into_fields, tag_names_are_equivalent, PragmaContext,
 };
 pub use compiler::path::{
     alt_directory_separator, change_any_extension, combine_paths, compare_paths,

@@ -7,9 +7,9 @@ use super::ParserType;
 use crate::{
     attach_file_to_diagnostics, for_each, for_each_child_returns, is_export_assignment,
     is_export_declaration, is_external_module_reference, is_import_declaration,
-    is_import_equals_declaration, is_meta_property, set_parent, some, BaseNode, BaseNodeFactory,
-    Diagnostic, ExportAssignment, JSDoc, LanguageVariant, Node, NodeArray, NodeFlags,
-    NodeInterface, ScriptKind, ScriptTarget, SyntaxKind,
+    is_import_equals_declaration, is_jsdoc_like_text, is_meta_property, set_parent, some, BaseNode,
+    BaseNodeFactory, Debug_, Diagnostic, ExportAssignment, JSDoc, LanguageVariant, Node, NodeArray,
+    NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
 };
 
 impl ParserType {
@@ -310,7 +310,102 @@ impl ParserType {
         start: Option<usize>,
         length: Option<usize>,
     ) -> Option<JSDoc> {
+        let start = start.unwrap_or(0);
+        let content = self.source_text();
+        let content_as_chars = self.source_text_as_chars();
+        let end = match length {
+            None => content_as_chars.len(),
+            Some(length) => start + length,
+        };
+        let length = end - start;
+
+        Debug_.assert(start >= 0, None);
+        Debug_.assert(start <= end, None);
+        Debug_.assert(end <= content_as_chars.len(), None);
+
+        if !is_jsdoc_like_text(content_as_chars, start) {
+            return None;
+        }
+        ParseJSDocCommentWorker::new(self, start, end, length, content, content_as_chars).call()
+    }
+}
+
+pub(super) struct ParseJSDocCommentWorker<'parser> {
+    pub(super) parser: &'parser ParserType,
+    pub(super) start: usize,
+    pub(super) end: usize,
+    pub(super) length: usize,
+    pub(super) content_str: &'parser str,
+    pub(super) content: &'parser SourceTextAsChars,
+    pub(super) tags: Option<Vec<Rc<Node /*JSDocTag*/>>>,
+    pub(super) tags_pos: Option<usize>,
+    pub(super) tags_end: Option<usize>,
+    pub(super) link_end: Option<usize>,
+    pub(super) comments_pos: Option<usize>,
+    pub(super) comments: Vec<String>,
+    pub(super) parts: Vec<Rc<Node /*JSDocComment*/>>,
+}
+
+impl<'parser> ParseJSDocCommentWorker<'parser> {
+    pub(super) fn new(
+        parser: &'parser ParserType,
+        start: usize,
+        end: usize,
+        length: usize,
+        content_str: &'parser str,
+        content: &'parser SourceTextAsChars,
+    ) -> Self {
+        Self {
+            parser,
+            start,
+            end,
+            length,
+            content_str,
+            content,
+            tags: None,
+            tags_pos: None,
+            tags_end: None,
+            link_end: None,
+            comments_pos: None,
+            comments: vec![],
+            parts: vec![],
+        }
+    }
+
+    pub(super) fn tags(&mut self) -> &mut Vec<Rc<Node>> {
+        self.tags.as_mut().unwrap()
+    }
+
+    pub(super) fn tags_pos(&self) -> usize {
+        self.tags_pos.unwrap()
+    }
+
+    pub(super) fn tags_end(&self) -> usize {
+        self.tags_end.unwrap()
+    }
+
+    pub(super) fn link_end(&self) -> usize {
+        self.link_end.unwrap()
+    }
+
+    pub(super) fn call(&mut self) -> Option<JSDoc> {
         unimplemented!()
+    }
+}
+
+pub(super) enum JSDocState {
+    BeginningOfLine,
+    SawAsterisk,
+    SavingComments,
+    SavingBackticks,
+}
+
+bitflags! {
+    pub(super) struct PropertyLikeParse: u32 {
+        const None = 0;
+        const Property = 1 << 0;
+        const Parameter = 1 << 1;
+        const CallbackParameter = 1 << 2;
     }
 }
 
