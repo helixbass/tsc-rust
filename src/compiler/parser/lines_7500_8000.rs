@@ -1,15 +1,18 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::cell::{RefCell, RefMut};
+use std::convert::TryFrom;
 use std::rc::Rc;
 
 use super::ParserType;
 use crate::{
     attach_file_to_diagnostics, for_each, for_each_child_returns, is_export_assignment,
     is_export_declaration, is_external_module_reference, is_import_declaration,
-    is_import_equals_declaration, is_jsdoc_like_text, is_meta_property, set_parent, some, BaseNode,
-    BaseNodeFactory, Debug_, Diagnostic, ExportAssignment, JSDoc, LanguageVariant, Node, NodeArray,
-    NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
+    is_import_equals_declaration, is_jsdoc_like_text, is_meta_property, last_index_of, set_parent,
+    some, BaseJSDocTag, BaseNode, BaseNodeFactory, Debug_, Diagnostic, ExportAssignment, JSDoc,
+    LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface, ScriptKind, ScriptTarget,
+    SourceTextAsChars, SyntaxKind,
 };
 
 impl ParserType {
@@ -319,7 +322,7 @@ impl ParserType {
         };
         let length = end - start;
 
-        Debug_.assert(start >= 0, None);
+        // Debug_.assert(start >= 0, None);
         Debug_.assert(start <= end, None);
         Debug_.assert(end <= content_as_chars.len(), None);
 
@@ -341,8 +344,8 @@ pub(super) struct ParseJSDocCommentWorker<'parser> {
     pub(super) tags_pos: Option<usize>,
     pub(super) tags_end: Option<usize>,
     pub(super) link_end: Option<usize>,
-    pub(super) comments_pos: Option<usize>,
-    pub(super) comments: Vec<String>,
+    pub(super) comments_pos: Option<isize>,
+    pub(super) comments: RefCell<Vec<String>>,
     pub(super) parts: Vec<Rc<Node /*JSDocComment*/>>,
 }
 
@@ -367,7 +370,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             tags_end: None,
             link_end: None,
             comments_pos: None,
-            comments: vec![],
+            comments: RefCell::new(vec![]),
             parts: vec![],
         }
     }
@@ -388,7 +391,97 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         self.link_end.unwrap()
     }
 
+    pub(super) fn comments(&self) -> RefMut<Vec<String>> {
+        self.comments.borrow_mut()
+    }
+
     pub(super) fn call(&mut self) -> Option<JSDoc> {
+        self.parser
+            .scanner_mut()
+            .scan_range(self.start + 3, self.length - 5, || {
+                let mut state = JSDocState::SawAsterisk;
+                let mut margin: Option<usize> = None;
+                let mut indent: usize = self.start
+                    - usize::try_from(last_index_of(self.content, '\n', self.start) + 1).unwrap()
+                    + 4;
+
+                self.parser.next_token_jsdoc();
+                while self.parse_optional_jsdoc(SyntaxKind::WhitespaceTrivia) {}
+                if self.parse_optional_jsdoc(SyntaxKind::NewLineTrivia) {
+                    state = JSDocState::BeginningOfLine;
+                    indent = 0;
+                }
+                loop {
+                    match self.parser.token() {
+                        SyntaxKind::AtToken => {
+                            if matches!(
+                                state,
+                                JSDocState::BeginningOfLine | JSDocState::SawAsterisk
+                            ) {
+                                self.remove_trailing_whitespace(&mut self.comments());
+                                if self.comments_pos.is_none() {
+                                    self.comments_pos = Some(self.parser.get_node_pos());
+                                    self.add_tag(Some(self.parse_tag(indent).into()));
+                                    state = JSDocState::BeginningOfLine;
+                                    margin = None;
+                                }
+                            } else {
+                                let margin_and_indent = self.push_comment_call(
+                                    margin,
+                                    indent,
+                                    self.parser.scanner().get_token_text(),
+                                );
+                                margin = margin_and_indent.0;
+                                indent = margin_and_indent.1;
+                            }
+                        }
+
+                        _ => {
+                            state = JSDocState::SavingComments;
+                            let margin_and_indent = self.push_comment_call(
+                                margin,
+                                indent,
+                                self.parser.scanner().get_token_text(),
+                            );
+                            margin = margin_and_indent.0;
+                            indent = margin_and_indent.1;
+                        }
+                    }
+                    self.parser.next_token_jsdoc();
+                }
+
+                unimplemented!()
+            })
+    }
+
+    pub(super) fn push_comment_call(
+        &mut self,
+        mut margin: Option<usize>,
+        mut indent: usize,
+        text: String,
+    ) -> (Option<usize>, usize) {
+        if margin.is_none() {
+            margin = Some(indent);
+        }
+        let text_len = text.chars().count();
+        self.comments().push(text);
+        indent += text_len;
+        (margin, indent)
+    }
+
+    pub(super) fn remove_trailing_whitespace(&self, comments: &mut Vec<String>) {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_tag(&self, margin: usize) -> BaseJSDocTag {
+        unimplemented!()
+    }
+
+    pub(super) fn add_tag(&self, tag: Option<Rc<Node /*JSDocTag*/>>) {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_optional_jsdoc(&self, t: SyntaxKind /*JSDocSyntaxKind*/) -> bool {
         unimplemented!()
     }
 }
