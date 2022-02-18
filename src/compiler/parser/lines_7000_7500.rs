@@ -22,7 +22,7 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
         kind: SyntaxKind, /*ClassLikeDeclaration["kind"]*/
-    ) -> Node /*ClassLikeDeclaration*/ {
+    ) -> Rc<Node /*ClassLikeDeclaration*/> {
         let saved_await_context = self.in_await_context();
         self.parse_expected(SyntaxKind::ClassKeyword, None, None);
 
@@ -74,7 +74,7 @@ impl ParserType {
                 )
                 .into()
         };
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_name_of_class_declaration_or_expression(
@@ -141,7 +141,7 @@ impl ParserType {
         if self.token() == SyntaxKind::LessThanToken {
             Some(self.parse_bracketed_list(
                 ParsingContext::TypeArguments,
-                || self.parse_type().wrap(),
+                || self.parse_type(),
                 SyntaxKind::LessThanToken,
                 SyntaxKind::GreaterThanToken,
             ))
@@ -159,7 +159,7 @@ impl ParserType {
 
     pub(super) fn parse_class_members(&self) -> NodeArray /*<ClassElement>*/ {
         self.parse_list(ParsingContext::ClassMembers, &mut || {
-            self.parse_class_element().wrap()
+            self.parse_class_element()
         })
     }
 
@@ -169,7 +169,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> InterfaceDeclaration {
+    ) -> Rc<Node /*InterfaceDeclaration*/> {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None, None);
         let name = self.parse_identifier(None, None);
         let type_parameters = self.parse_type_parameters();
@@ -184,7 +184,7 @@ impl ParserType {
             heritage_clauses,
             members,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_type_alias_declaration(
@@ -193,13 +193,13 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> TypeAliasDeclaration {
+    ) -> Rc<Node /*TypeAliasDeclaration*/> {
         self.parse_expected(SyntaxKind::TypeKeyword, None, None);
         let name = self.parse_identifier(None, None);
         let type_parameters = self.parse_type_parameters();
         self.parse_expected(SyntaxKind::EqualsToken, None, None);
-        let type_ = if self.token() == SyntaxKind::IntrinsicKeyword {
-            self.try_parse(|| self.parse_keyword_and_no_dot())
+        let type_: Rc<Node> = if self.token() == SyntaxKind::IntrinsicKeyword {
+            self.try_parse(|| self.parse_keyword_and_no_dot().map(Node::wrap))
                 .unwrap_or_else(|| self.parse_type())
         } else {
             self.parse_type()
@@ -211,12 +211,12 @@ impl ParserType {
             modifiers,
             name.wrap(),
             type_parameters,
-            type_.wrap(),
+            type_,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
-    pub(super) fn parse_enum_member(&self) -> EnumMember {
+    pub(super) fn parse_enum_member(&self) -> Rc<Node /*EnumMember*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let name: Rc<Node> = self.parse_property_name().wrap();
@@ -226,7 +226,8 @@ impl ParserType {
                 self.factory.create_enum_member(self, name, initializer),
                 pos,
                 None,
-            ),
+            )
+            .into(),
             has_jsdoc,
         )
     }
@@ -237,7 +238,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> EnumDeclaration {
+    ) -> Rc<Node /*EnumDeclaration*/> {
         self.parse_expected(SyntaxKind::EnumKeyword, None, None);
         let name: Rc<Node> = self.parse_identifier(None, None).wrap();
         let members: NodeArray;
@@ -245,7 +246,7 @@ impl ParserType {
             members = self.do_outside_of_yield_and_await_context(|| {
                 self.parse_delimited_list(
                     ParsingContext::EnumMembers,
-                    || self.parse_enum_member().into(),
+                    || self.parse_enum_member(),
                     None,
                 )
             });
@@ -256,7 +257,7 @@ impl ParserType {
         let node =
             self.factory
                 .create_enum_declaration(self, decorators, modifiers, name, Some(members));
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_module_block(&self) -> ModuleBlock {
@@ -284,7 +285,7 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
         flags: NodeFlags,
-    ) -> ModuleDeclaration {
+    ) -> Rc<Node /*ModuleDeclaration*/> {
         let namespace_flag = flags & NodeFlags::Namespace;
         let name: Rc<Node> = self.parse_identifier(None, None).wrap();
         let body: Rc<Node> = if self.parse_optional(SyntaxKind::DotToken) {
@@ -295,7 +296,6 @@ impl ParserType {
                 None,
                 NodeFlags::NestedNamespace | namespace_flag,
             )
-            .into()
         } else {
             self.parse_module_block().into()
         };
@@ -307,7 +307,7 @@ impl ParserType {
             Some(body),
             Some(flags),
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_ambient_external_module_declaration(
@@ -316,7 +316,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> ModuleDeclaration {
+    ) -> Rc<Node /*ModuleDeclaration*/> {
         let mut flags = NodeFlags::None;
         let name: Rc<Node>;
         if self.token() == SyntaxKind::GlobalKeyword {
@@ -342,7 +342,7 @@ impl ParserType {
             body,
             Some(flags),
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_module_declaration(
@@ -351,7 +351,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> ModuleDeclaration {
+    ) -> Rc<Node /*ModuleDeclaration*/> {
         let mut flags = NodeFlags::None;
         if self.token() == SyntaxKind::GlobalKeyword {
             return self
@@ -392,7 +392,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> NamespaceExportDeclaration {
+    ) -> Rc<Node /*NamespaceExportDeclaration*/> {
         self.parse_expected(SyntaxKind::AsKeyword, None, None);
         self.parse_expected(SyntaxKind::NamespaceKeyword, None, None);
         let name: Rc<Node> = self.parse_identifier(None, None).wrap();
@@ -400,7 +400,7 @@ impl ParserType {
         let node = self.factory.create_namespace_export_declaration(self, name);
         node.set_decorators(decorators);
         node.set_modifiers(modifiers);
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_import_declaration_or_import_equals_declaration(
@@ -409,7 +409,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Node /*ImportEqualsDeclaration | ImportDeclaration*/ {
+    ) -> Rc<Node /*ImportEqualsDeclaration | ImportDeclaration*/> {
         self.parse_expected(SyntaxKind::ImportKeyword, None, None);
 
         let after_import_pos = self.scanner().get_start_pos();
@@ -436,16 +436,14 @@ impl ParserType {
         if identifier.is_some()
             && !self.token_after_imported_identifier_definitely_produces_import_declaration()
         {
-            return self
-                .parse_import_equals_declaration(
-                    pos,
-                    has_jsdoc,
-                    decorators,
-                    modifiers,
-                    identifier.unwrap(),
-                    is_type_only,
-                )
-                .into();
+            return self.parse_import_equals_declaration(
+                pos,
+                has_jsdoc,
+                decorators,
+                modifiers,
+                identifier.unwrap(),
+                is_type_only,
+            );
         }
 
         let mut import_clause: Option<Rc<Node>> = None;
@@ -477,7 +475,7 @@ impl ParserType {
             module_specifier,
             assert_clause,
         );
-        self.with_jsdoc(self.finish_node(node.into(), pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_assert_entry(&self) -> AssertEntry {
@@ -572,7 +570,7 @@ impl ParserType {
         modifiers: Option<NodeArray>,
         identifier: Rc<Node /*Identifier*/>,
         is_type_only: bool,
-    ) -> ImportEqualsDeclaration {
+    ) -> Rc<Node /*ImportEqualsDeclaration*/> {
         self.parse_expected(SyntaxKind::EqualsToken, None, None);
         let module_reference: Rc<Node> = self.parse_module_reference().wrap();
         self.parse_semicolon();
@@ -584,7 +582,7 @@ impl ParserType {
             identifier,
             module_reference,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_import_clause(
@@ -784,7 +782,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> ExportDeclaration {
+    ) -> Rc<Node /*ExportDeclaration*/> {
         let saved_await_context = self.in_await_context();
         self.set_await_context(true);
         let mut export_clause: Option<Rc<Node>> = None;
@@ -828,6 +826,6 @@ impl ParserType {
             module_specifier,
             assert_clause,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 }

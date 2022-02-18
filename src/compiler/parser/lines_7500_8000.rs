@@ -19,7 +19,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> ExportAssignment {
+    ) -> Rc<Node /*ExportAssignment*/> {
         let saved_await_context = self.in_await_context();
         self.set_await_context(true);
         let mut is_export_equals: Option<bool> = None;
@@ -38,7 +38,7 @@ impl ParserType {
             is_export_equals,
             expression,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn set_external_module_indicator(&self, source_file: &Node /*SourceFile*/) {
@@ -189,10 +189,7 @@ impl ParserType {
             self.parse_expected_jsdoc(SyntaxKind::CloseBraceToken);
         }
 
-        let result = Into::<Rc<Node>>::into(
-            self.factory
-                .create_jsdoc_type_expression(self, type_.wrap()),
-        );
+        let result = Into::<Rc<Node>>::into(self.factory.create_jsdoc_type_expression(self, type_));
         self.fixup_parent_references(&result);
         self.finish_node_ref(&*result, pos, None);
         result
@@ -272,9 +269,9 @@ impl ParserType {
         })
     }
 
-    pub fn JSDocParser_parse_jsdoc_comment<TNode: NodeInterface>(
+    pub fn JSDocParser_parse_jsdoc_comment(
         &self,
-        parent: &TNode,
+        parent: &Node,
         start: usize,
         length: usize,
     ) -> Option<Rc<Node /*JSDoc*/>> {
