@@ -171,12 +171,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         self.create_jsdoc_unary_type_worker(base_factory, SyntaxKind::JSDocNamepathType, type_)
     }
 
-    pub fn create_jsdoc_type_tag(
+    pub fn create_jsdoc_type_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
         type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
             base_factory,
@@ -187,12 +187,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_return_tag(
+    pub fn create_jsdoc_return_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
         type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
             base_factory,
@@ -203,12 +203,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_this_tag(
+    pub fn create_jsdoc_this_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
         type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
             base_factory,
@@ -219,12 +219,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_enum_tag(
+    pub fn create_jsdoc_enum_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
         type_expression: Option<Rc<Node /*JSDocTypeExpression*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTypeLikeTag {
         self.create_jsdoc_type_like_tag_worker(
             base_factory,
@@ -235,11 +235,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_author_tag(
+    pub fn create_jsdoc_author_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
             base_factory,

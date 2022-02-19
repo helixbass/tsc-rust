@@ -3,8 +3,9 @@ use std::rc::Rc;
 
 use super::{ParseJSDocCommentWorker, PropertyLikeParse};
 use crate::{
-    append, is_identifier, is_type_reference_node, token_is_identifier_or_keyword, BaseJSDocTag,
-    DiagnosticMessage, Identifier, JSDocAugmentsTag, JSDocImplementsTag, JSDocPropertyLikeTag,
+    append, is_identifier, is_jsdoc_return_tag, is_type_reference_node, some,
+    token_is_identifier_or_keyword, BaseJSDocTag, BaseJSDocTypeLikeTag, DiagnosticMessage,
+    Diagnostics, Identifier, JSDocAugmentsTag, JSDocImplementsTag, JSDocPropertyLikeTag,
     JSDocTypeExpression, Node, NodeInterface, ReadonlyTextRange, StringOrNodeArray, SyntaxKind,
     TextChangeRange,
 };
@@ -321,13 +322,40 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_return_tag(
-        &self,
+        &mut self,
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
         indent_text: &str,
-    ) -> BaseJSDocTag /*JSDocReturnTag*/ {
-        unimplemented!()
+    ) -> BaseJSDocTypeLikeTag /*JSDocReturnTag*/ {
+        if some(
+            self.tags.as_deref(),
+            Some(|tag: &Rc<Node>| is_jsdoc_return_tag(tag)),
+        ) {
+            self.parser.parse_error_at(
+                tag_name.pos(),
+                self.parser.scanner().get_token_pos().try_into().unwrap(),
+                &Diagnostics::_0_tag_already_specified,
+                Some(vec![(&*tag_name.as_identifier().escaped_text).to_owned()]),
+            );
+        }
+
+        let type_expression = self.try_parse_type_expression();
+        self.parser.finish_node(
+            self.parser.factory.create_jsdoc_return_tag(
+                self.parser,
+                Some(tag_name),
+                type_expression,
+                self.parse_trailing_tag_comments(
+                    start,
+                    self.parser.get_node_pos().try_into().unwrap(),
+                    indent,
+                    indent_text,
+                ),
+            ),
+            start.try_into().unwrap(),
+            None,
+        )
     }
 
     pub(super) fn parse_type_tag(
