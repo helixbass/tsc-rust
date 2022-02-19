@@ -1,9 +1,10 @@
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use super::{ParseJSDocCommentWorker, PropertyLikeParse};
 use crate::{
-    BaseJSDocTag, DiagnosticMessage, Identifier, JSDocAugmentsTag, JSDocImplementsTag,
-    JSDocPropertyLikeTag, Node, StringOrNodeArray, SyntaxKind, TextChangeRange,
+    token_is_identifier_or_keyword, BaseJSDocTag, DiagnosticMessage, Identifier, JSDocAugmentsTag,
+    JSDocImplementsTag, JSDocPropertyLikeTag, Node, StringOrNodeArray, SyntaxKind, TextChangeRange,
 };
 
 impl<'parser> ParseJSDocCommentWorker<'parser> {
@@ -16,7 +17,80 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_jsdoc_link(&self, start: usize) -> Option<Node> {
-        unimplemented!()
+        let link_type = self.parser.try_parse(|| self.parse_jsdoc_link_prefix())?;
+        self.parser.next_token_jsdoc();
+        self.skip_whitespace();
+        let p2 = self.parser.get_node_pos();
+        let mut name: Option<Rc<Node /*EntityName | JSDocMemberName*/>> =
+            if token_is_identifier_or_keyword(self.parser.token()) {
+                Some(self.parser.parse_entity_name(true, None).wrap())
+            } else {
+                None
+            };
+        if name.is_some() {
+            while self.parser.token() == SyntaxKind::PrivateIdentifier {
+                self.parser.re_scan_hash_token();
+                self.parser.next_token_jsdoc();
+                name = Some(
+                    self.parser
+                        .finish_node(
+                            self.parser.factory.create_jsdoc_member_name(
+                                self.parser,
+                                name.clone().unwrap(),
+                                self.parser.parse_identifier(None, None).wrap(),
+                            ),
+                            p2,
+                            None,
+                        )
+                        .into(),
+                );
+            }
+        }
+        let mut text = vec![];
+        while !matches!(
+            self.parser.token(),
+            SyntaxKind::CloseBraceToken | SyntaxKind::NewLineTrivia | SyntaxKind::EndOfFileToken
+        ) {
+            text.push(self.parser.scanner().get_token_text());
+            self.parser.next_token_jsdoc();
+        }
+        let create = |name, text| -> Node {
+            if link_type == "link" {
+                self.parser
+                    .factory
+                    .create_jsdoc_link(self.parser, name, text)
+                    .into()
+            } else if link_type == "linkcode" {
+                self.parser
+                    .factory
+                    .create_jsdoc_link_code(self.parser, name, text)
+                    .into()
+            } else {
+                self.parser
+                    .factory
+                    .create_jsdoc_link_plain(self.parser, name, text)
+                    .into()
+            }
+        };
+        Some(self.parser.finish_node(
+            create(name, text.join("")),
+            start.try_into().unwrap(),
+            Some(self.parser.scanner().get_text_pos().try_into().unwrap()),
+        ))
+    }
+
+    pub(super) fn parse_jsdoc_link_prefix(&self) -> Option<String> {
+        self.skip_whitespace_or_asterisk();
+        if self.parser.token() == SyntaxKind::OpenBraceToken
+            && self.parser.next_token_jsdoc() == SyntaxKind::AtToken
+            && token_is_identifier_or_keyword(self.parser.next_token_jsdoc())
+        {
+            let kind = self.parser.scanner().get_token_value();
+            if matches!(&*kind, "link" | "linkcode" | "linkplain") {
+                return Some(kind);
+            }
+        }
+        None
     }
 
     pub(super) fn parse_unknown_tag(
