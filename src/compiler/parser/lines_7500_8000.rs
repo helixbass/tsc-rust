@@ -342,8 +342,8 @@ pub(super) struct ParseJSDocCommentWorker<'parser> {
     pub(super) content_str: &'parser str,
     pub(super) content: &'parser SourceTextAsChars,
     pub(super) tags: Option<Vec<Rc<Node /*JSDocTag*/>>>,
-    pub(super) tags_pos: Option<usize>,
-    pub(super) tags_end: Option<usize>,
+    pub(super) tags_pos: Option<isize>,
+    pub(super) tags_end: Option<isize>,
     pub(super) link_end: Option<usize>,
     pub(super) comments_pos: Option<isize>,
     pub(super) comments: RefCell<Vec<String>>,
@@ -380,11 +380,11 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         self.tags.as_mut().unwrap()
     }
 
-    pub(super) fn tags_pos(&self) -> usize {
+    pub(super) fn tags_pos(&self) -> isize {
         self.tags_pos.unwrap()
     }
 
-    pub(super) fn tags_end(&self) -> usize {
+    pub(super) fn tags_end(&self) -> isize {
         self.tags_end.unwrap()
     }
 
@@ -422,7 +422,8 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 self.remove_trailing_whitespace(&mut self.comments());
                                 if self.comments_pos.is_none() {
                                     self.comments_pos = Some(self.parser.get_node_pos());
-                                    self.add_tag(Some(self.parse_tag(indent).wrap()));
+                                    let tag = self.parse_tag(indent).wrap();
+                                    self.add_tag(Some(tag));
                                     state = JSDocState::BeginningOfLine;
                                     margin = None;
                                 }
@@ -526,7 +527,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                     Debug_.assert_is_defined(&self.comments_pos, Some("having parsed tags implies that the end of the comments span should be set"));
                 }
                 let tags_array = self.tags.as_ref().map(
-                    |tags| self.parser.create_node_array(tags.clone(), self.tags_pos.unwrap().try_into().unwrap(), self.tags_end.map(|tags_end| tags_end.try_into().unwrap()), None));
+                    |tags| self.parser.create_node_array(tags.clone(), self.tags_pos.unwrap(), self.tags_end, None));
                 self.parser.finish_node(
                     self.parser.factory.create_jsdoc_comment(self.parser, if !self.parts.is_empty() {
                         Some(Into::<StringOrNodeArray>::into(self.parser.create_node_array(self.parts.clone(), self.start.try_into().unwrap(), self.comments_pos, None)))
@@ -642,7 +643,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         }
     }
 
-    pub(super) fn parse_tag(&self, margin: usize) -> Node {
+    pub(super) fn parse_tag(&mut self, margin: usize) -> Node {
         Debug_.assert(self.parser.token() == SyntaxKind::AtToken, None);
         let start = self.parser.scanner().get_token_pos();
         self.parser.next_token_jsdoc();
