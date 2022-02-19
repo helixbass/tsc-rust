@@ -428,7 +428,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                     margin = None;
                                 }
                             } else {
-                                let margin_and_indent = self.push_comment_call(
+                                let margin_and_indent = self.push_comment(
                                     margin,
                                     indent,
                                     self.parser.scanner().get_token_text(),
@@ -448,7 +448,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                             {
                                 state = JSDocState::SavingComments;
                                 let margin_and_indent =
-                                    self.push_comment_call(margin, indent, asterisk);
+                                    self.push_comment(margin, indent, asterisk);
                                 margin = margin_and_indent.0;
                                 indent = margin_and_indent.1;
                             } else {
@@ -502,7 +502,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                         }
                         _ => {
                             state = JSDocState::SavingComments;
-                            let margin_and_indent = self.push_comment_call(
+                            let margin_and_indent = self.push_comment(
                                 margin,
                                 indent,
                                 self.parser.scanner().get_token_text(),
@@ -542,7 +542,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             }))
     }
 
-    pub(super) fn push_comment_call(
+    pub(super) fn push_comment(
         &mut self,
         mut margin: Option<usize>,
         mut indent: usize,
@@ -865,6 +865,204 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             }
         }
         tag.unwrap()
+    }
+
+    pub(super) fn parse_trailing_tag_comments(
+        &mut self,
+        pos: usize,
+        end: usize,
+        mut margin: usize,
+        indent_text: &str,
+    ) -> Option<StringOrNodeArray> {
+        if indent_text.is_empty() {
+            margin += end - pos;
+        }
+        self.parse_tag_comments(margin, Some(indent_text.chars().skip(margin).collect()))
+    }
+
+    pub(super) fn parse_tag_comments(
+        &mut self,
+        mut indent: usize,
+        initial_margin: Option<String>,
+    ) -> Option<StringOrNodeArray> {
+        let comments_pos = self.parser.get_node_pos();
+        let mut comments: Vec<String> = vec![];
+        let mut parts: Vec<Rc<Node /*JSDocComment*/>> = vec![];
+        let mut link_end: Option<usize> = None;
+        let mut state = JSDocState::BeginningOfLine;
+        let mut previous_whitespace = false;
+        let mut margin: Option<usize> = None;
+        if let Some(initial_margin) = initial_margin {
+            if !initial_margin.is_empty() {
+                let margin_and_indent = self.push_comment(margin, indent, initial_margin);
+                margin = margin_and_indent.0;
+                indent = margin_and_indent.1;
+            }
+            state = JSDocState::SawAsterisk;
+        }
+        let mut tok = self.parser.token();
+        loop {
+            match tok {
+                SyntaxKind::NewLineTrivia => {
+                    state = JSDocState::BeginningOfLine;
+                    comments.push(self.parser.scanner().get_token_text());
+                    indent = 0;
+                }
+                SyntaxKind::AtToken => {
+                    if state == JSDocState::SavingBackticks
+                        || state == JSDocState::SavingComments
+                            && (!previous_whitespace
+                                || self
+                                    .parser
+                                    .look_ahead_bool(|| self.is_next_jsdoc_token_whitespace()))
+                    {
+                        comments.push(self.parser.scanner().get_token_text());
+                    }
+                    break;
+                }
+                SyntaxKind::EndOfFileToken => {
+                    break;
+                }
+                SyntaxKind::WhitespaceTrivia => {
+                    if matches!(
+                        state,
+                        JSDocState::SavingComments | JSDocState::SavingBackticks
+                    ) {
+                        let margin_and_indent = self.push_comment(
+                            margin,
+                            indent,
+                            self.parser.scanner().get_token_text(),
+                        );
+                        margin = margin_and_indent.0;
+                        indent = margin_and_indent.1;
+                    } else {
+                        let whitespace = self.parser.scanner().get_token_text();
+                        let whitespace_chars: Vec<char> = whitespace.chars().collect();
+                        if let Some(margin) = margin {
+                            if indent + whitespace_chars.len() > margin {
+                                comments.push(
+                                    whitespace_chars[margin - indent..].into_iter().collect(),
+                                );
+                            }
+                        }
+                        indent += whitespace_chars.len();
+                    }
+                }
+                SyntaxKind::OpenBraceToken => {
+                    state = JSDocState::SavingComments;
+                    let comment_end = self.parser.scanner().get_start_pos();
+                    let link_start = self.parser.scanner().get_text_pos() - 1;
+                    let link: Option<Rc<Node>> = self.parse_jsdoc_link(link_start).map(Node::wrap);
+                    if let Some(link) = link {
+                        parts.push(
+                            self.parser
+                                .finish_node(
+                                    self.parser
+                                        .factory
+                                        .create_jsdoc_text(self.parser, comments.join("")),
+                                    link_end
+                                        .map(|link_end| link_end.try_into().unwrap())
+                                        .unwrap_or(comments_pos),
+                                    Some(comment_end.try_into().unwrap()),
+                                )
+                                .into(),
+                        );
+                        parts.push(link);
+                        comments = vec![];
+                        link_end = Some(self.parser.scanner().get_text_pos());
+                    } else {
+                        let margin_and_indent = self.push_comment(
+                            margin,
+                            indent,
+                            self.parser.scanner().get_token_text(),
+                        );
+                        margin = margin_and_indent.0;
+                        indent = margin_and_indent.1;
+                    }
+                }
+                SyntaxKind::BacktickToken => {
+                    if state == JSDocState::SavingBackticks {
+                        state = JSDocState::SavingComments;
+                    } else {
+                        state = JSDocState::SavingBackticks;
+                    }
+                    let margin_and_indent =
+                        self.push_comment(margin, indent, self.parser.scanner().get_token_text());
+                    margin = margin_and_indent.0;
+                    indent = margin_and_indent.1;
+                }
+                SyntaxKind::AsteriskToken => {
+                    if state == JSDocState::BeginningOfLine {
+                        state = JSDocState::SawAsterisk;
+                        indent += 1;
+                    } else {
+                        if state != JSDocState::SavingBackticks {
+                            state = JSDocState::SavingComments;
+                        }
+                        let margin_and_indent = self.push_comment(
+                            margin,
+                            indent,
+                            self.parser.scanner().get_token_text(),
+                        );
+                        margin = margin_and_indent.0;
+                        indent = margin_and_indent.1;
+                    }
+                }
+                _ => {
+                    if state != JSDocState::SavingBackticks {
+                        state = JSDocState::SavingComments;
+                    }
+                    let margin_and_indent =
+                        self.push_comment(margin, indent, self.parser.scanner().get_token_text());
+                    margin = margin_and_indent.0;
+                    indent = margin_and_indent.1;
+                }
+            }
+            previous_whitespace = self.parser.token() == SyntaxKind::WhitespaceTrivia;
+            tok = self.parser.next_token_jsdoc();
+        }
+
+        self.remove_leading_newlines(&mut comments);
+        self.remove_trailing_whitespace(&mut comments);
+        if !parts.is_empty() {
+            if !comments.is_empty() {
+                parts.push(
+                    self.parser
+                        .finish_node(
+                            self.parser
+                                .factory
+                                .create_jsdoc_text(self.parser, comments.join("")),
+                            link_end
+                                .map(|link_end| link_end.try_into().unwrap())
+                                .unwrap_or(comments_pos),
+                            None,
+                        )
+                        .into(),
+                );
+            }
+            Some(
+                self.parser
+                    .create_node_array(
+                        parts,
+                        comments_pos,
+                        Some(self.parser.scanner().get_text_pos().try_into().unwrap()),
+                        None,
+                    )
+                    .into(),
+            )
+        } else if !comments.is_empty() {
+            Some(comments.join("").into())
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn is_next_jsdoc_token_whitespace(&self) -> bool {
+        let next = self.parser.next_token_jsdoc();
+        matches!(
+            next,
+            SyntaxKind::WhitespaceTrivia | SyntaxKind::NewLineTrivia
+        )
     }
 
     pub(super) fn parse_jsdoc_link(&self, start: usize) -> Option<Node> {
