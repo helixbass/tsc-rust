@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use super::{ParseJSDocCommentWorker, PropertyLikeParse};
 use crate::{
-    append, is_identifier, is_jsdoc_return_tag, is_type_reference_node, some,
+    append, is_identifier, is_jsdoc_return_tag, is_jsdoc_type_tag, is_type_reference_node, some,
     token_is_identifier_or_keyword, BaseJSDocTag, BaseJSDocTypeLikeTag, DiagnosticMessage,
     Diagnostics, Identifier, JSDocAugmentsTag, JSDocImplementsTag, JSDocPropertyLikeTag,
     JSDocTypeExpression, Node, NodeInterface, ReadonlyTextRange, StringOrNodeArray, SyntaxKind,
@@ -359,13 +359,46 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_type_tag(
-        &self,
+        &mut self,
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
-        indent: usize,
-        indent_text: &str,
-    ) -> BaseJSDocTag /*JSDocTypeTag*/ {
-        unimplemented!()
+        indent: Option<usize>,
+        indent_text: Option<&str>,
+    ) -> BaseJSDocTypeLikeTag /*JSDocTypeTag*/ {
+        if some(
+            self.tags.as_deref(),
+            Some(|tag: &Rc<Node>| is_jsdoc_type_tag(tag)),
+        ) {
+            self.parser.parse_error_at(
+                tag_name.pos(),
+                self.parser.scanner().get_token_pos().try_into().unwrap(),
+                &Diagnostics::_0_tag_already_specified,
+                Some(vec![(&*tag_name.as_identifier().escaped_text).to_owned()]),
+            );
+        }
+
+        let type_expression = self
+            .parser
+            .JSDocParser_parse_jsdoc_type_expression(Some(true));
+        let comments = match (indent, indent_text) {
+            (Some(indent), Some(indent_text)) => self.parse_trailing_tag_comments(
+                start,
+                self.parser.get_node_pos().try_into().unwrap(),
+                indent,
+                indent_text,
+            ),
+            _ => None,
+        };
+        self.parser.finish_node(
+            self.parser.factory.create_jsdoc_type_tag(
+                self.parser,
+                Some(tag_name),
+                Some(type_expression),
+                comments,
+            ),
+            start.try_into().unwrap(),
+            None,
+        )
     }
 
     pub(super) fn parse_see_tag(

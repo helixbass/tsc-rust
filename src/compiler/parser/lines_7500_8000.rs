@@ -835,7 +835,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             }
             "type" => {
                 tag = Some(
-                    self.parse_type_tag(start, tag_name, margin, &indent_text)
+                    self.parse_type_tag(start, tag_name, Some(margin), Some(&indent_text))
                         .into(),
                 );
             }
