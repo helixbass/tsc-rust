@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::borrow::Cow;
 use std::cell::{RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 use std::rc::Rc;
@@ -10,7 +11,8 @@ use crate::{
     attach_file_to_diagnostics, for_each, for_each_child_returns, is_export_assignment,
     is_export_declaration, is_external_module_reference, is_import_declaration,
     is_import_equals_declaration, is_jsdoc_like_text, is_meta_property, last_index_of, set_parent,
-    some, BaseJSDocTag, BaseNode, BaseNodeFactory, Debug_, Diagnostic, JSDoc, LanguageVariant,
+    some, BaseJSDocTag, BaseNode, BaseNodeFactory, Debug_, Diagnostic, DiagnosticMessage,
+    Identifier, JSDoc, JSDocAugmentsTag, JSDocImplementsTag, JSDocPropertyLikeTag, LanguageVariant,
     Node, NodeArray, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SourceTextAsChars,
     StringOrNodeArray, SyntaxKind,
 };
@@ -421,7 +423,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 self.remove_trailing_whitespace(&mut self.comments());
                                 if self.comments_pos.is_none() {
                                     self.comments_pos = Some(self.parser.get_node_pos());
-                                    self.add_tag(Some(self.parse_tag(indent).into()));
+                                    self.add_tag(Some(self.parse_tag(indent).wrap()));
                                     state = JSDocState::BeginningOfLine;
                                     margin = None;
                                 }
@@ -556,18 +558,326 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn remove_leading_newlines(&self, comments: &mut Vec<String>) {
-        unimplemented!()
+        while !comments.is_empty() && matches!(&*comments[0], "\n" | "\r") {
+            comments.remove(0);
+        }
     }
 
     pub(super) fn remove_trailing_whitespace(&self, comments: &mut Vec<String>) {
-        unimplemented!()
+        while !comments.is_empty() && comments[comments.len() - 1].trim() == "" {
+            comments.pop().unwrap();
+        }
     }
 
-    pub(super) fn parse_tag(&self, margin: usize) -> BaseJSDocTag {
-        unimplemented!()
+    pub(super) fn is_next_nonwhitespace_token_end_of_file(&self) -> bool {
+        loop {
+            self.parser.next_token_jsdoc();
+            if self.parser.token() == SyntaxKind::EndOfFileToken {
+                return true;
+            }
+            if !matches!(
+                self.parser.token(),
+                SyntaxKind::WhitespaceTrivia | SyntaxKind::NewLineTrivia
+            ) {
+                return false;
+            }
+        }
+    }
+
+    pub(super) fn skip_whitespace(&self) {
+        if matches!(
+            self.parser.token(),
+            SyntaxKind::WhitespaceTrivia | SyntaxKind::NewLineTrivia
+        ) {
+            if self
+                .parser
+                .look_ahead_bool(|| self.is_next_nonwhitespace_token_end_of_file())
+            {
+                return;
+            }
+        }
+        while matches!(
+            self.parser.token(),
+            SyntaxKind::WhitespaceTrivia | SyntaxKind::NewLineTrivia
+        ) {
+            self.parser.next_token_jsdoc();
+        }
+    }
+
+    pub(super) fn skip_whitespace_or_asterisk(&self) -> Cow<'static, str> {
+        if matches!(
+            self.parser.token(),
+            SyntaxKind::WhitespaceTrivia | SyntaxKind::NewLineTrivia
+        ) {
+            if self
+                .parser
+                .look_ahead_bool(|| self.is_next_nonwhitespace_token_end_of_file())
+            {
+                return "".into();
+            }
+        }
+
+        let mut preceding_line_break = self.parser.scanner().has_preceding_line_break();
+        let mut seen_line_break = false;
+        let mut indent_text = "".to_owned();
+        while preceding_line_break && self.parser.token() == SyntaxKind::AsteriskToken
+            || matches!(
+                self.parser.token(),
+                SyntaxKind::WhitespaceTrivia | SyntaxKind::NewLineTrivia
+            )
+        {
+            indent_text.push_str(&self.parser.scanner().get_token_text());
+            if self.parser.token() == SyntaxKind::NewLineTrivia {
+                preceding_line_break = true;
+                seen_line_break = true;
+                indent_text = "".to_owned();
+            } else if self.parser.token() == SyntaxKind::AsteriskToken {
+                preceding_line_break = false;
+            }
+            self.parser.next_token_jsdoc();
+        }
+        if seen_line_break {
+            indent_text.into()
+        } else {
+            "".into()
+        }
+    }
+
+    pub(super) fn parse_tag(&self, margin: usize) -> Node {
+        Debug_.assert(self.parser.token() == SyntaxKind::AtToken, None);
+        let start = self.parser.scanner().get_token_pos();
+        self.parser.next_token_jsdoc();
+
+        let tag_name: Rc<Node> = self.parse_jsdoc_identifier_name(None).into();
+        let indent_text = self.skip_whitespace_or_asterisk();
+
+        let mut tag: Option<Node> = None;
+        match &*tag_name.as_identifier().escaped_text {
+            "author" => {
+                tag = Some(
+                    self.parse_author_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+            "implements" => {
+                tag = Some(
+                    self.parse_implements_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+            "augments" | "extends" => {
+                tag = Some(
+                    self.parse_augments_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+            "class" | "constructor" => {
+                tag = Some(
+                    self.parse_simple_tag(
+                        start,
+                        |tag_name, comment| {
+                            self.parser.factory.create_jsdoc_class_tag(
+                                self.parser,
+                                tag_name,
+                                comment,
+                            )
+                        },
+                        tag_name,
+                        margin,
+                        &indent_text,
+                    )
+                    .into(),
+                );
+            }
+            "public" => {
+                tag = Some(
+                    self.parse_simple_tag(
+                        start,
+                        |tag_name, comment| {
+                            self.parser.factory.create_jsdoc_public_tag(
+                                self.parser,
+                                tag_name,
+                                comment,
+                            )
+                        },
+                        tag_name,
+                        margin,
+                        &indent_text,
+                    )
+                    .into(),
+                );
+            }
+            "private" => {
+                tag = Some(
+                    self.parse_simple_tag(
+                        start,
+                        |tag_name, comment| {
+                            self.parser.factory.create_jsdoc_private_tag(
+                                self.parser,
+                                tag_name,
+                                comment,
+                            )
+                        },
+                        tag_name,
+                        margin,
+                        &indent_text,
+                    )
+                    .into(),
+                );
+            }
+            "protected" => {
+                tag = Some(
+                    self.parse_simple_tag(
+                        start,
+                        |tag_name, comment| {
+                            self.parser.factory.create_jsdoc_protected_tag(
+                                self.parser,
+                                tag_name,
+                                comment,
+                            )
+                        },
+                        tag_name,
+                        margin,
+                        &indent_text,
+                    )
+                    .into(),
+                );
+            }
+            "readonly" => {
+                tag = Some(
+                    self.parse_simple_tag(
+                        start,
+                        |tag_name, comment| {
+                            self.parser.factory.create_jsdoc_readonly_tag(
+                                self.parser,
+                                tag_name,
+                                comment,
+                            )
+                        },
+                        tag_name,
+                        margin,
+                        &indent_text,
+                    )
+                    .into(),
+                );
+            }
+            "override" => {
+                tag = Some(
+                    self.parse_simple_tag(
+                        start,
+                        |tag_name, comment| {
+                            self.parser.factory.create_jsdoc_override_tag(
+                                self.parser,
+                                tag_name,
+                                comment,
+                            )
+                        },
+                        tag_name,
+                        margin,
+                        &indent_text,
+                    )
+                    .into(),
+                );
+            }
+            "deprecated" => {
+                self.parser.set_has_deprecated_tag(true);
+                tag = Some(
+                    self.parse_simple_tag(
+                        start,
+                        |tag_name, comment| {
+                            self.parser.factory.create_jsdoc_deprecated_tag(
+                                self.parser,
+                                tag_name,
+                                comment,
+                            )
+                        },
+                        tag_name,
+                        margin,
+                        &indent_text,
+                    )
+                    .into(),
+                );
+            }
+            "this" => {
+                tag = Some(
+                    self.parse_this_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+            "enum" => {
+                tag = Some(
+                    self.parse_enum_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+            "arg" | "argument" | "param" => {
+                tag = Some(
+                    self.parse_parameter_or_property_tag(
+                        start,
+                        tag_name,
+                        PropertyLikeParse::Parameter,
+                        margin,
+                    )
+                    .into(),
+                );
+            }
+            "return" | "returns" => {
+                tag = Some(
+                    self.parse_return_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+            "template" => {
+                tag = Some(
+                    self.parse_template_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+            "type" => {
+                tag = Some(
+                    self.parse_type_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+            "typedef" => {
+                tag = Some(
+                    self.parse_typedef_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+            "callback" => {
+                tag = Some(
+                    self.parse_callback_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+            "see" => {
+                tag = Some(
+                    self.parse_see_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+            _ => {
+                tag = Some(
+                    self.parse_unknown_tag(start, tag_name, margin, &indent_text)
+                        .into(),
+                );
+            }
+        }
+        tag.unwrap()
     }
 
     pub(super) fn parse_jsdoc_link(&self, start: usize) -> Option<Node> {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_unknown_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> BaseJSDocTag /*JSDocAuthorTag*/ {
         unimplemented!()
     }
 
@@ -575,7 +885,147 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         unimplemented!()
     }
 
+    pub(super) fn parse_parameter_or_property_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        target: PropertyLikeParse,
+        indent: usize,
+    ) -> JSDocPropertyLikeTag /*JSDocParameterTag | JSDocPropertyTag*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_return_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> BaseJSDocTag /*JSDocReturnTag*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_type_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> BaseJSDocTag /*JSDocTypeTag*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_see_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> BaseJSDocTag /*JSDocSeeTag*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_author_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> BaseJSDocTag /*JSDocAuthorTag*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_implements_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> JSDocImplementsTag {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_augments_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> JSDocAugmentsTag {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_simple_tag<
+        TCreateTag: FnOnce(Option<Rc<Node /*Identifier*/>>, Option<StringOrNodeArray>) -> BaseJSDocTag,
+    >(
+        &self,
+        start: usize,
+        create_tag: TCreateTag,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> BaseJSDocTag /*JSDocTag*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_this_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> BaseJSDocTag /*JSDocThisTag*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_enum_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> BaseJSDocTag /*JSDocEnumTag*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_typedef_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> BaseJSDocTag /*JSDocTypedefTag*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_callback_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> BaseJSDocTag /*JSDocCallbackTag*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_template_tag(
+        &self,
+        start: usize,
+        tag_name: Rc<Node /*Identifier*/>,
+        indent: usize,
+        indent_text: &str,
+    ) -> BaseJSDocTag /*JSDocTemplateTag*/ {
+        unimplemented!()
+    }
+
     pub(super) fn parse_optional_jsdoc(&self, t: SyntaxKind /*JSDocSyntaxKind*/) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn parse_jsdoc_identifier_name(
+        &self,
+        message: Option<&DiagnosticMessage>,
+    ) -> Identifier {
         unimplemented!()
     }
 }

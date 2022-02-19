@@ -23,7 +23,8 @@ use crate::{
     LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory,
     NodeInterface, Number, NumericLiteral, ParenthesizerRules, PostfixUnaryExpression,
     PrefixUnaryExpression, PrivateIdentifier, ReadonlyTextRange, RegularExpressionLiteral,
-    SignatureDeclarationInterface, StringLiteral, SyntaxKind, TokenFlags, TransformFlags,
+    SignatureDeclarationInterface, StringLiteral, StringOrNodeArray, SyntaxKind, TokenFlags,
+    TransformFlags,
 };
 
 thread_local! {
@@ -248,11 +249,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_class_tag(
+    pub fn create_jsdoc_class_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
             base_factory,
@@ -262,11 +263,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_public_tag(
+    pub fn create_jsdoc_public_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
             base_factory,
@@ -276,11 +277,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_private_tag(
+    pub fn create_jsdoc_private_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
             base_factory,
@@ -290,11 +291,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_protected_tag(
+    pub fn create_jsdoc_protected_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
             base_factory,
@@ -304,11 +305,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_readonly_tag(
+    pub fn create_jsdoc_readonly_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
             base_factory,
@@ -318,11 +319,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_override_tag(
+    pub fn create_jsdoc_override_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
             base_factory,
@@ -332,11 +333,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         )
     }
 
-    pub fn create_jsdoc_deprecated_tag(
+    pub fn create_jsdoc_deprecated_tag<TComment: Into<StringOrNodeArray>>(
         &self,
         base_factory: &TBaseNodeFactory,
         tag_name: Option<Rc<Node /*Identifier*/>>,
-        comment: Option<NodeArray /*<JSDocComment>*/>,
+        comment: Option<TComment /*<JSDocComment>*/>,
     ) -> BaseJSDocTag {
         self.create_jsdoc_simple_tag_worker(
             base_factory,
