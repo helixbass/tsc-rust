@@ -11,10 +11,9 @@ use crate::{
     attach_file_to_diagnostics, for_each, for_each_child_returns, is_export_assignment,
     is_export_declaration, is_external_module_reference, is_import_declaration,
     is_import_equals_declaration, is_jsdoc_like_text, is_meta_property, last_index_of, set_parent,
-    some, BaseJSDocTag, BaseNode, BaseNodeFactory, Debug_, Diagnostic, DiagnosticMessage,
-    Identifier, JSDoc, JSDocAugmentsTag, JSDocImplementsTag, JSDocPropertyLikeTag, LanguageVariant,
-    Node, NodeArray, NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SourceTextAsChars,
-    StringOrNodeArray, SyntaxKind,
+    some, BaseNode, BaseNodeFactory, Debug_, Diagnostic, JSDoc, LanguageVariant, Node, NodeArray,
+    NodeFlags, NodeInterface, ScriptKind, ScriptTarget, SourceTextAsChars, StringOrNodeArray,
+    SyntaxKind,
 };
 
 impl ParserType {
