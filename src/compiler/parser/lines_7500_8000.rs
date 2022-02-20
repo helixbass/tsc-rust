@@ -648,7 +648,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         let start = self.parser.scanner().get_token_pos();
         self.parser.next_token_jsdoc();
 
-        let tag_name: Rc<Node> = self.parse_jsdoc_identifier_name(None).into();
+        let tag_name: Rc<Node> = self.parse_jsdoc_identifier_name(None).wrap();
         let indent_text = self.skip_whitespace_or_asterisk();
 
         let mut tag: Option<Node> = None;

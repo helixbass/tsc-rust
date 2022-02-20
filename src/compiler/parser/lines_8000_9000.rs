@@ -4,12 +4,13 @@ use std::rc::Rc;
 use super::{ParseJSDocCommentWorker, PropertyLikeParse};
 use crate::{
     add_related_info, append, concatenate, create_detached_diagnostic, is_identifier,
-    is_jsdoc_return_tag, is_jsdoc_type_tag, is_type_reference_node, last_or_undefined, some,
-    token_is_identifier_or_keyword, BaseJSDocTag, BaseJSDocTypeLikeTag, DiagnosticMessage,
-    Diagnostics, ExpressionWithTypeArguments, Identifier, JSDocAugmentsTag, JSDocCallbackTag,
-    JSDocImplementsTag, JSDocPropertyLikeTag, JSDocSeeTag, JSDocText, JSDocTypeExpression,
-    JSDocTypedefTag, Node, NodeArray, NodeFlags, NodeInterface, ReadonlyTextRange,
-    StringOrNodeArray, SyntaxKind, TextChangeRange,
+    is_jsdoc_return_tag, is_jsdoc_type_tag, is_type_reference_node, last_or_undefined,
+    node_is_missing, some, token_is_identifier_or_keyword, BaseJSDocTag, BaseJSDocTypeLikeTag,
+    Debug_, DiagnosticMessage, Diagnostics, ExpressionWithTypeArguments, Identifier,
+    JSDocAugmentsTag, JSDocCallbackTag, JSDocImplementsTag, JSDocPropertyLikeTag, JSDocSeeTag,
+    JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypedefTag, Node, NodeArray, NodeFlags,
+    NodeInterface, ReadonlyTextRange, StringOrNodeArray, SyntaxKind, TextChangeRange,
+    TypeParameterDeclaration,
 };
 
 impl<'parser> ParseJSDocCommentWorker<'parser> {
@@ -611,9 +612,9 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     pub(super) fn parse_property_access_entity_name_expression(&self) -> Node /* Identifier | PropertyAccessEntityNameExpression */
     {
         let pos = self.parser.get_node_pos();
-        let mut node: Node = self.parse_jsdoc_identifier_name(None).into();
+        let mut node: Node = self.parse_jsdoc_identifier_name(None);
         while self.parser.parse_optional(SyntaxKind::DotToken) {
-            let name: Rc<Node> = self.parse_jsdoc_identifier_name(None).into();
+            let name: Rc<Node> = self.parse_jsdoc_identifier_name(None).wrap();
             node = self
                 .parser
                 .finish_node(
@@ -851,7 +852,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 self.parser,
                 Option::<NodeArray>::None,
                 Option::<NodeArray>::None,
-                type_name_or_namespace_name.into(),
+                type_name_or_namespace_name.wrap(),
                 body.map(Node::wrap),
                 if nested {
                     Some(NodeFlags::NestedNamespace)
@@ -867,9 +868,11 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         }
 
         if nested {
-            type_name_or_namespace_name.is_in_jsdoc_namespace = Some(true);
+            type_name_or_namespace_name
+                .as_identifier()
+                .set_is_in_jsdoc_namespace(Some(true));
         }
-        Some(type_name_or_namespace_name.into())
+        Some(type_name_or_namespace_name)
     }
 
     pub(super) fn parse_callback_tag_parameters(&self, indent: usize) -> NodeArray /*<JSDocParameterTag>*/
@@ -948,8 +951,30 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         )
     }
 
+    pub(super) fn escaped_texts_equal(
+        &self,
+        a: &Node, /*EntityName*/
+        b: &Node, /*EntityName*/
+    ) -> bool {
+        let mut a = a.node_wrapper();
+        let mut b = b.node_wrapper();
+        while !is_identifier(&a) || !is_identifier(&b) {
+            if !is_identifier(&a)
+                && !is_identifier(&b)
+                && a.as_qualified_name().right.as_identifier().escaped_text
+                    == b.as_qualified_name().right.as_identifier().escaped_text
+            {
+                a = a.as_qualified_name().left.clone();
+                b = b.as_qualified_name().left.clone();
+            } else {
+                return false;
+            }
+        }
+        a.as_identifier().escaped_text == b.as_identifier().escaped_text
+    }
+
     pub(super) fn parse_child_property_tag(&self, indent: usize) -> Option<Node> {
-        unimplemented!()
+        self.parse_child_parameter_or_property_tag(PropertyLikeParse::Property, indent, None)
     }
 
     pub(super) fn parse_child_parameter_or_property_tag(
@@ -958,7 +983,144 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         indent: usize,
         name: Option<&Node /*EntityName*/>,
     ) -> Option<Node /*JSDocTypeTag | JSDocPropertyTag | JSDocParameterTag*/> {
-        unimplemented!()
+        let mut can_parse_tag = true;
+        let mut seen_asterisk = false;
+        loop {
+            match self.parser.next_token_jsdoc() {
+                SyntaxKind::AtToken => {
+                    if can_parse_tag {
+                        let child = self.try_parse_child_tag(target, indent);
+                        if matches!(
+                            child.as_ref(),
+                            Some(child) if matches!(child.kind(), SyntaxKind::JSDocParameterTag | SyntaxKind::JSDocPropertyTag) &&
+                                target != PropertyLikeParse::CallbackParameter &&
+                                matches!(
+                                    name,
+                                    Some(name) if is_identifier(&child.as_jsdoc_property_like_tag().name) || !self.escaped_texts_equal(name, &child.as_jsdoc_property_like_tag().name.as_qualified_name().left)
+                                )
+                        ) {
+                            return None;
+                        }
+                        return child;
+                    }
+                    seen_asterisk = false;
+                }
+                SyntaxKind::NewLineTrivia => {
+                    can_parse_tag = true;
+                    seen_asterisk = false;
+                }
+                SyntaxKind::AsteriskToken => {
+                    if seen_asterisk {
+                        can_parse_tag = false;
+                    }
+                    seen_asterisk = true;
+                }
+                SyntaxKind::Identifier => {
+                    can_parse_tag = false;
+                }
+                SyntaxKind::EndOfFileToken => {
+                    return None;
+                }
+                _ => (),
+            }
+        }
+    }
+
+    pub(super) fn try_parse_child_tag(
+        &self,
+        target: PropertyLikeParse,
+        indent: usize,
+    ) -> Option<Node /*JSDocTypeTag | JSDocPropertyTag | JSDocParameterTag*/> {
+        Debug_.assert(self.parser.token() == SyntaxKind::AtToken, None);
+        let start = self.parser.scanner().get_start_pos();
+        self.parser.next_token_jsdoc();
+
+        let tag_name = self.parse_jsdoc_identifier_name(None);
+        self.skip_whitespace();
+        let t: PropertyLikeParse;
+        match &*tag_name.as_identifier().escaped_text {
+            "type" => {
+                return if target == PropertyLikeParse::Property {
+                    Some(
+                        self.parse_type_tag(start, tag_name.wrap(), None, None)
+                            .into(),
+                    )
+                } else {
+                    None
+                };
+            }
+            "prop" | "property" => {
+                t = PropertyLikeParse::Property;
+            }
+            "arg" | "argument" | "param" => {
+                t = PropertyLikeParse::Parameter | PropertyLikeParse::CallbackParameter;
+            }
+            _ => {
+                return None;
+            }
+        }
+        if !target.intersects(t) {
+            return None;
+        }
+        Some(
+            self.parse_parameter_or_property_tag(start, tag_name.wrap(), target, indent)
+                .into(),
+        )
+    }
+
+    pub(super) fn parse_template_tag_type_parameter(&self) -> Option<TypeParameterDeclaration> {
+        let type_parameter_pos = self.parser.get_node_pos();
+        let is_bracketed = self.parse_optional_jsdoc(SyntaxKind::OpenBracketToken);
+        if is_bracketed {
+            self.skip_whitespace();
+        }
+        let name: Rc<Node> = self.parse_jsdoc_identifier_name(Some(
+            &Diagnostics::Unexpected_token_A_type_parameter_name_was_expected_without_curly_braces,
+        )).wrap();
+
+        let mut default_type: Option<Rc<Node /*TypeNode*/>> = None;
+        if is_bracketed {
+            self.skip_whitespace();
+            self.parser
+                .parse_expected(SyntaxKind::EqualsToken, None, None);
+            default_type = Some(
+                self.parser
+                    .do_inside_of_context(NodeFlags::JSDoc, || self.parser.parse_jsdoc_type()),
+            );
+            self.parser
+                .parse_expected(SyntaxKind::CloseBracketToken, None, None);
+        }
+
+        if node_is_missing(Some(&*name)) {
+            return None;
+        }
+        Some(self.parser.finish_node(
+            self.parser.factory.create_type_parameter_declaration(
+                self.parser,
+                name,
+                None,
+                default_type,
+            ),
+            type_parameter_pos,
+            None,
+        ))
+    }
+
+    pub(super) fn parse_template_tag_type_parameters(&self) -> NodeArray /*<TypeParameterDeclaration>*/
+    {
+        let pos = self.parser.get_node_pos();
+        let mut type_parameters: Vec<Rc<Node>> = vec![];
+        while {
+            self.skip_whitespace();
+            let node: Option<Rc<Node>> = self.parse_template_tag_type_parameter().map(Into::into);
+            if let Some(node) = node {
+                type_parameters.push(node);
+            }
+            self.skip_whitespace_or_asterisk();
+            self.parse_optional_jsdoc(SyntaxKind::CommaToken)
+        } {}
+        self.parser
+            .create_node_array(type_parameters, pos, None, None)
     }
 
     pub(super) fn parse_template_tag(
@@ -967,16 +1129,41 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
         indent_text: &str,
-    ) -> BaseJSDocTag /*JSDocTemplateTag*/ {
-        unimplemented!()
+    ) -> JSDocTemplateTag {
+        let constraint: Option<Rc<Node>> = if self.parser.token() == SyntaxKind::OpenBraceToken {
+            Some(self.parser.JSDocParser_parse_jsdoc_type_expression(None))
+        } else {
+            None
+        };
+        let type_parameters = self.parse_template_tag_type_parameters();
+        self.parser.finish_node(
+            self.parser.factory.create_jsdoc_template_tag(
+                self.parser,
+                Some(tag_name),
+                constraint,
+                type_parameters,
+                self.parse_trailing_tag_comments(
+                    start,
+                    self.parser.get_node_pos().try_into().unwrap(),
+                    indent,
+                    indent_text,
+                ),
+            ),
+            start.try_into().unwrap(),
+            None,
+        )
     }
 
     pub(super) fn parse_optional_jsdoc(&self, t: SyntaxKind /*JSDocSyntaxKind*/) -> bool {
-        unimplemented!()
+        if self.parser.token() == t {
+            self.parser.next_token_jsdoc();
+            return true;
+        }
+        false
     }
 
     pub(super) fn parse_jsdoc_entity_name(&self) -> Node /*EntityName*/ {
-        let mut entity: Node /*EntityName*/ = self.parse_jsdoc_identifier_name(None).into();
+        let mut entity: Node /*EntityName*/ = self.parse_jsdoc_identifier_name(None);
         if self.parser.parse_optional(SyntaxKind::OpenBracketToken) {
             self.parser
                 .parse_expected(SyntaxKind::CloseBracketToken, None, None);
@@ -989,17 +1176,44 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             }
             entity = self
                 .parser
-                .create_qualified_name(entity.wrap(), name.into())
+                .create_qualified_name(entity.wrap(), name.wrap())
                 .into();
         }
         entity
     }
 
-    pub(super) fn parse_jsdoc_identifier_name(
-        &self,
-        message: Option<&DiagnosticMessage>,
-    ) -> Identifier {
-        unimplemented!()
+    pub(super) fn parse_jsdoc_identifier_name(&self, message: Option<&DiagnosticMessage>) -> Node {
+        if !token_is_identifier_or_keyword(self.parser.token()) {
+            return self.parser.create_missing_node(
+                SyntaxKind::Identifier,
+                message.is_none(),
+                Some(message.unwrap_or(&Diagnostics::Identifier_expected)),
+                None,
+            );
+        }
+
+        self.parser.increment_identifier_count();
+        let pos = self.parser.scanner().get_token_pos();
+        let end = self.parser.scanner().get_text_pos();
+        let original_keyword_kind = self.parser.token();
+        let text = self
+            .parser
+            .intern_identifier(&self.parser.scanner().get_token_value());
+        let result: Node = self
+            .parser
+            .finish_node(
+                self.parser.factory.create_identifier(
+                    self.parser,
+                    &text,
+                    Option::<NodeArray>::None,
+                    Some(original_keyword_kind),
+                ),
+                pos.try_into().unwrap(),
+                Some(end.try_into().unwrap()),
+            )
+            .into();
+        self.parser.next_token_jsdoc();
+        result
     }
 }
 

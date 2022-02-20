@@ -195,7 +195,7 @@ pub struct Identifier {
     pub original_keyword_kind: Option<SyntaxKind>,
     pub(crate) auto_generate_flags: Option<GeneratedIdentifierFlags>,
     pub(crate) auto_generate_id: Option<usize>,
-    pub is_in_jsdoc_namespace: Option<bool>,
+    is_in_jsdoc_namespace: Cell<Option<bool>>,
     pub(crate) type_arguments: Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>,
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
@@ -208,7 +208,7 @@ impl Identifier {
             original_keyword_kind: None,
             auto_generate_flags: None,
             auto_generate_id: None,
-            is_in_jsdoc_namespace: None,
+            is_in_jsdoc_namespace: Cell::new(None),
             type_arguments: None,
             jsdoc_dot_pos: Cell::new(None),
         }
@@ -216,6 +216,14 @@ impl Identifier {
 
     pub fn maybe_auto_generate_flags(&self) -> Option<GeneratedIdentifierFlags> {
         self.auto_generate_flags.clone()
+    }
+
+    pub fn maybe_is_in_jsdoc_namespace(&self) -> Option<bool> {
+        self.is_in_jsdoc_namespace.get()
+    }
+
+    pub fn set_is_in_jsdoc_namespace(&self, is_in_jsdoc_namespace: Option<bool>) {
+        self.is_in_jsdoc_namespace.set(is_in_jsdoc_namespace);
     }
 }
 
