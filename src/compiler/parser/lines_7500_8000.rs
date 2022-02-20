@@ -543,7 +543,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn push_comment(
-        &mut self,
+        &self,
         mut margin: Option<usize>,
         mut indent: usize,
         text: String,
@@ -853,7 +853,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             }
             "see" => {
                 tag = Some(
-                    self.parse_see_tag(start, tag_name, margin, &indent_text)
+                    self.parse_see_tag(start, tag_name, Some(margin), Some(&indent_text))
                         .into(),
                 );
             }
@@ -868,7 +868,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_trailing_tag_comments(
-        &mut self,
+        &self,
         pos: usize,
         end: usize,
         mut margin: usize,
@@ -881,7 +881,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_tag_comments(
-        &mut self,
+        &self,
         mut indent: usize,
         initial_margin: Option<String>,
     ) -> Option<StringOrNodeArray> {
