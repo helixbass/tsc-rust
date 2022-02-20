@@ -3,16 +3,164 @@
 use bitflags::bitflags;
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    Symbol, SymbolTable, SyntaxKind, __String, append_if_unique, create_symbol_table, for_each,
-    for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
-    is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
-    is_function_like, is_property_name_literal, object_allocator, set_parent,
-    set_value_declaration, BaseSymbol, ExpressionStatement, IfStatement, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
+    for_each_child_returns, get_node_id, has_syntactic_modifier, is_enum_const,
+    set_parent_recursive, FlowNode, ModifierFlags, NodeId, Symbol, SymbolTable, SyntaxKind,
+    __String, append_if_unique, create_symbol_table, for_each, for_each_child,
+    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, is_binding_pattern,
+    is_block_or_catch_scoped, is_class_static_block_declaration, is_function_like,
+    is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
+    ExpressionStatement, IfStatement, InternalSymbolName, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum ModuleInstanceState {
+    NonInstantiated = 0,
+    Instantiated = 1,
+    ConstEnumOnly = 2,
+}
+
+#[derive(Debug)]
+pub(super) struct ActiveLabel {
+    pub next: Option<Rc<ActiveLabel>>,
+    pub name: __String,
+    pub break_target: Rc<FlowNode /*FlowLabel*/>,
+    pub continue_target: Option<Rc<FlowNode /*FlowLabel*/>>,
+    pub referenced: bool,
+}
+
+pub fn get_module_instance_state(
+    node: &Node, /*ModuleDeclaration*/
+    visited: Option<Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>>,
+) -> ModuleInstanceState {
+    let node_as_module_declaration = node.as_module_declaration();
+    if let Some(node_body) = node_as_module_declaration.body.as_ref() {
+        if node_body.maybe_parent().is_none() {
+            set_parent(node_body, Some(node.node_wrapper()));
+            set_parent_recursive(Some(&**node_body), false);
+        }
+    }
+    if let Some(node_body) = node_as_module_declaration.body.as_ref() {
+        get_module_instance_state_cached(node_body, visited)
+    } else {
+        ModuleInstanceState::Instantiated
+    }
+}
+
+pub fn get_module_instance_state_cached(
+    node: &Node, /*ModuleDeclaration*/
+    visited: Option<Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>>,
+) -> ModuleInstanceState {
+    let visited = visited.unwrap_or_else(|| Rc::new(RefCell::new(HashMap::new())));
+    let node_id = get_node_id(node);
+    {
+        let visited = (*visited).borrow();
+        if visited.contains_key(&node_id) {
+            return visited
+                .get(&node_id)
+                .unwrap()
+                .unwrap_or(ModuleInstanceState::NonInstantiated);
+        }
+    }
+    visited.borrow_mut().insert(node_id, None);
+    let result = get_module_instance_state_worker(node, visited.clone());
+    visited.borrow_mut().insert(node_id, Some(result));
+    result
+}
+
+fn get_module_instance_state_worker(
+    node: &Node, /*ModuleDeclaration*/
+    visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
+) -> ModuleInstanceState {
+    match node.kind() {
+        SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeAliasDeclaration => {
+            return ModuleInstanceState::NonInstantiated;
+        }
+        SyntaxKind::EnumDeclaration => {
+            if is_enum_const(node) {
+                return ModuleInstanceState::ConstEnumOnly;
+            }
+        }
+        SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration => {
+            if !has_syntactic_modifier(node, ModifierFlags::Export) {
+                return ModuleInstanceState::NonInstantiated;
+            }
+        }
+        SyntaxKind::ExportDeclaration => {
+            let export_declaration = node.as_export_declaration();
+            if export_declaration.module_specifier.is_none()
+                && matches!(export_declaration.export_clause.as_ref(), Some(export_clause) if export_clause.kind() == SyntaxKind::NamedExports)
+            {
+                let mut state = ModuleInstanceState::NonInstantiated;
+                for specifier in &export_declaration
+                    .export_clause
+                    .as_ref()
+                    .unwrap()
+                    .as_named_exports()
+                    .elements
+                {
+                    let specifier_state =
+                        get_module_instance_state_for_alias_target(specifier, visited.clone());
+                    if specifier_state > state {
+                        state = specifier_state;
+                    }
+                    if state == ModuleInstanceState::Instantiated {
+                        return state;
+                    }
+                }
+                return state;
+            }
+        }
+        SyntaxKind::ModuleBlock => {
+            let mut state = ModuleInstanceState::NonInstantiated;
+            for_each_child_returns(
+                node,
+                |n| {
+                    let child_state = get_module_instance_state_cached(n, Some(visited.clone()));
+                    match child_state {
+                        ModuleInstanceState::NonInstantiated => {
+                            return None;
+                        }
+                        ModuleInstanceState::ConstEnumOnly => {
+                            state = ModuleInstanceState::ConstEnumOnly;
+                            return None;
+                        }
+                        ModuleInstanceState::Instantiated => {
+                            state = ModuleInstanceState::Instantiated;
+                            return Some(());
+                        } // _ => Debug_.assert_never(child_state)
+                    }
+                },
+                Option::<fn(&NodeArray) -> Option<()>>::None,
+            );
+            return state;
+        }
+        SyntaxKind::ModuleDeclaration => {
+            return get_module_instance_state(node, Some(visited));
+        }
+        SyntaxKind::Identifier => {
+            if matches!(
+                node.as_identifier().maybe_is_in_jsdoc_namespace(),
+                Some(true)
+            ) {
+                return ModuleInstanceState::NonInstantiated;
+            }
+        }
+        _ => (),
+    }
+    ModuleInstanceState::Instantiated
+}
+
+fn get_module_instance_state_for_alias_target(
+    specifier: &Node, /*ExportSpecifier*/
+    visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
+) -> ModuleInstanceState {
+    unimplemented!()
+}
 
 bitflags! {
     struct ContainerFlags: u32 {

@@ -7,7 +7,7 @@ mod rust_helpers;
 
 pub use compiler::binder::bind_source_file;
 pub use compiler::builder::ProgramBuildInfo;
-pub use compiler::checker::{create_type_checker, get_symbol_id, NodeBuilder};
+pub use compiler::checker::{create_type_checker, get_node_id, get_symbol_id, NodeBuilder};
 use compiler::command_line_parser::{
     convert_to_object_worker, module_resolution_option_declarations,
     options_affecting_program_structure,
@@ -286,7 +286,7 @@ pub use compiler::utilities::{
     is_access_expression, is_ambient_module, is_any_import_or_re_export, is_assignment_expression,
     is_assignment_operator, is_bindable_static_access_expression,
     is_bindable_static_element_access_expression, is_block_or_catch_scoped, is_dynamic_name,
-    is_effective_module_declaration, is_entity_name_expression,
+    is_effective_module_declaration, is_entity_name_expression, is_enum_const,
     is_expression_with_type_arguments_in_class_extends_clause, is_external_or_common_js_module,
     is_function_block, is_function_expression_or_arrow_function, is_import_call, is_in_js_file,
     is_in_jsdoc, is_jsdoc_type_alias, is_json_source_file, is_keyword, is_literal_import_type_node,

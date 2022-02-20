@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use bitflags::bitflags;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -1025,4 +1026,238 @@ impl JSDocTypeLiteral {
     }
 }
 
-pub type FlowNode = ();
+bitflags! {
+    pub struct FlowFlags: u32 {
+        const None = 0;
+        const Unreachable = 1 << 0;
+        const Start = 1 << 1;
+        const BranchLabel = 1 << 2;
+        const LoopLabel = 1 << 3;
+        const Assignment = 1 << 4;
+        const TrueCondition = 1 << 5;
+        const FalseCondition = 1 << 6;
+        const SwitchClause = 1 << 7;
+        const ArrayMutation = 1 << 8;
+        const Call = 1 << 9;
+        const ReduceLabel = 1 << 10;
+        const Referenced = 1 << 11;
+        const Shared = 1 << 12;
+
+        const Label = Self::BranchLabel.bits | Self::LoopLabel.bits;
+        const Condition = Self::TrueCondition.bits | Self::FalseCondition.bits;
+    }
+}
+
+#[derive(Debug)]
+pub enum FlowNode {
+    FlowStart(FlowStart),
+    FlowLabel(FlowLabel),
+    FlowAssignment(FlowAssignment),
+    FlowCall(FlowCall),
+    FlowCondition(FlowCondition),
+    FlowSwitchClause(FlowSwitchClause),
+    FlowArrayMutation(FlowArrayMutation),
+    FlowReduceLabel(FlowReduceLabel),
+}
+
+pub trait FlowNodeBase {
+    fn flags(&self) -> FlowFlags;
+    fn id(&self) -> Option<usize>;
+}
+
+#[derive(Debug)]
+pub struct FlowStart {
+    flags: FlowFlags,
+    id: Option<usize>,
+    pub node: Option<
+        Rc<
+            Node, /*FunctionExpression | ArrowFunction | MethodDeclaration | GetAccessorDeclaration | SetAccessorDeclaration*/
+        >,
+    >,
+}
+
+impl FlowNodeBase for FlowStart {
+    fn flags(&self) -> FlowFlags {
+        self.flags
+    }
+
+    fn id(&self) -> Option<usize> {
+        self.id
+    }
+}
+
+impl From<FlowStart> for FlowNode {
+    fn from(value: FlowStart) -> Self {
+        Self::FlowStart(value)
+    }
+}
+
+#[derive(Debug)]
+pub struct FlowLabel {
+    flags: FlowFlags,
+    id: Option<usize>,
+    pub antecedents: Option<Vec<Rc<FlowNode>>>,
+}
+
+impl FlowNodeBase for FlowLabel {
+    fn flags(&self) -> FlowFlags {
+        self.flags
+    }
+
+    fn id(&self) -> Option<usize> {
+        self.id
+    }
+}
+
+impl From<FlowLabel> for FlowNode {
+    fn from(value: FlowLabel) -> Self {
+        Self::FlowLabel(value)
+    }
+}
+
+#[derive(Debug)]
+pub struct FlowAssignment {
+    flags: FlowFlags,
+    id: Option<usize>,
+    pub node: Rc<Node /*Expression | VariableDeclaration | BindingElement*/>,
+    pub antecedent: Rc<FlowNode>,
+}
+
+impl FlowNodeBase for FlowAssignment {
+    fn flags(&self) -> FlowFlags {
+        self.flags
+    }
+
+    fn id(&self) -> Option<usize> {
+        self.id
+    }
+}
+
+impl From<FlowAssignment> for FlowNode {
+    fn from(value: FlowAssignment) -> Self {
+        Self::FlowAssignment(value)
+    }
+}
+
+#[derive(Debug)]
+pub struct FlowCall {
+    flags: FlowFlags,
+    id: Option<usize>,
+    pub node: Rc<Node /*CallExpression*/>,
+    pub antecedent: Rc<FlowNode>,
+}
+
+impl FlowNodeBase for FlowCall {
+    fn flags(&self) -> FlowFlags {
+        self.flags
+    }
+
+    fn id(&self) -> Option<usize> {
+        self.id
+    }
+}
+
+impl From<FlowCall> for FlowNode {
+    fn from(value: FlowCall) -> Self {
+        Self::FlowCall(value)
+    }
+}
+
+#[derive(Debug)]
+pub struct FlowCondition {
+    flags: FlowFlags,
+    id: Option<usize>,
+    pub node: Rc<Node /*Expression*/>,
+    pub antecedent: Rc<FlowNode>,
+}
+
+impl FlowNodeBase for FlowCondition {
+    fn flags(&self) -> FlowFlags {
+        self.flags
+    }
+
+    fn id(&self) -> Option<usize> {
+        self.id
+    }
+}
+
+impl From<FlowCondition> for FlowNode {
+    fn from(value: FlowCondition) -> Self {
+        Self::FlowCondition(value)
+    }
+}
+
+#[derive(Debug)]
+pub struct FlowSwitchClause {
+    flags: FlowFlags,
+    id: Option<usize>,
+    pub switch_statement: Rc<Node /*SwitchStatement*/>,
+    pub clause_start: usize,
+    pub clause_end: usize,
+    pub antecedent: Rc<FlowNode>,
+}
+
+impl FlowNodeBase for FlowSwitchClause {
+    fn flags(&self) -> FlowFlags {
+        self.flags
+    }
+
+    fn id(&self) -> Option<usize> {
+        self.id
+    }
+}
+
+impl From<FlowSwitchClause> for FlowNode {
+    fn from(value: FlowSwitchClause) -> Self {
+        Self::FlowSwitchClause(value)
+    }
+}
+
+#[derive(Debug)]
+pub struct FlowArrayMutation {
+    flags: FlowFlags,
+    id: Option<usize>,
+    pub node: Rc<Node /*CallExpression | BinaryExpression*/>,
+    pub antecedent: Rc<FlowNode>,
+}
+
+impl FlowNodeBase for FlowArrayMutation {
+    fn flags(&self) -> FlowFlags {
+        self.flags
+    }
+
+    fn id(&self) -> Option<usize> {
+        self.id
+    }
+}
+
+impl From<FlowArrayMutation> for FlowNode {
+    fn from(value: FlowArrayMutation) -> Self {
+        Self::FlowArrayMutation(value)
+    }
+}
+
+#[derive(Debug)]
+pub struct FlowReduceLabel {
+    flags: FlowFlags,
+    id: Option<usize>,
+    pub target: Rc<FlowNode /*FlowLabel*/>,
+    pub antecedents: Vec<Rc<FlowNode>>,
+    pub antecedent: Rc<FlowNode>,
+}
+
+impl FlowNodeBase for FlowReduceLabel {
+    fn flags(&self) -> FlowFlags {
+        self.flags
+    }
+
+    fn id(&self) -> Option<usize> {
+        self.id
+    }
+}
+
+impl From<FlowReduceLabel> for FlowNode {
+    fn from(value: FlowReduceLabel) -> Self {
+        Self::FlowReduceLabel(value)
+    }
+}

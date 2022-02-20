@@ -1019,6 +1019,10 @@ impl Node {
     pub fn as_base_jsdoc_type_like_tag(&self) -> &BaseJSDocTypeLikeTag {
         enum_unwrapped!(self, [Node, BaseJSDocTypeLikeTag])
     }
+
+    pub fn as_named_exports(&self) -> &NamedExports {
+        enum_unwrapped!(self, [Node, NamedExports])
+    }
 }
 
 #[derive(Debug)]
