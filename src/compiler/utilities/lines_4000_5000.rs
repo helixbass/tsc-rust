@@ -1,14 +1,16 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
     compute_line_starts, flat_map, get_jsdoc_tags, is_binary_expression, is_jsdoc_signature,
     is_jsdoc_template_tag, is_jsdoc_type_alias, is_left_hand_side_expression,
     is_property_access_entity_name_expression, is_white_space_like, last,
-    str_to_source_text_as_chars, CharacterCodes, EmitTextWriter, ModifierFlags, Node, NodeArray,
-    NodeFlags, NodeInterface, Symbol, SymbolTracker, SymbolWriter, SyntaxKind,
+    str_to_source_text_as_chars, string_contains, CharacterCodes, EmitTextWriter, ModifierFlags,
+    Node, NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolTracker, SymbolWriter,
+    SyntaxKind,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -18,12 +20,30 @@ pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
     )
 }
 
+pub fn is_intrinsic_jsx_name(name: &str) -> bool {
+    let ch = name.chars().next();
+    matches!(ch, Some(ch) if ch >= CharacterCodes::a && ch <= CharacterCodes::z)
+        || string_contains(name, "-")
+        || string_contains(name, ":")
+}
+
 thread_local! {
-    static indent_strings: Vec<&'static str> = vec!["", "    "];
+    static indent_strings: RefCell<Vec<String>> = RefCell::new(vec!["".to_owned(), "    ".to_owned()]);
+}
+pub fn get_indent_string(level: usize) -> String {
+    indent_strings.with(|indent_strings_| {
+        let mut indent_strings_ = indent_strings_.borrow_mut();
+        let single_level = indent_strings_[1].clone();
+        for current in indent_strings_.len()..=level {
+            let prev = indent_strings_[current - 1].clone();
+            indent_strings_.push(format!("{}{}", prev, single_level));
+        }
+        indent_strings_[level].clone()
+    })
 }
 
 pub fn get_indent_size() -> usize {
-    indent_strings.with(|indent_strings_| indent_strings_[1].len())
+    indent_strings.with(|indent_strings_| indent_strings_.borrow()[1].len())
 }
 
 #[derive(Clone)]
@@ -35,6 +55,7 @@ pub struct TextWriter {
     line_count: usize,
     line_pos: usize,
     has_trailing_comment: bool,
+    output_as_chars: Vec<char>,
 }
 
 impl TextWriter {
@@ -47,27 +68,37 @@ impl TextWriter {
             line_count: 0,
             line_pos: 0,
             has_trailing_comment: false,
+            output_as_chars: vec![],
         }
     }
 
     fn push_output(&mut self, str: &str) {
         self.output.push_str(str);
+        self.output_as_chars
+            .append(&mut str.chars().collect::<Vec<_>>());
     }
 
     fn update_line_count_and_pos_for(&mut self, s: &str) {
-        let line_starts_of_s = compute_line_starts(&str_to_source_text_as_chars(s));
+        let s_as_chars = str_to_source_text_as_chars(s);
+        let line_starts_of_s = compute_line_starts(&s_as_chars);
         if line_starts_of_s.len() > 1 {
             self.line_count = self.line_count + line_starts_of_s.len() - 1;
-            self.line_pos = self.output.len() - s.len() + last(&line_starts_of_s);
-            self.line_start = (self.line_pos - self.output.len()) == 0;
+            self.line_pos = self.output_as_chars.len() - s_as_chars.len() + last(&line_starts_of_s);
+            self.line_start = (self.line_pos - self.output_as_chars.len()) == 0;
         } else {
             self.line_start = false;
         }
     }
 
     fn write_text(&mut self, s: &str) {
+        let mut s = s.to_owned();
         if !s.is_empty() {
-            self.push_output(s);
+            if self.line_start {
+                s = format!("{}{}", get_indent_string(self.indent), s);
+                self.line_start = false;
+            }
+            self.push_output(&s);
+            self.update_line_count_and_pos_for(&s);
         }
     }
 
@@ -78,11 +109,23 @@ impl TextWriter {
         self.line_count = 0;
         self.line_pos = 0;
         self.has_trailing_comment = false;
+        self.output_as_chars = vec![];
+    }
+
+    fn get_text_pos_with_write_line(&self) -> Option<usize> {
+        Some(if self.line_start {
+            self.output_as_chars.len()
+        } else {
+            self.output_as_chars.len() + self.new_line.len()
+        })
     }
 }
 
 impl EmitTextWriter for TextWriter {
     fn write(&mut self, s: &str) {
+        if !s.is_empty() {
+            self.has_trailing_comment = false;
+        }
         self.write_text(s);
     }
 
@@ -118,7 +161,7 @@ impl EmitTextWriter for TextWriter {
     }
 
     fn get_text_pos(&self) -> usize {
-        self.output.len()
+        self.output_as_chars.len()
     }
 
     fn get_line(&self) -> usize {
@@ -129,7 +172,7 @@ impl EmitTextWriter for TextWriter {
         if self.line_start {
             self.indent * get_indent_size()
         } else {
-            self.output.len() - self.line_pos
+            self.output_as_chars.len() - self.line_pos
         }
     }
 
@@ -146,7 +189,8 @@ impl EmitTextWriter for TextWriter {
     }
 
     fn has_trailing_whitespace(&self) -> bool {
-        !self.output.is_empty() && is_white_space_like(self.output.chars().last().unwrap())
+        !self.output.is_empty()
+            && is_white_space_like(self.output_as_chars[self.output_as_chars.len() - 1])
     }
 }
 
@@ -156,6 +200,7 @@ impl SymbolWriter for TextWriter {
         if !self.line_start || force {
             self.push_output(&self.new_line.clone());
             self.line_count += 1;
+            self.line_pos = self.output_as_chars.len();
             self.line_start = true;
             self.has_trailing_comment = false;
         }
@@ -206,7 +251,16 @@ impl SymbolWriter for TextWriter {
     }
 }
 
-impl SymbolTracker for TextWriter {}
+impl SymbolTracker for TextWriter {
+    fn track_symbol(
+        &mut self,
+        _symbol: &Symbol,
+        _enclosing_declaration: Option<Rc<Node>>,
+        _meaning: SymbolFlags,
+    ) -> Option<bool> {
+        Some(false)
+    }
+}
 
 pub fn create_text_writer(new_line: &str) -> TextWriter {
     TextWriter::new(new_line)
