@@ -97,7 +97,10 @@ pub struct TextChangeRange {
 
 #[derive(Debug)]
 pub struct DiagnosticCollection {
-    pub file_diagnostics: HashMap<String, SortedArray<Rc<Diagnostic>>>,
+    pub non_file_diagnostics: SortedArray<Rc<Diagnostic>>,
+    pub files_with_diagnostics: SortedArray<String>,
+    pub file_diagnostics: HashMap<String, SortedArray<Rc<Diagnostic /*DiagnosticWithLocation*/>>>,
+    pub has_read_non_file_diagnostics: bool,
 }
 
 #[derive(Debug)]

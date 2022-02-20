@@ -59,7 +59,7 @@ impl TypeChecker {
 
         let semantic_diagnostics = self
             .diagnostics()
-            .get_diagnostics(&*source_file.file_name());
+            .get_diagnostics(Some(&source_file.file_name()));
 
         semantic_diagnostics
     }

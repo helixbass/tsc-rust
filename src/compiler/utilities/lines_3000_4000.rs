@@ -5,23 +5,26 @@ use regex::Regex;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::ops::Deref;
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    compare_diagnostics, concatenate, filter, get_assignment_declaration_kind,
-    get_jsdoc_augments_tag, get_jsdoc_implements_tags, get_parse_tree_node, get_symbol_id,
-    has_syntactic_modifier, id_text, is_binary_expression, is_class_expression, is_class_like,
-    is_declaration, is_element_access_expression, is_entity_name_expression, is_export_assignment,
-    is_in_js_file, is_interface_declaration, is_no_substituion_template_literal,
-    is_numeric_literal, is_prefix_unary_expression, is_property_access_expression, is_source_file,
-    is_string_literal_like, position_is_synthesized, single_element_array, skip_parentheses, some,
-    starts_with, string_to_token, token_to_string, AssignmentDeclarationKind, Debug_,
-    InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, ReadonlyTextRange, SortedArray, Symbol, SymbolInterface, SyntaxKind,
-    TokenFlags, __String, escape_leading_underscores, get_name_of_declaration, insert_sorted,
-    is_member_name, Diagnostic, DiagnosticCollection, DiagnosticRelatedInformationInterface,
+    binary_search, compare_diagnostics, compare_diagnostics_skip_related_information,
+    compare_strings_case_sensitive, concatenate, filter, flat_map_to_mutable,
+    get_assignment_declaration_kind, get_jsdoc_augments_tag, get_jsdoc_implements_tags,
+    get_parse_tree_node, get_symbol_id, has_syntactic_modifier, id_text, is_binary_expression,
+    is_class_expression, is_class_like, is_declaration, is_element_access_expression,
+    is_entity_name_expression, is_export_assignment, is_in_js_file, is_interface_declaration,
+    is_no_substituion_template_literal, is_numeric_literal, is_prefix_unary_expression,
+    is_property_access_expression, is_source_file, is_string_literal_like, position_is_synthesized,
+    single_element_array, skip_parentheses, some, starts_with, string_to_token, token_to_string,
+    AssignmentDeclarationKind, Debug_, InterfaceOrClassLikeDeclarationInterface, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ReadonlyTextRange, SortedArray,
+    Symbol, SymbolInterface, SyntaxKind, TokenFlags, __String, escape_leading_underscores,
+    get_name_of_declaration, insert_sorted, is_member_name, Diagnostic, DiagnosticCollection,
+    DiagnosticRelatedInformationInterface,
 };
 
 pub fn is_literal_computed_property_name_declaration_name(node: &Node) -> bool {
@@ -790,52 +793,104 @@ pub fn create_diagnostic_collection() -> DiagnosticCollection {
 impl DiagnosticCollection {
     pub fn new() -> Self {
         DiagnosticCollection {
+            non_file_diagnostics: SortedArray::<Rc<Diagnostic>>::new(vec![]),
+            files_with_diagnostics: SortedArray::<String>::new(vec![]),
             file_diagnostics: HashMap::<String, SortedArray<Rc<Diagnostic>>>::new(),
+            has_read_non_file_diagnostics: false,
         }
+    }
+
+    pub fn lookup(&self, diagnostic: Rc<Diagnostic>) -> Option<Rc<Diagnostic>> {
+        let mut diagnostics: Option<&SortedArray<Rc<Diagnostic>>> = None;
+        if let Some(diagnostic_file) = diagnostic.maybe_file() {
+            diagnostics = self
+                .file_diagnostics
+                .get(&*diagnostic_file.as_source_file().file_name());
+        } else {
+            diagnostics = Some(&self.non_file_diagnostics);
+        }
+        let diagnostics = diagnostics?;
+        let result = binary_search(
+            diagnostics,
+            &diagnostic,
+            |diagnostic, _| diagnostic,
+            |a, b| compare_diagnostics_skip_related_information(&**a, &**b),
+            None,
+        );
+        if result >= 0 {
+            return Some(diagnostics[usize::try_from(result).unwrap()].clone());
+        }
+        None
     }
 
     pub fn add(&mut self, diagnostic: Rc<Diagnostic>) {
-        if let Some(diagnostics) = self
-            .file_diagnostics
-            .get_mut(&*diagnostic.file().unwrap().as_source_file().file_name())
-        {
+        if let Some(diagnostic_file) = diagnostic.maybe_file() {
+            let diagnostic_file_as_source_file = diagnostic_file.as_source_file();
+            if self
+                .file_diagnostics
+                .get(&*diagnostic_file_as_source_file.file_name())
+                .is_none()
+            {
+                let diagnostics = SortedArray::new(vec![]);
+                self.file_diagnostics.insert(
+                    diagnostic_file_as_source_file.file_name().clone(),
+                    diagnostics,
+                );
+                insert_sorted(
+                    &mut self.files_with_diagnostics,
+                    diagnostic_file_as_source_file.file_name().clone(),
+                    |a: &String, b: &String| compare_strings_case_sensitive(a, b),
+                );
+            }
+            let diagnostics = self
+                .file_diagnostics
+                .get_mut(&*diagnostic_file_as_source_file.file_name())
+                .unwrap();
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |rc_diagnostic_a: &Rc<Diagnostic>, rc_diagnostic_b: &Rc<Diagnostic>| {
-                    compare_diagnostics(&**rc_diagnostic_a, &**rc_diagnostic_b)
-                },
+                |a: &Rc<Diagnostic>, b: &Rc<Diagnostic>| compare_diagnostics(&**a, &**b),
             );
-            return;
+        } else {
+            if self.has_read_non_file_diagnostics {
+                self.has_read_non_file_diagnostics = false;
+                self.non_file_diagnostics = SortedArray::new(vec![]);
+            }
+
+            let diagnostics = &mut self.non_file_diagnostics;
+            insert_sorted(
+                diagnostics,
+                diagnostic,
+                |a: &Rc<Diagnostic>, b: &Rc<Diagnostic>| compare_diagnostics(&**a, &**b),
+            );
         }
-        let diagnostics: SortedArray<Rc<Diagnostic>> = SortedArray::new(vec![]);
-        self.file_diagnostics.insert(
-            diagnostic
-                .file()
-                .unwrap()
-                .as_source_file()
-                .file_name()
-                .to_string(),
-            diagnostics,
-        );
-        let diagnostics = self
-            .file_diagnostics
-            .get_mut(&*diagnostic.file().unwrap().as_source_file().file_name())
-            .unwrap();
-        insert_sorted(
-            diagnostics,
-            diagnostic,
-            |rc_diagnostic_a: &Rc<Diagnostic>, rc_diagnostic_b: &Rc<Diagnostic>| {
-                compare_diagnostics(&**rc_diagnostic_a, &**rc_diagnostic_b)
-            },
-        );
     }
 
-    pub fn get_diagnostics(&self, file_name: &str) -> Vec<Rc<Diagnostic>> {
-        self.file_diagnostics
-            .get(file_name)
-            .map(|sorted_array| sorted_array.into())
-            .unwrap_or(vec![])
+    pub fn get_global_diagnostics(&mut self) -> Vec<Rc<Diagnostic>> {
+        self.has_read_non_file_diagnostics = true;
+        self.non_file_diagnostics.to_vec()
+    }
+
+    pub fn get_diagnostics(&self, file_name: Option<&str>) -> Vec<Rc<Diagnostic>> {
+        if let Some(file_name) = file_name {
+            return self
+                .file_diagnostics
+                .get(file_name)
+                .map(|sorted_array| sorted_array.into())
+                .unwrap_or(vec![]);
+        }
+
+        let mut file_diags: Vec<Rc<Diagnostic>> =
+            flat_map_to_mutable(Some(&*self.files_with_diagnostics), |f, _| {
+                self.file_diagnostics
+                    .get(f)
+                    .map_or_else(|| vec![], |sorted_array| sorted_array.to_vec())
+            });
+        if self.non_file_diagnostics.is_empty() {
+            return file_diags;
+        }
+        file_diags.splice(0..0, self.non_file_diagnostics.to_vec());
+        file_diags
     }
 }
 

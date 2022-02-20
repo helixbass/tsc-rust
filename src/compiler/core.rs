@@ -182,6 +182,17 @@ pub fn flat_map<
     result.unwrap_or(vec![])
 }
 
+pub fn flat_map_to_mutable<
+    TCollection: IntoIterator,
+    TReturn: Clone,
+    TCallback: FnMut(TCollection::Item, usize) -> Vec<TReturn>, /* | undefined */
+>(
+    array: Option<TCollection>,
+    mut mapfn: TCallback,
+) -> Vec<TReturn> {
+    flat_map(array, mapfn)
+}
+
 pub fn map_defined<
     TCollection: IntoIterator,
     TReturn,

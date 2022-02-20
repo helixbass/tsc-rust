@@ -36,7 +36,7 @@ fn get_diagnostic_file_path<
 >(
     diagnostic: &TDiagnosticRelatedInformation,
 ) -> Option<String> {
-    diagnostic.file().and_then(|file| {
+    diagnostic.maybe_file().and_then(|file| {
         file.as_source_file()
             .maybe_path()
             .as_ref()
@@ -63,7 +63,7 @@ pub fn compare_diagnostics<TDiagnosticRelatedInformation: DiagnosticRelatedInfor
     Comparison::EqualTo
 }
 
-fn compare_diagnostics_skip_related_information<
+pub fn compare_diagnostics_skip_related_information<
     TDiagnosticRelatedInformation: DiagnosticRelatedInformationInterface,
 >(
     d1: &TDiagnosticRelatedInformation,
