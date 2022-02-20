@@ -7,14 +7,14 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    for_each_child_returns, get_node_id, has_syntactic_modifier, is_enum_const,
-    set_parent_recursive, FlowNode, ModifierFlags, NodeId, Symbol, SymbolTable, SyntaxKind,
-    __String, append_if_unique, create_symbol_table, for_each, for_each_child,
-    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, is_binding_pattern,
-    is_block_or_catch_scoped, is_class_static_block_declaration, is_function_like,
-    is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
-    ExpressionStatement, IfStatement, InternalSymbolName, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
+    for_each_child_returns, get_node_id, has_syntactic_modifier, is_block, is_enum_const,
+    is_module_block, is_source_file, node_has_name, set_parent_recursive, FlowNode, ModifierFlags,
+    NodeId, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique, create_symbol_table,
+    for_each, for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
+    is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
+    is_function_like, is_property_name_literal, object_allocator, set_parent,
+    set_value_declaration, BaseSymbol, ExpressionStatement, IfStatement, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -159,7 +159,43 @@ fn get_module_instance_state_for_alias_target(
     specifier: &Node, /*ExportSpecifier*/
     visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
 ) -> ModuleInstanceState {
-    unimplemented!()
+    let specifier_as_export_specifier = specifier.as_export_specifier();
+    let name: Rc<Node> = specifier_as_export_specifier
+        .property_name
+        .as_ref()
+        .map(|property_name| property_name.clone())
+        .unwrap_or_else(|| specifier_as_export_specifier.name.clone());
+    let mut p: Option<Rc<Node>> = specifier.maybe_parent();
+    while let Some(p_present) = p {
+        if is_block(&p_present) || is_module_block(&p_present) || is_source_file(&p_present) {
+            let statements = p_present.as_has_statements().statements();
+            let mut found: Option<ModuleInstanceState> = None;
+            for statement in statements {
+                if node_has_name(statement, &name) {
+                    if statement.maybe_parent().is_none() {
+                        set_parent(statement, Some(p_present.clone()));
+                        set_parent_recursive(Some(&**statement), false);
+                    }
+                    let state = get_module_instance_state_cached(statement, Some(visited.clone()));
+                    if match found {
+                        None => true,
+                        Some(found) if state > found => true,
+                        _ => false,
+                    } {
+                        found = Some(state);
+                    }
+                    if matches!(found, Some(ModuleInstanceState::Instantiated)) {
+                        return found.unwrap();
+                    }
+                }
+            }
+            if let Some(found) = found {
+                return found;
+            }
+        }
+        p = p_present.maybe_parent();
+    }
+    ModuleInstanceState::Instantiated
 }
 
 bitflags! {
@@ -178,6 +214,11 @@ bitflags! {
         const IsInterface = 1 << 6;
         const IsObjectLiteralOrClassExpressionMethodOrAccessor = 1 << 7;
     }
+}
+
+fn init_flow_node(node: FlowNode) -> FlowNode {
+    // Debug.attachFlowNodeDebugInfo(node);
+    node
 }
 
 // lazy_static! {

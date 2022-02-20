@@ -57,6 +57,10 @@ pub trait SourceFileLike {
     ) -> Option<usize>;
 }
 
+pub trait HasStatementsInterface {
+    fn statements(&self) -> &[Rc<Node>];
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct SourceFile {
@@ -403,6 +407,12 @@ impl SourceFileLike for SourceFile {
 }
 
 impl PragmaContext for SourceFile {}
+
+impl HasStatementsInterface for SourceFile {
+    fn statements(&self) -> &[Rc<Node>] {
+        &self.statements
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct CommentDirective {

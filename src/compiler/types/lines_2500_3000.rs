@@ -6,8 +6,8 @@ use std::rc::Rc;
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
     BindingLikeDeclarationInterface, FlowNode, HasExpressionInterface, HasInitializerInterface,
-    HasTypeInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, SyntaxKind, VariableLikeDeclarationInterface,
+    HasStatementsInterface, HasTypeInterface, LiteralLikeNodeInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, SyntaxKind, VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
 
@@ -387,6 +387,12 @@ impl Block {
             statements,
             multi_line,
         }
+    }
+}
+
+impl HasStatementsInterface for Block {
+    fn statements(&self) -> &[Rc<Node>] {
+        &self.statements
     }
 }
 
@@ -1371,6 +1377,12 @@ impl ModuleBlock {
             _node: base_node,
             statements,
         }
+    }
+}
+
+impl HasStatementsInterface for ModuleBlock {
+    fn statements(&self) -> &[Rc<Node>] {
+        &self.statements
     }
 }
 
