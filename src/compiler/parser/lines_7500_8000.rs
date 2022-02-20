@@ -643,7 +643,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         }
     }
 
-    pub(super) fn parse_tag(&mut self, margin: usize) -> Node {
+    pub(super) fn parse_tag(&self, margin: usize) -> Node {
         Debug_.assert(self.parser.token() == SyntaxKind::AtToken, None);
         let start = self.parser.scanner().get_token_pos();
         self.parser.next_token_jsdoc();

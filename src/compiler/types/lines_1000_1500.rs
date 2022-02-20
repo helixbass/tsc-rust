@@ -195,6 +195,7 @@ pub struct Identifier {
     pub original_keyword_kind: Option<SyntaxKind>,
     pub(crate) auto_generate_flags: Option<GeneratedIdentifierFlags>,
     pub(crate) auto_generate_id: Option<usize>,
+    pub is_in_jsdoc_namespace: Option<bool>,
     pub(crate) type_arguments: Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>,
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
@@ -207,6 +208,7 @@ impl Identifier {
             original_keyword_kind: None,
             auto_generate_flags: None,
             auto_generate_id: None,
+            is_in_jsdoc_namespace: None,
             type_arguments: None,
             jsdoc_dot_pos: Cell::new(None),
         }

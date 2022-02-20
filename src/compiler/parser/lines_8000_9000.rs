@@ -6,9 +6,10 @@ use crate::{
     add_related_info, append, concatenate, create_detached_diagnostic, is_identifier,
     is_jsdoc_return_tag, is_jsdoc_type_tag, is_type_reference_node, last_or_undefined, some,
     token_is_identifier_or_keyword, BaseJSDocTag, BaseJSDocTypeLikeTag, DiagnosticMessage,
-    Diagnostics, ExpressionWithTypeArguments, Identifier, JSDocAugmentsTag, JSDocImplementsTag,
-    JSDocPropertyLikeTag, JSDocSeeTag, JSDocText, JSDocTypeExpression, JSDocTypedefTag, Node,
-    NodeInterface, ReadonlyTextRange, StringOrNodeArray, SyntaxKind, TextChangeRange,
+    Diagnostics, ExpressionWithTypeArguments, Identifier, JSDocAugmentsTag, JSDocCallbackTag,
+    JSDocImplementsTag, JSDocPropertyLikeTag, JSDocSeeTag, JSDocText, JSDocTypeExpression,
+    JSDocTypedefTag, Node, NodeArray, NodeFlags, NodeInterface, ReadonlyTextRange,
+    StringOrNodeArray, SyntaxKind, TextChangeRange,
 };
 
 impl<'parser> ParseJSDocCommentWorker<'parser> {
@@ -98,7 +99,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_unknown_tag(
-        &mut self,
+        &self,
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
@@ -200,7 +201,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_parameter_or_property_tag(
-        &mut self,
+        &self,
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         target: PropertyLikeParse,
@@ -323,7 +324,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_return_tag(
-        &mut self,
+        &self,
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
@@ -360,7 +361,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_type_tag(
-        &mut self,
+        &self,
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: Option<usize>,
@@ -403,7 +404,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_see_tag(
-        &mut self,
+        &self,
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: Option<usize>,
@@ -442,7 +443,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_author_tag(
-        &mut self,
+        &self,
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
@@ -537,7 +538,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_implements_tag(
-        &mut self,
+        &self,
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         margin: usize,
@@ -562,7 +563,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 
     pub(super) fn parse_augments_tag(
-        &mut self,
+        &self,
         start: usize,
         tag_name: Rc<Node /*Identifier*/>,
         margin: usize,
@@ -722,8 +723,8 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         self.skip_whitespace_or_asterisk();
 
         let full_name: Option<Rc<Node>> = self
-            .parse_jsdoc_type_name_with_whitespace(None)
-            .map(Into::into);
+            .parse_jsdoc_type_name_with_namespace(None)
+            .map(Node::wrap);
         self.skip_whitespace();
         let mut comment = self.parse_tag_comments(indent, None);
 
@@ -734,7 +735,6 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 &type_expression.as_jsdoc_type_expression().type_,
             ),
         } {
-            // let mut child: Option<Rc<Node/*JSDocTypeTag | JSDocPropertyTag*/>> = None;
             let mut child_type_tag: Option<Rc<Node /*JSDocTypeTag*/>> = None;
             let mut js_doc_property_tags: Option<Vec<Rc<Node /*JSDocPropertyTag*/>>> = None;
             let mut has_children = false;
@@ -835,11 +835,62 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             .finish_node(typedef_tag, start.try_into().unwrap(), Some(end))
     }
 
-    pub(super) fn parse_jsdoc_type_name_with_whitespace(
+    pub(super) fn parse_jsdoc_type_name_with_namespace(
         &self,
         nested: Option<bool>,
-    ) -> Option<Identifier> {
-        unimplemented!()
+    ) -> Option<Node> {
+        let nested = nested.unwrap_or(false);
+        let pos = self.parser.scanner().get_token_pos();
+        if !token_is_identifier_or_keyword(self.parser.token()) {
+            return None;
+        }
+        let mut type_name_or_namespace_name = self.parse_jsdoc_identifier_name(None);
+        if self.parser.parse_optional(SyntaxKind::DotToken) {
+            let body = self.parse_jsdoc_type_name_with_namespace(Some(true));
+            let js_doc_namespace_node = self.parser.factory.create_module_declaration(
+                self.parser,
+                Option::<NodeArray>::None,
+                Option::<NodeArray>::None,
+                type_name_or_namespace_name.into(),
+                body.map(Node::wrap),
+                if nested {
+                    Some(NodeFlags::NestedNamespace)
+                } else {
+                    None
+                },
+            );
+            return Some(
+                self.parser
+                    .finish_node(js_doc_namespace_node, pos.try_into().unwrap(), None)
+                    .into(),
+            );
+        }
+
+        if nested {
+            type_name_or_namespace_name.is_in_jsdoc_namespace = Some(true);
+        }
+        Some(type_name_or_namespace_name.into())
+    }
+
+    pub(super) fn parse_callback_tag_parameters(&self, indent: usize) -> NodeArray /*<JSDocParameterTag>*/
+    {
+        let pos = self.parser.get_node_pos();
+        let mut parameters: Option<Vec<Rc<Node>>> = None;
+        while let Some(child) = self.parser.try_parse(|| {
+            self.parse_child_parameter_or_property_tag(
+                PropertyLikeParse::CallbackParameter,
+                indent,
+                None,
+            )
+            .map(Node::wrap)
+        }) {
+            if parameters.is_none() {
+                parameters = Some(vec![]);
+                append(parameters.as_mut().unwrap(), Some(child));
+            }
+        }
+        self.parser
+            .create_node_array(parameters.unwrap_or_else(|| vec![]), pos, None, None)
     }
 
     pub(super) fn parse_callback_tag(
@@ -848,8 +899,53 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         tag_name: Rc<Node /*Identifier*/>,
         indent: usize,
         indent_text: &str,
-    ) -> BaseJSDocTag /*JSDocCallbackTag*/ {
-        unimplemented!()
+    ) -> JSDocCallbackTag {
+        let full_name = self
+            .parse_jsdoc_type_name_with_namespace(None)
+            .map(Node::wrap);
+        self.skip_whitespace();
+        let mut comment = self.parse_tag_comments(indent, None);
+        let parameters = self.parse_callback_tag_parameters(indent);
+        let return_tag = self.parser.try_parse(|| {
+            if self.parse_optional_jsdoc(SyntaxKind::AtToken) {
+                let tag = self.parse_tag(indent);
+                if
+                /*tag &&*/
+                tag.kind() == SyntaxKind::JSDocReturnTag {
+                    return Some(tag.wrap());
+                }
+            }
+            None
+        });
+        let type_expression = self.parser.finish_node(
+            self.parser.factory.create_jsdoc_signature(
+                self.parser,
+                Option::<NodeArray>::None,
+                parameters,
+                return_tag,
+            ),
+            start.try_into().unwrap(),
+            None,
+        );
+        if comment.is_none() {
+            comment = self.parse_trailing_tag_comments(
+                start,
+                self.parser.get_node_pos().try_into().unwrap(),
+                indent,
+                indent_text,
+            );
+        }
+        self.parser.finish_node(
+            self.parser.factory.create_jsdoc_callback_tag(
+                self.parser,
+                Some(tag_name),
+                type_expression.into(),
+                full_name,
+                comment,
+            ),
+            start.try_into().unwrap(),
+            None,
+        )
     }
 
     pub(super) fn parse_child_property_tag(&self, indent: usize) -> Option<Node> {
