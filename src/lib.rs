@@ -81,7 +81,7 @@ pub use compiler::factory::node_tests::{
     is_meta_property, is_method_declaration, is_method_signature, is_minus_token,
     is_missing_declaration, is_module_block, is_module_declaration, is_named_exports,
     is_named_imports, is_named_tuple_member, is_namespace_export, is_namespace_export_declaration,
-    is_namespace_import, is_new_expression, is_no_substituion_template_literal,
+    is_namespace_import, is_new_expression, is_no_substitution_template_literal,
     is_non_null_expression, is_not_emitted_statement, is_numeric_literal,
     is_object_binding_pattern, is_object_literal_expression, is_omitted_expression,
     is_optional_type_node, is_parameter, is_parenthesized_expression, is_parenthesized_type_node,
