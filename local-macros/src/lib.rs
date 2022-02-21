@@ -1684,12 +1684,28 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.set_id(id)
                     }
 
+                    fn maybe_parent(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        self.#first_field_name.maybe_parent()
+                    }
+
+                    fn set_parent(&self, parent: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        self.#first_field_name.set_parent(parent)
+                    }
+
                     fn maybe_const_enum_only_module(&self) -> ::std::option::Option<bool> {
                         self.#first_field_name.maybe_const_enum_only_module()
                     }
 
                     fn set_const_enum_only_module(&self, const_enum_only_module: ::std::option::Option<bool>) {
                         self.#first_field_name.set_const_enum_only_module(const_enum_only_module)
+                    }
+
+                    fn maybe_is_replaceable_by_method(&self) -> ::std::option::Option<bool> {
+                        self.#first_field_name.maybe_is_replaceable_by_method()
+                    }
+
+                    fn set_is_replaceable_by_method(&self, is_replaceable_by_method: ::std::option::Option<bool>) {
+                        self.#first_field_name.set_is_replaceable_by_method(is_replaceable_by_method)
                     }
                 }
             }
@@ -1810,6 +1826,18 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
+                    fn maybe_parent(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_parent()),*
+                        }
+                    }
+
+                    fn set_parent(&self, parent: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_parent(parent)),*
+                        }
+                    }
+
                     fn maybe_const_enum_only_module(&self) -> ::std::option::Option<bool> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_const_enum_only_module()),*
@@ -1819,6 +1847,18 @@ fn get_symbol_enum_interface_impl(
                     fn set_const_enum_only_module(&self, const_enum_only_module: ::std::option::Option<bool>) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_const_enum_only_module(const_enum_only_module)),*
+                        }
+                    }
+
+                    fn maybe_is_replaceable_by_method(&self) -> ::std::option::Option<bool> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_is_replaceable_by_method()),*
+                        }
+                    }
+
+                    fn set_is_replaceable_by_method(&self, is_replaceable_by_method: ::std::option::Option<bool>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_is_replaceable_by_method(is_replaceable_by_method)),*
                         }
                     }
                 }

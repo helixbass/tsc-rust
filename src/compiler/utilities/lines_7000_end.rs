@@ -52,6 +52,19 @@ pub fn set_parent(child: &Node, parent: Option<Rc<Node>>) -> &Node {
     child
 }
 
+pub fn maybe_set_parent<TChild: Borrow<Node>>(
+    child: Option<TChild>,
+    parent: Option<Rc<Node>>,
+) -> Option<TChild> {
+    if let Some(child) = child.as_ref() {
+        let child = child.borrow();
+        if let Some(parent) = parent {
+            child.set_parent(parent.clone());
+        }
+    }
+    child
+}
+
 pub fn set_parent_recursive<TNode: Borrow<Node>>(root_node: Option<TNode>, incremental: bool) {
     unimplemented!()
 }

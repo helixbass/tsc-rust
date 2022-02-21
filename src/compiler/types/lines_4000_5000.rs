@@ -547,8 +547,12 @@ pub trait SymbolInterface {
     fn maybe_id(&self) -> Option<SymbolId>;
     fn id(&self) -> SymbolId;
     fn set_id(&self, id: SymbolId);
+    fn maybe_parent(&self) -> Option<Rc<Symbol>>;
+    fn set_parent(&self, parent: Option<Rc<Symbol>>);
     fn maybe_const_enum_only_module(&self) -> Option<bool>;
     fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>);
+    fn maybe_is_replaceable_by_method(&self) -> Option<bool>;
+    fn set_is_replaceable_by_method(&self, is_replaceable_by_method: Option<bool>);
 }
 
 #[derive(Debug)]
@@ -576,7 +580,9 @@ pub struct BaseSymbol {
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     id: Cell<Option<SymbolId>>,
+    parent: RefCell<Option<Rc<Symbol>>>,
     const_enum_only_module: Cell<Option<bool>>,
+    is_replaceable_by_method: Cell<Option<bool>>,
 }
 
 impl BaseSymbol {
@@ -590,7 +596,9 @@ impl BaseSymbol {
             members: RefCell::new(None),
             exports: RefCell::new(None),
             id: Cell::new(None),
+            parent: RefCell::new(None),
             const_enum_only_module: Cell::new(None),
+            is_replaceable_by_method: Cell::new(None),
         }
     }
 }
@@ -664,12 +672,28 @@ impl SymbolInterface for BaseSymbol {
         self.id.set(Some(id));
     }
 
+    fn maybe_parent(&self) -> Option<Rc<Symbol>> {
+        self.parent.borrow().as_ref().map(Clone::clone)
+    }
+
+    fn set_parent(&self, parent: Option<Rc<Symbol>>) {
+        *self.parent.borrow_mut() = parent;
+    }
+
     fn maybe_const_enum_only_module(&self) -> Option<bool> {
         self.const_enum_only_module.get()
     }
 
     fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>) {
         self.const_enum_only_module.set(const_enum_only_module);
+    }
+
+    fn maybe_is_replaceable_by_method(&self) -> Option<bool> {
+        self.is_replaceable_by_method.get()
+    }
+
+    fn set_is_replaceable_by_method(&self, is_replaceable_by_method: Option<bool>) {
+        self.is_replaceable_by_method.set(is_replaceable_by_method);
     }
 }
 

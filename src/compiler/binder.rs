@@ -7,22 +7,24 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::{
-    declaration_name_to_string, escape_leading_underscores, for_each_child_returns,
-    get_assignment_declaration_kind, get_containing_class, get_emit_script_target, get_node_id,
-    get_strict_option_value, get_symbol_name_for_private_identifier,
-    get_text_of_identifier_or_literal, has_syntactic_modifier, index_of, is_ambient_module,
-    is_block, is_enum_const, is_global_scope_augmentation, is_jsdoc_construct_signature,
+    add_related_info, create_diagnostic_for_node, declaration_name_to_string,
+    escape_leading_underscores, for_each_child_returns, get_assignment_declaration_kind,
+    get_containing_class, get_emit_script_target, get_node_id, get_strict_option_value,
+    get_symbol_name_for_private_identifier, get_text_of_identifier_or_literal, has_dynamic_name,
+    has_syntactic_modifier, index_of, is_ambient_module, is_block, is_enum_const,
+    is_export_specifier, is_global_scope_augmentation, is_jsdoc_construct_signature,
     is_module_block, is_named_declaration, is_private_identifier, is_signed_numeric_literal,
-    is_source_file, is_string_or_numeric_literal_like, node_has_name, set_parent_recursive,
+    is_source_file, is_string_or_numeric_literal_like, is_type_alias_declaration, length,
+    maybe_for_each, maybe_set_parent, node_has_name, node_is_missing, set_parent_recursive,
     token_to_string, unescape_leading_underscores, AssignmentDeclarationKind, CompilerOptions,
-    Debug_, FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget,
-    SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique,
-    create_symbol_table, for_each, for_each_child, get_escaped_text_of_identifier_or_literal,
-    get_name_of_declaration, is_binding_pattern, is_block_or_catch_scoped,
-    is_class_static_block_declaration, is_function_like, is_property_name_literal,
-    object_allocator, set_parent, set_value_declaration, BaseSymbol, ExpressionStatement,
-    IfStatement, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    SymbolFlags, SymbolInterface,
+    Debug_, Diagnostic, DiagnosticRelatedInformation, Diagnostics, FlowFlags, FlowNode, FlowStart,
+    ModifierFlags, NodeFlags, NodeId, ScriptTarget, SignatureDeclarationInterface, Symbol,
+    SymbolTable, SyntaxKind, __String, append_if_unique, create_symbol_table, for_each,
+    for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
+    is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
+    is_function_like, is_property_name_literal, object_allocator, set_parent,
+    set_value_declaration, BaseSymbol, ExpressionStatement, IfStatement, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -281,7 +283,7 @@ struct BinderType {
     symbol_count: Cell<usize>,
 
     Symbol: RefCell<Option<fn(SymbolFlags, __String) -> BaseSymbol>>,
-    classifiable_names: RefCell<Option<Rc<HashSet<__String>>>>,
+    classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
 
     unreachable_flow: RefCell<Rc<FlowNode>>,
     reported_unreachable_flow: RefCell<Rc<FlowNode>>,
@@ -520,11 +522,15 @@ impl BinderType {
         *self.Symbol.borrow_mut() = Some(Symbol);
     }
 
-    fn classifiable_names(&self) -> Rc<HashSet<__String>> {
-        self.classifiable_names.borrow().as_ref().unwrap().clone()
+    fn classifiable_names(&self) -> Rc<RefCell<HashSet<__String>>> {
+        self.classifiable_names
+            .borrow()
+            .as_ref()
+            .map(|rc| rc.clone())
+            .unwrap()
     }
 
-    fn set_classifiable_names(&self, classifiable_names: Option<Rc<HashSet<__String>>>) {
+    fn set_classifiable_names(&self, classifiable_names: Option<Rc<RefCell<HashSet<__String>>>>) {
         *self.classifiable_names.borrow_mut() = classifiable_names;
     }
 
@@ -533,7 +539,7 @@ impl BinderType {
         self.set_options(Some(opts.clone()));
         self.set_language_version(Some(get_emit_script_target(&opts)));
         self.set_in_strict_mode(Some(self.bind_in_strict_mode(f, &opts)));
-        self.set_classifiable_names(Some(Rc::new(HashSet::new())));
+        self.set_classifiable_names(Some(Rc::new(RefCell::new(HashSet::new()))));
         self.set_symbol_count(0);
 
         self.set_Symbol(object_allocator.get_symbol_constructor());
@@ -546,7 +552,7 @@ impl BinderType {
         if file_as_source_file.maybe_locals().is_none() {
             self.bind(Some(&*self.file()));
             file_as_source_file.set_symbol_count(self.symbol_count());
-            file_as_source_file.set_classifiable_names(Some(self.classifiable_names()));
+            file_as_source_file.set_classifiable_names(Some(self.classifiable_names().clone()));
             self.delayed_bind_jsdoc_typedef_tag();
         }
 
@@ -747,29 +753,237 @@ impl BinderType {
         }
     }
 
-    fn declare_symbol<TSymbolRef: Borrow<Symbol>>(
+    fn declare_symbol<TParent: Borrow<Symbol>>(
         &self,
         symbol_table: &mut SymbolTable,
-        parent: Option<TSymbolRef>,
+        parent: Option<TParent>,
         node: &Node, /*Declaration*/
         includes: SymbolFlags,
         excludes: SymbolFlags,
+        is_replaceable_by_method: Option<bool>,
+        is_computed_name: Option<bool>,
     ) -> Rc<Symbol> {
-        let name = self.get_declaration_name(node);
+        let is_replaceable_by_method = is_replaceable_by_method.unwrap_or(false);
+        let is_computed_name = is_computed_name.unwrap_or(false);
+        Debug_.assert(is_computed_name || !has_dynamic_name(node), None);
 
-        let mut symbol = None;
+        let is_default_export = has_syntactic_modifier(node, ModifierFlags::Default)
+            || is_export_specifier(node)
+                && node
+                    .as_export_specifier()
+                    .name
+                    .as_identifier()
+                    .escaped_text
+                    .eq_str("default");
+
+        let name: Option<__String> = if is_computed_name {
+            Some(InternalSymbolName::Computed())
+        } else if is_default_export && parent.is_some() {
+            Some(InternalSymbolName::Default())
+        } else {
+            self.get_declaration_name(node)
+        };
+
+        let mut symbol: Option<Rc<Symbol>> = None;
         match name {
-            None => unimplemented!(),
+            None => {
+                symbol = Some(
+                    self.create_symbol(SymbolFlags::None, InternalSymbolName::Missing())
+                        .wrap(),
+                );
+            }
             Some(name) => {
-                if true {
-                    symbol = Some(self.create_symbol(SymbolFlags::None, name.clone()).wrap());
-                    symbol_table.insert(name, symbol.as_ref().unwrap().clone());
+                symbol = symbol_table.get(&name).map(Clone::clone);
+
+                if includes.intersects(SymbolFlags::Classifiable) {
+                    self.classifiable_names().borrow_mut().insert(name.clone());
+                }
+
+                match symbol.as_ref() {
+                    None => {
+                        symbol = Some(self.create_symbol(SymbolFlags::None, name.clone()).wrap());
+                        symbol_table.insert(name, symbol.as_ref().unwrap().clone());
+                        if is_replaceable_by_method {
+                            symbol
+                                .as_ref()
+                                .unwrap()
+                                .set_is_replaceable_by_method(Some(true));
+                        }
+                    }
+                    Some(symbol)
+                        if is_replaceable_by_method
+                            && !matches!(symbol.maybe_is_replaceable_by_method(), Some(true)) =>
+                    {
+                        return symbol.clone();
+                    }
+                    Some(symbol_present) if symbol_present.flags().intersects(excludes) => {
+                        if matches!(symbol_present.maybe_is_replaceable_by_method(), Some(true)) {
+                            symbol =
+                                Some(self.create_symbol(SymbolFlags::None, name.clone()).wrap());
+                            symbol_table.insert(name, symbol.as_ref().unwrap().clone());
+                        } else if !(includes.intersects(SymbolFlags::Variable)
+                            && symbol_present.flags().intersects(SymbolFlags::Assignment))
+                        {
+                            if is_named_declaration(node) {
+                                maybe_set_parent(
+                                    node.as_named_declaration().maybe_name(),
+                                    Some(node.node_wrapper()),
+                                );
+                            }
+                            let mut message = if symbol_present
+                                .flags()
+                                .intersects(SymbolFlags::BlockScopedVariable)
+                            {
+                                &Diagnostics::Cannot_redeclare_block_scoped_variable_0
+                            } else {
+                                &Diagnostics::Duplicate_identifier_0
+                            };
+                            let mut message_needs_name = true;
+
+                            if symbol_present.flags().intersects(SymbolFlags::Enum)
+                                || includes.intersects(SymbolFlags::Enum)
+                            {
+                                message = &Diagnostics::Enum_declarations_can_only_merge_with_namespace_or_other_enum_declarations;
+                                message_needs_name = false;
+                            }
+
+                            let mut multiple_default_exports = false;
+                            if length(symbol_present.maybe_declarations().as_deref()) > 0 {
+                                if is_default_export {
+                                    message =
+                                        &Diagnostics::A_module_cannot_have_multiple_default_exports;
+                                    message_needs_name = false;
+                                    multiple_default_exports = true;
+                                } else {
+                                    if matches!(symbol_present.maybe_declarations().as_ref(), Some(declarations) if !declarations.is_empty())
+                                        && (node.kind() == SyntaxKind::ExportAssignment
+                                            && !matches!(
+                                                node.as_export_assignment().is_export_equals,
+                                                Some(true)
+                                            ))
+                                    {
+                                        message = &Diagnostics::A_module_cannot_have_multiple_default_exports;
+                                        message_needs_name = false;
+                                        multiple_default_exports = true;
+                                    }
+                                }
+                            }
+
+                            let mut related_information: Vec<Rc<DiagnosticRelatedInformation>> =
+                                vec![];
+                            if is_type_alias_declaration(node)
+                                && node_is_missing(Some(&*node.as_type_alias_declaration().type_))
+                                && has_syntactic_modifier(node, ModifierFlags::Export)
+                                && symbol_present.flags().intersects(
+                                    SymbolFlags::Alias | SymbolFlags::Type | SymbolFlags::Namespace,
+                                )
+                            {
+                                related_information.push(Rc::new(
+                                    create_diagnostic_for_node(
+                                        node,
+                                        &Diagnostics::Did_you_mean_0,
+                                        Some(vec![format!(
+                                            "export type {{ {} }}",
+                                            unescape_leading_underscores(
+                                                &node
+                                                    .as_type_alias_declaration()
+                                                    .name()
+                                                    .as_identifier()
+                                                    .escaped_text
+                                            )
+                                        )]),
+                                    )
+                                    .into(),
+                                ));
+                            }
+
+                            let declaration_name: Rc<Node> = get_name_of_declaration(Some(node))
+                                .unwrap_or_else(|| node.node_wrapper());
+                            maybe_for_each(
+                                symbol_present.maybe_declarations().as_ref(),
+                                |declaration: &Rc<Node>, index| {
+                                    let decl = get_name_of_declaration(Some(&**declaration))
+                                        .unwrap_or_else(|| declaration.node_wrapper());
+                                    let diag: Rc<Diagnostic> = Rc::new(
+                                        create_diagnostic_for_node(
+                                            &decl,
+                                            message,
+                                            if message_needs_name {
+                                                Some(vec![self
+                                                    .get_display_name(declaration)
+                                                    .into_owned()])
+                                            } else {
+                                                None
+                                            },
+                                        )
+                                        .into(),
+                                    );
+                                    self.file().as_source_file().bind_diagnostics().push(
+                                        if multiple_default_exports {
+                                            add_related_info(
+                                                &diag,
+                                                vec![Rc::new(
+                                                create_diagnostic_for_node(
+                                                    &declaration_name,
+                                                    if index == 0 {
+                                                        &Diagnostics::Another_export_default_is_here
+                                                    } else {
+                                                        &Diagnostics::and_here
+                                                    },
+                                                    None,
+                                                )
+                                                .into(),
+                                            )],
+                                            );
+                                            diag
+                                        } else {
+                                            diag
+                                        },
+                                    );
+                                    if multiple_default_exports {
+                                        related_information.push(Rc::new(
+                                            create_diagnostic_for_node(
+                                                &decl,
+                                                &Diagnostics::The_first_export_default_is_here,
+                                                None,
+                                            )
+                                            .into(),
+                                        ));
+                                    }
+                                    Option::<()>::None
+                                },
+                            );
+
+                            let diag: Rc<Diagnostic> = Rc::new(
+                                create_diagnostic_for_node(
+                                    &declaration_name,
+                                    message,
+                                    if message_needs_name {
+                                        Some(vec![self.get_display_name(node).into_owned()])
+                                    } else {
+                                        None
+                                    },
+                                )
+                                .into(),
+                            );
+                            add_related_info(&diag, related_information);
+                            self.file().as_source_file().bind_diagnostics().push(diag);
+
+                            symbol = Some(self.create_symbol(SymbolFlags::None, name).wrap());
+                        }
+                    }
+                    _ => (),
                 }
             }
         }
         let symbol = symbol.unwrap();
 
         self.add_declaration_to_symbol(&symbol, node, includes);
+        if let Some(symbol_parent) = symbol.maybe_parent() {
+            Debug_.assert(matches!(parent, Some(parent) if Rc::ptr_eq(&symbol_parent, &parent.borrow().symbol_wrapper())), Some("Existing symbol parent should match new one"));
+        } else {
+            symbol.set_parent(parent.map(|parent| parent.borrow().symbol_wrapper()));
+        }
 
         symbol
     }
@@ -964,6 +1178,8 @@ impl BinderType {
                 node,
                 symbol_flags,
                 symbol_excludes,
+                None,
+                None,
             )),
             SyntaxKind::FunctionDeclaration | SyntaxKind::TypeAliasDeclaration => {
                 Some(self.declare_symbol(
@@ -972,6 +1188,8 @@ impl BinderType {
                     node,
                     symbol_flags,
                     symbol_excludes,
+                    None,
+                    None,
                 ))
             }
             _ => unimplemented!(),
@@ -993,6 +1211,8 @@ impl BinderType {
                 node,
                 symbol_flags,
                 symbol_excludes,
+                None,
+                None,
             )
         }
     }
@@ -1038,6 +1258,8 @@ impl BinderType {
             node,
             symbol_flags,
             symbol_excludes,
+            None,
+            None,
         );
     }
 

@@ -103,7 +103,7 @@ pub struct SourceFile {
     js_doc_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
     line_map: RefCell<Option<Vec<usize>>>,
-    classifiable_names: RefCell<Option<Rc<HashSet<__String>>>>,
+    classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
     comment_directives: RefCell<Option<Vec<CommentDirective>>>,
     resolved_modules: RefCell<Option<ModeAwareCache<Rc<ResolvedModuleFull /*| undefined*/>>>>,
     resolved_type_reference_directive_names:
@@ -356,11 +356,10 @@ impl SourceFile {
         *self.js_doc_diagnostics.borrow_mut() = Some(js_doc_diagnostics);
     }
 
-    pub fn maybe_classifiable_names(&self) -> RefMut<Option<Rc<HashSet<__String>>>> {
-        self.classifiable_names.borrow_mut()
-    }
-
-    pub fn set_classifiable_names(&self, classifiable_names: Option<Rc<HashSet<__String>>>) {
+    pub fn set_classifiable_names(
+        &self,
+        classifiable_names: Option<Rc<RefCell<HashSet<__String>>>>,
+    ) {
         *self.classifiable_names.borrow_mut() = classifiable_names;
     }
 
