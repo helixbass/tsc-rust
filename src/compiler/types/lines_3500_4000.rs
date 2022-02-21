@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use super::{
@@ -9,7 +9,7 @@ use super::{
     LanguageVariant, Node, NodeArray, Path, ReadonlyPragmaMap, ResolvedModuleFull,
     ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
 };
-use crate::{ModeAwareCache, PragmaContext};
+use crate::{ModeAwareCache, PragmaContext, __String};
 use local_macros::ast_type;
 
 pub type SourceTextAsChars = Vec<char>;
@@ -93,6 +93,7 @@ pub struct SourceFile {
     identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
     node_count: Cell<Option<usize>>,
     identifier_count: Cell<Option<usize>>,
+    symbol_count: Cell<Option<usize>>,
 
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
@@ -102,6 +103,7 @@ pub struct SourceFile {
     js_doc_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
     line_map: RefCell<Option<Vec<usize>>>,
+    classifiable_names: RefCell<Option<Rc<HashSet<__String>>>>,
     comment_directives: RefCell<Option<Vec<CommentDirective>>>,
     resolved_modules: RefCell<Option<ModeAwareCache<Rc<ResolvedModuleFull /*| undefined*/>>>>,
     resolved_type_reference_directive_names:
@@ -139,11 +141,13 @@ impl SourceFile {
             identifiers: RefCell::new(None),
             node_count: Cell::new(None),
             identifier_count: Cell::new(None),
+            symbol_count: Cell::new(None),
             parse_diagnostics: RefCell::new(None),
             bind_diagnostics: RefCell::new(None),
             bind_suggestion_diagnostics: RefCell::new(None),
             js_doc_diagnostics: RefCell::new(None),
             line_map: RefCell::new(None),
+            classifiable_names: RefCell::new(None),
             language_version: Cell::new(language_version),
             language_variant: Cell::new(language_variant),
             script_kind: Cell::new(script_kind),
@@ -305,6 +309,14 @@ impl SourceFile {
         self.identifier_count.set(Some(identifier_count))
     }
 
+    pub fn symbol_count(&self) -> usize {
+        self.symbol_count.get().unwrap()
+    }
+
+    pub fn set_symbol_count(&self, symbol_count: usize) {
+        self.symbol_count.set(Some(symbol_count))
+    }
+
     pub fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
         RefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
             option.as_mut().unwrap()
@@ -342,6 +354,14 @@ impl SourceFile {
 
     pub fn set_js_doc_diagnostics(&self, js_doc_diagnostics: Vec<Rc<Diagnostic>>) {
         *self.js_doc_diagnostics.borrow_mut() = Some(js_doc_diagnostics);
+    }
+
+    pub fn maybe_classifiable_names(&self) -> RefMut<Option<Rc<HashSet<__String>>>> {
+        self.classifiable_names.borrow_mut()
+    }
+
+    pub fn set_classifiable_names(&self, classifiable_names: Option<Rc<HashSet<__String>>>) {
+        *self.classifiable_names.borrow_mut() = classifiable_names;
     }
 
     pub fn maybe_comment_directives(&self) -> Ref<Option<Vec<CommentDirective>>> {

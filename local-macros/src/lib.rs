@@ -1668,6 +1668,10 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.members()
                     }
 
+                    fn maybe_exports(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        self.#first_field_name.maybe_exports()
+                    }
+
                     fn maybe_id(&self) -> ::std::option::Option<crate::SymbolId> {
                         self.#first_field_name.maybe_id()
                     }
@@ -1678,6 +1682,14 @@ fn get_symbol_struct_interface_impl(
 
                     fn set_id(&self, id: crate::SymbolId) {
                         self.#first_field_name.set_id(id)
+                    }
+
+                    fn maybe_const_enum_only_module(&self) -> ::std::option::Option<bool> {
+                        self.#first_field_name.maybe_const_enum_only_module()
+                    }
+
+                    fn set_const_enum_only_module(&self, const_enum_only_module: ::std::option::Option<bool>) {
+                        self.#first_field_name.set_const_enum_only_module(const_enum_only_module)
                     }
                 }
             }
@@ -1774,6 +1786,12 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
+                    fn maybe_exports(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_exports()),*
+                        }
+                    }
+
                     fn maybe_id(&self) -> ::std::option::Option<crate::SymbolId> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_id()),*
@@ -1789,6 +1807,18 @@ fn get_symbol_enum_interface_impl(
                     fn set_id(&self, id: crate::SymbolId) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_id(id)),*
+                        }
+                    }
+
+                    fn maybe_const_enum_only_module(&self) -> ::std::option::Option<bool> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_const_enum_only_module()),*
+                        }
+                    }
+
+                    fn set_const_enum_only_module(&self, const_enum_only_module: ::std::option::Option<bool>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_const_enum_only_module(const_enum_only_module)),*
                         }
                     }
                 }

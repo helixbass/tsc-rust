@@ -2,20 +2,21 @@
 
 use bitflags::bitflags;
 use std::borrow::Borrow;
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::{
-    for_each_child_returns, get_node_id, has_syntactic_modifier, is_block, is_enum_const,
-    is_module_block, is_source_file, node_has_name, set_parent_recursive, CompilerOptions, Debug_,
-    FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget, Symbol,
-    SymbolTable, SyntaxKind, __String, append_if_unique, create_symbol_table, for_each,
-    for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
-    is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
-    is_function_like, is_property_name_literal, object_allocator, set_parent,
-    set_value_declaration, BaseSymbol, ExpressionStatement, IfStatement, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
+    for_each_child_returns, get_emit_script_target, get_node_id, get_strict_option_value,
+    has_syntactic_modifier, is_block, is_enum_const, is_module_block, is_source_file,
+    node_has_name, set_parent_recursive, CompilerOptions, Debug_, FlowFlags, FlowNode, FlowStart,
+    ModifierFlags, NodeFlags, NodeId, ScriptTarget, Symbol, SymbolTable, SyntaxKind, __String,
+    append_if_unique, create_symbol_table, for_each, for_each_child,
+    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, is_binding_pattern,
+    is_block_or_catch_scoped, is_class_static_block_declaration, is_function_like,
+    is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
+    ExpressionStatement, IfStatement, InternalSymbolName, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -244,7 +245,7 @@ pub fn bind_source_file(file: &Node /*SourceFile*/, options: Rc<CompilerOptions>
 struct BinderType {
     file: RefCell<Option<Rc</*SourceFile*/ Node>>>,
     options: RefCell<Option<Rc<CompilerOptions>>>,
-    language_variant: Cell<Option<ScriptTarget>>,
+    language_version: Cell<Option<ScriptTarget>>,
     parent: RefCell<Option<Rc<Node>>>,
     container: RefCell<Option<Rc<Node>>>,
     this_parent_container: RefCell<Option<Rc<Node>>>,
@@ -274,7 +275,7 @@ struct BinderType {
     symbol_count: Cell<usize>,
 
     Symbol: RefCell<Option<fn(SymbolFlags, __String) -> BaseSymbol>>,
-    classifiable_names: RefCell<Option<HashSet<__String>>>,
+    classifiable_names: RefCell<Option<Rc<HashSet<__String>>>>,
 
     unreachable_flow: RefCell<Rc<FlowNode>>,
     reported_unreachable_flow: RefCell<Rc<FlowNode>>,
@@ -285,7 +286,7 @@ fn create_binder() -> BinderType {
     BinderType {
         file: RefCell::new(None),
         options: RefCell::new(None),
-        language_variant: Cell::new(None),
+        language_version: Cell::new(None),
         parent: RefCell::new(None),
         container: RefCell::new(None),
         this_parent_container: RefCell::new(None),
@@ -320,7 +321,7 @@ fn create_binder() -> BinderType {
 
 impl BinderType {
     fn call(&self, f: &Node, opts: Rc<CompilerOptions>) {
-        self.bind_source_file(f);
+        self.bind_source_file(f, opts);
     }
 
     fn file(&self) -> Rc<Node> {
@@ -329,6 +330,22 @@ impl BinderType {
 
     fn set_file(&self, file: Option<Rc<Node>>) {
         *self.file.borrow_mut() = file;
+    }
+
+    fn options(&self) -> Rc<CompilerOptions> {
+        self.options.borrow().as_ref().unwrap().clone()
+    }
+
+    fn set_options(&self, options: Option<Rc<CompilerOptions>>) {
+        *self.options.borrow_mut() = options;
+    }
+
+    fn language_version(&self) -> ScriptTarget {
+        self.language_version.get().unwrap()
+    }
+
+    fn set_language_version(&self, language_version: Option<ScriptTarget>) {
+        self.language_version.set(language_version);
     }
 
     fn maybe_parent(&self) -> Option<Rc<Node>> {
@@ -355,6 +372,25 @@ impl BinderType {
         *self.container.borrow_mut() = container;
     }
 
+    fn this_parent_container(&self) -> Rc<Node> {
+        self.this_parent_container
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .clone()
+    }
+
+    fn maybe_this_parent_container(&self) -> Option<Rc<Node>> {
+        self.this_parent_container
+            .borrow()
+            .as_ref()
+            .map(Clone::clone)
+    }
+
+    fn set_this_parent_container(&self, this_parent_container: Option<Rc<Node>>) {
+        *self.this_parent_container.borrow_mut() = this_parent_container;
+    }
+
     fn maybe_block_scope_container(&self) -> Option<Rc<Node>> {
         self.block_scope_container
             .borrow()
@@ -374,6 +410,100 @@ impl BinderType {
         *self.block_scope_container.borrow_mut() = block_scope_container;
     }
 
+    fn maybe_last_container(&self) -> Option<Rc<Node>> {
+        self.last_container.borrow().as_ref().map(Clone::clone)
+    }
+
+    fn last_container(&self) -> Rc<Node> {
+        self.last_container.borrow().as_ref().unwrap().clone()
+    }
+
+    fn set_last_container(&self, last_container: Option<Rc<Node>>) {
+        *self.last_container.borrow_mut() = last_container;
+    }
+
+    fn maybe_delayed_type_aliases(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+        self.delayed_type_aliases.borrow_mut()
+    }
+
+    fn delayed_type_aliases(&self) -> RefMut<Vec<Rc<Node>>> {
+        RefMut::map(self.delayed_type_aliases.borrow_mut(), |option| {
+            option.as_mut().unwrap()
+        })
+    }
+
+    fn set_delayed_type_aliases(&self, delayed_type_aliases: Option<Vec<Rc<Node>>>) {
+        *self.delayed_type_aliases.borrow_mut() = delayed_type_aliases;
+    }
+
+    fn set_seen_this_keyword(&self, seen_this_keyword: Option<bool>) {
+        self.seen_this_keyword.set(seen_this_keyword);
+    }
+
+    fn set_current_flow(&self, current_flow: Option<Rc<FlowNode>>) {
+        *self.current_flow.borrow_mut() = current_flow;
+    }
+
+    fn set_current_break_target(&self, current_break_target: Option<Rc<FlowNode>>) {
+        *self.current_break_target.borrow_mut() = current_break_target;
+    }
+
+    fn set_current_continue_target(&self, current_continue_target: Option<Rc<FlowNode>>) {
+        *self.current_continue_target.borrow_mut() = current_continue_target;
+    }
+
+    fn set_current_return_target(&self, current_return_target: Option<Rc<FlowNode>>) {
+        *self.current_return_target.borrow_mut() = current_return_target;
+    }
+
+    fn set_current_true_target(&self, current_true_target: Option<Rc<FlowNode>>) {
+        *self.current_true_target.borrow_mut() = current_true_target;
+    }
+
+    fn set_current_false_target(&self, current_false_target: Option<Rc<FlowNode>>) {
+        *self.current_false_target.borrow_mut() = current_false_target;
+    }
+
+    fn set_current_exception_target(&self, current_exception_target: Option<Rc<FlowNode>>) {
+        *self.current_exception_target.borrow_mut() = current_exception_target;
+    }
+
+    fn set_active_label_list(&self, active_label_list: Option<Rc<ActiveLabel>>) {
+        *self.active_label_list.borrow_mut() = active_label_list;
+    }
+
+    fn set_has_explicit_return(&self, has_explicit_return: Option<bool>) {
+        self.has_explicit_return.set(has_explicit_return);
+    }
+
+    fn set_emit_flags(&self, emit_flags: Option<NodeFlags>) {
+        self.emit_flags.set(emit_flags);
+    }
+
+    fn set_in_strict_mode(&self, in_strict_mode: Option<bool>) {
+        self.in_strict_mode.set(in_strict_mode);
+    }
+
+    fn in_assignment_pattern(&self) -> bool {
+        self.in_assignment_pattern.get()
+    }
+
+    fn set_in_assignment_pattern(&self, in_assignment_pattern: bool) {
+        self.in_assignment_pattern.set(in_assignment_pattern);
+    }
+
+    fn symbol_count(&self) -> usize {
+        self.symbol_count.get()
+    }
+
+    fn increment_symbol_count(&self) {
+        self.symbol_count.set(self.symbol_count() + 1);
+    }
+
+    fn set_symbol_count(&self, symbol_count: usize) {
+        self.symbol_count.set(symbol_count);
+    }
+
     #[allow(non_snake_case)]
     fn Symbol(&self) -> fn(SymbolFlags, __String) -> BaseSymbol {
         self.Symbol.borrow().unwrap()
@@ -384,21 +514,74 @@ impl BinderType {
         *self.Symbol.borrow_mut() = Some(Symbol);
     }
 
-    fn bind_source_file(&self, f: &Node) {
+    fn classifiable_names(&self) -> Rc<HashSet<__String>> {
+        self.classifiable_names.borrow().as_ref().unwrap().clone()
+    }
+
+    fn set_classifiable_names(&self, classifiable_names: Option<Rc<HashSet<__String>>>) {
+        *self.classifiable_names.borrow_mut() = classifiable_names;
+    }
+
+    fn bind_source_file(&self, f: &Node /*SourceFile*/, opts: Rc<CompilerOptions>) {
         self.set_file(Some(f.node_wrapper()));
+        self.set_options(Some(opts.clone()));
+        self.set_language_version(Some(get_emit_script_target(&opts)));
+        self.set_in_strict_mode(Some(self.bind_in_strict_mode(f, &opts)));
+        self.set_classifiable_names(Some(Rc::new(HashSet::new())));
+        self.set_symbol_count(0);
 
         self.set_Symbol(object_allocator.get_symbol_constructor());
 
-        if true {
+        // Debug.attachFlowNodeDebugInfo(unreachableFlow);
+        // Debug.attachFlowNodeDebugInfo(reportedUnreachableFlow);
+
+        let file = self.file();
+        let file_as_source_file = file.as_source_file();
+        if file_as_source_file.maybe_locals().is_none() {
             self.bind(Some(&*self.file()));
+            file_as_source_file.set_symbol_count(self.symbol_count());
+            file_as_source_file.set_classifiable_names(Some(self.classifiable_names()));
+            self.delayed_bind_jsdoc_typedef_tag();
         }
 
         self.set_file(None);
+        self.set_options(None);
+        self.set_language_version(None);
         self.set_parent(None);
         self.set_container(None);
+        self.set_this_parent_container(None);
+        self.set_block_scope_container(None);
+        self.set_last_container(None);
+        self.set_delayed_type_aliases(None);
+        self.set_seen_this_keyword(Some(false));
+        self.set_current_flow(None);
+        self.set_current_break_target(None);
+        self.set_current_continue_target(None);
+        self.set_current_return_target(None);
+        self.set_current_true_target(None);
+        self.set_current_false_target(None);
+        self.set_current_exception_target(None);
+        self.set_active_label_list(None);
+        self.set_has_explicit_return(Some(false));
+        self.set_in_assignment_pattern(false);
+        self.set_emit_flags(Some(NodeFlags::None));
+    }
+
+    fn bind_in_strict_mode(&self, file: &Node /*SourceFile*/, opts: &CompilerOptions) -> bool {
+        let file_as_source_file = file.as_source_file();
+        if get_strict_option_value(opts, "always_strict")
+            && !file_as_source_file.is_declaration_file()
+        {
+            true
+        } else {
+            file_as_source_file
+                .maybe_external_module_indicator()
+                .is_some()
+        }
     }
 
     fn create_symbol(&self, flags: SymbolFlags, name: __String) -> Symbol {
+        self.increment_symbol_count();
         self.Symbol()(flags, name).into()
     }
 
@@ -412,10 +595,19 @@ impl BinderType {
 
         node.set_symbol(symbol.symbol_wrapper());
         let declarations = append_if_unique(
-            symbol.maybe_declarations().as_ref().map(|vec| vec.clone()),
+            symbol.maybe_declarations().as_ref().map(Clone::clone),
             node.node_wrapper(),
         );
         symbol.set_declarations(declarations);
+
+        if symbol_flags.intersects(
+            SymbolFlags::Class | SymbolFlags::Enum | SymbolFlags::Module | SymbolFlags::Variable,
+        ) {
+            let mut exports = symbol.maybe_exports();
+            if exports.is_none() {
+                *exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+            }
+        }
 
         if symbol_flags.intersects(
             SymbolFlags::Class
@@ -427,6 +619,13 @@ impl BinderType {
             if members.is_none() {
                 *members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
             }
+        }
+
+        if matches!(symbol.maybe_const_enum_only_module(), Some(true))
+            && symbol_flags
+                .intersects(SymbolFlags::Function | SymbolFlags::Class | SymbolFlags::RegularEnum)
+        {
+            symbol.set_const_enum_only_module(Some(false));
         }
 
         if symbol_flags.intersects(SymbolFlags::Value) {
@@ -738,6 +937,10 @@ impl BinderType {
             symbol_flags,
             symbol_excludes,
         );
+    }
+
+    fn delayed_bind_jsdoc_typedef_tag(&self) {
+        // unimplemented!()
     }
 
     fn bind<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef>) {
