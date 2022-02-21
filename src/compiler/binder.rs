@@ -2,15 +2,16 @@
 
 use bitflags::bitflags;
 use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::collections::HashMap;
+use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::{
     for_each_child_returns, get_node_id, has_syntactic_modifier, is_block, is_enum_const,
-    is_module_block, is_source_file, node_has_name, set_parent_recursive, FlowNode, ModifierFlags,
-    NodeId, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique, create_symbol_table,
-    for_each, for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
+    is_module_block, is_source_file, node_has_name, set_parent_recursive, CompilerOptions, Debug_,
+    FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget, Symbol,
+    SymbolTable, SyntaxKind, __String, append_if_unique, create_symbol_table, for_each,
+    for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
     is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
     is_function_like, is_property_name_literal, object_allocator, set_parent,
     set_value_declaration, BaseSymbol, ExpressionStatement, IfStatement, InternalSymbolName,
@@ -225,32 +226,100 @@ fn init_flow_node(node: FlowNode) -> FlowNode {
 //     static ref binder: BinderType = create_binder();
 // }
 
-pub fn bind_source_file(file: &Node) {
-    // binder.call(file);
-    create_binder().call(file);
+pub fn bind_source_file(file: &Node /*SourceFile*/, options: Rc<CompilerOptions>) {
+    let file_as_source_file = file.as_source_file();
+    Debug_.log(&format!("binding: {}", file_as_source_file.file_name()));
+    // tracing?.push(tracing.Phase.Bind, "bindSourceFile", { path: file.path }, /*separateBeginAndEnd*/ true);
+    // performance.mark("beforeBind");
+    // perfLogger.logStartBindFile("" + file.fileName);
+    // binder.call(file, options);
+    create_binder().call(file, options);
+    // perfLogger.logStopBindFile();
+    // performance.mark("afterBind");
+    // performance.measure("Bind", "beforeBind", "afterBind");
+    // tracing?.pop(;
 }
 
 #[allow(non_snake_case)]
 struct BinderType {
     file: RefCell<Option<Rc</*SourceFile*/ Node>>>,
+    options: RefCell<Option<Rc<CompilerOptions>>>,
+    language_variant: Cell<Option<ScriptTarget>>,
     parent: RefCell<Option<Rc<Node>>>,
     container: RefCell<Option<Rc<Node>>>,
+    this_parent_container: RefCell<Option<Rc<Node>>>,
     block_scope_container: RefCell<Option<Rc<Node>>>,
+    last_container: RefCell<Option<Rc<Node>>>,
+    delayed_type_aliases:
+        RefCell<Option<Vec<Rc<Node /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/>>>>,
+    seen_this_keyword: Cell<Option<bool>>,
+
+    current_flow: RefCell<Option<Rc<FlowNode>>>,
+    current_break_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    current_continue_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    current_return_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    current_true_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    current_false_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    current_exception_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    pre_switch_case_flow: RefCell<Option<Rc<FlowNode>>>,
+    active_label_list: RefCell<Option<Rc<ActiveLabel>>>,
+    has_explicit_return: Cell<Option<bool>>,
+
+    emit_flags: Cell<Option<NodeFlags>>,
+
+    in_strict_mode: Cell<Option<bool>>,
+
+    in_assignment_pattern: Cell<bool>,
+
+    symbol_count: Cell<usize>,
+
     Symbol: RefCell<Option<fn(SymbolFlags, __String) -> BaseSymbol>>,
+    classifiable_names: RefCell<Option<HashSet<__String>>>,
+
+    unreachable_flow: RefCell<Rc<FlowNode>>,
+    reported_unreachable_flow: RefCell<Rc<FlowNode>>,
+    // bind_binary_expression_flow: RefCell<...>,
 }
 
 fn create_binder() -> BinderType {
     BinderType {
         file: RefCell::new(None),
+        options: RefCell::new(None),
+        language_variant: Cell::new(None),
         parent: RefCell::new(None),
         container: RefCell::new(None),
+        this_parent_container: RefCell::new(None),
         block_scope_container: RefCell::new(None),
+        last_container: RefCell::new(None),
+        delayed_type_aliases: RefCell::new(None),
+        seen_this_keyword: Cell::new(None),
+        current_flow: RefCell::new(None),
+        current_break_target: RefCell::new(None),
+        current_continue_target: RefCell::new(None),
+        current_return_target: RefCell::new(None),
+        current_true_target: RefCell::new(None),
+        current_false_target: RefCell::new(None),
+        current_exception_target: RefCell::new(None),
+        pre_switch_case_flow: RefCell::new(None),
+        active_label_list: RefCell::new(None),
+        has_explicit_return: Cell::new(None),
+        emit_flags: Cell::new(None),
+        in_strict_mode: Cell::new(None),
+        in_assignment_pattern: Cell::new(false),
+        symbol_count: Cell::new(0),
         Symbol: RefCell::new(None),
+        classifiable_names: RefCell::new(None),
+        unreachable_flow: RefCell::new(Rc::new(
+            FlowStart::new(FlowFlags::Unreachable, None, None).into(),
+        )),
+        reported_unreachable_flow: RefCell::new(Rc::new(
+            FlowStart::new(FlowFlags::Unreachable, None, None).into(),
+        )),
     }
 }
 
 impl BinderType {
-    fn call(&self, f: &Node) {
+    fn call(&self, f: &Node, opts: Rc<CompilerOptions>) {
         self.bind_source_file(f);
     }
 

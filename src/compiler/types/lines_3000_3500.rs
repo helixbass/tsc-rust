@@ -1076,6 +1076,12 @@ pub struct FlowStart {
     >,
 }
 
+impl FlowStart {
+    pub fn new(flags: FlowFlags, id: Option<usize>, node: Option<Rc<Node>>) -> Self {
+        Self { flags, id, node }
+    }
+}
+
 impl FlowNodeBase for FlowStart {
     fn flags(&self) -> FlowFlags {
         self.flags
