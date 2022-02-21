@@ -7,16 +7,21 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::{
-    for_each_child_returns, get_emit_script_target, get_node_id, get_strict_option_value,
-    has_syntactic_modifier, is_block, is_enum_const, is_module_block, is_source_file,
-    node_has_name, set_parent_recursive, CompilerOptions, Debug_, FlowFlags, FlowNode, FlowStart,
-    ModifierFlags, NodeFlags, NodeId, ScriptTarget, Symbol, SymbolTable, SyntaxKind, __String,
-    append_if_unique, create_symbol_table, for_each, for_each_child,
-    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, is_binding_pattern,
-    is_block_or_catch_scoped, is_class_static_block_declaration, is_function_like,
-    is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
-    ExpressionStatement, IfStatement, InternalSymbolName, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
+    escape_leading_underscores, for_each_child_returns, get_assignment_declaration_kind,
+    get_containing_class, get_emit_script_target, get_node_id, get_strict_option_value,
+    get_symbol_name_for_private_identifier, get_text_of_identifier_or_literal,
+    has_syntactic_modifier, index_of, is_ambient_module, is_block, is_enum_const,
+    is_global_scope_augmentation, is_jsdoc_construct_signature, is_module_block,
+    is_private_identifier, is_signed_numeric_literal, is_source_file,
+    is_string_or_numeric_literal_like, node_has_name, set_parent_recursive, token_to_string,
+    AssignmentDeclarationKind, CompilerOptions, Debug_, FlowFlags, FlowNode, FlowStart,
+    ModifierFlags, NodeFlags, NodeId, ScriptTarget, SignatureDeclarationInterface, Symbol,
+    SymbolTable, SyntaxKind, __String, append_if_unique, create_symbol_table, for_each,
+    for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
+    is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
+    is_function_like, is_property_name_literal, object_allocator, set_parent,
+    set_value_declaration, BaseSymbol, ExpressionStatement, IfStatement, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -634,15 +639,100 @@ impl BinderType {
     }
 
     fn get_declaration_name(&self, node: &Node) -> Option<__String> {
+        if node.kind() == SyntaxKind::ExportAssignment {
+            return Some(
+                if matches!(node.as_export_assignment().is_export_equals, Some(true)) {
+                    InternalSymbolName::ExportEquals()
+                } else {
+                    InternalSymbolName::Default()
+                },
+            );
+        }
+
         let name = get_name_of_declaration(Some(node));
         if let Some(name) = name {
-            return if is_property_name_literal(&*name) {
-                Some(get_escaped_text_of_identifier_or_literal(&*name))
+            if is_ambient_module(node) {
+                let module_name = get_text_of_identifier_or_literal(&name);
+                return Some(__String::new(if is_global_scope_augmentation(node) {
+                    "__global".to_owned()
+                } else {
+                    format!("\"{}\"", module_name)
+                }));
+            }
+            if name.kind() == SyntaxKind::ComputedPropertyName {
+                let name_expression = &name.as_computed_property_name().expression;
+                if is_string_or_numeric_literal_like(name_expression) {
+                    return Some(escape_leading_underscores(
+                        &name_expression.as_literal_like_node().text(),
+                    ));
+                }
+                if is_signed_numeric_literal(name_expression) {
+                    let name_expression_as_prefix_unary_expression =
+                        name_expression.as_prefix_unary_expression();
+                    return Some(__String::new(format!(
+                        "{}{}",
+                        token_to_string(name_expression_as_prefix_unary_expression.operator)
+                            .unwrap(),
+                        name_expression_as_prefix_unary_expression
+                            .operand
+                            .as_literal_like_node()
+                            .text()
+                    )));
+                } else {
+                    Debug_.fail(Some(
+                        "Only computed properties with literal names have declaration names",
+                    ));
+                }
+            }
+            if is_private_identifier(&name) {
+                let containing_class = get_containing_class(node)?;
+                let containing_class_symbol = containing_class.symbol();
+                return Some(get_symbol_name_for_private_identifier(
+                    &containing_class_symbol,
+                    &name.as_private_identifier().escaped_text,
+                ));
+            }
+            return if is_property_name_literal(&name) {
+                Some(get_escaped_text_of_identifier_or_literal(&name))
             } else {
                 None
             };
         }
-        unimplemented!()
+        match node.kind() {
+            SyntaxKind::Constructor => Some(InternalSymbolName::Constructor()),
+            SyntaxKind::FunctionType | SyntaxKind::CallSignature | SyntaxKind::JSDocSignature => {
+                Some(InternalSymbolName::Constructor())
+            }
+            SyntaxKind::ConstructorType | SyntaxKind::ConstructSignature => {
+                Some(InternalSymbolName::New())
+            }
+            SyntaxKind::IndexSignature => Some(InternalSymbolName::Index()),
+            SyntaxKind::ExportDeclaration => Some(InternalSymbolName::ExportStar()),
+            SyntaxKind::SourceFile => Some(InternalSymbolName::ExportEquals()),
+            SyntaxKind::BinaryExpression => {
+                if get_assignment_declaration_kind(node) == AssignmentDeclarationKind::ModuleExports
+                {
+                    return Some(InternalSymbolName::ExportEquals());
+                }
+                Debug_.fail(Some("Unknown binary declaration kind"));
+            }
+            SyntaxKind::JSDocFunctionType => Some(if is_jsdoc_construct_signature(node) {
+                InternalSymbolName::New()
+            } else {
+                InternalSymbolName::Call()
+            }),
+            SyntaxKind::Parameter => {
+                Debug_.assert(node.parent().kind() == SyntaxKind::JSDocFunctionType, Some("Impossible parameter parent kind")/*, () => `parent is: ${(ts as any).SyntaxKind ? (ts as any).SyntaxKind[node.parent.kind] : node.parent.kind}, expected JSDocFunction Type`);*/);
+                let function_type = node.parent();
+                let index = index_of(
+                    &function_type.as_jsdoc_function_type().parameters(),
+                    &node.node_wrapper(),
+                    |a, b| Rc::ptr_eq(a, b),
+                );
+                return Some(__String::new(format!("arg{}", index)));
+            }
+            _ => None,
+        }
     }
 
     fn declare_symbol<TSymbolRef: Borrow<Symbol>>(
