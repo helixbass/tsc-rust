@@ -1053,6 +1053,10 @@ impl Node {
     pub fn as_class_static_block_declaration(&self) -> &ClassStaticBlockDeclaration {
         enum_unwrapped!(self, [Node, ClassStaticBlockDeclaration])
     }
+
+    pub fn as_type_of_expression(&self) -> &TypeOfExpression {
+        enum_unwrapped!(self, [Node, TypeOfExpression])
+    }
 }
 
 #[derive(Debug)]

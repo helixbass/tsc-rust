@@ -428,6 +428,45 @@ impl BinderType {
         self.set_in_assignment_pattern(save_in_assignment_pattern);
     }
 
+    pub(super) fn is_narrowing_expression(&self, expr: &Node /*Expression*/) -> bool {
+        match expr.kind() {
+            SyntaxKind::Identifier
+            | SyntaxKind::PrivateIdentifier
+            | SyntaxKind::ThisKeyword
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::ElementAccessExpression => self.contains_narrowable_reference(expr),
+            SyntaxKind::CallExpression => self.has_narrowable_argument(expr),
+            SyntaxKind::ParenthesizedExpression | SyntaxKind::NonNullExpression => {
+                self.is_narrowing_expression(&expr.as_has_expression().expression())
+            }
+            SyntaxKind::BinaryExpression => self.is_narrowing_binary_expression(expr),
+            SyntaxKind::PrefixUnaryExpression => {
+                let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
+                expr_as_prefix_unary_expression.operator == SyntaxKind::ExclamationToken
+                    && self.is_narrowing_expression(&expr_as_prefix_unary_expression.operand)
+            }
+            SyntaxKind::TypeOfExpression => {
+                self.is_narrowing_expression(&expr.as_type_of_expression().expression)
+            }
+            _ => false,
+        }
+    }
+
+    pub(super) fn contains_narrowable_reference(&self, expr: &Node /*Expression*/) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn has_narrowable_argument(&self, expr: &Node /*CallExpression*/) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_narrowing_binary_expression(
+        &self,
+        expr: &Node, /*BinaryExpression*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn create_branch_label(&self) -> FlowLabel {
         unimplemented!()
     }
