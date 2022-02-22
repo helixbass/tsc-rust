@@ -9,22 +9,23 @@ use std::rc::Rc;
 use crate::{
     add_related_info, create_diagnostic_for_node, declaration_name_to_string,
     escape_leading_underscores, for_each_child_returns, get_assignment_declaration_kind,
-    get_containing_class, get_emit_script_target, get_node_id, get_strict_option_value,
-    get_symbol_name_for_private_identifier, get_text_of_identifier_or_literal, has_dynamic_name,
-    has_syntactic_modifier, index_of, is_ambient_module, is_block, is_enum_const,
-    is_export_specifier, is_global_scope_augmentation, is_jsdoc_construct_signature,
-    is_module_block, is_named_declaration, is_private_identifier, is_signed_numeric_literal,
-    is_source_file, is_string_or_numeric_literal_like, is_type_alias_declaration, length,
-    maybe_for_each, maybe_set_parent, node_has_name, node_is_missing, set_parent_recursive,
-    token_to_string, unescape_leading_underscores, AssignmentDeclarationKind, CompilerOptions,
-    Debug_, Diagnostic, DiagnosticRelatedInformation, Diagnostics, FlowFlags, FlowNode, FlowStart,
-    ModifierFlags, NodeFlags, NodeId, ScriptTarget, SignatureDeclarationInterface, Symbol,
-    SymbolTable, SyntaxKind, __String, append_if_unique, create_symbol_table, for_each,
-    for_each_child, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
-    is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
-    is_function_like, is_property_name_literal, object_allocator, set_parent,
-    set_value_declaration, BaseSymbol, ExpressionStatement, IfStatement, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
+    get_combined_modifier_flags, get_containing_class, get_emit_script_target, get_node_id,
+    get_strict_option_value, get_symbol_name_for_private_identifier,
+    get_text_of_identifier_or_literal, has_dynamic_name, has_syntactic_modifier, index_of,
+    is_ambient_module, is_block, is_enum_const, is_export_specifier, is_global_scope_augmentation,
+    is_in_js_file, is_jsdoc_construct_signature, is_jsdoc_type_alias, is_module_block,
+    is_named_declaration, is_private_identifier, is_signed_numeric_literal, is_source_file,
+    is_string_or_numeric_literal_like, is_type_alias_declaration, length, maybe_for_each,
+    maybe_set_parent, node_has_name, node_is_missing, set_parent_recursive, token_to_string,
+    unescape_leading_underscores, AssignmentDeclarationKind, CompilerOptions, Debug_, Diagnostic,
+    DiagnosticRelatedInformation, Diagnostics, FlowFlags, FlowNode, FlowStart, ModifierFlags,
+    NodeFlags, NodeId, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolTable,
+    SyntaxKind, __String, append_if_unique, create_symbol_table, for_each, for_each_child,
+    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, is_binding_pattern,
+    is_block_or_catch_scoped, is_class_static_block_declaration, is_function_like,
+    is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
+    ExpressionStatement, IfStatement, InternalSymbolName, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -82,7 +83,7 @@ pub fn get_module_instance_state_cached(
     result
 }
 
-fn get_module_instance_state_worker(
+pub(super) fn get_module_instance_state_worker(
     node: &Node, /*ModuleDeclaration*/
     visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
 ) -> ModuleInstanceState {
@@ -165,7 +166,7 @@ fn get_module_instance_state_worker(
     ModuleInstanceState::Instantiated
 }
 
-fn get_module_instance_state_for_alias_target(
+pub(super) fn get_module_instance_state_for_alias_target(
     specifier: &Node, /*ExportSpecifier*/
     visited: Rc<RefCell<HashMap<NodeId, Option<ModuleInstanceState>>>>,
 ) -> ModuleInstanceState {
@@ -209,7 +210,7 @@ fn get_module_instance_state_for_alias_target(
 }
 
 bitflags! {
-    struct ContainerFlags: u32 {
+    pub(super) struct ContainerFlags: u32 {
         const None = 0;
 
         const IsContainer = 1 << 0;
@@ -226,7 +227,7 @@ bitflags! {
     }
 }
 
-fn init_flow_node(node: FlowNode) -> FlowNode {
+pub(super) fn init_flow_node(node: FlowNode) -> FlowNode {
     // Debug.attachFlowNodeDebugInfo(node);
     node
 }
@@ -250,47 +251,47 @@ pub fn bind_source_file(file: &Node /*SourceFile*/, options: Rc<CompilerOptions>
 }
 
 #[allow(non_snake_case)]
-struct BinderType {
-    file: RefCell<Option<Rc</*SourceFile*/ Node>>>,
-    options: RefCell<Option<Rc<CompilerOptions>>>,
-    language_version: Cell<Option<ScriptTarget>>,
-    parent: RefCell<Option<Rc<Node>>>,
-    container: RefCell<Option<Rc<Node>>>,
-    this_parent_container: RefCell<Option<Rc<Node>>>,
-    block_scope_container: RefCell<Option<Rc<Node>>>,
-    last_container: RefCell<Option<Rc<Node>>>,
-    delayed_type_aliases:
+pub(super) struct BinderType {
+    pub(super) file: RefCell<Option<Rc</*SourceFile*/ Node>>>,
+    pub(super) options: RefCell<Option<Rc<CompilerOptions>>>,
+    pub(super) language_version: Cell<Option<ScriptTarget>>,
+    pub(super) parent: RefCell<Option<Rc<Node>>>,
+    pub(super) container: RefCell<Option<Rc<Node>>>,
+    pub(super) this_parent_container: RefCell<Option<Rc<Node>>>,
+    pub(super) block_scope_container: RefCell<Option<Rc<Node>>>,
+    pub(super) last_container: RefCell<Option<Rc<Node>>>,
+    pub(super) delayed_type_aliases:
         RefCell<Option<Vec<Rc<Node /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/>>>>,
-    seen_this_keyword: Cell<Option<bool>>,
+    pub(super) seen_this_keyword: Cell<Option<bool>>,
 
-    current_flow: RefCell<Option<Rc<FlowNode>>>,
-    current_break_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    current_continue_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    current_return_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    current_true_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    current_false_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    current_exception_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    pre_switch_case_flow: RefCell<Option<Rc<FlowNode>>>,
-    active_label_list: RefCell<Option<Rc<ActiveLabel>>>,
-    has_explicit_return: Cell<Option<bool>>,
+    pub(super) current_flow: RefCell<Option<Rc<FlowNode>>>,
+    pub(super) current_break_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_continue_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_return_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_true_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_false_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_exception_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
+    pub(super) pre_switch_case_flow: RefCell<Option<Rc<FlowNode>>>,
+    pub(super) active_label_list: RefCell<Option<Rc<ActiveLabel>>>,
+    pub(super) has_explicit_return: Cell<Option<bool>>,
 
-    emit_flags: Cell<Option<NodeFlags>>,
+    pub(super) emit_flags: Cell<Option<NodeFlags>>,
 
-    in_strict_mode: Cell<Option<bool>>,
+    pub(super) in_strict_mode: Cell<Option<bool>>,
 
-    in_assignment_pattern: Cell<bool>,
+    pub(super) in_assignment_pattern: Cell<bool>,
 
-    symbol_count: Cell<usize>,
+    pub(super) symbol_count: Cell<usize>,
 
-    Symbol: RefCell<Option<fn(SymbolFlags, __String) -> BaseSymbol>>,
-    classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
+    pub(super) Symbol: RefCell<Option<fn(SymbolFlags, __String) -> BaseSymbol>>,
+    pub(super) classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
 
-    unreachable_flow: RefCell<Rc<FlowNode>>,
-    reported_unreachable_flow: RefCell<Rc<FlowNode>>,
+    pub(super) unreachable_flow: RefCell<Rc<FlowNode>>,
+    pub(super) reported_unreachable_flow: RefCell<Rc<FlowNode>>,
     // bind_binary_expression_flow: RefCell<...>,
 }
 
-fn create_binder() -> BinderType {
+pub(super) fn create_binder() -> BinderType {
     BinderType {
         file: RefCell::new(None),
         options: RefCell::new(None),
@@ -328,59 +329,59 @@ fn create_binder() -> BinderType {
 }
 
 impl BinderType {
-    fn call(&self, f: &Node, opts: Rc<CompilerOptions>) {
+    pub(super) fn call(&self, f: &Node, opts: Rc<CompilerOptions>) {
         self.bind_source_file(f, opts);
     }
 
-    fn file(&self) -> Rc<Node> {
+    pub(super) fn file(&self) -> Rc<Node> {
         self.file.borrow().as_ref().unwrap().clone()
     }
 
-    fn set_file(&self, file: Option<Rc<Node>>) {
+    pub(super) fn set_file(&self, file: Option<Rc<Node>>) {
         *self.file.borrow_mut() = file;
     }
 
-    fn options(&self) -> Rc<CompilerOptions> {
+    pub(super) fn options(&self) -> Rc<CompilerOptions> {
         self.options.borrow().as_ref().unwrap().clone()
     }
 
-    fn set_options(&self, options: Option<Rc<CompilerOptions>>) {
+    pub(super) fn set_options(&self, options: Option<Rc<CompilerOptions>>) {
         *self.options.borrow_mut() = options;
     }
 
-    fn language_version(&self) -> ScriptTarget {
+    pub(super) fn language_version(&self) -> ScriptTarget {
         self.language_version.get().unwrap()
     }
 
-    fn set_language_version(&self, language_version: Option<ScriptTarget>) {
+    pub(super) fn set_language_version(&self, language_version: Option<ScriptTarget>) {
         self.language_version.set(language_version);
     }
 
-    fn maybe_parent(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_parent(&self) -> Option<Rc<Node>> {
         self.parent.borrow().as_ref().map(Clone::clone)
     }
 
-    fn parent(&self) -> Rc<Node> {
+    pub(super) fn parent(&self) -> Rc<Node> {
         self.parent.borrow().as_ref().unwrap().clone()
     }
 
-    fn set_parent(&self, parent: Option<Rc<Node>>) {
+    pub(super) fn set_parent(&self, parent: Option<Rc<Node>>) {
         *self.parent.borrow_mut() = parent;
     }
 
-    fn container(&self) -> Rc<Node> {
+    pub(super) fn container(&self) -> Rc<Node> {
         self.container.borrow().as_ref().unwrap().clone()
     }
 
-    fn maybe_container(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_container(&self) -> Option<Rc<Node>> {
         self.container.borrow().as_ref().map(Clone::clone)
     }
 
-    fn set_container(&self, container: Option<Rc<Node>>) {
+    pub(super) fn set_container(&self, container: Option<Rc<Node>>) {
         *self.container.borrow_mut() = container;
     }
 
-    fn this_parent_container(&self) -> Rc<Node> {
+    pub(super) fn this_parent_container(&self) -> Rc<Node> {
         self.this_parent_container
             .borrow()
             .as_ref()
@@ -388,25 +389,25 @@ impl BinderType {
             .clone()
     }
 
-    fn maybe_this_parent_container(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_this_parent_container(&self) -> Option<Rc<Node>> {
         self.this_parent_container
             .borrow()
             .as_ref()
             .map(Clone::clone)
     }
 
-    fn set_this_parent_container(&self, this_parent_container: Option<Rc<Node>>) {
+    pub(super) fn set_this_parent_container(&self, this_parent_container: Option<Rc<Node>>) {
         *self.this_parent_container.borrow_mut() = this_parent_container;
     }
 
-    fn maybe_block_scope_container(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_block_scope_container(&self) -> Option<Rc<Node>> {
         self.block_scope_container
             .borrow()
             .as_ref()
             .map(Clone::clone)
     }
 
-    fn block_scope_container(&self) -> Rc<Node> {
+    pub(super) fn block_scope_container(&self) -> Rc<Node> {
         self.block_scope_container
             .borrow()
             .as_ref()
@@ -414,115 +415,121 @@ impl BinderType {
             .clone()
     }
 
-    fn set_block_scope_container(&self, block_scope_container: Option<Rc<Node>>) {
+    pub(super) fn set_block_scope_container(&self, block_scope_container: Option<Rc<Node>>) {
         *self.block_scope_container.borrow_mut() = block_scope_container;
     }
 
-    fn maybe_last_container(&self) -> Option<Rc<Node>> {
+    pub(super) fn maybe_last_container(&self) -> Option<Rc<Node>> {
         self.last_container.borrow().as_ref().map(Clone::clone)
     }
 
-    fn last_container(&self) -> Rc<Node> {
+    pub(super) fn last_container(&self) -> Rc<Node> {
         self.last_container.borrow().as_ref().unwrap().clone()
     }
 
-    fn set_last_container(&self, last_container: Option<Rc<Node>>) {
+    pub(super) fn set_last_container(&self, last_container: Option<Rc<Node>>) {
         *self.last_container.borrow_mut() = last_container;
     }
 
-    fn maybe_delayed_type_aliases(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+    pub(super) fn maybe_delayed_type_aliases(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
         self.delayed_type_aliases.borrow_mut()
     }
 
-    fn delayed_type_aliases(&self) -> RefMut<Vec<Rc<Node>>> {
+    pub(super) fn delayed_type_aliases(&self) -> RefMut<Vec<Rc<Node>>> {
         RefMut::map(self.delayed_type_aliases.borrow_mut(), |option| {
             option.as_mut().unwrap()
         })
     }
 
-    fn set_delayed_type_aliases(&self, delayed_type_aliases: Option<Vec<Rc<Node>>>) {
+    pub(super) fn set_delayed_type_aliases(&self, delayed_type_aliases: Option<Vec<Rc<Node>>>) {
         *self.delayed_type_aliases.borrow_mut() = delayed_type_aliases;
     }
 
-    fn set_seen_this_keyword(&self, seen_this_keyword: Option<bool>) {
+    pub(super) fn set_seen_this_keyword(&self, seen_this_keyword: Option<bool>) {
         self.seen_this_keyword.set(seen_this_keyword);
     }
 
-    fn set_current_flow(&self, current_flow: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_flow(&self, current_flow: Option<Rc<FlowNode>>) {
         *self.current_flow.borrow_mut() = current_flow;
     }
 
-    fn set_current_break_target(&self, current_break_target: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_break_target(&self, current_break_target: Option<Rc<FlowNode>>) {
         *self.current_break_target.borrow_mut() = current_break_target;
     }
 
-    fn set_current_continue_target(&self, current_continue_target: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_continue_target(
+        &self,
+        current_continue_target: Option<Rc<FlowNode>>,
+    ) {
         *self.current_continue_target.borrow_mut() = current_continue_target;
     }
 
-    fn set_current_return_target(&self, current_return_target: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_return_target(&self, current_return_target: Option<Rc<FlowNode>>) {
         *self.current_return_target.borrow_mut() = current_return_target;
     }
 
-    fn set_current_true_target(&self, current_true_target: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_true_target(&self, current_true_target: Option<Rc<FlowNode>>) {
         *self.current_true_target.borrow_mut() = current_true_target;
     }
 
-    fn set_current_false_target(&self, current_false_target: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_false_target(&self, current_false_target: Option<Rc<FlowNode>>) {
         *self.current_false_target.borrow_mut() = current_false_target;
     }
 
-    fn set_current_exception_target(&self, current_exception_target: Option<Rc<FlowNode>>) {
+    pub(super) fn set_current_exception_target(
+        &self,
+        current_exception_target: Option<Rc<FlowNode>>,
+    ) {
         *self.current_exception_target.borrow_mut() = current_exception_target;
     }
 
-    fn set_active_label_list(&self, active_label_list: Option<Rc<ActiveLabel>>) {
+    pub(super) fn set_active_label_list(&self, active_label_list: Option<Rc<ActiveLabel>>) {
         *self.active_label_list.borrow_mut() = active_label_list;
     }
 
-    fn set_has_explicit_return(&self, has_explicit_return: Option<bool>) {
+    pub(super) fn set_has_explicit_return(&self, has_explicit_return: Option<bool>) {
         self.has_explicit_return.set(has_explicit_return);
     }
 
-    fn set_emit_flags(&self, emit_flags: Option<NodeFlags>) {
+    pub(super) fn set_emit_flags(&self, emit_flags: Option<NodeFlags>) {
         self.emit_flags.set(emit_flags);
     }
 
-    fn set_in_strict_mode(&self, in_strict_mode: Option<bool>) {
+    pub(super) fn set_in_strict_mode(&self, in_strict_mode: Option<bool>) {
         self.in_strict_mode.set(in_strict_mode);
     }
 
-    fn in_assignment_pattern(&self) -> bool {
+    pub(super) fn in_assignment_pattern(&self) -> bool {
         self.in_assignment_pattern.get()
     }
 
-    fn set_in_assignment_pattern(&self, in_assignment_pattern: bool) {
+    pub(super) fn set_in_assignment_pattern(&self, in_assignment_pattern: bool) {
         self.in_assignment_pattern.set(in_assignment_pattern);
     }
 
-    fn symbol_count(&self) -> usize {
+    pub(super) fn symbol_count(&self) -> usize {
         self.symbol_count.get()
     }
 
-    fn increment_symbol_count(&self) {
+    pub(super) fn increment_symbol_count(&self) {
         self.symbol_count.set(self.symbol_count() + 1);
     }
 
-    fn set_symbol_count(&self, symbol_count: usize) {
+    pub(super) fn set_symbol_count(&self, symbol_count: usize) {
         self.symbol_count.set(symbol_count);
     }
 
     #[allow(non_snake_case)]
-    fn Symbol(&self) -> fn(SymbolFlags, __String) -> BaseSymbol {
+    pub(super) fn Symbol(&self) -> fn(SymbolFlags, __String) -> BaseSymbol {
         self.Symbol.borrow().unwrap()
     }
 
     #[allow(non_snake_case)]
-    fn set_Symbol(&self, Symbol: fn(SymbolFlags, __String) -> BaseSymbol) {
+    pub(super) fn set_Symbol(&self, Symbol: fn(SymbolFlags, __String) -> BaseSymbol) {
         *self.Symbol.borrow_mut() = Some(Symbol);
     }
 
-    fn classifiable_names(&self) -> Rc<RefCell<HashSet<__String>>> {
+    pub(super) fn classifiable_names(&self) -> Rc<RefCell<HashSet<__String>>> {
         self.classifiable_names
             .borrow()
             .as_ref()
@@ -530,11 +537,14 @@ impl BinderType {
             .unwrap()
     }
 
-    fn set_classifiable_names(&self, classifiable_names: Option<Rc<RefCell<HashSet<__String>>>>) {
+    pub(super) fn set_classifiable_names(
+        &self,
+        classifiable_names: Option<Rc<RefCell<HashSet<__String>>>>,
+    ) {
         *self.classifiable_names.borrow_mut() = classifiable_names;
     }
 
-    fn bind_source_file(&self, f: &Node /*SourceFile*/, opts: Rc<CompilerOptions>) {
+    pub(super) fn bind_source_file(&self, f: &Node /*SourceFile*/, opts: Rc<CompilerOptions>) {
         self.set_file(Some(f.node_wrapper()));
         self.set_options(Some(opts.clone()));
         self.set_language_version(Some(get_emit_script_target(&opts)));
@@ -579,7 +589,11 @@ impl BinderType {
         self.set_emit_flags(Some(NodeFlags::None));
     }
 
-    fn bind_in_strict_mode(&self, file: &Node /*SourceFile*/, opts: &CompilerOptions) -> bool {
+    pub(super) fn bind_in_strict_mode(
+        &self,
+        file: &Node, /*SourceFile*/
+        opts: &CompilerOptions,
+    ) -> bool {
         let file_as_source_file = file.as_source_file();
         if get_strict_option_value(opts, "always_strict")
             && !file_as_source_file.is_declaration_file()
@@ -592,12 +606,12 @@ impl BinderType {
         }
     }
 
-    fn create_symbol(&self, flags: SymbolFlags, name: __String) -> Symbol {
+    pub(super) fn create_symbol(&self, flags: SymbolFlags, name: __String) -> Symbol {
         self.increment_symbol_count();
         self.Symbol()(flags, name).into()
     }
 
-    fn add_declaration_to_symbol(
+    pub(super) fn add_declaration_to_symbol(
         &self,
         symbol: &Symbol,
         node: &Node, /*Declaration*/
@@ -645,7 +659,7 @@ impl BinderType {
         }
     }
 
-    fn get_declaration_name(&self, node: &Node) -> Option<__String> {
+    pub(super) fn get_declaration_name(&self, node: &Node) -> Option<__String> {
         if node.kind() == SyntaxKind::ExportAssignment {
             return Some(
                 if matches!(node.as_export_assignment().is_export_equals, Some(true)) {
@@ -742,7 +756,7 @@ impl BinderType {
         }
     }
 
-    fn get_display_name(&self, node: &Node /*Declaration*/) -> Cow<'static, str> {
+    pub(super) fn get_display_name(&self, node: &Node /*Declaration*/) -> Cow<'static, str> {
         if is_named_declaration(node) {
             declaration_name_to_string(node.as_named_declaration().maybe_name())
         } else {
@@ -753,7 +767,7 @@ impl BinderType {
         }
     }
 
-    fn declare_symbol<TParent: Borrow<Symbol>>(
+    pub(super) fn declare_symbol<TParent: Borrow<Symbol>>(
         &self,
         symbol_table: &mut SymbolTable,
         parent: Option<TParent>,
@@ -986,420 +1000,5 @@ impl BinderType {
         }
 
         symbol
-    }
-
-    fn bind_container(&self, node: &Node, container_flags: ContainerFlags) {
-        let save_container = self.maybe_container();
-        let saved_block_scope_container = self.maybe_block_scope_container();
-
-        if container_flags.intersects(ContainerFlags::IsContainer) {
-            self.set_container(Some(node.node_wrapper()));
-            self.set_block_scope_container(Some(node.node_wrapper()));
-            if container_flags.intersects(ContainerFlags::HasLocals) {
-                self.container().set_locals(Some(create_symbol_table(None)));
-            }
-        } else if container_flags.intersects(ContainerFlags::IsBlockScopedContainer) {
-            self.set_block_scope_container(Some(node.node_wrapper()));
-            self.block_scope_container().set_locals(None);
-        }
-
-        if false {
-        } else if container_flags.intersects(ContainerFlags::IsInterface) {
-            self.bind_children(node);
-        } else {
-            self.bind_children(node);
-        }
-
-        self.set_container(save_container);
-        self.set_block_scope_container(saved_block_scope_container);
-    }
-
-    fn bind_each_functions_first(&self, nodes: &NodeArray) {
-        BinderType::bind_each_callback(nodes, |n| {
-            if n.kind() == SyntaxKind::FunctionDeclaration {
-                self.bind(Some(n))
-            }
-        });
-        BinderType::bind_each_callback(nodes, |n| {
-            if n.kind() != SyntaxKind::FunctionDeclaration {
-                self.bind(Some(n))
-            }
-        });
-    }
-
-    fn bind_each(&self, nodes: &NodeArray) {
-        for_each(nodes, |node, _| {
-            self.bind(Some(node.clone()));
-            Option::<()>::None
-        });
-    }
-
-    fn bind_each_callback<TNodeCallback: FnMut(&Node)>(
-        nodes: &NodeArray,
-        mut bind_function: TNodeCallback,
-    ) {
-        for_each(nodes, |node, _| {
-            bind_function(&*node);
-            Option::<()>::None
-        });
-    }
-
-    fn bind_each_child(&self, node: &Node) {
-        for_each_child(
-            node,
-            |node| self.bind(Some(node)),
-            Some(|nodes: &NodeArray| self.bind_each(nodes)),
-        );
-    }
-
-    fn bind_children(&self, node: &Node) {
-        match node {
-            Node::IfStatement(if_statement) => {
-                self.bind_if_statement(if_statement);
-            }
-            Node::ReturnStatement(_) => {
-                self.bind_return_or_throw(node);
-            }
-            Node::ExpressionStatement(expression_statement) => {
-                self.bind_expression_statement(expression_statement);
-            }
-            Node::PrefixUnaryExpression(_) => {
-                self.bind_prefix_unary_expression_flow(node);
-            }
-            Node::BinaryExpression(_) => unimplemented!(),
-            Node::VariableDeclaration(_) => {
-                self.bind_variable_declaration_flow(node);
-            }
-            Node::SourceFile(source_file) => {
-                self.bind_each_functions_first(&source_file.statements);
-            }
-            Node::Block(block) => {
-                self.bind_each_functions_first(&block.statements);
-            }
-            Node::ArrayLiteralExpression(_)
-            | Node::ObjectLiteralExpression(_)
-            | Node::PropertyAssignment(_) => {
-                // self.set_in_assignment_pattern(save_in_assignment_pattern);
-                self.bind_each_child(node);
-            }
-            _ => {
-                self.bind_each_child(node);
-            }
-        };
-    }
-
-    fn do_with_conditional_branches<TArgument>(
-        &self,
-        action: fn(&BinderType, TArgument),
-        value: TArgument,
-    ) {
-        action(self, value);
-    }
-
-    fn bind_condition<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef>) {
-        self.do_with_conditional_branches(BinderType::bind, node);
-    }
-
-    fn bind_if_statement(&self, node: &IfStatement) {
-        self.bind_condition(Some(node.expression.clone()));
-        self.bind(Some(&*node.then_statement));
-        self.bind(node.else_statement.clone());
-    }
-
-    fn bind_return_or_throw(&self, node: &Node) {
-        self.bind(match node {
-            Node::ReturnStatement(return_statement) => return_statement.expression.clone(),
-            _ => panic!("Expected return or throw"),
-        });
-    }
-
-    fn bind_expression_statement(&self, node: &ExpressionStatement) {
-        self.bind(Some(node.expression.clone()));
-    }
-
-    fn bind_prefix_unary_expression_flow(&self, node: &Node) {
-        if false {
-        } else {
-            self.bind_each_child(node);
-        }
-    }
-
-    fn bind_variable_declaration_flow(&self, node: &Node /*VariableDeclaration*/) {
-        self.bind_each_child(node);
-    }
-
-    fn get_container_flags(&self, node: &Node) -> ContainerFlags {
-        match node.kind() {
-            SyntaxKind::InterfaceDeclaration => {
-                return ContainerFlags::IsContainer | ContainerFlags::IsInterface;
-            }
-            SyntaxKind::TypeAliasDeclaration => {
-                return ContainerFlags::IsContainer | ContainerFlags::HasLocals;
-            }
-            SyntaxKind::SourceFile => {
-                return ContainerFlags::IsContainer
-                    | ContainerFlags::IsControlFlowContainer
-                    | ContainerFlags::HasLocals;
-            }
-            SyntaxKind::FunctionDeclaration => {
-                return ContainerFlags::IsContainer
-                    | ContainerFlags::IsControlFlowContainer
-                    | ContainerFlags::HasLocals
-                    | ContainerFlags::IsFunctionLike;
-            }
-            SyntaxKind::Block => {
-                return if is_function_like(node.maybe_parent())
-                    || is_class_static_block_declaration(&*node.parent())
-                {
-                    ContainerFlags::None
-                } else {
-                    ContainerFlags::IsBlockScopedContainer
-                };
-            }
-            _ => (),
-        }
-
-        ContainerFlags::None
-    }
-
-    fn declare_symbol_and_add_to_symbol_table(
-        &self,
-        node: &Node, /*Declaration*/
-        symbol_flags: SymbolFlags,
-        symbol_excludes: SymbolFlags,
-    ) -> Option<Rc<Symbol>> {
-        match self.container().kind() {
-            SyntaxKind::SourceFile => {
-                Some(self.declare_source_file_member(node, symbol_flags, symbol_excludes))
-            }
-            SyntaxKind::InterfaceDeclaration => Some(self.declare_symbol(
-                &mut *self.container().symbol().members().borrow_mut(),
-                Some(self.container().symbol()),
-                node,
-                symbol_flags,
-                symbol_excludes,
-                None,
-                None,
-            )),
-            SyntaxKind::FunctionDeclaration | SyntaxKind::TypeAliasDeclaration => {
-                Some(self.declare_symbol(
-                    &mut *self.container().locals(),
-                    Option::<&Symbol>::None,
-                    node,
-                    symbol_flags,
-                    symbol_excludes,
-                    None,
-                    None,
-                ))
-            }
-            _ => unimplemented!(),
-        }
-    }
-
-    fn declare_source_file_member(
-        &self,
-        node: &Node, /*Declaration*/
-        symbol_flags: SymbolFlags,
-        symbol_excludes: SymbolFlags,
-    ) -> Rc<Symbol> {
-        if false {
-            unimplemented!()
-        } else {
-            self.declare_symbol(
-                &mut *self.file().locals(),
-                Option::<&Symbol>::None,
-                node,
-                symbol_flags,
-                symbol_excludes,
-                None,
-                None,
-            )
-        }
-    }
-
-    fn bind_object_literal_expression(&self, node: &Node /*ObjectLiteralExpression*/) {
-        self.bind_anonymous_declaration(
-            node,
-            SymbolFlags::ObjectLiteral,
-            InternalSymbolName::Object(),
-        );
-    }
-
-    fn bind_anonymous_declaration(
-        &self,
-        node: &Node,
-        symbol_flags: SymbolFlags,
-        name: __String,
-    ) -> Rc<Symbol> {
-        let symbol = self.create_symbol(symbol_flags, name).wrap();
-        self.file()
-            .as_source_file()
-            .keep_strong_reference_to_symbol(symbol.clone());
-        self.add_declaration_to_symbol(&symbol, node, symbol_flags);
-        symbol
-    }
-
-    fn bind_block_scoped_declaration(
-        &self,
-        node: &Node, /*Declaration*/
-        symbol_flags: SymbolFlags,
-        symbol_excludes: SymbolFlags,
-    ) {
-        let block_scope_container = self.block_scope_container();
-        {
-            let mut block_scope_container_locals = block_scope_container.maybe_locals();
-            if block_scope_container_locals.is_none() {
-                *block_scope_container_locals = Some(create_symbol_table(None));
-            }
-        }
-        self.declare_symbol(
-            &mut *block_scope_container.locals(),
-            Option::<&Symbol>::None,
-            node,
-            symbol_flags,
-            symbol_excludes,
-            None,
-            None,
-        );
-    }
-
-    fn delayed_bind_jsdoc_typedef_tag(&self) {
-        // unimplemented!()
-    }
-
-    fn bind<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef>) {
-        if node.is_none() {
-            return;
-        }
-        let node = node.unwrap();
-        let node = node.borrow();
-        set_parent(node, self.maybe_parent());
-
-        self.bind_worker(node);
-
-        if node.kind() > SyntaxKind::LastToken {
-            let save_parent = self.maybe_parent();
-            self.set_parent(Some(node.node_wrapper()));
-            let container_flags = self.get_container_flags(node);
-            if container_flags == ContainerFlags::None {
-                self.bind_children(node);
-            } else {
-                self.bind_container(node, container_flags);
-            }
-            self.set_parent(save_parent);
-        }
-    }
-
-    fn bind_worker(&self, node: &Node) {
-        match node {
-            Node::TypeParameterDeclaration(_) => self.bind_type_parameter(node),
-            Node::ParameterDeclaration(_) => self.bind_parameter(node),
-            Node::VariableDeclaration(_) => self.bind_variable_declaration_or_binding_element(node),
-            Node::PropertySignature(_) => self.bind_property_worker(node),
-            Node::PropertyAssignment(_) => self.bind_property_or_method_or_accessor(
-                node,
-                SymbolFlags::Property,
-                SymbolFlags::PropertyExcludes,
-            ),
-            Node::FunctionDeclaration(_) => self.bind_function_declaration(node),
-            Node::ObjectLiteralExpression(_) => self.bind_object_literal_expression(node),
-            Node::InterfaceDeclaration(_) => self.bind_block_scoped_declaration(
-                node,
-                SymbolFlags::Interface,
-                SymbolFlags::InterfaceExcludes,
-            ),
-            Node::TypeAliasDeclaration(_) => self.bind_block_scoped_declaration(
-                node,
-                SymbolFlags::TypeAlias,
-                SymbolFlags::TypeAliasExcludes,
-            ),
-            _ => (),
-        }
-    }
-
-    fn bind_property_worker(&self, node: &Node /*PropertySignature*/) {
-        self.bind_property_or_method_or_accessor(
-            node,
-            SymbolFlags::Property
-                | if false {
-                    unimplemented!()
-                } else {
-                    SymbolFlags::None
-                },
-            SymbolFlags::PropertyExcludes,
-        )
-    }
-
-    fn bind_variable_declaration_or_binding_element(
-        &self,
-        node: &Node, /*VariableDeclaration*/
-    ) {
-        let node_as_variable_declaration = node.as_variable_declaration();
-        if !is_binding_pattern(Some(node_as_variable_declaration.name())) {
-            if false {
-                unimplemented!()
-            } else if is_block_or_catch_scoped(node) {
-                self.bind_block_scoped_declaration(
-                    node,
-                    SymbolFlags::BlockScopedVariable,
-                    SymbolFlags::BlockScopedVariableExcludes,
-                );
-            } else {
-                self.declare_symbol_and_add_to_symbol_table(
-                    node,
-                    SymbolFlags::FunctionScopedVariable,
-                    SymbolFlags::FunctionScopedVariableExcludes,
-                );
-            }
-        }
-    }
-
-    fn bind_parameter(&self, node: &Node /*ParameterDeclaration*/) {
-        if is_binding_pattern(Some(node.as_parameter_declaration().name())) {
-            unimplemented!()
-        } else {
-            self.declare_symbol_and_add_to_symbol_table(
-                node,
-                SymbolFlags::FunctionScopedVariable,
-                SymbolFlags::ParameterExcludes,
-            );
-        }
-    }
-
-    fn bind_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
-        if false {
-            unimplemented!()
-        } else {
-            self.declare_symbol_and_add_to_symbol_table(
-                node,
-                SymbolFlags::Function,
-                SymbolFlags::FunctionExcludes,
-            );
-        }
-    }
-
-    fn bind_property_or_method_or_accessor(
-        &self,
-        node: &Node,
-        symbol_flags: SymbolFlags,
-        symbol_excludes: SymbolFlags,
-    ) {
-        if false {
-            unimplemented!()
-        } else {
-            self.declare_symbol_and_add_to_symbol_table(node, symbol_flags, symbol_excludes);
-        }
-    }
-
-    fn bind_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
-        if false {
-            unimplemented!()
-        } else {
-            self.declare_symbol_and_add_to_symbol_table(
-                node,
-                SymbolFlags::TypeParameter,
-                SymbolFlags::TypeParameterExcludes,
-            );
-        }
     }
 }

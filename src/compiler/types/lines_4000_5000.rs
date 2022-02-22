@@ -544,11 +544,14 @@ pub trait SymbolInterface {
     fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
     fn maybe_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
+    fn exports(&self) -> Rc<RefCell<SymbolTable>>;
     fn maybe_id(&self) -> Option<SymbolId>;
     fn id(&self) -> SymbolId;
     fn set_id(&self, id: SymbolId);
     fn maybe_parent(&self) -> Option<Rc<Symbol>>;
     fn set_parent(&self, parent: Option<Rc<Symbol>>);
+    fn maybe_export_symbol(&self) -> Option<Rc<Symbol>>;
+    fn set_export_symbol(&self, export_symbol: Option<Rc<Symbol>>);
     fn maybe_const_enum_only_module(&self) -> Option<bool>;
     fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>);
     fn maybe_is_replaceable_by_method(&self) -> Option<bool>;
@@ -581,6 +584,7 @@ pub struct BaseSymbol {
     exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     id: Cell<Option<SymbolId>>,
     parent: RefCell<Option<Rc<Symbol>>>,
+    export_symbol: RefCell<Option<Rc<Symbol>>>,
     const_enum_only_module: Cell<Option<bool>>,
     is_replaceable_by_method: Cell<Option<bool>>,
 }
@@ -597,6 +601,7 @@ impl BaseSymbol {
             exports: RefCell::new(None),
             id: Cell::new(None),
             parent: RefCell::new(None),
+            export_symbol: RefCell::new(None),
             const_enum_only_module: Cell::new(None),
             is_replaceable_by_method: Cell::new(None),
         }
@@ -660,6 +665,10 @@ impl SymbolInterface for BaseSymbol {
         self.exports.borrow_mut()
     }
 
+    fn exports(&self) -> Rc<RefCell<SymbolTable>> {
+        self.exports.borrow_mut().as_ref().unwrap().clone()
+    }
+
     fn maybe_id(&self) -> Option<SymbolId> {
         self.id.get()
     }
@@ -678,6 +687,14 @@ impl SymbolInterface for BaseSymbol {
 
     fn set_parent(&self, parent: Option<Rc<Symbol>>) {
         *self.parent.borrow_mut() = parent;
+    }
+
+    fn maybe_export_symbol(&self) -> Option<Rc<Symbol>> {
+        self.export_symbol.borrow().as_ref().map(Clone::clone)
+    }
+
+    fn set_export_symbol(&self, export_symbol: Option<Rc<Symbol>>) {
+        *self.export_symbol.borrow_mut() = export_symbol;
     }
 
     fn maybe_const_enum_only_module(&self) -> Option<bool> {

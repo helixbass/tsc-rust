@@ -177,6 +177,14 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_locals(locals)
                     }
 
+                    fn maybe_local_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        self.#first_field_name.maybe_local_symbol()
+                    }
+
+                    fn set_local_symbol(&self, local_symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        self.#first_field_name.set_local_symbol(local_symbol)
+                    }
+
                     fn maybe_emit_node(&self) -> ::std::cell::RefMut<::std::option::Option<crate::EmitNode>> {
                         self.#first_field_name.maybe_emit_node()
                     }
@@ -589,6 +597,18 @@ fn get_ast_enum_interface_impl(
                     fn set_locals(&self, locals: ::std::option::Option<crate::SymbolTable>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_locals(locals)),*
+                        }
+                    }
+
+                    fn maybe_local_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_local_symbol()),*
+                        }
+                    }
+
+                    fn set_local_symbol(&self, local_symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_local_symbol(local_symbol)),*
                         }
                     }
 
@@ -1672,6 +1692,10 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.maybe_exports()
                     }
 
+                    fn exports(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
+                        self.#first_field_name.exports()
+                    }
+
                     fn maybe_id(&self) -> ::std::option::Option<crate::SymbolId> {
                         self.#first_field_name.maybe_id()
                     }
@@ -1690,6 +1714,14 @@ fn get_symbol_struct_interface_impl(
 
                     fn set_parent(&self, parent: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
                         self.#first_field_name.set_parent(parent)
+                    }
+
+                    fn maybe_export_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        self.#first_field_name.maybe_export_symbol()
+                    }
+
+                    fn set_export_symbol(&self, export_symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        self.#first_field_name.set_export_symbol(export_symbol)
                     }
 
                     fn maybe_const_enum_only_module(&self) -> ::std::option::Option<bool> {
@@ -1808,6 +1840,12 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
+                    fn exports(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.exports()),*
+                        }
+                    }
+
                     fn maybe_id(&self) -> ::std::option::Option<crate::SymbolId> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_id()),*
@@ -1835,6 +1873,18 @@ fn get_symbol_enum_interface_impl(
                     fn set_parent(&self, parent: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_parent(parent)),*
+                        }
+                    }
+
+                    fn maybe_export_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_export_symbol()),*
+                        }
+                    }
+
+                    fn set_export_symbol(&self, export_symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_export_symbol(export_symbol)),*
                         }
                     }
 

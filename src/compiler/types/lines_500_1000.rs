@@ -170,6 +170,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
     fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: Option<SymbolTable>);
+    fn maybe_local_symbol(&self) -> Option<Rc<Symbol>>;
+    fn set_local_symbol(&self, local_symbol: Option<Rc<Symbol>>);
     fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>>;
     fn set_emit_node(&self, emit_node: Option<EmitNode>);
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
@@ -1055,6 +1057,7 @@ pub struct BaseNode {
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RefCell<Option<SymbolTable>>,
+    local_symbol: RefCell<Option<Rc<Symbol>>>,
     emit_node: RefCell<Option<EmitNode>>,
     js_doc: RefCell<Option<Vec<Weak<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
@@ -1084,6 +1087,7 @@ impl BaseNode {
             end: Cell::new(end),
             symbol: RefCell::new(None),
             locals: RefCell::new(None),
+            local_symbol: RefCell::new(None),
             emit_node: RefCell::new(None),
             js_doc: RefCell::new(None),
             js_doc_cache: RefCell::new(None),
@@ -1217,6 +1221,14 @@ impl NodeInterface for BaseNode {
 
     fn set_locals(&self, locals: Option<SymbolTable>) {
         *self.locals.borrow_mut() = locals;
+    }
+
+    fn maybe_local_symbol(&self) -> Option<Rc<Symbol>> {
+        self.local_symbol.borrow().as_ref().map(|rc| rc.clone())
+    }
+
+    fn set_local_symbol(&self, local_symbol: Option<Rc<Symbol>>) {
+        *self.local_symbol.borrow_mut() = local_symbol;
     }
 
     fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>> {
