@@ -532,7 +532,50 @@ impl BinderType {
     }
 
     pub(super) fn bind_case_block(&self, node: &Node /*CaseBlock*/) {
-        unimplemented!()
+        let node_as_case_block = node.as_case_block();
+        let clauses = &*node_as_case_block.clauses;
+        let is_narrowing_switch =
+            self.is_narrowing_expression(&node.parent().as_switch_statement().expression);
+        let mut fallthrough_flow = self.unreachable_flow();
+        let mut i = 0;
+        while i < clauses.len() {
+            let clause_start = i;
+            while clauses[i].as_case_clause().statements.is_empty() && i + 1 < clauses.len() {
+                self.bind(Some(&*clauses[i]));
+                i += 1;
+            }
+            let pre_case_label = self.create_branch_label();
+            self.add_antecedent(
+                &pre_case_label,
+                if is_narrowing_switch {
+                    self.create_flow_switch_clause(
+                        self.pre_switch_case_flow(),
+                        &node.parent(),
+                        clause_start,
+                        i + 1,
+                    )
+                } else {
+                    self.pre_switch_case_flow()
+                },
+            );
+            self.add_antecedent(&pre_case_label, fallthrough_flow);
+            self.set_current_flow(Some(self.finish_flow_label(pre_case_label.clone())));
+            let clause = &clauses[i];
+            self.bind(Some(&**clause));
+            fallthrough_flow = self.current_flow();
+            if !self
+                .current_flow()
+                .flags()
+                .intersects(FlowFlags::Unreachable)
+                && i != clauses.len() - 1
+                && matches!(self.options().no_fallthrough_cases_in_switch, Some(true))
+            {
+                clause
+                    .as_case_clause()
+                    .set_fallthrough_flow_node(Some(self.current_flow()));
+            }
+            i += 1;
+        }
     }
 
     pub(super) fn bind_case_clause(&self, node: &Node /*CaseClause*/) {

@@ -754,7 +754,7 @@ pub struct CaseClause {
     _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
     pub statements: NodeArray, /*<Statement>*/
-    pub(crate) fallthrough_flow_node: Option<FlowNode>,
+    fallthrough_flow_node: RefCell<Option<Rc<FlowNode>>>,
 }
 
 impl CaseClause {
@@ -763,8 +763,12 @@ impl CaseClause {
             _node: base_node,
             expression,
             statements,
-            fallthrough_flow_node: None,
+            fallthrough_flow_node: RefCell::new(None),
         }
+    }
+
+    pub fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Rc<FlowNode>>) {
+        *self.fallthrough_flow_node.borrow_mut() = fallthrough_flow_node;
     }
 }
 
