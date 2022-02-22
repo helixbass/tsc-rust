@@ -310,7 +310,8 @@ pub(super) fn create_binder() -> BinderType {
         pre_switch_case_flow: RefCell::new(None),
         active_label_list: RefCell::new(None),
         has_explicit_return: Cell::new(None),
-        emit_flags: Cell::new(None),
+        // emit_flags: Cell::new(None),
+        emit_flags: Cell::new(Some(NodeFlags::None)),
         in_strict_mode: Cell::new(None),
         in_assignment_pattern: Cell::new(false),
         symbol_count: Cell::new(0),
@@ -442,16 +443,36 @@ impl BinderType {
         *self.delayed_type_aliases.borrow_mut() = delayed_type_aliases;
     }
 
+    pub(super) fn maybe_seen_this_keyword(&self) -> Option<bool> {
+        self.seen_this_keyword.get()
+    }
+
     pub(super) fn set_seen_this_keyword(&self, seen_this_keyword: Option<bool>) {
         self.seen_this_keyword.set(seen_this_keyword);
+    }
+
+    pub(super) fn current_flow(&self) -> Rc<FlowNode> {
+        self.current_flow.borrow().clone().unwrap()
+    }
+
+    pub(super) fn maybe_current_flow(&self) -> Option<Rc<FlowNode>> {
+        self.current_flow.borrow().clone()
     }
 
     pub(super) fn set_current_flow(&self, current_flow: Option<Rc<FlowNode>>) {
         *self.current_flow.borrow_mut() = current_flow;
     }
 
+    pub(super) fn maybe_current_break_target(&self) -> Option<Rc<FlowNode>> {
+        self.current_break_target.borrow().clone()
+    }
+
     pub(super) fn set_current_break_target(&self, current_break_target: Option<Rc<FlowNode>>) {
         *self.current_break_target.borrow_mut() = current_break_target;
+    }
+
+    pub(super) fn maybe_current_continue_target(&self) -> Option<Rc<FlowNode>> {
+        self.current_continue_target.borrow().clone()
     }
 
     pub(super) fn set_current_continue_target(
@@ -461,16 +482,32 @@ impl BinderType {
         *self.current_continue_target.borrow_mut() = current_continue_target;
     }
 
+    pub(super) fn maybe_current_return_target(&self) -> Option<Rc<FlowNode>> {
+        self.current_return_target.borrow().clone()
+    }
+
     pub(super) fn set_current_return_target(&self, current_return_target: Option<Rc<FlowNode>>) {
         *self.current_return_target.borrow_mut() = current_return_target;
+    }
+
+    pub(super) fn maybe_current_true_target(&self) -> Option<Rc<FlowNode>> {
+        self.current_true_target.borrow().clone()
     }
 
     pub(super) fn set_current_true_target(&self, current_true_target: Option<Rc<FlowNode>>) {
         *self.current_true_target.borrow_mut() = current_true_target;
     }
 
+    pub(super) fn maybe_current_false_target(&self) -> Option<Rc<FlowNode>> {
+        self.current_false_target.borrow().clone()
+    }
+
     pub(super) fn set_current_false_target(&self, current_false_target: Option<Rc<FlowNode>>) {
         *self.current_false_target.borrow_mut() = current_false_target;
+    }
+
+    pub(super) fn maybe_current_exception_target(&self) -> Option<Rc<FlowNode>> {
+        self.current_exception_target.borrow().clone()
     }
 
     pub(super) fn set_current_exception_target(
@@ -480,12 +517,28 @@ impl BinderType {
         *self.current_exception_target.borrow_mut() = current_exception_target;
     }
 
+    pub(super) fn maybe_active_label_list(&self) -> Option<Rc<ActiveLabel>> {
+        self.active_label_list.borrow().clone()
+    }
+
     pub(super) fn set_active_label_list(&self, active_label_list: Option<Rc<ActiveLabel>>) {
         *self.active_label_list.borrow_mut() = active_label_list;
     }
 
+    pub(super) fn maybe_has_explicit_return(&self) -> Option<bool> {
+        self.has_explicit_return.get()
+    }
+
     pub(super) fn set_has_explicit_return(&self, has_explicit_return: Option<bool>) {
         self.has_explicit_return.set(has_explicit_return);
+    }
+
+    pub(super) fn maybe_emit_flags(&self) -> Option<NodeFlags> {
+        self.emit_flags.get()
+    }
+
+    pub(super) fn emit_flags(&self) -> NodeFlags {
+        self.emit_flags.get().unwrap()
     }
 
     pub(super) fn set_emit_flags(&self, emit_flags: Option<NodeFlags>) {
@@ -541,6 +594,10 @@ impl BinderType {
         *self.classifiable_names.borrow_mut() = classifiable_names;
     }
 
+    pub(super) fn unreachable_flow(&self) -> Rc<FlowNode> {
+        self.unreachable_flow.borrow().clone()
+    }
+
     pub(super) fn bind_source_file(&self, f: &Node /*SourceFile*/, opts: Rc<CompilerOptions>) {
         self.set_file(Some(f.node_wrapper()));
         self.set_options(Some(opts.clone()));
@@ -559,7 +616,7 @@ impl BinderType {
         if file_as_source_file.maybe_locals().is_none() {
             self.bind(Some(&*self.file()));
             file_as_source_file.set_symbol_count(self.symbol_count());
-            file_as_source_file.set_classifiable_names(Some(self.classifiable_names().clone()));
+            file_as_source_file.set_classifiable_names(Some(self.classifiable_names()));
             self.delayed_bind_jsdoc_typedef_tag();
         }
 

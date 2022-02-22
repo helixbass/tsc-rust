@@ -93,8 +93,8 @@ impl IndexSignatureDeclaration {
 pub struct ClassStaticBlockDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
     pub body: Rc<Node /*Block*/>,
-    end_flow_node: RefCell<Option<FlowNode>>,
-    return_flow_node: RefCell<Option<FlowNode>>,
+    end_flow_node: RefCell<Option<Rc<FlowNode>>>,
+    return_flow_node: RefCell<Option<Rc<FlowNode>>>,
 }
 
 impl ClassStaticBlockDeclaration {
@@ -105,6 +105,22 @@ impl ClassStaticBlockDeclaration {
             end_flow_node: RefCell::new(None),
             return_flow_node: RefCell::new(None),
         }
+    }
+
+    pub fn maybe_end_flow_node(&self) -> Option<Rc<FlowNode>> {
+        self.end_flow_node.borrow().clone()
+    }
+
+    pub fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>) {
+        *self.end_flow_node.borrow_mut() = end_flow_node;
+    }
+
+    pub fn maybe_return_flow_node(&self) -> Option<Rc<FlowNode>> {
+        self.return_flow_node.borrow().clone()
+    }
+
+    pub fn set_return_flow_node(&self, return_flow_node: Option<Rc<FlowNode>>) {
+        *self.return_flow_node.borrow_mut() = return_flow_node;
     }
 }
 

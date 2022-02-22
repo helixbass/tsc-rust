@@ -6,8 +6,9 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use super::{
-    BaseGenericNamedDeclaration, BaseNode, HasExpressionInterface, HasInitializerInterface,
-    HasTypeInterface, Node, NodeInterface, ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
+    BaseGenericNamedDeclaration, BaseNode, FlowNode, HasExpressionInterface,
+    HasInitializerInterface, HasTypeInterface, Node, NodeInterface, ReadonlyTextRange, SyntaxKind,
+    TransformFlags, __String,
 };
 use local_macros::ast_type;
 
@@ -578,6 +579,10 @@ pub trait FunctionLikeDeclarationInterface: SignatureDeclarationInterface {
     fn maybe_asterisk_token(&self) -> Option<Rc<Node>>;
     fn maybe_question_token(&self) -> Option<Rc<Node>>;
     fn maybe_exclamation_token(&self) -> RefMut<Option<Rc<Node>>>;
+    fn maybe_end_flow_node(&self) -> Option<Rc<FlowNode>>;
+    fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>);
+    fn maybe_return_flow_node(&self) -> Option<Rc<FlowNode>>;
+    fn set_return_flow_node(&self, return_flow_node: Option<Rc<FlowNode>>);
 }
 
 #[derive(Debug)]
@@ -591,6 +596,8 @@ pub struct BaseFunctionLikeDeclaration {
     pub question_token: Option<Rc<Node /*QuestionToken*/>>,
     pub exclamation_token: RefCell<Option<Rc<Node /*ExclamationToken*/>>>,
     body: Option<Rc<Node /*Block | Expression*/>>,
+    end_flow_node: RefCell<Option<Rc<FlowNode>>>,
+    return_flow_node: RefCell<Option<Rc<FlowNode>>>,
 }
 
 impl BaseFunctionLikeDeclaration {
@@ -601,6 +608,8 @@ impl BaseFunctionLikeDeclaration {
             asterisk_token: None,
             question_token: None,
             exclamation_token: RefCell::new(None),
+            end_flow_node: RefCell::new(None),
+            return_flow_node: RefCell::new(None),
         }
     }
 }
@@ -620,6 +629,22 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
 
     fn maybe_exclamation_token(&self) -> RefMut<Option<Rc<Node>>> {
         self.exclamation_token.borrow_mut()
+    }
+
+    fn maybe_end_flow_node(&self) -> Option<Rc<FlowNode>> {
+        self.end_flow_node.borrow().clone()
+    }
+
+    fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>) {
+        *self.end_flow_node.borrow_mut() = end_flow_node;
+    }
+
+    fn maybe_return_flow_node(&self) -> Option<Rc<FlowNode>> {
+        self.return_flow_node.borrow().clone()
+    }
+
+    fn set_return_flow_node(&self, return_flow_node: Option<Rc<FlowNode>>) {
+        *self.return_flow_node.borrow_mut() = return_flow_node;
     }
 }
 

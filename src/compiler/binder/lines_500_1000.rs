@@ -3,15 +3,17 @@
 use std::borrow::Borrow;
 use std::rc::Rc;
 
-use super::{BinderType, ContainerFlags};
+use super::{init_flow_node, BinderType, ContainerFlags};
 use crate::{
-    get_combined_modifier_flags, get_name_of_declaration, has_syntactic_modifier,
-    is_ambient_module, is_declaration, is_in_js_file, is_jsdoc_enum_tag, is_jsdoc_type_alias,
-    is_module_declaration, is_property_access_entity_name_expression, Debug_, ModifierFlags,
-    NodeFlags, Symbol, SyntaxKind, __String, create_symbol_table, for_each, for_each_child,
-    is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
-    is_function_like, set_parent, ExpressionStatement, IfStatement, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
+    contains_rc, get_combined_modifier_flags, get_immediately_invoked_function_expression,
+    get_name_of_declaration, has_syntactic_modifier, is_ambient_module, is_declaration,
+    is_in_js_file, is_jsdoc_enum_tag, is_jsdoc_type_alias, is_module_declaration,
+    is_property_access_entity_name_expression, node_is_present, Debug_, FlowFlags, FlowLabel,
+    FlowNode, FlowNodeBase, FlowStart, ModifierFlags, NodeFlags, Symbol, SyntaxKind, __String,
+    create_symbol_table, for_each, for_each_child, is_binding_pattern, is_block_or_catch_scoped,
+    is_class_static_block_declaration, is_function_like, set_parent, ExpressionStatement,
+    IfStatement, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
+    SymbolFlags, SymbolInterface,
 };
 
 impl BinderType {
@@ -149,27 +151,151 @@ impl BinderType {
 
     pub(super) fn bind_container(&self, node: &Node, container_flags: ContainerFlags) {
         let save_container = self.maybe_container();
+        let save_this_parent_container = self.maybe_this_parent_container();
         let saved_block_scope_container = self.maybe_block_scope_container();
 
         if container_flags.intersects(ContainerFlags::IsContainer) {
+            if node.kind() != SyntaxKind::ArrowFunction {
+                self.set_this_parent_container(self.maybe_container());
+            }
             self.set_container(Some(node.node_wrapper()));
             self.set_block_scope_container(Some(node.node_wrapper()));
             if container_flags.intersects(ContainerFlags::HasLocals) {
                 self.container().set_locals(Some(create_symbol_table(None)));
             }
+            self.add_to_container_chain(&self.container());
         } else if container_flags.intersects(ContainerFlags::IsBlockScopedContainer) {
             self.set_block_scope_container(Some(node.node_wrapper()));
             self.block_scope_container().set_locals(None);
         }
-
-        if false {
-        } else if container_flags.intersects(ContainerFlags::IsInterface) {
+        if container_flags.intersects(ContainerFlags::IsControlFlowContainer) {
+            let save_current_flow = self.maybe_current_flow();
+            let save_break_target = self.maybe_current_break_target();
+            let save_continue_target = self.maybe_current_continue_target();
+            let save_return_target = self.maybe_current_return_target();
+            let save_exception_target = self.maybe_current_exception_target();
+            let save_active_label_list = self.maybe_active_label_list();
+            let save_has_explicit_return = self.maybe_has_explicit_return();
+            let is_iife = container_flags.intersects(ContainerFlags::IsFunctionExpression)
+                && !has_syntactic_modifier(node, ModifierFlags::Async)
+                && node
+                    .as_function_like_declaration()
+                    .maybe_asterisk_token()
+                    .is_none()
+                && get_immediately_invoked_function_expression(node).is_some();
+            if !is_iife {
+                self.set_current_flow(Some(Rc::new(init_flow_node(
+                    FlowStart::new(FlowFlags::Start, None, None).into(),
+                ))));
+                if container_flags.intersects(
+                    ContainerFlags::IsFunctionExpression
+                        | ContainerFlags::IsObjectLiteralOrClassExpressionMethodOrAccessor,
+                ) {
+                    self.current_flow()
+                        .as_flow_start()
+                        .set_node(Some(node.node_wrapper()));
+                }
+            }
+            self.set_current_return_target(
+                if is_iife
+                    || matches!(
+                        node.kind(),
+                        SyntaxKind::Constructor | SyntaxKind::ClassStaticBlockDeclaration
+                    )
+                    || (is_in_js_file(Some(node))
+                        && matches!(
+                            node.kind(),
+                            SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression
+                        ))
+                {
+                    Some(Rc::new(self.create_branch_label().into()))
+                } else {
+                    None
+                },
+            );
+            self.set_current_exception_target(None);
+            self.set_current_break_target(None);
+            self.set_current_continue_target(None);
+            self.set_active_label_list(None);
+            self.set_has_explicit_return(Some(false));
             self.bind_children(node);
+            node.set_flags(node.flags() & !NodeFlags::ReachabilityAndEmitFlags);
+            if !self
+                .current_flow()
+                .flags()
+                .intersects(FlowFlags::Unreachable)
+                && container_flags.intersects(ContainerFlags::IsFunctionLike)
+                && node_is_present(match node.kind() {
+                    SyntaxKind::ClassStaticBlockDeclaration => {
+                        Some(node.as_class_static_block_declaration().body.clone())
+                    }
+                    _ => node.as_function_like_declaration().maybe_body(),
+                })
+            {
+                node.set_flags(node.flags() | NodeFlags::HasImplicitReturn);
+                if matches!(self.maybe_has_explicit_return(), Some(true)) {
+                    node.set_flags(node.flags() | NodeFlags::HasExplicitReturn);
+                }
+                match node.kind() {
+                    SyntaxKind::ClassStaticBlockDeclaration => node
+                        .as_class_static_block_declaration()
+                        .set_end_flow_node(self.maybe_current_flow()),
+                    _ => node
+                        .as_function_like_declaration()
+                        .set_end_flow_node(self.maybe_current_flow()),
+                }
+            }
+            if node.kind() == SyntaxKind::SourceFile {
+                node.set_flags(node.flags() | self.emit_flags());
+                node.as_source_file()
+                    .set_end_flow_node(self.maybe_current_flow());
+            }
+
+            if let Some(current_return_target) = self.maybe_current_return_target() {
+                self.add_antecedent(&current_return_target, self.current_flow());
+                self.set_current_flow(Some(self.finish_flow_label(current_return_target)));
+                if matches!(
+                    node.kind(),
+                    SyntaxKind::Constructor | SyntaxKind::ClassStaticBlockDeclaration
+                ) || is_in_js_file(Some(node))
+                    && matches!(
+                        node.kind(),
+                        SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression
+                    )
+                {
+                    match node.kind() {
+                        SyntaxKind::ClassStaticBlockDeclaration => node
+                            .as_class_static_block_declaration()
+                            .set_return_flow_node(self.maybe_current_flow()),
+                        _ => node
+                            .as_function_like_declaration()
+                            .set_return_flow_node(self.maybe_current_flow()),
+                    }
+                }
+            }
+            if !is_iife {
+                self.set_current_flow(save_current_flow);
+            }
+            self.set_current_break_target(save_break_target);
+            self.set_current_continue_target(save_continue_target);
+            self.set_current_return_target(save_return_target);
+            self.set_current_exception_target(save_exception_target);
+            self.set_active_label_list(save_active_label_list);
+            self.set_has_explicit_return(save_has_explicit_return);
+        } else if container_flags.intersects(ContainerFlags::IsInterface) {
+            self.set_seen_this_keyword(Some(false));
+            self.bind_children(node);
+            node.set_flags(if matches!(self.maybe_seen_this_keyword(), Some(true)) {
+                node.flags() | NodeFlags::ContainsThis
+            } else {
+                node.flags() & !NodeFlags::ContainsThis
+            });
         } else {
             self.bind_children(node);
         }
 
         self.set_container(save_container);
+        self.set_this_parent_container(save_this_parent_container);
         self.set_block_scope_container(saved_block_scope_container);
     }
 
@@ -247,6 +373,55 @@ impl BinderType {
         };
     }
 
+    pub(super) fn create_branch_label(&self) -> FlowLabel {
+        unimplemented!()
+    }
+
+    pub(super) fn set_flow_node_referenced(&self, flow: &FlowNode) {
+        flow.set_flags(
+            flow.flags()
+                | if flow.flags().intersects(FlowFlags::Referenced) {
+                    FlowFlags::Shared
+                } else {
+                    FlowFlags::Referenced
+                },
+        );
+    }
+
+    pub(super) fn add_antecedent(
+        &self,
+        label: &FlowNode, /*FlowLabel*/
+        antecedent: Rc<FlowNode>,
+    ) {
+        let label_as_flow_label = label.as_flow_label();
+        if !antecedent.flags().intersects(FlowFlags::Unreachable)
+            && !contains_rc(
+                label_as_flow_label.maybe_antecedents().as_deref(),
+                &antecedent,
+            )
+        {
+            let mut label_antecedents = label_as_flow_label.maybe_antecedents();
+            if label_antecedents.is_none() {
+                *label_antecedents = Some(vec![]);
+            }
+            label_antecedents.as_mut().unwrap().push(antecedent.clone());
+            self.set_flow_node_referenced(&antecedent);
+        }
+    }
+
+    pub(super) fn finish_flow_label(&self, flow: Rc<FlowNode /*FlowLabel*/>) -> Rc<FlowNode> {
+        let antecedents = flow.as_flow_label().maybe_antecedents();
+        let antecedents = antecedents.as_ref();
+        if antecedents.is_none() {
+            return self.unreachable_flow();
+        }
+        let antecedents = antecedents.unwrap();
+        if antecedents.len() == 1 {
+            return antecedents[0].clone();
+        }
+        flow.clone()
+    }
+
     pub(super) fn do_with_conditional_branches<TArgument>(
         &self,
         action: fn(&BinderType, TArgument),
@@ -319,6 +494,10 @@ impl BinderType {
         }
 
         ContainerFlags::None
+    }
+
+    pub(super) fn add_to_container_chain(&self, next: &Node) {
+        // unimplemented!()
     }
 
     pub(super) fn declare_symbol_and_add_to_symbol_table(

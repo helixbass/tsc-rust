@@ -1047,6 +1047,10 @@ impl Node {
     pub fn as_export_specifier(&self) -> &ExportSpecifier {
         enum_unwrapped!(self, [Node, ExportSpecifier])
     }
+
+    pub fn as_class_static_block_declaration(&self) -> &ClassStaticBlockDeclaration {
+        enum_unwrapped!(self, [Node, ClassStaticBlockDeclaration])
+    }
 }
 
 #[derive(Debug)]

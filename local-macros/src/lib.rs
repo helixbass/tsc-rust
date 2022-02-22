@@ -376,6 +376,22 @@ fn get_ast_struct_interface_impl(
                     fn maybe_exclamation_token(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
                         self.#first_field_name.maybe_exclamation_token()
                     }
+
+                    fn maybe_end_flow_node(&self) -> ::std::option::Option<::std::rc::Rc<crate::FlowNode>> {
+                        self.#first_field_name.maybe_end_flow_node()
+                    }
+
+                    fn set_end_flow_node(&self, end_flow_node: ::std::option::Option<::std::rc::Rc<crate::FlowNode>>) {
+                        self.#first_field_name.set_end_flow_node(end_flow_node)
+                    }
+
+                    fn maybe_return_flow_node(&self) -> ::std::option::Option<::std::rc::Rc<crate::FlowNode>> {
+                        self.#first_field_name.maybe_return_flow_node()
+                    }
+
+                    fn set_return_flow_node(&self, return_flow_node: ::std::option::Option<::std::rc::Rc<crate::FlowNode>>) {
+                        self.#first_field_name.set_return_flow_node(return_flow_node)
+                    }
                 }
             }
         }
@@ -823,6 +839,30 @@ fn get_ast_enum_interface_impl(
                     fn maybe_exclamation_token(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_exclamation_token()),*
+                        }
+                    }
+
+                    fn maybe_end_flow_node(&self) -> ::std::option::Option<::std::rc::Rc<crate::FlowNode>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_end_flow_node()),*
+                        }
+                    }
+
+                    fn set_end_flow_node(&self, end_flow_node: ::std::option::Option<::std::rc::Rc<crate::FlowNode>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_end_flow_node(end_flow_node)),*
+                        }
+                    }
+
+                    fn maybe_return_flow_node(&self) -> ::std::option::Option<::std::rc::Rc<crate::FlowNode>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_return_flow_node()),*
+                        }
+                    }
+
+                    fn set_return_flow_node(&self, return_flow_node: ::std::option::Option<::std::rc::Rc<crate::FlowNode>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_return_flow_node(return_flow_node)),*
                         }
                     }
                 }

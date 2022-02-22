@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell, RefMut};
 use std::rc::Rc;
 
 use super::{
@@ -9,7 +9,7 @@ use super::{
     HasIsTypeOnlyInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
     SyntaxKind, TextRange,
 };
-use local_macros::ast_type;
+use local_macros::{ast_type, enum_unwrapped};
 
 #[derive(Debug)]
 #[ast_type]
@@ -1085,31 +1085,103 @@ pub enum FlowNode {
     FlowReduceLabel(FlowReduceLabel),
 }
 
+impl FlowNode {
+    pub fn as_flow_start(&self) -> &FlowStart {
+        enum_unwrapped!(self, [FlowNode, FlowStart])
+    }
+
+    pub fn as_flow_label(&self) -> &FlowLabel {
+        enum_unwrapped!(self, [FlowNode, FlowLabel])
+    }
+}
+
 pub trait FlowNodeBase {
     fn flags(&self) -> FlowFlags;
+    fn set_flags(&self, flags: FlowFlags);
     fn id(&self) -> Option<usize>;
+}
+
+impl FlowNodeBase for FlowNode {
+    fn flags(&self) -> FlowFlags {
+        match self {
+            Self::FlowStart(flow_node) => flow_node.flags(),
+            Self::FlowLabel(flow_node) => flow_node.flags(),
+            Self::FlowAssignment(flow_node) => flow_node.flags(),
+            Self::FlowCall(flow_node) => flow_node.flags(),
+            Self::FlowCondition(flow_node) => flow_node.flags(),
+            Self::FlowSwitchClause(flow_node) => flow_node.flags(),
+            Self::FlowArrayMutation(flow_node) => flow_node.flags(),
+            Self::FlowReduceLabel(flow_node) => flow_node.flags(),
+        }
+    }
+
+    fn set_flags(&self, flags: FlowFlags) {
+        match self {
+            Self::FlowStart(flow_node) => flow_node.set_flags(flags),
+            Self::FlowLabel(flow_node) => flow_node.set_flags(flags),
+            Self::FlowAssignment(flow_node) => flow_node.set_flags(flags),
+            Self::FlowCall(flow_node) => flow_node.set_flags(flags),
+            Self::FlowCondition(flow_node) => flow_node.set_flags(flags),
+            Self::FlowSwitchClause(flow_node) => flow_node.set_flags(flags),
+            Self::FlowArrayMutation(flow_node) => flow_node.set_flags(flags),
+            Self::FlowReduceLabel(flow_node) => flow_node.set_flags(flags),
+        }
+    }
+
+    fn id(&self) -> Option<usize> {
+        match self {
+            Self::FlowStart(flow_node) => flow_node.id(),
+            Self::FlowLabel(flow_node) => flow_node.id(),
+            Self::FlowAssignment(flow_node) => flow_node.id(),
+            Self::FlowCall(flow_node) => flow_node.id(),
+            Self::FlowCondition(flow_node) => flow_node.id(),
+            Self::FlowSwitchClause(flow_node) => flow_node.id(),
+            Self::FlowArrayMutation(flow_node) => flow_node.id(),
+            Self::FlowReduceLabel(flow_node) => flow_node.id(),
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct FlowStart {
-    flags: FlowFlags,
+    flags: Cell<FlowFlags>,
     id: Option<usize>,
-    pub node: Option<
-        Rc<
-            Node, /*FunctionExpression | ArrowFunction | MethodDeclaration | GetAccessorDeclaration | SetAccessorDeclaration*/
+    node: RefCell<
+        Option<
+            Rc<
+                Node, /*FunctionExpression | ArrowFunction | MethodDeclaration | GetAccessorDeclaration | SetAccessorDeclaration*/
+            >,
         >,
     >,
 }
 
 impl FlowStart {
     pub fn new(flags: FlowFlags, id: Option<usize>, node: Option<Rc<Node>>) -> Self {
-        Self { flags, id, node }
+        Self {
+            flags: Cell::new(flags),
+            id,
+            node: RefCell::new(node),
+        }
+    }
+}
+
+impl FlowStart {
+    pub fn maybe_node(&self) -> Option<Rc<Node>> {
+        self.node.borrow().clone()
+    }
+
+    pub fn set_node(&self, node: Option<Rc<Node>>) {
+        *self.node.borrow_mut() = node;
     }
 }
 
 impl FlowNodeBase for FlowStart {
     fn flags(&self) -> FlowFlags {
-        self.flags
+        self.flags.get()
+    }
+
+    fn set_flags(&self, flags: FlowFlags) {
+        self.flags.set(flags)
     }
 
     fn id(&self) -> Option<usize> {
@@ -1125,14 +1197,24 @@ impl From<FlowStart> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowLabel {
-    flags: FlowFlags,
+    flags: Cell<FlowFlags>,
     id: Option<usize>,
-    pub antecedents: Option<Vec<Rc<FlowNode>>>,
+    antecedents: RefCell<Option<Vec<Rc<FlowNode>>>>,
+}
+
+impl FlowLabel {
+    pub fn maybe_antecedents(&self) -> RefMut<Option<Vec<Rc<FlowNode>>>> {
+        self.antecedents.borrow_mut()
+    }
 }
 
 impl FlowNodeBase for FlowLabel {
     fn flags(&self) -> FlowFlags {
-        self.flags
+        self.flags.get()
+    }
+
+    fn set_flags(&self, flags: FlowFlags) {
+        self.flags.set(flags)
     }
 
     fn id(&self) -> Option<usize> {
@@ -1148,7 +1230,7 @@ impl From<FlowLabel> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowAssignment {
-    flags: FlowFlags,
+    flags: Cell<FlowFlags>,
     id: Option<usize>,
     pub node: Rc<Node /*Expression | VariableDeclaration | BindingElement*/>,
     pub antecedent: Rc<FlowNode>,
@@ -1156,7 +1238,11 @@ pub struct FlowAssignment {
 
 impl FlowNodeBase for FlowAssignment {
     fn flags(&self) -> FlowFlags {
-        self.flags
+        self.flags.get()
+    }
+
+    fn set_flags(&self, flags: FlowFlags) {
+        self.flags.set(flags)
     }
 
     fn id(&self) -> Option<usize> {
@@ -1172,7 +1258,7 @@ impl From<FlowAssignment> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowCall {
-    flags: FlowFlags,
+    flags: Cell<FlowFlags>,
     id: Option<usize>,
     pub node: Rc<Node /*CallExpression*/>,
     pub antecedent: Rc<FlowNode>,
@@ -1180,7 +1266,11 @@ pub struct FlowCall {
 
 impl FlowNodeBase for FlowCall {
     fn flags(&self) -> FlowFlags {
-        self.flags
+        self.flags.get()
+    }
+
+    fn set_flags(&self, flags: FlowFlags) {
+        self.flags.set(flags)
     }
 
     fn id(&self) -> Option<usize> {
@@ -1196,7 +1286,7 @@ impl From<FlowCall> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowCondition {
-    flags: FlowFlags,
+    flags: Cell<FlowFlags>,
     id: Option<usize>,
     pub node: Rc<Node /*Expression*/>,
     pub antecedent: Rc<FlowNode>,
@@ -1204,7 +1294,11 @@ pub struct FlowCondition {
 
 impl FlowNodeBase for FlowCondition {
     fn flags(&self) -> FlowFlags {
-        self.flags
+        self.flags.get()
+    }
+
+    fn set_flags(&self, flags: FlowFlags) {
+        self.flags.set(flags)
     }
 
     fn id(&self) -> Option<usize> {
@@ -1220,7 +1314,7 @@ impl From<FlowCondition> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowSwitchClause {
-    flags: FlowFlags,
+    flags: Cell<FlowFlags>,
     id: Option<usize>,
     pub switch_statement: Rc<Node /*SwitchStatement*/>,
     pub clause_start: usize,
@@ -1230,7 +1324,11 @@ pub struct FlowSwitchClause {
 
 impl FlowNodeBase for FlowSwitchClause {
     fn flags(&self) -> FlowFlags {
-        self.flags
+        self.flags.get()
+    }
+
+    fn set_flags(&self, flags: FlowFlags) {
+        self.flags.set(flags)
     }
 
     fn id(&self) -> Option<usize> {
@@ -1246,7 +1344,7 @@ impl From<FlowSwitchClause> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowArrayMutation {
-    flags: FlowFlags,
+    flags: Cell<FlowFlags>,
     id: Option<usize>,
     pub node: Rc<Node /*CallExpression | BinaryExpression*/>,
     pub antecedent: Rc<FlowNode>,
@@ -1254,7 +1352,11 @@ pub struct FlowArrayMutation {
 
 impl FlowNodeBase for FlowArrayMutation {
     fn flags(&self) -> FlowFlags {
-        self.flags
+        self.flags.get()
+    }
+
+    fn set_flags(&self, flags: FlowFlags) {
+        self.flags.set(flags)
     }
 
     fn id(&self) -> Option<usize> {
@@ -1270,7 +1372,7 @@ impl From<FlowArrayMutation> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowReduceLabel {
-    flags: FlowFlags,
+    flags: Cell<FlowFlags>,
     id: Option<usize>,
     pub target: Rc<FlowNode /*FlowLabel*/>,
     pub antecedents: Vec<Rc<FlowNode>>,
@@ -1279,7 +1381,11 @@ pub struct FlowReduceLabel {
 
 impl FlowNodeBase for FlowReduceLabel {
     fn flags(&self) -> FlowFlags {
-        self.flags
+        self.flags.get()
+    }
+
+    fn set_flags(&self, flags: FlowFlags) {
+        self.flags.set(flags)
     }
 
     fn id(&self) -> Option<usize> {

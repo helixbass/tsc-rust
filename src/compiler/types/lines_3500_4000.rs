@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use super::{
     BaseNode, BaseTextRange, BuildInfo, CompilerOptions, Diagnostic, EmitHelper, FileReference,
-    LanguageVariant, Node, NodeArray, Path, ReadonlyPragmaMap, ResolvedModuleFull,
+    FlowNode, LanguageVariant, Node, NodeArray, Path, ReadonlyPragmaMap, ResolvedModuleFull,
     ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
 };
 use crate::{ModeAwareCache, PragmaContext, __String};
@@ -109,6 +109,8 @@ pub struct SourceFile {
     resolved_type_reference_directive_names:
         RefCell<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective /*| undefined*/>>>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
+
+    end_flow_node: RefCell<Option<Rc<FlowNode>>>,
 }
 
 impl SourceFile {
@@ -159,6 +161,7 @@ impl SourceFile {
             resolved_modules: RefCell::new(None),
             resolved_type_reference_directive_names: RefCell::new(None),
             pragmas: RefCell::new(None),
+            end_flow_node: RefCell::new(None),
         }
     }
 
@@ -387,6 +390,10 @@ impl SourceFile {
 
     pub fn set_pragmas(&self, pragmas: ReadonlyPragmaMap) {
         *self.pragmas.borrow_mut() = Some(pragmas);
+    }
+
+    pub fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>) {
+        *self.end_flow_node.borrow_mut() = end_flow_node;
     }
 
     pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
