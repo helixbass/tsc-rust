@@ -1,17 +1,67 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
-use super::{BinderType, ContainerFlags};
+use super::{init_flow_node, BinderType, ContainerFlags};
 use crate::{
-    FlowNode, Symbol, SyntaxKind, __String, create_symbol_table, is_binding_pattern,
-    is_block_or_catch_scoped, is_class_static_block_declaration, is_function_like, set_parent,
-    InternalSymbolName, NamedDeclarationInterface, Node, NodeInterface, SymbolFlags,
-    SymbolInterface,
+    is_binary_expression, is_logical_or_coalescing_assignment_operator, is_optional_chain,
+    is_outermost_optional_chain, is_parenthesized_expression, is_prefix_unary_expression,
+    skip_parentheses, FlowAssignment, FlowCall, FlowFlags, FlowNode, FlowSwitchClause, Symbol,
+    SyntaxKind, __String, create_symbol_table, is_binding_pattern, is_block_or_catch_scoped,
+    is_class_static_block_declaration, is_function_like, set_parent, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 impl BinderType {
+    pub(super) fn create_flow_switch_clause(
+        &self,
+        antecedent: Rc<FlowNode>,
+        switch_statement: &Node, /*SwitchStatement*/
+        clause_start: usize,
+        clause_end: usize,
+    ) -> Rc<FlowNode> {
+        self.set_flow_node_referenced(&antecedent);
+        Rc::new(init_flow_node(
+            FlowSwitchClause::new(
+                FlowFlags::SwitchClause,
+                antecedent,
+                switch_statement.node_wrapper(),
+                clause_start,
+                clause_end,
+            )
+            .into(),
+        ))
+    }
+
+    pub(super) fn create_flow_mutation(
+        &self,
+        flags: FlowFlags,
+        antecedent: Rc<FlowNode>,
+        node: &Node, /*Expression | VariableDeclaration | ArrayBindingElement*/
+    ) -> Rc<FlowNode> {
+        self.set_flow_node_referenced(&antecedent);
+        let result: Rc<FlowNode> = Rc::new(init_flow_node(
+            FlowAssignment::new(flags, antecedent, node.node_wrapper()).into(),
+        ));
+        if let Some(current_exception_target) = self.maybe_current_exception_target() {
+            self.add_antecedent(&current_exception_target, result.clone());
+        }
+        result
+    }
+
+    pub(super) fn create_flow_call(
+        &self,
+        antecedent: Rc<FlowNode>,
+        node: &Node, /*CallExpression*/
+    ) -> Rc<FlowNode> {
+        self.set_flow_node_referenced(&antecedent);
+        Rc::new(init_flow_node(
+            FlowCall::new(FlowFlags::Call, antecedent, node.node_wrapper()).into(),
+        ))
+    }
+
     pub(super) fn finish_flow_label(&self, flow: Rc<FlowNode /*FlowLabel*/>) -> Rc<FlowNode> {
         let antecedents = flow.as_flow_label().maybe_antecedents();
         let antecedents = antecedents.as_ref();
@@ -25,16 +75,149 @@ impl BinderType {
         flow.clone()
     }
 
-    pub(super) fn do_with_conditional_branches<TArgument>(
-        &self,
-        action: fn(&BinderType, TArgument),
-        value: TArgument,
-    ) {
-        action(self, value);
+    pub(super) fn is_statement_condition(&self, node: &Node) -> bool {
+        let parent = node.parent();
+        match parent.kind() {
+            SyntaxKind::IfStatement | SyntaxKind::WhileStatement | SyntaxKind::DoStatement => {
+                ptr::eq(&*parent.as_has_expression().expression(), node)
+            }
+            SyntaxKind::ForStatement | SyntaxKind::ConditionalExpression => {
+                matches!(parent.as_has_condition().maybe_condition(), Some(condition) if ptr::eq(&*condition, node))
+            }
+            _ => false,
+        }
     }
 
-    pub(super) fn bind_condition<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef>) {
-        self.do_with_conditional_branches(BinderType::bind, node);
+    pub(super) fn is_logical_expression(&self, node: &Node) -> bool {
+        let mut node = node.node_wrapper();
+        loop {
+            if node.kind() == SyntaxKind::ParenthesizedExpression {
+                node = node.as_parenthesized_expression().expression.clone();
+            } else if node.kind() == SyntaxKind::PrefixUnaryExpression
+                && node.as_prefix_unary_expression().operator == SyntaxKind::ExclamationToken
+            {
+                node = node.as_prefix_unary_expression().operand.clone();
+            } else {
+                return node.kind() == SyntaxKind::BinaryExpression
+                    && matches!(
+                        node.as_binary_expression().operator_token.kind(),
+                        SyntaxKind::AmpersandAmpersandToken
+                            | SyntaxKind::BarBarToken
+                            | SyntaxKind::QuestionQuestionToken
+                    );
+            }
+        }
+    }
+
+    pub(super) fn is_logical_assignment_expression(&self, node: &Node) -> bool {
+        let node = skip_parentheses(node, None);
+        is_binary_expression(&node)
+            && is_logical_or_coalescing_assignment_operator(
+                node.as_binary_expression().operator_token.kind(),
+            )
+    }
+
+    pub(super) fn is_top_level_logical_expression(&self, node: &Node) -> bool {
+        let mut node = node.node_wrapper();
+        while is_parenthesized_expression(&node.parent())
+            || is_prefix_unary_expression(&node.parent())
+                && node.parent().as_prefix_unary_expression().operator
+                    == SyntaxKind::ExclamationToken
+        {
+            node = node.parent();
+        }
+        !self.is_statement_condition(&node)
+            && !self.is_logical_assignment_expression(&node.parent())
+            && !self.is_logical_expression(&node.parent())
+            && !(is_optional_chain(&node.parent())
+                && Rc::ptr_eq(&node.parent().as_has_expression().expression(), &node))
+    }
+
+    pub(super) fn do_with_conditional_branches<TArgument, TAction: FnMut(TArgument)>(
+        &self,
+        mut action: TAction,
+        value: TArgument,
+        true_target: Rc<FlowNode /*FlowLabel*/>,
+        false_target: Rc<FlowNode /*FlowLabel*/>,
+    ) {
+        let saved_true_target = self.maybe_current_true_target();
+        let saved_false_target = self.maybe_current_false_target();
+        self.set_current_true_target(Some(true_target));
+        self.set_current_false_target(Some(false_target));
+        action(value);
+        self.set_current_true_target(saved_true_target);
+        self.set_current_false_target(saved_false_target);
+    }
+
+    pub(super) fn bind_condition<TNode: Borrow<Node> + Clone>(
+        &self,
+        node: Option<TNode>,
+        true_target: Rc<FlowNode /*FlowLabel*/>,
+        false_target: Rc<FlowNode /*FlowLabel*/>,
+    ) {
+        self.do_with_conditional_branches(
+            |node| self.bind(node),
+            node.clone(),
+            true_target.clone(),
+            false_target.clone(),
+        );
+        if match node.as_ref() {
+            None => true,
+            Some(node) => {
+                let node = node.borrow();
+                !self.is_logical_assignment_expression(node)
+                    && !self.is_logical_expression(node)
+                    && !(is_optional_chain(node) && is_outermost_optional_chain(node))
+            }
+        } {
+            self.add_antecedent(
+                &true_target,
+                self.create_flow_condition(
+                    FlowFlags::TrueCondition,
+                    self.current_flow(),
+                    node.as_ref().map(|node| node.borrow().node_wrapper()),
+                ),
+            );
+            self.add_antecedent(
+                &false_target,
+                self.create_flow_condition(
+                    FlowFlags::FalseCondition,
+                    self.current_flow(),
+                    node.as_ref().map(|node| node.borrow().node_wrapper()),
+                ),
+            );
+        }
+    }
+
+    pub(super) fn bind_iterative_statement(
+        &self,
+        node: &Node, /*Statement*/
+        break_target: Rc<FlowNode /*FlowLabel*/>,
+        continue_target: Rc<FlowNode /*FlowLabel*/>,
+    ) {
+        let save_break_target = self.maybe_current_break_target();
+        let save_continue_target = self.maybe_current_continue_target();
+        self.set_current_break_target(Some(break_target));
+        self.set_current_continue_target(Some(continue_target));
+        self.bind(Some(node));
+        self.set_current_break_target(save_break_target);
+        self.set_current_continue_target(save_continue_target);
+    }
+
+    pub(super) fn set_continue_target(
+        &self,
+        node: &Node,
+        target: Rc<FlowNode /*FlowLabel*/>,
+    ) -> Rc<FlowNode> {
+        let mut node = node.node_wrapper();
+        let mut label = self.maybe_active_label_list();
+        while label.is_some() && node.parent().kind() == SyntaxKind::LabeledStatement {
+            let label_present = label.unwrap();
+            label_present.set_continue_target(Some(target.clone()));
+            label = label_present.next.clone();
+            node = node.parent();
+        }
+        target
     }
 
     pub(super) fn bind_while_statement(&self, node: &Node /*WhileStatement*/) {
@@ -55,9 +238,21 @@ impl BinderType {
 
     pub(super) fn bind_if_statement(&self, node: &Node /*IfStatement*/) {
         let node_as_if_statement = node.as_if_statement();
-        self.bind_condition(Some(node_as_if_statement.expression.clone()));
+        let then_label = Rc::new(self.create_branch_label());
+        let else_label = Rc::new(self.create_branch_label());
+        let post_if_label = Rc::new(self.create_branch_label());
+        self.bind_condition(
+            Some(&*node_as_if_statement.expression),
+            then_label.clone(),
+            else_label.clone(),
+        );
+        self.set_current_flow(Some(self.finish_flow_label(then_label)));
         self.bind(Some(&*node_as_if_statement.then_statement));
+        self.add_antecedent(&post_if_label, self.current_flow());
+        self.set_current_flow(Some(self.finish_flow_label(else_label)));
         self.bind(node_as_if_statement.else_statement.clone());
+        self.add_antecedent(&post_if_label, self.current_flow());
+        self.set_current_flow(Some(self.finish_flow_label(post_if_label)));
     }
 
     pub(super) fn bind_return_or_throw(&self, node: &Node) {

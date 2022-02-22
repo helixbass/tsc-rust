@@ -37,8 +37,14 @@ pub(super) struct ActiveLabel {
     pub next: Option<Rc<ActiveLabel>>,
     pub name: __String,
     pub break_target: Rc<FlowNode /*FlowLabel*/>,
-    pub continue_target: Option<Rc<FlowNode /*FlowLabel*/>>,
+    continue_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
     pub referenced: bool,
+}
+
+impl ActiveLabel {
+    pub fn set_continue_target(&self, continue_target: Option<Rc<FlowNode>>) {
+        *self.continue_target.borrow_mut() = continue_target;
+    }
 }
 
 pub fn get_module_instance_state(

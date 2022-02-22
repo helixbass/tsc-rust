@@ -1244,6 +1244,17 @@ pub struct FlowAssignment {
     pub antecedent: Rc<FlowNode>,
 }
 
+impl FlowAssignment {
+    pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Rc<Node>) -> Self {
+        Self {
+            flags: Cell::new(flags),
+            id: None,
+            node,
+            antecedent,
+        }
+    }
+}
+
 impl FlowNodeBase for FlowAssignment {
     fn flags(&self) -> FlowFlags {
         self.flags.get()
@@ -1270,6 +1281,17 @@ pub struct FlowCall {
     id: Option<usize>,
     pub node: Rc<Node /*CallExpression*/>,
     pub antecedent: Rc<FlowNode>,
+}
+
+impl FlowCall {
+    pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Rc<Node>) -> Self {
+        Self {
+            flags: Cell::new(flags),
+            id: None,
+            node,
+            antecedent,
+        }
+    }
 }
 
 impl FlowNodeBase for FlowCall {
@@ -1339,6 +1361,25 @@ pub struct FlowSwitchClause {
     pub clause_start: usize,
     pub clause_end: usize,
     pub antecedent: Rc<FlowNode>,
+}
+
+impl FlowSwitchClause {
+    pub fn new(
+        flags: FlowFlags,
+        antecedent: Rc<FlowNode>,
+        switch_statement: Rc<Node>,
+        clause_start: usize,
+        clause_end: usize,
+    ) -> Self {
+        Self {
+            flags: Cell::new(flags),
+            id: None,
+            switch_statement,
+            clause_start,
+            clause_end,
+            antecedent,
+        }
+    }
 }
 
 impl FlowNodeBase for FlowSwitchClause {

@@ -489,6 +489,10 @@ impl WhileStatement {
     }
 }
 
+pub trait HasConditionInterface {
+    fn maybe_condition(&self) -> Option<Rc<Node>>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ForStatement {
@@ -524,6 +528,12 @@ impl HasInitializerInterface for ForStatement {
 
     fn set_initializer(&mut self, initializer: Rc<Node>) {
         self.initializer = Some(initializer);
+    }
+}
+
+impl HasConditionInterface for ForStatement {
+    fn maybe_condition(&self) -> Option<Rc<Node>> {
+        self.condition.clone()
     }
 }
 

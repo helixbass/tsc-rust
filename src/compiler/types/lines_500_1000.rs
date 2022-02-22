@@ -17,19 +17,19 @@ use super::{
     ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
     ExpressionWithTypeArguments, ExternalModuleReference, FlowNode, ForInStatement, ForOfStatement,
     ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
-    FunctionTypeNode, GetAccessorDeclaration, HasElementsInterface, HasExpressionInterface,
-    HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasQuestionDotTokenInterface,
-    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause,
-    Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
-    ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
-    InferTypeNode, InputFiles, InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface,
-    IntersectionTypeNode, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType,
-    JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
-    JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration, JSDocPropertyLikeTag,
-    JSDocSeeTag, JSDocSignature, JSDocTagInterface, JSDocTemplateTag, JSDocText,
-    JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
-    JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute, JsxAttributes,
-    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
+    FunctionTypeNode, GetAccessorDeclaration, HasConditionInterface, HasElementsInterface,
+    HasExpressionInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface,
+    HasQuestionDotTokenInterface, HasStatementsInterface, HasTypeArgumentsInterface,
+    HasTypeParametersInterface, HeritageClause, Identifier, IfStatement, ImportClause,
+    ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
+    IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InputFiles,
+    InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface, IntersectionTypeNode, JSDoc,
+    JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
+    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
+    JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature,
+    JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
+    JSDocTypeLiteral, JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute,
+    JsxAttributes, JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
     JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
     KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
     MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
@@ -611,6 +611,14 @@ impl Node {
             Node::ModuleBlock(node) => node,
             Node::SourceFile(node) => node,
             _ => panic!("Expected has statements"),
+        }
+    }
+
+    pub fn as_has_condition(&self) -> &dyn HasConditionInterface {
+        match self {
+            Node::ForStatement(node) => node,
+            Node::ConditionalExpression(node) => node,
+            _ => panic!("Expected has condition"),
         }
     }
 
