@@ -1,32 +1,16 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
-use std::borrow::{Borrow, Cow};
-use std::cell::{Cell, RefCell, RefMut};
-use std::collections::{HashMap, HashSet};
+use std::borrow::Borrow;
 use std::rc::Rc;
 
 use super::{BinderType, ContainerFlags};
 use crate::{
-    add_related_info, create_diagnostic_for_node, declaration_name_to_string,
-    escape_leading_underscores, for_each_child_returns, get_assignment_declaration_kind,
-    get_combined_modifier_flags, get_containing_class, get_emit_script_target, get_node_id,
-    get_strict_option_value, get_symbol_name_for_private_identifier,
-    get_text_of_identifier_or_literal, has_dynamic_name, has_syntactic_modifier, index_of,
-    is_ambient_module, is_block, is_enum_const, is_export_specifier, is_global_scope_augmentation,
-    is_in_js_file, is_jsdoc_construct_signature, is_jsdoc_type_alias, is_module_block,
-    is_named_declaration, is_private_identifier, is_signed_numeric_literal, is_source_file,
-    is_string_or_numeric_literal_like, is_type_alias_declaration, length, maybe_for_each,
-    maybe_set_parent, node_has_name, node_is_missing, set_parent_recursive, token_to_string,
-    unescape_leading_underscores, AssignmentDeclarationKind, CompilerOptions, Debug_, Diagnostic,
-    DiagnosticRelatedInformation, Diagnostics, FlowFlags, FlowNode, FlowStart, ModifierFlags,
-    NodeFlags, NodeId, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolTable,
-    SyntaxKind, __String, append_if_unique, create_symbol_table, for_each, for_each_child,
-    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, is_binding_pattern,
-    is_block_or_catch_scoped, is_class_static_block_declaration, is_function_like,
-    is_property_name_literal, object_allocator, set_parent, set_value_declaration, BaseSymbol,
-    ExpressionStatement, IfStatement, InternalSymbolName, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
+    get_combined_modifier_flags, has_syntactic_modifier, is_ambient_module, is_in_js_file,
+    is_jsdoc_type_alias, Debug_, ModifierFlags, NodeFlags, Symbol, SyntaxKind, __String,
+    create_symbol_table, for_each, for_each_child, is_binding_pattern, is_block_or_catch_scoped,
+    is_class_static_block_declaration, is_function_like, set_parent, ExpressionStatement,
+    IfStatement, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
+    SymbolFlags, SymbolInterface,
 };
 
 impl BinderType {
