@@ -714,7 +714,7 @@ pub struct SwitchStatement {
     _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
     pub case_block: Rc<Node /*CaseBlock*/>,
-    pub possibly_exhaustive: Option<bool>,
+    possibly_exhaustive: Cell<Option<bool>>,
 }
 
 impl SwitchStatement {
@@ -723,8 +723,12 @@ impl SwitchStatement {
             _node: base_node,
             expression,
             case_block,
-            possibly_exhaustive: None,
+            possibly_exhaustive: Cell::new(None),
         }
+    }
+
+    pub fn set_possibly_exhaustive(&self, possibly_exhaustive: Option<bool>) {
+        self.possibly_exhaustive.set(possibly_exhaustive);
     }
 }
 

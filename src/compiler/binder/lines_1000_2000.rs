@@ -10,7 +10,7 @@ use crate::{
     is_optional_chain, is_outermost_optional_chain, is_parenthesized_expression,
     is_prefix_unary_expression, skip_parentheses, FlowAssignment, FlowCall, FlowFlags, FlowNode,
     FlowNodeBase, FlowSwitchClause, Symbol, SyntaxKind, __String, create_symbol_table,
-    is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
+    for_each_bool, is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
     is_function_like, set_parent, InternalSymbolName, NamedDeclarationInterface, Node,
     NodeInterface, SymbolFlags, SymbolInterface,
 };
@@ -500,7 +500,35 @@ impl BinderType {
     }
 
     pub(super) fn bind_switch_statement(&self, node: &Node /*SwitchStatement*/) {
-        unimplemented!()
+        let node_as_switch_statement = node.as_switch_statement();
+        let post_switch_label = self.create_branch_label();
+        self.bind(Some(&*node_as_switch_statement.expression));
+        let save_break_target = self.maybe_current_break_target();
+        let save_pre_switch_case_flow = self.maybe_pre_switch_case_flow();
+        self.set_current_break_target(Some(post_switch_label.clone()));
+        self.set_pre_switch_case_flow(Some(self.current_flow()));
+        self.bind(Some(&*node_as_switch_statement.case_block));
+        self.add_antecedent(&post_switch_label, self.current_flow());
+        let has_default = for_each_bool(
+            &node_as_switch_statement.case_block.as_case_block().clauses,
+            |c, _| c.kind() == SyntaxKind::DefaultClause,
+        );
+        node_as_switch_statement.set_possibly_exhaustive(Some(
+            !has_default
+                && post_switch_label
+                    .as_flow_label()
+                    .maybe_antecedents()
+                    .is_none(),
+        ));
+        if !has_default {
+            self.add_antecedent(
+                &post_switch_label,
+                self.create_flow_switch_clause(self.pre_switch_case_flow(), node, 0, 0),
+            );
+        }
+        self.set_current_break_target(save_break_target);
+        self.set_pre_switch_case_flow(save_pre_switch_case_flow);
+        self.set_current_flow(Some(self.finish_flow_label(post_switch_label)));
     }
 
     pub(super) fn bind_case_block(&self, node: &Node /*CaseBlock*/) {

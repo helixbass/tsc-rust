@@ -535,6 +535,18 @@ impl BinderType {
         *self.current_exception_target.borrow_mut() = current_exception_target;
     }
 
+    pub(super) fn pre_switch_case_flow(&self) -> Rc<FlowNode> {
+        self.pre_switch_case_flow.borrow().clone().unwrap()
+    }
+
+    pub(super) fn maybe_pre_switch_case_flow(&self) -> Option<Rc<FlowNode>> {
+        self.pre_switch_case_flow.borrow().clone()
+    }
+
+    pub(super) fn set_pre_switch_case_flow(&self, pre_switch_case_flow: Option<Rc<FlowNode>>) {
+        *self.pre_switch_case_flow.borrow_mut() = pre_switch_case_flow;
+    }
+
     pub(super) fn maybe_active_label_list(&self) -> Option<Rc<ActiveLabel>> {
         self.active_label_list.borrow().clone()
     }

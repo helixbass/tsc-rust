@@ -1089,6 +1089,10 @@ impl Node {
     pub fn as_try_statement(&self) -> &TryStatement {
         enum_unwrapped!(self, [Node, TryStatement])
     }
+
+    pub fn as_case_block(&self) -> &CaseBlock {
+        enum_unwrapped!(self, [Node, CaseBlock])
+    }
 }
 
 #[derive(Debug)]
