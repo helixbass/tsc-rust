@@ -1214,6 +1214,10 @@ impl FlowLabel {
     pub fn maybe_antecedents(&self) -> RefMut<Option<Vec<Rc<FlowNode>>>> {
         self.antecedents.borrow_mut()
     }
+
+    pub fn set_antecedents(&self, antecedents: Option<Vec<Rc<FlowNode>>>) {
+        *self.antecedents.borrow_mut() = antecedents;
+    }
 }
 
 impl FlowNodeBase for FlowLabel {

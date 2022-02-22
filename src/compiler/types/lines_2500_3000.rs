@@ -537,6 +537,10 @@ impl HasConditionInterface for ForStatement {
     }
 }
 
+pub trait HasStatementInterface {
+    fn statement(&self) -> Rc<Node>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ForInStatement {
@@ -569,6 +573,12 @@ impl HasInitializerInterface for ForInStatement {
 
     fn set_initializer(&mut self, initializer: Rc<Node>) {
         self.initializer = initializer;
+    }
+}
+
+impl HasStatementInterface for ForInStatement {
+    fn statement(&self) -> Rc<Node> {
+        self.statement.clone()
     }
 }
 
@@ -610,6 +620,16 @@ impl HasInitializerInterface for ForOfStatement {
     }
 }
 
+impl HasStatementInterface for ForOfStatement {
+    fn statement(&self) -> Rc<Node> {
+        self.statement.clone()
+    }
+}
+
+pub trait HasLabelInterface {
+    fn maybe_label(&self) -> Option<Rc<Node>>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct BreakStatement {
@@ -626,6 +646,12 @@ impl BreakStatement {
     }
 }
 
+impl HasLabelInterface for BreakStatement {
+    fn maybe_label(&self) -> Option<Rc<Node>> {
+        self.label.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ContinueStatement {
@@ -639,6 +665,12 @@ impl ContinueStatement {
             _node: base_node,
             label,
         }
+    }
+}
+
+impl HasLabelInterface for ContinueStatement {
+    fn maybe_label(&self) -> Option<Rc<Node>> {
+        self.label.clone()
     }
 }
 

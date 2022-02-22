@@ -36,14 +36,26 @@ pub enum ModuleInstanceState {
 pub(super) struct ActiveLabel {
     pub next: Option<Rc<ActiveLabel>>,
     pub name: __String,
-    pub break_target: Rc<FlowNode /*FlowLabel*/>,
+    break_target: Rc<FlowNode /*FlowLabel*/>,
     continue_target: RefCell<Option<Rc<FlowNode /*FlowLabel*/>>>,
-    pub referenced: bool,
+    referenced: Cell<bool>,
 }
 
 impl ActiveLabel {
+    pub fn break_target(&self) -> Rc<FlowNode> {
+        self.break_target.clone()
+    }
+
+    pub fn maybe_continue_target(&self) -> Option<Rc<FlowNode>> {
+        self.continue_target.borrow().clone()
+    }
+
     pub fn set_continue_target(&self, continue_target: Option<Rc<FlowNode>>) {
         *self.continue_target.borrow_mut() = continue_target;
+    }
+
+    pub fn set_referenced(&self, referenced: bool) {
+        self.referenced.set(referenced)
     }
 }
 

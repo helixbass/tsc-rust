@@ -18,10 +18,10 @@ use super::{
     ExpressionWithTypeArguments, ExternalModuleReference, FlowNode, ForInStatement, ForOfStatement,
     ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
     FunctionTypeNode, GetAccessorDeclaration, HasConditionInterface, HasElementsInterface,
-    HasExpressionInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface,
-    HasQuestionDotTokenInterface, HasStatementsInterface, HasTypeArgumentsInterface,
-    HasTypeParametersInterface, HeritageClause, Identifier, IfStatement, ImportClause,
-    ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
+    HasExpressionInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasLabelInterface,
+    HasQuestionDotTokenInterface, HasStatementInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause, Identifier, IfStatement,
+    ImportClause, ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
     IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InputFiles,
     InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface, IntersectionTypeNode, JSDoc,
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
@@ -630,6 +630,22 @@ impl Node {
         }
     }
 
+    pub fn as_has_statement(&self) -> &dyn HasStatementInterface {
+        match self {
+            Node::ForInStatement(node) => node,
+            Node::ForOfStatement(node) => node,
+            _ => panic!("Expected has statement"),
+        }
+    }
+
+    pub fn as_has_label(&self) -> &dyn HasLabelInterface {
+        match self {
+            Node::BreakStatement(node) => node,
+            Node::ContinueStatement(node) => node,
+            _ => panic!("Expected has label"),
+        }
+    }
+
     pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
         enum_unwrapped!(self, [Node, VariableDeclarationList])
     }
@@ -1068,6 +1084,10 @@ impl Node {
 
     pub fn as_parenthesized_expression(&self) -> &ParenthesizedExpression {
         enum_unwrapped!(self, [Node, ParenthesizedExpression])
+    }
+
+    pub fn as_try_statement(&self) -> &TryStatement {
+        enum_unwrapped!(self, [Node, TryStatement])
     }
 }
 

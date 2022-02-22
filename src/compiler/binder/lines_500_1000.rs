@@ -210,7 +210,7 @@ impl BinderType {
                             SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression
                         ))
                 {
-                    Some(Rc::new(self.create_branch_label()))
+                    Some(self.create_branch_label())
                 } else {
                     None
                 },
@@ -573,12 +573,16 @@ impl BinderType {
         self.contains_narrowable_reference(expr)
     }
 
-    pub(super) fn create_branch_label(&self) -> FlowNode /*FlowLabel*/ {
-        init_flow_node(FlowLabel::new(FlowFlags::BranchLabel, None).into())
+    pub(super) fn create_branch_label(&self) -> Rc<FlowNode /*FlowLabel*/> {
+        Rc::new(init_flow_node(
+            FlowLabel::new(FlowFlags::BranchLabel, None).into(),
+        ))
     }
 
-    pub(super) fn create_loop_label(&self) -> FlowNode /*FlowLabel*/ {
-        init_flow_node(FlowLabel::new(FlowFlags::LoopLabel, None).into())
+    pub(super) fn create_loop_label(&self) -> Rc<FlowNode /*FlowLabel*/> {
+        Rc::new(init_flow_node(
+            FlowLabel::new(FlowFlags::LoopLabel, None).into(),
+        ))
     }
 
     pub(super) fn create_reduce_label(
@@ -586,10 +590,10 @@ impl BinderType {
         target: Rc<FlowNode /*FlowLabel*/>,
         antecedents: Vec<Rc<FlowNode>>,
         antecedent: Rc<FlowNode>,
-    ) -> FlowNode /*FlowReduceLabel*/ {
-        init_flow_node(
+    ) -> Rc<FlowNode /*FlowReduceLabel*/> {
+        Rc::new(init_flow_node(
             FlowReduceLabel::new(FlowFlags::ReduceLabel, target, antecedents, antecedent).into(),
-        )
+        ))
     }
 
     pub(super) fn set_flow_node_referenced(&self, flow: &FlowNode) {
