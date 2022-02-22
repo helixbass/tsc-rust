@@ -24,6 +24,19 @@ pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
     }
 }
 
+pub fn is_dotted_name(node: &Node /*Expression*/) -> bool {
+    matches!(
+        node.kind(),
+        SyntaxKind::Identifier
+            | SyntaxKind::ThisKeyword
+            | SyntaxKind::SuperKeyword
+            | SyntaxKind::MetaProperty
+    ) || node.kind() == SyntaxKind::PropertyAccessExpression
+        && is_dotted_name(&node.as_property_access_expression().expression)
+        || node.kind() == SyntaxKind::ParenthesizedExpression
+            && is_dotted_name(&node.as_parenthesized_expression().expression)
+}
+
 pub fn is_property_access_entity_name_expression(node: &Node) -> bool {
     if !is_property_access_expression(node) {
         return false;

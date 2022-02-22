@@ -6,14 +6,18 @@ use std::rc::Rc;
 use super::{init_flow_node, BinderType, ContainerFlags};
 use crate::{
     contains_rc, get_combined_modifier_flags, get_immediately_invoked_function_expression,
-    get_name_of_declaration, has_syntactic_modifier, is_ambient_module, is_declaration,
-    is_destructuring_assignment, is_in_js_file, is_jsdoc_enum_tag, is_jsdoc_type_alias,
-    is_module_declaration, is_property_access_entity_name_expression, node_is_present, Debug_,
-    FlowFlags, FlowLabel, FlowNode, FlowNodeBase, FlowStart, ModifierFlags, NodeFlags, Symbol,
-    SyntaxKind, __String, create_symbol_table, for_each, for_each_child, is_binding_pattern,
-    is_block_or_catch_scoped, is_class_static_block_declaration, is_function_like, set_parent,
-    InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags,
-    SymbolInterface,
+    get_name_of_declaration, has_syntactic_modifier, is_ambient_module, is_assignment_expression,
+    is_binary_expression, is_declaration, is_destructuring_assignment, is_dotted_name,
+    is_element_access_expression, is_expression_of_optional_chain_root, is_in_js_file,
+    is_jsdoc_enum_tag, is_jsdoc_type_alias, is_module_declaration, is_non_null_expression,
+    is_nullish_coalesce, is_optional_chain, is_parenthesized_expression,
+    is_property_access_entity_name_expression, is_property_access_expression,
+    is_string_literal_like, is_string_or_numeric_literal_like, is_type_of_expression,
+    node_is_present, Debug_, FlowCondition, FlowFlags, FlowLabel, FlowNode, FlowNodeBase,
+    FlowReduceLabel, FlowStart, ModifierFlags, NodeFlags, Symbol, SyntaxKind, __String,
+    create_symbol_table, for_each, for_each_child, is_binding_pattern, is_block_or_catch_scoped,
+    is_class_static_block_declaration, is_function_like, set_parent, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 impl BinderType {
@@ -208,7 +212,7 @@ impl BinderType {
                             SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression
                         ))
                 {
-                    Some(Rc::new(self.create_branch_label().into()))
+                    Some(Rc::new(self.create_branch_label()))
                 } else {
                     None
                 },
@@ -452,23 +456,142 @@ impl BinderType {
         }
     }
 
+    pub(super) fn is_narrowable_reference(&self, expr: &Node /*Expression*/) -> bool {
+        is_dotted_name(expr)
+            || (is_property_access_expression(expr)
+                || is_non_null_expression(expr)
+                || is_parenthesized_expression(expr))
+                && self.is_narrowable_reference(&expr.as_has_expression().expression())
+            || is_binary_expression(expr) && {
+                let expr_as_binary_expression = expr.as_binary_expression();
+                expr_as_binary_expression.operator_token.kind() == SyntaxKind::CommaToken
+                    && self.is_narrowable_reference(&expr_as_binary_expression.right)
+            }
+            || is_element_access_expression(expr) && {
+                let expr_as_element_access_expression = expr.as_element_access_expression();
+                is_string_or_numeric_literal_like(
+                    &expr_as_element_access_expression.argument_expression,
+                ) && self.is_narrowable_reference(&expr_as_element_access_expression.expression)
+            }
+            || is_assignment_expression(expr, None)
+                && self.is_narrowable_reference(&expr.as_binary_expression().left)
+    }
+
     pub(super) fn contains_narrowable_reference(&self, expr: &Node /*Expression*/) -> bool {
-        unimplemented!()
+        self.is_narrowable_reference(expr)
+            || is_optional_chain(expr)
+                && self.contains_narrowable_reference(&expr.as_has_expression().expression())
     }
 
     pub(super) fn has_narrowable_argument(&self, expr: &Node /*CallExpression*/) -> bool {
-        unimplemented!()
+        let expr_as_call_expression = expr.as_call_expression();
+        // if (expr.arguments) {
+        for argument in &expr_as_call_expression.arguments {
+            if self.contains_narrowable_reference(argument) {
+                return true;
+            }
+        }
+        // }
+        if expr_as_call_expression.expression.kind() == SyntaxKind::PropertyAccessExpression
+            && self.contains_narrowable_reference(
+                &expr_as_call_expression
+                    .expression
+                    .as_property_access_expression()
+                    .expression,
+            )
+        {
+            return true;
+        }
+        false
+    }
+
+    pub(super) fn is_narrowing_typeof_operands(
+        &self,
+        expr1: &Node, /*Expression*/
+        expr2: &Node, /*Expression*/
+    ) -> bool {
+        is_type_of_expression(expr1)
+            && self.is_narrowable_operand(&expr1.as_type_of_expression().expression)
+            && is_string_literal_like(expr2)
     }
 
     pub(super) fn is_narrowing_binary_expression(
         &self,
         expr: &Node, /*BinaryExpression*/
     ) -> bool {
-        unimplemented!()
+        let expr_as_binary_expression = expr.as_binary_expression();
+        match expr_as_binary_expression.operator_token.kind() {
+            SyntaxKind::EqualsToken
+            | SyntaxKind::BarBarEqualsToken
+            | SyntaxKind::AmpersandAmpersandEqualsToken
+            | SyntaxKind::QuestionQuestionEqualsToken => {
+                self.contains_narrowable_reference(&expr_as_binary_expression.left)
+            }
+            SyntaxKind::EqualsEqualsToken
+            | SyntaxKind::ExclamationEqualsToken
+            | SyntaxKind::EqualsEqualsEqualsToken
+            | SyntaxKind::ExclamationEqualsEqualsToken => {
+                self.is_narrowable_operand(&expr_as_binary_expression.left)
+                    || self.is_narrowable_operand(&expr_as_binary_expression.right)
+                    || self.is_narrowing_typeof_operands(
+                        &expr_as_binary_expression.right,
+                        &expr_as_binary_expression.left,
+                    )
+                    || self.is_narrowing_typeof_operands(
+                        &expr_as_binary_expression.left,
+                        &expr_as_binary_expression.right,
+                    )
+            }
+            SyntaxKind::InstanceOfKeyword => {
+                self.is_narrowable_operand(&expr_as_binary_expression.left)
+            }
+            SyntaxKind::InKeyword => self.is_narrowing_expression(&expr_as_binary_expression.right),
+            SyntaxKind::CommaToken => {
+                self.is_narrowing_expression(&expr_as_binary_expression.right)
+            }
+            _ => false,
+        }
     }
 
-    pub(super) fn create_branch_label(&self) -> FlowLabel {
-        unimplemented!()
+    pub(super) fn is_narrowable_operand(&self, expr: &Node /*Expression*/) -> bool {
+        match expr.kind() {
+            SyntaxKind::ParenthesizedExpression => {
+                return self.is_narrowable_operand(&expr.as_parenthesized_expression().expression);
+            }
+            SyntaxKind::BinaryExpression => {
+                let expr_as_binary_expression = expr.as_binary_expression();
+                match expr_as_binary_expression.operator_token.kind() {
+                    SyntaxKind::EqualsToken => {
+                        return self.is_narrowable_operand(&expr_as_binary_expression.left);
+                    }
+                    SyntaxKind::CommaToken => {
+                        return self.is_narrowable_operand(&expr_as_binary_expression.right);
+                    }
+                    _ => (),
+                }
+            }
+            _ => (),
+        }
+        self.contains_narrowable_reference(expr)
+    }
+
+    pub(super) fn create_branch_label(&self) -> FlowNode /*FlowLabel*/ {
+        init_flow_node(FlowLabel::new(FlowFlags::BranchLabel, None).into())
+    }
+
+    pub(super) fn create_loop_label(&self) -> FlowNode /*FlowLabel*/ {
+        init_flow_node(FlowLabel::new(FlowFlags::LoopLabel, None).into())
+    }
+
+    pub(super) fn create_reduce_label(
+        &self,
+        target: Rc<FlowNode /*FlowLabel*/>,
+        antecedents: Vec<Rc<FlowNode>>,
+        antecedent: Rc<FlowNode>,
+    ) -> FlowNode /*FlowReduceLabel*/ {
+        init_flow_node(
+            FlowReduceLabel::new(FlowFlags::ReduceLabel, target, antecedents, antecedent).into(),
+        )
     }
 
     pub(super) fn set_flow_node_referenced(&self, flow: &FlowNode) {
@@ -501,6 +624,42 @@ impl BinderType {
             label_antecedents.as_mut().unwrap().push(antecedent.clone());
             self.set_flow_node_referenced(&antecedent);
         }
+    }
+
+    pub(super) fn create_flow_condition<TExpression: Borrow<Node>>(
+        &self,
+        flags: FlowFlags,
+        antecedent: Rc<FlowNode>,
+        expression: Option<TExpression>,
+    ) -> Rc<FlowNode> {
+        if antecedent.flags().intersects(FlowFlags::Unreachable) {
+            return antecedent;
+        }
+        if expression.is_none() {
+            return if flags.intersects(FlowFlags::TrueCondition) {
+                antecedent
+            } else {
+                self.unreachable_flow()
+            };
+        }
+        let expression = expression.unwrap();
+        let expression = expression.borrow();
+        if (expression.kind() == SyntaxKind::TrueKeyword
+            && flags.intersects(FlowFlags::FalseCondition)
+            || expression.kind() == SyntaxKind::FalseKeyword
+                && flags.intersects(FlowFlags::TrueCondition))
+            && !is_expression_of_optional_chain_root(expression)
+            && !is_nullish_coalesce(&expression.parent())
+        {
+            return self.unreachable_flow();
+        }
+        if !self.is_narrowing_expression(expression) {
+            return antecedent;
+        }
+        self.set_flow_node_referenced(&antecedent);
+        Rc::new(init_flow_node(
+            FlowCondition::new(flags, antecedent, expression.node_wrapper()).into(),
+        ))
     }
 
     pub(super) fn finish_flow_label(&self, flow: Rc<FlowNode /*FlowLabel*/>) -> Rc<FlowNode> {

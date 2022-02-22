@@ -1057,6 +1057,10 @@ impl Node {
     pub fn as_type_of_expression(&self) -> &TypeOfExpression {
         enum_unwrapped!(self, [Node, TypeOfExpression])
     }
+
+    pub fn as_parenthesized_expression(&self) -> &ParenthesizedExpression {
+        enum_unwrapped!(self, [Node, ParenthesizedExpression])
+    }
 }
 
 #[derive(Debug)]

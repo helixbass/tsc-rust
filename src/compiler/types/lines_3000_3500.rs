@@ -1203,6 +1203,14 @@ pub struct FlowLabel {
 }
 
 impl FlowLabel {
+    pub fn new(flags: FlowFlags, antecedents: Option<Vec<Rc<FlowNode>>>) -> Self {
+        Self {
+            flags: Cell::new(flags),
+            id: None,
+            antecedents: RefCell::new(antecedents),
+        }
+    }
+
     pub fn maybe_antecedents(&self) -> RefMut<Option<Vec<Rc<FlowNode>>>> {
         self.antecedents.borrow_mut()
     }
@@ -1292,6 +1300,17 @@ pub struct FlowCondition {
     pub antecedent: Rc<FlowNode>,
 }
 
+impl FlowCondition {
+    pub fn new(flags: FlowFlags, antecedent: Rc<FlowNode>, node: Rc<Node>) -> Self {
+        Self {
+            flags: Cell::new(flags),
+            antecedent,
+            node,
+            id: None,
+        }
+    }
+}
+
 impl FlowNodeBase for FlowCondition {
     fn flags(&self) -> FlowFlags {
         self.flags.get()
@@ -1377,6 +1396,23 @@ pub struct FlowReduceLabel {
     pub target: Rc<FlowNode /*FlowLabel*/>,
     pub antecedents: Vec<Rc<FlowNode>>,
     pub antecedent: Rc<FlowNode>,
+}
+
+impl FlowReduceLabel {
+    pub fn new(
+        flags: FlowFlags,
+        target: Rc<FlowNode>,
+        antecedents: Vec<Rc<FlowNode>>,
+        antecedent: Rc<FlowNode>,
+    ) -> Self {
+        Self {
+            flags: Cell::new(flags),
+            id: None,
+            target,
+            antecedents,
+            antecedent,
+        }
+    }
 }
 
 impl FlowNodeBase for FlowReduceLabel {
