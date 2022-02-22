@@ -859,6 +859,11 @@ impl JSDocSeeTag {
     }
 }
 
+pub trait JSDocTypedefOrCallbackTagInterface: NamedDeclarationInterface {
+    fn maybe_full_name(&self) -> Option<Rc<Node>>;
+    fn maybe_type_expression(&self) -> Option<Rc<Node>>;
+}
+
 #[derive(Debug)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocTypedefTag {
@@ -898,6 +903,16 @@ impl NamedDeclarationInterface for JSDocTypedefTag {
     }
 }
 
+impl JSDocTypedefOrCallbackTagInterface for JSDocTypedefTag {
+    fn maybe_full_name(&self) -> Option<Rc<Node>> {
+        self.full_name.clone()
+    }
+
+    fn maybe_type_expression(&self) -> Option<Rc<Node>> {
+        self.type_expression.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocCallbackTag {
@@ -934,6 +949,16 @@ impl NamedDeclarationInterface for JSDocCallbackTag {
 
     fn set_name(&mut self, name: Rc<Node>) {
         self.name = Some(name);
+    }
+}
+
+impl JSDocTypedefOrCallbackTagInterface for JSDocCallbackTag {
+    fn maybe_full_name(&self) -> Option<Rc<Node>> {
+        self.full_name.clone()
+    }
+
+    fn maybe_type_expression(&self) -> Option<Rc<Node>> {
+        Some(self.type_expression.clone())
     }
 }
 

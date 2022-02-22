@@ -5,12 +5,13 @@ use std::rc::Rc;
 
 use super::{BinderType, ContainerFlags};
 use crate::{
-    get_combined_modifier_flags, has_syntactic_modifier, is_ambient_module, is_in_js_file,
-    is_jsdoc_type_alias, Debug_, ModifierFlags, NodeFlags, Symbol, SyntaxKind, __String,
-    create_symbol_table, for_each, for_each_child, is_binding_pattern, is_block_or_catch_scoped,
-    is_class_static_block_declaration, is_function_like, set_parent, ExpressionStatement,
-    IfStatement, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    SymbolFlags, SymbolInterface,
+    get_combined_modifier_flags, get_name_of_declaration, has_syntactic_modifier,
+    is_ambient_module, is_declaration, is_in_js_file, is_jsdoc_enum_tag, is_jsdoc_type_alias,
+    is_module_declaration, is_property_access_entity_name_expression, Debug_, ModifierFlags,
+    NodeFlags, Symbol, SyntaxKind, __String, create_symbol_table, for_each, for_each_child,
+    is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
+    is_function_like, set_parent, ExpressionStatement, IfStatement, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
 };
 
 impl BinderType {
@@ -112,7 +113,38 @@ impl BinderType {
     }
 
     pub(super) fn jsdoc_treat_as_exported(&self, node: &Node) -> bool {
-        unimplemented!()
+        let mut node = node.node_wrapper();
+        if node.maybe_parent().is_some() && is_module_declaration(&node) {
+            node = node.parent();
+        }
+        if !is_jsdoc_type_alias(&node) {
+            return false;
+        }
+        if !is_jsdoc_enum_tag(&node)
+            && node
+                .as_jsdoc_typedef_or_callback_tag()
+                .maybe_full_name()
+                .is_some()
+        {
+            return true;
+        }
+        let decl_name = get_name_of_declaration(Some(&*node));
+        if decl_name.is_none() {
+            return false;
+        }
+        let decl_name = decl_name.unwrap();
+        let decl_name_parent = decl_name.parent();
+        if is_property_access_entity_name_expression(&decl_name_parent)
+            && self.is_top_level_namespace_assignment(&decl_name_parent)
+        {
+            return true;
+        }
+        if is_declaration(&decl_name_parent)
+            && get_combined_modifier_flags(&decl_name_parent).intersects(ModifierFlags::Export)
+        {
+            return true;
+        }
+        false
     }
 
     pub(super) fn bind_container(&self, node: &Node, container_flags: ContainerFlags) {
@@ -458,6 +490,13 @@ impl BinderType {
                 },
             SymbolFlags::PropertyExcludes,
         )
+    }
+
+    pub(super) fn is_top_level_namespace_assignment(
+        &self,
+        property_access: &Node, /*BindableAccessExpression*/
+    ) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn bind_variable_declaration_or_binding_element(
