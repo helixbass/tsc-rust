@@ -602,6 +602,18 @@ pub fn is_assignment_expression(node: &Node, exclude_compound_assignment: Option
     }) && is_left_hand_side_expression(&*node_as_binary_expression.left)
 }
 
+pub fn is_destructuring_assignment(node: &Node) -> bool {
+    if is_assignment_expression(node, Some(true)) {
+        let kind = node.as_binary_expression().left.kind();
+        return matches!(
+            kind,
+            SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
+        );
+    }
+
+    false
+}
+
 pub fn is_expression_with_type_arguments_in_class_extends_clause(node: &Node) -> bool {
     unimplemented!()
 }

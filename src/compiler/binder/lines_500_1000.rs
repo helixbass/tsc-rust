@@ -7,13 +7,13 @@ use super::{init_flow_node, BinderType, ContainerFlags};
 use crate::{
     contains_rc, get_combined_modifier_flags, get_immediately_invoked_function_expression,
     get_name_of_declaration, has_syntactic_modifier, is_ambient_module, is_declaration,
-    is_in_js_file, is_jsdoc_enum_tag, is_jsdoc_type_alias, is_module_declaration,
-    is_property_access_entity_name_expression, node_is_present, Debug_, FlowFlags, FlowLabel,
-    FlowNode, FlowNodeBase, FlowStart, ModifierFlags, NodeFlags, Symbol, SyntaxKind, __String,
-    create_symbol_table, for_each, for_each_child, is_binding_pattern, is_block_or_catch_scoped,
-    is_class_static_block_declaration, is_function_like, set_parent, ExpressionStatement,
-    IfStatement, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
-    SymbolFlags, SymbolInterface,
+    is_destructuring_assignment, is_in_js_file, is_jsdoc_enum_tag, is_jsdoc_type_alias,
+    is_module_declaration, is_property_access_entity_name_expression, node_is_present, Debug_,
+    FlowFlags, FlowLabel, FlowNode, FlowNodeBase, FlowStart, ModifierFlags, NodeFlags, Symbol,
+    SyntaxKind, __String, create_symbol_table, for_each, for_each_child, is_binding_pattern,
+    is_block_or_catch_scoped, is_class_static_block_declaration, is_function_like, set_parent,
+    InternalSymbolName, NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags,
+    SymbolInterface,
 };
 
 impl BinderType {
@@ -299,30 +299,41 @@ impl BinderType {
         self.set_block_scope_container(saved_block_scope_container);
     }
 
-    pub(super) fn bind_each_functions_first(&self, nodes: &NodeArray) {
-        BinderType::bind_each_callback(nodes, |n| {
+    pub(super) fn bind_each_functions_first(&self, nodes: Option<&[Rc<Node>] /*NodeArray*/>) {
+        self.bind_each_callback(nodes, |n| {
             if n.kind() == SyntaxKind::FunctionDeclaration {
                 self.bind(Some(n))
             }
         });
-        BinderType::bind_each_callback(nodes, |n| {
+        self.bind_each_callback(nodes, |n| {
             if n.kind() != SyntaxKind::FunctionDeclaration {
                 self.bind(Some(n))
             }
         });
     }
 
-    pub(super) fn bind_each(&self, nodes: &NodeArray) {
+    pub(super) fn bind_each(&self, nodes: Option<&[Rc<Node>] /*NodeArray*/>) {
+        if nodes.is_none() {
+            return;
+        }
+        let nodes = nodes.unwrap();
+
         for_each(nodes, |node, _| {
-            self.bind(Some(node.clone()));
+            self.bind(Some(&**node));
             Option::<()>::None
         });
     }
 
     pub(super) fn bind_each_callback<TNodeCallback: FnMut(&Node)>(
-        nodes: &NodeArray,
+        &self,
+        nodes: Option<&[Rc<Node>] /*NodeArray*/>,
         mut bind_function: TNodeCallback,
     ) {
+        if nodes.is_none() {
+            return;
+        }
+        let nodes = nodes.unwrap();
+
         for_each(nodes, |node, _| {
             bind_function(&*node);
             Option::<()>::None
@@ -333,44 +344,88 @@ impl BinderType {
         for_each_child(
             node,
             |node| self.bind(Some(node)),
-            Some(|nodes: &NodeArray| self.bind_each(nodes)),
+            Some(|nodes: &NodeArray| self.bind_each(Some(nodes))),
         );
     }
 
     pub(super) fn bind_children(&self, node: &Node) {
-        match node {
-            Node::IfStatement(if_statement) => {
-                self.bind_if_statement(if_statement);
+        let save_in_assignment_pattern = self.in_assignment_pattern();
+        self.set_in_assignment_pattern(false);
+        if self.check_unreachable(node) {
+            self.bind_each_child(node);
+            self.bind_jsdoc(node);
+            self.set_in_assignment_pattern(save_in_assignment_pattern);
+            return;
+        }
+        if node.kind() >= SyntaxKind::FirstStatement
+            && node.kind() <= SyntaxKind::LastStatement
+            && !matches!(self.options().allow_unreachable_code, Some(true))
+        {
+            node.set_flow_node(self.maybe_current_flow());
+        }
+        match node.kind() {
+            SyntaxKind::WhileStatement => self.bind_while_statement(node),
+            SyntaxKind::DoStatement => self.bind_do_statement(node),
+            SyntaxKind::ForStatement => self.bind_for_statement(node),
+            SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement => {
+                self.bind_for_in_or_for_of_statement(node)
             }
-            Node::ReturnStatement(_) => {
-                self.bind_return_or_throw(node);
+            SyntaxKind::IfStatement => self.bind_if_statement(node),
+            SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement => {
+                self.bind_return_or_throw(node)
             }
-            Node::ExpressionStatement(expression_statement) => {
-                self.bind_expression_statement(expression_statement);
+            SyntaxKind::BreakStatement | SyntaxKind::ContinueStatement => {
+                self.bind_break_or_continue_statement(node)
             }
-            Node::PrefixUnaryExpression(_) => {
-                self.bind_prefix_unary_expression_flow(node);
+            SyntaxKind::TryStatement => self.bind_try_statement(node),
+            SyntaxKind::SwitchStatement => self.bind_switch_statement(node),
+            SyntaxKind::CaseBlock => self.bind_case_block(node),
+            SyntaxKind::CaseClause => self.bind_case_clause(node),
+            SyntaxKind::ExpressionStatement => self.bind_expression_statement(node),
+            SyntaxKind::LabeledStatement => self.bind_labeled_statement(node),
+            SyntaxKind::PrefixUnaryExpression => self.bind_prefix_unary_expression_flow(node),
+            SyntaxKind::PostfixUnaryExpression => self.bind_postfix_unary_expression_flow(node),
+            SyntaxKind::BinaryExpression => {
+                if is_destructuring_assignment(node) {
+                    self.set_in_assignment_pattern(save_in_assignment_pattern);
+                    self.bind_destructuring_assignment_flow(node);
+                    return;
+                }
+                self.bind_binary_expression_flow(node)
             }
-            Node::BinaryExpression(_) => unimplemented!(),
-            Node::VariableDeclaration(_) => {
-                self.bind_variable_declaration_flow(node);
+            SyntaxKind::DeleteExpression => self.bind_delete_expression_flow(node),
+            SyntaxKind::ConditionalExpression => self.bind_conditional_expression_flow(node),
+            SyntaxKind::VariableDeclaration => self.bind_variable_declaration_flow(node),
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                self.bind_access_expression_flow(node)
             }
-            Node::SourceFile(source_file) => {
-                self.bind_each_functions_first(&source_file.statements);
+            SyntaxKind::CallExpression => self.bind_call_expression_flow(node),
+            SyntaxKind::NonNullExpression => self.bind_non_null_expression_flow(node),
+            SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocCallbackTag
+            | SyntaxKind::JSDocEnumTag => self.bind_jsdoc_type_alias(node),
+            SyntaxKind::SourceFile => {
+                let node_as_source_file = node.as_source_file();
+                self.bind_each_functions_first(Some(&node_as_source_file.statements));
+                self.bind(Some(&*node_as_source_file.end_of_file_token));
             }
-            Node::Block(block) => {
-                self.bind_each_functions_first(&block.statements);
+            SyntaxKind::Block | SyntaxKind::ModuleBlock => {
+                self.bind_each_functions_first(Some(node.as_has_statements().statements()));
             }
-            Node::ArrayLiteralExpression(_)
-            | Node::ObjectLiteralExpression(_)
-            | Node::PropertyAssignment(_) => {
-                // self.set_in_assignment_pattern(save_in_assignment_pattern);
+            SyntaxKind::BindingElement => self.bind_binding_element_flow(node),
+            SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::ArrayLiteralExpression
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::SpreadElement => {
+                self.set_in_assignment_pattern(save_in_assignment_pattern);
                 self.bind_each_child(node);
             }
             _ => {
                 self.bind_each_child(node);
             }
         };
+        self.bind_jsdoc(node);
+        self.set_in_assignment_pattern(save_in_assignment_pattern);
     }
 
     pub(super) fn create_branch_label(&self) -> FlowLabel {
@@ -434,10 +489,27 @@ impl BinderType {
         self.do_with_conditional_branches(BinderType::bind, node);
     }
 
-    pub(super) fn bind_if_statement(&self, node: &IfStatement) {
-        self.bind_condition(Some(node.expression.clone()));
-        self.bind(Some(&*node.then_statement));
-        self.bind(node.else_statement.clone());
+    pub(super) fn bind_while_statement(&self, node: &Node /*WhileStatement*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_do_statement(&self, node: &Node /*DoStatement*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_for_statement(&self, node: &Node /*ForStatement*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_for_in_or_for_of_statement(&self, node: &Node /*ForInOrOfStatement*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_if_statement(&self, node: &Node /*IfStatement*/) {
+        let node_as_if_statement = node.as_if_statement();
+        self.bind_condition(Some(node_as_if_statement.expression.clone()));
+        self.bind(Some(&*node_as_if_statement.then_statement));
+        self.bind(node_as_if_statement.else_statement.clone());
     }
 
     pub(super) fn bind_return_or_throw(&self, node: &Node) {
@@ -447,19 +519,110 @@ impl BinderType {
         });
     }
 
-    pub(super) fn bind_expression_statement(&self, node: &ExpressionStatement) {
-        self.bind(Some(node.expression.clone()));
+    pub(super) fn bind_break_or_continue_statement(
+        &self,
+        node: &Node, /*BreakOrContinueStatement*/
+    ) {
+        unimplemented!()
     }
 
-    pub(super) fn bind_prefix_unary_expression_flow(&self, node: &Node) {
+    pub(super) fn bind_try_statement(&self, node: &Node /*TryStatement*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_switch_statement(&self, node: &Node /*SwitchStatement*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_case_block(&self, node: &Node /*CaseBlock*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_case_clause(&self, node: &Node /*CaseClause*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_expression_statement(&self, node: &Node /*ExpressionStatement*/) {
+        self.bind(Some(&*node.as_expression_statement().expression));
+    }
+
+    pub(super) fn bind_labeled_statement(&self, node: &Node /*LabeledStatement*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_prefix_unary_expression_flow(
+        &self,
+        node: &Node, /*PrefixUnaryExpression*/
+    ) {
         if false {
         } else {
             self.bind_each_child(node);
         }
     }
 
+    pub(super) fn bind_postfix_unary_expression_flow(
+        &self,
+        node: &Node, /*PostfixUnaryExpression*/
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_destructuring_assignment_flow(
+        &self,
+        node: &Node, /*DestructuringAssignment*/
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_binary_expression_flow(&self, node: &Node /*BinaryExpression*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_delete_expression_flow(&self, node: &Node /*DeleteExpression*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_conditional_expression_flow(
+        &self,
+        node: &Node, /*ConditionalExpression*/
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn bind_variable_declaration_flow(&self, node: &Node /*VariableDeclaration*/) {
         self.bind_each_child(node);
+    }
+
+    pub(super) fn bind_binding_element_flow(&self, node: &Node /*BindingElement*/) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_jsdoc_type_alias(
+        &self,
+        node: &Node, /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_non_null_expression_flow(
+        &self,
+        node: &Node, /*NonNullExpression | NonNullChain*/
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_access_expression_flow(
+        &self,
+        node: &Node, /*AccessExpression | PropertyAccessChain | ElementAccessChain*/
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn bind_call_expression_flow(
+        &self,
+        node: &Node, /*CallExpression | CallChain*/
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn get_container_flags(&self, node: &Node) -> ContainerFlags {
@@ -608,7 +771,7 @@ impl BinderType {
         // unimplemented!()
     }
 
-    pub(super) fn bind<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef>) {
+    pub(super) fn bind<TNode: Borrow<Node>>(&self, node: Option<TNode>) {
         if node.is_none() {
             return;
         }
@@ -629,6 +792,10 @@ impl BinderType {
             }
             self.set_parent(save_parent);
         }
+    }
+
+    pub(super) fn bind_jsdoc(&self, node: &Node) {
+        // unimplemented!()
     }
 
     pub(super) fn bind_worker(&self, node: &Node) {
@@ -749,5 +916,10 @@ impl BinderType {
                 SymbolFlags::TypeParameterExcludes,
             );
         }
+    }
+
+    pub(super) fn check_unreachable(&self, node: &Node) -> bool {
+        false
+        // unimplemented!()
     }
 }

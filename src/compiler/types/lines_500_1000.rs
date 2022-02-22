@@ -15,7 +15,7 @@ use super::{
     DebuggerStatement, Decorator, DefaultClause, DeleteExpression, DoStatement,
     ElementAccessExpression, EmitNode, EmptyStatement, EnumDeclaration, EnumMember,
     ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
-    ExpressionWithTypeArguments, ExternalModuleReference, ForInStatement, ForOfStatement,
+    ExpressionWithTypeArguments, ExternalModuleReference, FlowNode, ForInStatement, ForOfStatement,
     ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
     FunctionTypeNode, GetAccessorDeclaration, HasElementsInterface, HasExpressionInterface,
     HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasQuestionDotTokenInterface,
@@ -172,6 +172,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_locals(&self, locals: Option<SymbolTable>);
     fn maybe_local_symbol(&self) -> Option<Rc<Symbol>>;
     fn set_local_symbol(&self, local_symbol: Option<Rc<Symbol>>);
+    fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>>;
+    fn set_flow_node(&self, emit_node: Option<Rc<FlowNode>>);
     fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>>;
     fn set_emit_node(&self, emit_node: Option<EmitNode>);
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
@@ -1071,6 +1073,7 @@ pub struct BaseNode {
     pub locals: RefCell<Option<SymbolTable>>,
     local_symbol: RefCell<Option<Rc<Symbol>>>,
     emit_node: RefCell<Option<EmitNode>>,
+    flow_node: RefCell<Option<Rc<FlowNode>>>,
     js_doc: RefCell<Option<Vec<Weak<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
     intersects_change: Cell<Option<bool>>,
@@ -1101,6 +1104,7 @@ impl BaseNode {
             locals: RefCell::new(None),
             local_symbol: RefCell::new(None),
             emit_node: RefCell::new(None),
+            flow_node: RefCell::new(None),
             js_doc: RefCell::new(None),
             js_doc_cache: RefCell::new(None),
             intersects_change: Cell::new(None),
@@ -1249,6 +1253,14 @@ impl NodeInterface for BaseNode {
 
     fn set_emit_node(&self, emit_node: Option<EmitNode>) {
         *self.emit_node.borrow_mut() = emit_node;
+    }
+
+    fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
+        self.flow_node.borrow_mut()
+    }
+
+    fn set_flow_node(&self, flow_node: Option<Rc<FlowNode>>) {
+        *self.flow_node.borrow_mut() = flow_node;
     }
 
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node>>> {
