@@ -304,9 +304,9 @@ pub use compiler::utilities::{
     node_is_present, node_is_synthesized, object_allocator, parse_pseudo_big_int,
     position_is_synthesized, pseudo_big_int_to_string, set_parent, set_parent_recursive,
     set_text_range_pos, set_text_range_pos_end, set_text_range_pos_width, set_value_declaration,
-    skip_parentheses, try_get_import_from_module_specifier, using_single_line_string_writer,
-    walk_up_parenthesized_expressions, Associativity, FunctionFlags, GetLiteralTextFlags,
-    OperatorPrecedence,
+    skip_parentheses, try_get_import_from_module_specifier, unused_label_is_error,
+    using_single_line_string_writer, walk_up_parenthesized_expressions, Associativity,
+    FunctionFlags, GetLiteralTextFlags, OperatorPrecedence,
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,

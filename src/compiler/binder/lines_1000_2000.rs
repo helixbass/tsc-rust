@@ -6,10 +6,11 @@ use std::rc::Rc;
 
 use super::{init_flow_node, ActiveLabel, BinderType, ContainerFlags};
 use crate::{
-    concatenate, is_binary_expression, is_logical_or_coalescing_assignment_operator,
-    is_optional_chain, is_outermost_optional_chain, is_parenthesized_expression,
-    is_prefix_unary_expression, skip_parentheses, FlowAssignment, FlowCall, FlowFlags, FlowNode,
-    FlowNodeBase, FlowSwitchClause, Symbol, SyntaxKind, __String, create_symbol_table,
+    concatenate, is_binary_expression, is_dotted_name,
+    is_logical_or_coalescing_assignment_operator, is_optional_chain, is_outermost_optional_chain,
+    is_parenthesized_expression, is_prefix_unary_expression, skip_parentheses,
+    unused_label_is_error, DiagnosticMessage, Diagnostics, FlowAssignment, FlowCall, FlowFlags,
+    FlowNode, FlowNodeBase, FlowSwitchClause, Symbol, SyntaxKind, __String, create_symbol_table,
     for_each_bool, is_binding_pattern, is_block_or_catch_scoped, is_class_static_block_declaration,
     is_function_like, set_parent, InternalSymbolName, NamedDeclarationInterface, Node,
     NodeInterface, SymbolFlags, SymbolInterface,
@@ -579,15 +580,70 @@ impl BinderType {
     }
 
     pub(super) fn bind_case_clause(&self, node: &Node /*CaseClause*/) {
-        unimplemented!()
+        let save_current_flow = self.maybe_current_flow();
+        self.set_current_flow(Some(self.pre_switch_case_flow()));
+        let node_as_case_clause = node.as_case_clause();
+        self.bind(Some(&*node_as_case_clause.expression));
+        self.set_current_flow(save_current_flow);
+        self.bind_each(Some(&node_as_case_clause.statements));
     }
 
     pub(super) fn bind_expression_statement(&self, node: &Node /*ExpressionStatement*/) {
-        self.bind(Some(&*node.as_expression_statement().expression));
+        let node_as_expression_statement = node.as_expression_statement();
+        self.bind(Some(&*node_as_expression_statement.expression));
+        self.maybe_bind_expression_flow_if_call(&node_as_expression_statement.expression);
+    }
+
+    pub(super) fn maybe_bind_expression_flow_if_call(&self, node: &Node /*Expression*/) {
+        if node.kind() == SyntaxKind::CallExpression {
+            let call = node;
+            let call_as_call_expression = call.as_call_expression();
+            if call_as_call_expression.expression.kind() != SyntaxKind::SuperKeyword
+                && is_dotted_name(&call_as_call_expression.expression)
+            {
+                self.set_current_flow(Some(self.create_flow_call(self.current_flow(), call)));
+            }
+        }
     }
 
     pub(super) fn bind_labeled_statement(&self, node: &Node /*LabeledStatement*/) {
-        unimplemented!()
+        let post_statement_label = self.create_branch_label();
+        let node_as_labeled_statement = node.as_labeled_statement();
+        self.set_active_label_list(Some(Rc::new(ActiveLabel::new(
+            self.maybe_active_label_list(),
+            node_as_labeled_statement
+                .label
+                .as_identifier()
+                .escaped_text
+                .clone(),
+            post_statement_label.clone(),
+            None,
+            false,
+        ))));
+        self.bind(Some(&*node_as_labeled_statement.label));
+        self.bind(Some(&*node_as_labeled_statement.statement));
+        if !self.active_label_list().referenced()
+            && !matches!(self.options().allow_unused_labels, Some(true))
+        {
+            self.error_or_suggestion_on_node(
+                unused_label_is_error(&self.options()),
+                &node_as_labeled_statement.label,
+                &Diagnostics::Unused_label,
+            );
+        }
+        self.set_active_label_list(self.active_label_list().next());
+        self.add_antecedent(&post_statement_label, self.current_flow());
+        self.set_current_flow(Some(self.finish_flow_label(post_statement_label)));
+    }
+
+    pub(super) fn bind_destructuring_target_flow(&self, node: &Node /*Expression*/) {
+        if node.kind() == SyntaxKind::BinaryExpression
+            && node.as_binary_expression().operator_token.kind() == SyntaxKind::EqualsToken
+        {
+            self.bind_assignment_target_flow(&node.as_binary_expression().left);
+        } else {
+            self.bind_assignment_target_flow(node);
+        }
     }
 
     pub(super) fn bind_assignment_target_flow(&self, node: &Node /*Expression*/) {
@@ -813,6 +869,15 @@ impl BinderType {
 
     pub(super) fn delayed_bind_jsdoc_typedef_tag(&self) {
         // unimplemented!()
+    }
+
+    pub(super) fn error_or_suggestion_on_node(
+        &self,
+        is_error: bool,
+        node: &Node,
+        message: &DiagnosticMessage,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn bind<TNode: Borrow<Node>>(&self, node: Option<TNode>) {

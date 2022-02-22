@@ -201,6 +201,10 @@ pub fn get_emit_module_kind(compiler_options: &CompilerOptions) -> ModuleKind {
     unimplemented!()
 }
 
+pub fn unused_label_is_error(options: &CompilerOptions) -> bool {
+    matches!(options.allow_unused_labels, Some(false))
+}
+
 fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> CompilerOptionsValue {
     match name {
         "all" => CompilerOptionsValue::Bool(options.all.clone()),

@@ -42,6 +42,26 @@ pub(super) struct ActiveLabel {
 }
 
 impl ActiveLabel {
+    pub fn new(
+        next: Option<Rc<ActiveLabel>>,
+        name: __String,
+        break_target: Rc<FlowNode>,
+        continue_target: Option<Rc<FlowNode>>,
+        referenced: bool,
+    ) -> Self {
+        Self {
+            next,
+            name,
+            break_target,
+            continue_target: RefCell::new(continue_target),
+            referenced: Cell::new(referenced),
+        }
+    }
+
+    pub fn next(&self) -> Option<Rc<ActiveLabel>> {
+        self.next.clone()
+    }
+
     pub fn break_target(&self) -> Rc<FlowNode> {
         self.break_target.clone()
     }
@@ -52,6 +72,10 @@ impl ActiveLabel {
 
     pub fn set_continue_target(&self, continue_target: Option<Rc<FlowNode>>) {
         *self.continue_target.borrow_mut() = continue_target;
+    }
+
+    pub fn referenced(&self) -> bool {
+        self.referenced.get()
     }
 
     pub fn set_referenced(&self, referenced: bool) {
@@ -545,6 +569,10 @@ impl BinderType {
 
     pub(super) fn set_pre_switch_case_flow(&self, pre_switch_case_flow: Option<Rc<FlowNode>>) {
         *self.pre_switch_case_flow.borrow_mut() = pre_switch_case_flow;
+    }
+
+    pub(super) fn active_label_list(&self) -> Rc<ActiveLabel> {
+        self.active_label_list.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_active_label_list(&self) -> Option<Rc<ActiveLabel>> {
