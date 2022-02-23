@@ -838,6 +838,18 @@ pub fn string_contains(str_: &str, substring: &str) -> bool {
 
 pub type GetCanonicalFileName = fn(&str) -> String;
 
+#[derive(Clone, Debug)]
+pub struct Pattern {
+    pub prefix: String,
+    pub suffix: String,
+}
+
+impl Pattern {
+    pub fn new(prefix: String, suffix: String) -> Self {
+        Self { prefix, suffix }
+    }
+}
+
 pub fn starts_with(str_: &str, prefix: &str) -> bool {
     str_.starts_with(prefix)
 }

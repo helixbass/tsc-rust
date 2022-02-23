@@ -177,6 +177,14 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_locals(locals)
                     }
 
+                    fn maybe_next_container(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self.#first_field_name.maybe_next_container()
+                    }
+
+                    fn set_next_container(&self, next_container: ::std::option::Option<::std::rc::Rc<crate::Node>>) {
+                        self.#first_field_name.set_next_container(next_container)
+                    }
+
                     fn maybe_local_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
                         self.#first_field_name.maybe_local_symbol()
                     }
@@ -621,6 +629,18 @@ fn get_ast_enum_interface_impl(
                     fn set_locals(&self, locals: ::std::option::Option<crate::SymbolTable>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_locals(locals)),*
+                        }
+                    }
+
+                    fn maybe_next_container(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_next_container()),*
+                        }
+                    }
+
+                    fn set_next_container(&self, next_container: ::std::option::Option<::std::rc::Rc<crate::Node>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_next_container(next_container)),*
                         }
                     }
 

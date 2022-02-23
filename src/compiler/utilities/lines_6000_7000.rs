@@ -9,7 +9,7 @@ use crate::{
     CommandLineOptionInterface, Comparison, CompilerOptions, CompilerOptionsValue, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension, JsxEmit,
-    LanguageVariant, ModuleKind, ScriptKind, ScriptTarget,
+    LanguageVariant, ModuleKind, Pattern, ScriptKind, ScriptTarget,
 };
 use local_macros::enum_unwrapped;
 
@@ -451,6 +451,15 @@ pub fn get_script_kind_from_file_name(file_name: &str) -> ScriptKind {
         Some(Extension::Json) => ScriptKind::JSON,
         _ => ScriptKind::Unknown,
     }
+}
+
+pub enum StringOrPattern {
+    String(String),
+    Pattern(Pattern),
+}
+
+pub fn try_parse_pattern(pattern: &str) -> Option<StringOrPattern> {
+    unimplemented!()
 }
 
 pub fn position_is_synthesized(pos: isize) -> bool {

@@ -532,12 +532,20 @@ impl BinderType {
         *self.current_return_target.borrow_mut() = current_return_target;
     }
 
+    pub(super) fn current_true_target(&self) -> Rc<FlowNode> {
+        self.current_true_target.borrow().clone().unwrap()
+    }
+
     pub(super) fn maybe_current_true_target(&self) -> Option<Rc<FlowNode>> {
         self.current_true_target.borrow().clone()
     }
 
     pub(super) fn set_current_true_target(&self, current_true_target: Option<Rc<FlowNode>>) {
         *self.current_true_target.borrow_mut() = current_true_target;
+    }
+
+    pub(super) fn current_false_target(&self) -> Rc<FlowNode> {
+        self.current_false_target.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_current_false_target(&self) -> Option<Rc<FlowNode>> {

@@ -6,8 +6,9 @@ use std::rc::Rc;
 
 use super::{
     BaseNode, BaseTextRange, BuildInfo, CompilerOptions, Diagnostic, EmitHelper, FileReference,
-    FlowNode, LanguageVariant, Node, NodeArray, Path, ReadonlyPragmaMap, ResolvedModuleFull,
-    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
+    FlowNode, LanguageVariant, Node, NodeArray, Path, PatternAmbientModule, ReadonlyPragmaMap,
+    ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol,
+    TypeCheckerHost,
 };
 use crate::{ModeAwareCache, PragmaContext, __String};
 use local_macros::ast_type;
@@ -108,6 +109,7 @@ pub struct SourceFile {
     resolved_modules: RefCell<Option<ModeAwareCache<Rc<ResolvedModuleFull /*| undefined*/>>>>,
     resolved_type_reference_directive_names:
         RefCell<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective /*| undefined*/>>>>,
+    pattern_ambient_modules: RefCell<Option<Vec<PatternAmbientModule>>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
 
     end_flow_node: RefCell<Option<Rc<FlowNode>>>,
@@ -160,6 +162,7 @@ impl SourceFile {
             comment_directives: RefCell::new(None),
             resolved_modules: RefCell::new(None),
             resolved_type_reference_directive_names: RefCell::new(None),
+            pattern_ambient_modules: RefCell::new(None),
             pragmas: RefCell::new(None),
             end_flow_node: RefCell::new(None),
         }
@@ -382,6 +385,10 @@ impl SourceFile {
         &self,
     ) -> RefMut<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective>>>> {
         self.resolved_type_reference_directive_names.borrow_mut()
+    }
+
+    pub fn pattern_ambient_modules_mut(&self) -> RefMut<Option<Vec<PatternAmbientModule>>> {
+        self.pattern_ambient_modules.borrow_mut()
     }
 
     pub fn pragmas(&self) -> Ref<ReadonlyPragmaMap> {

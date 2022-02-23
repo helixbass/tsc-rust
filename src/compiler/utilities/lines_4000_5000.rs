@@ -5,12 +5,12 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    compute_line_starts, flat_map, get_jsdoc_tags, is_binary_expression, is_jsdoc_signature,
-    is_jsdoc_template_tag, is_jsdoc_type_alias, is_left_hand_side_expression,
-    is_property_access_entity_name_expression, is_white_space_like, last,
-    str_to_source_text_as_chars, string_contains, CharacterCodes, EmitTextWriter, ModifierFlags,
-    Node, NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolTracker, SymbolWriter,
-    SyntaxKind,
+    compute_line_starts, flat_map, get_jsdoc_tags, is_binary_expression, is_class_element,
+    is_class_static_block_declaration, is_jsdoc_signature, is_jsdoc_template_tag,
+    is_jsdoc_type_alias, is_left_hand_side_expression, is_property_access_entity_name_expression,
+    is_white_space_like, last, str_to_source_text_as_chars, string_contains, CharacterCodes,
+    EmitTextWriter, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags,
+    SymbolTracker, SymbolWriter, SyntaxKind,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -485,6 +485,10 @@ pub fn has_effective_modifier(node: &Node, flags: ModifierFlags) -> bool {
 
 pub fn has_syntactic_modifier<TNode: NodeInterface>(node: &TNode, flags: ModifierFlags) -> bool {
     get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
+}
+
+pub fn is_static(node: &Node) -> bool {
+    is_class_element(node) && has_static_modifier(node) || is_class_static_block_declaration(node)
 }
 
 pub fn has_static_modifier<TNode: NodeInterface>(node: &TNode) -> bool {

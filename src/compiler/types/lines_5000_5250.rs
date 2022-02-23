@@ -12,7 +12,7 @@ use super::{
     ResolvedTypeInterface, Signature, StringLiteralType, Symbol, TypeParameter, TypeReference,
     UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
 };
-use crate::WeakSelf;
+use crate::{Pattern, WeakSelf};
 use local_macros::{enum_unwrapped, type_type};
 
 pub struct InternalSymbolName;
@@ -117,6 +117,18 @@ impl Deref for __String {
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
 pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
+
+#[derive(Clone, Debug)]
+pub struct PatternAmbientModule {
+    pub pattern: Pattern,
+    pub symbol: Rc<Symbol>,
+}
+
+impl PatternAmbientModule {
+    pub fn new(pattern: Pattern, symbol: Rc<Symbol>) -> Self {
+        Self { pattern, symbol }
+    }
+}
 
 bitflags! {
     pub struct NodeCheckFlags: u32 {

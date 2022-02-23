@@ -170,6 +170,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
     fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: Option<SymbolTable>);
+    fn maybe_next_container(&self) -> Option<Rc<Node>>;
+    fn set_next_container(&self, next_container: Option<Rc<Node>>);
     fn maybe_local_symbol(&self) -> Option<Rc<Symbol>>;
     fn set_local_symbol(&self, local_symbol: Option<Rc<Symbol>>);
     fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>>;
@@ -1093,6 +1095,10 @@ impl Node {
     pub fn as_case_block(&self) -> &CaseBlock {
         enum_unwrapped!(self, [Node, CaseBlock])
     }
+
+    pub fn as_delete_expression(&self) -> &DeleteExpression {
+        enum_unwrapped!(self, [Node, DeleteExpression])
+    }
 }
 
 #[derive(Debug)]
@@ -1111,6 +1117,7 @@ pub struct BaseNode {
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RefCell<Option<SymbolTable>>,
+    next_container: RefCell<Option<Rc<Node>>>,
     local_symbol: RefCell<Option<Rc<Symbol>>>,
     emit_node: RefCell<Option<EmitNode>>,
     flow_node: RefCell<Option<Rc<FlowNode>>>,
@@ -1142,6 +1149,7 @@ impl BaseNode {
             end: Cell::new(end),
             symbol: RefCell::new(None),
             locals: RefCell::new(None),
+            next_container: RefCell::new(None),
             local_symbol: RefCell::new(None),
             emit_node: RefCell::new(None),
             flow_node: RefCell::new(None),
@@ -1277,6 +1285,14 @@ impl NodeInterface for BaseNode {
 
     fn set_locals(&self, locals: Option<SymbolTable>) {
         *self.locals.borrow_mut() = locals;
+    }
+
+    fn maybe_next_container(&self) -> Option<Rc<Node>> {
+        self.next_container.borrow().clone()
+    }
+
+    fn set_next_container(&self, next_container: Option<Rc<Node>>) {
+        *self.next_container.borrow_mut() = next_container;
     }
 
     fn maybe_local_symbol(&self) -> Option<Rc<Symbol>> {
