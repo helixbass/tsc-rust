@@ -4,22 +4,14 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{init_flow_node, ActiveLabel, BinderType, ContainerFlags, ModuleInstanceState};
+use super::{init_flow_node, ActiveLabel, BinderType};
 use crate::{
-    append, concatenate, get_host_signature_from_jsdoc, has_syntactic_modifier, is_ambient_module,
-    is_binary_expression, is_dotted_name, is_export_assignment, is_export_declaration,
-    is_external_module, is_for_in_or_of_statement, is_identifier,
-    is_logical_or_coalescing_assignment_operator, is_module_augmentation_external, is_module_block,
-    is_object_literal_or_class_expression_method_or_accessor, is_omitted_expression,
-    is_optional_chain, is_optional_chain_root, is_outermost_optional_chain,
-    is_parenthesized_expression, is_prefix_unary_expression, is_push_or_unshift_identifier,
-    is_source_file, is_static, set_parent_recursive, skip_parentheses, try_cast, try_parse_pattern,
-    unused_label_is_error, DiagnosticMessage, Diagnostics, FlowAssignment, FlowCall, FlowFlags,
-    FlowNode, FlowNodeBase, FlowSwitchClause, HasInitializerInterface, ModifierFlags, NodeFlags,
-    PatternAmbientModule, StringOrNodeArray, StringOrPattern, Symbol, SyntaxKind, __String,
-    create_symbol_table, for_each_bool, is_binding_pattern, is_block_or_catch_scoped,
-    is_class_static_block_declaration, is_function_like, set_parent, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeInterface, SymbolFlags, SymbolInterface,
+    concatenate, is_binary_expression, is_dotted_name,
+    is_logical_or_coalescing_assignment_operator, is_optional_chain, is_outermost_optional_chain,
+    is_parenthesized_expression, is_prefix_unary_expression, skip_parentheses,
+    unused_label_is_error, Diagnostics, FlowAssignment, FlowCall, FlowFlags, FlowNode,
+    FlowNodeBase, FlowSwitchClause, HasInitializerInterface, SyntaxKind, __String, for_each_bool,
+    NamedDeclarationInterface, Node, NodeInterface,
 };
 
 impl BinderType {
