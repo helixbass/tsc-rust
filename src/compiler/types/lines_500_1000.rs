@@ -1099,6 +1099,10 @@ impl Node {
     pub fn as_delete_expression(&self) -> &DeleteExpression {
         enum_unwrapped!(self, [Node, DeleteExpression])
     }
+
+    pub fn as_catch_clause(&self) -> &CatchClause {
+        enum_unwrapped!(self, [Node, CatchClause])
+    }
 }
 
 #[derive(Debug)]

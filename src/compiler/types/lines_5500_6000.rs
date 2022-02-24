@@ -336,6 +336,10 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
         self._diagnostic_related_information.category()
     }
 
+    fn set_category(&self, category: DiagnosticCategory) {
+        self._diagnostic_related_information.set_category(category)
+    }
+
     fn code(&self) -> u32 {
         self._diagnostic_related_information.code()
     }
@@ -393,6 +397,16 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
             Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.category(),
             Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.category(),
             Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.category(),
+        }
+    }
+
+    fn set_category(&self, category: DiagnosticCategory) {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.set_category(category),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => {
+                diagnostic.set_category(category)
+            }
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.set_category(category),
         }
     }
 
@@ -486,6 +500,7 @@ impl From<DiagnosticMessageChain> for DiagnosticMessageText {
 pub trait DiagnosticRelatedInformationInterface {
     fn maybe_as_diagnostic(&self) -> Option<&Diagnostic>;
     fn category(&self) -> DiagnosticCategory;
+    fn set_category(&self, category: DiagnosticCategory);
     fn code(&self) -> u32;
     fn maybe_file(&self) -> Option<Rc<Node>>;
     fn maybe_start(&self) -> Option<isize>;
@@ -532,6 +547,17 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
                 base_diagnostic_related_information,
             ) => base_diagnostic_related_information.category(),
             DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.category(),
+        }
+    }
+
+    fn set_category(&self, category: DiagnosticCategory) {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.set_category(category),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => {
+                diagnostic.set_category(category)
+            }
         }
     }
 
@@ -601,7 +627,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
 
 #[derive(Clone, Debug)]
 pub struct BaseDiagnosticRelatedInformation {
-    category: DiagnosticCategory,
+    category: Cell<DiagnosticCategory>,
     code: u32,
     file: Option<Weak<Node /*SourceFile*/>>,
     start: Option<isize>,
@@ -619,7 +645,7 @@ impl BaseDiagnosticRelatedInformation {
         message_text: TDiagnosticMessageText,
     ) -> Self {
         Self {
-            category,
+            category: Cell::new(category),
             code,
             file: file.map(|file| Rc::downgrade(&file)),
             start,
@@ -635,7 +661,11 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
     }
 
     fn category(&self) -> DiagnosticCategory {
-        self.category
+        self.category.get()
+    }
+
+    fn set_category(&self, category: DiagnosticCategory) {
+        self.category.set(category)
     }
 
     fn code(&self) -> u32 {
@@ -691,6 +721,10 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
 
     fn category(&self) -> DiagnosticCategory {
         self._diagnostic.category()
+    }
+
+    fn set_category(&self, category: DiagnosticCategory) {
+        self._diagnostic.set_category(category)
     }
 
     fn code(&self) -> u32 {
@@ -764,6 +798,10 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
 
     fn category(&self) -> DiagnosticCategory {
         self._diagnostic.category()
+    }
+
+    fn set_category(&self, category: DiagnosticCategory) {
+        self._diagnostic.set_category(category)
     }
 
     fn code(&self) -> u32 {

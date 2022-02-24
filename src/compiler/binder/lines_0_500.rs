@@ -393,6 +393,10 @@ impl BinderType {
         self.language_version.get().unwrap()
     }
 
+    pub(super) fn maybe_language_version(&self) -> Option<ScriptTarget> {
+        self.language_version.get()
+    }
+
     pub(super) fn set_language_version(&self, language_version: Option<ScriptTarget>) {
         self.language_version.set(language_version);
     }

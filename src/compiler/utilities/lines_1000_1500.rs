@@ -170,7 +170,10 @@ fn create_diagnostic_for_range<TRange: TextRange>(
     ))
 }
 
-fn get_span_of_token_at_position(source_file: &Node /*SourceFile*/, pos: usize) -> TextSpan {
+pub fn get_span_of_token_at_position(
+    source_file: &Node, /*SourceFile*/
+    pos: usize,
+) -> TextSpan {
     let source_file_as_source_file = source_file.as_source_file();
     let scanner = create_scanner(
         source_file_as_source_file.language_version(),
