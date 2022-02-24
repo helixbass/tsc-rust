@@ -1169,10 +1169,10 @@ pub struct FlowStart {
 }
 
 impl FlowStart {
-    pub fn new(flags: FlowFlags, id: Option<usize>, node: Option<Rc<Node>>) -> Self {
+    pub fn new(flags: FlowFlags, node: Option<Rc<Node>>) -> Self {
         Self {
             flags: Cell::new(flags),
-            id,
+            id: None,
             node: RefCell::new(node),
         }
     }

@@ -360,10 +360,10 @@ pub(super) fn create_binder() -> BinderType {
         Symbol: RefCell::new(None),
         classifiable_names: RefCell::new(None),
         unreachable_flow: RefCell::new(Rc::new(
-            FlowStart::new(FlowFlags::Unreachable, None, None).into(),
+            FlowStart::new(FlowFlags::Unreachable, None).into(),
         )),
         reported_unreachable_flow: RefCell::new(Rc::new(
-            FlowStart::new(FlowFlags::Unreachable, None, None).into(),
+            FlowStart::new(FlowFlags::Unreachable, None).into(),
         )),
     }
 }
@@ -609,6 +609,10 @@ impl BinderType {
 
     pub(super) fn set_emit_flags(&self, emit_flags: Option<NodeFlags>) {
         self.emit_flags.set(emit_flags);
+    }
+
+    pub(super) fn maybe_in_strict_mode(&self) -> Option<bool> {
+        self.in_strict_mode.get()
     }
 
     pub(super) fn set_in_strict_mode(&self, in_strict_mode: Option<bool>) {

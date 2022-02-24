@@ -232,7 +232,7 @@ fn get_error_span_for_arrow_function(
     create_text_span_from_bounds(pos, node.end())
 }
 
-fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -> TextSpan {
+pub fn get_error_span_for_node(source_file: &Node /*SourceFile*/, node: &Node) -> TextSpan {
     let mut error_node: Option<Rc<Node>> = Some(node.node_wrapper());
     let source_file_as_source_file = source_file.as_source_file();
     match node.kind() {

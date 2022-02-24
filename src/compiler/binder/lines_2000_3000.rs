@@ -1,32 +1,150 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{BinderType, ContainerFlags, ModuleInstanceState};
+use super::{
+    get_module_instance_state, init_flow_node, BinderType, ContainerFlags, ModuleInstanceState,
+};
 use crate::{
-    DiagnosticMessage, Symbol, SyntaxKind, __String, create_symbol_table, is_binding_pattern,
+    create_file_diagnostic, create_symbol_table, find_ancestor,
+    get_enclosing_block_scope_container, get_error_span_for_node, get_name_of_declaration,
+    is_assignment_target, is_external_or_common_js_module, is_jsdoc_enum_tag,
+    is_property_access_entity_name_expression, DiagnosticMessage, Diagnostics, FlowFlags,
+    FlowStart, Symbol, SymbolInterface, SyntaxKind, __String, is_binding_pattern,
     is_block_or_catch_scoped, set_parent, InternalSymbolName, NamedDeclarationInterface, Node,
     NodeInterface, SymbolFlags,
 };
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum ElementKind {
+    Property = 1,
+    Accessor = 2,
+}
 
 impl BinderType {
     pub(super) fn declare_module_symbol(
         &self,
         node: &Node, /*ModuleDeclaration*/
     ) -> ModuleInstanceState {
-        unimplemented!()
+        let state = get_module_instance_state(node, None);
+        let instantiated = state != ModuleInstanceState::NonInstantiated;
+        self.declare_symbol_and_add_to_symbol_table(
+            node,
+            if instantiated {
+                SymbolFlags::ValueModule
+            } else {
+                SymbolFlags::NamespaceModule
+            },
+            if instantiated {
+                SymbolFlags::ValueModuleExcludes
+            } else {
+                SymbolFlags::NamespaceModuleExcludes
+            },
+        );
+        state
+    }
+
+    pub(super) fn bind_function_or_constructor_type(
+        &self,
+        node: &Node, /*SignatureDeclaration | JSDocSignature*/
+    ) {
+        let symbol = self.create_symbol(
+            SymbolFlags::Signature,
+            self.get_declaration_name(node).unwrap(),
+        );
+        self.add_declaration_to_symbol(&symbol, node, SymbolFlags::Signature);
+
+        let type_literal_symbol =
+            self.create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type());
+        self.add_declaration_to_symbol(&type_literal_symbol, node, SymbolFlags::TypeLiteral);
+        let mut type_literal_symbol_members = type_literal_symbol.maybe_members();
+        *type_literal_symbol_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+        type_literal_symbol_members
+            .as_ref()
+            .unwrap()
+            .borrow_mut()
+            .insert(symbol.escaped_name().clone(), symbol.wrap());
     }
 
     pub(super) fn bind_object_literal_expression(
         &self,
         node: &Node, /*ObjectLiteralExpression*/
     ) {
+        if matches!(self.maybe_in_strict_mode(), Some(true)) && !is_assignment_target(node) {
+            let mut seen = HashMap::<__String, ElementKind>::new();
+
+            let node_as_object_literal_expression = node.as_object_literal_expression();
+            for prop in &*node_as_object_literal_expression.properties {
+                if prop.kind() == SyntaxKind::SpreadAssignment
+                    || prop.as_named_declaration().name().kind() != SyntaxKind::Identifier
+                {
+                    continue;
+                }
+
+                let identifier = prop.as_named_declaration().name();
+
+                let current_kind = if matches!(
+                    prop.kind(),
+                    SyntaxKind::PropertyAssignment
+                        | SyntaxKind::ShorthandPropertyAssignment
+                        | SyntaxKind::MethodDeclaration
+                ) {
+                    ElementKind::Property
+                } else {
+                    ElementKind::Accessor
+                };
+
+                let identifier_as_identifier = identifier.as_identifier();
+                let existing_kind = seen.get(&identifier_as_identifier.escaped_text);
+                if existing_kind.is_none() {
+                    seen.insert(identifier_as_identifier.escaped_text.clone(), current_kind);
+                    continue;
+                }
+                let existing_kind = *existing_kind.unwrap();
+
+                if current_kind == ElementKind::Property && existing_kind == ElementKind::Property {
+                    let file = self.file();
+                    let span = get_error_span_for_node(&file, &identifier);
+                    file.as_source_file().bind_diagnostics().push(
+                        Rc::new(
+                            create_file_diagnostic(
+                                &file,
+                                span.start,
+                                span.length,
+                                &Diagnostics::An_object_literal_cannot_have_multiple_properties_with_the_same_name_in_strict_mode,
+                                None,
+                            ).into()
+                        )
+                    );
+                }
+            }
+        }
+
         self.bind_anonymous_declaration(
             node,
             SymbolFlags::ObjectLiteral,
             InternalSymbolName::Object(),
         );
+    }
+
+    pub(super) fn bind_jsx_attributes(&self, node: &Node /*JsxAttributes*/) -> Rc<Symbol> {
+        self.bind_anonymous_declaration(
+            node,
+            SymbolFlags::ObjectLiteral,
+            InternalSymbolName::JSXAttributes(),
+        )
+    }
+
+    pub(super) fn bind_jsx_attribute(
+        &self,
+        node: &Node, /*JsxAttribute*/
+        symbol_flags: SymbolFlags,
+        symbol_excludes: SymbolFlags,
+    ) -> Option<Rc<Symbol>> {
+        self.declare_symbol_and_add_to_symbol_table(node, symbol_flags, symbol_excludes)
     }
 
     pub(super) fn bind_anonymous_declaration(
@@ -36,6 +154,9 @@ impl BinderType {
         name: __String,
     ) -> Rc<Symbol> {
         let symbol = self.create_symbol(symbol_flags, name).wrap();
+        if symbol_flags.intersects(SymbolFlags::EnumMember | SymbolFlags::ClassMember) {
+            symbol.set_parent(Some(self.container().symbol()));
+        }
         self.file()
             .as_source_file()
             .keep_strong_reference_to_symbol(symbol.clone());
@@ -50,25 +171,123 @@ impl BinderType {
         symbol_excludes: SymbolFlags,
     ) {
         let block_scope_container = self.block_scope_container();
-        {
-            let mut block_scope_container_locals = block_scope_container.maybe_locals();
-            if block_scope_container_locals.is_none() {
-                *block_scope_container_locals = Some(create_symbol_table(None));
+        match block_scope_container.kind() {
+            SyntaxKind::ModuleDeclaration => {
+                self.declare_module_member(node, symbol_flags, symbol_excludes);
+            }
+            SyntaxKind::SourceFile => {
+                if is_external_or_common_js_module(&self.container()) {
+                    self.declare_module_member(node, symbol_flags, symbol_excludes);
+                } else {
+                    {
+                        let mut block_scope_container_locals = block_scope_container.maybe_locals();
+                        if block_scope_container_locals.is_none() {
+                            *block_scope_container_locals = Some(create_symbol_table(None));
+                            self.add_to_container_chain(&block_scope_container);
+                        }
+                    }
+                    self.declare_symbol(
+                        &mut *block_scope_container.locals(),
+                        Option::<&Symbol>::None,
+                        node,
+                        symbol_flags,
+                        symbol_excludes,
+                        None,
+                        None,
+                    );
+                }
+            }
+            _ => {
+                {
+                    let mut block_scope_container_locals = block_scope_container.maybe_locals();
+                    if block_scope_container_locals.is_none() {
+                        *block_scope_container_locals = Some(create_symbol_table(None));
+                        self.add_to_container_chain(&block_scope_container);
+                    }
+                }
+                self.declare_symbol(
+                    &mut *block_scope_container.locals(),
+                    Option::<&Symbol>::None,
+                    node,
+                    symbol_flags,
+                    symbol_excludes,
+                    None,
+                    None,
+                );
             }
         }
-        self.declare_symbol(
-            &mut *block_scope_container.locals(),
-            Option::<&Symbol>::None,
-            node,
-            symbol_flags,
-            symbol_excludes,
-            None,
-            None,
-        );
     }
 
     pub(super) fn delayed_bind_jsdoc_typedef_tag(&self) {
-        // unimplemented!()
+        let delayed_type_aliases = self.maybe_delayed_type_aliases();
+        if delayed_type_aliases.is_none() {
+            return;
+        }
+        let delayed_type_aliases = delayed_type_aliases.as_deref().unwrap();
+        let save_container = self.maybe_container();
+        let save_last_container = self.maybe_last_container();
+        let save_block_scope_container = self.maybe_block_scope_container();
+        let save_parent = self.maybe_parent();
+        let save_current_flow = self.maybe_current_flow();
+        for type_alias in delayed_type_aliases {
+            let host = type_alias.parent().parent();
+            self.set_container(Some(
+                find_ancestor(host.maybe_parent(), |n| {
+                    self.get_container_flags(n)
+                        .intersects(ContainerFlags::IsContainer)
+                })
+                .unwrap_or_else(|| self.file()),
+            ));
+            self.set_block_scope_container(Some(
+                get_enclosing_block_scope_container(&host).unwrap_or_else(|| self.file()),
+            ));
+            self.set_current_flow(Some(Rc::new(init_flow_node(
+                FlowStart::new(FlowFlags::Start, None).into(),
+            ))));
+            self.set_parent(Some(type_alias.clone()));
+            let type_alias_as_jsdoc_type_like_tag = type_alias.as_jsdoc_type_like_tag();
+            self.bind(type_alias_as_jsdoc_type_like_tag.maybe_type_expression());
+            let decl_name = get_name_of_declaration(Some(&**type_alias));
+            if (is_jsdoc_enum_tag(type_alias)
+                || type_alias
+                    .as_jsdoc_typedef_or_callback_tag()
+                    .maybe_full_name()
+                    .is_none())
+                && matches!(decl_name.as_ref(), Some(decl_name) if is_property_access_entity_name_expression(&decl_name.parent()))
+            {
+                let decl_name = decl_name.unwrap();
+                let is_top_level = self.is_top_level_namespace_assignment(&decl_name.parent());
+                if is_top_level {
+                    unimplemented!()
+                }
+            } else if is_jsdoc_enum_tag(type_alias)
+                || match type_alias
+                    .as_jsdoc_typedef_or_callback_tag()
+                    .maybe_full_name()
+                {
+                    None => true,
+                    Some(full_name) => full_name.kind() == SyntaxKind::Identifier,
+                }
+            {
+                self.set_parent(Some(type_alias.parent()));
+                self.bind_block_scoped_declaration(
+                    type_alias,
+                    SymbolFlags::TypeAlias,
+                    SymbolFlags::TypeAliasExcludes,
+                );
+            } else {
+                self.bind(
+                    type_alias
+                        .as_jsdoc_typedef_or_callback_tag()
+                        .maybe_full_name(),
+                );
+            }
+        }
+        self.set_container(save_container);
+        self.set_last_container(save_last_container);
+        self.set_block_scope_container(save_block_scope_container);
+        self.set_parent(save_parent);
+        self.set_current_flow(save_current_flow);
     }
 
     pub(super) fn error_on_first_token(

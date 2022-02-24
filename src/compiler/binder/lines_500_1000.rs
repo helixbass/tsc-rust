@@ -187,7 +187,7 @@ impl BinderType {
                 && get_immediately_invoked_function_expression(node).is_some();
             if !is_iife {
                 self.set_current_flow(Some(Rc::new(init_flow_node(
-                    FlowStart::new(FlowFlags::Start, None, None).into(),
+                    FlowStart::new(FlowFlags::Start, None).into(),
                 ))));
                 if container_flags.intersects(
                     ContainerFlags::IsFunctionExpression
