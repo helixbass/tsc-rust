@@ -1,33 +1,14 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::{
-    get_module_instance_state, init_flow_node, BinderType, ContainerFlags, ModuleInstanceState,
-};
+use super::BinderType;
 use crate::{
-    append, get_source_text_of_node_from_source_file, has_jsdoc_nodes, is_in_js_file,
-    is_prologue_directive, set_parent_recursive, BaseTextRange,
-    DiagnosticRelatedInformationInterface, NodeArray, TextRange, TokenFlags, __String,
-    create_diagnostic_for_node, create_file_diagnostic, create_symbol_table,
-    declaration_name_to_string, find_ancestor, get_assignment_declaration_property_access_kind,
-    get_containing_class, get_emit_script_target, get_enclosing_block_scope_container,
-    get_error_span_for_node, get_name_of_declaration, get_span_of_token_at_position,
-    get_token_pos_of_node, id_text, is_assignment_expression, is_assignment_operator,
-    is_assignment_target, is_binding_pattern, is_block_or_catch_scoped, is_declaration_statement,
-    is_exports_identifier, is_external_module, is_external_or_common_js_module,
-    is_function_like_or_class_static_block_declaration, is_identifier, is_identifier_name,
-    is_in_top_level_context, is_jsdoc_enum_tag, is_left_hand_side_expression,
-    is_module_exports_access_expression, is_property_access_entity_name_expression,
-    is_property_access_expression, is_source_file, is_variable_declaration, is_variable_statement,
-    set_parent, AssignmentDeclarationKind, Debug_, DiagnosticCategory, DiagnosticMessage,
-    Diagnostics, FlowFlags, FlowStart, HasInitializerInterface, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, ReadonlyTextRange, ScriptTarget,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    __String, is_assignment_expression, is_binding_pattern, is_block_or_catch_scoped,
+    is_exports_identifier, is_identifier, is_module_exports_access_expression, is_source_file,
+    is_variable_declaration, HasInitializerInterface, NamedDeclarationInterface, Node,
+    NodeInterface, Symbol, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
