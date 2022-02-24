@@ -10,12 +10,15 @@ use super::{
 };
 use crate::{
     create_file_diagnostic, create_symbol_table, find_ancestor,
-    get_enclosing_block_scope_container, get_error_span_for_node, get_name_of_declaration,
-    is_assignment_target, is_external_or_common_js_module, is_jsdoc_enum_tag,
-    is_property_access_entity_name_expression, DiagnosticMessage, Diagnostics, FlowFlags,
-    FlowStart, Symbol, SymbolInterface, SyntaxKind, __String, is_binding_pattern,
-    is_block_or_catch_scoped, set_parent, InternalSymbolName, NamedDeclarationInterface, Node,
-    NodeInterface, SymbolFlags,
+    get_assignment_declaration_property_access_kind, get_enclosing_block_scope_container,
+    get_error_span_for_node, get_name_of_declaration, is_assignment_expression,
+    is_assignment_target, is_exports_identifier, is_external_or_common_js_module, is_identifier,
+    is_jsdoc_enum_tag, is_module_exports_access_expression,
+    is_property_access_entity_name_expression, is_property_access_expression, is_source_file,
+    is_variable_declaration, AssignmentDeclarationKind, Debug_, DiagnosticMessage, Diagnostics,
+    FlowFlags, FlowStart, HasInitializerInterface, Symbol, SymbolInterface, SyntaxKind, __String,
+    is_binding_pattern, is_block_or_catch_scoped, set_parent, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeInterface, SymbolFlags,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -258,7 +261,82 @@ impl BinderType {
                 let decl_name = decl_name.unwrap();
                 let is_top_level = self.is_top_level_namespace_assignment(&decl_name.parent());
                 if is_top_level {
-                    unimplemented!()
+                    self.bind_potentially_missing_namespaces(
+                        Some(self.file().symbol()),
+                        &decl_name.parent(),
+                        is_top_level,
+                        find_ancestor(Some(&*decl_name), |d| {
+                            is_property_access_expression(d)
+                                && d.as_property_access_expression()
+                                    .name
+                                    .as_member_name()
+                                    .escaped_text()
+                                    .eq_str("prototype")
+                        })
+                        .is_some(),
+                        false,
+                    );
+                    let old_container = self.maybe_container();
+                    match get_assignment_declaration_property_access_kind(&decl_name.parent()) {
+                        AssignmentDeclarationKind::ExportsProperty
+                        | AssignmentDeclarationKind::ModuleExports => {
+                            if !is_external_or_common_js_module(&self.file()) {
+                                self.set_container(None);
+                            } else {
+                                self.set_container(Some(self.file()));
+                            }
+                        }
+                        AssignmentDeclarationKind::ThisProperty => {
+                            self.set_container(Some(
+                                decl_name.parent().as_has_expression().expression(),
+                            ));
+                        }
+                        AssignmentDeclarationKind::PrototypeProperty => {
+                            self.set_container(Some(
+                                decl_name
+                                    .parent()
+                                    .as_has_expression()
+                                    .expression()
+                                    .as_property_access_expression()
+                                    .name
+                                    .clone(),
+                            ));
+                        }
+                        AssignmentDeclarationKind::Property => {
+                            self.set_container(Some(
+                                if is_exports_or_module_exports_or_alias(
+                                    &self.file(),
+                                    &decl_name.parent().as_has_expression().expression(),
+                                ) {
+                                    self.file()
+                                } else if is_property_access_expression(
+                                    &decl_name.parent().as_has_expression().expression(),
+                                ) {
+                                    decl_name
+                                        .parent()
+                                        .as_has_expression()
+                                        .expression()
+                                        .as_property_access_expression()
+                                        .name
+                                        .clone()
+                                } else {
+                                    decl_name.parent().as_has_expression().expression()
+                                },
+                            ));
+                        }
+                        AssignmentDeclarationKind::None => {
+                            Debug_.fail(Some("Shouldn't have detected typedef or enum or non-assignment declaration"));
+                        }
+                        _ => (),
+                    }
+                    if self.maybe_container().is_some() {
+                        self.declare_module_member(
+                            type_alias,
+                            SymbolFlags::TypeAlias,
+                            SymbolFlags::TypeAliasExcludes,
+                        );
+                    }
+                    self.set_container(old_container);
                 }
             } else if is_jsdoc_enum_tag(type_alias)
                 || match type_alias
@@ -375,6 +453,17 @@ impl BinderType {
         )
     }
 
+    pub(super) fn bind_potentially_missing_namespaces<TNamespaceSymbol: Borrow<Symbol>>(
+        &self,
+        namespace_symbol: Option<TNamespaceSymbol>,
+        entity_name: &Node, /*BindableStaticNameExpression*/
+        is_top_level: bool,
+        is_prototype_property: bool,
+        container_is_class: bool,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn is_top_level_namespace_assignment(
         &self,
         property_access: &Node, /*BindableAccessExpression*/
@@ -459,4 +548,75 @@ impl BinderType {
         false
         // unimplemented!()
     }
+}
+
+pub fn is_exports_or_module_exports_or_alias(
+    source_file: &Node, /*SourceFile*/
+    node: &Node,        /*Expression*/
+) -> bool {
+    let mut node = node.node_wrapper();
+    let mut i = 0;
+    let mut q = vec![node];
+    while !q.is_empty() && i < 100 {
+        i += 1;
+        node = q.remove(0);
+        if is_exports_identifier(&node) || is_module_exports_access_expression(&node) {
+            return true;
+        } else if is_identifier(&node) {
+            let symbol = lookup_symbol_for_name(&source_file, &node.as_identifier().escaped_text);
+            if let Some(symbol) = symbol {
+                if let Some(symbol_value_declaration) =
+                    symbol
+                        .maybe_value_declaration()
+                        .filter(|value_declaration| {
+                            is_variable_declaration(&value_declaration)
+                                && value_declaration
+                                    .as_variable_declaration()
+                                    .maybe_initializer()
+                                    .is_some()
+                        })
+                {
+                    let init = symbol_value_declaration
+                        .as_variable_declaration()
+                        .maybe_initializer()
+                        .unwrap();
+                    q.push(init.clone());
+                    if is_assignment_expression(&init, Some(true)) {
+                        let init_as_binary_expression = init.as_binary_expression();
+                        q.push(init_as_binary_expression.left.clone());
+                        q.push(init_as_binary_expression.right.clone());
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+fn lookup_symbol_for_name(container: &Node, name: &__String) -> Option<Rc<Symbol>> {
+    let container_locals = container.maybe_locals();
+    let local = container_locals
+        .as_ref()
+        .and_then(|locals| locals.get(name));
+    if let Some(local) = local {
+        return Some(local.maybe_export_symbol().unwrap_or(local.clone()));
+    }
+    if is_source_file(container) {
+        let container_as_source_file = container.as_source_file();
+        if let Some(container_js_global_augmentations) = container_as_source_file
+            .maybe_js_global_augmentations()
+            .as_ref()
+        {
+            let container_js_global_augmentations = container_js_global_augmentations.borrow_mut(); // TODO: doesn't actually need to be mut
+            if container_js_global_augmentations.contains_key(name) {
+                return container_js_global_augmentations
+                    .get(name)
+                    .map(Clone::clone);
+            }
+        }
+    }
+    container
+        .maybe_symbol()
+        .and_then(|symbol| symbol.maybe_exports().clone())
+        .and_then(|exports| exports.borrow_mut().get(name).map(Clone::clone)) // TODO: same here doesn't need to be mut
 }

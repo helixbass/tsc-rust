@@ -8,7 +8,7 @@ use super::{
     BaseNode, BaseTextRange, BuildInfo, CompilerOptions, Diagnostic, EmitHelper, FileReference,
     FlowNode, LanguageVariant, Node, NodeArray, Path, PatternAmbientModule, ReadonlyPragmaMap,
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol,
-    TypeCheckerHost,
+    SymbolTable, TypeCheckerHost,
 };
 use crate::{ModeAwareCache, PragmaContext, __String};
 use local_macros::ast_type;
@@ -90,6 +90,7 @@ pub struct SourceFile {
 
     external_module_indicator: RefCell<Option<Rc<Node>>>,
     common_js_module_indicator: RefCell<Option<Rc<Node>>>,
+    js_global_augmentations: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
 
     identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
     node_count: Cell<Option<usize>>,
@@ -157,6 +158,7 @@ impl SourceFile {
             script_kind: Cell::new(script_kind),
             external_module_indicator: RefCell::new(None),
             common_js_module_indicator: RefCell::new(None),
+            js_global_augmentations: RefCell::new(None),
             is_declaration_file: Cell::new(is_declaration_file),
             has_no_default_lib: Cell::new(has_no_default_lib),
             comment_directives: RefCell::new(None),
@@ -289,6 +291,10 @@ impl SourceFile {
         common_js_module_indicator: Option<Rc<Node>>,
     ) {
         *self.common_js_module_indicator.borrow_mut() = common_js_module_indicator;
+    }
+
+    pub(crate) fn maybe_js_global_augmentations(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+        self.js_global_augmentations.borrow_mut()
     }
 
     pub fn identifiers(&self) -> Rc<RefCell<HashMap<String, String>>> {
