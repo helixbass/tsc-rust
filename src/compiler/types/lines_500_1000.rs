@@ -1103,6 +1103,10 @@ impl Node {
     pub fn as_catch_clause(&self) -> &CatchClause {
         enum_unwrapped!(self, [Node, CatchClause])
     }
+
+    pub fn as_module_block(&self) -> &ModuleBlock {
+        enum_unwrapped!(self, [Node, ModuleBlock])
+    }
 }
 
 #[derive(Debug)]
