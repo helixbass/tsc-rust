@@ -1116,6 +1116,14 @@ impl Node {
     pub fn as_module_block(&self) -> &ModuleBlock {
         enum_unwrapped!(self, [Node, ModuleBlock])
     }
+
+    pub fn as_function_expression(&self) -> &FunctionExpression {
+        enum_unwrapped!(self, [Node, FunctionExpression])
+    }
+
+    pub fn as_conditional_type_node(&self) -> &ConditionalTypeNode {
+        enum_unwrapped!(self, [Node, ConditionalTypeNode])
+    }
 }
 
 #[derive(Debug)]

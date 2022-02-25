@@ -2,18 +2,25 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
-use super::BinderType;
+use super::{get_module_instance_state, BinderType, ModuleInstanceState};
 use crate::{
-    cast, create_symbol_table, get_assigned_expando_initializer,
-    get_element_or_property_access_name, get_expando_initializer, get_leftmost_access_expression,
-    get_name_of_declaration, get_right_most_assigned_expression, has_dynamic_name, id_text,
+    cast, create_diagnostic_for_node, create_symbol_table, find_ancestor,
+    get_assigned_expando_initializer, get_effective_container_for_jsdoc_template_tag,
+    get_element_or_property_access_name, get_expando_initializer, get_jsdoc_type_tag,
+    get_leftmost_access_expression, get_name_of_declaration, get_name_or_argument,
+    get_right_most_assigned_expression, has_dynamic_name, id_text, index_of, is_async_function,
     is_binary_expression, is_bindable_object_define_property_call,
-    is_bindable_static_name_expression, is_call_expression, is_function_like_declaration,
-    is_function_symbol, is_in_js_file, is_property_access_expression, is_prototype_access, some,
-    Debug_, InternalSymbolName, SyntaxKind, __String, is_assignment_expression, is_binding_pattern,
-    is_block_or_catch_scoped, is_exports_identifier, is_identifier,
+    is_bindable_static_name_expression, is_call_expression, is_conditional_type_node,
+    is_enum_const, is_function_like_declaration, is_function_symbol, is_in_js_file,
+    is_jsdoc_template_tag, is_object_literal_or_class_expression_method_or_accessor,
+    is_parameter_declaration, is_parameter_property_declaration, is_private_identifier,
+    is_property_access_expression, is_prototype_access, is_require_call,
+    is_require_variable_declaration, should_preserve_const_enums, some, symbol_name, Debug_,
+    Diagnostics, InternalSymbolName, NodeFlags, SyntaxKind, __String, is_assignment_expression,
+    is_binding_pattern, is_block_or_catch_scoped, is_exports_identifier, is_identifier,
     is_module_exports_access_expression, is_source_file, is_variable_declaration, set_parent,
     HasInitializerInterface, NamedDeclarationInterface, Node, NodeInterface, Symbol, SymbolFlags,
     SymbolInterface,
@@ -200,7 +207,7 @@ impl BinderType {
             namespace_symbol = self.for_each_identifier_in_entity_name(
                 entity_name,
                 namespace_symbol,
-                |id, symbol, parent| {
+                &mut |id, symbol, parent| {
                     if let Some(symbol) = symbol {
                         self.add_declaration_to_symbol(&symbol, id, flags);
                         Some(symbol)
@@ -481,36 +488,152 @@ impl BinderType {
         &self,
         e: &Node, /*BindableStaticNameExpression*/
         parent: Option<TParent>,
-        action: TAction,
+        action: &mut TAction,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let parent = parent.map(|parent| parent.borrow().symbol_wrapper());
+        if is_exports_or_module_exports_or_alias(&self.file(), e) {
+            self.file().maybe_symbol()
+        } else if is_identifier(e) {
+            action(
+                e,
+                self.lookup_symbol_for_property_access(e, Option::<&Node>::None),
+                parent,
+            )
+        } else {
+            let s = self.for_each_identifier_in_entity_name(
+                &e.as_has_expression().expression(),
+                parent,
+                action,
+            );
+            let name = get_name_or_argument(e);
+            if is_private_identifier(&name) {
+                Debug_.fail(Some("unexpected PrivateIdentifier"));
+            }
+            action(
+                &name,
+                s.as_ref()
+                    .and_then(|s| s.maybe_exports().clone())
+                    .and_then(|exports| {
+                        get_element_or_property_access_name(e).and_then(|name| {
+                            RefCell::borrow(&*exports).get(&name).map(Clone::clone)
+                        })
+                    }),
+                s,
+            )
+        }
     }
 
     pub(super) fn bind_call_expression(&self, node: &Node /*CallExpression*/) {
-        unimplemented!()
+        if self
+            .file()
+            .as_source_file()
+            .maybe_common_js_module_indicator()
+            .is_none()
+            && is_require_call(node, false)
+        {
+            self.set_common_js_module_indicator(node);
+        }
     }
 
     pub(super) fn bind_class_like_declaration(&self, node: &Node /*ClassLikeDeclaration*/) {
-        unimplemented!()
+        if node.kind() == SyntaxKind::ClassDeclaration {
+            self.bind_block_scoped_declaration(
+                node,
+                SymbolFlags::Class,
+                SymbolFlags::ClassExcludes,
+            );
+        } else {
+            let node_as_class_expression = node.as_class_expression();
+            let binding_name = match node_as_class_expression.maybe_name() {
+                Some(name) => name.as_identifier().escaped_text.clone(),
+                None => InternalSymbolName::Class(),
+            };
+            self.bind_anonymous_declaration(node, SymbolFlags::Class, binding_name);
+            if let Some(node_name) = node_as_class_expression.maybe_name() {
+                self.classifiable_names()
+                    .borrow_mut()
+                    .insert(node_name.as_identifier().escaped_text.clone());
+            }
+        }
+
+        let symbol = node.symbol();
+
+        let prototype_symbol = Rc::new(self.create_symbol(
+            SymbolFlags::Property | SymbolFlags::Prototype,
+            __String::new("prototype".to_owned()),
+        ));
+        let symbol_exports = symbol.exports();
+        let mut symbol_exports = symbol_exports.borrow_mut();
+        let symbol_export = symbol_exports.get(prototype_symbol.escaped_name());
+        if let Some(symbol_export) = symbol_export {
+            if let Some(name) = node.as_named_declaration().maybe_name() {
+                set_parent(&name, Some(node));
+            }
+            self.file()
+                .as_source_file()
+                .bind_diagnostics()
+                .push(Rc::new(
+                    create_diagnostic_for_node(
+                        &symbol_export.maybe_declarations().as_ref().unwrap()[0],
+                        &Diagnostics::Duplicate_identifier_0,
+                        Some(vec![symbol_name(&prototype_symbol)]),
+                    )
+                    .into(),
+                ));
+        }
+        symbol_exports.insert(
+            prototype_symbol.escaped_name().clone(),
+            prototype_symbol.clone(),
+        );
+        prototype_symbol.set_parent(Some(symbol));
     }
 
     pub(super) fn bind_enum_declaration(&self, node: &Node /*EnumDeclaration*/) {
-        unimplemented!()
+        if is_enum_const(node) {
+            self.bind_block_scoped_declaration(
+                node,
+                SymbolFlags::ConstEnum,
+                SymbolFlags::ConstEnumExcludes,
+            );
+        } else {
+            self.bind_block_scoped_declaration(
+                node,
+                SymbolFlags::RegularEnum,
+                SymbolFlags::RegularEnumExcludes,
+            );
+        }
     }
 
     pub(super) fn bind_variable_declaration_or_binding_element(
         &self,
         node: &Node, /*VariableDeclaration*/
     ) {
-        let node_as_variable_declaration = node.as_variable_declaration();
-        if !is_binding_pattern(Some(node_as_variable_declaration.name())) {
-            if false {
-                unimplemented!()
+        let node_as_named_declaration = node.as_named_declaration();
+        if matches!(self.maybe_in_strict_mode(), Some(true)) {
+            self.check_strict_mode_eval_or_arguments(node, Some(node_as_named_declaration.name()));
+        }
+
+        if !is_binding_pattern(Some(node_as_named_declaration.name())) {
+            if is_in_js_file(Some(node))
+                && is_require_variable_declaration(node)
+                && get_jsdoc_type_tag(node).is_none()
+            {
+                self.declare_symbol_and_add_to_symbol_table(
+                    node,
+                    SymbolFlags::Alias,
+                    SymbolFlags::AliasExcludes,
+                );
             } else if is_block_or_catch_scoped(node) {
                 self.bind_block_scoped_declaration(
                     node,
                     SymbolFlags::BlockScopedVariable,
                     SymbolFlags::BlockScopedVariableExcludes,
+                );
+            } else if is_parameter_declaration(node) {
+                self.declare_symbol_and_add_to_symbol_table(
+                    node,
+                    SymbolFlags::FunctionScopedVariable,
+                    SymbolFlags::ParameterExcludes,
                 );
             } else {
                 self.declare_symbol_and_add_to_symbol_table(
@@ -523,8 +646,34 @@ impl BinderType {
     }
 
     pub(super) fn bind_parameter(&self, node: &Node /*ParameterDeclaration*/) {
-        if is_binding_pattern(Some(node.as_parameter_declaration().name())) {
-            unimplemented!()
+        if node.kind() == SyntaxKind::JSDocParameterTag
+            && self.container().kind() != SyntaxKind::JSDocSignature
+        {
+            return;
+        }
+        let node_name = match node.kind() {
+            SyntaxKind::JSDocParameterTag => node.as_jsdoc_property_like_tag().name.clone(),
+            _ => node.as_named_declaration().name(),
+        };
+        if matches!(self.maybe_in_strict_mode(), Some(true))
+            && !node.flags().intersects(NodeFlags::Ambient)
+        {
+            self.check_strict_mode_eval_or_arguments(node, Some(&*node_name));
+        }
+
+        if is_binding_pattern(Some(node_name)) {
+            self.bind_anonymous_declaration(
+                node,
+                SymbolFlags::FunctionScopedVariable,
+                __String::new(format!(
+                    "__{}",
+                    index_of(
+                        &*node.parent().as_signature_declaration().parameters(),
+                        &node.node_wrapper(),
+                        |a, b| Rc::ptr_eq(a, b)
+                    )
+                )),
+            );
         } else {
             self.declare_symbol_and_add_to_symbol_table(
                 node,
@@ -532,11 +681,43 @@ impl BinderType {
                 SymbolFlags::ParameterExcludes,
             );
         }
+
+        if is_parameter_property_declaration(node, &node.parent()) {
+            let class_declaration = node.parent().parent();
+            self.declare_symbol(
+                &mut class_declaration.symbol().members().borrow_mut(),
+                Some(class_declaration.symbol()),
+                node,
+                SymbolFlags::Property
+                    | if node.as_parameter_declaration().question_token.is_some() {
+                        SymbolFlags::Optional
+                    } else {
+                        SymbolFlags::None
+                    },
+                SymbolFlags::PropertyExcludes,
+                None,
+                None,
+            );
+        }
     }
 
     pub(super) fn bind_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
-        if false {
-            unimplemented!()
+        if !self.file().as_source_file().is_declaration_file()
+            && !node.flags().intersects(NodeFlags::Ambient)
+        {
+            if is_async_function(node) {
+                self.set_emit_flags(Some(self.emit_flags() | NodeFlags::HasAsyncFunctions));
+            }
+        }
+
+        self.check_strict_mode_function_name(node);
+        if matches!(self.maybe_in_strict_mode(), Some(true)) {
+            self.check_strict_mode_function_declaration(node);
+            self.bind_block_scoped_declaration(
+                node,
+                SymbolFlags::Function,
+                SymbolFlags::FunctionExcludes,
+            );
         } else {
             self.declare_symbol_and_add_to_symbol_table(
                 node,
@@ -546,8 +727,26 @@ impl BinderType {
         }
     }
 
-    pub(super) fn bind_function_expression(&self, node: &Node /*FunctionExpression*/) {
-        unimplemented!()
+    pub(super) fn bind_function_expression(
+        &self,
+        node: &Node, /*FunctionExpression*/
+    ) -> Rc<Symbol> {
+        if !self.file().as_source_file().is_declaration_file()
+            && !node.flags().intersects(NodeFlags::Ambient)
+        {
+            if is_async_function(node) {
+                self.set_emit_flags(Some(self.emit_flags() | NodeFlags::HasAsyncFunctions));
+            }
+        }
+        if let Some(current_flow) = self.maybe_current_flow() {
+            node.set_flow_node(Some(current_flow));
+        }
+        self.check_strict_mode_function_name(node);
+        let binding_name = match node.as_function_expression().maybe_name() {
+            Some(name) => name.as_identifier().escaped_text.clone(),
+            None => InternalSymbolName::Function(),
+        };
+        self.bind_anonymous_declaration(node, SymbolFlags::Function, binding_name)
     }
 
     pub(super) fn bind_property_or_method_or_accessor(
@@ -555,17 +754,89 @@ impl BinderType {
         node: &Node,
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
-    ) {
-        if false {
-            unimplemented!()
+    ) -> Option<Rc<Symbol>> {
+        if !self.file().as_source_file().is_declaration_file()
+            && !node.flags().intersects(NodeFlags::Ambient)
+            && is_async_function(node)
+        {
+            self.set_emit_flags(Some(self.emit_flags() | NodeFlags::HasAsyncFunctions));
+        }
+
+        if let Some(current_flow) = self.maybe_current_flow() {
+            if is_object_literal_or_class_expression_method_or_accessor(node) {
+                node.set_flow_node(Some(current_flow));
+            }
+        }
+
+        if has_dynamic_name(node) {
+            Some(self.bind_anonymous_declaration(
+                node,
+                symbol_flags,
+                InternalSymbolName::Computed(),
+            ))
         } else {
-            self.declare_symbol_and_add_to_symbol_table(node, symbol_flags, symbol_excludes);
+            self.declare_symbol_and_add_to_symbol_table(node, symbol_flags, symbol_excludes)
         }
     }
 
+    pub(super) fn get_infer_type_container(
+        &self,
+        node: &Node,
+    ) -> Option<Rc<Node /*ConditionalTypeNode*/>> {
+        let extends_type = find_ancestor(
+            Some(node),
+            |n| matches!(n.maybe_parent(), Some(parent) if is_conditional_type_node(&parent) && ptr::eq(&*parent.as_conditional_type_node().extends_type, n)),
+        );
+        extends_type.map(|extends_type| extends_type.parent())
+    }
+
     pub(super) fn bind_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
-        if false {
-            unimplemented!()
+        if is_jsdoc_template_tag(&node.parent()) {
+            let container = get_effective_container_for_jsdoc_template_tag(&node.parent());
+            if let Some(container) = container {
+                let mut container_locals = container.maybe_locals();
+                if container_locals.is_none() {
+                    *container_locals = Some(create_symbol_table(None));
+                }
+                self.declare_symbol(
+                    container_locals.as_mut().unwrap(),
+                    Option::<&Symbol>::None,
+                    node,
+                    SymbolFlags::TypeParameter,
+                    SymbolFlags::TypeParameterExcludes,
+                    None,
+                    None,
+                );
+            } else {
+                self.declare_symbol_and_add_to_symbol_table(
+                    node,
+                    SymbolFlags::TypeParameter,
+                    SymbolFlags::TypeParameterExcludes,
+                );
+            }
+        } else if node.parent().kind() == SyntaxKind::InferType {
+            let container = self.get_infer_type_container(&node.parent());
+            if let Some(container) = container {
+                let mut container_locals = container.maybe_locals();
+                if container_locals.is_none() {
+                    *container_locals = Some(create_symbol_table(None));
+                }
+                self.declare_symbol(
+                    container_locals.as_mut().unwrap(),
+                    Option::<&Symbol>::None,
+                    node,
+                    SymbolFlags::TypeParameter,
+                    SymbolFlags::TypeParameterExcludes,
+                    None,
+                    None,
+                );
+            } else {
+                self.bind_anonymous_declaration(
+                    node,
+                    SymbolFlags::TypeParameter,
+                    self.get_declaration_name(node).unwrap(),
+                );
+            }
         } else {
             self.declare_symbol_and_add_to_symbol_table(
                 node,
@@ -573,6 +844,16 @@ impl BinderType {
                 SymbolFlags::TypeParameterExcludes,
             );
         }
+    }
+
+    pub(super) fn should_report_error_on_module_declaration(
+        &self,
+        node: &Node, /*ModuleDeclaration*/
+    ) -> bool {
+        let instance_state = get_module_instance_state(node, None);
+        instance_state == ModuleInstanceState::Instantiated
+            || instance_state == ModuleInstanceState::ConstEnumOnly
+                && should_preserve_const_enums(&self.options())
     }
 
     pub(super) fn check_unreachable(&self, node: &Node) -> bool {

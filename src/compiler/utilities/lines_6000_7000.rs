@@ -399,6 +399,11 @@ fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> Compil
     }
 }
 
+pub fn should_preserve_const_enums(compiler_options: &CompilerOptions) -> bool {
+    matches!(compiler_options.preserve_const_enums, Some(true))
+        || matches!(compiler_options.isolated_modules, Some(true))
+}
+
 pub fn get_strict_option_value(
     compiler_options: &CompilerOptions,
     flag: &str, /*StrictOptionName*/

@@ -438,7 +438,7 @@ impl BinderType {
     pub(super) fn bind_property_worker(
         &self,
         node: &Node, /*PropertyDeclaration | PropertySignature*/
-    ) {
+    ) -> Option<Rc<Symbol>> {
         self.bind_property_or_method_or_accessor(
             node,
             SymbolFlags::Property
@@ -643,7 +643,7 @@ impl BinderType {
         let symbol = self.for_each_identifier_in_entity_name(
             &node.as_call_expression().arguments[0],
             Option::<&Symbol>::None,
-            |id, symbol, _| {
+            &mut |id, symbol, _| {
                 if let Some(symbol) = symbol.as_ref() {
                     self.add_declaration_to_symbol(
                         symbol,
@@ -682,7 +682,7 @@ impl BinderType {
                 .as_has_expression()
                 .expression(),
             Option::<&Symbol>::None,
-            |id, symbol, _| {
+            &mut |id, symbol, _| {
                 if let Some(symbol) = symbol.as_ref() {
                     self.add_declaration_to_symbol(
                         symbol,
