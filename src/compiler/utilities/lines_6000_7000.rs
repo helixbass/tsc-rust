@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Cow;
 use std::cmp;
 use std::rc::Rc;
 
@@ -451,6 +452,10 @@ pub fn get_script_kind_from_file_name(file_name: &str) -> ScriptKind {
         Some(Extension::Json) => ScriptKind::JSON,
         _ => ScriptKind::Unknown,
     }
+}
+
+pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
+    unimplemented!()
 }
 
 pub enum StringOrPattern {

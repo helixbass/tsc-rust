@@ -286,6 +286,10 @@ impl SourceFile {
         self.common_js_module_indicator.borrow().clone()
     }
 
+    pub(crate) fn maybe_common_js_module_indicator_mut(&self) -> RefMut<Option<Rc<Node>>> {
+        self.common_js_module_indicator.borrow_mut()
+    }
+
     pub(crate) fn set_common_js_module_indicator(
         &self,
         common_js_module_indicator: Option<Rc<Node>>,

@@ -19,17 +19,18 @@ use super::{
     ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
     FunctionTypeNode, GetAccessorDeclaration, HasConditionInterface, HasElementsInterface,
     HasExpressionInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasLabelInterface,
-    HasQuestionDotTokenInterface, HasStatementInterface, HasStatementsInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause, Identifier, IfStatement,
-    ImportClause, ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
-    IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InputFiles,
-    InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface, IntersectionTypeNode, JSDoc,
-    JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
-    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
-    JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature,
-    JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
-    JSDocTypeLiteral, JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute,
-    JsxAttributes, JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
+    HasQuestionDotTokenInterface, HasQuestionTokenInterface, HasStatementInterface,
+    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause,
+    Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
+    ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
+    InferTypeNode, InputFiles, InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface,
+    IntersectionTypeNode, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType,
+    JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
+    JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration, JSDocPropertyLikeTag,
+    JSDocSeeTag, JSDocSignature, JSDocTagInterface, JSDocTemplateTag, JSDocText,
+    JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
+    JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute, JsxAttributes,
+    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
     JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
     KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
     MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
@@ -645,6 +646,14 @@ impl Node {
             Node::BreakStatement(node) => node,
             Node::ContinueStatement(node) => node,
             _ => panic!("Expected has label"),
+        }
+    }
+
+    pub fn as_has_question_token(&self) -> &dyn HasQuestionTokenInterface {
+        match self {
+            Node::PropertySignature(node) => node,
+            Node::PropertyDeclaration(node) => node,
+            _ => panic!("Expected has question token"),
         }
     }
 

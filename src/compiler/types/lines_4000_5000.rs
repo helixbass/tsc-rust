@@ -545,6 +545,7 @@ pub trait SymbolInterface {
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
     fn maybe_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn exports(&self) -> Rc<RefCell<SymbolTable>>;
+    fn maybe_global_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn maybe_id(&self) -> Option<SymbolId>;
     fn id(&self) -> SymbolId;
     fn set_id(&self, id: SymbolId);
@@ -582,6 +583,7 @@ pub struct BaseSymbol {
     value_declaration: RefCell<Option<Weak<Node>>>,
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
+    global_exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     id: Cell<Option<SymbolId>>,
     parent: RefCell<Option<Rc<Symbol>>>,
     export_symbol: RefCell<Option<Rc<Symbol>>>,
@@ -599,6 +601,7 @@ impl BaseSymbol {
             value_declaration: RefCell::new(None),
             members: RefCell::new(None),
             exports: RefCell::new(None),
+            global_exports: RefCell::new(None),
             id: Cell::new(None),
             parent: RefCell::new(None),
             export_symbol: RefCell::new(None),
@@ -667,6 +670,10 @@ impl SymbolInterface for BaseSymbol {
 
     fn exports(&self) -> Rc<RefCell<SymbolTable>> {
         self.exports.borrow_mut().as_ref().unwrap().clone()
+    }
+
+    fn maybe_global_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+        self.global_exports.borrow_mut()
     }
 
     fn maybe_id(&self) -> Option<SymbolId> {

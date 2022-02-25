@@ -901,6 +901,10 @@ impl BindingElement {
     }
 }
 
+pub trait HasQuestionTokenInterface {
+    fn maybe_question_token(&self) -> Option<Rc<Node>>;
+}
+
 #[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct PropertySignature {
@@ -945,6 +949,12 @@ impl HasInitializerInterface for PropertySignature {
     }
 }
 
+impl HasQuestionTokenInterface for PropertySignature {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 impl BindingLikeDeclarationInterface for PropertySignature {}
 
 impl VariableLikeDeclarationInterface for PropertySignature {}
@@ -970,6 +980,12 @@ impl PropertyDeclaration {
             question_token,
             exclamation_token,
         }
+    }
+}
+
+impl HasQuestionTokenInterface for PropertyDeclaration {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
     }
 }
 

@@ -1776,6 +1776,10 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.exports()
                     }
 
+                    fn maybe_global_exports(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        self.#first_field_name.maybe_global_exports()
+                    }
+
                     fn maybe_id(&self) -> ::std::option::Option<crate::SymbolId> {
                         self.#first_field_name.maybe_id()
                     }
@@ -1923,6 +1927,12 @@ fn get_symbol_enum_interface_impl(
                     fn exports(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.exports()),*
+                        }
+                    }
+
+                    fn maybe_global_exports(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_global_exports()),*
                         }
                     }
 
