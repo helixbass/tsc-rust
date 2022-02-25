@@ -54,6 +54,14 @@ pub fn is_prototype_access(node: &Node) -> bool {
         }
 }
 
+pub fn is_empty_object_literal(expression: &Node) -> bool {
+    expression.kind() == SyntaxKind::ObjectLiteralExpression
+        && expression
+            .as_object_literal_expression()
+            .properties
+            .is_empty()
+}
+
 pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
     match symbol {
         Symbol::TransientSymbol(transient_symbol) => transient_symbol.check_flags(),

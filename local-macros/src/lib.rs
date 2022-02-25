@@ -1823,6 +1823,10 @@ fn get_symbol_struct_interface_impl(
                     fn set_is_replaceable_by_method(&self, is_replaceable_by_method: ::std::option::Option<bool>) {
                         self.#first_field_name.set_is_replaceable_by_method(is_replaceable_by_method)
                     }
+
+                    fn maybe_assignment_declaration_members(&self) -> ::std::cell::RefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::std::rc::Rc<crate::Node>>>> {
+                        self.#first_field_name.maybe_assignment_declaration_members()
+                    }
                 }
             }
         }
@@ -1999,6 +2003,12 @@ fn get_symbol_enum_interface_impl(
                     fn set_is_replaceable_by_method(&self, is_replaceable_by_method: ::std::option::Option<bool>) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_is_replaceable_by_method(is_replaceable_by_method)),*
+                        }
+                    }
+
+                    fn maybe_assignment_declaration_members(&self) -> ::std::cell::RefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::std::rc::Rc<crate::Node>>>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_assignment_declaration_members()),*
                         }
                     }
                 }

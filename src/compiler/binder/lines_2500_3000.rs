@@ -2,22 +2,26 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::BinderType;
+use super::{is_exports_or_module_exports_or_alias, lookup_symbol_for_name, BinderType};
 use crate::{
-    create_diagnostic_for_node, create_symbol_table, export_assignment_is_alias,
-    get_assignment_declaration_kind, get_right_most_assigned_expression, is_aliasable_expression,
-    is_empty_object_literal, is_expression, is_external_module,
-    is_function_like_or_class_static_block_declaration, is_in_js_file, is_jsdoc_type_alias,
-    is_json_source_file, is_namespace_export, is_object_literal_method, is_part_of_type_query,
-    is_special_property_declaration, is_this_initialized_declaration, remove_file_extension,
-    set_parent, set_value_declaration, AssignmentDeclarationKind, Debug_, Diagnostics,
-    FunctionLikeDeclarationInterface, InternalSymbolName, SyntaxKind, __String,
-    is_assignment_expression, is_binding_pattern, is_block_or_catch_scoped, is_exports_identifier,
-    is_identifier, is_module_exports_access_expression, is_source_file, is_variable_declaration,
-    HasInitializerInterface, NamedDeclarationInterface, Node, NodeInterface, Symbol, SymbolFlags,
-    SymbolInterface,
+    create_diagnostic_for_node, create_symbol_table, every, export_assignment_is_alias, for_each,
+    get_assignment_declaration_kind, get_node_id, get_right_most_assigned_expression,
+    get_this_container, has_dynamic_name, is_aliasable_expression, is_binary_expression,
+    is_bindable_static_access_expression, is_empty_object_literal, is_expression,
+    is_external_module, is_function_like_or_class_static_block_declaration, is_in_js_file,
+    is_jsdoc_type_alias, is_json_source_file, is_namespace_export, is_object_literal_expression,
+    is_object_literal_method, is_part_of_type_query, is_private_identifier,
+    is_property_access_expression, is_prototype_access, is_shorthand_property_assignment,
+    is_special_property_declaration, is_static, is_this_initialized_declaration,
+    remove_file_extension, set_parent, set_value_declaration, AssignmentDeclarationKind, Debug_,
+    Diagnostics, FunctionLikeDeclarationInterface, InternalSymbolName, SymbolTable, SyntaxKind,
+    __String, is_assignment_expression, is_binding_pattern, is_block_or_catch_scoped,
+    is_exports_identifier, is_identifier, is_module_exports_access_expression, is_source_file,
+    is_variable_declaration, HasInitializerInterface, NamedDeclarationInterface, Node,
+    NodeInterface, Symbol, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -738,261 +742,254 @@ impl BinderType {
         {
             return;
         }
+
+        if is_object_literal_expression(&assigned_expression) {
+            let assigned_expression_as_object_literal_expression =
+                assigned_expression.as_object_literal_expression();
+            if every(
+                &assigned_expression_as_object_literal_expression.properties,
+                |property, _| is_shorthand_property_assignment(property),
+            ) {
+                for_each(
+                    &assigned_expression_as_object_literal_expression.properties,
+                    |property, _| {
+                        self.bind_export_assigned_object_member_alias(property);
+                        Option::<()>::None
+                    },
+                );
+                return;
+            }
+        }
+
+        let flags = if export_assignment_is_alias(node) {
+            SymbolFlags::Alias
+        } else {
+            SymbolFlags::Property | SymbolFlags::ExportValue | SymbolFlags::ValueModule
+        };
+        let symbol = self.declare_symbol(
+            &mut self.file().symbol().exports().borrow_mut(),
+            Some(self.file().symbol()),
+            node,
+            flags | SymbolFlags::Assignment,
+            SymbolFlags::None,
+            None,
+            None,
+        );
+        set_value_declaration(&symbol, node);
     }
 
     pub(super) fn bind_export_assigned_object_member_alias(
         &self,
         node: &Node, /*ShorthandPropertyAssignment*/
     ) {
-        unimplemented!()
+        self.declare_symbol(
+            &mut self.file().symbol().exports().borrow_mut(),
+            Some(self.file().symbol()),
+            node,
+            SymbolFlags::Alias | SymbolFlags::Assignment,
+            SymbolFlags::None,
+            None,
+            None,
+        );
     }
 
     pub(super) fn bind_this_property_assignment(
         &self,
         node: &Node, /*BindablePropertyAssignmentExpression | PropertyAccessExpression | LiteralLikeElementAccessExpression*/
     ) {
-        unimplemented!()
+        Debug_.assert(is_in_js_file(Some(node)), None);
+        let has_private_identifier = is_binary_expression(node) && {
+            let node_as_binary_expression = node.as_binary_expression();
+            is_property_access_expression(&node_as_binary_expression.left)
+                && is_private_identifier(
+                    &node_as_binary_expression
+                        .left
+                        .as_property_access_expression()
+                        .name,
+                )
+        } || is_property_access_expression(node)
+            && is_private_identifier(&node.as_property_access_expression().name);
+        if has_private_identifier {
+            return;
+        }
+        let this_container = get_this_container(node, false);
+        match this_container.kind() {
+            SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression => {
+                let mut constructor_symbol = this_container.maybe_symbol();
+                if is_binary_expression(&this_container.parent()) {
+                    let this_container_parent = this_container.parent();
+                    let this_container_parent_as_binary_expression =
+                        this_container_parent.as_binary_expression();
+                    if this_container_parent_as_binary_expression
+                        .operator_token
+                        .kind()
+                        == SyntaxKind::EqualsToken
+                    {
+                        let l = &this_container_parent_as_binary_expression.left;
+                        if is_bindable_static_access_expression(l, None)
+                            && is_prototype_access(&l.as_has_expression().expression())
+                        {
+                            constructor_symbol = self.lookup_symbol_for_property_access(
+                                &l.as_has_expression()
+                                    .expression()
+                                    .as_has_expression()
+                                    .expression(),
+                                &self.this_parent_container(),
+                            );
+                        }
+                    }
+                }
+
+                if let Some(constructor_symbol) = constructor_symbol {
+                    if let Some(constructor_symbol_value_declaration) =
+                        constructor_symbol.maybe_value_declaration()
+                    {
+                        let mut constructor_symbol_members = constructor_symbol.maybe_members();
+                        if constructor_symbol_members.is_none() {
+                            *constructor_symbol_members =
+                                Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                        }
+                        let mut constructor_symbol_members =
+                            constructor_symbol_members.as_ref().unwrap().borrow_mut();
+                        if has_dynamic_name(node) {
+                            self.bind_dynamically_named_this_property_assignment(
+                                node,
+                                &constructor_symbol,
+                                &mut constructor_symbol_members,
+                            );
+                        } else {
+                            self.declare_symbol(
+                                &mut constructor_symbol_members,
+                                Some(constructor_symbol.clone()),
+                                node,
+                                SymbolFlags::Property | SymbolFlags::Assignment,
+                                SymbolFlags::PropertyExcludes & !SymbolFlags::Property,
+                                None,
+                                None,
+                            );
+                        }
+                        self.add_declaration_to_symbol(
+                            &constructor_symbol,
+                            &constructor_symbol_value_declaration,
+                            SymbolFlags::Class,
+                        );
+                    }
+                }
+            }
+
+            SyntaxKind::Constructor
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::ClassStaticBlockDeclaration => {
+                let containing_class = this_container.parent();
+                let symbol_table = if is_static(&this_container) {
+                    containing_class.symbol().exports()
+                } else {
+                    containing_class.symbol().members()
+                };
+                let mut symbol_table = symbol_table.borrow_mut();
+                if has_dynamic_name(node) {
+                    self.bind_dynamically_named_this_property_assignment(
+                        node,
+                        &containing_class.symbol(),
+                        &mut symbol_table,
+                    );
+                } else {
+                    self.declare_symbol(
+                        &mut symbol_table,
+                        Some(containing_class.symbol()),
+                        node,
+                        SymbolFlags::Property | SymbolFlags::Assignment,
+                        SymbolFlags::None,
+                        Some(true),
+                        None,
+                    );
+                }
+            }
+            SyntaxKind::SourceFile => {
+                if has_dynamic_name(node) {
+                    return;
+                } else if this_container
+                    .as_source_file()
+                    .maybe_common_js_module_indicator()
+                    .is_some()
+                {
+                    self.declare_symbol(
+                        &mut this_container.symbol().exports().borrow_mut(),
+                        Some(this_container.symbol()),
+                        node,
+                        SymbolFlags::Property | SymbolFlags::ExportValue,
+                        SymbolFlags::None,
+                        None,
+                        None,
+                    );
+                } else {
+                    self.declare_symbol_and_add_to_symbol_table(
+                        node,
+                        SymbolFlags::FunctionScopedVariable,
+                        SymbolFlags::FunctionScopedVariableExcludes,
+                    );
+                }
+            }
+
+            _ => Debug_.fail_bad_syntax_kind(&this_container, None),
+        }
+    }
+
+    pub(super) fn bind_dynamically_named_this_property_assignment(
+        &self,
+        node: &Node, /*BinaryExpression | DynamicNamedDeclaration*/
+        symbol: &Symbol,
+        symbol_table: &mut SymbolTable,
+    ) {
+        self.declare_symbol(
+            symbol_table,
+            Some(symbol),
+            node,
+            SymbolFlags::Property,
+            SymbolFlags::None,
+            Some(true),
+            Some(true),
+        );
+        self.add_late_bound_assignment_declaration_to_symbol(node, Some(symbol));
+    }
+
+    pub(super) fn add_late_bound_assignment_declaration_to_symbol<TSymbol: Borrow<Symbol>>(
+        &self,
+        node: &Node, /*BinaryExpression | DynamicNamedDeclaration*/
+        symbol: Option<TSymbol>,
+    ) {
+        if let Some(symbol) = symbol {
+            let symbol = symbol.borrow();
+            let mut symbol_assignment_declaration_members =
+                symbol.maybe_assignment_declaration_members();
+            if symbol_assignment_declaration_members.is_none() {
+                *symbol_assignment_declaration_members = Some(HashMap::new());
+            }
+            symbol_assignment_declaration_members
+                .as_mut()
+                .unwrap()
+                .insert(get_node_id(node), node.node_wrapper());
+        }
     }
 
     pub(super) fn bind_special_property_declaration(
         &self,
         node: &Node, /*PropertyAccessExpression | LiteralLikeElementAccessExpression*/
     ) {
-        unimplemented!()
-    }
-
-    pub(super) fn bind_prototype_assignment(
-        &self,
-        node: &Node, /*BindableStaticPropertyAssignmentExpression*/
-    ) {
-        unimplemented!()
-    }
-
-    pub(super) fn bind_object_define_prototype_property(
-        &self,
-        node: &Node, /*BindableObjectDefinePropertyCall*/
-    ) {
-        unimplemented!()
-    }
-
-    pub(super) fn bind_prototype_property_assignment(
-        &self,
-        lhs: &Node, /*BindableStaticAccessExpression*/
-        parent: &Node,
-    ) {
-        unimplemented!()
-    }
-
-    pub(super) fn bind_object_define_property_assignment(
-        &self,
-        node: &Node, /*BindableObjectDefinePropertyCall*/
-    ) {
-        unimplemented!()
-    }
-
-    pub(super) fn bind_special_property_assignment(
-        &self,
-        node: &Node, /*BindablePropertyAssignmentExpression*/
-    ) {
-        unimplemented!()
-    }
-
-    pub(super) fn bind_potentially_missing_namespaces<TNamespaceSymbol: Borrow<Symbol>>(
-        &self,
-        namespace_symbol: Option<TNamespaceSymbol>,
-        entity_name: &Node, /*BindableStaticNameExpression*/
-        is_top_level: bool,
-        is_prototype_property: bool,
-        container_is_class: bool,
-    ) -> Option<Rc<Symbol>> {
-        unimplemented!()
-    }
-
-    pub(super) fn is_top_level_namespace_assignment(
-        &self,
-        property_access: &Node, /*BindableAccessExpression*/
-    ) -> bool {
-        unimplemented!()
-    }
-
-    pub(super) fn for_each_identifier_in_entity_name<
-        TParent: Borrow<Symbol>,
-        TAction: FnMut(
-            &Node, /*Declaration*/
-            Option<Rc<Symbol>>,
-            Option<Rc<Symbol>>,
-        ) -> Option<Rc<Symbol>>,
-    >(
-        &self,
-        e: &Node, /*BindableStaticNameExpression*/
-        parent: Option<TParent>,
-        action: TAction,
-    ) -> Option<Rc<Symbol>> {
-        unimplemented!()
-    }
-
-    pub(super) fn bind_call_expression(&self, node: &Node /*CallExpression*/) {
-        unimplemented!()
-    }
-
-    pub(super) fn bind_class_like_declaration(&self, node: &Node /*ClassLikeDeclaration*/) {
-        unimplemented!()
-    }
-
-    pub(super) fn bind_enum_declaration(&self, node: &Node /*EnumDeclaration*/) {
-        unimplemented!()
-    }
-
-    pub(super) fn bind_variable_declaration_or_binding_element(
-        &self,
-        node: &Node, /*VariableDeclaration*/
-    ) {
-        let node_as_variable_declaration = node.as_variable_declaration();
-        if !is_binding_pattern(Some(node_as_variable_declaration.name())) {
-            if false {
-                unimplemented!()
-            } else if is_block_or_catch_scoped(node) {
-                self.bind_block_scoped_declaration(
-                    node,
-                    SymbolFlags::BlockScopedVariable,
-                    SymbolFlags::BlockScopedVariableExcludes,
-                );
-            } else {
-                self.declare_symbol_and_add_to_symbol_table(
-                    node,
-                    SymbolFlags::FunctionScopedVariable,
-                    SymbolFlags::FunctionScopedVariableExcludes,
-                );
-            }
-        }
-    }
-
-    pub(super) fn bind_parameter(&self, node: &Node /*ParameterDeclaration*/) {
-        if is_binding_pattern(Some(node.as_parameter_declaration().name())) {
-            unimplemented!()
-        } else {
-            self.declare_symbol_and_add_to_symbol_table(
-                node,
-                SymbolFlags::FunctionScopedVariable,
-                SymbolFlags::ParameterExcludes,
-            );
-        }
-    }
-
-    pub(super) fn bind_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
-        if false {
-            unimplemented!()
-        } else {
-            self.declare_symbol_and_add_to_symbol_table(
-                node,
-                SymbolFlags::Function,
-                SymbolFlags::FunctionExcludes,
-            );
-        }
-    }
-
-    pub(super) fn bind_function_expression(&self, node: &Node /*FunctionExpression*/) {
-        unimplemented!()
-    }
-
-    pub(super) fn bind_property_or_method_or_accessor(
-        &self,
-        node: &Node,
-        symbol_flags: SymbolFlags,
-        symbol_excludes: SymbolFlags,
-    ) {
-        if false {
-            unimplemented!()
-        } else {
-            self.declare_symbol_and_add_to_symbol_table(node, symbol_flags, symbol_excludes);
-        }
-    }
-
-    pub(super) fn bind_type_parameter(&self, node: &Node /*TypeParameterDeclaration*/) {
-        if false {
-            unimplemented!()
-        } else {
-            self.declare_symbol_and_add_to_symbol_table(
-                node,
-                SymbolFlags::TypeParameter,
-                SymbolFlags::TypeParameterExcludes,
-            );
-        }
-    }
-
-    pub(super) fn check_unreachable(&self, node: &Node) -> bool {
-        false
-        // unimplemented!()
-    }
-}
-
-pub fn is_exports_or_module_exports_or_alias(
-    source_file: &Node, /*SourceFile*/
-    node: &Node,        /*Expression*/
-) -> bool {
-    let mut node = node.node_wrapper();
-    let mut i = 0;
-    let mut q = vec![node];
-    while !q.is_empty() && i < 100 {
-        i += 1;
-        node = q.remove(0);
-        if is_exports_identifier(&node) || is_module_exports_access_expression(&node) {
-            return true;
-        } else if is_identifier(&node) {
-            let symbol = lookup_symbol_for_name(&source_file, &node.as_identifier().escaped_text);
-            if let Some(symbol) = symbol {
-                if let Some(symbol_value_declaration) =
-                    symbol
-                        .maybe_value_declaration()
-                        .filter(|value_declaration| {
-                            is_variable_declaration(&value_declaration)
-                                && value_declaration
-                                    .as_variable_declaration()
-                                    .maybe_initializer()
-                                    .is_some()
-                        })
-                {
-                    let init = symbol_value_declaration
-                        .as_variable_declaration()
-                        .maybe_initializer()
-                        .unwrap();
-                    q.push(init.clone());
-                    if is_assignment_expression(&init, Some(true)) {
-                        let init_as_binary_expression = init.as_binary_expression();
-                        q.push(init_as_binary_expression.left.clone());
-                        q.push(init_as_binary_expression.right.clone());
-                    }
-                }
-            }
-        }
-    }
-    false
-}
-
-fn lookup_symbol_for_name(container: &Node, name: &__String) -> Option<Rc<Symbol>> {
-    let container_locals = container.maybe_locals();
-    let local = container_locals
-        .as_ref()
-        .and_then(|locals| locals.get(name));
-    if let Some(local) = local {
-        return Some(local.maybe_export_symbol().unwrap_or(local.clone()));
-    }
-    if is_source_file(container) {
-        let container_as_source_file = container.as_source_file();
-        if let Some(container_js_global_augmentations) = container_as_source_file
-            .maybe_js_global_augmentations()
-            .as_ref()
+        let node_as_has_expression = node.as_has_expression();
+        if node_as_has_expression.expression().kind() == SyntaxKind::ThisKeyword {
+            self.bind_this_property_assignment(node);
+        } else if is_bindable_static_access_expression(node, None)
+            && node.parent().parent().kind() == SyntaxKind::SourceFile
         {
-            let container_js_global_augmentations = container_js_global_augmentations.borrow_mut(); // TODO: doesn't actually need to be mut
-            if container_js_global_augmentations.contains_key(name) {
-                return container_js_global_augmentations
-                    .get(name)
-                    .map(Clone::clone);
+            if is_prototype_access(&node_as_has_expression.expression()) {
+                self.bind_prototype_property_assignment(node, &node.parent());
+            } else {
+                self.bind_static_property_assignment(node);
             }
         }
     }
-    container
-        .maybe_symbol()
-        .and_then(|symbol| symbol.maybe_exports().clone())
-        .and_then(|exports| exports.borrow_mut().get(name).map(Clone::clone)) // TODO: same here doesn't need to be mut
 }

@@ -557,6 +557,9 @@ pub trait SymbolInterface {
     fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>);
     fn maybe_is_replaceable_by_method(&self) -> Option<bool>;
     fn set_is_replaceable_by_method(&self, is_replaceable_by_method: Option<bool>);
+    fn maybe_assignment_declaration_members(
+        &self,
+    ) -> RefMut<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>;
 }
 
 #[derive(Debug)]
@@ -589,6 +592,7 @@ pub struct BaseSymbol {
     export_symbol: RefCell<Option<Rc<Symbol>>>,
     const_enum_only_module: Cell<Option<bool>>,
     is_replaceable_by_method: Cell<Option<bool>>,
+    assignment_declaration_members: RefCell<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>,
 }
 
 impl BaseSymbol {
@@ -607,6 +611,7 @@ impl BaseSymbol {
             export_symbol: RefCell::new(None),
             const_enum_only_module: Cell::new(None),
             is_replaceable_by_method: Cell::new(None),
+            assignment_declaration_members: RefCell::new(None),
         }
     }
 }
@@ -718,6 +723,10 @@ impl SymbolInterface for BaseSymbol {
 
     fn set_is_replaceable_by_method(&self, is_replaceable_by_method: Option<bool>) {
         self.is_replaceable_by_method.set(is_replaceable_by_method);
+    }
+
+    fn maybe_assignment_declaration_members(&self) -> RefMut<Option<HashMap<NodeId, Rc<Node>>>> {
+        self.assignment_declaration_members.borrow_mut()
     }
 }
 
