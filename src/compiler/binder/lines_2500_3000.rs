@@ -18,10 +18,8 @@ use crate::{
     is_special_property_declaration, is_static, is_this_initialized_declaration,
     remove_file_extension, set_parent, set_value_declaration, AssignmentDeclarationKind, Debug_,
     Diagnostics, FunctionLikeDeclarationInterface, InternalSymbolName, SymbolTable, SyntaxKind,
-    __String, is_assignment_expression, is_binding_pattern, is_block_or_catch_scoped,
-    is_exports_identifier, is_identifier, is_module_exports_access_expression, is_source_file,
-    is_variable_declaration, HasInitializerInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Symbol, SymbolFlags, SymbolInterface,
+    __String, is_exports_identifier, is_identifier, is_module_exports_access_expression,
+    is_source_file, Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
