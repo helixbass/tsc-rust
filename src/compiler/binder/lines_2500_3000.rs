@@ -832,7 +832,7 @@ impl BinderType {
                                     .expression()
                                     .as_has_expression()
                                     .expression(),
-                                &self.this_parent_container(),
+                                Some(self.this_parent_container()),
                             );
                         }
                     }

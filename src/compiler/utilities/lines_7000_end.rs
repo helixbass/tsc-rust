@@ -45,9 +45,10 @@ pub fn set_text_range_pos_width<TRange: ReadonlyTextRange>(
     set_text_range_pos_end(range, pos, pos + width);
 }
 
-pub fn set_parent(child: &Node, parent: Option<Rc<Node>>) -> &Node {
+pub fn set_parent<TParent: Borrow<Node>>(child: &Node, parent: Option<TParent>) -> &Node {
     if let Some(parent) = parent {
-        child.set_parent(parent.clone());
+        let parent = parent.borrow();
+        child.set_parent(parent.node_wrapper());
     }
     child
 }
