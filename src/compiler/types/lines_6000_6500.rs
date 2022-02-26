@@ -1,17 +1,24 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
-use super::{DiagnosticMessage, ModuleResolutionKind, Node, NodeArray, SyntaxKind};
-use crate::{MapLike, NodeFactoryFlags, OptionsNameMap};
+use super::{DiagnosticMessage, ModuleResolutionKind, Node};
+use crate::{MapLike, OptionsNameMap};
 use local_macros::{command_line_option_type, enum_unwrapped};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PluginImport {
     pub name: String,
+}
+
+#[derive(Debug)]
+pub struct ProjectReference {
+    pub path: String,
+    pub original_path: Option<String>,
+    pub prepend: Option<bool>,
+    pub circular: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -102,7 +109,7 @@ impl PartialEq for CompilerOptionsValue {
 
 impl Eq for CompilerOptionsValue {}
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CompilerOptions {
     pub(crate) all: Option<bool>,
     pub allow_js: Option<bool>,
@@ -224,7 +231,7 @@ pub struct CompilerOptions {
     // [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ModuleKind {
     None = 0,
     CommonJS = 1,
@@ -733,202 +740,4 @@ impl CharacterCodes {
     pub const byte_order_mark: char = '\u{feff}';
     pub const tab: char = '\t';
     pub const vertical_tab: char = '\u{000b}';
-}
-
-pub trait ModuleResolutionHost {
-    fn read_file(&self, file_name: &str) -> Option<String>;
-}
-
-pub trait CompilerHost: ModuleResolutionHost {
-    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>>;
-    fn get_current_directory(&self) -> String;
-    fn get_canonical_file_name(&self, file_name: &str) -> String;
-}
-
-bitflags! {
-    pub struct TransformFlags: u32 {
-        const None = 0;
-
-        const ContainsTypeScript = 1 << 0;
-
-        const ContainsJsx = 1 << 1;
-        const ContainsESNext = 1 << 2;
-        const ContainsES2021 = 1 << 3;
-        const ContainsES2020 = 1 << 4;
-        const ContainsES2019 = 1 << 5;
-        const ContainsES2018 = 1 << 6;
-        const ContainsES2017 = 1 << 7;
-        const ContainsES2016 = 1 << 8;
-        const ContainsES2015 = 1 << 9;
-        const ContainsGenerator = 1 << 10;
-        const ContainsDestructuringAssignment = 1 << 11;
-
-        const ContainsTypeScriptClassSyntax = 1 << 12;
-        const ContainsLexicalThis = 1 << 13;
-        const ContainsRestOrSpread = 1 << 14;
-        const ContainsObjectRestOrSpread = 1 << 15;
-        const ContainsComputedPropertyName = 1 << 16;
-        const ContainsBlockScopedBinding = 1 << 17;
-        const ContainsBindingPattern = 1 << 18;
-        const ContainsYield = 1 << 19;
-        const ContainsAwait = 1 << 20;
-        const ContainsHoistedDeclarationOrCompletion = 1 << 21;
-        const ContainsDynamicImport = 1 << 22;
-        const ContainsClassFields = 1 << 23;
-        const ContainsPossibleTopLevelAwait = 1 << 24;
-        const ContainsLexicalSuper = 1 << 25;
-        const ContainsUpdateExpressionForIdentifier = 1 << 26;
-        const HasComputedFlags = 1 << 29;
-
-        const AssertTypeScript = Self::ContainsTypeScript.bits;
-        const AssertJsx = Self::ContainsJsx.bits;
-        const AssertESNext = Self::ContainsESNext.bits;
-        const AssertES2021 = Self::ContainsES2021.bits;
-        const AssertES2020 = Self::ContainsES2020.bits;
-        const AssertES2019 = Self::ContainsES2019.bits;
-        const AssertES2018 = Self::ContainsES2018.bits;
-        const AssertES2017 = Self::ContainsES2017.bits;
-        const AssertES2016 = Self::ContainsES2016.bits;
-        const AssertES2015 = Self::ContainsES2015.bits;
-        const AssertGenerator = Self::ContainsGenerator.bits;
-        const AssertDestructuringAssignment = Self::ContainsDestructuringAssignment.bits;
-
-        const OuterExpressionExcludes = Self::HasComputedFlags.bits;
-        const PropertyAccessExcludes = Self::OuterExpressionExcludes.bits;
-        const NodeExcludes = Self::PropertyAccessExcludes.bits;
-        const ArrowFunctionExcludes = Self::NodeExcludes.bits | Self::ContainsTypeScriptClassSyntax.bits | Self::ContainsBlockScopedBinding.bits | Self::ContainsYield.bits | Self::ContainsAwait.bits | Self::ContainsHoistedDeclarationOrCompletion.bits | Self::ContainsBindingPattern.bits |  Self::ContainsObjectRestOrSpread.bits |  Self::ContainsPossibleTopLevelAwait.bits;
-        const FunctionExcludes = Self::NodeExcludes.bits | Self::ContainsTypeScriptClassSyntax.bits | Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits | Self::ContainsBlockScopedBinding.bits | Self::ContainsYield.bits | Self::ContainsAwait.bits |  Self::ContainsHoistedDeclarationOrCompletion.bits |  Self::ContainsBindingPattern.bits |  Self::ContainsObjectRestOrSpread.bits |  Self::ContainsPossibleTopLevelAwait.bits;
-        const ConstructorExcludes = Self::NodeExcludes.bits | Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits | Self::ContainsBlockScopedBinding.bits | Self::ContainsYield.bits | Self::ContainsAwait.bits |  Self::ContainsHoistedDeclarationOrCompletion.bits |  Self::ContainsBindingPattern.bits |  Self::ContainsObjectRestOrSpread.bits |  Self::ContainsPossibleTopLevelAwait.bits;
-        const MethodOrAccessorExcludes = Self::NodeExcludes.bits | Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits | Self::ContainsBlockScopedBinding.bits | Self::ContainsYield.bits | Self::ContainsAwait.bits |  Self::ContainsHoistedDeclarationOrCompletion.bits |  Self::ContainsBindingPattern.bits |  Self::ContainsObjectRestOrSpread.bits;
-        const PropertyExcludes = Self::NodeExcludes.bits | Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits;
-        const ClassExcludes = Self::NodeExcludes.bits | Self::ContainsTypeScriptClassSyntax.bits | Self::ContainsComputedPropertyName.bits;
-        const ModuleExcludes = Self::NodeExcludes.bits | Self::ContainsTypeScriptClassSyntax.bits | Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits | Self::ContainsBlockScopedBinding.bits | Self::ContainsHoistedDeclarationOrCompletion.bits | Self::ContainsPossibleTopLevelAwait.bits;
-        const TypeExcludes = !Self::ContainsTypeScript.bits;
-        const ObjectLiteralExcludes = Self::NodeExcludes.bits | Self::ContainsTypeScriptClassSyntax.bits | Self::ContainsComputedPropertyName.bits | Self::ContainsObjectRestOrSpread.bits;
-        const ArrayLiteralOrCallOrNewExcludes = Self::NodeExcludes.bits | Self::ContainsRestOrSpread.bits;
-        const VariableDeclarationListExcludes = Self::NodeExcludes.bits | Self::ContainsBindingPattern.bits | Self::ContainsObjectRestOrSpread.bits;
-        const ParameterExcludes = Self::NodeExcludes.bits;
-        const CatchClauseExcludes = Self::NodeExcludes.bits | Self::ContainsObjectRestOrSpread.bits;
-        const BindingPatternExcludes = Self::NodeExcludes.bits | Self::ContainsRestOrSpread.bits;
-        const ContainsLexicalThisOrSuper = Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits;
-
-        const PropertyNamePropagatingFlags = Self::ContainsLexicalThis.bits | Self::ContainsLexicalSuper.bits;
-    }
-}
-
-bitflags! {
-    pub struct EmitFlags: u32 {
-        const None = 0;
-        const NoAsciiEscaping = 1 << 24;
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EmitHint {
-    Expression,
-    Unspecified,
-}
-
-bitflags! {
-    pub struct OuterExpressionKinds: u32 {
-        const None = 0;
-        const Parentheses = 1 << 0;
-        const TypeAssertions = 1 << 1;
-        const NonNullAssertions = 1 << 2;
-        const PartiallyEmittedExpressions = 1 << 3;
-
-        const Assertions = Self::TypeAssertions.bits | Self::NonNullAssertions.bits;
-        const All = Self::Parentheses.bits | Self::Assertions.bits | Self::PartiallyEmittedExpressions.bits;
-
-        const ExcludeJSDocTypeAssertion = 1 << 4;
-    }
-}
-
-pub trait ParenthesizerRules {
-    // fn get_parenthesize_left_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
-    // fn get_parenthesize_right_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
-    fn parenthesize_left_side_of_binary(
-        &self,
-        binary_operator: SyntaxKind,
-        left_side: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*Expression*/>;
-    fn parenthesize_right_side_of_binary(
-        &self,
-        binary_operator: SyntaxKind,
-        left_side: Option<Rc<Node /*Expression*/>>,
-        right_side: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*Expression*/>;
-    fn parenthesize_expression_of_computed_property_name(
-        &self,
-        expression: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*Expression*/>;
-    fn parenthesize_condition_of_conditional_expression(
-        &self,
-        condition: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*Expression*/>;
-    fn parenthesize_branch_of_conditional_expression(
-        &self,
-        branch: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*Expression*/>;
-    fn parenthesize_expression_of_export_default(
-        &self,
-        expression: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*Expression*/>;
-    fn parenthesize_expression_of_new(
-        &self,
-        expression: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*LeftHandSideExpression*/>;
-    fn parenthesize_left_side_of_access(
-        &self,
-        expression: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*LeftHandSideExpression*/>;
-    fn parenthesize_operand_of_postfix_unary(
-        &self,
-        operand: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*LeftHandSideExpression*/>;
-    fn parenthesize_operand_of_prefix_unary(
-        &self,
-        operand: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*UnaryExpression*/>;
-    fn parenthesize_expressions_of_comma_delimited_list(
-        &self,
-        elements: NodeArray, /*<Expression>*/
-    ) -> NodeArray /*<Expression>*/;
-    fn parenthesize_expression_for_disallowed_comma(
-        &self,
-        expression: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*Expression*/>;
-    fn parenthesize_expression_of_expression_statement(
-        &self,
-        expression: Rc<Node /*Expression*/>,
-    ) -> Rc<Node /*Expression*/>;
-    fn parenthesize_concise_body_of_arrow_function(
-        &self,
-        expression: Rc<Node /*Expression | ConciseBody*/>,
-    ) -> Rc<Node /*Expression | ConciseBody*/>;
-    fn parenthesize_member_of_conditional_type(
-        &self,
-        member: Rc<Node /*TypeNode*/>,
-    ) -> Rc<Node /*TypeNode*/>;
-    fn parenthesize_member_of_element_type(
-        &self,
-        member: Rc<Node /*TypeNode*/>,
-    ) -> Rc<Node /*TypeNode*/>;
-    fn parenthesize_element_type_of_array_type(
-        &self,
-        member: Rc<Node /*TypeNode*/>,
-    ) -> Rc<Node /*TypeNode*/>;
-    fn parenthesize_constituent_types_of_union_or_intersection_type(
-        &self,
-        members: NodeArray, /*<TypeNode>*/
-    ) -> NodeArray /*<TypeNode>*/;
-    fn parenthesize_type_arguments(
-        &self,
-        type_parameters: Option<NodeArray /*<TypeNode>*/>,
-    ) -> Option<NodeArray /*<TypeNode>*/>;
-}
-
-pub struct NodeFactory {
-    pub flags: NodeFactoryFlags,
-    pub parenthesizer_rules: RefCell<Option<Box<dyn ParenthesizerRules>>>,
 }

@@ -1,19 +1,21 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::rc::Rc;
 
 use super::ResolveNameNameArg;
 use crate::{
     declaration_name_to_string, get_first_identifier, node_is_missing,
-    unescape_leading_underscores, Debug_, Expression, Node, NodeInterface, Symbol, SymbolFlags,
+    unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
     SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
-    pub(super) fn diagnostic_name(&self, name_arg: ResolveNameNameArg) -> String {
+    pub(super) fn diagnostic_name(&self, name_arg: ResolveNameNameArg) -> Cow<'static, str> {
         match name_arg {
-            ResolveNameNameArg::__String(__string) => unescape_leading_underscores(&__string),
+            ResolveNameNameArg::__String(__string) => {
+                unescape_leading_underscores(&__string).into()
+            }
             ResolveNameNameArg::Node(node) => declaration_name_to_string(Some(&*node)),
         }
     }
@@ -37,7 +39,7 @@ impl TypeChecker {
 
         let symbol: Option<Rc<Symbol>>;
         match name {
-            Node::Expression(Expression::Identifier(name)) => {
+            Node::Identifier(name_as_identifier) => {
                 let message = if false {
                     unimplemented!()
                 } else {
@@ -47,7 +49,7 @@ impl TypeChecker {
                     if false { unimplemented!() } else { None };
                 symbol = self.get_merged_symbol(self.resolve_name(
                     Some(name),
-                    &name.escaped_text,
+                    &name_as_identifier.escaped_text,
                     meaning,
                     if ignore_errors || symbol_from_js_prototype.is_some() {
                         None
@@ -82,10 +84,7 @@ impl TypeChecker {
         symbol.map(|symbol| symbol.borrow().symbol_wrapper())
     }
 
-    pub(super) fn get_symbol_of_node<TNode: NodeInterface>(
-        &self,
-        node: &TNode,
-    ) -> Option<Rc<Symbol>> {
+    pub(super) fn get_symbol_of_node(&self, node: &Node) -> Option<Rc<Symbol>> {
         self.get_merged_symbol(node.maybe_symbol())
     }
 }

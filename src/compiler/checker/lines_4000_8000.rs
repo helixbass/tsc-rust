@@ -1,18 +1,18 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
     get_emit_script_target, is_expression, is_identifier_text, unescape_leading_underscores,
     using_single_line_string_writer, BaseIntrinsicType, BaseNodeFactorySynthetic, BaseObjectType,
-    BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter, Expression, KeywordTypeNode, Node,
-    NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions,
-    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SourceFile, Symbol, SymbolFlags,
-    SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeFormatFlags, TypeInterface, TypeNode, TypeParameter, __String, create_printer,
-    create_text_writer, factory, get_object_flags, get_source_file_of_node, synthetic_factory,
+    BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter, KeywordTypeNode, Node, NodeArray,
+    NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions, ResolvableTypeInterface,
+    ResolvedTypeInterface, Signature, SourceFile, Symbol, SymbolFlags, SymbolFormatFlags,
+    SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeFormatFlags, TypeInterface, TypeParameter, __String, create_printer, create_text_writer,
+    factory, get_object_flags, get_source_file_of_node, synthetic_factory,
 };
 
 impl TypeChecker {
@@ -200,7 +200,7 @@ impl TypeChecker {
                 create_printer(PrinterOptions {/*remove_comments: true*/})
             };
             let source_file = if let Some(enclosing_declaration) = enclosing_declaration {
-                Some(get_source_file_of_node(enclosing_declaration))
+                Some(get_source_file_of_node(Some(enclosing_declaration)).unwrap())
             } else {
                 None
             };
@@ -242,14 +242,14 @@ impl TypeChecker {
         );
         let type_node: Rc<Node> = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
-            Some(type_node) => type_node.into(),
+            Some(type_node) => type_node.wrap(),
         };
         let options = PrinterOptions {};
         let mut printer = create_printer(options);
         let source_file: Option<Rc<Node /*SourceFile*/>> =
             if let Some(enclosing_declaration) = enclosing_declaration {
                 let enclosing_declaration = enclosing_declaration.borrow();
-                Some(get_source_file_of_node(enclosing_declaration))
+                Some(get_source_file_of_node(Some(enclosing_declaration)).unwrap())
             } else {
                 None
             };
@@ -271,9 +271,7 @@ impl TypeChecker {
     ) -> (String, String) {
         let left_str = if let Some(symbol) = left.maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(&symbol) {
-                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow())
-                    .clone()
-                    .map(|weak| weak.upgrade().unwrap());
+                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
                 self.type_to_string(left, enclosing_declaration, None)
             } else {
                 self.type_to_string(left, Option::<&Node>::None, None)
@@ -283,9 +281,7 @@ impl TypeChecker {
         };
         let right_str = if let Some(symbol) = right.maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(&symbol) {
-                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow())
-                    .clone()
-                    .map(|weak| weak.upgrade().unwrap());
+                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
                 self.type_to_string(right, enclosing_declaration, None)
             } else {
                 self.type_to_string(right, Option::<&Node>::None, None)
@@ -305,11 +301,9 @@ impl TypeChecker {
     }
 
     pub(super) fn symbol_value_declaration_is_context_sensitive(&self, symbol: &Symbol) -> bool {
-        match &*symbol.maybe_value_declaration() {
+        match symbol.maybe_value_declaration() {
             Some(value_declaration) => {
-                let value_declaration = value_declaration.upgrade().unwrap();
-                is_expression(&*value_declaration)
-                    && !self.is_context_sensitive(&*value_declaration)
+                is_expression(&value_declaration) && !self.is_context_sensitive(&value_declaration)
             }
             None => false,
         }
@@ -339,7 +333,7 @@ impl NodeBuilder {
         type_: &Type,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<TypeNode> {
+    ) -> Option<Node> {
         self.with_context(flags, tracker, |context| {
             self.type_to_type_node_helper(type_checker, type_, context)
         })
@@ -352,7 +346,7 @@ impl NodeBuilder {
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Expression> {
+    ) -> Option<Node> {
         self.with_context(flags, tracker, |context| {
             self._symbol_to_expression(type_checker, symbol, context, meaning)
         })
@@ -381,7 +375,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         type_: &Type,
         context: &NodeBuilderContext,
-    ) -> TypeNode {
+    ) -> Node {
         if type_.flags().intersects(TypeFlags::String) {
             return Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
@@ -567,7 +561,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*ObjectType*/
-    ) -> TypeNode {
+    ) -> Node {
         let symbol = type_.maybe_symbol();
         if let Some(symbol) = symbol {
             if false {
@@ -590,8 +584,8 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type,
-        transform: fn(&NodeBuilder, &TypeChecker, &NodeBuilderContext, &Type) -> TypeNode,
-    ) -> TypeNode {
+        transform: fn(&NodeBuilder, &TypeChecker, &NodeBuilderContext, &Type) -> Node,
+    ) -> Node {
         let result = transform(self, type_checker, context, type_);
         result
     }
@@ -601,7 +595,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*ObjectType*/
-    ) -> TypeNode {
+    ) -> Node {
         let resolved = type_checker.resolve_structured_type_members(type_);
 
         let members = self.create_type_nodes_from_resolved_type(type_checker, context, &resolved);
@@ -662,7 +656,7 @@ impl NodeBuilder {
         if false {
             unimplemented!()
         } else {
-            let property_type_node: TypeNode;
+            let property_type_node: Node;
             if false {
                 unimplemented!()
             } else {
@@ -678,7 +672,11 @@ impl NodeBuilder {
                 };
             }
 
-            let modifiers = if false { unimplemented!() } else { None };
+            let modifiers = if false {
+                unimplemented!()
+            } else {
+                Option::<NodeArray>::None
+            };
             let property_signature = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     factory_.create_property_signature(
@@ -686,7 +684,7 @@ impl NodeBuilder {
                         modifiers,
                         property_name,
                         optional_token.map(Into::into),
-                        Some(property_type_node.into()),
+                        Some(property_type_node.wrap()),
                     )
                 })
             });
@@ -751,7 +749,7 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: SymbolFlags,
-    ) -> TypeNode {
+    ) -> Node {
         let chain = self.lookup_symbol_chain(symbol, context, Some(meaning));
 
         let chain_index = chain.len() - 1;
@@ -788,9 +786,10 @@ impl NodeBuilder {
         index: usize,
         stopper: usize,
     ) -> Rc<Node> {
+        let type_parameter_nodes = Option::<NodeArray>::None; // TODO: this is wrong
         let symbol = chain[index].clone();
 
-        let mut symbol_name: Option<String>;
+        let mut symbol_name: Option<Cow<'static, str>>;
         if index == 0 {
             symbol_name = Some(type_checker.get_name_of_symbol_as_written(&symbol, Some(context)));
         } else {
@@ -802,7 +801,14 @@ impl NodeBuilder {
         let symbol_name = symbol_name.unwrap();
 
         let identifier = synthetic_factory.with(|synthetic_factory_| {
-            factory.with(|factory_| factory_.create_identifier(synthetic_factory_, &symbol_name))
+            factory.with(|factory_| {
+                factory_.create_identifier(
+                    synthetic_factory_,
+                    &symbol_name,
+                    type_parameter_nodes,
+                    None,
+                )
+            })
         });
         identifier.set_symbol(symbol);
 
@@ -815,7 +821,7 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
-    ) -> Expression {
+    ) -> Node {
         let chain = self.lookup_symbol_chain(symbol, context, meaning);
         let index = chain.len() - 1;
         self.create_expression_from_symbol_chain(type_checker, context, chain, index)
@@ -851,7 +857,14 @@ impl NodeBuilder {
             None,
         ) {
             synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| factory_.create_identifier(synthetic_factory_, &name))
+                factory.with(|factory_| {
+                    factory_.create_identifier(
+                        synthetic_factory_,
+                        &name,
+                        Option::<NodeArray>::None,
+                        None,
+                    )
+                })
             })
         } else {
             unimplemented!()
@@ -865,15 +878,22 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         chain: Vec<Rc<Symbol>>,
         index: usize,
-    ) -> Expression {
+    ) -> Node {
+        let type_parameter_nodes = Option::<NodeArray>::None; // TODO: this is wrong
         let symbol = &*(&chain)[index];
 
         let symbol_name = type_checker.get_name_of_symbol_as_written(symbol, Some(context));
 
         if index == 0 || false {
             let identifier = synthetic_factory.with(|synthetic_factory_| {
-                factory
-                    .with(|factory_| factory_.create_identifier(synthetic_factory_, &symbol_name))
+                factory.with(|factory_| {
+                    factory_.create_identifier(
+                        synthetic_factory_,
+                        &symbol_name,
+                        type_parameter_nodes,
+                        None,
+                    )
+                })
             });
             identifier.set_symbol(symbol.symbol_wrapper());
             return identifier.into();
@@ -888,7 +908,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: &Type,
         symbol: &Symbol,
-    ) -> TypeNode {
+    ) -> Node {
         let result = self.type_to_type_node_helper(type_checker, type_, context);
         result
     }

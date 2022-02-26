@@ -8,8 +8,8 @@ use std::rc::Rc;
 use super::create_node_builder;
 use crate::{
     BaseInterfaceType, GenericableTypeInterface, __String, create_diagnostic_collection,
-    create_symbol_table, object_allocator, DiagnosticCollection, FreshableIntrinsicType, NodeId,
-    NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface,
+    create_symbol_table, object_allocator, DiagnosticCollection, FreshableIntrinsicType, Node,
+    NodeId, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface,
     SymbolTable, Type, TypeChecker, TypeCheckerHost, TypeFlags,
 };
 
@@ -98,7 +98,7 @@ bitflags! {
     }
 }
 
-pub(super) fn get_symbol_id(symbol: &Symbol) -> SymbolId {
+pub fn get_symbol_id(symbol: &Symbol) -> SymbolId {
     if symbol.maybe_id().is_none() {
         symbol.set_id(get_next_symbol_id());
         increment_next_symbol_id();
@@ -107,7 +107,7 @@ pub(super) fn get_symbol_id(symbol: &Symbol) -> SymbolId {
     symbol.id()
 }
 
-pub(super) fn get_node_id<TNode: NodeInterface>(node: &TNode) -> NodeId {
+pub fn get_node_id(node: &Node) -> NodeId {
     if node.maybe_id().is_none() {
         node.set_id(get_next_node_id());
         increment_next_node_id();
@@ -331,12 +331,22 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
     type_checker.no_constraint_type = Some(
         type_checker
-            .create_anonymous_type(None, type_checker.empty_symbols(), vec![], vec![])
+            .create_anonymous_type(
+                Option::<&Symbol>::None,
+                type_checker.empty_symbols(),
+                vec![],
+                vec![],
+            )
             .into(),
     );
     type_checker.circular_constraint_type = Some(
         type_checker
-            .create_anonymous_type(None, type_checker.empty_symbols(), vec![], vec![])
+            .create_anonymous_type(
+                Option::<&Symbol>::None,
+                type_checker.empty_symbols(),
+                vec![],
+                vec![],
+            )
             .into(),
     );
     type_checker.initialize_type_checker(host);
@@ -446,6 +456,10 @@ impl TypeChecker {
 
     pub(super) fn never_type(&self) -> Rc<Type> {
         self.never_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn keyof_constraint_type(&self) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn number_or_big_int_type(&self) -> Rc<Type> {

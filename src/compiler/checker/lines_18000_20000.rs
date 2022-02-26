@@ -18,7 +18,7 @@ pub(super) struct CheckTypeRelatedTo<'type_checker> {
     source: &'type_checker Type,
     target: &'type_checker Type,
     relation: &'type_checker HashMap<String, RelationComparisonResult>,
-    error_node: Option<&'type_checker Node>,
+    error_node: Option<Rc<Node>>,
     head_message: Option<DiagnosticMessage>,
     error_info: RefCell<Option<DiagnosticMessageChain>>,
     expanding_flags: ExpandingFlags,
@@ -31,7 +31,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         source: &'type_checker Type,
         target: &'type_checker Type,
         relation: &'type_checker HashMap<String, RelationComparisonResult>,
-        error_node: Option<&'type_checker Node>,
+        error_node: Option<Rc<Node>>,
         head_message: Option<DiagnosticMessage>,
     ) -> Self {
         Self {
@@ -76,7 +76,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         } else if self.error_info().is_some() {
             let related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>> = None;
             let diag = create_diagnostic_for_node_from_message_chain(
-                &*self.error_node.unwrap(),
+                self.error_node.as_ref().unwrap(),
                 self.error_info().clone().unwrap(),
                 related_information,
             );
@@ -276,7 +276,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                             reduced_target,
                             TypeChecker::is_excess_property_check_target,
                         );
-                        let error_node = match self.error_node {
+                        let error_node = match self.error_node.as_ref().map(|rc| rc.clone()) {
                             None => Debug_.fail(None),
                             Some(error_node) => error_node,
                         };
@@ -315,8 +315,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             if let Some(container_value_declaration) = container.maybe_value_declaration().as_ref()
             {
                 return Rc::ptr_eq(
-                    &prop_value_declaration.upgrade().unwrap().parent(),
-                    &container_value_declaration.upgrade().unwrap(),
+                    &prop_value_declaration.parent(),
+                    &container_value_declaration,
                 );
             }
         }

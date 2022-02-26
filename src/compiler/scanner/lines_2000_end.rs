@@ -62,7 +62,7 @@ impl Scanner {
         None
     }
 
-    pub(super) fn re_scan_greater_token(&self) -> SyntaxKind {
+    pub fn re_scan_greater_token(&self) -> SyntaxKind {
         if self.token() == SyntaxKind::GreaterThanToken {
             if self.text_char_at_index(self.pos()) == CharacterCodes::greater_than {
                 if matches!(
@@ -98,7 +98,7 @@ impl Scanner {
         self.token()
     }
 
-    pub(super) fn re_scan_asterisk_equals_token(&self) -> SyntaxKind {
+    pub fn re_scan_asterisk_equals_token(&self) -> SyntaxKind {
         Debug_.assert(
             self.token() == SyntaxKind::AsteriskEqualsToken,
             Some("'reScanAsteriskEqualsToken' should only be called on a '*='"),
@@ -107,7 +107,7 @@ impl Scanner {
         self.set_token(SyntaxKind::EqualsToken)
     }
 
-    pub(super) fn re_scan_slash_token(&self, on_error: Option<ErrorCallback>) -> SyntaxKind {
+    pub fn re_scan_slash_token(&self, on_error: Option<ErrorCallback>) -> SyntaxKind {
         if matches!(
             self.token(),
             SyntaxKind::SlashToken | SyntaxKind::SlashEqualsToken
@@ -284,7 +284,7 @@ impl Scanner {
         self.set_token(SyntaxKind::QuestionToken)
     }
 
-    pub(super) fn scan_jsx_token(
+    pub fn scan_jsx_token(
         &self,
         on_error: Option<ErrorCallback>,
         allow_multiline_jsx_text: Option<bool>,
@@ -371,7 +371,7 @@ impl Scanner {
         }
     }
 
-    pub(super) fn scan_jsx_identifier(&self, on_error: Option<ErrorCallback>) -> SyntaxKind {
+    pub fn scan_jsx_identifier(&self, on_error: Option<ErrorCallback>) -> SyntaxKind {
         if token_is_identifier_or_keyword(self.token()) {
             let mut namespace_separator = false;
             while self.pos() < self.end() {
@@ -407,7 +407,7 @@ impl Scanner {
         self.token()
     }
 
-    pub(super) fn scan_jsx_attribute_value(&self, on_error: Option<ErrorCallback>) -> SyntaxKind {
+    pub fn scan_jsx_attribute_value(&self, on_error: Option<ErrorCallback>) -> SyntaxKind {
         self.set_start_pos(self.pos());
 
         match self.text_char_at_index(self.pos()) {
@@ -428,7 +428,7 @@ impl Scanner {
         self.scan_jsx_attribute_value(on_error)
     }
 
-    pub(super) fn scan_js_doc_token(&self, on_error: Option<ErrorCallback>) -> SyntaxKind /*JSDocSyntaxKind*/
+    pub fn scan_js_doc_token(&self, on_error: Option<ErrorCallback>) -> SyntaxKind /*JSDocSyntaxKind*/
     {
         self.set_start_pos(self.pos());
         self.set_token_pos(self.pos());
@@ -593,7 +593,7 @@ impl Scanner {
         result
     }
 
-    pub(super) fn scan_range<TReturn, TCallback: FnOnce() -> TReturn>(
+    pub fn scan_range<TReturn, TCallback: FnOnce() -> TReturn>(
         &mut self,
         start: usize,
         length: usize,

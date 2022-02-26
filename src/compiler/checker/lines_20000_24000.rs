@@ -70,7 +70,7 @@ impl TypeChecker {
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,
-        compare_types: TCompareTypes,
+        mut compare_types: TCompareTypes,
     ) -> Ternary {
         if ptr::eq(&*source, target) {
             return Ternary::True;
@@ -81,7 +81,7 @@ impl TypeChecker {
         if length(source.type_parameters.as_deref()) != length(target.type_parameters.as_deref()) {
             return Ternary::False;
         }
-        if let Some(target_type_parameters) = target.type_parameters {
+        if let Some(target_type_parameters) = target.type_parameters.as_ref() {
             let source_type_parameters = source.type_parameters.as_ref().unwrap();
             let mapper = self.create_type_mapper(
                 source_type_parameters.clone(),
@@ -97,7 +97,8 @@ impl TypeChecker {
                                 Some(&mapper),
                             )
                             .unwrap_or_else(|| self.unknown_type()),
-                        self.get_constraint_from_type_parameter(t)
+                        &self
+                            .get_constraint_from_type_parameter(t)
                             .unwrap_or_else(|| self.unknown_type()),
                     ) != Ternary::False
                         && compare_types(
@@ -107,7 +108,8 @@ impl TypeChecker {
                                     Some(&mapper),
                                 )
                                 .unwrap_or_else(|| self.unknown_type()),
-                            self.get_default_from_type_parameter(t)
+                            &self
+                                .get_default_from_type_parameter(t)
                                 .unwrap_or_else(|| self.unknown_type()),
                         ) != Ternary::False)
                 {
@@ -118,11 +120,11 @@ impl TypeChecker {
         }
         let mut result = Ternary::True;
         if !ignore_this_types {
-            let source_this_type = self.get_this_type_of_signature(source);
+            let source_this_type = self.get_this_type_of_signature(&source);
             if let Some(source_this_type) = source_this_type {
                 let target_this_type = self.get_this_type_of_signature(target);
                 if let Some(target_this_type) = target_this_type {
-                    let related = compare_types(source_this_type, target_this_type);
+                    let related = compare_types(&source_this_type, &target_this_type);
                     if related == Ternary::False {
                         return Ternary::False;
                     }
@@ -141,7 +143,7 @@ impl TypeChecker {
             result &= related;
         }
         if !ignore_return_types {
-            let source_type_predicate = self.get_type_predicate_of_signature(source);
+            let source_type_predicate = self.get_type_predicate_of_signature(&source);
             let target_type_predicate = self.get_type_predicate_of_signature(target);
             result &= if source_type_predicate.is_some() || target_type_predicate.is_some() {
                 self.compare_type_predicates_identical(
@@ -160,11 +162,13 @@ impl TypeChecker {
     }
 
     pub(super) fn compare_type_predicates_identical<
+        TSource: Borrow<TypePredicate>,
+        TTarget: Borrow<TypePredicate>,
         TCompareTypes: FnOnce(&Type, &Type) -> Ternary,
     >(
         &self,
-        source: Option<TypePredicate>,
-        target: Option<TypePredicate>,
+        source: Option<TSource>,
+        target: Option<TTarget>,
         compare_types: TCompareTypes,
     ) -> Ternary {
         unimplemented!()
@@ -282,6 +286,10 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn add_optional_type_marker(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn remove_missing_type(&self, type_: &Type, is_optional: bool) -> Rc<Type> {
         if self.exact_optional_property_types && is_optional {
             unimplemented!()
@@ -300,6 +308,19 @@ impl TypeChecker {
 
     pub(super) fn get_widened_type_with_context(&self, type_: &Type) -> Rc<Type> {
         type_.type_wrapper()
+    }
+
+    pub(super) fn report_widening_errors_in_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn report_implicit_any(
+        &self,
+        declaration: &Node, /*Declaration*/
+        type_: &Type,
+        widening_kind: Option<WideningKind>,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn report_errors_from_widening(
@@ -362,16 +383,16 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_resolved_symbol(&self, node: &Identifier) -> Rc<Symbol> {
+    pub(super) fn get_resolved_symbol(&self, node: &Node /*Identifier*/) -> Rc<Symbol> {
         let links = self.get_node_links(node);
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_symbol.is_none() {
-            links_ref.resolved_symbol = Some(if !node_is_missing(Some(node.node_wrapper())) {
+            links_ref.resolved_symbol = Some(if !node_is_missing(Some(node)) {
                 self.resolve_name(
                     Some(node),
-                    &node.escaped_text,
+                    &node.as_identifier().escaped_text,
                     SymbolFlags::Value | SymbolFlags::ExportValue,
-                    Some(self.get_cannot_find_name_diagnostic_for_name(&*node.node_wrapper())),
+                    Some(self.get_cannot_find_name_diagnostic_for_name(node)),
                     Some(node.node_wrapper()),
                     !is_write_only_access(node),
                     Some(false),

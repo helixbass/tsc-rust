@@ -5,8 +5,7 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, for_each, is_external_or_common_js_module, Diagnostic, Node, NodeInterface,
-    NumericLiteral, Signature, SignatureFlags, SourceFile, Statement, TypeChecker, TypeCheckerHost,
-    TypeElement, TypeNode,
+    NumericLiteral, Signature, SignatureFlags, SourceFile, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -19,45 +18,20 @@ impl TypeChecker {
 
     pub(super) fn check_source_element_worker(&mut self, node: &Node) {
         match node {
-            Node::TypeElement(TypeElement::PropertySignature(property_signature)) => {
-                self.check_property_signature(property_signature)
-            }
-            Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
-                self.check_type_reference_node(type_reference_node)
-            }
-            Node::TypeNode(TypeNode::KeywordTypeNode(_))
-            | Node::TypeNode(TypeNode::LiteralTypeNode(_)) => (),
-            Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => {
-                self.check_array_type(array_type_node)
-            }
-            Node::TypeNode(TypeNode::UnionTypeNode(_)) => {
-                self.check_union_or_intersection_type(&*node)
-            }
-            Node::Statement(Statement::FunctionDeclaration(function_declaration)) => {
-                self.check_function_declaration(function_declaration)
-            }
-            Node::Statement(Statement::Block(block)) => self.check_block(block),
-            Node::Statement(Statement::VariableStatement(variable_statement)) => {
-                self.check_variable_statement(variable_statement)
-            }
-            Node::Statement(Statement::ExpressionStatement(expression_statement)) => {
-                self.check_expression_statement(expression_statement)
-            }
-            Node::Statement(Statement::IfStatement(if_statement)) => {
-                self.check_if_statement(if_statement)
-            }
-            Node::Statement(Statement::ReturnStatement(return_statement)) => {
-                self.check_return_statement(return_statement)
-            }
-            Node::VariableDeclaration(variable_declaration) => {
-                self.check_variable_declaration(variable_declaration)
-            }
-            Node::Statement(Statement::InterfaceDeclaration(interface_declaration)) => {
-                self.check_interface_declaration(interface_declaration)
-            }
-            Node::Statement(Statement::TypeAliasDeclaration(type_alias_declaration)) => {
-                self.check_type_alias_declaration(type_alias_declaration)
-            }
+            Node::PropertySignature(_) => self.check_property_signature(node),
+            Node::TypeReferenceNode(_) => self.check_type_reference_node(node),
+            Node::KeywordTypeNode(_) | Node::LiteralTypeNode(_) => (),
+            Node::ArrayTypeNode(_) => self.check_array_type(node),
+            Node::UnionTypeNode(_) => self.check_union_or_intersection_type(node),
+            Node::FunctionDeclaration(_) => self.check_function_declaration(node),
+            Node::Block(_) => self.check_block(node),
+            Node::VariableStatement(_) => self.check_variable_statement(node),
+            Node::ExpressionStatement(_) => self.check_expression_statement(node),
+            Node::IfStatement(_) => self.check_if_statement(node),
+            Node::ReturnStatement(_) => self.check_return_statement(node),
+            Node::VariableDeclaration(_) => self.check_variable_declaration(node),
+            Node::InterfaceDeclaration(_) => self.check_interface_declaration(node),
+            Node::TypeAliasDeclaration(_) => self.check_type_alias_declaration(node),
             _ => unimplemented!("{:?}", node.kind()),
         };
     }
@@ -87,7 +61,7 @@ impl TypeChecker {
 
         let semantic_diagnostics = self
             .diagnostics()
-            .get_diagnostics(&*source_file.file_name());
+            .get_diagnostics(Some(&source_file.file_name()));
 
         semantic_diagnostics
     }
@@ -97,7 +71,7 @@ impl TypeChecker {
         host: &TTypeCheckerHost,
     ) {
         for file in host.get_source_files() {
-            bind_source_file(&*file);
+            bind_source_file(&*file, self.compiler_options.clone());
             println!("post-binding: {:#?}", file);
         }
 
@@ -110,7 +84,10 @@ impl TypeChecker {
         // self.global_array_type = self.get_global_type(__String::new("Array".to_string()));
     }
 
-    pub(super) fn check_grammar_numeric_literal(&self, node: &NumericLiteral) -> bool {
+    pub(super) fn check_grammar_numeric_literal(
+        &self,
+        node: &Node, /*NumericLiteral*/
+    ) -> bool {
         false
     }
 }

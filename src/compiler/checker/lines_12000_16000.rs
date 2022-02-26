@@ -6,15 +6,15 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    append_if_unique, filter, get_effective_return_type_node,
-    get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
-    node_is_missing, Signature, SignatureFlags, SignatureKind, UnionType, __String,
-    binary_search_copy_key, compare_values, concatenate, get_name_of_declaration, get_object_flags,
-    map, unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType,
-    DiagnosticMessage, Diagnostics, Expression, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeId, TypeInterface, TypeNode, TypeReference, TypeReferenceNode, UnionReduction,
-    UnionTypeNode,
+    append_if_unique, filter, get_effective_constraint_of_type_parameter,
+    get_effective_return_type_node, get_effective_type_parameter_declarations, is_binding_pattern,
+    is_type_parameter_declaration, map_defined, node_is_missing, Signature, SignatureFlags,
+    SignatureKind, TypePredicate, UnionType, __String, binary_search_copy_key, compare_values,
+    concatenate, get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
+    ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, TypeReference,
+    TypeReferenceNode, UnionReduction, UnionTypeNode,
 };
 
 impl TypeChecker {
@@ -66,9 +66,8 @@ impl TypeChecker {
         kind: SignatureKind,
     ) -> Vec<Rc<Signature>> {
         if type_.flags().intersects(TypeFlags::StructuredType) {
-            let resolved = self
-                .resolve_structured_type_members(type_)
-                .as_resolved_type();
+            let resolved = self.resolve_structured_type_members(type_);
+            let resolved = resolved.as_resolved_type();
             return if kind == SignatureKind::Call {
                 resolved.call_signatures().clone()
             } else {
@@ -135,7 +134,7 @@ impl TypeChecker {
                 if
                 /*paramSymbol &&*/
                 param_symbol.flags().intersects(SymbolFlags::Property)
-                    && !is_binding_pattern(&*param.as_named_declaration().name())
+                    && !is_binding_pattern(param.as_named_declaration().maybe_name())
                 {
                     let resolved_symbol = self.resolve_name(
                         Some(&**param),
@@ -181,7 +180,8 @@ impl TypeChecker {
             ));
             links.borrow_mut().resolved_signature = Some(resolved_signature);
         }
-        (*links).borrow().resolved_signature.clone().unwrap()
+        let links = (*links).borrow();
+        links.resolved_signature.clone().unwrap()
     }
 
     pub(super) fn get_signature_of_type_tag(
@@ -200,6 +200,17 @@ impl TypeChecker {
     ) -> Option<Rc<Type>> {
         let signature = self.get_signature_of_type_tag(node);
         signature.map(|signature| self.get_return_type_of_signature(&signature))
+    }
+
+    pub(super) fn get_this_type_of_signature(&self, signature: &Signature) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_predicate_of_signature(
+        &self,
+        signature: &Signature,
+    ) -> Option<Rc<TypePredicate>> {
+        unimplemented!()
     }
 
     pub(super) fn get_return_type_of_signature(&self, signature: &Signature) -> Rc<Type> {
@@ -224,7 +235,7 @@ impl TypeChecker {
                     })
             };
             if signature.flags.intersects(SignatureFlags::IsInnerCallChain) {
-                type_ = self.add_optional_type_marker(type_);
+                type_ = self.add_optional_type_marker(&type_);
             } else if signature.flags.intersects(SignatureFlags::IsOuterCallChain) {
                 type_ = self.get_optional_type(&type_, None);
             }
@@ -248,36 +259,44 @@ impl TypeChecker {
         &self,
         type_: &Type, /*TypeParameter*/
     ) -> Option<Rc<Node /*TypeNode*/>> {
-        match map_defined(
+        map_defined(
             filter(
                 type_
                     .maybe_symbol()
-                    .and_then(|symbol| symbol.maybe_declarations()),
-                is_type_parameter_declaration,
+                    .and_then(|symbol| symbol.maybe_declarations().clone())
+                    .as_deref(),
+                |node: &Rc<Node>| is_type_parameter_declaration(node),
             ),
-            |node, _| get_effective_constraint_of_type_parameter(node),
-        ) {
-            Some(constraint_declarations) if !constraint_declarations.is_empty() => {
-                constraint_declarations[0]
-            }
-            _ => None,
-        }
+            |node, _| get_effective_constraint_of_type_parameter(&node),
+        )
+        .get(0)
+        .map(Clone::clone)
+    }
+
+    pub(super) fn get_inferred_type_parameter_constraint(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 
     pub(super) fn get_constraint_from_type_parameter(
         &self,
         type_parameter: &Type, /*TypeParameter*/
     ) -> Option<Rc<Type>> {
-        let type_parameter = type_parameter.as_type_parameter();
-        if type_parameter.maybe_constraint().is_none() {
-            if let Some(type_parameter_target) = type_parameter.target {
+        let type_parameter_as_type_parameter = type_parameter.as_type_parameter();
+        if type_parameter_as_type_parameter
+            .maybe_constraint()
+            .is_none()
+        {
+            if let Some(type_parameter_target) = type_parameter_as_type_parameter.target.as_ref() {
                 let target_constraint =
-                    self.get_constraint_of_type_parameter(&type_parameter_target);
-                type_parameter.set_constraint(match target_constraint {
+                    self.get_constraint_of_type_parameter(type_parameter_target);
+                type_parameter_as_type_parameter.set_constraint(match target_constraint {
                     Some(target_constraint) => self
                         .instantiate_type(
                             Some(target_constraint),
-                            type_parameter.maybe_mapper().as_ref(),
+                            type_parameter_as_type_parameter.maybe_mapper().as_ref(),
                         )
                         .unwrap(),
                     None => self.no_constraint_type(),
@@ -286,13 +305,13 @@ impl TypeChecker {
                 let constraint_declaration = self.get_constraint_declaration(type_parameter);
                 match constraint_declaration {
                     None => {
-                        type_parameter.set_constraint(
+                        type_parameter_as_type_parameter.set_constraint(
                             self.get_inferred_type_parameter_constraint(type_parameter)
                                 .unwrap_or_else(|| self.no_constraint_type()),
                         );
                     }
                     Some(constraint_declaration) => {
-                        let mut type_ = self.get_type_from_type_node(constraint_declaration);
+                        let mut type_ = self.get_type_from_type_node(&constraint_declaration);
                         if type_.flags().intersects(TypeFlags::Any) && !self.is_error_type(&type_) {
                             type_ = if constraint_declaration.parent().parent().kind()
                                 == SyntaxKind::MappedType
@@ -302,12 +321,12 @@ impl TypeChecker {
                                 self.unknown_type()
                             };
                         }
-                        type_parameter.set_constraint(type_);
+                        type_parameter_as_type_parameter.set_constraint(type_);
                     }
                 }
             }
         }
-        type_parameter
+        type_parameter_as_type_parameter
             .maybe_constraint()
             .and_then(|type_parameter_constraint| {
                 if Rc::ptr_eq(&type_parameter_constraint, &self.no_constraint_type()) {
@@ -357,7 +376,7 @@ impl TypeChecker {
             let type_arguments = match &*node {
                 None => vec![],
                 Some(node) => match &**node {
-                    Node::TypeNode(TypeNode::TypeReferenceNode(type_reference_node)) => {
+                    Node::TypeReferenceNode(type_reference_node) => {
                         let target_as_base_interface_type = type_.target.as_base_interface_type();
                         concatenate(
                             target_as_base_interface_type
@@ -373,7 +392,7 @@ impl TypeChecker {
                             ),
                         )
                     }
-                    Node::TypeNode(TypeNode::ArrayTypeNode(array_type_node)) => unimplemented!(),
+                    Node::ArrayTypeNode(array_type_node) => unimplemented!(),
                     _ => unimplemented!(),
                 },
             };
@@ -390,9 +409,9 @@ impl TypeChecker {
         (*resolved_type_arguments).clone().unwrap()
     }
 
-    pub(super) fn get_type_from_class_or_interface_reference<TNode: NodeInterface>(
+    pub(super) fn get_type_from_class_or_interface_reference(
         &self,
-        node: &TNode,
+        node: &Node,
         symbol: &Symbol,
     ) -> Rc<Type> {
         let type_ =
@@ -424,11 +443,11 @@ impl TypeChecker {
 
     pub(super) fn get_type_reference_name(
         &self,
-        node: &TypeReferenceNode,
+        node: &Node, /*TypeReferenceNode*/
     ) -> Option<Rc<Node /*EntityNameOrEntityNameExpression*/>> {
         match node.kind() {
             SyntaxKind::TypeReference => {
-                return Some(node.type_name.clone());
+                return Some(node.as_type_reference_node().type_name.clone());
             }
             SyntaxKind::ExpressionWithTypeArguments => unimplemented!(),
             _ => (),
@@ -438,7 +457,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_type_reference_name(
         &self,
-        type_reference: &TypeReferenceNode,
+        type_reference: &Node, /*TypeReferenceNode*/
         meaning: SymbolFlags,
         ignore_errors: Option<bool>,
     ) -> Rc<Symbol> {
@@ -460,11 +479,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_type_reference_type<TNode: NodeInterface>(
-        &self,
-        node: &TNode,
-        symbol: &Symbol,
-    ) -> Rc<Type> {
+    pub(super) fn get_type_reference_type(&self, node: &Node, symbol: &Symbol) -> Rc<Type> {
         if ptr::eq(symbol, Rc::as_ptr(&self.unknown_symbol())) {
             unimplemented!()
         }
@@ -489,21 +504,21 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn check_no_type_arguments<TNode: NodeInterface>(
+    pub(super) fn check_no_type_arguments(
         &self,
-        node: &TNode, /*NodeWithTypeArguments*/
+        node: &Node, /*NodeWithTypeArguments*/
         symbol: &Symbol,
     ) -> bool {
-        if let Some(type_arguments) = (*node.node_wrapper())
-            .as_has_type_arguments()
-            .maybe_type_arguments()
-        {
+        if let Some(type_arguments) = node.as_has_type_arguments().maybe_type_arguments() {
             unimplemented!()
         }
         true
     }
 
-    pub(super) fn get_type_from_type_reference(&self, node: &TypeReferenceNode) -> Rc<Type> {
+    pub(super) fn get_type_from_type_reference(
+        &self,
+        node: &Node, /*TypeReferenceNode*/
+    ) -> Rc<Type> {
         let mut symbol: Option<Rc<Symbol>> = None;
         let mut type_: Option<Rc<Type>> = None;
         let meaning = SymbolFlags::Type;
@@ -596,13 +611,13 @@ impl TypeChecker {
     }
 
     pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/> {
-        let deferred_global_promise_type_ref = self.deferred_global_promise_type.borrow_mut();
+        let mut deferred_global_promise_type_ref = self.deferred_global_promise_type.borrow_mut();
         if let Some(deferred_global_promise_type) = deferred_global_promise_type_ref.as_ref() {
             return deferred_global_promise_type.clone();
         }
         *deferred_global_promise_type_ref =
             self.get_global_type(&__String::new("Promise".to_string()), 1, report_errors);
-        deferred_global_promise_type_ref.map_or_else(
+        deferred_global_promise_type_ref.as_ref().map_or_else(
             || self.empty_generic_type(),
             |deferred_global_promise_type| deferred_global_promise_type.clone(),
         )
@@ -612,7 +627,7 @@ impl TypeChecker {
         &self,
         report_errors: bool,
     ) -> Option<Rc<Symbol>> {
-        let deferred_global_promise_constructor_symbol_ref =
+        let mut deferred_global_promise_constructor_symbol_ref =
             self.deferred_global_promise_constructor_symbol.borrow_mut();
         if let Some(deferred_global_promise_constructor_symbol) =
             deferred_global_promise_constructor_symbol_ref.as_ref()
@@ -621,7 +636,7 @@ impl TypeChecker {
         }
         *deferred_global_promise_constructor_symbol_ref =
             self.get_global_value_symbol(&__String::new("Promise".to_string()), report_errors);
-        deferred_global_promise_constructor_symbol_ref.map(
+        deferred_global_promise_constructor_symbol_ref.as_ref().map(
             |deferred_global_promise_constructor_symbol| {
                 deferred_global_promise_constructor_symbol.clone()
             },
@@ -630,7 +645,7 @@ impl TypeChecker {
 
     pub(super) fn get_array_or_tuple_target_type(
         &self,
-        node: &ArrayTypeNode,
+        node: &Node, /*ArrayTypeNode*/
     ) -> Rc<Type /*GenericType*/> {
         let element_type = self.get_array_element_type_node(node);
         if let Some(element_type) = element_type {
@@ -639,14 +654,19 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn get_type_from_array_or_tuple_type_node(&self, node: &ArrayTypeNode) -> Rc<Type> {
+    pub(super) fn get_type_from_array_or_tuple_type_node(
+        &self,
+        node: &Node, /*ArrayTypeNode*/
+    ) -> Rc<Type> {
+        let node_as_array_type_node = node.as_array_type_node();
         let target = self.get_array_or_tuple_target_type(node);
         if false {
             unimplemented!()
         } else if false {
             unimplemented!()
         } else {
-            let element_types = vec![self.get_type_from_type_node(&*node.element_type)];
+            let element_types =
+                vec![self.get_type_from_type_node(&*node_as_array_type_node.element_type)];
             return self.create_normalized_type_reference(&target, Some(element_types));
         }
     }
@@ -794,14 +814,18 @@ impl TypeChecker {
         type_.unwrap()
     }
 
-    pub(super) fn get_type_from_union_type_node(&self, node: &UnionTypeNode) -> Rc<Type> {
+    pub(super) fn get_type_from_union_type_node(
+        &self,
+        node: &Node, /*UnionTypeNode*/
+    ) -> Rc<Type> {
+        let node_as_union_type_node = node.as_union_type_node();
         let links = self.get_node_links(node);
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_type.is_none() {
             // let alias_symbol = self.get_alias_symbol_for_type_node(node);
             links_ref.resolved_type = Some(
                 self.get_union_type(
-                    map(Some(&node.types), |type_, _| {
+                    map(Some(&node_as_union_type_node.types), |type_, _| {
                         self.get_type_from_type_node(type_)
                     })
                     .unwrap(),
@@ -816,7 +840,7 @@ impl TypeChecker {
         &self,
         name: &Node, /*PropertyName*/
     ) -> Rc<Type> {
-        if let Node::Expression(Expression::Identifier(identifier)) = name {
+        if let Node::Identifier(identifier) = name {
             self.get_string_literal_type(&unescape_leading_underscores(&identifier.escaped_text))
         } else {
             unimplemented!()
@@ -835,9 +859,8 @@ impl TypeChecker {
             if type_.is_none() {
                 let name = prop
                     .maybe_value_declaration()
-                    .as_ref()
                     .and_then(|value_declaration| {
-                        get_name_of_declaration(&*value_declaration.upgrade().unwrap())
+                        get_name_of_declaration(Some(&*value_declaration))
                     });
                 type_ = if false {
                     unimplemented!()
