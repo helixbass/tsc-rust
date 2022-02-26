@@ -661,6 +661,6 @@ pub trait ScriptReferenceHost {
 }
 
 pub trait Program: TypeCheckerHost {
-    fn get_syntactic_diagnostics(&mut self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>;
-    fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>>;
+    fn get_syntactic_diagnostics(&self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>;
+    fn get_semantic_diagnostics(&self) -> Vec<Rc<Diagnostic>>;
 }

@@ -9,7 +9,7 @@ struct EmitFilesAndReportErrorsReturn {
 }
 
 fn emit_files_and_report_errors<TProgram: Program>(
-    mut program: TProgram,
+    program: Rc<TProgram>,
 ) -> EmitFilesAndReportErrorsReturn {
     let mut all_diagnostics: Vec<Rc<Diagnostic>> = vec![];
     let config_file_parsing_diagnostics_length = all_diagnostics.len();
@@ -37,7 +37,7 @@ fn emit_files_and_report_errors<TProgram: Program>(
 }
 
 pub fn emit_files_and_report_errors_and_get_exit_status<TProgram: Program>(
-    program: TProgram,
+    program: Rc<TProgram>,
 ) -> ExitStatus {
     let EmitFilesAndReportErrorsReturn { diagnostics } = emit_files_and_report_errors(program);
     println!("diagnostics: {:#?}", diagnostics);

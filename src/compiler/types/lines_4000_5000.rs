@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
+use std::fmt;
 use std::rc::{Rc, Weak};
 
 use super::{
@@ -87,9 +88,12 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     fn get_source_files(&self) -> Vec<Rc<Node>>;
 }
 
+pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug {}
+
 #[derive(Debug)]
 #[allow(non_snake_case)]
 pub struct TypeChecker {
+    pub host: Rc<dyn TypeCheckerHostDebuggable>,
     pub _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
     pub produce_diagnostics: bool,
     pub Symbol: fn(SymbolFlags, __String) -> BaseSymbol,

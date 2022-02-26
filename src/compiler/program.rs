@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
@@ -5,7 +6,7 @@ use crate::{
     get_sys, normalize_path, to_path as to_path_helper, CompilerHost, CompilerOptions,
     CreateProgramOptions, Diagnostic, ModuleKind, ModuleResolutionHost,
     ModuleSpecifierResolutionHost, Node, Path, Program, ScriptTarget, SourceFile,
-    StructureIsReused, System, TypeChecker, TypeCheckerHost,
+    StructureIsReused, System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
 };
 
 fn create_compiler_host(
@@ -74,22 +75,35 @@ pub(crate) fn get_mode_for_resolution_at_index<TFile: SourceFileImportsList>(
     unimplemented!()
 }
 
+#[derive(Debug)]
 struct ProgramConcrete {
+    _rc_wrapper: RefCell<Option<Rc<ProgramConcrete>>>,
     options: Rc<CompilerOptions>,
     files: Vec<Rc</*SourceFile*/ Node>>,
-    diagnostics_producing_type_checker: Option<TypeChecker>,
+    diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
 }
 
 impl ProgramConcrete {
-    pub fn new(options: Rc<CompilerOptions>, files: Vec<Rc<Node>>) -> Self {
-        ProgramConcrete {
+    pub fn new(options: Rc<CompilerOptions>, files: Vec<Rc<Node>>) -> Rc<Self> {
+        let rc = Rc::new(ProgramConcrete {
+            _rc_wrapper: RefCell::new(None),
             options,
             files,
-            diagnostics_producing_type_checker: None,
-        }
+            diagnostics_producing_type_checker: RefCell::new(None),
+        });
+        rc.set_rc_wrapper(Some(rc.clone()));
+        rc
     }
 
-    fn get_diagnostics_producing_type_checker(&mut self) -> &mut TypeChecker {
+    pub fn set_rc_wrapper(&self, rc_wrapper: Option<Rc<ProgramConcrete>>) {
+        *self._rc_wrapper.borrow_mut() = rc_wrapper;
+    }
+
+    pub fn rc_wrapper(&self) -> Rc<ProgramConcrete> {
+        self._rc_wrapper.borrow().clone().unwrap()
+    }
+
+    fn get_diagnostics_producing_type_checker(&self) -> Rc<TypeChecker> {
         // self.diagnostics_producing_type_checker
         //     .get_or_insert_with(|| create_type_checker(self, true))
 
@@ -99,15 +113,18 @@ impl ProgramConcrete {
         //     self.diagnostics_producing_type_checker = Some(create_type_checker(self, true));
         //     self.diagnostics_producing_type_checker.as_ref().unwrap()
         // }
-        if self.diagnostics_producing_type_checker.is_none() {
-            self.diagnostics_producing_type_checker = Some(create_type_checker(self, true));
+        let mut diagnostics_producing_type_checker =
+            self.diagnostics_producing_type_checker.borrow_mut();
+        if diagnostics_producing_type_checker.is_none() {
+            *diagnostics_producing_type_checker =
+                Some(Rc::new(create_type_checker(self.rc_wrapper(), true)));
         }
-        self.diagnostics_producing_type_checker.as_mut().unwrap()
+        diagnostics_producing_type_checker.as_ref().unwrap().clone()
     }
 
     fn get_diagnostics_helper(
-        &mut self,
-        get_diagnostics: fn(&mut ProgramConcrete, &SourceFile) -> Vec<Rc<Diagnostic>>,
+        &self,
+        get_diagnostics: fn(&ProgramConcrete, &SourceFile) -> Vec<Rc<Diagnostic>>,
     ) -> Vec<Rc<Diagnostic>> {
         self.get_source_files()
             .iter()
@@ -126,17 +143,11 @@ impl ProgramConcrete {
         func()
     }
 
-    fn get_syntactic_diagnostics_for_file(
-        &mut self,
-        source_file: &SourceFile,
-    ) -> Vec<Rc<Diagnostic>> {
+    fn get_syntactic_diagnostics_for_file(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         source_file.parse_diagnostics().clone()
     }
 
-    fn get_semantic_diagnostics_for_file(
-        &mut self,
-        source_file: &SourceFile,
-    ) -> Vec<Rc<Diagnostic>> {
+    fn get_semantic_diagnostics_for_file(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         concatenate(
             filter_semantic_diagnostics(self.get_bind_and_check_diagnostics_for_file(source_file)),
             self.get_program_diagnostics(source_file),
@@ -144,7 +155,7 @@ impl ProgramConcrete {
     }
 
     fn get_bind_and_check_diagnostics_for_file(
-        &mut self,
+        &self,
         source_file: &SourceFile,
     ) -> Vec<Rc<Diagnostic>> {
         self.get_and_cache_diagnostics(
@@ -154,7 +165,7 @@ impl ProgramConcrete {
     }
 
     fn get_bind_and_check_diagnostics_for_file_no_cache(
-        &mut self,
+        &self,
         source_file: &SourceFile,
     ) -> Vec<Rc<Diagnostic>> {
         // self.run_with_cancellation_token(|| {
@@ -172,9 +183,9 @@ impl ProgramConcrete {
     }
 
     fn get_and_cache_diagnostics(
-        &mut self,
+        &self,
         source_file: &SourceFile,
-        get_diagnostics: fn(&mut ProgramConcrete, &SourceFile) -> Vec<Rc<Diagnostic>>,
+        get_diagnostics: fn(&ProgramConcrete, &SourceFile) -> Vec<Rc<Diagnostic>>,
     ) -> Vec<Rc<Diagnostic>> {
         let result = get_diagnostics(self, source_file);
         result
@@ -184,11 +195,11 @@ impl ProgramConcrete {
 impl ModuleSpecifierResolutionHost for ProgramConcrete {}
 
 impl Program for ProgramConcrete {
-    fn get_syntactic_diagnostics(&mut self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+    fn get_syntactic_diagnostics(&self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
         self.get_diagnostics_helper(ProgramConcrete::get_syntactic_diagnostics_for_file)
     }
 
-    fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>> {
+    fn get_semantic_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
         self.get_diagnostics_helper(ProgramConcrete::get_semantic_diagnostics_for_file)
     }
 }
@@ -203,6 +214,8 @@ impl TypeCheckerHost for ProgramConcrete {
     }
 }
 
+impl TypeCheckerHostDebuggable for ProgramConcrete {}
+
 struct CreateProgramHelperContext<'a> {
     processing_other_files: &'a mut Vec<Rc<Node>>,
     host: &'a dyn CompilerHost,
@@ -210,7 +223,7 @@ struct CreateProgramHelperContext<'a> {
     options: Rc<CompilerOptions>,
 }
 
-pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Program {
+pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<impl Program> {
     let CreateProgramOptions {
         root_names,
         options,

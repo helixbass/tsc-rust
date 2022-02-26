@@ -11,10 +11,10 @@ use std::rc::Rc;
 use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
     get_module_instance_state, BaseInterfaceType, GenericableTypeInterface, ModuleInstanceState,
-    Signature, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
-    DiagnosticCollection, DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface,
-    Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type,
-    TypeChecker, TypeCheckerHost, TypeFlags,
+    Signature, TypeCheckerHostDebuggable, __String, create_diagnostic_collection,
+    create_symbol_table, object_allocator, DiagnosticCollection, DiagnosticMessage,
+    FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags,
+    SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
 };
 
 lazy_static! {
@@ -417,12 +417,13 @@ pub fn is_instantiated_module(
         || preserve_const_enums && module_state == ModuleInstanceState::ConstEnumOnly
 }
 
-pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
-    host: &TTypeCheckerHost,
+pub fn create_type_checker(
+    host: Rc<dyn TypeCheckerHostDebuggable>,
     produce_diagnostics: bool,
 ) -> TypeChecker {
     let compiler_options = host.get_compiler_options();
     let mut type_checker = TypeChecker {
+        host,
         _types_needing_strong_references: RefCell::new(vec![]),
         produce_diagnostics,
         Symbol: object_allocator.get_symbol_constructor(),
@@ -650,7 +651,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
             )
             .into(),
     );
-    type_checker.initialize_type_checker(host);
+    type_checker.initialize_type_checker();
     type_checker
 }
 

@@ -5,18 +5,18 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, for_each, is_accessor, is_external_or_common_js_module, Diagnostic, Node,
-    NodeInterface, Signature, SignatureFlags, SourceFile, SyntaxKind, TypeChecker, TypeCheckerHost,
+    NodeInterface, Signature, SignatureFlags, SourceFile, SyntaxKind, TypeChecker,
 };
 
 impl TypeChecker {
-    pub(super) fn check_source_element<TNodeRef: Borrow<Node>>(&mut self, node: Option<TNodeRef>) {
+    pub(super) fn check_source_element<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef>) {
         if let Some(node) = node {
             let node = node.borrow();
             self.check_source_element_worker(node);
         }
     }
 
-    pub(super) fn check_source_element_worker(&mut self, node: &Node) {
+    pub(super) fn check_source_element_worker(&self, node: &Node) {
         match node {
             Node::PropertySignature(_) => self.check_property_signature(node),
             Node::TypeReferenceNode(_) => self.check_type_reference_node(node),
@@ -36,11 +36,11 @@ impl TypeChecker {
         };
     }
 
-    pub(super) fn check_source_file(&mut self, source_file: &SourceFile) {
+    pub(super) fn check_source_file(&self, source_file: &SourceFile) {
         self.check_source_file_worker(source_file)
     }
 
-    pub(super) fn check_source_file_worker(&mut self, node: &SourceFile) {
+    pub(super) fn check_source_file_worker(&self, node: &SourceFile) {
         if true {
             for_each(&node.statements, |statement, _index| {
                 self.check_source_element(Some(&**statement));
@@ -49,14 +49,11 @@ impl TypeChecker {
         }
     }
 
-    pub fn get_diagnostics(&mut self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
+    pub fn get_diagnostics(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         self.get_diagnostics_worker(source_file)
     }
 
-    pub(super) fn get_diagnostics_worker(
-        &mut self,
-        source_file: &SourceFile,
-    ) -> Vec<Rc<Diagnostic>> {
+    pub(super) fn get_diagnostics_worker(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         self.check_source_file(source_file);
 
         let semantic_diagnostics = self
@@ -66,16 +63,13 @@ impl TypeChecker {
         semantic_diagnostics
     }
 
-    pub(super) fn initialize_type_checker<TTypeCheckerHost: TypeCheckerHost>(
-        &mut self,
-        host: &TTypeCheckerHost,
-    ) {
-        for file in host.get_source_files() {
+    pub(super) fn initialize_type_checker(&mut self) {
+        for file in self.host.get_source_files() {
             bind_source_file(&*file, self.compiler_options.clone());
             println!("post-binding: {:#?}", file);
         }
 
-        for file in host.get_source_files() {
+        for file in self.host.get_source_files() {
             if !is_external_or_common_js_module(&file) {
                 self.merge_symbol_table(&mut *self.globals(), &*file.locals(), None);
             }
