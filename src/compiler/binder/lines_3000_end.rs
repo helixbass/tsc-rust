@@ -8,22 +8,25 @@ use std::rc::Rc;
 use super::{get_module_instance_state, BinderType, ModuleInstanceState};
 use crate::{
     cast, create_diagnostic_for_node, create_symbol_table, find_ancestor,
-    get_assigned_expando_initializer, get_effective_container_for_jsdoc_template_tag,
-    get_element_or_property_access_name, get_expando_initializer, get_jsdoc_type_tag,
-    get_leftmost_access_expression, get_name_of_declaration, get_name_or_argument,
-    get_right_most_assigned_expression, has_dynamic_name, id_text, index_of, is_async_function,
-    is_binary_expression, is_bindable_object_define_property_call,
-    is_bindable_static_name_expression, is_call_expression, is_conditional_type_node,
-    is_enum_const, is_function_like_declaration, is_function_symbol, is_in_js_file,
-    is_jsdoc_template_tag, is_object_literal_or_class_expression_method_or_accessor,
-    is_parameter_declaration, is_parameter_property_declaration, is_private_identifier,
-    is_property_access_expression, is_prototype_access, is_require_call,
-    is_require_variable_declaration, should_preserve_const_enums, some, symbol_name, Debug_,
-    Diagnostics, InternalSymbolName, NodeFlags, SyntaxKind, __String, is_assignment_expression,
-    is_binding_pattern, is_block_or_catch_scoped, is_exports_identifier, is_identifier,
-    is_module_exports_access_expression, is_source_file, is_variable_declaration, set_parent,
-    HasInitializerInterface, NamedDeclarationInterface, Node, NodeInterface, Symbol, SymbolFlags,
-    SymbolInterface,
+    get_assigned_expando_initializer, get_combined_node_flags,
+    get_effective_container_for_jsdoc_template_tag, get_element_or_property_access_name,
+    get_expando_initializer, get_jsdoc_type_tag, get_leftmost_access_expression,
+    get_name_of_declaration, get_name_or_argument, get_ranges_where,
+    get_right_most_assigned_expression, has_dynamic_name, has_syntactic_modifier, id_text,
+    index_of, is_async_function, is_binary_expression, is_bindable_object_define_property_call,
+    is_bindable_static_name_expression, is_block, is_call_expression, is_conditional_type_node,
+    is_enum_const, is_enum_declaration, is_function_declaration, is_function_like_declaration,
+    is_function_symbol, is_in_js_file, is_jsdoc_template_tag,
+    is_object_literal_or_class_expression_method_or_accessor, is_parameter_declaration,
+    is_parameter_property_declaration, is_private_identifier, is_property_access_expression,
+    is_prototype_access, is_require_call, is_require_variable_declaration, is_statement,
+    is_statement_but_not_declaration, is_variable_statement, should_preserve_const_enums,
+    slice_after, some, symbol_name, unreachable_code_is_error, Debug_, Diagnostics, FlowFlags,
+    FlowNodeBase, InternalSymbolName, ModifierFlags, NodeFlags, SyntaxKind, __String,
+    is_assignment_expression, is_binding_pattern, is_block_or_catch_scoped, is_exports_identifier,
+    is_identifier, is_module_exports_access_expression, is_source_file, is_variable_declaration,
+    set_parent, HasInitializerInterface, NamedDeclarationInterface, Node, NodeInterface, Symbol,
+    SymbolFlags, SymbolInterface,
 };
 
 impl BinderType {
@@ -857,8 +860,93 @@ impl BinderType {
     }
 
     pub(super) fn check_unreachable(&self, node: &Node) -> bool {
-        false
-        // unimplemented!()
+        if !self
+            .current_flow()
+            .flags()
+            .intersects(FlowFlags::Unreachable)
+        {
+            return false;
+        }
+        if Rc::ptr_eq(&self.current_flow(), &self.unreachable_flow()) {
+            let report_error = is_statement_but_not_declaration(node)
+                && node.kind() != SyntaxKind::EmptyStatement
+                || node.kind() == SyntaxKind::ClassDeclaration
+                || node.kind() == SyntaxKind::ModuleDeclaration
+                    && self.should_report_error_on_module_declaration(node);
+
+            if report_error {
+                self.set_current_flow(Some(self.reported_unreachable_flow()));
+
+                if !matches!(self.options().allow_unreachable_code, Some(true)) {
+                    let is_error = unreachable_code_is_error(&self.options())
+                        && !node.flags().intersects(NodeFlags::Ambient)
+                        && (!is_variable_statement(node)
+                            || get_combined_node_flags(
+                                &node.as_variable_statement().declaration_list,
+                            )
+                            .intersects(NodeFlags::BlockScoped)
+                            || node
+                                .as_variable_statement()
+                                .declaration_list
+                                .as_variable_declaration_list()
+                                .declarations
+                                .iter()
+                                .any(|d| {
+                                    d.as_variable_declaration().maybe_initializer().is_some()
+                                }));
+
+                    each_unreachable_range(node, |start, end| {
+                        self.error_or_suggestion_on_range(
+                            is_error,
+                            start,
+                            end,
+                            &Diagnostics::Unreachable_code_detected,
+                        )
+                    });
+                }
+            }
+        }
+        true
+    }
+}
+
+fn each_unreachable_range<TCallback: FnMut(&Node, &Node)>(node: &Node, mut cb: TCallback) {
+    if is_statement(node) && is_executable_statement(node) && is_block(&node.parent()) {
+        let node_parent = node.parent();
+        let statements = &node_parent.as_block().statements;
+        let slice = slice_after(statements, &node.node_wrapper(), |a, b| Rc::ptr_eq(a, b));
+        get_ranges_where(
+            slice,
+            |node| is_executable_statement(node),
+            |start, after_end| cb(&slice[start], &slice[after_end - 1]),
+        );
+    } else {
+        cb(node, node);
+    }
+}
+
+fn is_executable_statement(s: &Node /*Statement*/) -> bool {
+    !is_function_declaration(s)
+        && !is_purely_type_declaration(s)
+        && !is_enum_declaration(s)
+        && !(is_variable_statement(s)
+            && !get_combined_node_flags(s).intersects(NodeFlags::Let | NodeFlags::Const)
+            && s.as_variable_statement()
+                .declaration_list
+                .as_variable_declaration_list()
+                .declarations
+                .iter()
+                .any(|d| d.as_variable_declaration().maybe_initializer().is_none()))
+}
+
+fn is_purely_type_declaration(s: &Node /*Statement*/) -> bool {
+    match s.kind() {
+        SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeAliasDeclaration => true,
+        SyntaxKind::ModuleDeclaration => {
+            get_module_instance_state(s, None) != ModuleInstanceState::Instantiated
+        }
+        SyntaxKind::EnumDeclaration => has_syntactic_modifier(s, ModifierFlags::Const),
+        _ => false,
     }
 }
 
@@ -875,13 +963,13 @@ pub fn is_exports_or_module_exports_or_alias(
         if is_exports_identifier(&node) || is_module_exports_access_expression(&node) {
             return true;
         } else if is_identifier(&node) {
-            let symbol = lookup_symbol_for_name(&source_file, &node.as_identifier().escaped_text);
+            let symbol = lookup_symbol_for_name(source_file, &node.as_identifier().escaped_text);
             if let Some(symbol) = symbol {
                 if let Some(symbol_value_declaration) =
                     symbol
                         .maybe_value_declaration()
                         .filter(|value_declaration| {
-                            is_variable_declaration(&value_declaration)
+                            is_variable_declaration(value_declaration)
                                 && value_declaration
                                     .as_variable_declaration()
                                     .maybe_initializer()
@@ -911,7 +999,7 @@ pub(super) fn lookup_symbol_for_name(container: &Node, name: &__String) -> Optio
         .as_ref()
         .and_then(|locals| locals.get(name));
     if let Some(local) = local {
-        return Some(local.maybe_export_symbol().unwrap_or(local.clone()));
+        return Some(local.maybe_export_symbol().unwrap_or_else(|| local.clone()));
     }
     if is_source_file(container) {
         let container_as_source_file = container.as_source_file();
@@ -919,7 +1007,8 @@ pub(super) fn lookup_symbol_for_name(container: &Node, name: &__String) -> Optio
             .maybe_js_global_augmentations()
             .as_ref()
         {
-            let container_js_global_augmentations = container_js_global_augmentations.borrow_mut(); // TODO: doesn't actually need to be mut
+            let container_js_global_augmentations =
+                RefCell::borrow(&*container_js_global_augmentations);
             if container_js_global_augmentations.contains_key(name) {
                 return container_js_global_augmentations
                     .get(name)
@@ -930,5 +1019,5 @@ pub(super) fn lookup_symbol_for_name(container: &Node, name: &__String) -> Optio
     container
         .maybe_symbol()
         .and_then(|symbol| symbol.maybe_exports().clone())
-        .and_then(|exports| exports.borrow_mut().get(name).map(Clone::clone)) // TODO: same here doesn't need to be mut
+        .and_then(|exports| RefCell::borrow(&*exports).get(name).map(Clone::clone))
 }

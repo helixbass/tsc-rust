@@ -672,6 +672,10 @@ impl BinderType {
         self.unreachable_flow.borrow().clone()
     }
 
+    pub(super) fn reported_unreachable_flow(&self) -> Rc<FlowNode> {
+        self.reported_unreachable_flow.borrow().clone()
+    }
+
     pub(super) fn bind_source_file(&self, f: &Node /*SourceFile*/, opts: Rc<CompilerOptions>) {
         self.set_file(Some(f.node_wrapper()));
         self.set_options(Some(opts.clone()));

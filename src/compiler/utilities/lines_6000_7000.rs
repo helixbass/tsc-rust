@@ -2,15 +2,16 @@
 
 use std::borrow::Cow;
 use std::cmp;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
     compare_strings_case_sensitive, compare_strings_case_sensitive_maybe, compare_values, for_each,
-    format_string_from_args, get_locale_specific_message, CommandLineOption,
-    CommandLineOptionInterface, Comparison, CompilerOptions, CompilerOptionsValue, Diagnostic,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension, JsxEmit,
-    LanguageVariant, ModuleKind, Pattern, ScriptKind, ScriptTarget,
+    format_string_from_args, get_locale_specific_message, index_of, CommandLineOption,
+    CommandLineOptionInterface, Comparison, CompilerOptions, CompilerOptionsValue, Debug_,
+    Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    Extension, JsxEmit, LanguageVariant, ModuleKind, Pattern, ScriptKind, ScriptTarget,
 };
 use local_macros::enum_unwrapped;
 
@@ -200,6 +201,10 @@ pub fn get_emit_script_target(compiler_options: &CompilerOptions) -> ScriptTarge
 
 pub fn get_emit_module_kind(compiler_options: &CompilerOptions) -> ModuleKind {
     unimplemented!()
+}
+
+pub fn unreachable_code_is_error(options: &CompilerOptions) -> bool {
+    matches!(options.allow_unreachable_code, Some(false))
 }
 
 pub fn unused_label_is_error(options: &CompilerOptions) -> bool {
@@ -474,6 +479,17 @@ pub fn try_parse_pattern(pattern: &str) -> Option<StringOrPattern> {
 
 pub fn position_is_synthesized(pos: isize) -> bool {
     !(pos >= 0)
+}
+
+pub fn slice_after<'arr, TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
+    arr: &'arr [TItem],
+    value: &TItem,
+    comparer: TComparer,
+) -> &'arr [TItem] {
+    let index = index_of(arr, value, comparer);
+    Debug_.assert(index != -1, None);
+    let index: usize = index.try_into().unwrap();
+    &arr[index..]
 }
 
 pub fn add_related_info(

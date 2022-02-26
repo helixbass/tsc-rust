@@ -222,6 +222,30 @@ pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(
     })
 }
 
+pub fn get_ranges_where<TItem, TPred: FnMut(&TItem) -> bool, TCallback: FnMut(usize, usize)>(
+    arr: &[TItem],
+    mut pred: TPred,
+    mut cb: TCallback,
+) {
+    let mut start: Option<usize> = None;
+    for i in 0..arr.len() {
+        if pred(&arr[i]) {
+            start = Some(match start {
+                None => i,
+                Some(start) => start,
+            });
+        } else {
+            if let Some(start_present) = start {
+                cb(start_present, i);
+                start = None;
+            }
+        }
+    }
+    if let Some(start) = start {
+        cb(start, arr.len());
+    }
+}
+
 pub fn concatenate<TItem>(mut array1: Vec<TItem>, mut array2: Vec<TItem>) -> Vec<TItem> {
     if !some(Some(&array2), Option::<fn(&TItem) -> bool>::None) {
         return array1;

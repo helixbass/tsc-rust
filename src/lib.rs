@@ -19,9 +19,9 @@ pub use compiler::core::{
     compare_strings_case_sensitive_maybe, compare_values, concatenate, contains, contains_rc,
     ends_with, equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values,
     every, filter, find, find_index, first_defined, first_or_undefined, flat_map,
-    flat_map_to_mutable, for_each, for_each_bool, get_spelling_suggestion, get_string_comparer,
-    insert_sorted, last, last_or_undefined, length, map, map_defined, maybe_for_each,
-    not_implemented, range_equals, same_map, set_ui_locale, single_element_array,
+    flat_map_to_mutable, for_each, for_each_bool, get_ranges_where, get_spelling_suggestion,
+    get_string_comparer, insert_sorted, last, last_or_undefined, length, map, map_defined,
+    maybe_for_each, not_implemented, range_equals, same_map, set_ui_locale, single_element_array,
     single_or_undefined, some, sort_and_deduplicate, starts_with, string_contains,
     trim_string_start, try_cast, AssertionLevel, GetCanonicalFileName, Pattern,
 };
@@ -318,10 +318,10 @@ pub use compiler::utilities::{
     node_is_present, node_is_synthesized, object_allocator, parse_pseudo_big_int,
     position_is_synthesized, pseudo_big_int_to_string, remove_file_extension, set_parent,
     set_parent_recursive, set_text_range_pos, set_text_range_pos_end, set_text_range_pos_width,
-    set_value_declaration, should_preserve_const_enums, skip_parentheses,
-    try_get_import_from_module_specifier, try_parse_pattern, unused_label_is_error,
-    using_single_line_string_writer, walk_up_parenthesized_expressions, Associativity,
-    FunctionFlags, GetLiteralTextFlags, OperatorPrecedence, StringOrPattern,
+    set_value_declaration, should_preserve_const_enums, skip_parentheses, slice_after,
+    try_get_import_from_module_specifier, try_parse_pattern, unreachable_code_is_error,
+    unused_label_is_error, using_single_line_string_writer, walk_up_parenthesized_expressions,
+    Associativity, FunctionFlags, GetLiteralTextFlags, OperatorPrecedence, StringOrPattern,
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,
