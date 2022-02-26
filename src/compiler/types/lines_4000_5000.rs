@@ -95,6 +95,7 @@ pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug {}
 pub struct TypeChecker {
     pub host: Rc<dyn TypeCheckerHostDebuggable>,
     pub _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
+    pub _packages_map: RefCell<Option<HashMap<String, bool>>>,
     pub produce_diagnostics: bool,
     pub Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
     pub Type: fn(TypeFlags) -> BaseType,

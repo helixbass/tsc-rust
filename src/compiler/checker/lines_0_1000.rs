@@ -3,18 +3,18 @@
 use bitflags::bitflags;
 use regex::Regex;
 use std::array::IntoIter;
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
 use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
-    get_module_instance_state, BaseInterfaceType, GenericableTypeInterface, ModuleInstanceState,
-    Signature, TypeCheckerHostDebuggable, __String, create_diagnostic_collection,
-    create_symbol_table, object_allocator, DiagnosticCollection, DiagnosticMessage,
-    FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags,
-    SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
+    get_module_instance_state, BaseInterfaceType, Extension, GenericableTypeInterface,
+    ModuleInstanceState, Signature, TypeCheckerHostDebuggable, __String,
+    create_diagnostic_collection, create_symbol_table, object_allocator, DiagnosticCollection,
+    DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags,
+    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
 };
 
 lazy_static! {
@@ -425,6 +425,7 @@ pub fn create_type_checker(
     let mut type_checker = TypeChecker {
         host,
         _types_needing_strong_references: RefCell::new(vec![]),
+        _packages_map: RefCell::new(None),
         produce_diagnostics,
         Symbol: object_allocator.get_symbol_constructor(),
         Type: object_allocator.get_type_constructor(),
@@ -660,6 +661,38 @@ impl TypeChecker {
         self._types_needing_strong_references
             .borrow_mut()
             .push(type_);
+    }
+
+    pub(super) fn get_packages_map(&self) -> Ref<HashMap<String, bool>> {
+        {
+            let mut packages_map = self._packages_map.borrow_mut();
+            if packages_map.is_none() {
+                *packages_map = Some(HashMap::new());
+            }
+            let mut map = packages_map.as_mut().unwrap();
+            self.host.get_source_files().iter().for_each(|sf| {
+                let sf_as_source_file = sf.as_source_file();
+                let sf_resolved_modules = sf_as_source_file.maybe_resolved_modules();
+                if sf_resolved_modules.is_none() {
+                    return;
+                }
+
+                sf_resolved_modules.as_ref().unwrap().for_each(|r, _, _| {
+                    // if let Some(r) = r {
+                    if let Some(r_package_id) = r.package_id.as_ref() {
+                        map.insert(
+                            r_package_id.name.clone(),
+                            matches!(r.extension, Some(Extension::Dts))
+                                || matches!(map.get(&r_package_id.name), Some(true)),
+                        );
+                    }
+                    // }
+                })
+            });
+        }
+        Ref::map(self._packages_map.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
     }
 
     pub(super) fn type_count(&self) -> u32 {

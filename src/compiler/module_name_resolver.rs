@@ -15,6 +15,10 @@ impl<TValue> ModeAwareCache<TValue> {
     pub fn set(&self, key: String, mode: Option<ModuleKind>, value: TValue) {
         unimplemented!()
     }
+
+    pub fn for_each<TCallback: FnMut(&TValue, &str, Option<ModuleKind>)>(&self, cb: TCallback) {
+        unimplemented!()
+    }
 }
 
 pub(crate) fn create_mode_aware_cache<TValue>() -> ModeAwareCache<TValue> {
