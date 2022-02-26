@@ -462,7 +462,7 @@ pub fn is_parse_tree_node(node: &Node) -> bool {
     !node.flags().intersects(NodeFlags::Synthesized)
 }
 
-pub fn get_parse_tree_node<TNode: Borrow<Node>, TNodeTest: FnOnce(Option<Rc<Node>>) -> bool>(
+pub fn get_parse_tree_node<TNode: Borrow<Node>, TNodeTest: FnOnce(&Node) -> bool>(
     node: Option<TNode>,
     node_test: Option<TNodeTest>,
 ) -> Option<Rc<Node>> {
@@ -484,7 +484,7 @@ pub fn get_parse_tree_node<TNode: Borrow<Node>, TNodeTest: FnOnce(Option<Rc<Node
         if is_parse_tree_node(&node_present) {
             return if match node_test {
                 None => true,
-                Some(node_test) => node_test(node.clone()),
+                Some(node_test) => node_test(&node_present),
             } {
                 node
             } else {
@@ -529,11 +529,7 @@ pub fn id_text(identifier_or_private_name: &Node, /*Identifier | PrivateIdentifi
 }
 
 pub fn symbol_name(symbol: &Symbol) -> String {
-    match symbol
-        .maybe_value_declaration()
-        .as_ref()
-        .map(|weak| weak.upgrade().unwrap())
-    {
+    match symbol.maybe_value_declaration().as_ref() {
         Some(symbol_value_declaration)
             if is_private_identifier_class_element_declaration(&symbol_value_declaration) =>
         {

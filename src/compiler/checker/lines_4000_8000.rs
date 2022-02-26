@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -191,7 +191,7 @@ impl TypeChecker {
                 create_printer(PrinterOptions {/*remove_comments: true*/})
             };
             let source_file = if let Some(enclosing_declaration) = enclosing_declaration {
-                Some(get_source_file_of_node(enclosing_declaration))
+                Some(get_source_file_of_node(Some(enclosing_declaration)).unwrap())
             } else {
                 None
             };
@@ -240,7 +240,7 @@ impl TypeChecker {
         let source_file: Option<Rc<Node /*SourceFile*/>> =
             if let Some(enclosing_declaration) = enclosing_declaration {
                 let enclosing_declaration = enclosing_declaration.borrow();
-                Some(get_source_file_of_node(enclosing_declaration))
+                Some(get_source_file_of_node(Some(enclosing_declaration)).unwrap())
             } else {
                 None
             };
@@ -262,9 +262,7 @@ impl TypeChecker {
     ) -> (String, String) {
         let left_str = if let Some(symbol) = left.maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(&symbol) {
-                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow())
-                    .clone()
-                    .map(|weak| weak.upgrade().unwrap());
+                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
                 self.type_to_string(left, enclosing_declaration, None)
             } else {
                 self.type_to_string(left, Option::<&Node>::None, None)
@@ -274,9 +272,7 @@ impl TypeChecker {
         };
         let right_str = if let Some(symbol) = right.maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(&symbol) {
-                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow())
-                    .clone()
-                    .map(|weak| weak.upgrade().unwrap());
+                let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
                 self.type_to_string(right, enclosing_declaration, None)
             } else {
                 self.type_to_string(right, Option::<&Node>::None, None)
@@ -296,11 +292,9 @@ impl TypeChecker {
     }
 
     pub(super) fn symbol_value_declaration_is_context_sensitive(&self, symbol: &Symbol) -> bool {
-        match &*symbol.maybe_value_declaration() {
+        match symbol.maybe_value_declaration() {
             Some(value_declaration) => {
-                let value_declaration = value_declaration.upgrade().unwrap();
-                is_expression(&*value_declaration)
-                    && !self.is_context_sensitive(&*value_declaration)
+                is_expression(&value_declaration) && !self.is_context_sensitive(&value_declaration)
             }
             None => false,
         }
@@ -786,7 +780,7 @@ impl NodeBuilder {
         let type_parameter_nodes = Option::<NodeArray>::None; // TODO: this is wrong
         let symbol = chain[index].clone();
 
-        let mut symbol_name: Option<String>;
+        let mut symbol_name: Option<Cow<'static, str>>;
         if index == 0 {
             symbol_name = Some(type_checker.get_name_of_symbol_as_written(&symbol, Some(context)));
         } else {

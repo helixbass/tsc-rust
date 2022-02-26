@@ -83,7 +83,7 @@ bitflags! {
     }
 }
 
-pub(super) fn get_symbol_id(symbol: &Symbol) -> SymbolId {
+pub fn get_symbol_id(symbol: &Symbol) -> SymbolId {
     if symbol.maybe_id().is_none() {
         symbol.set_id(get_next_symbol_id());
         increment_next_symbol_id();

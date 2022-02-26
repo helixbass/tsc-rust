@@ -14,6 +14,14 @@ pub struct PluginImport {
 }
 
 #[derive(Debug)]
+pub struct ProjectReference {
+    pub path: String,
+    pub original_path: Option<String>,
+    pub prepend: Option<bool>,
+    pub circular: Option<bool>,
+}
+
+#[derive(Debug)]
 pub enum CompilerOptionsValue {
     Bool(Option<bool>),
     String(Option<String>),
@@ -223,7 +231,7 @@ pub struct CompilerOptions {
     // [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ModuleKind {
     None = 0,
     CommonJS = 1,

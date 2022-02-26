@@ -2,14 +2,34 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    get_emit_flags, get_jsdoc_type_tag, is_assignment_expression, is_declaration_binding_element,
-    is_identifier, is_in_js_file, is_object_literal_element_like, is_parenthesized_expression,
-    is_spread_element, EmitFlags, HasInitializerInterface, NamedDeclarationInterface, Node,
+    first_or_undefined, get_emit_flags, get_jsdoc_type_tag, is_assignment_expression,
+    is_declaration_binding_element, is_identifier, is_in_js_file, is_object_literal_element_like,
+    is_parenthesized_expression, is_prologue_directive, is_spread_element, is_string_literal,
+    EmitFlags, HasInitializerInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node,
     NodeInterface, OuterExpressionKinds, SyntaxKind,
 };
 
 pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
     get_emit_flags(node).intersects(EmitFlags::LocalName)
+}
+
+fn is_use_strict_prologue(node: &Node /*ExpressionStatement*/) -> bool {
+    let node_as_expression_statement = node.as_expression_statement();
+    is_string_literal(&node_as_expression_statement.expression)
+        && &*node_as_expression_statement
+            .expression
+            .as_string_literal()
+            .text()
+            == "use strict"
+}
+
+pub fn starts_with_use_strict(statements: &[Rc<Node>]) -> bool {
+    let first_statement = first_or_undefined(statements);
+    if first_statement.is_none() {
+        return false;
+    }
+    let first_statement = first_statement.unwrap();
+    is_prologue_directive(first_statement) && is_use_strict_prologue(first_statement)
 }
 
 pub fn is_comma_sequence(node: &Node /*Expression*/) -> bool {

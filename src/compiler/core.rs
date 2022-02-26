@@ -4,6 +4,7 @@ use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::mem;
 use std::ptr;
+use std::rc::Rc;
 
 use crate::{text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
 
@@ -23,6 +24,19 @@ pub fn for_each<
         .into_iter()
         .enumerate()
         .find_map(|(index, item)| callback(item, index))
+}
+
+pub fn for_each_bool<
+    TCollection: IntoIterator,
+    TCallback: FnMut(TCollection::Item, usize) -> bool,
+>(
+    array: TCollection,
+    mut callback: TCallback,
+) -> bool {
+    array
+        .into_iter()
+        .enumerate()
+        .any(|(index, item)| callback(item, index))
 }
 
 pub fn maybe_for_each<
@@ -85,6 +99,12 @@ pub fn find_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
 
 pub fn contains<TItem: Eq>(array: Option<&[TItem]>, value: &TItem) -> bool {
     array.map_or(false, |array| array.iter().any(|item| item == value))
+}
+
+pub fn contains_rc<TItem>(array: Option<&[Rc<TItem>]>, value: &Rc<TItem>) -> bool {
+    array.map_or(false, |array| {
+        array.iter().any(|item| Rc::ptr_eq(item, value))
+    })
 }
 
 pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {
@@ -405,6 +425,13 @@ pub fn last<TItem>(array: &[TItem]) -> &TItem {
     array.last().unwrap()
 }
 
+pub fn single_or_undefined<TItem>(array: Option<&[TItem]>) -> Option<&TItem> {
+    match array {
+        Some(array) if array.len() == 1 => Some(&array[0]),
+        _ => None,
+    }
+}
+
 pub fn binary_search<
     TKey,
     TItem,
@@ -539,6 +566,16 @@ fn binary_search_key_copy_key<
     }
 
     !low
+}
+
+pub fn try_cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> Option<TIn> {
+    if
+    /*value !== undefined &&*/
+    test(&value) {
+        Some(value)
+    } else {
+        None
+    }
 }
 
 pub fn cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: Option<TIn>, test: TTest) -> TIn {
@@ -784,6 +821,10 @@ pub type GetCanonicalFileName = fn(&str) -> String;
 
 pub fn starts_with(str_: &str, prefix: &str) -> bool {
     str_.starts_with(prefix)
+}
+
+pub fn single_element_array<TItem>(t: Option<TItem>) -> Option<Vec<TItem>> {
+    t.map(|t| vec![t])
 }
 
 pub fn fill<TItem, TCallback: FnMut(usize) -> TItem>(

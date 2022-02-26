@@ -6,9 +6,10 @@ use std::rc::Rc;
 
 use super::{
     BaseNode, BaseTextRange, BuildInfo, Diagnostic, EmitHelper, FileReference, LanguageVariant,
-    Node, NodeArray, Path, ReadonlyPragmaMap, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
+    Node, NodeArray, Path, ReadonlyPragmaMap, ResolvedModuleFull, ResolvedTypeReferenceDirective,
+    ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
 };
-use crate::PragmaContext;
+use crate::{ModeAwareCache, PragmaContext};
 use local_macros::ast_type;
 
 pub type SourceTextAsChars = Vec<char>;
@@ -83,6 +84,7 @@ pub struct SourceFile {
     script_kind: Cell<ScriptKind>,
 
     external_module_indicator: RefCell<Option<Rc<Node>>>,
+    common_js_module_indicator: RefCell<Option<Rc<Node>>>,
 
     identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
     node_count: Cell<Option<usize>>,
@@ -97,6 +99,9 @@ pub struct SourceFile {
 
     line_map: RefCell<Option<Vec<usize>>>,
     comment_directives: RefCell<Option<Vec<CommentDirective>>>,
+    resolved_modules: RefCell<Option<ModeAwareCache<Rc<ResolvedModuleFull /*| undefined*/>>>>,
+    resolved_type_reference_directive_names:
+        RefCell<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective /*| undefined*/>>>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
 }
 
@@ -139,9 +144,12 @@ impl SourceFile {
             language_variant: Cell::new(language_variant),
             script_kind: Cell::new(script_kind),
             external_module_indicator: RefCell::new(None),
+            common_js_module_indicator: RefCell::new(None),
             is_declaration_file: Cell::new(is_declaration_file),
             has_no_default_lib: Cell::new(has_no_default_lib),
             comment_directives: RefCell::new(None),
+            resolved_modules: RefCell::new(None),
+            resolved_type_reference_directive_names: RefCell::new(None),
             pragmas: RefCell::new(None),
         }
     }
@@ -258,6 +266,17 @@ impl SourceFile {
         *self.external_module_indicator.borrow_mut() = external_module_indicator;
     }
 
+    pub(crate) fn maybe_common_js_module_indicator(&self) -> Option<Rc<Node>> {
+        self.common_js_module_indicator.borrow().clone()
+    }
+
+    pub(crate) fn set_common_js_module_indicator(
+        &self,
+        common_js_module_indicator: Option<Rc<Node>>,
+    ) {
+        *self.common_js_module_indicator.borrow_mut() = common_js_module_indicator;
+    }
+
     pub fn identifiers(&self) -> Rc<RefCell<HashMap<String, String>>> {
         self.identifiers.borrow().clone().unwrap()
     }
@@ -327,6 +346,16 @@ impl SourceFile {
 
     pub fn set_comment_directives(&self, comment_directives: Option<Vec<CommentDirective>>) {
         *self.comment_directives.borrow_mut() = comment_directives;
+    }
+
+    pub fn maybe_resolved_modules(&self) -> RefMut<Option<ModeAwareCache<Rc<ResolvedModuleFull>>>> {
+        self.resolved_modules.borrow_mut()
+    }
+
+    pub fn maybe_resolved_type_reference_directive_names(
+        &self,
+    ) -> RefMut<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective>>>> {
+        self.resolved_type_reference_directive_names.borrow_mut()
     }
 
     pub fn pragmas(&self) -> Ref<ReadonlyPragmaMap> {

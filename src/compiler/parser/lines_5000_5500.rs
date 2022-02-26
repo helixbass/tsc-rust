@@ -160,7 +160,8 @@ impl ParserType {
                                 self.source_text_as_chars(),
                                 &opening_as_jsx_opening_element.tag_name,
                                 None,
-                            )]),
+                            )
+                            .into_owned()]),
                         );
                     } else {
                         self.parse_error_at_range(
@@ -170,7 +171,8 @@ impl ParserType {
                                 self.source_text_as_chars(),
                                 &opening_as_jsx_opening_element.tag_name,
                                 None,
-                            )]),
+                            )
+                            .into_owned()]),
                         );
                     }
                 }
@@ -279,7 +281,8 @@ impl ParserType {
                             self.source_text_as_chars(),
                             &opening_tag_as_jsx_opening_element.tag_name,
                             None,
-                        )]),
+                        )
+                        .into_owned()]),
                     );
                 }
                 None

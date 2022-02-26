@@ -315,8 +315,8 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             if let Some(container_value_declaration) = container.maybe_value_declaration().as_ref()
             {
                 return Rc::ptr_eq(
-                    &prop_value_declaration.upgrade().unwrap().parent(),
-                    &container_value_declaration.upgrade().unwrap(),
+                    &prop_value_declaration.parent(),
+                    &container_value_declaration,
                 );
             }
         }

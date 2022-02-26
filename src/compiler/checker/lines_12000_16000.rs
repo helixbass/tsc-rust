@@ -532,9 +532,8 @@ impl TypeChecker {
             if type_.is_none() {
                 let name = prop
                     .maybe_value_declaration()
-                    .as_ref()
                     .and_then(|value_declaration| {
-                        get_name_of_declaration(Some(&*value_declaration.upgrade().unwrap()))
+                        get_name_of_declaration(Some(&*value_declaration))
                     });
                 type_ = if false {
                     unimplemented!()

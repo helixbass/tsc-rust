@@ -335,8 +335,8 @@ impl TypeChecker {
         let mut symbol_links_ref = symbol_links.borrow_mut();
         symbol_links_ref.target = Some(symbol.clone());
         symbol_links_ref.mapper = Some(mapper);
-        if let Some(value_declaration) = &*symbol.maybe_value_declaration() {
-            result.set_value_declaration(value_declaration.upgrade().unwrap());
+        if let Some(value_declaration) = symbol.maybe_value_declaration() {
+            result.set_value_declaration(value_declaration);
         }
         result.into()
     }

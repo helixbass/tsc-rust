@@ -1652,7 +1652,7 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.set_declarations(declarations)
                     }
 
-                    fn maybe_value_declaration(&self) -> ::std::cell::Ref<::std::option::Option<::std::rc::Weak<crate::Node>>> {
+                    fn maybe_value_declaration(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
                         self.#first_field_name.maybe_value_declaration()
                     }
 
@@ -1750,7 +1750,7 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_value_declaration(&self) -> ::std::cell::Ref<::std::option::Option<::std::rc::Weak<crate::Node>>> {
+                    fn maybe_value_declaration(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_value_declaration()),*
                         }

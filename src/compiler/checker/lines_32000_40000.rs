@@ -389,12 +389,7 @@ impl TypeChecker {
 
         let type_ = self.convert_auto_to_any(&self.get_type_of_symbol(&*symbol));
         let value_declaration = symbol.maybe_value_declaration();
-        if value_declaration.is_some()
-            && ptr::eq(
-                node,
-                &*value_declaration.as_ref().unwrap().upgrade().unwrap(),
-            )
-        {
+        if value_declaration.is_some() && ptr::eq(node, &*value_declaration.unwrap()) {
             let initializer = get_effective_initializer(node);
             if let Some(initializer) = initializer {
                 if true {

@@ -145,6 +145,13 @@ impl Signature {
     }
 }
 
+pub struct IndexInfo {
+    pub key_type: Rc<Type>,
+    pub type_: Rc<Type>,
+    pub is_readonly: bool,
+    pub declaration: Option<Rc<Node /*IndexSignatureDeclaration*/>>,
+}
+
 #[derive(Clone, Debug)]
 pub enum TypeMapper {
     Simple(TypeMapperSimple),
@@ -264,14 +271,21 @@ pub struct DiagnosticMessage {
 #[derive(Clone, Debug)]
 pub struct DiagnosticMessageChain {
     pub message_text: String,
+    pub category: DiagnosticCategory,
     pub code: u32,
     pub next: Option<Vec<DiagnosticMessageChain>>,
 }
 
 impl DiagnosticMessageChain {
-    pub fn new(message_text: String, code: u32, next: Option<Vec<DiagnosticMessageChain>>) -> Self {
+    pub fn new(
+        message_text: String,
+        category: DiagnosticCategory,
+        code: u32,
+        next: Option<Vec<DiagnosticMessageChain>>,
+    ) -> Self {
         Self {
             message_text,
+            category,
             code,
             next,
         }
@@ -316,6 +330,10 @@ impl BaseDiagnostic {
 impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
     fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
         panic!("Shouldn't call maybe_as_diagnostic() on BaseDiagnostic")
+    }
+
+    fn category(&self) -> DiagnosticCategory {
+        self._diagnostic_related_information.category()
     }
 
     fn code(&self) -> u32 {
@@ -368,6 +386,14 @@ impl From<BaseDiagnostic> for DiagnosticRelatedInformation {
 impl DiagnosticRelatedInformationInterface for Diagnostic {
     fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
         Some(self)
+    }
+
+    fn category(&self) -> DiagnosticCategory {
+        match self {
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.category(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.category(),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.category(),
+        }
     }
 
     fn code(&self) -> u32 {
@@ -459,6 +485,7 @@ impl From<DiagnosticMessageChain> for DiagnosticMessageText {
 
 pub trait DiagnosticRelatedInformationInterface {
     fn maybe_as_diagnostic(&self) -> Option<&Diagnostic>;
+    fn category(&self) -> DiagnosticCategory;
     fn code(&self) -> u32;
     fn file(&self) -> Option<Rc<Node>>;
     fn maybe_start(&self) -> Option<isize>;
@@ -496,6 +523,15 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
             DiagnosticRelatedInformation::Diagnostic(diagnostic) => {
                 diagnostic.maybe_as_diagnostic()
             }
+        }
+    }
+
+    fn category(&self) -> DiagnosticCategory {
+        match self {
+            DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
+                base_diagnostic_related_information,
+            ) => base_diagnostic_related_information.category(),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.category(),
         }
     }
 
@@ -565,6 +601,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
 
 #[derive(Clone, Debug)]
 pub struct BaseDiagnosticRelatedInformation {
+    category: DiagnosticCategory,
     code: u32,
     file: Option<Weak<Node /*SourceFile*/>>,
     start: Option<isize>,
@@ -574,6 +611,7 @@ pub struct BaseDiagnosticRelatedInformation {
 
 impl BaseDiagnosticRelatedInformation {
     pub fn new<TDiagnosticMessageText: Into<DiagnosticMessageText>>(
+        category: DiagnosticCategory,
         code: u32,
         file: Option<Rc<Node>>,
         start: Option<isize>,
@@ -581,6 +619,7 @@ impl BaseDiagnosticRelatedInformation {
         message_text: TDiagnosticMessageText,
     ) -> Self {
         Self {
+            category,
             code,
             file: file.map(|file| Rc::downgrade(&file)),
             start,
@@ -593,6 +632,10 @@ impl BaseDiagnosticRelatedInformation {
 impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation {
     fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
         None
+    }
+
+    fn category(&self) -> DiagnosticCategory {
+        self.category
     }
 
     fn code(&self) -> u32 {
@@ -644,6 +687,10 @@ impl DiagnosticWithLocation {
 impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
     fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
         panic!("Shouldn't call maybe_as_diagnostic() on DiagnosticWithLocation")
+    }
+
+    fn category(&self) -> DiagnosticCategory {
+        self._diagnostic.category()
     }
 
     fn code(&self) -> u32 {
@@ -713,6 +760,10 @@ impl DiagnosticWithDetachedLocation {
 impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
     fn maybe_as_diagnostic(&self) -> Option<&Diagnostic> {
         panic!("Shouldn't call maybe_as_diagnostic() on DiagnosticWithDetachedLocation")
+    }
+
+    fn category(&self) -> DiagnosticCategory {
+        self._diagnostic.category()
     }
 
     fn code(&self) -> u32 {
