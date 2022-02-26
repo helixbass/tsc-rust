@@ -7,10 +7,11 @@ use std::fmt;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseType, CompilerOptions, DiagnosticCollection, ModuleSpecifierResolutionHost, Node,
-    NodeCheckFlags, NodeId, NodeLinks, ObjectFlags, ParsedCommandLine, Path,
-    RelationComparisonResult, Signature, SignatureFlags, SymbolTable, SymbolTracker,
-    TransformationContext, TransformerFactory, Type, TypeFlags, TypeMapper, __String,
+    BaseType, CancellationTokenDebuggable, CompilerOptions, DiagnosticCollection,
+    ExternalEmitHelpers, ModuleKind, ModuleSpecifierResolutionHost, Node, NodeCheckFlags, NodeId,
+    NodeLinks, ObjectFlags, ParsedCommandLine, Path, RelationComparisonResult, ScriptTarget,
+    Signature, SignatureFlags, SymbolTable, SymbolTracker, TransformationContext,
+    TransformerFactory, Type, TypeFlags, TypeMapper, __String,
 };
 use crate::{NodeBuilder, Number, StringOrNumber};
 use local_macros::symbol_type;
@@ -94,19 +95,40 @@ pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug {}
 #[allow(non_snake_case)]
 pub struct TypeChecker {
     pub host: Rc<dyn TypeCheckerHostDebuggable>,
+    pub produce_diagnostics: bool,
     pub _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
     pub _packages_map: RefCell<Option<HashMap<String, bool>>>,
-    pub produce_diagnostics: bool,
+    pub(crate) cancellation_token: RefCell<Option<Rc<dyn CancellationTokenDebuggable>>>,
+    pub(crate) requested_external_emit_helpers: Cell<Option<ExternalEmitHelpers>>,
+    pub(crate) external_helpers_module: RefCell<Option<Rc<Symbol>>>,
     pub Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
     pub Type: fn(TypeFlags) -> BaseType,
     pub Signature: fn(SignatureFlags) -> Signature,
     pub(crate) type_count: Cell<u32>,
+    pub(crate) symbol_count: Cell<u32>,
+    pub(crate) enum_count: Cell<u32>,
+    pub(crate) total_instantiation_count: Cell<u32>,
+    pub(crate) instantiation_count: Cell<u32>,
+    pub(crate) instantiation_depth: Cell<u32>,
+    pub(crate) inline_level: Cell<u32>,
+    pub(crate) current_node: RefCell<Option<Rc<Node>>>,
     pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
     pub(crate) compiler_options: Rc<CompilerOptions>,
+    pub language_version: ScriptTarget,
+    pub module_kind: ModuleKind,
+    pub use_define_for_class_fields: bool,
+    pub allow_synthetic_default_imports: bool,
     pub strict_null_checks: bool,
+    pub strict_function_types: bool,
+    pub strict_bind_call_apply: bool,
+    pub strict_property_initialization: bool,
     pub no_implicit_any: bool,
+    pub no_implicit_this: bool,
+    pub use_unknown_in_catch_variables: bool,
+    pub keyof_strings_only: bool,
     pub fresh_object_literal_flag: ObjectFlags,
-    pub exact_optional_property_types: bool,
+    pub exact_optional_property_types: Option<bool>,
+    pub(crate) emit_resolver: Option<Rc<dyn EmitResolverDebuggable>>,
     pub node_builder: NodeBuilder,
     pub globals: RefCell<SymbolTable>,
     pub string_literal_types: RefCell<HashMap<String, Rc</*StringLiteralType*/ Type>>>,
@@ -460,6 +482,8 @@ pub trait EmitResolver {
     ) -> Option<Vec<Rc<Node /*Statement*/>>>;
     fn is_import_required_by_augmentation(&self, decl: &Node /*ImportDeclaration*/) -> bool;
 }
+
+pub trait EmitResolverDebuggable: EmitResolver + fmt::Debug {}
 
 bitflags! {
     pub struct SymbolFlags: u32 {

@@ -10,11 +10,13 @@ use std::rc::Rc;
 
 use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
-    get_module_instance_state, BaseInterfaceType, Extension, GenericableTypeInterface,
-    ModuleInstanceState, Signature, TypeCheckerHostDebuggable, __String,
-    create_diagnostic_collection, create_symbol_table, object_allocator, DiagnosticCollection,
-    DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags,
-    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
+    get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
+    get_module_instance_state, get_strict_option_value, get_use_define_for_class_fields,
+    BaseInterfaceType, Extension, GenericableTypeInterface, ModuleInstanceState, Signature,
+    TypeCheckerHostDebuggable, VarianceFlags, __String, create_diagnostic_collection,
+    create_symbol_table, object_allocator, DiagnosticCollection, DiagnosticMessage,
+    FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags,
+    SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
 };
 
 lazy_static! {
@@ -424,27 +426,59 @@ pub fn create_type_checker(
     let compiler_options = host.get_compiler_options();
     let mut type_checker = TypeChecker {
         host,
+        produce_diagnostics,
         _types_needing_strong_references: RefCell::new(vec![]),
         _packages_map: RefCell::new(None),
-        produce_diagnostics,
+        cancellation_token: RefCell::new(None),
+        requested_external_emit_helpers: Cell::new(None),
+        external_helpers_module: RefCell::new(None),
+
         Symbol: object_allocator.get_symbol_constructor(),
         Type: object_allocator.get_type_constructor(),
         Signature: object_allocator.get_signature_constructor(),
 
         type_count: Cell::new(0),
+        symbol_count: Cell::new(0),
+        enum_count: Cell::new(0),
+        total_instantiation_count: Cell::new(0),
+        instantiation_count: Cell::new(0),
+        instantiation_depth: Cell::new(0),
+        inline_level: Cell::new(0),
+        current_node: RefCell::new(None),
 
         empty_symbols: Rc::new(RefCell::new(create_symbol_table(None))),
 
-        compiler_options,
-        strict_null_checks: true,
-        no_implicit_any: true,
-        fresh_object_literal_flag: if false {
-            unimplemented!()
+        compiler_options: compiler_options.clone(),
+        language_version: get_emit_script_target(&compiler_options),
+        module_kind: get_emit_module_kind(&compiler_options),
+        use_define_for_class_fields: get_use_define_for_class_fields(&compiler_options),
+        allow_synthetic_default_imports: get_allow_synthetic_default_imports(&compiler_options),
+        strict_null_checks: get_strict_option_value(&compiler_options, "strictNullChecks"),
+        strict_function_types: get_strict_option_value(&compiler_options, "strictFunctionTypes"),
+        strict_bind_call_apply: get_strict_option_value(&compiler_options, "strictBindCallApply"),
+        strict_property_initialization: get_strict_option_value(
+            &compiler_options,
+            "strictPropertyInitialization",
+        ),
+        no_implicit_any: get_strict_option_value(&compiler_options, "noImplicitAny"),
+        no_implicit_this: get_strict_option_value(&compiler_options, "noImplicitThis"),
+        use_unknown_in_catch_variables: get_strict_option_value(
+            &compiler_options,
+            "useUnknownInCatchVariables",
+        ),
+        keyof_strings_only: matches!(compiler_options.keyof_strings_only, Some(true)),
+        fresh_object_literal_flag: if matches!(
+            compiler_options.suppress_excess_property_errors,
+            Some(true)
+        ) {
+            ObjectFlags::None
         } else {
             ObjectFlags::FreshLiteral
         },
-        exact_optional_property_types: false,
+        exact_optional_property_types: compiler_options.exact_optional_property_types,
 
+        // const checkBinaryExpression = createCheckBinaryExpression();
+        emit_resolver: None,
         node_builder: create_node_builder(),
 
         globals: RefCell::new(create_symbol_table(None)),
@@ -491,6 +525,7 @@ pub fn create_type_checker(
         assignable_relation: HashMap::new(),
         comparable_relation: HashMap::new(),
     };
+    type_checker.emit_resolver = Some(type_checker.create_resolver());
     type_checker.unknown_symbol = Some(
         type_checker
             .create_symbol(
@@ -705,6 +740,10 @@ impl TypeChecker {
 
     pub(super) fn empty_symbols(&self) -> Rc<RefCell<SymbolTable>> {
         self.empty_symbols.clone()
+    }
+
+    pub(super) fn array_variances(&self) -> Vec<VarianceFlags> {
+        vec![VarianceFlags::Covariant]
     }
 
     pub(super) fn globals(&self) -> RefMut<SymbolTable> {

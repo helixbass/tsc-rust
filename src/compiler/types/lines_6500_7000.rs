@@ -445,6 +445,47 @@ bitflags! {
     }
 }
 
+bitflags! {
+    pub(crate) struct ExternalEmitHelpers: u32 {
+        const None = 0;
+        const Extends = 1 << 0;
+        const Assign = 1 << 1;
+        const Rest = 1 << 2;
+        const Decorate = 1 << 3;
+        const Metadata = 1 << 4;
+        const Param = 1 << 5;
+        const Awaiter = 1 << 6;
+        const Generator = 1 << 7;
+        const Values = 1 << 8;
+        const Read = 1 << 9;
+        const SpreadArray = 1 << 10;
+        const Await = 1 << 11;
+        const AsyncGenerator = 1 << 12;
+        const AsyncDelegator = 1 << 13;
+        const AsyncValues = 1 << 14;
+        const ExportStar = 1 << 15;
+        const ImportStar = 1 << 16;
+        const ImportDefault = 1 << 17;
+        const MakeTemplateObject = 1 << 18;
+        const ClassPrivateFieldGet = 1 << 19;
+        const ClassPrivateFieldSet = 1 << 20;
+        const ClassPrivateFieldIn = 1 << 21;
+        const CreateBinding = 1 << 22;
+        const FirstEmitHelper = Self::Extends.bits;
+        const LastEmitHelper = Self::CreateBinding.bits;
+
+        const ForOfIncludes = Self::Values.bits;
+
+        const ForAwaitOfIncludes = Self::AsyncValues.bits;
+
+        const AsyncGeneratorIncludes = Self::Await.bits | Self::AsyncGenerator.bits;
+
+        const AsyncDelegatorIncludes = Self::Await.bits | Self::AsyncDelegator.bits | Self::AsyncValues.bits;
+
+        const SpreadIncludes = Self::Read.bits | Self::SpreadArray.bits;
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmitHint {
     Expression,

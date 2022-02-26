@@ -2,6 +2,7 @@
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::rc::Rc;
 
 use super::{
@@ -659,6 +660,14 @@ pub trait ScriptReferenceHost {
     fn get_source_file_by_path(&self, path: &Path) -> Option<Rc<Node /*SourceFile*/>>;
     fn get_current_directory(&self) -> String;
 }
+
+pub trait CancellationToken {
+    fn is_cancellation_requested(&self) -> bool;
+
+    fn throw_if_cancellation_requested(&self);
+}
+
+pub trait CancellationTokenDebuggable: CancellationToken + fmt::Debug {}
 
 pub trait Program: TypeCheckerHost {
     fn get_syntactic_diagnostics(&self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>;

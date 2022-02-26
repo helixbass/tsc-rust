@@ -727,7 +727,7 @@ impl BinderType {
         opts: &CompilerOptions,
     ) -> bool {
         let file_as_source_file = file.as_source_file();
-        if get_strict_option_value(opts, "always_strict")
+        if get_strict_option_value(opts, "alwaysStrict")
             && !file_as_source_file.is_declaration_file()
         {
             true
