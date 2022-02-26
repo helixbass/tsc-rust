@@ -5,8 +5,8 @@ use std::cell::{Cell, Ref, RefCell};
 use std::rc::Rc;
 
 use super::{
-    BaseFunctionLikeDeclaration, BaseNode, HasTypeArgumentsInterface, NamedDeclarationInterface,
-    Node, NodeArray, SyntaxKind,
+    BaseFunctionLikeDeclaration, BaseNode, HasConditionInterface, HasTypeArgumentsInterface,
+    NamedDeclarationInterface, Node, NodeArray, SyntaxKind,
 };
 use local_macros::ast_type;
 
@@ -73,6 +73,12 @@ impl ConditionalExpression {
             colon_token,
             when_false,
         }
+    }
+}
+
+impl HasConditionInterface for ConditionalExpression {
+    fn maybe_condition(&self) -> Option<Rc<Node>> {
+        Some(self.condition.clone())
     }
 }
 

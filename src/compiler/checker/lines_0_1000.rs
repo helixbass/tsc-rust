@@ -92,7 +92,7 @@ pub fn get_symbol_id(symbol: &Symbol) -> SymbolId {
     symbol.id()
 }
 
-pub(super) fn get_node_id(node: &Node) -> NodeId {
+pub fn get_node_id(node: &Node) -> NodeId {
     if node.maybe_id().is_none() {
         node.set_id(get_next_node_id());
         increment_next_node_id();

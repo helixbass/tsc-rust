@@ -15,22 +15,24 @@ use super::{
     DebuggerStatement, Decorator, DefaultClause, DeleteExpression, DoStatement,
     ElementAccessExpression, EmitNode, EmptyStatement, EnumDeclaration, EnumMember,
     ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
-    ExpressionWithTypeArguments, ExternalModuleReference, ForInStatement, ForOfStatement,
+    ExpressionWithTypeArguments, ExternalModuleReference, FlowNode, ForInStatement, ForOfStatement,
     ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
-    FunctionTypeNode, GetAccessorDeclaration, HasElementsInterface, HasExpressionInterface,
-    HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasQuestionDotTokenInterface,
-    HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause, Identifier, IfStatement,
-    ImportClause, ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
-    IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InputFiles,
-    InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface, IntersectionTypeNode, JSDoc,
-    JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
-    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
-    JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature,
-    JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
-    JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes, JsxClosingElement,
-    JsxClosingFragment, JsxElement, JsxExpression, JsxFragment, JsxOpeningElement,
-    JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText, KeywordTypeNode,
-    LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
+    FunctionTypeNode, GetAccessorDeclaration, HasConditionInterface, HasElementsInterface,
+    HasExpressionInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasLabelInterface,
+    HasQuestionDotTokenInterface, HasQuestionTokenInterface, HasStatementInterface,
+    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause,
+    Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
+    ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
+    InferTypeNode, InputFiles, InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface,
+    IntersectionTypeNode, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType,
+    JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
+    JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration, JSDocPropertyLikeTag,
+    JSDocSeeTag, JSDocSignature, JSDocTagInterface, JSDocTemplateTag, JSDocText,
+    JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
+    JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute, JsxAttributes,
+    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
+    JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
+    KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
     MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
     ModifiersArray, ModuleBlock, ModuleDeclaration, NamedDeclarationInterface, NamedExports,
     NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration, NamespaceImport,
@@ -169,6 +171,12 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
     fn locals(&self) -> RefMut<SymbolTable>;
     fn set_locals(&self, locals: Option<SymbolTable>);
+    fn maybe_next_container(&self) -> Option<Rc<Node>>;
+    fn set_next_container(&self, next_container: Option<Rc<Node>>);
+    fn maybe_local_symbol(&self) -> Option<Rc<Symbol>>;
+    fn set_local_symbol(&self, local_symbol: Option<Rc<Symbol>>);
+    fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>>;
+    fn set_flow_node(&self, emit_node: Option<Rc<FlowNode>>);
     fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>>;
     fn set_emit_node(&self, emit_node: Option<EmitNode>);
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node /*JSDoc*/>>>;
@@ -600,6 +608,55 @@ impl Node {
         }
     }
 
+    pub fn as_has_statements(&self) -> &dyn HasStatementsInterface {
+        match self {
+            Node::Block(node) => node,
+            Node::ModuleBlock(node) => node,
+            Node::SourceFile(node) => node,
+            _ => panic!("Expected has statements"),
+        }
+    }
+
+    pub fn as_has_condition(&self) -> &dyn HasConditionInterface {
+        match self {
+            Node::ForStatement(node) => node,
+            Node::ConditionalExpression(node) => node,
+            _ => panic!("Expected has condition"),
+        }
+    }
+
+    pub fn as_jsdoc_typedef_or_callback_tag(&self) -> &dyn JSDocTypedefOrCallbackTagInterface {
+        match self {
+            Node::JSDocTypedefTag(node) => node,
+            Node::JSDocCallbackTag(node) => node,
+            _ => panic!("Expected JSDoc typedef or callback tag"),
+        }
+    }
+
+    pub fn as_has_statement(&self) -> &dyn HasStatementInterface {
+        match self {
+            Node::ForInStatement(node) => node,
+            Node::ForOfStatement(node) => node,
+            _ => panic!("Expected has statement"),
+        }
+    }
+
+    pub fn as_has_label(&self) -> &dyn HasLabelInterface {
+        match self {
+            Node::BreakStatement(node) => node,
+            Node::ContinueStatement(node) => node,
+            _ => panic!("Expected has label"),
+        }
+    }
+
+    pub fn as_has_question_token(&self) -> &dyn HasQuestionTokenInterface {
+        match self {
+            Node::PropertySignature(node) => node,
+            Node::PropertyDeclaration(node) => node,
+            _ => panic!("Expected has question token"),
+        }
+    }
+
     pub fn as_variable_declaration_list(&self) -> &VariableDeclarationList {
         enum_unwrapped!(self, [Node, VariableDeclarationList])
     }
@@ -1019,6 +1076,54 @@ impl Node {
     pub fn as_base_jsdoc_type_like_tag(&self) -> &BaseJSDocTypeLikeTag {
         enum_unwrapped!(self, [Node, BaseJSDocTypeLikeTag])
     }
+
+    pub fn as_named_exports(&self) -> &NamedExports {
+        enum_unwrapped!(self, [Node, NamedExports])
+    }
+
+    pub fn as_export_specifier(&self) -> &ExportSpecifier {
+        enum_unwrapped!(self, [Node, ExportSpecifier])
+    }
+
+    pub fn as_class_static_block_declaration(&self) -> &ClassStaticBlockDeclaration {
+        enum_unwrapped!(self, [Node, ClassStaticBlockDeclaration])
+    }
+
+    pub fn as_type_of_expression(&self) -> &TypeOfExpression {
+        enum_unwrapped!(self, [Node, TypeOfExpression])
+    }
+
+    pub fn as_parenthesized_expression(&self) -> &ParenthesizedExpression {
+        enum_unwrapped!(self, [Node, ParenthesizedExpression])
+    }
+
+    pub fn as_try_statement(&self) -> &TryStatement {
+        enum_unwrapped!(self, [Node, TryStatement])
+    }
+
+    pub fn as_case_block(&self) -> &CaseBlock {
+        enum_unwrapped!(self, [Node, CaseBlock])
+    }
+
+    pub fn as_delete_expression(&self) -> &DeleteExpression {
+        enum_unwrapped!(self, [Node, DeleteExpression])
+    }
+
+    pub fn as_catch_clause(&self) -> &CatchClause {
+        enum_unwrapped!(self, [Node, CatchClause])
+    }
+
+    pub fn as_module_block(&self) -> &ModuleBlock {
+        enum_unwrapped!(self, [Node, ModuleBlock])
+    }
+
+    pub fn as_function_expression(&self) -> &FunctionExpression {
+        enum_unwrapped!(self, [Node, FunctionExpression])
+    }
+
+    pub fn as_conditional_type_node(&self) -> &ConditionalTypeNode {
+        enum_unwrapped!(self, [Node, ConditionalTypeNode])
+    }
 }
 
 #[derive(Debug)]
@@ -1037,7 +1142,10 @@ pub struct BaseNode {
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
     pub locals: RefCell<Option<SymbolTable>>,
+    next_container: RefCell<Option<Rc<Node>>>,
+    local_symbol: RefCell<Option<Rc<Symbol>>>,
     emit_node: RefCell<Option<EmitNode>>,
+    flow_node: RefCell<Option<Rc<FlowNode>>>,
     js_doc: RefCell<Option<Vec<Weak<Node>>>>,
     js_doc_cache: RefCell<Option<Vec<Weak<Node>>>>,
     intersects_change: Cell<Option<bool>>,
@@ -1066,7 +1174,10 @@ impl BaseNode {
             end: Cell::new(end),
             symbol: RefCell::new(None),
             locals: RefCell::new(None),
+            next_container: RefCell::new(None),
+            local_symbol: RefCell::new(None),
             emit_node: RefCell::new(None),
+            flow_node: RefCell::new(None),
             js_doc: RefCell::new(None),
             js_doc_cache: RefCell::new(None),
             intersects_change: Cell::new(None),
@@ -1201,12 +1312,36 @@ impl NodeInterface for BaseNode {
         *self.locals.borrow_mut() = locals;
     }
 
+    fn maybe_next_container(&self) -> Option<Rc<Node>> {
+        self.next_container.borrow().clone()
+    }
+
+    fn set_next_container(&self, next_container: Option<Rc<Node>>) {
+        *self.next_container.borrow_mut() = next_container;
+    }
+
+    fn maybe_local_symbol(&self) -> Option<Rc<Symbol>> {
+        self.local_symbol.borrow().as_ref().map(|rc| rc.clone())
+    }
+
+    fn set_local_symbol(&self, local_symbol: Option<Rc<Symbol>>) {
+        *self.local_symbol.borrow_mut() = local_symbol;
+    }
+
     fn maybe_emit_node(&self) -> RefMut<Option<EmitNode>> {
         self.emit_node.borrow_mut()
     }
 
     fn set_emit_node(&self, emit_node: Option<EmitNode>) {
         *self.emit_node.borrow_mut() = emit_node;
+    }
+
+    fn maybe_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
+        self.flow_node.borrow_mut()
+    }
+
+    fn set_flow_node(&self, flow_node: Option<Rc<FlowNode>>) {
+        *self.flow_node.borrow_mut() = flow_node;
     }
 
     fn maybe_js_doc(&self) -> Option<Vec<Rc<Node>>> {

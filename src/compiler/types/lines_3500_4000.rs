@@ -1,15 +1,16 @@
 #![allow(non_upper_case_globals)]
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use super::{
     BaseNode, BaseTextRange, BuildInfo, CompilerOptions, Diagnostic, EmitHelper, FileReference,
-    LanguageVariant, Node, NodeArray, Path, ReadonlyPragmaMap, ResolvedModuleFull,
-    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
+    FlowNode, LanguageVariant, Node, NodeArray, Path, PatternAmbientModule, ReadonlyPragmaMap,
+    ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol,
+    SymbolTable, TypeCheckerHost,
 };
-use crate::{ModeAwareCache, PragmaContext};
+use crate::{ModeAwareCache, PragmaContext, __String};
 use local_macros::ast_type;
 
 pub type SourceTextAsChars = Vec<char>;
@@ -57,6 +58,10 @@ pub trait SourceFileLike {
     ) -> Option<usize>;
 }
 
+pub trait HasStatementsInterface {
+    fn statements(&self) -> &[Rc<Node>];
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct SourceFile {
@@ -85,10 +90,12 @@ pub struct SourceFile {
 
     external_module_indicator: RefCell<Option<Rc<Node>>>,
     common_js_module_indicator: RefCell<Option<Rc<Node>>>,
+    js_global_augmentations: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
 
     identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
     node_count: Cell<Option<usize>>,
     identifier_count: Cell<Option<usize>>,
+    symbol_count: Cell<Option<usize>>,
 
     parse_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
@@ -98,11 +105,15 @@ pub struct SourceFile {
     js_doc_diagnostics: RefCell<Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
     line_map: RefCell<Option<Vec<usize>>>,
+    classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
     comment_directives: RefCell<Option<Vec<CommentDirective>>>,
     resolved_modules: RefCell<Option<ModeAwareCache<Rc<ResolvedModuleFull /*| undefined*/>>>>,
     resolved_type_reference_directive_names:
         RefCell<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective /*| undefined*/>>>>,
+    pattern_ambient_modules: RefCell<Option<Vec<PatternAmbientModule>>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
+
+    end_flow_node: RefCell<Option<Rc<FlowNode>>>,
 }
 
 impl SourceFile {
@@ -135,22 +146,27 @@ impl SourceFile {
             identifiers: RefCell::new(None),
             node_count: Cell::new(None),
             identifier_count: Cell::new(None),
+            symbol_count: Cell::new(None),
             parse_diagnostics: RefCell::new(None),
             bind_diagnostics: RefCell::new(None),
             bind_suggestion_diagnostics: RefCell::new(None),
             js_doc_diagnostics: RefCell::new(None),
             line_map: RefCell::new(None),
+            classifiable_names: RefCell::new(None),
             language_version: Cell::new(language_version),
             language_variant: Cell::new(language_variant),
             script_kind: Cell::new(script_kind),
             external_module_indicator: RefCell::new(None),
             common_js_module_indicator: RefCell::new(None),
+            js_global_augmentations: RefCell::new(None),
             is_declaration_file: Cell::new(is_declaration_file),
             has_no_default_lib: Cell::new(has_no_default_lib),
             comment_directives: RefCell::new(None),
             resolved_modules: RefCell::new(None),
             resolved_type_reference_directive_names: RefCell::new(None),
+            pattern_ambient_modules: RefCell::new(None),
             pragmas: RefCell::new(None),
+            end_flow_node: RefCell::new(None),
         }
     }
 
@@ -270,11 +286,19 @@ impl SourceFile {
         self.common_js_module_indicator.borrow().clone()
     }
 
+    pub(crate) fn maybe_common_js_module_indicator_mut(&self) -> RefMut<Option<Rc<Node>>> {
+        self.common_js_module_indicator.borrow_mut()
+    }
+
     pub(crate) fn set_common_js_module_indicator(
         &self,
         common_js_module_indicator: Option<Rc<Node>>,
     ) {
         *self.common_js_module_indicator.borrow_mut() = common_js_module_indicator;
+    }
+
+    pub(crate) fn maybe_js_global_augmentations(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+        self.js_global_augmentations.borrow_mut()
     }
 
     pub fn identifiers(&self) -> Rc<RefCell<HashMap<String, String>>> {
@@ -299,6 +323,14 @@ impl SourceFile {
 
     pub fn set_identifier_count(&self, identifier_count: usize) {
         self.identifier_count.set(Some(identifier_count))
+    }
+
+    pub fn symbol_count(&self) -> usize {
+        self.symbol_count.get().unwrap()
+    }
+
+    pub fn set_symbol_count(&self, symbol_count: usize) {
+        self.symbol_count.set(Some(symbol_count))
     }
 
     pub fn parse_diagnostics(&self) -> RefMut<Vec<Rc<Diagnostic>>> {
@@ -340,6 +372,13 @@ impl SourceFile {
         *self.js_doc_diagnostics.borrow_mut() = Some(js_doc_diagnostics);
     }
 
+    pub fn set_classifiable_names(
+        &self,
+        classifiable_names: Option<Rc<RefCell<HashSet<__String>>>>,
+    ) {
+        *self.classifiable_names.borrow_mut() = classifiable_names;
+    }
+
     pub fn maybe_comment_directives(&self) -> Ref<Option<Vec<CommentDirective>>> {
         self.comment_directives.borrow()
     }
@@ -358,12 +397,20 @@ impl SourceFile {
         self.resolved_type_reference_directive_names.borrow_mut()
     }
 
+    pub fn pattern_ambient_modules_mut(&self) -> RefMut<Option<Vec<PatternAmbientModule>>> {
+        self.pattern_ambient_modules.borrow_mut()
+    }
+
     pub fn pragmas(&self) -> Ref<ReadonlyPragmaMap> {
         Ref::map(self.pragmas.borrow(), |option| option.as_ref().unwrap())
     }
 
     pub fn set_pragmas(&self, pragmas: ReadonlyPragmaMap) {
         *self.pragmas.borrow_mut() = Some(pragmas);
+    }
+
+    pub fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>) {
+        *self.end_flow_node.borrow_mut() = end_flow_node;
     }
 
     pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
@@ -403,6 +450,12 @@ impl SourceFileLike for SourceFile {
 }
 
 impl PragmaContext for SourceFile {}
+
+impl HasStatementsInterface for SourceFile {
+    fn statements(&self) -> &[Rc<Node>] {
+        &self.statements
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct CommentDirective {

@@ -459,21 +459,34 @@ bitflags! {
         const ConstEnum = 1 << 7;
         const RegularEnum = 1 << 8;
         const ValueModule = 1 << 9;
+        const NamespaceModule = 1 << 10;
         const TypeLiteral = 1 << 11;
         const ObjectLiteral = 1 << 12;
         const Method = 1 << 13;
+        const Constructor = 1 << 14;
         const GetAccessor = 1 << 15;
         const SetAccessor = 1 << 16;
+        const Signature = 1 << 17;
         const TypeParameter = 1 << 18;
         const TypeAlias = 1 << 19;
         const ExportValue = 1 << 20;
+        const Alias = 1 << 21;
+        const Prototype = 1 << 22;
+        const ExportStar = 1 << 23;
         const Optional = 1 << 24;
         const Transient = 1 << 25;
+        const Assignment = 1 << 26;
+        const ModuleExports = 1 << 27;
+
+        const All = Self::FunctionScopedVariable.bits | Self::BlockScopedVariable.bits | Self::Property.bits | Self::EnumMember.bits | Self::Function.bits | Self::Class.bits | Self::Interface.bits | Self::ConstEnum.bits | Self::RegularEnum.bits | Self::ValueModule.bits | Self::NamespaceModule.bits | Self::TypeLiteral.bits | Self::ObjectLiteral.bits | Self::Method.bits | Self::Constructor.bits | Self::GetAccessor.bits | Self::SetAccessor.bits | Self::Signature.bits | Self::TypeParameter.bits | Self::TypeAlias.bits | Self::ExportValue.bits | Self::Alias.bits | Self::Prototype.bits | Self::ExportStar.bits | Self::Optional.bits | Self::Transient.bits;
 
         const Enum = Self::RegularEnum.bits | Self::ConstEnum.bits;
         const Variable = Self::FunctionScopedVariable.bits | Self::BlockScopedVariable.bits;
         const Value = Self::Variable.bits | Self::Property.bits | Self::EnumMember.bits | Self::ObjectLiteral.bits | Self::Function.bits | Self::Class.bits | Self::Enum.bits | Self::ValueModule.bits | Self::Method.bits | Self::GetAccessor.bits | Self::SetAccessor.bits;
         const Type = Self::Class.bits | Self::Interface.bits | Self::Enum.bits | Self::EnumMember.bits | Self::TypeLiteral.bits | Self::TypeParameter.bits | Self::TypeAlias.bits;
+        const Namespace = Self::ValueModule.bits | Self::NamespaceModule.bits | Self::Enum.bits;
+        const Module = Self::ValueModule.bits | Self::NamespaceModule.bits;
+        const Accessor = Self::GetAccessor.bits | Self::SetAccessor.bits;
 
         const FunctionScopedVariableExcludes = Self::Value.bits & !Self::FunctionScopedVariable.bits;
 
@@ -481,10 +494,38 @@ bitflags! {
 
         const ParameterExcludes = Self::Value.bits;
         const PropertyExcludes = Self::None.bits;
+        const EnumMemberExcludes = Self::None.bits | Self::Type.bits;
         const FunctionExcludes = Self::Value.bits & !(Self::Function.bits | Self::ValueModule.bits | Self::Class.bits);
+        const ClassExcludes = (Self::Value.bits | Self::Type.bits) & !(Self::ValueModule.bits | Self::Interface.bits | Self::Function.bits);
         const InterfaceExcludes = Self::Type.bits & !(Self::Interface.bits | Self::Class.bits);
+        const RegularEnumExcludes = (Self::Value.bits | Self::Type.bits) & !(Self::RegularEnum.bits | Self::ValueModule.bits);
+        const ConstEnumExcludes = (Self::Value.bits | Self::Type.bits) & !Self::ConstEnum.bits;
+        const ValueModuleExcludes = Self::Value.bits & !(Self::Function.bits | Self::Class.bits | Self::RegularEnum.bits | Self::ValueModule.bits);
+        const NamespaceModuleExcludes = Self::None.bits;
+        const MethodExcludes = Self::Value.bits & !Self::Method.bits;
+        const GetAccessorExcludes = Self::Value.bits & !Self::SetAccessor.bits;
+        const SetAccessorExcludes = Self::Value.bits & !Self::GetAccessor.bits;
         const TypeParameterExcludes = Self::Type.bits & !Self::TypeParameter.bits;
         const TypeAliasExcludes = Self::Type.bits;
+        const AliasExcludes = Self::Alias.bits;
+
+        const ModuleMember = Self::Variable.bits | Self::Function.bits | Self::Class.bits | Self::Interface.bits | Self::Enum.bits | Self::Module.bits | Self::TypeAlias.bits | Self::Alias.bits;
+
+        const ExportHasLocal = Self::Function.bits | Self::Class.bits | Self::Enum.bits | Self::ValueModule.bits;
+
+        const BlockScoped = Self::BlockScopedVariable.bits | Self::Class.bits | Self::Enum.bits;
+
+        const PropertyOrAccessor = Self::Property.bits | Self::Accessor.bits;
+
+        const ClassMember = Self::Method.bits | Self::Accessor.bits | Self::Property.bits;
+
+        const ExportSupportsDefaultModifier = Self::Class.bits | Self::Function.bits | Self::Interface.bits;
+
+        const ExportDoesNotSupportDefaultModifier = !Self::ExportSupportsDefaultModifier.bits;
+
+        const Classifiable = Self::Class.bits | Self::Enum.bits | Self::TypeAlias.bits | Self::Interface.bits | Self::TypeParameter.bits | Self::Module.bits | Self::Alias.bits;
+
+        const LateBindingContainer = Self::Class.bits | Self::Interface.bits | Self::TypeLiteral.bits | Self::ObjectLiteral.bits | Self::Function.bits;
     }
 }
 
@@ -502,9 +543,23 @@ pub trait SymbolInterface {
     fn set_value_declaration(&self, node: Rc<Node>);
     fn maybe_members(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
+    fn maybe_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
+    fn exports(&self) -> Rc<RefCell<SymbolTable>>;
+    fn maybe_global_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
     fn maybe_id(&self) -> Option<SymbolId>;
     fn id(&self) -> SymbolId;
     fn set_id(&self, id: SymbolId);
+    fn maybe_parent(&self) -> Option<Rc<Symbol>>;
+    fn set_parent(&self, parent: Option<Rc<Symbol>>);
+    fn maybe_export_symbol(&self) -> Option<Rc<Symbol>>;
+    fn set_export_symbol(&self, export_symbol: Option<Rc<Symbol>>);
+    fn maybe_const_enum_only_module(&self) -> Option<bool>;
+    fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>);
+    fn maybe_is_replaceable_by_method(&self) -> Option<bool>;
+    fn set_is_replaceable_by_method(&self, is_replaceable_by_method: Option<bool>);
+    fn maybe_assignment_declaration_members(
+        &self,
+    ) -> RefMut<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>;
 }
 
 #[derive(Debug)]
@@ -530,7 +585,14 @@ pub struct BaseSymbol {
     declarations: RefCell<Option<Vec<Rc<Node /*Declaration*/>>>>, // TODO: should be Vec<Weak<Node>> instead of Vec<Rc<Node>>?
     value_declaration: RefCell<Option<Weak<Node>>>,
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
+    exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
+    global_exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     id: Cell<Option<SymbolId>>,
+    parent: RefCell<Option<Rc<Symbol>>>,
+    export_symbol: RefCell<Option<Rc<Symbol>>>,
+    const_enum_only_module: Cell<Option<bool>>,
+    is_replaceable_by_method: Cell<Option<bool>>,
+    assignment_declaration_members: RefCell<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>,
 }
 
 impl BaseSymbol {
@@ -542,7 +604,14 @@ impl BaseSymbol {
             declarations: RefCell::new(None),
             value_declaration: RefCell::new(None),
             members: RefCell::new(None),
+            exports: RefCell::new(None),
+            global_exports: RefCell::new(None),
             id: Cell::new(None),
+            parent: RefCell::new(None),
+            export_symbol: RefCell::new(None),
+            const_enum_only_module: Cell::new(None),
+            is_replaceable_by_method: Cell::new(None),
+            assignment_declaration_members: RefCell::new(None),
         }
     }
 }
@@ -600,6 +669,18 @@ impl SymbolInterface for BaseSymbol {
         self.members.borrow_mut().as_ref().unwrap().clone()
     }
 
+    fn maybe_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+        self.exports.borrow_mut()
+    }
+
+    fn exports(&self) -> Rc<RefCell<SymbolTable>> {
+        self.exports.borrow_mut().as_ref().unwrap().clone()
+    }
+
+    fn maybe_global_exports(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
+        self.global_exports.borrow_mut()
+    }
+
     fn maybe_id(&self) -> Option<SymbolId> {
         self.id.get()
     }
@@ -610,6 +691,42 @@ impl SymbolInterface for BaseSymbol {
 
     fn set_id(&self, id: SymbolId) {
         self.id.set(Some(id));
+    }
+
+    fn maybe_parent(&self) -> Option<Rc<Symbol>> {
+        self.parent.borrow().as_ref().map(Clone::clone)
+    }
+
+    fn set_parent(&self, parent: Option<Rc<Symbol>>) {
+        *self.parent.borrow_mut() = parent;
+    }
+
+    fn maybe_export_symbol(&self) -> Option<Rc<Symbol>> {
+        self.export_symbol.borrow().as_ref().map(Clone::clone)
+    }
+
+    fn set_export_symbol(&self, export_symbol: Option<Rc<Symbol>>) {
+        *self.export_symbol.borrow_mut() = export_symbol;
+    }
+
+    fn maybe_const_enum_only_module(&self) -> Option<bool> {
+        self.const_enum_only_module.get()
+    }
+
+    fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>) {
+        self.const_enum_only_module.set(const_enum_only_module);
+    }
+
+    fn maybe_is_replaceable_by_method(&self) -> Option<bool> {
+        self.is_replaceable_by_method.get()
+    }
+
+    fn set_is_replaceable_by_method(&self, is_replaceable_by_method: Option<bool>) {
+        self.is_replaceable_by_method.set(is_replaceable_by_method);
+    }
+
+    fn maybe_assignment_declaration_members(&self) -> RefMut<Option<HashMap<NodeId, Rc<Node>>>> {
+        self.assignment_declaration_members.borrow_mut()
     }
 }
 

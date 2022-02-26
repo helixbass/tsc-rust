@@ -712,7 +712,7 @@ pub fn get_assignment_target_kind(node: &Node) -> AssignmentKind {
     }
 }
 
-pub fn is_assigment_target(node: &Node) -> bool {
+pub fn is_assignment_target(node: &Node) -> bool {
     get_assignment_target_kind(node) != AssignmentKind::None
 }
 

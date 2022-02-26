@@ -12,15 +12,79 @@ use super::{
     ResolvedTypeInterface, Signature, StringLiteralType, Symbol, TypeParameter, TypeReference,
     UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
 };
-use crate::WeakSelf;
+use crate::{Pattern, WeakSelf};
 use local_macros::{enum_unwrapped, type_type};
 
 pub struct InternalSymbolName;
 
 #[allow(non_snake_case)]
 impl InternalSymbolName {
+    pub fn Call() -> __String {
+        __String::new("__call".to_string())
+    }
+
+    pub fn Constructor() -> __String {
+        __String::new("__constructor".to_string())
+    }
+
+    pub fn New() -> __String {
+        __String::new("__new".to_string())
+    }
+
+    pub fn Index() -> __String {
+        __String::new("__index".to_string())
+    }
+
+    pub fn ExportStar() -> __String {
+        __String::new("__export".to_string())
+    }
+
+    pub fn Global() -> __String {
+        __String::new("__global".to_string())
+    }
+
+    pub fn Missing() -> __String {
+        __String::new("__missing".to_string())
+    }
+
+    pub fn Type() -> __String {
+        __String::new("__type".to_string())
+    }
+
     pub fn Object() -> __String {
         __String::new("__object".to_string())
+    }
+
+    pub fn JSXAttributes() -> __String {
+        __String::new("__jsxAttributes".to_string())
+    }
+
+    pub fn Class() -> __String {
+        __String::new("__class".to_string())
+    }
+
+    pub fn Function() -> __String {
+        __String::new("__function".to_string())
+    }
+
+    pub fn Computed() -> __String {
+        __String::new("__computed".to_string())
+    }
+
+    pub fn Resolving() -> __String {
+        __String::new("__resolving__".to_string())
+    }
+
+    pub fn ExportEquals() -> __String {
+        __String::new("export=".to_string())
+    }
+
+    pub fn Default() -> __String {
+        __String::new("default".to_string())
+    }
+
+    pub fn This() -> __String {
+        __String::new("this".to_string())
     }
 }
 
@@ -53,6 +117,18 @@ impl Deref for __String {
 pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
 pub type SymbolTable = UnderscoreEscapedMap<Rc<Symbol>>;
+
+#[derive(Clone, Debug)]
+pub struct PatternAmbientModule {
+    pub pattern: Pattern,
+    pub symbol: Rc<Symbol>,
+}
+
+impl PatternAmbientModule {
+    pub fn new(pattern: Pattern, symbol: Rc<Symbol>) -> Self {
+        Self { pattern, symbol }
+    }
+}
 
 bitflags! {
     pub struct NodeCheckFlags: u32 {

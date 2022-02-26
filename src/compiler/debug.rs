@@ -1,10 +1,24 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::fmt;
+use std::rc::Rc;
 
 use crate::{AssertionLevel, Node, NodeArray, NodeInterface, SyntaxKind};
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum LogLevel {
+    Off,
+    Error,
+    Warning,
+    Info,
+    Verbose,
+}
+
+pub trait LoggingHost {
+    fn log(&self, level: LogLevel, s: &str);
+}
 
 enum AssertionKeys {
     AssertNode,
@@ -12,6 +26,12 @@ enum AssertionKeys {
 
 thread_local! {
     static current_assertion_level: Cell<AssertionLevel> = Cell::new(AssertionLevel::None);
+}
+thread_local! {
+    pub static current_log_level: Cell<LogLevel> = Cell::new(LogLevel::Warning);
+}
+thread_local! {
+    pub static logging_host: RefCell<Option<Rc<dyn LoggingHost>>> = RefCell::new(None);
 }
 
 pub struct DebugType {}
@@ -23,6 +43,28 @@ impl DebugType {
 
     fn current_assertion_level(&self) -> AssertionLevel {
         current_assertion_level.with(|current_assertion_level_| current_assertion_level_.get())
+    }
+    pub fn current_log_level(&self) -> LogLevel {
+        current_log_level.with(|current_log_level_| current_log_level_.get())
+    }
+
+    pub fn should_log(&self, level: LogLevel) -> bool {
+        self.current_log_level() <= level
+    }
+
+    pub fn log_message(&self, level: LogLevel, s: &str) {
+        logging_host.with(|logging_host_| {
+            let logging_host_ = logging_host_.borrow();
+            if let Some(logging_host_) = logging_host_.as_ref() {
+                if self.should_log(level) {
+                    logging_host_.log(level, s);
+                }
+            }
+        })
+    }
+
+    pub fn log(&self, s: &str) {
+        self.log_message(LogLevel::Info, s)
     }
 
     fn should_assert(&self, level: AssertionLevel) -> bool {

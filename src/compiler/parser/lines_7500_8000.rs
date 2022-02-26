@@ -403,7 +403,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                 let mut state = JSDocState::SawAsterisk;
                 let mut margin: Option<usize> = None;
                 let mut indent: usize = self.start
-                    - usize::try_from(last_index_of(self.content, '\n', self.start) + 1).unwrap()
+                    - usize::try_from(last_index_of(self.content, &'\n', |a, b| a == b, self.start) + 1).unwrap()
                     + 4;
 
                 self.parser.next_token_jsdoc();

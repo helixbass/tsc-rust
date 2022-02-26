@@ -6,8 +6,8 @@ use std::rc::Rc;
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
     BindingLikeDeclarationInterface, FlowNode, HasExpressionInterface, HasInitializerInterface,
-    HasTypeInterface, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, SyntaxKind, VariableLikeDeclarationInterface,
+    HasStatementsInterface, HasTypeInterface, LiteralLikeNodeInterface, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, SyntaxKind, VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
 
@@ -390,6 +390,12 @@ impl Block {
     }
 }
 
+impl HasStatementsInterface for Block {
+    fn statements(&self) -> &[Rc<Node>] {
+        &self.statements
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct VariableStatement {
@@ -483,6 +489,10 @@ impl WhileStatement {
     }
 }
 
+pub trait HasConditionInterface {
+    fn maybe_condition(&self) -> Option<Rc<Node>>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ForStatement {
@@ -521,6 +531,16 @@ impl HasInitializerInterface for ForStatement {
     }
 }
 
+impl HasConditionInterface for ForStatement {
+    fn maybe_condition(&self) -> Option<Rc<Node>> {
+        self.condition.clone()
+    }
+}
+
+pub trait HasStatementInterface {
+    fn statement(&self) -> Rc<Node>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ForInStatement {
@@ -553,6 +573,12 @@ impl HasInitializerInterface for ForInStatement {
 
     fn set_initializer(&mut self, initializer: Rc<Node>) {
         self.initializer = initializer;
+    }
+}
+
+impl HasStatementInterface for ForInStatement {
+    fn statement(&self) -> Rc<Node> {
+        self.statement.clone()
     }
 }
 
@@ -594,6 +620,16 @@ impl HasInitializerInterface for ForOfStatement {
     }
 }
 
+impl HasStatementInterface for ForOfStatement {
+    fn statement(&self) -> Rc<Node> {
+        self.statement.clone()
+    }
+}
+
+pub trait HasLabelInterface {
+    fn maybe_label(&self) -> Option<Rc<Node>>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct BreakStatement {
@@ -610,6 +646,12 @@ impl BreakStatement {
     }
 }
 
+impl HasLabelInterface for BreakStatement {
+    fn maybe_label(&self) -> Option<Rc<Node>> {
+        self.label.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ContinueStatement {
@@ -623,6 +665,12 @@ impl ContinueStatement {
             _node: base_node,
             label,
         }
+    }
+}
+
+impl HasLabelInterface for ContinueStatement {
+    fn maybe_label(&self) -> Option<Rc<Node>> {
+        self.label.clone()
     }
 }
 
@@ -666,7 +714,7 @@ pub struct SwitchStatement {
     _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
     pub case_block: Rc<Node /*CaseBlock*/>,
-    pub possibly_exhaustive: Option<bool>,
+    possibly_exhaustive: Cell<Option<bool>>,
 }
 
 impl SwitchStatement {
@@ -675,8 +723,12 @@ impl SwitchStatement {
             _node: base_node,
             expression,
             case_block,
-            possibly_exhaustive: None,
+            possibly_exhaustive: Cell::new(None),
         }
+    }
+
+    pub fn set_possibly_exhaustive(&self, possibly_exhaustive: Option<bool>) {
+        self.possibly_exhaustive.set(possibly_exhaustive);
     }
 }
 
@@ -702,7 +754,7 @@ pub struct CaseClause {
     _node: BaseNode,
     pub expression: Rc<Node /*Expression*/>,
     pub statements: NodeArray, /*<Statement>*/
-    pub(crate) fallthrough_flow_node: Option<FlowNode>,
+    fallthrough_flow_node: RefCell<Option<Rc<FlowNode>>>,
 }
 
 impl CaseClause {
@@ -711,8 +763,12 @@ impl CaseClause {
             _node: base_node,
             expression,
             statements,
-            fallthrough_flow_node: None,
+            fallthrough_flow_node: RefCell::new(None),
         }
+    }
+
+    pub fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Rc<FlowNode>>) {
+        *self.fallthrough_flow_node.borrow_mut() = fallthrough_flow_node;
     }
 }
 
@@ -845,6 +901,10 @@ impl BindingElement {
     }
 }
 
+pub trait HasQuestionTokenInterface {
+    fn maybe_question_token(&self) -> Option<Rc<Node>>;
+}
+
 #[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct PropertySignature {
@@ -889,6 +949,12 @@ impl HasInitializerInterface for PropertySignature {
     }
 }
 
+impl HasQuestionTokenInterface for PropertySignature {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
+    }
+}
+
 impl BindingLikeDeclarationInterface for PropertySignature {}
 
 impl VariableLikeDeclarationInterface for PropertySignature {}
@@ -914,6 +980,12 @@ impl PropertyDeclaration {
             question_token,
             exclamation_token,
         }
+    }
+}
+
+impl HasQuestionTokenInterface for PropertyDeclaration {
+    fn maybe_question_token(&self) -> Option<Rc<Node>> {
+        self.question_token.clone()
     }
 }
 
@@ -1371,6 +1443,12 @@ impl ModuleBlock {
             _node: base_node,
             statements,
         }
+    }
+}
+
+impl HasStatementsInterface for ModuleBlock {
+    fn statements(&self) -> &[Rc<Node>] {
+        &self.statements
     }
 }
 

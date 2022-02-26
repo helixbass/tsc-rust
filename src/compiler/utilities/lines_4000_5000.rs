@@ -5,12 +5,12 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    compute_line_starts, flat_map, get_jsdoc_tags, is_binary_expression, is_jsdoc_signature,
-    is_jsdoc_template_tag, is_jsdoc_type_alias, is_left_hand_side_expression,
-    is_property_access_entity_name_expression, is_white_space_like, last,
-    str_to_source_text_as_chars, string_contains, CharacterCodes, EmitTextWriter, ModifierFlags,
-    Node, NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolTracker, SymbolWriter,
-    SyntaxKind,
+    compute_line_starts, flat_map, get_jsdoc_tags, is_binary_expression, is_class_element,
+    is_class_static_block_declaration, is_jsdoc_signature, is_jsdoc_template_tag,
+    is_jsdoc_type_alias, is_left_hand_side_expression, is_property_access_entity_name_expression,
+    is_white_space_like, last, str_to_source_text_as_chars, string_contains, CharacterCodes,
+    EmitTextWriter, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags,
+    SymbolTracker, SymbolWriter, SyntaxKind,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -487,6 +487,10 @@ pub fn has_syntactic_modifier<TNode: NodeInterface>(node: &TNode, flags: Modifie
     get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
 }
 
+pub fn is_static(node: &Node) -> bool {
+    is_class_element(node) && has_static_modifier(node) || is_class_static_block_declaration(node)
+}
+
 pub fn has_static_modifier<TNode: NodeInterface>(node: &TNode) -> bool {
     has_syntactic_modifier(node, ModifierFlags::Static)
 }
@@ -600,6 +604,18 @@ pub fn is_assignment_expression(node: &Node, exclude_compound_assignment: Option
     } else {
         is_assignment_operator(node_as_binary_expression.operator_token.kind())
     }) && is_left_hand_side_expression(&*node_as_binary_expression.left)
+}
+
+pub fn is_destructuring_assignment(node: &Node) -> bool {
+    if is_assignment_expression(node, Some(true)) {
+        let kind = node.as_binary_expression().left.kind();
+        return matches!(
+            kind,
+            SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
+        );
+    }
+
+    false
 }
 
 pub fn is_expression_with_type_arguments_in_class_extends_clause(node: &Node) -> bool {

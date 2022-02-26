@@ -69,7 +69,7 @@ impl TypeChecker {
         host: &TTypeCheckerHost,
     ) {
         for file in host.get_source_files() {
-            bind_source_file(&*file);
+            bind_source_file(&*file, self.compiler_options.clone());
             println!("post-binding: {:#?}", file);
         }
 

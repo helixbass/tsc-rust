@@ -177,12 +177,36 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_locals(locals)
                     }
 
+                    fn maybe_next_container(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        self.#first_field_name.maybe_next_container()
+                    }
+
+                    fn set_next_container(&self, next_container: ::std::option::Option<::std::rc::Rc<crate::Node>>) {
+                        self.#first_field_name.set_next_container(next_container)
+                    }
+
+                    fn maybe_local_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        self.#first_field_name.maybe_local_symbol()
+                    }
+
+                    fn set_local_symbol(&self, local_symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        self.#first_field_name.set_local_symbol(local_symbol)
+                    }
+
                     fn maybe_emit_node(&self) -> ::std::cell::RefMut<::std::option::Option<crate::EmitNode>> {
                         self.#first_field_name.maybe_emit_node()
                     }
 
                     fn set_emit_node(&self, emit_node: ::std::option::Option<crate::EmitNode>) {
                         self.#first_field_name.set_emit_node(emit_node)
+                    }
+
+                    fn maybe_flow_node(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::FlowNode>>> {
+                        self.#first_field_name.maybe_flow_node()
+                    }
+
+                    fn set_flow_node(&self, flow_node: ::std::option::Option<::std::rc::Rc<crate::FlowNode>>) {
+                        self.#first_field_name.set_flow_node(flow_node)
                     }
 
                     fn maybe_js_doc(&self) -> ::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>> {
@@ -367,6 +391,22 @@ fn get_ast_struct_interface_impl(
 
                     fn maybe_exclamation_token(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
                         self.#first_field_name.maybe_exclamation_token()
+                    }
+
+                    fn maybe_end_flow_node(&self) -> ::std::option::Option<::std::rc::Rc<crate::FlowNode>> {
+                        self.#first_field_name.maybe_end_flow_node()
+                    }
+
+                    fn set_end_flow_node(&self, end_flow_node: ::std::option::Option<::std::rc::Rc<crate::FlowNode>>) {
+                        self.#first_field_name.set_end_flow_node(end_flow_node)
+                    }
+
+                    fn maybe_return_flow_node(&self) -> ::std::option::Option<::std::rc::Rc<crate::FlowNode>> {
+                        self.#first_field_name.maybe_return_flow_node()
+                    }
+
+                    fn set_return_flow_node(&self, return_flow_node: ::std::option::Option<::std::rc::Rc<crate::FlowNode>>) {
+                        self.#first_field_name.set_return_flow_node(return_flow_node)
                     }
                 }
             }
@@ -592,6 +632,30 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
+                    fn maybe_next_container(&self) -> ::std::option::Option<::std::rc::Rc<crate::Node>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_next_container()),*
+                        }
+                    }
+
+                    fn set_next_container(&self, next_container: ::std::option::Option<::std::rc::Rc<crate::Node>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_next_container(next_container)),*
+                        }
+                    }
+
+                    fn maybe_local_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_local_symbol()),*
+                        }
+                    }
+
+                    fn set_local_symbol(&self, local_symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_local_symbol(local_symbol)),*
+                        }
+                    }
+
                     fn maybe_emit_node(&self) -> ::std::cell::RefMut<::std::option::Option<crate::EmitNode>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_emit_node()),*
@@ -601,6 +665,18 @@ fn get_ast_enum_interface_impl(
                     fn set_emit_node(&self, emit_node: ::std::option::Option<crate::EmitNode>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_emit_node(emit_node)),*
+                        }
+                    }
+
+                    fn maybe_flow_node(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::FlowNode>>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_flow_node()),*
+                        }
+                    }
+
+                    fn set_flow_node(&self, flow_node: ::std::option::Option<::std::rc::Rc<crate::FlowNode>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_flow_node(flow_node)),*
                         }
                     }
 
@@ -803,6 +879,30 @@ fn get_ast_enum_interface_impl(
                     fn maybe_exclamation_token(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_exclamation_token()),*
+                        }
+                    }
+
+                    fn maybe_end_flow_node(&self) -> ::std::option::Option<::std::rc::Rc<crate::FlowNode>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_end_flow_node()),*
+                        }
+                    }
+
+                    fn set_end_flow_node(&self, end_flow_node: ::std::option::Option<::std::rc::Rc<crate::FlowNode>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_end_flow_node(end_flow_node)),*
+                        }
+                    }
+
+                    fn maybe_return_flow_node(&self) -> ::std::option::Option<::std::rc::Rc<crate::FlowNode>> {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.maybe_return_flow_node()),*
+                        }
+                    }
+
+                    fn set_return_flow_node(&self, return_flow_node: ::std::option::Option<::std::rc::Rc<crate::FlowNode>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_return_flow_node(return_flow_node)),*
                         }
                     }
                 }
@@ -1668,6 +1768,18 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.members()
                     }
 
+                    fn maybe_exports(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        self.#first_field_name.maybe_exports()
+                    }
+
+                    fn exports(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
+                        self.#first_field_name.exports()
+                    }
+
+                    fn maybe_global_exports(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        self.#first_field_name.maybe_global_exports()
+                    }
+
                     fn maybe_id(&self) -> ::std::option::Option<crate::SymbolId> {
                         self.#first_field_name.maybe_id()
                     }
@@ -1678,6 +1790,42 @@ fn get_symbol_struct_interface_impl(
 
                     fn set_id(&self, id: crate::SymbolId) {
                         self.#first_field_name.set_id(id)
+                    }
+
+                    fn maybe_parent(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        self.#first_field_name.maybe_parent()
+                    }
+
+                    fn set_parent(&self, parent: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        self.#first_field_name.set_parent(parent)
+                    }
+
+                    fn maybe_export_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        self.#first_field_name.maybe_export_symbol()
+                    }
+
+                    fn set_export_symbol(&self, export_symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        self.#first_field_name.set_export_symbol(export_symbol)
+                    }
+
+                    fn maybe_const_enum_only_module(&self) -> ::std::option::Option<bool> {
+                        self.#first_field_name.maybe_const_enum_only_module()
+                    }
+
+                    fn set_const_enum_only_module(&self, const_enum_only_module: ::std::option::Option<bool>) {
+                        self.#first_field_name.set_const_enum_only_module(const_enum_only_module)
+                    }
+
+                    fn maybe_is_replaceable_by_method(&self) -> ::std::option::Option<bool> {
+                        self.#first_field_name.maybe_is_replaceable_by_method()
+                    }
+
+                    fn set_is_replaceable_by_method(&self, is_replaceable_by_method: ::std::option::Option<bool>) {
+                        self.#first_field_name.set_is_replaceable_by_method(is_replaceable_by_method)
+                    }
+
+                    fn maybe_assignment_declaration_members(&self) -> ::std::cell::RefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::std::rc::Rc<crate::Node>>>> {
+                        self.#first_field_name.maybe_assignment_declaration_members()
                     }
                 }
             }
@@ -1774,6 +1922,24 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
+                    fn maybe_exports(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_exports()),*
+                        }
+                    }
+
+                    fn exports(&self) -> ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.exports()),*
+                        }
+                    }
+
+                    fn maybe_global_exports(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_global_exports()),*
+                        }
+                    }
+
                     fn maybe_id(&self) -> ::std::option::Option<crate::SymbolId> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_id()),*
@@ -1789,6 +1955,60 @@ fn get_symbol_enum_interface_impl(
                     fn set_id(&self, id: crate::SymbolId) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_id(id)),*
+                        }
+                    }
+
+                    fn maybe_parent(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_parent()),*
+                        }
+                    }
+
+                    fn set_parent(&self, parent: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_parent(parent)),*
+                        }
+                    }
+
+                    fn maybe_export_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_export_symbol()),*
+                        }
+                    }
+
+                    fn set_export_symbol(&self, export_symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_export_symbol(export_symbol)),*
+                        }
+                    }
+
+                    fn maybe_const_enum_only_module(&self) -> ::std::option::Option<bool> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_const_enum_only_module()),*
+                        }
+                    }
+
+                    fn set_const_enum_only_module(&self, const_enum_only_module: ::std::option::Option<bool>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_const_enum_only_module(const_enum_only_module)),*
+                        }
+                    }
+
+                    fn maybe_is_replaceable_by_method(&self) -> ::std::option::Option<bool> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_is_replaceable_by_method()),*
+                        }
+                    }
+
+                    fn set_is_replaceable_by_method(&self, is_replaceable_by_method: ::std::option::Option<bool>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_is_replaceable_by_method(is_replaceable_by_method)),*
+                        }
+                    }
+
+                    fn maybe_assignment_declaration_members(&self) -> ::std::cell::RefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::std::rc::Rc<crate::Node>>>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_assignment_declaration_members()),*
                         }
                     }
                 }

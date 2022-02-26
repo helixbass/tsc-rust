@@ -1,15 +1,17 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Cow;
 use std::cmp;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
     compare_strings_case_sensitive, compare_strings_case_sensitive_maybe, compare_values, for_each,
-    format_string_from_args, get_locale_specific_message, CommandLineOption,
-    CommandLineOptionInterface, Comparison, CompilerOptions, CompilerOptionsValue, Diagnostic,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension, JsxEmit,
-    LanguageVariant, ModuleKind, ScriptKind, ScriptTarget,
+    format_string_from_args, get_locale_specific_message, index_of, CommandLineOption,
+    CommandLineOptionInterface, Comparison, CompilerOptions, CompilerOptionsValue, Debug_,
+    Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    Extension, JsxEmit, LanguageVariant, ModuleKind, Pattern, ScriptKind, ScriptTarget,
 };
 use local_macros::enum_unwrapped;
 
@@ -199,6 +201,14 @@ pub fn get_emit_script_target(compiler_options: &CompilerOptions) -> ScriptTarge
 
 pub fn get_emit_module_kind(compiler_options: &CompilerOptions) -> ModuleKind {
     unimplemented!()
+}
+
+pub fn unreachable_code_is_error(options: &CompilerOptions) -> bool {
+    matches!(options.allow_unreachable_code, Some(false))
+}
+
+pub fn unused_label_is_error(options: &CompilerOptions) -> bool {
+    matches!(options.allow_unused_labels, Some(false))
 }
 
 fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> CompilerOptionsValue {
@@ -394,6 +404,11 @@ fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> Compil
     }
 }
 
+pub fn should_preserve_const_enums(compiler_options: &CompilerOptions) -> bool {
+    matches!(compiler_options.preserve_const_enums, Some(true))
+        || matches!(compiler_options.isolated_modules, Some(true))
+}
+
 pub fn get_strict_option_value(
     compiler_options: &CompilerOptions,
     flag: &str, /*StrictOptionName*/
@@ -449,8 +464,32 @@ pub fn get_script_kind_from_file_name(file_name: &str) -> ScriptKind {
     }
 }
 
+pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
+    unimplemented!()
+}
+
+pub enum StringOrPattern {
+    String(String),
+    Pattern(Pattern),
+}
+
+pub fn try_parse_pattern(pattern: &str) -> Option<StringOrPattern> {
+    unimplemented!()
+}
+
 pub fn position_is_synthesized(pos: isize) -> bool {
     !(pos >= 0)
+}
+
+pub fn slice_after<'arr, TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
+    arr: &'arr [TItem],
+    value: &TItem,
+    comparer: TComparer,
+) -> &'arr [TItem] {
+    let index = index_of(arr, value, comparer);
+    Debug_.assert(index != -1, None);
+    let index: usize = index.try_into().unwrap();
+    &arr[index..]
 }
 
 pub fn add_related_info(
