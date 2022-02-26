@@ -4,8 +4,8 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    bind_source_file, for_each, is_external_or_common_js_module, Diagnostic, Node, NodeInterface,
-    NumericLiteral, Signature, SignatureFlags, SourceFile, TypeChecker, TypeCheckerHost,
+    bind_source_file, for_each, is_accessor, is_external_or_common_js_module, Diagnostic, Node,
+    NodeInterface, Signature, SignatureFlags, SourceFile, SyntaxKind, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -90,6 +90,20 @@ impl TypeChecker {
     ) -> bool {
         false
     }
+}
+
+pub(super) fn is_not_accessor(declaration: &Node /*Declaration*/) -> bool {
+    !is_accessor(declaration)
+}
+
+pub(super) fn is_not_overload(declaration: &Node /*Declaration*/) -> bool {
+    !matches!(
+        declaration.kind(),
+        SyntaxKind::FunctionDeclaration | SyntaxKind::MethodDeclaration
+    ) || declaration
+        .as_function_like_declaration()
+        .maybe_body()
+        .is_some()
 }
 
 pub(super) fn signature_has_rest_parameter(s: &Signature) -> bool {

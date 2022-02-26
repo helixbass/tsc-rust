@@ -5,7 +5,7 @@ mod compiler;
 mod execute_command_line;
 mod rust_helpers;
 
-pub use compiler::binder::bind_source_file;
+pub use compiler::binder::{bind_source_file, get_module_instance_state, ModuleInstanceState};
 pub use compiler::builder::ProgramBuildInfo;
 pub use compiler::checker::{create_type_checker, get_node_id, get_symbol_id, NodeBuilder};
 use compiler::command_line_parser::{

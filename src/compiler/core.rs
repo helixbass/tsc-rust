@@ -878,6 +878,8 @@ pub fn starts_with(str_: &str, prefix: &str) -> bool {
     str_.starts_with(prefix)
 }
 
+// pub fn and<TValue, TFirstCallback: FnMut(TValue) -> bool, TSecondCallback: FnMut(TValue) -> bool>()
+
 pub fn single_element_array<TItem>(t: Option<TItem>) -> Option<Vec<TItem>> {
     t.map(|t| vec![t])
 }
