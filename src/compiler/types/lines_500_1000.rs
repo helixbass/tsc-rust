@@ -1015,6 +1015,10 @@ impl Node {
     pub fn as_jsx_text(&self) -> &JsxText {
         enum_unwrapped!(self, [Node, JsxText])
     }
+
+    pub fn as_base_jsdoc_type_like_tag(&self) -> &BaseJSDocTypeLikeTag {
+        enum_unwrapped!(self, [Node, BaseJSDocTypeLikeTag])
+    }
 }
 
 #[derive(Debug)]

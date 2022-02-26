@@ -34,11 +34,8 @@ impl ParserType {
         }
         self.next_token();
 
-        let type_arguments = self.parse_delimited_list(
-            ParsingContext::TypeArguments,
-            || self.parse_type().wrap(),
-            None,
-        );
+        let type_arguments =
+            self.parse_delimited_list(ParsingContext::TypeArguments, || self.parse_type(), None);
         if !self.parse_expected(SyntaxKind::GreaterThanToken, None, None) {
             return None;
         }
@@ -80,42 +77,43 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_primary_expression(&self) -> Node /*PrimaryExpression*/ {
+    pub(super) fn parse_primary_expression(&self) -> Rc<Node /*PrimaryExpression*/> {
         match self.token() {
             SyntaxKind::NumericLiteral
             | SyntaxKind::BigIntLiteral
             | SyntaxKind::StringLiteral
-            | SyntaxKind::NoSubstitutionTemplateLiteral => return self.parse_literal_node(),
+            | SyntaxKind::NoSubstitutionTemplateLiteral => return self.parse_literal_node().wrap(),
             SyntaxKind::ThisKeyword
             | SyntaxKind::SuperKeyword
             | SyntaxKind::NullKeyword
             | SyntaxKind::TrueKeyword
             | SyntaxKind::FalseKeyword => return self.parse_token_node().into(),
-            SyntaxKind::OpenParenToken => return self.parse_parenthesized_expression().into(),
+            SyntaxKind::OpenParenToken => return self.parse_parenthesized_expression(),
             SyntaxKind::OpenBracketToken => return self.parse_array_literal_expression().into(),
             SyntaxKind::OpenBraceToken => return self.parse_object_literal_expression().into(),
             SyntaxKind::AsyncKeyword => {
                 if self.look_ahead_bool(|| self.next_token_is_function_keyword_on_same_line()) {
-                    return self.parse_function_expression().into();
+                    return self.parse_function_expression();
                 }
             }
             SyntaxKind::ClassKeyword => return self.parse_class_expression(),
-            SyntaxKind::FunctionKeyword => return self.parse_function_expression().into(),
-            SyntaxKind::NewKeyword => return self.parse_new_expression_or_new_dot_target(),
+            SyntaxKind::FunctionKeyword => return self.parse_function_expression(),
+            SyntaxKind::NewKeyword => return self.parse_new_expression_or_new_dot_target().wrap(),
             SyntaxKind::SlashToken | SyntaxKind::SlashEqualsToken => {
                 if self.re_scan_slash_token() == SyntaxKind::RegularExpressionLiteral {
-                    return self.parse_literal_node();
+                    return self.parse_literal_node().wrap();
                 }
             }
             SyntaxKind::TemplateHead => return self.parse_template_expression(false).into(),
-            SyntaxKind::PrivateIdentifier => return self.parse_private_identifier(),
+            SyntaxKind::PrivateIdentifier => return self.parse_private_identifier().wrap(),
             _ => (),
         }
 
         self.parse_identifier(Some(&Diagnostics::Expression_expected), None)
+            .wrap()
     }
 
-    pub(super) fn parse_parenthesized_expression(&self) -> ParenthesizedExpression {
+    pub(super) fn parse_parenthesized_expression(&self) -> Rc<Node /*ParenthesizedExpression*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
@@ -127,7 +125,8 @@ impl ParserType {
                     .create_parenthesized_expression(self, expression),
                 pos,
                 None,
-            ),
+            )
+            .into(),
             has_jsdoc,
         )
     }
@@ -182,7 +181,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_object_literal_element(&self) -> Node /*ObjectLiteralElementLike*/ {
+    pub(super) fn parse_object_literal_element(&self) -> Rc<Node /*ObjectLiteralElementLike*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
 
@@ -193,12 +192,11 @@ impl ParserType {
             let expression = self.parse_assignment_expression_or_higher();
             return self.with_jsdoc(
                 self.finish_node(
-                    self.factory
-                        .create_spread_assignment(self, expression)
-                        .into(),
+                    self.factory.create_spread_assignment(self, expression),
                     pos,
                     None,
-                ),
+                )
+                .into(),
                 has_jsdoc,
             );
         }
@@ -244,19 +242,17 @@ impl ParserType {
                 SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
             )
         {
-            return self
-                .parse_method_declaration(
-                    pos,
-                    has_jsdoc,
-                    decorators,
-                    modifiers,
-                    asterisk_token,
-                    name,
-                    question_token,
-                    exclamation_token,
-                    None,
-                )
-                .into();
+            return self.parse_method_declaration(
+                pos,
+                has_jsdoc,
+                decorators,
+                modifiers,
+                asterisk_token,
+                name,
+                question_token,
+                exclamation_token,
+                None,
+            );
         }
 
         let node: Node;
@@ -290,7 +286,7 @@ impl ParserType {
         }
         node.set_decorators(decorators);
         node.set_modifiers(modifiers);
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_object_literal_expression(&self) -> ObjectLiteralExpression {
@@ -300,7 +296,7 @@ impl ParserType {
         let multi_line = self.scanner().has_preceding_line_break();
         let properties = self.parse_delimited_list(
             ParsingContext::ObjectLiteralMembers,
-            || self.parse_object_literal_element().wrap(),
+            || self.parse_object_literal_element(),
             Some(true),
         );
         if !self.parse_expected(SyntaxKind::CloseBraceToken, None, None) {
@@ -332,7 +328,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_function_expression(&self) -> FunctionExpression {
+    pub(super) fn parse_function_expression(&self) -> Rc<Node /*FunctionExpression*/> {
         let saved_decorator_context = self.in_decorator_context();
         self.set_decorator_context(false);
 
@@ -379,12 +375,8 @@ impl ParserType {
 
         let type_parameters = self.parse_type_parameters();
         let parameters = self.parse_parameters(is_generator | is_async);
-        let type_: Option<Rc<Node>> = self
-            .parse_return_type(SyntaxKind::ColonToken, false)
-            .map(Node::wrap);
-        let body: Rc<Node> = self
-            .parse_function_block(is_generator | is_async, None)
-            .into();
+        let type_: Option<Rc<Node>> = self.parse_return_type(SyntaxKind::ColonToken, false);
+        let body: Rc<Node> = self.parse_function_block(is_generator | is_async, None);
 
         self.set_decorator_context(saved_decorator_context);
 
@@ -398,7 +390,7 @@ impl ParserType {
             type_,
             body,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_optional_binding_identifier(&self) -> Option<Node /*Identifier*/> {
@@ -425,7 +417,7 @@ impl ParserType {
         }
 
         let expression_pos = self.get_node_pos();
-        let mut expression: Rc<Node /*MemberExpression*/> = self.parse_primary_expression().wrap();
+        let mut expression: Rc<Node /*MemberExpression*/> = self.parse_primary_expression();
         let mut type_arguments: Option<NodeArray>;
         loop {
             expression = self.parse_member_expression_rest(expression_pos, expression, false);
@@ -462,7 +454,7 @@ impl ParserType {
         &self,
         ignore_missing_open_brace: bool,
         diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Block {
+    ) -> Rc<Node /*Block*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let open_brace_position = self.scanner().get_token_pos();
@@ -500,7 +492,8 @@ impl ParserType {
                         .create_block(self, statements, Some(multi_line)),
                     pos,
                     None,
-                ),
+                )
+                .into(),
                 has_jsdoc,
             );
             if self.token() == SyntaxKind::EqualsToken {
@@ -512,7 +505,8 @@ impl ParserType {
         } else {
             let statements = self.create_missing_list();
             self.with_jsdoc(
-                self.finish_node(self.factory.create_block(self, statements, None), pos, None),
+                self.finish_node(self.factory.create_block(self, statements, None), pos, None)
+                    .into(),
                 has_jsdoc,
             )
         }
@@ -522,7 +516,7 @@ impl ParserType {
         &self,
         flags: SignatureFlags,
         diagnostic_message: Option<&DiagnosticMessage>,
-    ) -> Block {
+    ) -> Rc<Node /*Block*/> {
         let saved_yield_context = self.in_yield_context();
         self.set_yield_context(flags.intersects(SignatureFlags::Yield));
 
@@ -553,17 +547,18 @@ impl ParserType {
         block
     }
 
-    pub(super) fn parse_empty_statement(&self) -> Node /*Statement*/ {
+    pub(super) fn parse_empty_statement(&self) -> Rc<Node /*Statement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::SemicolonToken, None, None);
         self.with_jsdoc(
-            self.finish_node(self.factory.create_empty_statement(self).into(), pos, None),
+            self.finish_node(self.factory.create_empty_statement(self), pos, None)
+                .into(),
             has_jsdoc,
         )
     }
 
-    pub(super) fn parse_if_statement(&self) -> IfStatement {
+    pub(super) fn parse_if_statement(&self) -> Rc<Node /*IfStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::IfKeyword, None, None);
@@ -582,12 +577,13 @@ impl ParserType {
                     .create_if_statement(self, expression, then_statement, else_statement),
                 pos,
                 None,
-            ),
+            )
+            .into(),
             has_jsdoc,
         )
     }
 
-    pub(super) fn parse_do_statement(&self) -> DoStatement {
+    pub(super) fn parse_do_statement(&self) -> Rc<Node /*DoStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::DoKeyword, None, None);
@@ -604,12 +600,13 @@ impl ParserType {
                     .create_do_statement(self, statement, expression),
                 pos,
                 None,
-            ),
+            )
+            .into(),
             has_jsdoc,
         )
     }
 
-    pub(super) fn parse_while_statement(&self) -> WhileStatement {
+    pub(super) fn parse_while_statement(&self) -> Rc<Node /*WhileStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::WhileKeyword, None, None);
@@ -623,12 +620,13 @@ impl ParserType {
                     .create_while_statement(self, expression, statement),
                 pos,
                 None,
-            ),
+            )
+            .into(),
             has_jsdoc,
         )
     }
 
-    pub(super) fn parse_for_or_for_in_or_for_of_statement(&self) -> Node /*Statement*/ {
+    pub(super) fn parse_for_or_for_in_or_for_of_statement(&self) -> Rc<Node /*Statement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::ForKeyword, None, None);
@@ -706,11 +704,13 @@ impl ParserType {
                 .into();
         }
 
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
-    pub(super) fn parse_break_or_continue_statement(&self, kind: SyntaxKind) -> Node /*BreakOrContinueStatement*/
-    {
+    pub(super) fn parse_break_or_continue_statement(
+        &self,
+        kind: SyntaxKind,
+    ) -> Rc<Node /*BreakOrContinueStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
 
@@ -735,10 +735,10 @@ impl ParserType {
         } else {
             self.factory.create_continue_statement(self, label).into()
         };
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
-    pub(super) fn parse_return_statement(&self) -> ReturnStatement {
+    pub(super) fn parse_return_statement(&self) -> Rc<Node /*ReturnStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::ReturnKeyword, None, None);
@@ -753,12 +753,13 @@ impl ParserType {
                 self.factory.create_return_statement(self, expression),
                 pos,
                 None,
-            ),
+            )
+            .into(),
             has_jsdoc,
         )
     }
 
-    pub(super) fn parse_with_statement(&self) -> WithStatement {
+    pub(super) fn parse_with_statement(&self) -> Rc<Node /*WithStatement*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::WithKeyword, None, None);
@@ -773,7 +774,8 @@ impl ParserType {
                     .create_with_statement(self, expression, statement),
                 pos,
                 None,
-            ),
+            )
+            .into(),
             has_jsdoc,
         )
     }

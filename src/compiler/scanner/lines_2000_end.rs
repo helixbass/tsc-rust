@@ -593,7 +593,7 @@ impl Scanner {
         result
     }
 
-    pub(super) fn scan_range<TReturn, TCallback: FnOnce() -> TReturn>(
+    pub fn scan_range<TReturn, TCallback: FnOnce() -> TReturn>(
         &mut self,
         start: usize,
         length: usize,

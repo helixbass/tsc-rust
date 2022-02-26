@@ -42,7 +42,7 @@ impl ParserType {
                     self,
                     Some(asserts_modifier.wrap()),
                     parameter_name.wrap(),
-                    type_.map(|type_| type_.wrap()),
+                    type_,
                 )
                 .into(),
             pos,
@@ -50,14 +50,16 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_type(&self) -> Node /*TypeNode*/ {
+    pub(super) fn parse_type(&self) -> Rc<Node /*TypeNode*/> {
         self.do_outside_of_context(NodeFlags::TypeExcludesFlags, || {
             self.parse_type_worker(None)
         })
     }
 
-    pub(super) fn parse_type_worker(&self, no_conditional_types: Option<bool>) -> Node /*TypeNode*/
-    {
+    pub(super) fn parse_type_worker(
+        &self,
+        no_conditional_types: Option<bool>,
+    ) -> Rc<Node /*TypeNode*/> {
         let no_conditional_types = no_conditional_types.unwrap_or(false);
         if self.is_start_of_function_type_or_constructor_type() {
             return self.parse_function_or_constructor_type();
@@ -73,24 +75,24 @@ impl ParserType {
             let true_type = self.parse_type_worker(None);
             self.parse_expected(SyntaxKind::ColonToken, None, None);
             let false_type = self.parse_type_worker(None);
-            return self.finish_node(
-                self.factory
-                    .create_conditional_type_node(
+            return self
+                .finish_node(
+                    self.factory.create_conditional_type_node(
                         self,
-                        type_.wrap(),
-                        extends_type.wrap(),
-                        true_type.wrap(),
-                        false_type.wrap(),
-                    )
-                    .into(),
-                pos,
-                None,
-            );
+                        type_,
+                        extends_type,
+                        true_type,
+                        false_type,
+                    ),
+                    pos,
+                    None,
+                )
+                .into();
         }
         type_
     }
 
-    pub(super) fn parse_type_annotation(&self) -> Option<Node /*TypeNode*/> {
+    pub(super) fn parse_type_annotation(&self) -> Option<Rc<Node /*TypeNode*/>> {
         if self.parse_optional(SyntaxKind::ColonToken) {
             Some(self.parse_type())
         } else {
@@ -212,12 +214,9 @@ impl ParserType {
 
         let arrow_expression = self
             .try_parse_parenthesized_arrow_function_expression()
-            .or_else(|| {
-                self.try_parse_async_simple_arrow_function_expression()
-                    .map(Into::into)
-            });
+            .or_else(|| self.try_parse_async_simple_arrow_function_expression());
         if let Some(arrow_expression) = arrow_expression {
-            return arrow_expression.wrap();
+            return arrow_expression;
         }
 
         let pos = self.get_node_pos();
@@ -298,7 +297,7 @@ impl ParserType {
         pos: isize,
         identifier: Rc<Node /*Identifier*/>,
         async_modifier: Option<NodeArray /*<Modifier>*/>,
-    ) -> ArrowFunction {
+    ) -> Rc<Node> {
         Debug_.assert(
             self.token() == SyntaxKind::EqualsGreaterThanToken,
             Some("parseSimpleArrowFunctionExpression should only have been called if we had a =>"),
@@ -336,12 +335,12 @@ impl ParserType {
             Some(equals_greater_than_token.wrap()),
             body,
         );
-        self.add_jsdoc_comment(self.finish_node(node, pos, None))
+        self.add_jsdoc_comment(self.finish_node(node, pos, None).into())
     }
 
     pub(super) fn try_parse_parenthesized_arrow_function_expression(
         &self,
-    ) -> Option<Node /*Expression*/> {
+    ) -> Option<Rc<Node /*Expression*/>> {
         let tri_state = self.is_parenthesized_arrow_function_expression();
         if tri_state == Tristate::False {
             return None;
@@ -349,12 +348,8 @@ impl ParserType {
 
         if tri_state == Tristate::True {
             self.parse_parenthesized_arrow_function_expression(true)
-                .map(Into::into)
         } else {
-            self.try_parse(|| {
-                self.parse_possible_parenthesized_arrow_function_expression()
-                    .map(Into::into)
-            })
+            self.try_parse(|| self.parse_possible_parenthesized_arrow_function_expression())
         }
     }
 
@@ -488,7 +483,7 @@ impl ParserType {
 
     pub(super) fn parse_possible_parenthesized_arrow_function_expression(
         &self,
-    ) -> Option<ArrowFunction> {
+    ) -> Option<Rc<Node /*ArrowFunction*/>> {
         let token_pos = self.scanner().get_token_pos();
         let mut not_parenthesized_arrow = self.maybe_not_parenthesized_arrow();
         if matches!(&*not_parenthesized_arrow, Some(not_parenthesized_arrow) if not_parenthesized_arrow.contains(&token_pos))
@@ -507,7 +502,9 @@ impl ParserType {
         result
     }
 
-    pub(super) fn try_parse_async_simple_arrow_function_expression(&self) -> Option<ArrowFunction> {
+    pub(super) fn try_parse_async_simple_arrow_function_expression(
+        &self,
+    ) -> Option<Rc<Node /*ArrowFunction*/>> {
         if self.token() == SyntaxKind::AsyncKeyword {
             if self
                 .look_ahead(|| Some(self.is_un_parenthesized_async_arrow_function_worker()))
@@ -550,7 +547,7 @@ impl ParserType {
     pub(super) fn parse_parenthesized_arrow_function_expression(
         &self,
         allow_ambiguity: bool,
-    ) -> Option<ArrowFunction> {
+    ) -> Option<Rc<Node /*ArrowFunction*/>> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let modifiers = self.parse_modifiers_for_arrow_function();
@@ -613,11 +610,11 @@ impl ParserType {
             modifiers,
             type_parameters,
             parameters,
-            type_.map(|type_| type_.wrap()),
+            type_,
             Some(equals_greater_than_token.wrap()),
             body,
         );
-        Some(self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc))
+        Some(self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc))
     }
 
     pub(super) fn parse_arrow_function_expression_body(
@@ -625,16 +622,14 @@ impl ParserType {
         is_async: bool,
     ) -> Rc<Node /*Block | Expression*/> {
         if self.token() == SyntaxKind::OpenBraceToken {
-            return self
-                .parse_function_block(
-                    if is_async {
-                        SignatureFlags::Await
-                    } else {
-                        SignatureFlags::None
-                    },
-                    None,
-                )
-                .into();
+            return self.parse_function_block(
+                if is_async {
+                    SignatureFlags::Await
+                } else {
+                    SignatureFlags::None
+                },
+                None,
+            );
         }
 
         if !matches!(
@@ -643,17 +638,15 @@ impl ParserType {
         ) && self.is_start_of_statement()
             && !self.is_start_of_expression_statement()
         {
-            return self
-                .parse_function_block(
-                    SignatureFlags::IgnoreMissingOpenBrace
-                        | if is_async {
-                            SignatureFlags::Await
-                        } else {
-                            SignatureFlags::None
-                        },
-                    None,
-                )
-                .into();
+            return self.parse_function_block(
+                SignatureFlags::IgnoreMissingOpenBrace
+                    | if is_async {
+                        SignatureFlags::Await
+                    } else {
+                        SignatureFlags::None
+                    },
+                None,
+            );
         }
 
         let saved_top_level = self.top_level();
@@ -754,7 +747,7 @@ impl ParserType {
                 } else {
                     self.next_token();
                     left_operand = self
-                        .make_as_expression(left_operand, self.parse_type().wrap())
+                        .make_as_expression(left_operand, self.parse_type())
                         .into();
                 }
             }
@@ -1049,6 +1042,6 @@ impl ParserType {
     pub(super) fn parse_member_expression_or_higher(&self) -> Rc<Node /*MemberExpression*/> {
         let pos = self.get_node_pos();
         let expression = self.parse_primary_expression();
-        self.parse_member_expression_rest(pos, expression.wrap(), true)
+        self.parse_member_expression_rest(pos, expression, true)
     }
 }

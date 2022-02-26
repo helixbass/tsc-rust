@@ -61,7 +61,7 @@ impl ParserType {
             self.parse_statement()
         });
         Debug_.assert(self.token() == SyntaxKind::EndOfFileToken, None);
-        let end_of_file_token = self.add_jsdoc_comment(self.parse_token_node());
+        let end_of_file_token = self.add_jsdoc_comment(self.parse_token_node().into());
 
         let source_file = self.create_source_file(
             self.file_name(),
@@ -69,7 +69,7 @@ impl ParserType {
             script_kind,
             is_declaration_file,
             statements,
-            end_of_file_token.into(),
+            end_of_file_token,
             source_flags,
         );
         let source_file_as_source_file = source_file.as_source_file();
@@ -108,7 +108,7 @@ impl ParserType {
         source_file
     }
 
-    pub(super) fn with_jsdoc<TNode: NodeInterface>(&self, node: TNode, has_jsdoc: bool) -> TNode {
+    pub(super) fn with_jsdoc(&self, node: Rc<Node>, has_jsdoc: bool) -> Rc<Node> {
         if has_jsdoc {
             self.add_jsdoc_comment(node)
         } else {
@@ -116,10 +116,10 @@ impl ParserType {
         }
     }
 
-    pub(super) fn add_jsdoc_comment<TNode: NodeInterface>(&self, node: TNode) -> TNode {
+    pub(super) fn add_jsdoc_comment(&self, node: Rc<Node>) -> Rc<Node> {
         Debug_.assert(node.maybe_js_doc().is_none(), None);
         let js_doc = map_defined(
-            get_jsdoc_comment_ranges(&node, self.source_text_as_chars()),
+            get_jsdoc_comment_ranges(&*node, self.source_text_as_chars()),
             |comment, _| {
                 self.JSDocParser_parse_jsdoc_comment(
                     &node,
@@ -1108,14 +1108,14 @@ impl ParserType {
         array
     }
 
-    pub(super) fn finish_node<TNode: NodeInterface>(
+    pub(super) fn finish_node_ref<TNode: NodeInterface>(
         &self,
-        node: TNode,
+        node: &TNode,
         pos: isize,
         end: Option<isize>,
-    ) -> TNode {
+    ) {
         set_text_range_pos_end(
-            &node,
+            node,
             pos,
             end.unwrap_or_else(|| self.scanner().get_start_pos().try_into().unwrap()),
         );
@@ -1127,6 +1127,15 @@ impl ParserType {
             self.set_parse_error_before_next_finished_node(false);
             node.set_flags(node.flags() | NodeFlags::ThisNodeHasError);
         }
+    }
+
+    pub(super) fn finish_node<TNode: NodeInterface>(
+        &self,
+        node: TNode,
+        pos: isize,
+        end: Option<isize>,
+    ) -> TNode {
+        self.finish_node_ref(&node, pos, end);
 
         node
     }

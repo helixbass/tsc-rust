@@ -1,21 +1,17 @@
 #![allow(non_upper_case_globals)]
 
-use bitflags::bitflags;
 use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::ParserType;
+use super::{ParserType, ParsingContext};
 use crate::{
-    add_related_info, create_detached_diagnostic, for_each, for_each_child_returns,
-    is_export_assignment, is_export_declaration, is_export_modifier, is_external_module_reference,
-    is_import_declaration, is_import_equals_declaration, is_keyword, is_meta_property,
-    last_or_undefined, some, token_is_identifier_or_keyword, AssertClause, AssertEntry, BaseNode,
-    BaseNodeFactory, Debug_, Diagnostic, DiagnosticRelatedInformationInterface, Diagnostics,
-    EnumDeclaration, EnumMember, ExportAssignment, ExportDeclaration, ExpressionWithTypeArguments,
-    ExternalModuleReference, HeritageClause, ImportClause, ImportEqualsDeclaration,
-    InterfaceDeclaration, ModuleBlock, ModuleDeclaration, NamespaceExport,
-    NamespaceExportDeclaration, NamespaceImport, Node, NodeArray, NodeFlags, NodeInterface,
-    SyntaxKind, TypeAliasDeclaration,
+    add_related_info, create_detached_diagnostic, is_export_modifier, is_keyword,
+    last_or_undefined, some, token_is_identifier_or_keyword, AssertClause, AssertEntry, Debug_,
+    DiagnosticRelatedInformationInterface, Diagnostics, EnumDeclaration, EnumMember,
+    ExportDeclaration, ExpressionWithTypeArguments, ExternalModuleReference, HeritageClause,
+    ImportClause, ImportEqualsDeclaration, InterfaceDeclaration, ModuleBlock, ModuleDeclaration,
+    NamespaceExport, NamespaceExportDeclaration, NamespaceImport, Node, NodeArray, NodeFlags,
+    NodeInterface, SyntaxKind, TypeAliasDeclaration,
 };
 
 impl ParserType {
@@ -26,7 +22,7 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
         kind: SyntaxKind, /*ClassLikeDeclaration["kind"]*/
-    ) -> Node /*ClassLikeDeclaration*/ {
+    ) -> Rc<Node /*ClassLikeDeclaration*/> {
         let saved_await_context = self.in_await_context();
         self.parse_expected(SyntaxKind::ClassKeyword, None, None);
 
@@ -78,7 +74,7 @@ impl ParserType {
                 )
                 .into()
         };
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).wrap(), has_jsdoc)
     }
 
     pub(super) fn parse_name_of_class_declaration_or_expression(
@@ -145,7 +141,7 @@ impl ParserType {
         if self.token() == SyntaxKind::LessThanToken {
             Some(self.parse_bracketed_list(
                 ParsingContext::TypeArguments,
-                || self.parse_type().wrap(),
+                || self.parse_type(),
                 SyntaxKind::LessThanToken,
                 SyntaxKind::GreaterThanToken,
             ))
@@ -163,7 +159,7 @@ impl ParserType {
 
     pub(super) fn parse_class_members(&self) -> NodeArray /*<ClassElement>*/ {
         self.parse_list(ParsingContext::ClassMembers, &mut || {
-            self.parse_class_element().wrap()
+            self.parse_class_element()
         })
     }
 
@@ -173,7 +169,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> InterfaceDeclaration {
+    ) -> Rc<Node /*InterfaceDeclaration*/> {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None, None);
         let name = self.parse_identifier(None, None);
         let type_parameters = self.parse_type_parameters();
@@ -188,7 +184,7 @@ impl ParserType {
             heritage_clauses,
             members,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_type_alias_declaration(
@@ -197,13 +193,13 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> TypeAliasDeclaration {
+    ) -> Rc<Node /*TypeAliasDeclaration*/> {
         self.parse_expected(SyntaxKind::TypeKeyword, None, None);
         let name = self.parse_identifier(None, None);
         let type_parameters = self.parse_type_parameters();
         self.parse_expected(SyntaxKind::EqualsToken, None, None);
-        let type_ = if self.token() == SyntaxKind::IntrinsicKeyword {
-            self.try_parse(|| self.parse_keyword_and_no_dot())
+        let type_: Rc<Node> = if self.token() == SyntaxKind::IntrinsicKeyword {
+            self.try_parse(|| self.parse_keyword_and_no_dot().map(Node::wrap))
                 .unwrap_or_else(|| self.parse_type())
         } else {
             self.parse_type()
@@ -215,12 +211,12 @@ impl ParserType {
             modifiers,
             name.wrap(),
             type_parameters,
-            type_.wrap(),
+            type_,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
-    pub(super) fn parse_enum_member(&self) -> EnumMember {
+    pub(super) fn parse_enum_member(&self) -> Rc<Node /*EnumMember*/> {
         let pos = self.get_node_pos();
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let name: Rc<Node> = self.parse_property_name().wrap();
@@ -230,7 +226,8 @@ impl ParserType {
                 self.factory.create_enum_member(self, name, initializer),
                 pos,
                 None,
-            ),
+            )
+            .into(),
             has_jsdoc,
         )
     }
@@ -241,7 +238,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> EnumDeclaration {
+    ) -> Rc<Node /*EnumDeclaration*/> {
         self.parse_expected(SyntaxKind::EnumKeyword, None, None);
         let name: Rc<Node> = self.parse_identifier(None, None).wrap();
         let members: NodeArray;
@@ -249,7 +246,7 @@ impl ParserType {
             members = self.do_outside_of_yield_and_await_context(|| {
                 self.parse_delimited_list(
                     ParsingContext::EnumMembers,
-                    || self.parse_enum_member().into(),
+                    || self.parse_enum_member(),
                     None,
                 )
             });
@@ -260,7 +257,7 @@ impl ParserType {
         let node =
             self.factory
                 .create_enum_declaration(self, decorators, modifiers, name, Some(members));
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_module_block(&self) -> ModuleBlock {
@@ -288,7 +285,7 @@ impl ParserType {
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
         flags: NodeFlags,
-    ) -> ModuleDeclaration {
+    ) -> Rc<Node /*ModuleDeclaration*/> {
         let namespace_flag = flags & NodeFlags::Namespace;
         let name: Rc<Node> = self.parse_identifier(None, None).wrap();
         let body: Rc<Node> = if self.parse_optional(SyntaxKind::DotToken) {
@@ -299,7 +296,6 @@ impl ParserType {
                 None,
                 NodeFlags::NestedNamespace | namespace_flag,
             )
-            .into()
         } else {
             self.parse_module_block().into()
         };
@@ -311,7 +307,7 @@ impl ParserType {
             Some(body),
             Some(flags),
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_ambient_external_module_declaration(
@@ -320,7 +316,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> ModuleDeclaration {
+    ) -> Rc<Node /*ModuleDeclaration*/> {
         let mut flags = NodeFlags::None;
         let name: Rc<Node>;
         if self.token() == SyntaxKind::GlobalKeyword {
@@ -346,7 +342,7 @@ impl ParserType {
             body,
             Some(flags),
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_module_declaration(
@@ -355,7 +351,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> ModuleDeclaration {
+    ) -> Rc<Node /*ModuleDeclaration*/> {
         let mut flags = NodeFlags::None;
         if self.token() == SyntaxKind::GlobalKeyword {
             return self
@@ -396,7 +392,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> NamespaceExportDeclaration {
+    ) -> Rc<Node /*NamespaceExportDeclaration*/> {
         self.parse_expected(SyntaxKind::AsKeyword, None, None);
         self.parse_expected(SyntaxKind::NamespaceKeyword, None, None);
         let name: Rc<Node> = self.parse_identifier(None, None).wrap();
@@ -404,7 +400,7 @@ impl ParserType {
         let node = self.factory.create_namespace_export_declaration(self, name);
         node.set_decorators(decorators);
         node.set_modifiers(modifiers);
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_import_declaration_or_import_equals_declaration(
@@ -413,7 +409,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> Node /*ImportEqualsDeclaration | ImportDeclaration*/ {
+    ) -> Rc<Node /*ImportEqualsDeclaration | ImportDeclaration*/> {
         self.parse_expected(SyntaxKind::ImportKeyword, None, None);
 
         let after_import_pos = self.scanner().get_start_pos();
@@ -440,16 +436,14 @@ impl ParserType {
         if identifier.is_some()
             && !self.token_after_imported_identifier_definitely_produces_import_declaration()
         {
-            return self
-                .parse_import_equals_declaration(
-                    pos,
-                    has_jsdoc,
-                    decorators,
-                    modifiers,
-                    identifier.unwrap(),
-                    is_type_only,
-                )
-                .into();
+            return self.parse_import_equals_declaration(
+                pos,
+                has_jsdoc,
+                decorators,
+                modifiers,
+                identifier.unwrap(),
+                is_type_only,
+            );
         }
 
         let mut import_clause: Option<Rc<Node>> = None;
@@ -481,7 +475,7 @@ impl ParserType {
             module_specifier,
             assert_clause,
         );
-        self.with_jsdoc(self.finish_node(node.into(), pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_assert_entry(&self) -> AssertEntry {
@@ -576,7 +570,7 @@ impl ParserType {
         modifiers: Option<NodeArray>,
         identifier: Rc<Node /*Identifier*/>,
         is_type_only: bool,
-    ) -> ImportEqualsDeclaration {
+    ) -> Rc<Node /*ImportEqualsDeclaration*/> {
         self.parse_expected(SyntaxKind::EqualsToken, None, None);
         let module_reference: Rc<Node> = self.parse_module_reference().wrap();
         self.parse_semicolon();
@@ -588,7 +582,7 @@ impl ParserType {
             identifier,
             module_reference,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
 
     pub(super) fn parse_import_clause(
@@ -788,7 +782,7 @@ impl ParserType {
         has_jsdoc: bool,
         decorators: Option<NodeArray>,
         modifiers: Option<NodeArray>,
-    ) -> ExportDeclaration {
+    ) -> Rc<Node /*ExportDeclaration*/> {
         let saved_await_context = self.in_await_context();
         self.set_await_context(true);
         let mut export_clause: Option<Rc<Node>> = None;
@@ -832,218 +826,6 @@ impl ParserType {
             module_specifier,
             assert_clause,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
+        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
     }
-
-    pub(super) fn parse_export_assignment(
-        &self,
-        pos: isize,
-        has_jsdoc: bool,
-        decorators: Option<NodeArray>,
-        modifiers: Option<NodeArray>,
-    ) -> ExportAssignment {
-        let saved_await_context = self.in_await_context();
-        self.set_await_context(true);
-        let mut is_export_equals: Option<bool> = None;
-        if self.parse_optional(SyntaxKind::EqualsToken) {
-            is_export_equals = Some(true);
-        } else {
-            self.parse_expected(SyntaxKind::DefaultKeyword, None, None);
-        }
-        let expression = self.parse_assignment_expression_or_higher();
-        self.parse_semicolon();
-        self.set_await_context(saved_await_context);
-        let node = self.factory.create_export_assignment(
-            self,
-            decorators,
-            modifiers,
-            is_export_equals,
-            expression,
-        );
-        self.with_jsdoc(self.finish_node(node, pos, None), has_jsdoc)
-    }
-
-    pub(super) fn set_external_module_indicator(&self, source_file: &Node /*SourceFile*/) {
-        let source_file_as_source_file = source_file.as_source_file();
-        source_file_as_source_file.set_external_module_indicator(
-            for_each(&source_file_as_source_file.statements, |statement, _| {
-                self.is_an_external_module_indicator_node(statement)
-            })
-            .or_else(|| self.get_import_meta_if_necessary(source_file)),
-        );
-    }
-
-    pub(super) fn is_an_external_module_indicator_node(&self, node: &Node) -> Option<Rc<Node>> {
-        if self.has_modifier_of_kind(node, SyntaxKind::ExportKeyword)
-            || is_import_equals_declaration(node)
-                && is_external_module_reference(
-                    &node.as_import_equals_declaration().module_reference,
-                )
-            || is_import_declaration(node)
-            || is_export_assignment(node)
-            || is_export_declaration(node)
-        {
-            Some(node.node_wrapper())
-        } else {
-            None
-        }
-    }
-
-    pub(super) fn get_import_meta_if_necessary(
-        &self,
-        source_file: &Node, /*SourceFile*/
-    ) -> Option<Rc<Node>> {
-        if source_file
-            .flags()
-            .intersects(NodeFlags::PossiblyContainsImportMeta)
-        {
-            self.walk_tree_for_external_module_indicators(source_file)
-        } else {
-            None
-        }
-    }
-
-    pub(super) fn walk_tree_for_external_module_indicators(&self, node: &Node) -> Option<Rc<Node>> {
-        if self.is_import_meta(node) {
-            Some(node.node_wrapper())
-        } else {
-            for_each_child_returns(
-                node,
-                |child| self.walk_tree_for_external_module_indicators(child),
-                Option::<fn(&NodeArray) -> Option<Rc<Node>>>::None,
-            )
-        }
-    }
-
-    pub(super) fn has_modifier_of_kind(&self, node: &Node, kind: SyntaxKind) -> bool {
-        let modifiers = node.maybe_modifiers();
-        let modifiers: Option<&[Rc<Node>]> = modifiers.as_ref().map(|node_array| {
-            let slice_ref: &[Rc<Node>] = node_array;
-            slice_ref
-        });
-        some(modifiers, Some(|m: &Rc<Node>| m.kind() == kind))
-    }
-
-    pub(super) fn is_import_meta(&self, node: &Node) -> bool {
-        if !is_meta_property(node) {
-            return false;
-        }
-        let node_as_meta_property = node.as_meta_property();
-        node_as_meta_property.keyword_token == SyntaxKind::ImportKeyword
-            && node_as_meta_property
-                .name
-                .as_identifier()
-                .escaped_text
-                .eq_str("meta")
-    }
-
-    pub fn JSDocParser_parse_jsdoc_type_expression_for_tests(
-        &self,
-        content: String,
-        start: Option<usize>,
-        length: Option<usize>,
-    ) -> Option<ParsedJSDocTypeExpression> {
-        unimplemented!()
-    }
-
-    pub fn JSDocParser_parse_isolated_jsdoc_comment(
-        &self,
-        content: String,
-        start: Option<usize>,
-        length: Option<usize>,
-    ) -> Option<ParsedIsolatedJSDocComment> {
-        unimplemented!()
-    }
-
-    pub fn JSDocParser_parse_jsdoc_comment<TNode: NodeInterface>(
-        &self,
-        parent: &TNode,
-        start: usize,
-        length: usize,
-    ) -> Option<Rc<Node /*JSDoc*/>> {
-        unimplemented!()
-    }
-}
-
-pub struct ParsedJSDocTypeExpression {
-    pub js_doc_type_expression: Rc<Node /*JSDocTypeExpression*/>,
-    pub diagnostics: Vec<Rc<Diagnostic>>,
-}
-
-pub struct ParsedIsolatedJSDocComment {
-    pub js_doc: Rc<Node /*JSDoc*/>,
-    pub diagnostics: Vec<Rc<Diagnostic>>,
-}
-
-impl BaseNodeFactory for ParserType {
-    fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.count_node(self.SourceFileConstructor()(kind, 0, 0))
-    }
-
-    fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.count_node(self.IdentifierConstructor()(kind, 0, 0))
-    }
-
-    fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.count_node(self.PrivateIdentifierConstructor()(kind, 0, 0))
-    }
-
-    fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.count_node(self.TokenConstructor()(kind, 0, 0))
-    }
-
-    fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.count_node(self.NodeConstructor()(kind, 0, 0))
-    }
-}
-
-// lazy_static! {
-//     static ref ParserMut: Mutex<ParserType> = Mutex::new(ParserType::new());
-// }
-
-#[allow(non_snake_case)]
-pub(super) fn Parser() -> ParserType {
-    ParserType::new()
-}
-// fn Parser() -> MutexGuard<'static, ParserType> {
-//     ParserMut.lock().unwrap()
-// }
-
-bitflags! {
-    pub struct ParsingContext: u32 {
-        const None = 0;
-        const SourceElements = 1 << 0;
-        const BlockStatements = 1 << 1;
-        const SwitchClauses = 1 << 2;
-        const SwitchClauseStatements = 1 << 3;
-        const TypeMembers = 1 << 4;
-        const ClassMembers = 1 << 5;
-        const EnumMembers = 1 << 6;
-        const HeritageClauseElement = 1 << 7;
-        const VariableDeclarations = 1 << 8;
-        const ObjectBindingElements = 1 << 9;
-        const ArrayBindingElements = 1 << 10;
-        const ArgumentExpressions = 1 << 11;
-        const ObjectLiteralMembers = 1 << 12;
-        const JsxAttributes = 1 << 13;
-        const JsxChildren = 1 << 14;
-        const ArrayLiteralMembers = 1 << 15;
-        const Parameters = 1 << 16;
-        const JSDocParameters = 1 << 17;
-        const RestProperties = 1 << 18;
-        const TypeParameters = 1 << 19;
-        const TypeArguments = 1 << 20;
-        const TupleElementTypes = 1 << 21;
-        const HeritageClauses = 1 << 22;
-        const ImportOrExportSpecifiers = 1 << 23;
-        const AssertEntries = 1 << 24;
-        const Count = 1 << 25;
-    }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub(super) enum Tristate {
-    False,
-    True,
-    Unknown,
 }

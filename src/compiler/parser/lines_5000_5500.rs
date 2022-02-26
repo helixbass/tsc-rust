@@ -584,8 +584,7 @@ impl ParserType {
         self.parse_expected(SyntaxKind::GreaterThanToken, None, None);
         let expression = self.parse_simple_unary_expression();
         self.finish_node(
-            self.factory
-                .create_type_assertion(self, type_.wrap(), expression),
+            self.factory.create_type_assertion(self, type_, expression),
             pos,
             None,
         )

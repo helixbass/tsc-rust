@@ -913,7 +913,7 @@ impl ParserType {
         self.finish_node(
             self.factory.create_template_literal_type_span(
                 self,
-                self.parse_type().wrap(),
+                self.parse_type(),
                 self.parse_literal_of_template_span(false).wrap(),
             ),
             pos,
@@ -1068,7 +1068,7 @@ impl ParserType {
         {
             return Some(self.parse_bracketed_list(
                 ParsingContext::TypeArguments,
-                || self.parse_type().wrap(),
+                || self.parse_type(),
                 SyntaxKind::LessThanToken,
                 SyntaxKind::GreaterThanToken,
             ));
@@ -1121,7 +1121,7 @@ impl ParserType {
                 self,
                 None,
                 lhs.clone(),
-                Some(self.parse_type().wrap()),
+                Some(self.parse_type()),
             ),
             lhs.pos(),
             None,
@@ -1145,7 +1145,7 @@ impl ParserType {
         self.next_token();
         self.finish_node(
             self.factory
-                .create_jsdoc_non_nullable_type(self, Some(self.parse_non_array_type().wrap())),
+                .create_jsdoc_non_nullable_type(self, Some(self.parse_non_array_type())),
             pos,
             None,
         )
@@ -1172,7 +1172,7 @@ impl ParserType {
         } else {
             self.finish_node(
                 self.factory
-                    .create_jsdoc_nullable_type(self, Some(self.parse_type().wrap())),
+                    .create_jsdoc_nullable_type(self, Some(self.parse_type())),
                 pos,
                 None,
             )
