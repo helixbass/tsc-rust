@@ -6,17 +6,19 @@ use std::array::IntoIter;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::iter::FromIterator;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
-    get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
-    get_module_instance_state, get_strict_option_value, get_use_define_for_class_fields,
-    BaseInterfaceType, Extension, GenericableTypeInterface, ModuleInstanceState, Signature,
-    TypeCheckerHostDebuggable, VarianceFlags, __String, create_diagnostic_collection,
-    create_symbol_table, object_allocator, DiagnosticCollection, DiagnosticMessage,
-    FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags,
-    SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
+    escape_leading_underscores, get_allow_synthetic_default_imports, get_emit_module_kind,
+    get_emit_script_target, get_module_instance_state, get_parse_tree_node,
+    get_strict_option_value, get_use_define_for_class_fields, is_parameter, sum, BaseInterfaceType,
+    CheckFlags, Debug_, Extension, GenericableTypeInterface, ModuleInstanceState,
+    RelationComparisonResult, Signature, TypeCheckerHostDebuggable, VarianceFlags, __String,
+    create_diagnostic_collection, create_symbol_table, object_allocator, DiagnosticCollection,
+    DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags,
+    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
 };
 
 lazy_static! {
@@ -481,7 +483,14 @@ pub fn create_type_checker(
         emit_resolver: None,
         node_builder: create_node_builder(),
 
-        globals: RefCell::new(create_symbol_table(None)),
+        globals: Rc::new(RefCell::new(create_symbol_table(None))),
+        undefined_symbol: None,
+        global_this_symbol: None,
+
+        arguments_symbol: None,
+        require_symbol: None,
+
+        apparent_argument_count: Cell::new(None),
 
         string_literal_types: RefCell::new(HashMap::new()),
         number_literal_types: RefCell::new(HashMap::new()),
@@ -522,10 +531,65 @@ pub fn create_type_checker(
 
         diagnostics: RefCell::new(create_diagnostic_collection()),
 
-        assignable_relation: HashMap::new(),
-        comparable_relation: HashMap::new(),
+        subtype_relation: RefCell::new(HashMap::new()),
+        strict_subtype_relation: RefCell::new(HashMap::new()),
+        assignable_relation: RefCell::new(HashMap::new()),
+        comparable_relation: RefCell::new(HashMap::new()),
+        identity_relation: RefCell::new(HashMap::new()),
+        enum_relation: RefCell::new(HashMap::new()),
     };
     type_checker.emit_resolver = Some(type_checker.create_resolver());
+    type_checker.undefined_symbol = Some(
+        type_checker
+            .create_symbol(
+                SymbolFlags::Property,
+                __String::new("undefined".to_owned()),
+                None,
+            )
+            .into(),
+    );
+    type_checker
+        .undefined_symbol
+        .as_ref()
+        .unwrap()
+        .set_declarations(vec![]);
+    type_checker.global_this_symbol = Some(
+        type_checker
+            .create_symbol(
+                SymbolFlags::Module,
+                __String::new("globalThis".to_owned()),
+                Some(CheckFlags::Readonly),
+            )
+            .into(),
+    );
+    let global_this_symbol = type_checker.global_this_symbol();
+    {
+        let mut global_this_symbol_exports = global_this_symbol.maybe_exports();
+        *global_this_symbol_exports = Some(type_checker.globals_rc());
+    }
+    global_this_symbol.set_declarations(vec![]);
+    type_checker.globals().insert(
+        global_this_symbol.escaped_name().clone(),
+        global_this_symbol,
+    );
+    type_checker.arguments_symbol = Some(
+        type_checker
+            .create_symbol(
+                SymbolFlags::Property,
+                __String::new("arguments".to_owned()),
+                None,
+            )
+            .into(),
+    );
+    type_checker.require_symbol = Some(
+        type_checker
+            .create_symbol(
+                SymbolFlags::Property,
+                __String::new("require".to_owned()),
+                None,
+            )
+            .into(),
+    );
     type_checker.unknown_symbol = Some(
         type_checker
             .create_symbol(
@@ -738,6 +802,14 @@ impl TypeChecker {
         self.type_count.set(self.type_count.get() + 1);
     }
 
+    pub(super) fn symbol_count(&self) -> usize {
+        self.symbol_count.get()
+    }
+
+    pub(super) fn total_instantiation_count(&self) -> usize {
+        self.total_instantiation_count.get()
+    }
+
     pub(super) fn empty_symbols(&self) -> Rc<RefCell<SymbolTable>> {
         self.empty_symbols.clone()
     }
@@ -748,6 +820,98 @@ impl TypeChecker {
 
     pub(super) fn globals(&self) -> RefMut<SymbolTable> {
         self.globals.borrow_mut()
+    }
+
+    pub(super) fn globals_rc(&self) -> Rc<RefCell<SymbolTable>> {
+        self.globals.clone()
+    }
+
+    pub(super) fn undefined_symbol(&self) -> Rc<Symbol> {
+        self.undefined_symbol.clone().unwrap()
+    }
+
+    pub(super) fn global_this_symbol(&self) -> Rc<Symbol> {
+        self.global_this_symbol.clone().unwrap()
+    }
+
+    pub(super) fn arguments_symbol(&self) -> Rc<Symbol> {
+        self.arguments_symbol.clone().unwrap()
+    }
+
+    pub fn get_node_count(&self) -> usize {
+        sum(self.host.get_source_files(), |source_file| {
+            source_file.as_source_file().node_count()
+        })
+    }
+
+    pub fn get_identifier_count(&self) -> usize {
+        sum(self.host.get_source_files(), |source_file| {
+            source_file.as_source_file().identifier_count()
+        })
+    }
+
+    pub fn get_symbol_count(&self) -> usize {
+        sum(self.host.get_source_files(), |source_file| {
+            source_file.as_source_file().symbol_count()
+        }) + self.symbol_count()
+    }
+
+    pub fn get_type_count(&self) -> u32 {
+        self.type_count()
+    }
+
+    pub fn get_instantiation_count(&self) -> usize {
+        self.total_instantiation_count()
+    }
+
+    pub fn get_relation_cache_sizes(&self) -> RelationCacheSizes {
+        RelationCacheSizes {
+            assignable: self.assignable_relation().len(),
+            identity: self.identity_relation().len(),
+            subtype: self.subtype_relation().len(),
+            strict_subtype: self.strict_subtype_relation().len(),
+        }
+    }
+
+    pub fn is_undefined_symbol(&self, symbol: &Symbol) -> bool {
+        ptr::eq(symbol, &*self.undefined_symbol())
+    }
+
+    pub fn is_arguments_symbol(&self, symbol: &Symbol) -> bool {
+        ptr::eq(symbol, &*self.arguments_symbol())
+    }
+
+    pub fn is_unknown_symbol(&self, symbol: &Symbol) -> bool {
+        ptr::eq(symbol, &*self.unknown_symbol())
+    }
+
+    pub fn get_type_of_symbol_at_location(&self, symbol: &Symbol, location_in: &Node) -> Rc<Type> {
+        let location = get_parse_tree_node(Some(location_in), Option::<fn(&Node) -> bool>::None);
+        match location {
+            Some(location) => self.get_type_of_symbol_at_location_(symbol, &location),
+            None => self.error_type(),
+        }
+    }
+
+    pub fn get_symbols_of_parameter_property_declaration(
+        &self,
+        parameter_in: &Node, /*ParameterDeclaration*/
+        parameter_name: &str,
+    ) -> Vec<Rc<Symbol>> {
+        let parameter =
+            get_parse_tree_node(Some(parameter_in), Some(|node: &Node| is_parameter(node)));
+        if parameter.is_none() {
+            Debug_.fail(Some("Cannot get symbols of a synthetic parameter that cannot be resolved to a parse-tree node."));
+        }
+        let parameter = parameter.unwrap();
+        self.get_symbols_of_parameter_property_declaration_(
+            &parameter,
+            &escape_leading_underscores(parameter_name),
+        )
+    }
+
+    pub fn get_property_of_type(&self, type_: &Type, name: &str) -> Option<Rc<Symbol>> {
+        self.get_property_of_type_(type_, &escape_leading_underscores(name))
     }
 
     pub(super) fn string_literal_types(
@@ -863,4 +1027,35 @@ impl TypeChecker {
     pub(super) fn diagnostics(&self) -> RefMut<DiagnosticCollection> {
         self.diagnostics.borrow_mut()
     }
+
+    pub(super) fn subtype_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
+        self.subtype_relation.borrow()
+    }
+
+    pub(super) fn strict_subtype_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
+        self.strict_subtype_relation.borrow()
+    }
+
+    pub(super) fn assignable_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
+        self.assignable_relation.borrow()
+    }
+
+    pub(super) fn comparable_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
+        self.comparable_relation.borrow()
+    }
+
+    pub(super) fn identity_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
+        self.identity_relation.borrow()
+    }
+
+    pub(super) fn enum_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
+        self.enum_relation.borrow()
+    }
+}
+
+pub struct RelationCacheSizes {
+    pub assignable: usize,
+    pub identity: usize,
+    pub subtype: usize,
+    pub strict_subtype: usize,
 }

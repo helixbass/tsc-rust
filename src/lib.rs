@@ -22,7 +22,7 @@ pub use compiler::core::{
     flat_map_to_mutable, for_each, for_each_bool, get_ranges_where, get_spelling_suggestion,
     get_string_comparer, insert_sorted, last, last_or_undefined, length, map, map_defined,
     maybe_for_each, not_implemented, range_equals, same_map, set_ui_locale, single_element_array,
-    single_or_undefined, some, sort_and_deduplicate, starts_with, string_contains,
+    single_or_undefined, some, sort_and_deduplicate, starts_with, string_contains, sum,
     trim_string_start, try_cast, AssertionLevel, GetCanonicalFileName, Pattern,
 };
 pub use compiler::core_public::{

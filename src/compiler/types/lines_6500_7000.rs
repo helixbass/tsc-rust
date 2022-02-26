@@ -505,7 +505,7 @@ pub trait SourceFileMayBeEmittedHost {
 pub trait EmitHost:
     ScriptReferenceHost + ModuleSpecifierResolutionHost + SourceFileMayBeEmittedHost
 {
-    fn get_source_files(&self) -> Vec<Rc<Node /*SourceFile*/>>;
+    fn get_source_files(&self) -> &[Rc<Node /*SourceFile*/>];
     fn use_case_sensitive_file_names(&self) -> bool;
     fn get_current_directory(&self) -> String;
 

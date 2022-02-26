@@ -504,7 +504,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_type_assignable_to(&self, source: &Type, target: &Type) -> bool {
-        self.is_type_related_to(source, target, &self.assignable_relation)
+        self.is_type_related_to(source, target, &self.assignable_relation())
     }
 
     pub(super) fn check_type_assignable_to_and_optionally_elaborate<
@@ -521,7 +521,7 @@ impl TypeChecker {
         self.check_type_related_to_and_optionally_elaborate(
             source,
             target,
-            &self.assignable_relation,
+            &self.assignable_relation(),
             error_node,
             expr,
             head_message,
@@ -735,8 +735,8 @@ impl TypeChecker {
         if s.intersects(TypeFlags::BigIntLike) && t.intersects(TypeFlags::BigInt) {
             return true;
         }
-        if ptr::eq(relation, &self.assignable_relation)
-            || ptr::eq(relation, &self.comparable_relation)
+        if ptr::eq(relation, &*self.assignable_relation())
+            || ptr::eq(relation, &*self.comparable_relation())
         {
             if s.intersects(TypeFlags::Any) {
                 return true;

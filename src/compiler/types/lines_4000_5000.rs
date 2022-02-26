@@ -86,7 +86,7 @@ pub enum ExitStatus {
 
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     fn get_compiler_options(&self) -> Rc<CompilerOptions>;
-    fn get_source_files(&self) -> Vec<Rc<Node>>;
+    fn get_source_files(&self) -> &[Rc<Node>];
 }
 
 pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug {}
@@ -105,12 +105,12 @@ pub struct TypeChecker {
     pub Type: fn(TypeFlags) -> BaseType,
     pub Signature: fn(SignatureFlags) -> Signature,
     pub(crate) type_count: Cell<u32>,
-    pub(crate) symbol_count: Cell<u32>,
-    pub(crate) enum_count: Cell<u32>,
-    pub(crate) total_instantiation_count: Cell<u32>,
-    pub(crate) instantiation_count: Cell<u32>,
-    pub(crate) instantiation_depth: Cell<u32>,
-    pub(crate) inline_level: Cell<u32>,
+    pub(crate) symbol_count: Cell<usize>,
+    pub(crate) enum_count: Cell<usize>,
+    pub(crate) total_instantiation_count: Cell<usize>,
+    pub(crate) instantiation_count: Cell<usize>,
+    pub(crate) instantiation_depth: Cell<usize>,
+    pub(crate) inline_level: Cell<usize>,
     pub(crate) current_node: RefCell<Option<Rc<Node>>>,
     pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
     pub(crate) compiler_options: Rc<CompilerOptions>,
@@ -130,7 +130,12 @@ pub struct TypeChecker {
     pub exact_optional_property_types: Option<bool>,
     pub(crate) emit_resolver: Option<Rc<dyn EmitResolverDebuggable>>,
     pub node_builder: NodeBuilder,
-    pub globals: RefCell<SymbolTable>,
+    pub globals: Rc<RefCell<SymbolTable>>,
+    pub(crate) undefined_symbol: Option<Rc<Symbol>>,
+    pub(crate) global_this_symbol: Option<Rc<Symbol>>,
+    pub(crate) arguments_symbol: Option<Rc<Symbol>>,
+    pub(crate) require_symbol: Option<Rc<Symbol>>,
+    pub(crate) apparent_argument_count: Cell<Option<usize>>,
     pub string_literal_types: RefCell<HashMap<String, Rc</*StringLiteralType*/ Type>>>,
     pub number_literal_types: RefCell<HashMap<Number, Rc</*NumberLiteralType*/ Type>>>,
     pub big_int_literal_types: RefCell<HashMap<String, Rc</*BigIntLiteralType*/ Type>>>,
@@ -161,8 +166,12 @@ pub struct TypeChecker {
     pub symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
     pub node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
     pub diagnostics: RefCell<DiagnosticCollection>,
-    pub assignable_relation: HashMap<String, RelationComparisonResult>,
-    pub comparable_relation: HashMap<String, RelationComparisonResult>,
+    pub(crate) subtype_relation: RefCell<HashMap<String, RelationComparisonResult>>,
+    pub(crate) strict_subtype_relation: RefCell<HashMap<String, RelationComparisonResult>>,
+    pub(crate) assignable_relation: RefCell<HashMap<String, RelationComparisonResult>>,
+    pub(crate) comparable_relation: RefCell<HashMap<String, RelationComparisonResult>>,
+    pub(crate) identity_relation: RefCell<HashMap<String, RelationComparisonResult>>,
+    pub(crate) enum_relation: RefCell<HashMap<String, RelationComparisonResult>>,
 }
 
 #[derive(PartialEq, Eq)]

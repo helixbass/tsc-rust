@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::mem;
+use std::ops::Add;
 use std::ptr;
 use std::rc::Rc;
 
@@ -334,6 +335,17 @@ pub fn sort_and_deduplicate<
             None => ComparerOrEqualityComparer::Comparer(comparer),
         },
     )
+}
+
+pub fn sum<TItem, TGetValue: FnMut(&TItem) -> usize>(
+    array: &[TItem],
+    mut get_value: TGetValue,
+) -> usize {
+    let mut result = 0;
+    for v in array {
+        result += get_value(v);
+    }
+    result
 }
 
 pub fn append<TItem>(to: &mut Vec<TItem>, value: Option<TItem>) {

@@ -209,8 +209,8 @@ impl TypeCheckerHost for ProgramConcrete {
         self.options.clone()
     }
 
-    fn get_source_files(&self) -> Vec<Rc<Node>> {
-        self.files.clone()
+    fn get_source_files(&self) -> &[Rc<Node>] {
+        &self.files
     }
 }
 
