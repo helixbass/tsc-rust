@@ -8,8 +8,8 @@ use std::rc::{Rc, Weak};
 use super::{
     BaseType, CompilerOptions, DiagnosticCollection, ModuleSpecifierResolutionHost, Node,
     NodeCheckFlags, NodeId, NodeLinks, ObjectFlags, ParsedCommandLine, Path,
-    RelationComparisonResult, SymbolTable, SymbolTracker, TransformationContext,
-    TransformerFactory, Type, TypeFlags, TypeMapper, __String,
+    RelationComparisonResult, Signature, SignatureFlags, SymbolTable, SymbolTracker,
+    TransformationContext, TransformerFactory, Type, TypeFlags, TypeMapper, __String,
 };
 use crate::{NodeBuilder, Number, StringOrNumber};
 use local_macros::symbol_type;
@@ -91,12 +91,15 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
 #[allow(non_snake_case)]
 pub struct TypeChecker {
     pub _types_needing_strong_references: RefCell<Vec<Rc<Type>>>,
+    pub produce_diagnostics: bool,
     pub Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
     pub Type: fn(TypeFlags) -> BaseType,
+    pub Signature: fn(SignatureFlags) -> Signature,
     pub(crate) type_count: Cell<u32>,
     pub(crate) empty_symbols: Rc<RefCell<SymbolTable>>,
     pub(crate) compiler_options: Rc<CompilerOptions>,
     pub strict_null_checks: bool,
+    pub no_implicit_any: bool,
     pub fresh_object_literal_flag: ObjectFlags,
     pub exact_optional_property_types: bool,
     pub node_builder: NodeBuilder,
@@ -107,6 +110,7 @@ pub struct TypeChecker {
     pub unknown_symbol: Option<Rc<Symbol>>,
     pub any_type: Option<Rc<Type>>,
     pub error_type: Option<Rc<Type>>,
+    pub unknown_type: Option<Rc<Type>>,
     pub undefined_type: Option<Rc<Type>>,
     pub null_type: Option<Rc<Type>>,
     pub string_type: Option<Rc<Type>>,
@@ -117,10 +121,16 @@ pub struct TypeChecker {
     pub false_type: Option<Rc<Type>>,
     pub regular_false_type: Option<Rc<Type>>,
     pub boolean_type: Option<Rc<Type>>,
+    pub void_type: Option<Rc<Type>>,
     pub never_type: Option<Rc<Type>>,
     pub number_or_big_int_type: Option<Rc<Type>>,
     pub template_constraint_type: Option<Rc<Type>>,
+    pub empty_generic_type: Option<Rc<Type /*GenericType*/>>,
+    pub no_constraint_type: Option<Rc<Type /*ResolvedType*/>>,
+    pub circular_constraint_type: Option<Rc<Type /*ResolvedType*/>>,
     pub global_array_type: Option<Rc<Type /*GenericType*/>>,
+    pub deferred_global_promise_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub deferred_global_promise_constructor_symbol: RefCell<Option<Rc<Symbol>>>,
     pub symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
     pub node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
     pub diagnostics: RefCell<DiagnosticCollection>,

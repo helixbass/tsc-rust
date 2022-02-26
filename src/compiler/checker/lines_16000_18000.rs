@@ -7,10 +7,10 @@ use std::rc::Rc;
 
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
-    get_check_flags, pseudo_big_int_to_string, BaseLiteralType, BigIntLiteralType, CheckFlags,
+    get_check_flags, map, pseudo_big_int_to_string, BaseLiteralType, BigIntLiteralType, CheckFlags,
     Debug_, DiagnosticMessage, LiteralTypeInterface, NamedDeclarationInterface, Node,
-    NodeInterface, Number, NumberLiteralType, ObjectLiteralExpression, PseudoBigInt,
-    RelationComparisonResult, StringLiteralType, Symbol, SymbolInterface, SyntaxKind,
+    NodeInterface, Number, NumberLiteralType, PseudoBigInt, RelationComparisonResult, Signature,
+    SignatureFlags, StringLiteralType, Symbol, SymbolInterface, SyntaxKind, Ternary,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     UnionOrIntersectionType,
 };
@@ -200,6 +200,54 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn instantiate_list<
+        TItem,
+        TInstantiator: FnMut(&Rc<TItem>, &TypeMapper) -> Rc<TItem>,
+    >(
+        &self,
+        items: Option<&[Rc<TItem>]>,
+        mapper: &TypeMapper,
+        mut instantiator: TInstantiator,
+    ) -> Option<Vec<Rc<TItem>>> {
+        if items.is_none() {
+            return None;
+        }
+        let items = items.unwrap();
+        if
+        /*items &&*/
+        !items.is_empty() {
+            let mut i = 0;
+            while i < items.len() {
+                let item = &items[i];
+                let mapped = instantiator(item, mapper);
+                if !Rc::ptr_eq(item, &mapped) {
+                    let mut result = if i == 0 { vec![] } else { items[..i].to_vec() };
+                    result.push(mapped);
+                    i += 1;
+                    while i < items.len() {
+                        result.push(instantiator(&items[i], mapper));
+                        i += 1;
+                    }
+                    return Some(result);
+                }
+
+                i += 1;
+            }
+        }
+        Some(items.to_vec())
+    }
+
+    pub(super) fn instantiate_signatures(
+        &self,
+        signatures: &[Rc<Signature>],
+        mapper: &TypeMapper,
+    ) -> Vec<Rc<Signature>> {
+        self.instantiate_list(Some(signatures), mapper, |signature, mapper| {
+            self.instantiate_signature(signature.clone(), mapper, None)
+        })
+        .unwrap()
+    }
+
     pub(super) fn create_type_mapper(
         &self,
         sources: Vec<Rc<Type /*TypeParameter*/>>,
@@ -302,6 +350,65 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn clone_type_parameter(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> Rc<Type /*TypeParameter*/> {
+        let mut result = self.create_type_parameter(Some(type_parameter.symbol()));
+        result.target = Some(type_parameter.type_wrapper());
+        result.into()
+    }
+
+    pub(super) fn instantiate_signature(
+        &self,
+        signature: Rc<Signature>,
+        mapper: &TypeMapper,
+        erase_type_parameters: Option<bool>,
+    ) -> Rc<Signature> {
+        let mut mapper = mapper.clone();
+        let erase_type_parameters = erase_type_parameters.unwrap_or(false);
+        let mut fresh_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
+        if let Some(signature_type_parameters) = signature.type_parameters.clone() {
+            if !erase_type_parameters {
+                fresh_type_parameters = map(
+                    Some(signature_type_parameters.clone()),
+                    |type_parameter, _| self.clone_type_parameter(&type_parameter),
+                );
+                mapper = self.combine_type_mappers(
+                    Some(self.create_type_mapper(
+                        signature_type_parameters,
+                        fresh_type_parameters.clone(),
+                    )),
+                    mapper,
+                );
+                for tp in fresh_type_parameters.as_ref().unwrap() {
+                    tp.as_type_parameter().set_mapper(mapper.clone());
+                }
+            }
+        }
+        let mut result = self.create_signature(
+            signature.declaration.clone(),
+            fresh_type_parameters,
+            signature
+                .this_parameter
+                .as_ref()
+                .map(|this_parameter| self.instantiate_symbol(this_parameter, &mapper)),
+            self.instantiate_list(
+                Some(signature.parameters()),
+                &mapper,
+                |parameter, mapper| self.instantiate_symbol(parameter, mapper),
+            )
+            .unwrap(),
+            None,
+            None,
+            signature.min_argument_count(),
+            signature.flags & SignatureFlags::PropagatingFlags,
+        );
+        result.target = Some(signature);
+        result.mapper = Some(mapper);
+        Rc::new(result)
+    }
+
     pub(super) fn instantiate_symbol(&self, symbol: &Symbol, mapper: &TypeMapper) -> Rc<Symbol> {
         let mut symbol = symbol.symbol_wrapper();
         let links = self.get_symbol_links(&symbol);
@@ -392,16 +499,23 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn compare_types_identical(&self, source: &Type, target: &Type) -> Ternary {
+        unimplemented!()
+    }
+
     pub(super) fn is_type_assignable_to(&self, source: &Type, target: &Type) -> bool {
         self.is_type_related_to(source, target, &self.assignable_relation)
     }
 
-    pub(super) fn check_type_assignable_to_and_optionally_elaborate(
+    pub(super) fn check_type_assignable_to_and_optionally_elaborate<
+        TErrorNode: Borrow<Node>,
+        TExpr: Borrow<Node>,
+    >(
         &self,
         source: &Type,
         target: &Type,
-        error_node: Option<&Node>,
-        expr: Option<&Node>,
+        error_node: Option<TErrorNode>,
+        expr: Option<TExpr>,
         head_message: Option<DiagnosticMessage>,
     ) -> bool {
         self.check_type_related_to_and_optionally_elaborate(
@@ -414,13 +528,16 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn check_type_related_to_and_optionally_elaborate(
+    pub(super) fn check_type_related_to_and_optionally_elaborate<
+        TErrorNode: Borrow<Node>,
+        TExpr: Borrow<Node>,
+    >(
         &self,
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
-        error_node: Option<&Node>,
-        expr: Option<&Node>,
+        error_node: Option<TErrorNode>,
+        expr: Option<TExpr>,
         head_message: Option<DiagnosticMessage>,
     ) -> bool {
         if self.is_type_related_to(source, target, relation) {
@@ -434,9 +551,9 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn elaborate_error(
+    pub(super) fn elaborate_error<TNode: Borrow<Node>>(
         &self,
-        node: Option<&Node>,
+        node: Option<TNode>,
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
@@ -446,8 +563,9 @@ impl TypeChecker {
             return false;
         }
         let node = node.unwrap();
+        let node = node.borrow();
         match node {
-            Node::ObjectLiteralExpression(node) => {
+            Node::ObjectLiteralExpression(_) => {
                 return self.elaborate_object_literal(node, source, target, relation);
             }
             _ => (),
@@ -519,7 +637,7 @@ impl TypeChecker {
                 &source_prop_type,
                 &target_prop_type,
                 relation,
-                None,
+                Option::<&Node>::None,
                 None,
             ) {
                 reported_error = true;
@@ -551,13 +669,14 @@ impl TypeChecker {
 
     pub(super) fn generate_object_literal_elements(
         &self,
-        node: &ObjectLiteralExpression,
-        // ) -> impl Iterator<Item = ElaborationIteratorItem> {
+        node: &Node, /*ObjectLiteralExpression*/
+                     // ) -> impl Iterator<Item = ElaborationIteratorItem> {
     ) -> Vec<ElaborationIteratorItem> {
         // if node.properties.is_empty() {
         //     return vec![];
         // }
-        node.properties
+        node.as_object_literal_expression()
+            .properties
             .iter()
             .flat_map(|prop| {
                 let type_ = self.get_literal_type_from_property(
@@ -585,7 +704,7 @@ impl TypeChecker {
 
     pub(super) fn elaborate_object_literal(
         &self,
-        node: &ObjectLiteralExpression,
+        node: &Node, /*ObjectLiteralExpression*/
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
@@ -675,7 +794,13 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::StructuredOrInstantiable)
         {
-            return self.check_type_related_to(&source, &target, relation, None, None);
+            return self.check_type_related_to(
+                &source,
+                &target,
+                relation,
+                Option::<&Node>::None,
+                None,
+            );
         }
         false
     }
@@ -705,15 +830,23 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn check_type_related_to(
+    pub(super) fn check_type_related_to<TErrorNode: Borrow<Node>>(
         &self,
         source: &Type,
         target: &Type,
         relation: &HashMap<String, RelationComparisonResult>,
-        error_node: Option<&Node>,
+        error_node: Option<TErrorNode>,
         head_message: Option<DiagnosticMessage>,
     ) -> bool {
-        CheckTypeRelatedTo::new(self, source, target, relation, error_node, head_message).call()
+        CheckTypeRelatedTo::new(
+            self,
+            source,
+            target,
+            relation,
+            error_node.map(|error_node| error_node.borrow().node_wrapper()),
+            head_message,
+        )
+        .call()
     }
 }
 

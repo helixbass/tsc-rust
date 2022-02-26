@@ -2,20 +2,21 @@
 
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use super::NodeBuilderContext;
 use crate::{
-    __String, append_if_unique, concatenate, create_symbol_table, declaration_name_to_string,
-    escape_leading_underscores, first_defined, get_check_flags, get_declaration_of_kind,
-    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
-    get_name_of_declaration, has_dynamic_name, has_only_expression_initializer,
-    is_property_assignment, is_property_declaration, is_property_signature, is_type_alias,
-    is_variable_declaration, range_equals, BaseInterfaceType, CheckFlags, Debug_, InterfaceType,
-    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface,
+    Signature, SignatureFlags, TypePredicate, __String, append_if_unique, concatenate,
+    create_symbol_table, declaration_name_to_string, escape_leading_underscores, first_defined,
+    get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
+    get_effective_type_parameter_declarations, get_name_of_declaration, has_dynamic_name,
+    has_only_expression_initializer, is_property_assignment, is_property_declaration,
+    is_property_signature, is_type_alias, is_variable_declaration, range_equals, BaseInterfaceType,
+    CheckFlags, Debug_, InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType,
+    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -86,6 +87,21 @@ impl TypeChecker {
             }
         }
         unimplemented!()
+    }
+
+    pub(super) fn is_type_any<TTypeRef: Borrow<Type>>(&self, type_: Option<TTypeRef>) -> bool {
+        match type_ {
+            Some(type_) => {
+                let type_ = type_.borrow();
+                type_.flags().intersects(TypeFlags::Any)
+            }
+            None => false,
+        }
+    }
+
+    pub(super) fn is_error_type(&self, type_: &Type) -> bool {
+        ptr::eq(type_, &*self.error_type())
+            || type_.flags().intersects(TypeFlags::Any) && type_.maybe_alias_symbol().is_some()
     }
 
     pub(super) fn add_optionality(
@@ -318,7 +334,7 @@ impl TypeChecker {
                 ObjectFlags::Interface
             };
 
-            let type_ = self.create_object_type(kind, symbol);
+            let type_ = self.create_object_type(kind, Some(symbol));
             let outer_type_parameters =
                 self.get_outer_type_parameters_of_class_or_interface(symbol);
             let local_type_parameters =
@@ -523,14 +539,24 @@ impl TypeChecker {
         type_parameters: Vec<Rc<Type /*TypeParameter*/>>,
         type_arguments: Vec<Rc<Type>>,
     ) {
-        let members: Rc<RefCell<SymbolTable>>;
         let mut mapper: Option<TypeMapper> = None;
+        let members: Rc<RefCell<SymbolTable>>;
+        let call_signatures: Vec<Rc<Signature>>;
+        let construct_signatures: Vec<Rc<Signature>>;
+        let source_as_interface_type_with_declared_members =
+            source.as_interface_type_with_declared_members();
         if range_equals(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.maybe_symbol() {
                 self.get_members_of_symbol(&source_symbol)
             } else {
                 unimplemented!()
             };
+            call_signatures = source_as_interface_type_with_declared_members
+                .declared_call_signatures()
+                .clone();
+            construct_signatures = source_as_interface_type_with_declared_members
+                .declared_construct_signatures()
+                .clone();
         } else {
             let type_parameters_len_is_1 = type_parameters.len() == 1;
             mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments)));
@@ -545,8 +571,30 @@ impl TypeChecker {
                     type_parameters_len_is_1,
                 ),
             ));
+            call_signatures = self.instantiate_signatures(
+                &*source_as_interface_type_with_declared_members.declared_call_signatures(),
+                mapper.as_ref().unwrap(),
+            );
+            construct_signatures = self.instantiate_signatures(
+                &*source_as_interface_type_with_declared_members.declared_construct_signatures(),
+                mapper.as_ref().unwrap(),
+            );
         }
-        self.set_structured_type_members(type_.as_object_type(), members);
+        self.set_structured_type_members(
+            type_.as_object_type(),
+            members,
+            call_signatures,
+            construct_signatures,
+        );
+    }
+
+    pub(super) fn resolve_class_or_interface_members(&self, type_: &Type /*InterfaceType*/) {
+        self.resolve_object_type_members(
+            type_,
+            &self.resolve_declared_members(type_),
+            vec![],
+            vec![],
+        );
     }
 
     pub(super) fn resolve_type_reference_members(&self, type_: &Type /*TypeReference*/) {
@@ -573,13 +621,34 @@ impl TypeChecker {
         self.resolve_object_type_members(type_, &source, type_parameters, padded_type_arguments);
     }
 
-    pub(super) fn resolve_class_or_interface_members(&self, type_: &Type /*InterfaceType*/) {
-        self.resolve_object_type_members(
-            type_,
-            &self.resolve_declared_members(type_),
-            vec![],
-            vec![],
-        );
+    pub(super) fn create_signature(
+        &self,
+        declaration: Option<Rc<Node>>,
+        type_parameters: Option<Vec<Rc<Type>>>,
+        this_parameter: Option<Rc<Symbol>>,
+        parameters: Vec<Rc<Symbol>>,
+        resolved_return_type: Option<Rc<Type>>,
+        resolved_type_predicate: Option<TypePredicate>,
+        min_argument_count: usize,
+        flags: SignatureFlags,
+    ) -> Signature {
+        let mut sig = (self.Signature)(flags);
+        sig.declaration = declaration;
+        sig.type_parameters = type_parameters;
+        sig.set_parameters(parameters);
+        sig.this_parameter = this_parameter;
+        *sig.resolved_return_type.borrow_mut() = resolved_return_type;
+        sig.resolved_type_predicate = resolved_type_predicate;
+        sig.set_min_argument_count(min_argument_count);
+        sig
+    }
+
+    pub(super) fn create_union_signature(
+        &self,
+        signature: Rc<Signature>,
+        union_signatures: &[Rc<Signature>],
+    ) -> Signature {
+        unimplemented!()
     }
 
     pub(super) fn resolve_structured_type_members(
@@ -650,5 +719,40 @@ impl TypeChecker {
         } else {
             self.get_properties_of_object_type(&type_)
         }
+    }
+
+    pub(super) fn get_constraint_of_type_parameter(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> Option<Rc<Type>> {
+        if self.has_non_circular_base_constraint(type_parameter) {
+            self.get_constraint_from_type_parameter(type_parameter)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn has_non_circular_base_constraint(
+        &self,
+        type_: &Type, /*InstantiableType*/
+    ) -> bool {
+        !Rc::ptr_eq(
+            &self.get_resolved_base_constraint(type_),
+            &self.circular_constraint_type(),
+        )
+    }
+
+    pub(super) fn get_resolved_base_constraint(
+        &self,
+        type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_default_from_type_parameter(
+        &self,
+        type_: &Type, /*TypeParameter*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 }

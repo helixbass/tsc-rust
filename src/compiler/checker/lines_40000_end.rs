@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, for_each, is_external_or_common_js_module, Diagnostic, Node, NodeInterface,
-    SourceFile, TypeChecker, TypeCheckerHost,
+    NumericLiteral, Signature, SignatureFlags, SourceFile, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -23,10 +23,12 @@ impl TypeChecker {
             Node::KeywordTypeNode(_) | Node::LiteralTypeNode(_) => (),
             Node::ArrayTypeNode(_) => self.check_array_type(node),
             Node::UnionTypeNode(_) => self.check_union_or_intersection_type(node),
+            Node::FunctionDeclaration(_) => self.check_function_declaration(node),
             Node::Block(_) => self.check_block(node),
             Node::VariableStatement(_) => self.check_variable_statement(node),
             Node::ExpressionStatement(_) => self.check_expression_statement(node),
             Node::IfStatement(_) => self.check_if_statement(node),
+            Node::ReturnStatement(_) => self.check_return_statement(node),
             Node::VariableDeclaration(_) => self.check_variable_declaration(node),
             Node::InterfaceDeclaration(_) => self.check_interface_declaration(node),
             Node::TypeAliasDeclaration(_) => self.check_type_alias_declaration(node),
@@ -88,4 +90,8 @@ impl TypeChecker {
     ) -> bool {
         false
     }
+}
+
+pub(super) fn signature_has_rest_parameter(s: &Signature) -> bool {
+    s.flags.intersects(SignatureFlags::HasRestParameter)
 }

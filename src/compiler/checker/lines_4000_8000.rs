@@ -6,13 +6,13 @@ use std::rc::Rc;
 
 use crate::{
     get_emit_script_target, is_expression, is_identifier_text, unescape_leading_underscores,
-    using_single_line_string_writer, BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes,
-    Debug_, EmitHint, EmitTextWriter, KeywordTypeNode, Node, NodeArray, NodeBuilderFlags,
-    NodeInterface, ObjectFlags, PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface,
-    Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter,
-    __String, create_printer, create_text_writer, factory, get_object_flags,
-    get_source_file_of_node, synthetic_factory,
+    using_single_line_string_writer, BaseIntrinsicType, BaseNodeFactorySynthetic, BaseObjectType,
+    BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter, KeywordTypeNode, Node, NodeArray,
+    NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions, ResolvableTypeInterface,
+    ResolvedTypeInterface, Signature, SourceFile, Symbol, SymbolFlags, SymbolFormatFlags,
+    SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeFormatFlags, TypeInterface, TypeParameter, __String, create_printer, create_text_writer,
+    factory, get_object_flags, get_source_file_of_node, synthetic_factory,
 };
 
 impl TypeChecker {
@@ -53,13 +53,13 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn create_object_type(
+    pub(super) fn create_object_type<TSymbol: Borrow<Symbol>>(
         &self,
         object_flags: ObjectFlags,
-        symbol: &Symbol,
+        symbol: Option<TSymbol>,
     ) -> BaseObjectType {
         let mut type_ = self.create_type(TypeFlags::Object);
-        type_.set_symbol(Some(symbol.symbol_wrapper()));
+        type_.set_symbol(symbol.map(|symbol| symbol.borrow().symbol_wrapper()));
         let type_ = BaseObjectType::new(type_, object_flags);
         type_
     }
@@ -127,22 +127,31 @@ impl TypeChecker {
         &self,
         type_: &TType,
         members: Rc<RefCell<SymbolTable>>,
+        call_signatures: Vec<Rc<Signature>>,
+        construct_signatures: Vec<Rc<Signature>>,
     ) /*-> BaseObjectType*/
     {
-        type_.resolve(members.clone(), vec![], vec![], vec![]); // TODO: this is wrong
+        type_.resolve(
+            members.clone(),
+            vec![],
+            call_signatures,
+            construct_signatures,
+        );
         if true {
             type_.set_properties(self.get_named_members(&*(*members).borrow()));
         }
         // type_
     }
 
-    pub(super) fn create_anonymous_type(
+    pub(super) fn create_anonymous_type<TSymbol: Borrow<Symbol>>(
         &self,
-        symbol: &Symbol,
+        symbol: Option<TSymbol>,
         members: Rc<RefCell<SymbolTable>>,
+        call_signatures: Vec<Rc<Signature>>,
+        construct_signatures: Vec<Rc<Signature>>,
     ) -> BaseObjectType {
         let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);
-        self.set_structured_type_members(&type_, members);
+        self.set_structured_type_members(&type_, members, call_signatures, construct_signatures);
         type_
     }
 

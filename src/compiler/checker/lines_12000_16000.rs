@@ -6,11 +6,15 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    UnionType, __String, binary_search_copy_key, compare_values, concatenate,
-    get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
-    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeId, TypeInterface, TypeReference, UnionReduction,
+    append_if_unique, filter, get_effective_constraint_of_type_parameter,
+    get_effective_return_type_node, get_effective_type_parameter_declarations, is_binding_pattern,
+    is_type_parameter_declaration, map_defined, node_is_missing, Signature, SignatureFlags,
+    SignatureKind, TypePredicate, UnionType, __String, binary_search_copy_key, compare_values,
+    concatenate, get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
+    ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, TypeReference,
+    TypeReferenceNode, UnionReduction, UnionTypeNode,
 };
 
 impl TypeChecker {
@@ -56,12 +60,281 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn get_signatures_of_structured_type(
+        &self,
+        type_: &Type,
+        kind: SignatureKind,
+    ) -> Vec<Rc<Signature>> {
+        if type_.flags().intersects(TypeFlags::StructuredType) {
+            let resolved = self.resolve_structured_type_members(type_);
+            let resolved = resolved.as_resolved_type();
+            return if kind == SignatureKind::Call {
+                resolved.call_signatures().clone()
+            } else {
+                resolved.construct_signatures().clone()
+            };
+        }
+        vec![]
+    }
+
+    pub(super) fn get_signatures_of_type(
+        &self,
+        type_: &Type,
+        kind: SignatureKind,
+    ) -> Vec<Rc<Signature>> {
+        self.get_signatures_of_structured_type(&self.get_reduced_apparent_type(type_), kind)
+    }
+
+    pub(super) fn get_type_parameters_from_declaration(
+        &self,
+        declaration: &Node, /*DeclarationWithTypeParameters*/
+    ) -> Option<Vec<Rc<Type /*<TypeParameter>*/>>> {
+        let mut result: Option<Vec<Rc<Type>>> = None;
+        for node in get_effective_type_parameter_declarations(declaration) {
+            result = Some(append_if_unique(
+                result,
+                self.get_declared_type_of_type_parameter(&node.symbol()),
+            ));
+        }
+        result
+    }
+
     pub(super) fn fill_missing_type_arguments(
         &self,
         type_arguments: Option<Vec<Rc<Type>>>,
         type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
     ) -> Option<Vec<Rc<Type>>> {
         type_arguments.map(|vec| vec.clone())
+    }
+
+    pub(super) fn get_signature_from_declaration(
+        &self,
+        declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
+    ) -> Rc<Signature> {
+        let links = self.get_node_links(declaration);
+        if (*links).borrow().resolved_signature.is_none() {
+            let mut parameters: Vec<Rc<Symbol>> = vec![];
+            let mut flags = SignatureFlags::None;
+            let mut min_argument_count = 0;
+            let mut this_parameter: Option<Rc<Symbol>> = None;
+            let mut has_this_parameter = false;
+
+            let declaration_as_signature_declaration = declaration.as_signature_declaration();
+            for (i, param) in declaration_as_signature_declaration
+                .parameters()
+                .iter()
+                .enumerate()
+            {
+                let mut param_symbol = param.symbol();
+                let type_ = if false {
+                    unimplemented!()
+                } else {
+                    param.as_has_type().maybe_type()
+                };
+                if
+                /*paramSymbol &&*/
+                param_symbol.flags().intersects(SymbolFlags::Property)
+                    && !is_binding_pattern(param.as_named_declaration().maybe_name())
+                {
+                    let resolved_symbol = self.resolve_name(
+                        Some(&**param),
+                        param_symbol.escaped_name(),
+                        SymbolFlags::Value,
+                        None,
+                        Option::<Rc<Node>>::None,
+                        false,
+                        None,
+                    );
+                    param_symbol = resolved_symbol.unwrap();
+                }
+                if i == 0 && false {
+                    unimplemented!()
+                } else {
+                    parameters.push(param_symbol);
+                }
+
+                if matches!(type_, Some(type_) if type_.kind() == SyntaxKind::LiteralType) {
+                    flags |= SignatureFlags::HasLiteralTypes;
+                }
+
+                let is_optional_parameter = false;
+                if !is_optional_parameter {
+                    min_argument_count = parameters.len();
+                }
+            }
+
+            let class_type: Option<Rc<Type>> = if false { unimplemented!() } else { None };
+            let type_parameters = match class_type {
+                Some(class_type) => unimplemented!(),
+                None => self.get_type_parameters_from_declaration(declaration),
+            };
+            let resolved_signature = Rc::new(self.create_signature(
+                Some(declaration.node_wrapper()),
+                type_parameters,
+                this_parameter,
+                parameters,
+                None,
+                None,
+                min_argument_count,
+                flags,
+            ));
+            links.borrow_mut().resolved_signature = Some(resolved_signature);
+        }
+        let links = (*links).borrow();
+        links.resolved_signature.clone().unwrap()
+    }
+
+    pub(super) fn get_signature_of_type_tag(
+        &self,
+        node: &Node, /*SignatureDeclaration | JSDocSignature*/
+    ) -> Option<Rc<Signature>> {
+        if !false {
+            return None;
+        }
+        unimplemented!()
+    }
+
+    pub(super) fn get_return_type_of_type_tag(
+        &self,
+        node: &Node, /*SignatureDeclaration | JSDocSignature*/
+    ) -> Option<Rc<Type>> {
+        let signature = self.get_signature_of_type_tag(node);
+        signature.map(|signature| self.get_return_type_of_signature(&signature))
+    }
+
+    pub(super) fn get_this_type_of_signature(&self, signature: &Signature) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_predicate_of_signature(
+        &self,
+        signature: &Signature,
+    ) -> Option<Rc<TypePredicate>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_return_type_of_signature(&self, signature: &Signature) -> Rc<Type> {
+        if signature.resolved_return_type.borrow().is_none() {
+            let mut type_: Rc<Type> = if false {
+                unimplemented!()
+            } else {
+                let signature_declaration = signature.declaration.as_ref().unwrap();
+                self.get_return_type_from_annotation(signature_declaration)
+                    .unwrap_or_else(|| {
+                        if node_is_missing(
+                            signature_declaration
+                                .maybe_as_function_like_declaration()
+                                .and_then(|function_like_declaration| {
+                                    function_like_declaration.maybe_body()
+                                }),
+                        ) {
+                            self.any_type()
+                        } else {
+                            self.get_return_type_from_body(signature_declaration, None)
+                        }
+                    })
+            };
+            if signature.flags.intersects(SignatureFlags::IsInnerCallChain) {
+                type_ = self.add_optional_type_marker(&type_);
+            } else if signature.flags.intersects(SignatureFlags::IsOuterCallChain) {
+                type_ = self.get_optional_type(&type_, None);
+            }
+            *signature.resolved_return_type.borrow_mut() = Some(type_);
+        }
+        signature.resolved_return_type.borrow().clone().unwrap()
+    }
+
+    pub(super) fn get_return_type_from_annotation(
+        &self,
+        declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
+    ) -> Option<Rc<Type>> {
+        let type_node = get_effective_return_type_node(declaration);
+        if let Some(type_node) = type_node {
+            return Some(self.get_type_from_type_node(&type_node));
+        }
+        self.get_return_type_of_type_tag(declaration)
+    }
+
+    pub(super) fn get_constraint_declaration(
+        &self,
+        type_: &Type, /*TypeParameter*/
+    ) -> Option<Rc<Node /*TypeNode*/>> {
+        map_defined(
+            filter(
+                type_
+                    .maybe_symbol()
+                    .and_then(|symbol| symbol.maybe_declarations().clone())
+                    .as_deref(),
+                |node: &Rc<Node>| is_type_parameter_declaration(node),
+            ),
+            |node, _| get_effective_constraint_of_type_parameter(&node),
+        )
+        .get(0)
+        .map(Clone::clone)
+    }
+
+    pub(super) fn get_inferred_type_parameter_constraint(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_constraint_from_type_parameter(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> Option<Rc<Type>> {
+        let type_parameter_as_type_parameter = type_parameter.as_type_parameter();
+        if type_parameter_as_type_parameter
+            .maybe_constraint()
+            .is_none()
+        {
+            if let Some(type_parameter_target) = type_parameter_as_type_parameter.target.as_ref() {
+                let target_constraint =
+                    self.get_constraint_of_type_parameter(type_parameter_target);
+                type_parameter_as_type_parameter.set_constraint(match target_constraint {
+                    Some(target_constraint) => self
+                        .instantiate_type(
+                            Some(target_constraint),
+                            type_parameter_as_type_parameter.maybe_mapper().as_ref(),
+                        )
+                        .unwrap(),
+                    None => self.no_constraint_type(),
+                });
+            } else {
+                let constraint_declaration = self.get_constraint_declaration(type_parameter);
+                match constraint_declaration {
+                    None => {
+                        type_parameter_as_type_parameter.set_constraint(
+                            self.get_inferred_type_parameter_constraint(type_parameter)
+                                .unwrap_or_else(|| self.no_constraint_type()),
+                        );
+                    }
+                    Some(constraint_declaration) => {
+                        let mut type_ = self.get_type_from_type_node(&constraint_declaration);
+                        if type_.flags().intersects(TypeFlags::Any) && !self.is_error_type(&type_) {
+                            type_ = if constraint_declaration.parent().parent().kind()
+                                == SyntaxKind::MappedType
+                            {
+                                self.keyof_constraint_type()
+                            } else {
+                                self.unknown_type()
+                            };
+                        }
+                        type_parameter_as_type_parameter.set_constraint(type_);
+                    }
+                }
+            }
+        }
+        type_parameter_as_type_parameter
+            .maybe_constraint()
+            .and_then(|type_parameter_constraint| {
+                if Rc::ptr_eq(&type_parameter_constraint, &self.no_constraint_type()) {
+                    None
+                } else {
+                    Some(type_parameter_constraint)
+                }
+            })
     }
 
     pub(super) fn get_propagating_flags_of_types(
@@ -83,7 +356,7 @@ impl TypeChecker {
         target: &Type, /*GenericType*/
         type_arguments: Option<Vec<Rc<Type>>>,
     ) -> TypeReference {
-        let type_ = self.create_object_type(ObjectFlags::Reference, &target.symbol());
+        let type_ = self.create_object_type(ObjectFlags::Reference, Some(target.symbol()));
         type_.set_object_flags(
             type_.object_flags()
                 | if let Some(type_arguments) = type_arguments.as_ref() {
@@ -274,6 +547,22 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_global_value_symbol(
+        &self,
+        name: &__String,
+        report_errors: bool,
+    ) -> Option<Rc<Symbol>> {
+        self.get_global_symbol(
+            name,
+            SymbolFlags::Value,
+            if report_errors {
+                Some(Diagnostics::Cannot_find_global_value_0)
+            } else {
+                None
+            },
+        )
+    }
+
     pub(super) fn get_global_type_symbol(
         &self,
         name: &__String,
@@ -307,13 +596,51 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_global_type(&self, name: &__String, report_errors: bool) -> Option<Rc<Type>> {
+    pub(super) fn get_global_type(
+        &self,
+        name: &__String,
+        arity: usize,
+        report_errors: bool,
+    ) -> Option<Rc<Type>> {
         let symbol = self.get_global_type_symbol(name, report_errors);
         if true {
             Some(self.get_type_of_global_symbol(symbol))
         } else {
             None
         }
+    }
+
+    pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/> {
+        let mut deferred_global_promise_type_ref = self.deferred_global_promise_type.borrow_mut();
+        if let Some(deferred_global_promise_type) = deferred_global_promise_type_ref.as_ref() {
+            return deferred_global_promise_type.clone();
+        }
+        *deferred_global_promise_type_ref =
+            self.get_global_type(&__String::new("Promise".to_string()), 1, report_errors);
+        deferred_global_promise_type_ref.as_ref().map_or_else(
+            || self.empty_generic_type(),
+            |deferred_global_promise_type| deferred_global_promise_type.clone(),
+        )
+    }
+
+    pub(super) fn get_global_promise_constructor_symbol(
+        &self,
+        report_errors: bool,
+    ) -> Option<Rc<Symbol>> {
+        let mut deferred_global_promise_constructor_symbol_ref =
+            self.deferred_global_promise_constructor_symbol.borrow_mut();
+        if let Some(deferred_global_promise_constructor_symbol) =
+            deferred_global_promise_constructor_symbol_ref.as_ref()
+        {
+            return Some(deferred_global_promise_constructor_symbol.clone());
+        }
+        *deferred_global_promise_constructor_symbol_ref =
+            self.get_global_value_symbol(&__String::new("Promise".to_string()), report_errors);
+        deferred_global_promise_constructor_symbol_ref.as_ref().map(
+            |deferred_global_promise_constructor_symbol| {
+                deferred_global_promise_constructor_symbol.clone()
+            },
+        )
     }
 
     pub(super) fn get_array_or_tuple_target_type(

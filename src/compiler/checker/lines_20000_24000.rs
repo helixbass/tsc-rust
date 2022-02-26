@@ -1,12 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
+use super::WideningKind;
 use crate::{
-    every, for_each, get_object_flags, is_write_only_access, node_is_missing, Debug_,
-    DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    every, for_each, get_object_flags, is_write_only_access, length, node_is_missing, Debug_,
+    DiagnosticMessage, Diagnostics, Identifier, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, Ternary, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };
 
 impl TypeChecker {
@@ -34,6 +37,149 @@ impl TypeChecker {
         }
 
         self.is_unit_type(type_) || type_.flags().intersects(TypeFlags::TemplateLiteral)
+    }
+
+    pub(super) fn is_matching_signature(
+        &self,
+        source: &Signature,
+        target: &Signature,
+        partial_match: bool,
+    ) -> bool {
+        let source_parameter_count = self.get_parameter_count(source);
+        let target_parameter_count = self.get_parameter_count(target);
+        let source_min_argument_count = self.get_min_argument_count(source, None);
+        let target_min_argument_count = self.get_min_argument_count(target, None);
+        let source_has_rest_parameter = self.has_effective_rest_parameter(source);
+        let target_has_rest_parameter = self.has_effective_rest_parameter(target);
+        if source_parameter_count == target_parameter_count
+            && source_min_argument_count == target_min_argument_count
+            && source_has_rest_parameter == target_has_rest_parameter
+        {
+            return true;
+        }
+        if partial_match && source_min_argument_count <= target_min_argument_count {
+            return true;
+        }
+        false
+    }
+
+    pub(super) fn compare_signatures_identical<TCompareTypes: FnMut(&Type, &Type) -> Ternary>(
+        &self,
+        mut source: Rc<Signature>,
+        target: &Signature,
+        partial_match: bool,
+        ignore_this_types: bool,
+        ignore_return_types: bool,
+        mut compare_types: TCompareTypes,
+    ) -> Ternary {
+        if ptr::eq(&*source, target) {
+            return Ternary::True;
+        }
+        if !self.is_matching_signature(&source, target, partial_match) {
+            return Ternary::False;
+        }
+        if length(source.type_parameters.as_deref()) != length(target.type_parameters.as_deref()) {
+            return Ternary::False;
+        }
+        if let Some(target_type_parameters) = target.type_parameters.as_ref() {
+            let source_type_parameters = source.type_parameters.as_ref().unwrap();
+            let mapper = self.create_type_mapper(
+                source_type_parameters.clone(),
+                Some(target_type_parameters.clone()),
+            );
+            for (i, t) in target_type_parameters.iter().enumerate() {
+                let s = &source_type_parameters[i];
+                if !(Rc::ptr_eq(s, t)
+                    || compare_types(
+                        &self
+                            .instantiate_type(
+                                self.get_constraint_from_type_parameter(s),
+                                Some(&mapper),
+                            )
+                            .unwrap_or_else(|| self.unknown_type()),
+                        &self
+                            .get_constraint_from_type_parameter(t)
+                            .unwrap_or_else(|| self.unknown_type()),
+                    ) != Ternary::False
+                        && compare_types(
+                            &self
+                                .instantiate_type(
+                                    self.get_default_from_type_parameter(s),
+                                    Some(&mapper),
+                                )
+                                .unwrap_or_else(|| self.unknown_type()),
+                            &self
+                                .get_default_from_type_parameter(t)
+                                .unwrap_or_else(|| self.unknown_type()),
+                        ) != Ternary::False)
+                {
+                    return Ternary::False;
+                }
+            }
+            source = self.instantiate_signature(source, &mapper, Some(true));
+        }
+        let mut result = Ternary::True;
+        if !ignore_this_types {
+            let source_this_type = self.get_this_type_of_signature(&source);
+            if let Some(source_this_type) = source_this_type {
+                let target_this_type = self.get_this_type_of_signature(target);
+                if let Some(target_this_type) = target_this_type {
+                    let related = compare_types(&source_this_type, &target_this_type);
+                    if related == Ternary::False {
+                        return Ternary::False;
+                    }
+                    result &= related;
+                }
+            }
+        }
+        let target_len = self.get_parameter_count(target);
+        for i in 0..target_len {
+            let s = self.get_type_at_position(&source, i);
+            let t = self.get_type_at_position(target, i);
+            let related = compare_types(&t, &s);
+            if related == Ternary::False {
+                return Ternary::False;
+            }
+            result &= related;
+        }
+        if !ignore_return_types {
+            let source_type_predicate = self.get_type_predicate_of_signature(&source);
+            let target_type_predicate = self.get_type_predicate_of_signature(target);
+            result &= if source_type_predicate.is_some() || target_type_predicate.is_some() {
+                self.compare_type_predicates_identical(
+                    source_type_predicate,
+                    target_type_predicate,
+                    |s, t| compare_types(s, t),
+                )
+            } else {
+                compare_types(
+                    &self.get_return_type_of_signature(&source),
+                    &self.get_return_type_of_signature(target),
+                )
+            };
+        }
+        result
+    }
+
+    pub(super) fn compare_type_predicates_identical<
+        TSource: Borrow<TypePredicate>,
+        TTarget: Borrow<TypePredicate>,
+        TCompareTypes: FnOnce(&Type, &Type) -> Ternary,
+    >(
+        &self,
+        source: Option<TSource>,
+        target: Option<TTarget>,
+        compare_types: TCompareTypes,
+    ) -> Ternary {
+        unimplemented!()
+        // match (source, target) {
+        //     (Some(source), Some(target) => {
+        //         if !self.type_predicate_kinds_match(source, target) {
+        //             Ternary::False
+        //         } else
+        //     }
+        //     _ => Ternary::False,
+        // }
     }
 
     pub(super) fn is_unit_type(&self, type_: &Type) -> bool {
@@ -120,6 +266,16 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn is_tuple_type(&self, type_: &Type) -> bool {
+        get_object_flags(type_).intersects(ObjectFlags::Reference)
+            && type_
+                .as_type_reference()
+                .target
+                .as_object_type()
+                .object_flags()
+                .intersects(ObjectFlags::Tuple)
+    }
+
     pub(super) fn get_optional_type(&self, type_: &Type, is_property: Option<bool>) -> Rc<Type> {
         let is_property = is_property.unwrap_or(false);
         Debug_.assert(self.strict_null_checks, None);
@@ -128,6 +284,10 @@ impl TypeChecker {
         } else {
             unimplemented!()
         }
+    }
+
+    pub(super) fn add_optional_type_marker(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn remove_missing_type(&self, type_: &Type, is_optional: bool) -> Rc<Type> {
@@ -148,6 +308,39 @@ impl TypeChecker {
 
     pub(super) fn get_widened_type_with_context(&self, type_: &Type) -> Rc<Type> {
         type_.type_wrapper()
+    }
+
+    pub(super) fn report_widening_errors_in_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn report_implicit_any(
+        &self,
+        declaration: &Node, /*Declaration*/
+        type_: &Type,
+        widening_kind: Option<WideningKind>,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn report_errors_from_widening(
+        &self,
+        declaration: &Node, /*Declaration*/
+        type_: &Type,
+        widening_kind: Option<WideningKind>,
+    ) {
+        if self.produce_diagnostics
+            && self.no_implicit_any
+            && get_object_flags(type_).intersects(ObjectFlags::ContainsWideningType)
+            && (widening_kind.is_none()
+                || self
+                    .get_contextual_signature_for_function_like_declaration(declaration)
+                    .is_none())
+        {
+            if !self.report_widening_errors_in_type(type_) {
+                self.report_implicit_any(declaration, type_, widening_kind);
+            }
+        }
     }
 
     pub(super) fn could_contain_type_variables(&self, type_: &Type) -> bool {

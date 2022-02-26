@@ -6,12 +6,16 @@ use std::rc::Rc;
 
 use super::CheckMode;
 use crate::{
-    for_each, get_combined_node_flags, get_effective_initializer, is_binding_element,
-    is_function_or_module_block, is_private_identifier, map, maybe_for_each, parse_pseudo_big_int,
-    DiagnosticMessage, Diagnostics, HasTypeParametersInterface, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnionOrIntersectionTypeInterface,
+    for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
+    get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
+    is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, ArrayTypeNode, Block,
+    DiagnosticMessage, Diagnostics, ExpressionStatement, FunctionDeclaration, FunctionFlags,
+    HasTypeParametersInterface, IfStatement, InterfaceDeclaration, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PrefixUnaryExpression,
+    PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement, SymbolInterface,
+    SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration, TypeChecker, TypeFlags,
+    TypeInterface, TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeInterface,
+    VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
 };
 
 impl TypeChecker {
@@ -203,11 +207,12 @@ impl TypeChecker {
                 &type_,
                 self.instantiate_contextual_type(
                     if contextual_type.is_none() {
-                        self.get_contextual_type(node)
+                        self.get_contextual_type(node, None)
                     } else {
                         Some(contextual_type.unwrap().borrow().type_wrapper())
                     },
                     node,
+                    None,
                 ),
             )
         }
@@ -360,6 +365,71 @@ impl TypeChecker {
         self.get_type_from_type_node(node);
     }
 
+    pub(super) fn check_awaited_type(
+        &self,
+        type_: &Type,
+        with_alias: bool,
+        error_node: &Node,
+        diagnostic_message: &DiagnosticMessage,
+        args: Option<Vec<String>>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_awaited_type_instantiation(&self, type_: &Type) -> bool {
+        if type_.flags().intersects(TypeFlags::Conditional) {
+            unimplemented!()
+        }
+        false
+    }
+
+    pub(super) fn unwrap_awaited_type(&self, type_: &Type) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Union) {
+            self.map_type(
+                type_,
+                &mut |type_| Some(self.unwrap_awaited_type(type_)),
+                None,
+            )
+            .unwrap()
+        } else if self.is_awaited_type_instantiation(type_) {
+            unimplemented!()
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
+    pub(super) fn get_awaited_type_no_alias<TErrorNode: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        error_node: Option<TErrorNode>,
+        diagnostic_message: Option<&DiagnosticMessage>,
+        args: Option<Vec<String>>,
+    ) -> Option<Rc<Type>> {
+        if self.is_type_any(Some(type_)) {
+            return Some(type_.type_wrapper());
+        }
+
+        if self.is_awaited_type_instantiation(type_) {
+            return Some(type_.type_wrapper());
+        }
+
+        unimplemented!()
+    }
+
+    pub(super) fn check_function_declaration(&mut self, node: &Node /*FunctionDeclaration*/) {
+        if self.produce_diagnostics {
+            self.check_function_or_method_declaration(node);
+        }
+    }
+
+    pub(super) fn check_function_or_method_declaration(
+        &mut self,
+        node: &Node, /*FunctionDeclaration | MethodDeclaration | MethodSignature*/
+    ) {
+        // self.check_decorators(node);
+        // self.check_signature_declaration(node);
+    }
+
     pub(super) fn check_block(&mut self, node: &Node /*Block*/) {
         let node_as_block = node.as_block();
         if is_function_or_module_block(node) {
@@ -462,6 +532,57 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         self.check_truthiness_of_type(&self.check_expression(node, check_mode), node)
+    }
+
+    pub(super) fn unwrap_return_type(
+        &self,
+        return_type: &Type,
+        function_flags: FunctionFlags,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_return_statement(&self, node: &Node /*ReturnStatement*/) {
+        let container = get_containing_function_or_class_static_block(node);
+
+        if container.is_none() {
+            unimplemented!()
+        }
+        let container = container.unwrap();
+
+        let signature = self.get_signature_from_declaration(&container);
+        let return_type = self.get_return_type_of_signature(&signature);
+        let function_flags = get_function_flags(Some(&*container));
+        let node_as_return_statement = node.as_return_statement();
+        if self.strict_null_checks
+            || node_as_return_statement.expression.is_some()
+            || return_type.flags().intersects(TypeFlags::Never)
+        {
+            let expr_type = match node_as_return_statement.expression.as_ref() {
+                Some(expression) => self.check_expression_cached(&expression, None),
+                None => self.undefined_type(),
+            };
+            if false {
+                unimplemented!()
+            } else if self.get_return_type_from_annotation(&container).is_some() {
+                let unwrapped_return_type = self
+                    .unwrap_return_type(&return_type, function_flags)/*.unwrap_or(return_type)*/;
+                let unwrapped_expr_type = if function_flags.intersects(FunctionFlags::Async) {
+                    self.check_awaited_type(&expr_type, false, node, &Diagnostics::The_return_type_of_an_async_function_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member, None)
+                } else {
+                    expr_type
+                };
+                // if unwrappedReturnType {
+                self.check_type_assignable_to_and_optionally_elaborate(
+                    &unwrapped_expr_type,
+                    &unwrapped_return_type,
+                    Some(node),
+                    node_as_return_statement.expression.clone(),
+                    None,
+                );
+                // }
+            }
+        }
     }
 
     pub(super) fn check_type_parameters(

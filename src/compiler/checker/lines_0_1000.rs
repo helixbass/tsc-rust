@@ -7,10 +7,10 @@ use std::rc::Rc;
 
 use super::create_node_builder;
 use crate::{
-    Node, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
-    DiagnosticCollection, FreshableIntrinsicType, NodeId, NodeInterface, Number, ObjectFlags,
-    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker,
-    TypeCheckerHost, TypeFlags,
+    BaseInterfaceType, GenericableTypeInterface, __String, create_diagnostic_collection,
+    create_symbol_table, object_allocator, DiagnosticCollection, FreshableIntrinsicType, Node,
+    NodeId, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface,
+    SymbolTable, Type, TypeChecker, TypeCheckerHost, TypeFlags,
 };
 
 thread_local! {
@@ -39,6 +39,13 @@ pub(super) fn increment_next_node_id() {
     next_node_id.with(|_next_node_id| {
         *_next_node_id.borrow_mut() += 1;
     });
+}
+
+pub(super) enum WideningKind {
+    Normal,
+    FunctionReturn,
+    GeneratorNext,
+    GeneratorYield,
 }
 
 bitflags! {
@@ -83,6 +90,14 @@ bitflags! {
     }
 }
 
+bitflags! {
+    pub(super) struct MinArgumentCountFlags: u32 {
+        const None = 0;
+        const StrongArityForUntypedJS = 1 << 0;
+        const VoidIsNonOptional = 1 << 1;
+    }
+}
+
 pub fn get_symbol_id(symbol: &Symbol) -> SymbolId {
     if symbol.maybe_id().is_none() {
         symbol.set_id(get_next_symbol_id());
@@ -108,8 +123,10 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     let compiler_options = host.get_compiler_options();
     let mut type_checker = TypeChecker {
         _types_needing_strong_references: RefCell::new(vec![]),
+        produce_diagnostics,
         Symbol: object_allocator.get_symbol_constructor(),
         Type: object_allocator.get_type_constructor(),
+        Signature: object_allocator.get_signature_constructor(),
 
         type_count: Cell::new(0),
 
@@ -117,6 +134,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         compiler_options,
         strict_null_checks: true,
+        no_implicit_any: true,
         fresh_object_literal_flag: if false {
             unimplemented!()
         } else {
@@ -136,6 +154,7 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
 
         any_type: None,
         error_type: None,
+        unknown_type: None,
         undefined_type: None,
         null_type: None,
         string_type: None,
@@ -146,11 +165,20 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         false_type: None,
         regular_false_type: None,
         boolean_type: None,
+        void_type: None,
         never_type: None,
         number_or_big_int_type: None,
         template_constraint_type: None,
 
+        empty_generic_type: None,
+
+        no_constraint_type: None,
+        circular_constraint_type: None,
+
         global_array_type: None,
+
+        deferred_global_promise_type: RefCell::new(None),
+        deferred_global_promise_constructor_symbol: RefCell::new(None),
 
         symbol_links: RefCell::new(HashMap::new()),
         node_links: RefCell::new(HashMap::new()),
@@ -177,6 +205,11 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
     type_checker.error_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Any, "error")
+            .into(),
+    );
+    type_checker.unknown_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Unknown, "unknown")
             .into(),
     );
     type_checker.undefined_type = Some(
@@ -261,6 +294,11 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         ],
         None,
     ));
+    type_checker.void_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Void, "void")
+            .into(),
+    );
     type_checker.never_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Never, "never")
@@ -281,6 +319,36 @@ pub fn create_type_checker<TTypeCheckerHost: TypeCheckerHost>(
         ],
         None,
     ));
+    let empty_generic_type = type_checker.create_anonymous_type(
+        Option::<&Symbol>::None,
+        type_checker.empty_symbols(),
+        vec![],
+        vec![],
+    );
+    let empty_generic_type = BaseInterfaceType::new(empty_generic_type, None, None, None, None);
+    empty_generic_type.genericize(HashMap::new());
+    type_checker.empty_generic_type = Some(empty_generic_type.into());
+
+    type_checker.no_constraint_type = Some(
+        type_checker
+            .create_anonymous_type(
+                Option::<&Symbol>::None,
+                type_checker.empty_symbols(),
+                vec![],
+                vec![],
+            )
+            .into(),
+    );
+    type_checker.circular_constraint_type = Some(
+        type_checker
+            .create_anonymous_type(
+                Option::<&Symbol>::None,
+                type_checker.empty_symbols(),
+                vec![],
+                vec![],
+            )
+            .into(),
+    );
     type_checker.initialize_type_checker(host);
     type_checker
 }
@@ -338,6 +406,10 @@ impl TypeChecker {
         self.error_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn unknown_type(&self) -> Rc<Type> {
+        self.unknown_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn undefined_type(&self) -> Rc<Type> {
         self.undefined_type.as_ref().unwrap().clone()
     }
@@ -378,8 +450,16 @@ impl TypeChecker {
         self.boolean_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn void_type(&self) -> Rc<Type> {
+        self.void_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn never_type(&self) -> Rc<Type> {
         self.never_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn keyof_constraint_type(&self) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn number_or_big_int_type(&self) -> Rc<Type> {
@@ -388,6 +468,18 @@ impl TypeChecker {
 
     pub(super) fn template_constraint_type(&self) -> Rc<Type> {
         self.template_constraint_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn empty_generic_type(&self) -> Rc<Type> {
+        self.empty_generic_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn no_constraint_type(&self) -> Rc<Type> {
+        self.no_constraint_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn circular_constraint_type(&self) -> Rc<Type> {
+        self.circular_constraint_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn global_array_type(&self) -> Rc<Type> {
