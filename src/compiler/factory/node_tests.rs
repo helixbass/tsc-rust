@@ -20,7 +20,7 @@ pub fn is_regular_expression_literal(node: &Node) -> bool {
     node.kind() == SyntaxKind::RegularExpressionLiteral
 }
 
-pub fn is_no_substituion_template_literal(node: &Node) -> bool {
+pub fn is_no_substitution_template_literal(node: &Node) -> bool {
     node.kind() == SyntaxKind::NoSubstitutionTemplateLiteral
 }
 

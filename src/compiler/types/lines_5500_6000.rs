@@ -340,8 +340,8 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
         self._diagnostic_related_information.code()
     }
 
-    fn file(&self) -> Option<Rc<Node>> {
-        self._diagnostic_related_information.file()
+    fn maybe_file(&self) -> Option<Rc<Node>> {
+        self._diagnostic_related_information.maybe_file()
     }
 
     fn maybe_start(&self) -> Option<isize> {
@@ -404,11 +404,11 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
         }
     }
 
-    fn file(&self) -> Option<Rc<Node>> {
+    fn maybe_file(&self) -> Option<Rc<Node>> {
         match self {
-            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.file(),
-            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.file(),
-            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.file(),
+            Diagnostic::DiagnosticWithLocation(diagnostic) => diagnostic.maybe_file(),
+            Diagnostic::DiagnosticWithDetachedLocation(diagnostic) => diagnostic.maybe_file(),
+            Diagnostic::BaseDiagnostic(diagnostic) => diagnostic.maybe_file(),
         }
     }
 
@@ -487,7 +487,7 @@ pub trait DiagnosticRelatedInformationInterface {
     fn maybe_as_diagnostic(&self) -> Option<&Diagnostic>;
     fn category(&self) -> DiagnosticCategory;
     fn code(&self) -> u32;
-    fn file(&self) -> Option<Rc<Node>>;
+    fn maybe_file(&self) -> Option<Rc<Node>>;
     fn maybe_start(&self) -> Option<isize>;
     fn start(&self) -> isize;
     fn maybe_length(&self) -> Option<isize>;
@@ -544,12 +544,12 @@ impl DiagnosticRelatedInformationInterface for DiagnosticRelatedInformation {
         }
     }
 
-    fn file(&self) -> Option<Rc<Node>> {
+    fn maybe_file(&self) -> Option<Rc<Node>> {
         match self {
             DiagnosticRelatedInformation::BaseDiagnosticRelatedInformation(
                 base_diagnostic_related_information,
-            ) => base_diagnostic_related_information.file(),
-            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.file(),
+            ) => base_diagnostic_related_information.maybe_file(),
+            DiagnosticRelatedInformation::Diagnostic(diagnostic) => diagnostic.maybe_file(),
         }
     }
 
@@ -642,7 +642,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnosticRelatedInformation 
         self.code
     }
 
-    fn file(&self) -> Option<Rc<Node>> {
+    fn maybe_file(&self) -> Option<Rc<Node>> {
         self.file.as_ref().map(|weak| weak.upgrade().unwrap())
     }
 
@@ -679,8 +679,8 @@ impl DiagnosticWithLocation {
         }
     }
 
-    pub fn file_unwrapped(&self) -> Rc<Node> {
-        self.file().unwrap()
+    pub fn file(&self) -> Rc<Node> {
+        self.maybe_file().unwrap()
     }
 }
 
@@ -697,8 +697,8 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
         self._diagnostic.code()
     }
 
-    fn file(&self) -> Option<Rc<Node>> {
-        self._diagnostic.file()
+    fn maybe_file(&self) -> Option<Rc<Node>> {
+        self._diagnostic.maybe_file()
     }
 
     fn maybe_start(&self) -> Option<isize> {
@@ -770,8 +770,8 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
         self._diagnostic.code()
     }
 
-    fn file(&self) -> Option<Rc<Node>> {
-        self._diagnostic.file()
+    fn maybe_file(&self) -> Option<Rc<Node>> {
+        self._diagnostic.maybe_file()
     }
 
     fn maybe_start(&self) -> Option<isize> {

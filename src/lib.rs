@@ -18,12 +18,12 @@ pub use compiler::core::{
     compare_strings_case_insensitive, compare_strings_case_sensitive,
     compare_strings_case_sensitive_maybe, compare_values, concatenate, contains, contains_rc,
     ends_with, equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values,
-    every, filter, find, find_index, first_defined, first_or_undefined, flat_map, for_each,
-    for_each_bool, get_spelling_suggestion, get_string_comparer, insert_sorted, last,
-    last_or_undefined, length, map, map_defined, maybe_for_each, not_implemented, range_equals,
-    same_map, set_ui_locale, single_element_array, single_or_undefined, some, sort_and_deduplicate,
-    starts_with, string_contains, trim_string_start, try_cast, AssertionLevel,
-    GetCanonicalFileName,
+    every, filter, find, find_index, first_defined, first_or_undefined, flat_map,
+    flat_map_to_mutable, for_each, for_each_bool, get_spelling_suggestion, get_string_comparer,
+    insert_sorted, last, last_or_undefined, length, map, map_defined, maybe_for_each,
+    not_implemented, range_equals, same_map, set_ui_locale, single_element_array,
+    single_or_undefined, some, sort_and_deduplicate, starts_with, string_contains,
+    trim_string_start, try_cast, AssertionLevel, GetCanonicalFileName,
 };
 pub use compiler::core_public::{
     Comparer, Comparison, MapLike, Push, ReadonlyCollection, SortedArray,
@@ -81,7 +81,7 @@ pub use compiler::factory::node_tests::{
     is_meta_property, is_method_declaration, is_method_signature, is_minus_token,
     is_missing_declaration, is_module_block, is_module_declaration, is_named_exports,
     is_named_imports, is_named_tuple_member, is_namespace_export, is_namespace_export_declaration,
-    is_namespace_import, is_new_expression, is_no_substituion_template_literal,
+    is_namespace_import, is_new_expression, is_no_substitution_template_literal,
     is_non_null_expression, is_not_emitted_statement, is_numeric_literal,
     is_object_binding_pattern, is_object_literal_expression, is_omitted_expression,
     is_optional_type_node, is_parameter, is_parenthesized_expression, is_parenthesized_type_node,
@@ -261,8 +261,8 @@ use compiler::types::{
 };
 pub use compiler::utilities::{
     add_related_info, attach_file_to_diagnostics, chain_diagnostic_messages, compare_diagnostics,
-    contains_parse_error, create_compiler_diagnostic, create_detached_diagnostic,
-    create_diagnostic_collection, create_diagnostic_for_node,
+    compare_diagnostics_skip_related_information, contains_parse_error, create_compiler_diagnostic,
+    create_detached_diagnostic, create_diagnostic_collection, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, create_file_diagnostic, create_symbol_table,
     create_text_writer, declaration_name_to_string, ensure_script_kind, entity_name_to_string,
     escape_jsx_attribute_string, escape_non_ascii_string, escape_string, format_string_from_args,

@@ -4,7 +4,7 @@ use std::ops::Deref;
 
 pub type MapLike<TValue> = HashMap<String, TValue>;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SortedArray<TItem> {
     _vec: Vec<TItem>,
 }
@@ -24,6 +24,12 @@ impl<TItem> SortedArray<TItem> {
 
     pub fn insert(&mut self, index: usize, element: TItem) {
         self._vec.insert(index, element)
+    }
+}
+
+impl<TItem: Clone> SortedArray<TItem> {
+    pub fn to_vec(&self) -> Vec<TItem> {
+        self._vec.clone()
     }
 }
 

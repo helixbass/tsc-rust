@@ -1,27 +1,34 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use regex::Regex;
-use std::borrow::Borrow;
+use regex::{Captures, Regex};
+use std::array::IntoIter;
+use std::borrow::{Borrow, Cow};
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::iter::FromIterator;
 use std::ops::Deref;
 use std::ptr;
 use std::rc::Rc;
 
+use super::is_quote_or_backtick;
 use crate::{
-    compare_diagnostics, concatenate, filter, get_assignment_declaration_kind,
-    get_jsdoc_augments_tag, get_jsdoc_implements_tags, get_parse_tree_node, get_symbol_id,
-    has_syntactic_modifier, id_text, is_binary_expression, is_class_expression, is_class_like,
-    is_declaration, is_element_access_expression, is_entity_name_expression, is_export_assignment,
-    is_in_js_file, is_interface_declaration, is_no_substituion_template_literal,
-    is_numeric_literal, is_prefix_unary_expression, is_property_access_expression, is_source_file,
-    is_string_literal_like, position_is_synthesized, single_element_array, skip_parentheses, some,
-    starts_with, string_to_token, token_to_string, AssignmentDeclarationKind, Debug_,
-    InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, ReadonlyTextRange, SortedArray, Symbol, SymbolInterface, SyntaxKind,
-    TokenFlags, __String, escape_leading_underscores, get_name_of_declaration, insert_sorted,
-    is_member_name, Diagnostic, DiagnosticCollection, DiagnosticRelatedInformationInterface,
+    binary_search, compare_diagnostics, compare_diagnostics_skip_related_information,
+    compare_strings_case_sensitive, concatenate, filter, flat_map_to_mutable,
+    get_assignment_declaration_kind, get_jsdoc_augments_tag, get_jsdoc_implements_tags,
+    get_parse_tree_node, get_symbol_id, has_syntactic_modifier, id_text, is_binary_expression,
+    is_class_expression, is_class_like, is_declaration, is_element_access_expression,
+    is_entity_name_expression, is_export_assignment, is_in_js_file, is_interface_declaration,
+    is_no_substitution_template_literal, is_numeric_literal, is_prefix_unary_expression,
+    is_property_access_expression, is_source_file, is_string_literal_like,
+    maybe_text_char_at_index, position_is_synthesized, single_element_array, skip_parentheses,
+    some, starts_with, string_to_token, token_to_string, AssignmentDeclarationKind, CharacterCodes,
+    Debug_, InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface,
+    Node, NodeArray, NodeInterface, ReadonlyTextRange, SortedArray, Symbol, SymbolInterface,
+    SyntaxKind, TokenFlags, __String, escape_leading_underscores, get_name_of_declaration,
+    insert_sorted, is_member_name, Diagnostic, DiagnosticCollection,
+    DiagnosticRelatedInformationInterface,
 };
 
 pub fn is_literal_computed_property_name_declaration_name(node: &Node) -> bool {
@@ -790,52 +797,104 @@ pub fn create_diagnostic_collection() -> DiagnosticCollection {
 impl DiagnosticCollection {
     pub fn new() -> Self {
         DiagnosticCollection {
+            non_file_diagnostics: SortedArray::<Rc<Diagnostic>>::new(vec![]),
+            files_with_diagnostics: SortedArray::<String>::new(vec![]),
             file_diagnostics: HashMap::<String, SortedArray<Rc<Diagnostic>>>::new(),
+            has_read_non_file_diagnostics: false,
         }
+    }
+
+    pub fn lookup(&self, diagnostic: Rc<Diagnostic>) -> Option<Rc<Diagnostic>> {
+        let mut diagnostics: Option<&SortedArray<Rc<Diagnostic>>> = None;
+        if let Some(diagnostic_file) = diagnostic.maybe_file() {
+            diagnostics = self
+                .file_diagnostics
+                .get(&*diagnostic_file.as_source_file().file_name());
+        } else {
+            diagnostics = Some(&self.non_file_diagnostics);
+        }
+        let diagnostics = diagnostics?;
+        let result = binary_search(
+            diagnostics,
+            &diagnostic,
+            |diagnostic, _| diagnostic,
+            |a, b| compare_diagnostics_skip_related_information(&**a, &**b),
+            None,
+        );
+        if result >= 0 {
+            return Some(diagnostics[usize::try_from(result).unwrap()].clone());
+        }
+        None
     }
 
     pub fn add(&mut self, diagnostic: Rc<Diagnostic>) {
-        if let Some(diagnostics) = self
-            .file_diagnostics
-            .get_mut(&*diagnostic.file().unwrap().as_source_file().file_name())
-        {
+        if let Some(diagnostic_file) = diagnostic.maybe_file() {
+            let diagnostic_file_as_source_file = diagnostic_file.as_source_file();
+            if self
+                .file_diagnostics
+                .get(&*diagnostic_file_as_source_file.file_name())
+                .is_none()
+            {
+                let diagnostics = SortedArray::new(vec![]);
+                self.file_diagnostics.insert(
+                    diagnostic_file_as_source_file.file_name().clone(),
+                    diagnostics,
+                );
+                insert_sorted(
+                    &mut self.files_with_diagnostics,
+                    diagnostic_file_as_source_file.file_name().clone(),
+                    |a: &String, b: &String| compare_strings_case_sensitive(a, b),
+                );
+            }
+            let diagnostics = self
+                .file_diagnostics
+                .get_mut(&*diagnostic_file_as_source_file.file_name())
+                .unwrap();
             insert_sorted(
                 diagnostics,
                 diagnostic,
-                |rc_diagnostic_a: &Rc<Diagnostic>, rc_diagnostic_b: &Rc<Diagnostic>| {
-                    compare_diagnostics(&**rc_diagnostic_a, &**rc_diagnostic_b)
-                },
+                |a: &Rc<Diagnostic>, b: &Rc<Diagnostic>| compare_diagnostics(&**a, &**b),
             );
-            return;
+        } else {
+            if self.has_read_non_file_diagnostics {
+                self.has_read_non_file_diagnostics = false;
+                self.non_file_diagnostics = SortedArray::new(vec![]);
+            }
+
+            let diagnostics = &mut self.non_file_diagnostics;
+            insert_sorted(
+                diagnostics,
+                diagnostic,
+                |a: &Rc<Diagnostic>, b: &Rc<Diagnostic>| compare_diagnostics(&**a, &**b),
+            );
         }
-        let diagnostics: SortedArray<Rc<Diagnostic>> = SortedArray::new(vec![]);
-        self.file_diagnostics.insert(
-            diagnostic
-                .file()
-                .unwrap()
-                .as_source_file()
-                .file_name()
-                .to_string(),
-            diagnostics,
-        );
-        let diagnostics = self
-            .file_diagnostics
-            .get_mut(&*diagnostic.file().unwrap().as_source_file().file_name())
-            .unwrap();
-        insert_sorted(
-            diagnostics,
-            diagnostic,
-            |rc_diagnostic_a: &Rc<Diagnostic>, rc_diagnostic_b: &Rc<Diagnostic>| {
-                compare_diagnostics(&**rc_diagnostic_a, &**rc_diagnostic_b)
-            },
-        );
     }
 
-    pub fn get_diagnostics(&self, file_name: &str) -> Vec<Rc<Diagnostic>> {
-        self.file_diagnostics
-            .get(file_name)
-            .map(|sorted_array| sorted_array.into())
-            .unwrap_or(vec![])
+    pub fn get_global_diagnostics(&mut self) -> Vec<Rc<Diagnostic>> {
+        self.has_read_non_file_diagnostics = true;
+        self.non_file_diagnostics.to_vec()
+    }
+
+    pub fn get_diagnostics(&self, file_name: Option<&str>) -> Vec<Rc<Diagnostic>> {
+        if let Some(file_name) = file_name {
+            return self
+                .file_diagnostics
+                .get(file_name)
+                .map(|sorted_array| sorted_array.into())
+                .unwrap_or(vec![]);
+        }
+
+        let mut file_diags: Vec<Rc<Diagnostic>> =
+            flat_map_to_mutable(Some(&*self.files_with_diagnostics), |f, _| {
+                self.file_diagnostics
+                    .get(f)
+                    .map_or_else(|| vec![], |sorted_array| sorted_array.to_vec())
+            });
+        if self.non_file_diagnostics.is_empty() {
+            return file_diags;
+        }
+        file_diags.splice(0..0, self.non_file_diagnostics.to_vec());
+        file_diags
     }
 }
 
@@ -850,7 +909,7 @@ pub(super) fn escape_template_substitution(str: &str) -> String {
 
 pub(crate) fn has_invalid_escape(template: &Node /*TemplateLiteral*/) -> bool {
     /*template &&*/
-    if is_no_substituion_template_literal(template) {
+    if is_no_substitution_template_literal(template) {
         matches!(template.as_template_literal_like_node().maybe_template_flags(), Some(template_flags) if template_flags != TokenFlags::None)
     } else {
         let template_as_template_expression = template.as_template_expression();
@@ -864,27 +923,155 @@ pub(crate) fn has_invalid_escape(template: &Node /*TemplateLiteral*/) -> bool {
     }
 }
 
-pub fn escape_string(
-    s: &str,
+lazy_static! {
+    static ref double_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"[\\"\u0000-\u001f\t\v\f\b\r\n\u2028\u2029\u0085]"#/*/g*/).unwrap();
+}
+lazy_static! {
+    static ref single_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"[\\'\u0000-\u001f\t\v\f\b\r\n\u2028\u2029\u0085]"#/*/g*/).unwrap();
+}
+lazy_static! {
+    static ref backtick_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"\r\n|[\\`\u0000-\u001f\t\v\f\b\r\u2028\u2029\u0085]"#/*/g*/).unwrap();
+}
+lazy_static! {
+    static ref escaped_chars_map: HashMap<&'static str, &'static str> =
+        HashMap::from_iter(IntoIter::new([
+            ("\t", "\\t"),
+            ("\u{000b}", "\\v"),
+            ("\u{000c}", "\\f"),
+            ("\u{0008}", "\\b"),
+            ("\r", "\\r"),
+            ("\n", "\\n"),
+            ("\\", "\\\\"),
+            ("\"", "\\\""),
+            ("'", "\\'"),
+            ("`", "\\`"),
+            ("\u{2028}", "\\u2028"),
+            ("\u{2029}", "\\u2029"),
+            ("\u{0085}", "\\u0085"),
+            ("\r\n", "\\r\\n"),
+        ]),);
+}
+
+pub fn encode_utf16_escape_sequence(char_code: u32) -> String {
+    let hex_char_code = format!("{:X}", char_code);
+    let padded_hex_code = format!("{:0>4}", hex_char_code);
+    format!("\\u{}", padded_hex_code)
+}
+
+fn get_replacement(c: &str, offset: usize, input: &str) -> Cow<'static, str> {
+    let c_as_chars = c.chars().collect::<Vec<_>>();
+    if matches!(c_as_chars.get(0), Some(&CharacterCodes::null_character)) {
+        let input_after_offset_as_chars = input[offset..].chars().collect::<Vec<_>>();
+        let look_ahead = maybe_text_char_at_index(
+            &input_after_offset_as_chars,
+            /*offset + */ c_as_chars.len(),
+        );
+        if matches!(look_ahead, Some(look_ahead) if look_ahead >= CharacterCodes::_0 && look_ahead <= CharacterCodes::_9)
+        {
+            return "\\x00".into();
+        }
+        return "\\0".into();
+    }
+    if let Some(escaped) = escaped_chars_map.get(&c) {
+        return (*escaped).into();
+    }
+    encode_utf16_escape_sequence(c_as_chars[0] as u32).into()
+}
+
+pub fn escape_string<'string>(
+    s: &'string str,
     quote_char: Option<
         char, /*CharacterCodes.doubleQuote | CharacterCodes.singleQuote | CharacterCodes.backtick*/
     >,
-) -> String {
-    unimplemented!()
+) -> Cow<'string, str> {
+    let escaped_chars_reg_exp = match quote_char {
+        Some(CharacterCodes::backtick) => &*backtick_quote_escaped_chars_reg_exp,
+        Some(CharacterCodes::single_quote) => &*single_quote_escaped_chars_reg_exp,
+        _ => &*double_quote_escaped_chars_reg_exp,
+    };
+    escaped_chars_reg_exp.replace_all(s, |captures: &Captures| {
+        let match_ = captures.get(0).unwrap();
+        get_replacement(match_.as_str(), match_.start(), s)
+    })
 }
 
-pub fn escape_non_ascii_string(
-    s: &str,
+lazy_static! {
+    static ref non_ascii_chars: Regex = Regex::new(r#"[^\u0000-\u007F]"#/*/g*/).unwrap();
+}
+pub fn escape_non_ascii_string<'string>(
+    s: &'string str,
     quote_char: Option<
         char, /*CharacterCodes.doubleQuote | CharacterCodes.singleQuote | CharacterCodes.backtick*/
     >,
-) -> String {
-    s.to_string()
+) -> Cow<'string, str> {
+    let s = escape_string(s, quote_char);
+    if non_ascii_chars.is_match(&s) {
+        non_ascii_chars
+            .replace_all(&s, |captures: &Captures| {
+                let c = captures.get(0).unwrap().as_str();
+                encode_utf16_escape_sequence(c.chars().next().unwrap() as u32)
+            })
+            .into_owned()
+            .into()
+    } else {
+        s
+    }
 }
 
-pub fn escape_jsx_attribute_string(
-    s: &str,
+lazy_static! {
+    static ref jsx_double_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"["\u0000-\u001f\u2028\u2029\u0085]"#/*/g*/).unwrap();
+}
+lazy_static! {
+    static ref jsx_single_quote_escaped_chars_reg_exp: Regex = Regex::new(r#"['\u0000-\u001f\u2028\u2029\u0085]"#/*/g*/).unwrap();
+}
+lazy_static! {
+    static ref jsx_escaped_chars_map: HashMap<&'static str, &'static str> =
+        HashMap::from_iter(IntoIter::new([("\"", "&quot;"), ("'", "&apos;")]));
+}
+
+fn encode_jsx_character_entity(char_code: u32) -> String {
+    let hex_char_code = format!("{:X}", char_code);
+    format!("&#x{};", hex_char_code)
+}
+
+fn get_jsx_attribute_string_replacement(c: &str) -> Cow<'static, str> {
+    let c_as_chars = c.chars().collect::<Vec<_>>();
+    if c_as_chars[0] == CharacterCodes::null_character {
+        return "&#0;".into();
+    }
+    if let Some(escaped) = jsx_escaped_chars_map.get(&c) {
+        return (*escaped).into();
+    }
+    encode_jsx_character_entity(c_as_chars[0] as u32).into()
+}
+
+pub fn escape_jsx_attribute_string<'string>(
+    s: &'string str,
     quote_char: Option<char /*CharacterCodes.doubleQuote | CharacterCodes.singleQuote*/>,
-) -> String {
-    unimplemented!()
+) -> Cow<'string, str> {
+    let escaped_chars_reg_exp = match quote_char {
+        Some(quote_char) if quote_char == CharacterCodes::single_quote => {
+            &*jsx_single_quote_escaped_chars_reg_exp
+        }
+        _ => &*jsx_double_quote_escaped_chars_reg_exp,
+    };
+    escaped_chars_reg_exp.replace_all(s, |captures: &Captures| {
+        let match_ = captures.get(0).unwrap();
+        get_jsx_attribute_string_replacement(match_.as_str())
+    })
+}
+
+pub fn strip_quotes<'name>(name: &'name str) -> Cow<'name, str> {
+    let name_as_chars = name.chars().collect::<Vec<_>>();
+    let length = name_as_chars.len();
+    if length >= 2
+        && name_as_chars[0] == name_as_chars[length - 1]
+        && is_quote_or_backtick(name_as_chars[0])
+    {
+        return name_as_chars[1..length - 1]
+            .iter()
+            .collect::<String>()
+            .into();
+    }
+    name.into()
 }
