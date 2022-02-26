@@ -877,6 +877,26 @@ pub fn for_each_ancestor_directory<TReturn, TCallback: FnMut(&Path) -> Option<TR
     }
 }
 
+pub fn for_each_ancestor_directory_str<TReturn, TCallback: FnMut(&str) -> Option<TReturn>>(
+    directory: &str,
+    mut callback: TCallback,
+) -> Option<TReturn> {
+    let mut directory = directory.to_owned();
+    loop {
+        let result = callback(&directory);
+        if result.is_some() {
+            return result;
+        }
+
+        let parent_path = get_directory_path(&directory);
+        if parent_path == directory {
+            return None;
+        }
+
+        directory = parent_path;
+    }
+}
+
 pub fn is_node_modules_directory(dir_path: &Path) -> bool {
     ends_with(dir_path, "/node_modules")
 }

@@ -10,7 +10,7 @@ use super::{
     RedirectTargetsMap, ResolvedProjectReference, ScriptReferenceHost, ScriptTarget, SyntaxKind,
     SynthesizedComment, TextRange,
 };
-use crate::ProgramBuildInfo;
+use crate::{CancellationToken, Path, ProgramBuildInfo};
 
 pub trait ModuleResolutionHost {
     fn read_file(&self, file_name: &str) -> Option<String>;
@@ -104,9 +104,113 @@ pub trait CompilerHost: ModuleResolutionHost {
         &self,
         file_name: &str,
         language_version: ScriptTarget,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        should_create_new_source_file: Option<bool>,
     ) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_source_file_by_path(
+        &self,
+        file_name: &str,
+        path: &Path,
+        language_version: ScriptTarget,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        should_create_new_source_file: Option<bool>,
+    ) -> Option<Rc<Node /*SourceFile*/>> {
+        None
+    }
+    fn get_cancellation_token(&self) -> Option<CancellationToken> {
+        None
+    }
+    fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String;
+    fn get_default_lib_location(&self) -> Option<String> {
+        None
+    }
+    fn write_file(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    );
     fn get_current_directory(&self) -> String;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
+    fn use_case_sensitive_file_names(&self) -> bool;
+    fn get_new_line(&self) -> String;
+    fn read_directory(
+        &self,
+        root_dir: &str,
+        extensions: &[&str],
+        excludes: Option<&[&str]>,
+        includes: &[&str],
+        depth: Option<usize>,
+    ) -> Option<Vec<String>> {
+        None
+    }
+
+    fn resolve_module_names(
+        &self,
+        module_names: &[&str],
+        containing_file: &str,
+        reused_names: Option<&[&str]>,
+        redirected_reference: Option<ResolvedProjectReference>,
+        options: &CompilerOptions,
+        containing_source_file: Option<Rc<Node /*SourceFile*/>>,
+    ) -> Option<Vec<Option<ResolvedModuleFull>>> {
+        None
+    }
+    fn get_module_resolution_cache(&self) -> Option<ModuleResolutionCache> {
+        None
+    }
+    fn resolve_type_reference_directives(
+        &self,
+        type_reference_directive_names: &[&str],
+        containing_file: &str,
+        redirected_reference: Option<ResolvedProjectReference>,
+        options: &CompilerOptions,
+    ) -> Option<Vec<Option<Rc<ResolvedTypeReferenceDirective>>>> {
+        None
+    }
+    fn get_environment_variable(&self, name: &str) -> Option<String> {
+        None
+    }
+    fn on_release_old_source_file(
+        &self,
+        old_source_file: &Node, /*SourceFile*/
+        old_options: &CompilerOptions,
+        has_source_file_by_path: bool,
+    ) {
+    }
+    fn on_release_parsed_command_line(
+        &self,
+        config_file_name: &str,
+        old_resolved_ref: Option<ResolvedProjectReference>,
+        option_options: &CompilerOptions,
+    ) {
+    }
+    fn has_invalidated_resolution(&self, source_file: &Path) -> Option<bool> {
+        None
+    }
+    fn has_changed_automatic_type_directive_names(&self) -> Option<bool> {
+        None
+    }
+    fn create_hash(&self, data: &str) -> Option<String> {
+        None
+    }
+    fn get_parsed_command_line(&self, file_name: &str) -> Option<ParsedCommandLine> {
+        None
+    }
+    fn use_source_of_project_reference_redirect(&self) -> Option<bool> {
+        None
+    }
+
+    fn create_directory(&self, directory: &str) {}
+    fn get_symlink_cache(&self) -> Option<SymlinkCache> {
+        None
+    }
+
+    fn disable_use_file_version_as_signature(&self) -> Option<bool> {
+        None
+    }
 }
 
 bitflags! {

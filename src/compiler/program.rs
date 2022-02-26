@@ -1,19 +1,118 @@
 use std::cell::RefCell;
+use std::cmp;
 use std::rc::Rc;
+use std::time::SystemTime;
 
 use crate::{
-    concatenate, create_source_file, create_type_checker, for_each, get_emit_script_target,
-    get_sys, normalize_path, to_path as to_path_helper, CompilerHost, CompilerOptions,
-    CreateProgramOptions, Diagnostic, ModuleKind, ModuleResolutionHost,
-    ModuleSpecifierResolutionHost, Node, Path, Program, ScriptTarget, SourceFile,
-    StructureIsReused, System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
+    combine_paths, concatenate, create_source_file, create_type_checker, for_each,
+    for_each_ancestor_directory_str, get_directory_path, get_emit_script_target,
+    get_normalized_path_components, get_path_from_path_components, get_sys, is_rooted_disk_path,
+    normalize_path, to_path as to_path_helper, CompilerHost, CompilerOptions, CreateProgramOptions,
+    Diagnostic, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node, Path,
+    Program, ScriptTarget, SourceFile, StructureIsReused, System, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable,
 };
+
+pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
+    search_path: &str,
+    mut file_exists: TFileExists,
+    config_name: Option<&str>,
+) -> Option<String> {
+    let config_name = config_name.unwrap_or("tsconfig.json");
+    for_each_ancestor_directory_str(search_path, |ancestor| {
+        let file_name = combine_paths(ancestor, &vec![Some(config_name)]);
+        if file_exists(&file_name) {
+            Some(file_name)
+        } else {
+            None
+        }
+    })
+}
+
+pub fn resolve_tripleslash_reference(module_name: &str, containing_file: &str) -> String {
+    let base_path = get_directory_path(containing_file);
+    let referenced_file_name = if is_rooted_disk_path(module_name) {
+        module_name.to_owned()
+    } else {
+        combine_paths(&base_path, &vec![Some(module_name)])
+    };
+    normalize_path(&referenced_file_name)
+}
+
+pub(crate) fn compute_common_source_directory_of_filenames<
+    TFileName: AsRef<str>,
+    TGetCanonicalFileName: FnMut(&str) -> String,
+>(
+    file_names: &[TFileName],
+    current_directory: &str,
+    mut get_canonical_file_name: TGetCanonicalFileName,
+) -> String {
+    let mut common_path_components: Option<Vec<String>> = None;
+    let failed = for_each(file_names, |source_file, _| {
+        let source_file = source_file.as_ref();
+        let mut source_path_components =
+            get_normalized_path_components(source_file, Some(current_directory));
+        source_path_components.pop();
+
+        if common_path_components.is_none() {
+            common_path_components = Some(source_path_components);
+            return None;
+        }
+        let mut common_path_components = common_path_components.as_mut().unwrap();
+
+        let n = cmp::min(common_path_components.len(), source_path_components.len());
+        for i in 0..n {
+            if get_canonical_file_name(&common_path_components[i])
+                != get_canonical_file_name(&source_path_components[i])
+            {
+                if i == 0 {
+                    return Some(());
+                }
+
+                common_path_components.truncate(i);
+                break;
+            }
+        }
+
+        if source_path_components.len() < common_path_components.len() {
+            common_path_components.truncate(source_path_components.len());
+        }
+        None
+    });
+
+    if failed.is_some() {
+        return "".to_owned();
+    }
+
+    if common_path_components.is_none() {
+        return current_directory.to_owned();
+    }
+    let common_path_components = common_path_components.unwrap();
+
+    get_path_from_path_components(&common_path_components)
+}
+
+struct OutputFingerprint {
+    pub hash: String,
+    pub byte_order_mark: bool,
+    pub mtime: SystemTime,
+}
 
 fn create_compiler_host(
     options: &CompilerOptions,
     set_parent_nodes: Option<bool>,
 ) -> impl CompilerHost {
     create_compiler_host_worker(options, set_parent_nodes)
+}
+
+fn create_compiler_host_worker(
+    options: &CompilerOptions,
+    set_parent_nodes: Option<bool>,
+) -> impl CompilerHost {
+    CompilerHostConcrete {
+        set_parent_nodes,
+        system: get_sys(),
+    }
 }
 
 struct CompilerHostConcrete {
@@ -51,16 +150,6 @@ impl CompilerHost for CompilerHostConcrete {
 
     fn get_current_directory(&self) -> String {
         self.system.get_current_directory()
-    }
-}
-
-fn create_compiler_host_worker(
-    options: &CompilerOptions,
-    set_parent_nodes: Option<bool>,
-) -> impl CompilerHost {
-    CompilerHostConcrete {
-        set_parent_nodes,
-        system: get_sys(),
     }
 }
 
