@@ -4,8 +4,11 @@ use bitflags::bitflags;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{Node, NodeArray, NodeArrayOrVec, SyntaxKind};
-use crate::{BaseNodeFactory, NodeFactoryFlags};
+use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
+use crate::{
+    BaseNodeFactory, BaseNodeFactorySynthetic, EmitHelper, EmitHelperFactory, EmitHost,
+    EmitResolver, NodeFactoryFlags,
+};
 
 bitflags! {
     pub struct OuterExpressionKinds: u32 {
@@ -174,3 +177,93 @@ pub struct NodeFactory<TBaseNodeFactory> {
     pub parenthesizer_rules: RefCell<Option<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>>,
     pub converters: RefCell<Option<Box<dyn NodeConverters<TBaseNodeFactory>>>>,
 }
+
+bitflags! {
+    pub struct LexicalEnvironmentFlags: u32 {
+        const None = 0;
+        const InParameters = 1 << 0;
+        const VariablesHoistedInParameters = 1 << 1;
+    }
+}
+
+pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory> {
+    fn factory(&self) -> Rc<NodeFactory<TBaseNodeFactory>>;
+
+    fn get_compiler_options(&self) -> Rc<CompilerOptions>;
+
+    fn start_lexical_environment(&self);
+
+    fn set_lexical_environment_flags(&self, flags: LexicalEnvironmentFlags, value: bool);
+    fn get_lexical_environment_flags(&self) -> LexicalEnvironmentFlags;
+
+    fn suspend_lexical_environment(&self);
+
+    fn resume_lexical_environment(&self);
+
+    fn end_lexical_environment(&self) -> Option<Vec<Rc<Node /*Statement*/>>>;
+
+    fn hoist_function_declaration(&self, node: &Node /*FunctionDeclaration*/);
+
+    fn hoist_variable_declaration(&self, node: &Node /*Identifier*/);
+
+    fn start_block_scope(&self);
+
+    fn end_block_scope(&self) -> Option<Vec<Rc<Node /*Statement*/>>>;
+
+    fn add_block_scoped_variable(&self, node: &Node /*Identifier*/);
+
+    fn add_initialization_statement(&self, node: &Node /*Statement*/);
+}
+
+pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> {
+    fn get_emit_resolver(&self) -> Rc<dyn EmitResolver>;
+    fn get_emit_host(&self) -> Rc<dyn EmitHost>;
+    fn get_emit_helper_factory(&self) -> Rc<EmitHelperFactory>;
+
+    fn request_emit_helper(&self, helper: Rc<EmitHelper>);
+
+    fn read_emit_helpers(&self) -> Option<Vec<Rc<EmitHelper>>>;
+
+    fn enable_substitution(&self, kind: SyntaxKind);
+
+    fn is_substitution_enabled(&self, node: &Node) -> bool;
+
+    fn on_substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node>;
+
+    fn enable_emit_notification(&self, kind: SyntaxKind);
+
+    fn is_emit_notification_enabled(&self, node: &Node) -> bool;
+
+    fn on_emit_node(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &mut dyn FnMut(EmitHint, &Node),
+    );
+
+    fn add_diagnostic(&self, diag: Rc<Diagnostic /*DiagnosticWithLocation*/>);
+}
+
+pub trait TransformationResult {
+    fn transformed(&self) -> Vec<Rc<Node>>;
+
+    fn diagnostics(&self) -> Option<Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>>;
+
+    fn substitute_node(&self, hint: EmitHint, node: &Node) -> Rc<Node>;
+
+    fn emit_node_with_notification(
+        &self,
+        hint: EmitHint,
+        node: &Node,
+        emit_callback: &mut dyn FnMut(EmitHint, &Node),
+    );
+
+    fn is_emit_notification_enabled(&self, node: &Node) -> Option<bool>;
+
+    fn dispose(&self);
+}
+
+pub type TransformerFactory = Rc<dyn Fn(Rc<dyn TransformationContext>) -> Transformer>;
+
+// pub type Transformer = Rc<dyn FnMut(&Node) -> Rc<Node>>;
+pub type Transformer = Rc<dyn Fn(&Node) -> Rc<Node>>;

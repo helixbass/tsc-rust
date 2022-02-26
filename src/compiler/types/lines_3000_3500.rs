@@ -359,7 +359,7 @@ impl ExportAssignment {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FileReference {
     pos: Cell<isize>,
     end: Cell<isize>,

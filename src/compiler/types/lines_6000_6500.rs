@@ -109,7 +109,7 @@ impl PartialEq for CompilerOptionsValue {
 
 impl Eq for CompilerOptionsValue {}
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CompilerOptions {
     pub(crate) all: Option<bool>,
     pub allow_js: Option<bool>,

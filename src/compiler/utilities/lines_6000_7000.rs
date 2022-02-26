@@ -8,7 +8,7 @@ use crate::{
     format_string_from_args, get_locale_specific_message, CommandLineOption,
     CommandLineOptionInterface, Comparison, CompilerOptions, CompilerOptionsValue, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension, JsxEmit,
     LanguageVariant, ModuleKind, ScriptKind, ScriptTarget,
 };
 use local_macros::enum_unwrapped;
@@ -413,6 +413,14 @@ pub fn get_compiler_option_value(
     } else {
         lookup_compiler_option_value(options, option.name())
     }
+}
+
+pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {
+    let jsx = options.jsx;
+    matches!(
+        jsx,
+        Some(JsxEmit::React | JsxEmit::ReactJSX | JsxEmit::ReactJSXDev)
+    )
 }
 
 pub fn ensure_script_kind(file_name: &str, script_kind: Option<ScriptKind>) -> ScriptKind {

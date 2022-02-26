@@ -5,9 +5,9 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
-    BaseNode, BaseTextRange, BuildInfo, Diagnostic, EmitHelper, FileReference, LanguageVariant,
-    Node, NodeArray, Path, ReadonlyPragmaMap, ResolvedModuleFull, ResolvedTypeReferenceDirective,
-    ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
+    BaseNode, BaseTextRange, BuildInfo, CompilerOptions, Diagnostic, EmitHelper, FileReference,
+    LanguageVariant, Node, NodeArray, Path, ReadonlyPragmaMap, ResolvedModuleFull,
+    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol, TypeCheckerHost,
 };
 use crate::{ModeAwareCache, PragmaContext};
 use local_macros::ast_type;
@@ -404,6 +404,18 @@ impl SourceFileLike for SourceFile {
 
 impl PragmaContext for SourceFile {}
 
+#[derive(Clone, Debug)]
+pub struct CommentDirective {
+    pub range: BaseTextRange,
+    pub type_: CommentDirectiveType,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum CommentDirectiveType {
+    ExpectError,
+    Ignore,
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct Bundle {
@@ -588,16 +600,11 @@ impl UnparsedTextLike {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct CommentDirective {
-    pub range: BaseTextRange,
-    pub type_: CommentDirectiveType,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum CommentDirectiveType {
-    ExpectError,
-    Ignore,
+pub trait ScriptReferenceHost {
+    fn get_compiler_options(&self) -> Rc<CompilerOptions>;
+    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_source_file_by_path(&self, path: &Path) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_current_directory(&self) -> String;
 }
 
 pub trait Program: TypeCheckerHost {

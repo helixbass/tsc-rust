@@ -1,4 +1,5 @@
 pub mod base_node_factory;
+pub mod emit_helpers;
 pub mod emit_node;
 pub mod node_converters;
 pub mod node_factory;
