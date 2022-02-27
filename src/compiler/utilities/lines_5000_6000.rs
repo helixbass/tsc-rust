@@ -445,6 +445,22 @@ pub fn create_file_diagnostic(
     ))
 }
 
+pub fn format_message(
+    _dummy: Option<()>,
+    message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
+) -> String {
+    let mut text = get_locale_specific_message(message);
+
+    if let Some(args) = args {
+        if !args.is_empty() {
+            text = format_string_from_args(&text, args);
+        }
+    }
+
+    text
+}
+
 pub fn create_compiler_diagnostic(
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,

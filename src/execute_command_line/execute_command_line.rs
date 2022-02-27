@@ -2,14 +2,15 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    compare_strings_case_insensitive, contains, create_diagnostic_reporter, create_program,
-    emit_files_and_report_errors_and_get_exit_status, file_extension_is, file_extension_is_one_of,
-    filter, for_each, get_diagnostic_text, get_line_starts, option_declarations, pad_left,
-    pad_right, parse_command_line, sort, string_contains, supported_js_extensions_flat,
-    supported_ts_extensions_flat, text_substring, version, BuildOptions, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CreateProgramOptions,
-    DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, Extension, Node,
-    ParsedCommandLine, Program, StringOrDiagnosticMessage, System, TypeCheckerHost,
+    compare_strings_case_insensitive, contains, contains_rc, create_diagnostic_reporter,
+    create_program, emit_files_and_report_errors_and_get_exit_status, file_extension_is,
+    file_extension_is_one_of, filter, for_each, format_message, get_diagnostic_text,
+    get_line_starts, option_declarations, pad_left, pad_right, parse_command_line, sort,
+    string_contains, supported_js_extensions_flat, supported_ts_extensions_flat, version,
+    BuildOptions, CommandLineOption, CommandLineOptionInterface, CommandLineOptionType,
+    CompilerOptions, CreateProgramOptions, DiagnosticMessage, DiagnosticReporter, Diagnostics,
+    EmitAndSemanticDiagnosticsBuilderProgram, Extension, Node, ParsedCommandLine, Program,
+    StringOrDiagnosticMessage, System, TypeCheckerHost,
 };
 
 struct Statistic {
@@ -559,7 +560,7 @@ fn generate_section_options_output(
             continue;
         }
         let cur_category = get_diagnostic_text(option.maybe_category().unwrap(), None);
-        let options_of_cur_category = category_map.entry(cur_category).or_insert(vec![]);
+        let options_of_cur_category = category_map.entry(cur_category).or_insert_with(|| vec![]);
         options_of_cur_category.push(option.clone());
     }
     for (key, value) in category_map {
@@ -575,6 +576,117 @@ fn generate_section_options_output(
         ));
     }
     res
+}
+
+fn print_easy_help(sys: &dyn System, simple_options: &[Rc<CommandLineOption>]) {
+    let colors = create_colors(sys);
+    let mut output = get_header(
+        sys,
+        &format!(
+            "{} - {}",
+            get_diagnostic_text(&Diagnostics::tsc_Colon_The_TypeScript_Compiler, None),
+            get_diagnostic_text(&Diagnostics::Version_0, Some(vec![version.to_owned()]))
+        ),
+    );
+    output.push(format!(
+        "{}{}{}",
+        colors.bold(&get_diagnostic_text(&Diagnostics::COMMON_COMMANDS, None)),
+        sys.new_line(),
+        sys.new_line()
+    ));
+
+    example(
+        &mut output,
+        &*colors,
+        sys,
+        &vec!["tsc"],
+        &Diagnostics::Compiles_the_current_project_tsconfig_json_in_the_working_directory,
+    );
+    example(&mut output, &*colors, sys, &vec!["tsc app.ts util.ts"], &Diagnostics::Ignoring_tsconfig_json_compiles_the_specified_files_with_default_compiler_options);
+    example(
+        &mut output,
+        &*colors,
+        sys,
+        &vec!["tsc -b"],
+        &Diagnostics::Build_a_composite_project_in_the_working_directory,
+    );
+    example(&mut output, &*colors, sys, &vec!["tsc --init"], &Diagnostics::Creates_a_tsconfig_json_with_the_recommended_settings_in_the_working_directory);
+    example(
+        &mut output,
+        &*colors,
+        sys,
+        &vec!["tsc -p ./path/to/tsconfig.json"],
+        &Diagnostics::Compiles_the_TypeScript_project_located_at_the_specified_path,
+    );
+    example(
+        &mut output,
+        &*colors,
+        sys,
+        &vec!["tsc --help --all"],
+        &Diagnostics::An_expanded_version_of_this_information_showing_all_possible_compiler_options,
+    );
+    example(
+        &mut output,
+        &*colors,
+        sys,
+        &vec!["tsc --noEmit", "tsc --target esnext"],
+        &Diagnostics::Compiles_the_current_project_with_additional_settings,
+    );
+
+    let cli_commands = simple_options.iter().filter(|opt| opt.is_command_line_only() || matches!(opt.maybe_category(), Some(category) if category == &Diagnostics::Command_line_Options)).map(Clone::clone).collect::<Vec<_>>();
+    let config_opts = simple_options
+        .iter()
+        .filter(|opt| !contains_rc(Some(&cli_commands), opt))
+        .map(Clone::clone)
+        .collect::<Vec<_>>();
+
+    output.append(&mut generate_section_options_output(
+        sys,
+        &get_diagnostic_text(&Diagnostics::COMMAND_LINE_FLAGS, None),
+        &cli_commands,
+        false,
+        None,
+        None,
+    ));
+    output.append(&mut generate_section_options_output(
+        sys,
+        &get_diagnostic_text(&Diagnostics::COMMON_COMPILER_OPTIONS, None),
+        &config_opts,
+        false,
+        None,
+        Some(&format_message(
+            None,
+            &Diagnostics::You_can_learn_about_all_of_the_compiler_options_at_0,
+            Some(vec!["https://aka.ms/tsconfig-reference".to_owned()]),
+        )),
+    ));
+
+    for line in output {
+        sys.write(&line);
+    }
+}
+
+fn example(
+    output: &mut Vec<String>,
+    colors: &dyn Colors,
+    sys: &dyn System,
+    ex: &[&str],
+    desc: &DiagnosticMessage,
+) {
+    let examples = ex;
+    for example in examples {
+        output.push(format!("  {}{}", colors.blue(example), sys.new_line()));
+    }
+    output.push(format!(
+        "  {}{}{}",
+        get_diagnostic_text(desc, None),
+        sys.new_line(),
+        sys.new_line()
+    ));
+}
+
+fn get_header(sys: &dyn System, message: &str) -> Vec<String> {
+    unimplemented!()
 }
 
 pub fn execute_command_line<

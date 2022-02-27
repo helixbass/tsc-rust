@@ -278,7 +278,7 @@ pub use compiler::utilities::{
     create_diagnostic_for_node_from_message_chain, create_file_diagnostic, create_symbol_table,
     create_text_writer, declaration_name_to_string, ensure_script_kind, entity_name_to_string,
     escape_jsx_attribute_string, escape_non_ascii_string, escape_string,
-    export_assignment_is_alias, format_string_from_args,
+    export_assignment_is_alias, format_message, format_string_from_args,
     full_triple_slash_amd_reference_path_reg_ex, full_triple_slash_reference_path_reg_ex,
     get_allow_synthetic_default_imports, get_assigned_expando_initializer,
     get_assignment_declaration_kind, get_assignment_declaration_property_access_kind,
