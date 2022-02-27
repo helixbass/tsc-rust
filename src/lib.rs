@@ -114,7 +114,7 @@ pub use compiler::factory::utilities::{
 };
 pub use compiler::factory::utilities_public::set_text_range;
 use compiler::module_name_resolver::create_mode_aware_cache;
-pub use compiler::module_name_resolver::ModeAwareCache;
+pub use compiler::module_name_resolver::{ModeAwareCache, ModuleResolutionCache};
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_returns,
     is_external_module, IncrementalParser, IncrementalParserSyntaxCursor,
@@ -239,15 +239,15 @@ pub use compiler::types::{
     PropertyAssignment, PropertyDeclaration, PropertySignature, PseudoBigInt, QualifiedName,
     RcNodeOrNodeArrayOrVec, ReadonlyTextRange, RedirectTargetsMap, RegularExpressionLiteral,
     RelationComparisonResult, ResolvableTypeInterface, ResolvedModuleFull,
-    ResolvedProjectReference, ResolvedTypeInterface, ResolvedTypeReferenceDirective, RestTypeNode,
-    ReturnStatement, ScriptKind, ScriptReferenceHost, ScriptTarget, SemicolonClassElement,
-    SetAccessorDeclaration, ShorthandPropertyAssignment, Signature, SignatureDeclarationBase,
-    SignatureDeclarationInterface, SignatureFlags, SignatureKind, SourceFile, SourceFileLike,
-    SourceMapRange, SourceTextAsChars, SpreadAssignment, SpreadElement, StringLiteral,
-    StringLiteralType, StringOrNodeArray, StructureIsReused, SwitchStatement, Symbol,
-    SymbolAccessibilityResult, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface,
-    SymbolLinks, SymbolTable, SymbolTracker, SymbolVisibilityResult, SymbolWriter, SyntaxKind,
-    SyntaxList, SynthesizedComment, TaggedTemplateExpression, TemplateExpression,
+    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference, ResolvedTypeInterface,
+    ResolvedTypeReferenceDirective, RestTypeNode, ReturnStatement, ScriptKind, ScriptReferenceHost,
+    ScriptTarget, SemicolonClassElement, SetAccessorDeclaration, ShorthandPropertyAssignment,
+    Signature, SignatureDeclarationBase, SignatureDeclarationInterface, SignatureFlags,
+    SignatureKind, SourceFile, SourceFileLike, SourceMapRange, SourceTextAsChars, SpreadAssignment,
+    SpreadElement, StringLiteral, StringLiteralType, StringOrNodeArray, StructureIsReused,
+    SwitchStatement, Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolFormatFlags, SymbolId,
+    SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker, SymbolVisibilityResult, SymbolWriter,
+    SyntaxKind, SyntaxList, SynthesizedComment, TaggedTemplateExpression, TemplateExpression,
     TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode,
     TemplateLiteralTypeSpan, TemplateSpan, Ternary, TextChangeRange, TextRange, TextSpan,
     ThisTypeNode, ThrowStatement, TokenFlags, TransformFlags, TransformationContext,
@@ -328,6 +328,7 @@ pub use compiler::utilities::{
     try_get_import_from_module_specifier, try_parse_pattern, unreachable_code_is_error,
     unused_label_is_error, using_single_line_string_writer, walk_up_parenthesized_expressions,
     Associativity, FunctionFlags, GetLiteralTextFlags, OperatorPrecedence, StringOrPattern,
+    SymlinkCache,
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,

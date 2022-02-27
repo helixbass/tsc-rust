@@ -10,7 +10,10 @@ use super::{
     RedirectTargetsMap, ResolvedProjectReference, ScriptReferenceHost, ScriptTarget, SyntaxKind,
     SynthesizedComment, TextRange,
 };
-use crate::{CancellationToken, Path, ProgramBuildInfo};
+use crate::{
+    CancellationToken, ModuleResolutionCache, ParsedCommandLine, Path, ProgramBuildInfo,
+    SymlinkCache,
+};
 
 pub trait ModuleResolutionHost {
     fn read_file(&self, file_name: &str) -> Option<String>;
@@ -90,6 +93,11 @@ impl Extension {
     }
 }
 
+pub struct ResolvedModuleWithFailedLookupLocations {
+    pub resolved_module: Option<ResolvedModuleFull>,
+    pub failed_lookup_locations: Vec<String>,
+}
+
 #[derive(Debug)]
 pub struct ResolvedTypeReferenceDirective {
     pub primary: bool,
@@ -117,7 +125,7 @@ pub trait CompilerHost: ModuleResolutionHost {
     ) -> Option<Rc<Node /*SourceFile*/>> {
         None
     }
-    fn get_cancellation_token(&self) -> Option<CancellationToken> {
+    fn get_cancellation_token(&self) -> Option<Rc<dyn CancellationToken>> {
         None
     }
     fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String;
@@ -158,7 +166,7 @@ pub trait CompilerHost: ModuleResolutionHost {
     ) -> Option<Vec<Option<ResolvedModuleFull>>> {
         None
     }
-    fn get_module_resolution_cache(&self) -> Option<ModuleResolutionCache> {
+    fn get_module_resolution_cache(&self) -> Option<&dyn ModuleResolutionCache> {
         None
     }
     fn resolve_type_reference_directives(

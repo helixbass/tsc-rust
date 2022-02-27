@@ -131,6 +131,8 @@ impl CompilerHost for CompilerHostConcrete {
         &self,
         file_name: &str,
         language_version: ScriptTarget,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        should_create_new_source_file: Option<bool>,
     ) -> Option<Rc<Node /*SourceFile*/>> {
         let text = self.read_file(file_name);
         text.map(|text| {
@@ -150,6 +152,29 @@ impl CompilerHost for CompilerHostConcrete {
 
     fn get_current_directory(&self) -> String {
         self.system.get_current_directory()
+    }
+
+    fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String {
+        unimplemented!()
+    }
+
+    fn write_file(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    ) {
+        unimplemented!()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        unimplemented!()
+    }
+
+    fn get_new_line(&self) -> String {
+        unimplemented!()
     }
 }
 
@@ -382,9 +407,13 @@ fn find_source_file_worker(
 ) -> Option<Rc<Node>> {
     let _path = to_path(helper_context, file_name);
 
-    let file = helper_context
-        .host
-        .get_source_file(file_name, get_emit_script_target(&*helper_context.options));
+    let file = helper_context.host.get_source_file(
+        file_name,
+        get_emit_script_target(&*helper_context.options),
+        // TODO: this is wrong
+        None,
+        None,
+    );
 
     file.map(|file| {
         let file_as_source_file = file.as_source_file();

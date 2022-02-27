@@ -459,6 +459,8 @@ pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {
     )
 }
 
+pub struct SymlinkCache {}
+
 pub fn ensure_script_kind(file_name: &str, script_kind: Option<ScriptKind>) -> ScriptKind {
     script_kind.unwrap_or_else(|| {
         let script_kind = get_script_kind_from_file_name(file_name);
