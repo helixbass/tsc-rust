@@ -2,9 +2,14 @@ use std::rc::Rc;
 
 use crate::{
     create_program, emit_files_and_report_errors_and_get_exit_status, parse_command_line,
-    CreateProgramOptions, EmitAndSemanticDiagnosticsBuilderProgram, ParsedCommandLine,
-    ProgramConcrete, System,
+    CreateProgramOptions, EmitAndSemanticDiagnosticsBuilderProgram, ParsedCommandLine, Program,
+    System,
 };
+
+struct Statistic {
+    pub name: String,
+    pub value: String,
+}
 
 pub fn execute_command_line<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
@@ -18,7 +23,7 @@ pub fn execute_command_line<
 }
 
 pub enum ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
-    Program(Rc<ProgramConcrete>),
+    Program(Rc<Program>),
     EmitAndSemanticDiagnosticsBuilderProgram(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>),
     ParsedCommandLine(Rc<ParsedCommandLine>),
 }

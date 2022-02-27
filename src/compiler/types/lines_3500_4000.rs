@@ -9,7 +9,7 @@ use super::{
     BaseNode, BaseTextRange, BuildInfo, CompilerOptions, Diagnostic, EmitHelper, FileReference,
     FlowNode, LanguageVariant, Node, NodeArray, Path, PatternAmbientModule, ReadonlyPragmaMap,
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol,
-    SymbolTable, TypeCheckerHost,
+    SymbolTable, TypeChecker,
 };
 use crate::{ModeAwareCache, PragmaContext, __String};
 use local_macros::ast_type;
@@ -669,7 +669,10 @@ pub trait CancellationToken {
 
 pub trait CancellationTokenDebuggable: CancellationToken + fmt::Debug {}
 
-pub trait Program: TypeCheckerHost {
-    fn get_syntactic_diagnostics(&self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>;
-    fn get_semantic_diagnostics(&self) -> Vec<Rc<Diagnostic>>;
+#[derive(Debug)]
+pub struct Program {
+    pub(crate) _rc_wrapper: RefCell<Option<Rc<Program>>>,
+    pub(crate) options: Rc<CompilerOptions>,
+    pub(crate) files: Vec<Rc</*SourceFile*/ Node>>,
+    pub(crate) diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
 }

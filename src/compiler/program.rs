@@ -189,17 +189,9 @@ pub(crate) fn get_mode_for_resolution_at_index<TFile: SourceFileImportsList>(
     unimplemented!()
 }
 
-#[derive(Debug)]
-pub struct ProgramConcrete {
-    _rc_wrapper: RefCell<Option<Rc<ProgramConcrete>>>,
-    options: Rc<CompilerOptions>,
-    files: Vec<Rc</*SourceFile*/ Node>>,
-    diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
-}
-
-impl ProgramConcrete {
+impl Program {
     pub fn new(options: Rc<CompilerOptions>, files: Vec<Rc<Node>>) -> Rc<Self> {
-        let rc = Rc::new(ProgramConcrete {
+        let rc = Rc::new(Program {
             _rc_wrapper: RefCell::new(None),
             options,
             files,
@@ -209,12 +201,20 @@ impl ProgramConcrete {
         rc
     }
 
-    pub fn set_rc_wrapper(&self, rc_wrapper: Option<Rc<ProgramConcrete>>) {
+    pub fn set_rc_wrapper(&self, rc_wrapper: Option<Rc<Program>>) {
         *self._rc_wrapper.borrow_mut() = rc_wrapper;
     }
 
-    pub fn rc_wrapper(&self) -> Rc<ProgramConcrete> {
+    pub fn rc_wrapper(&self) -> Rc<Program> {
         self._rc_wrapper.borrow().clone().unwrap()
+    }
+
+    pub fn get_syntactic_diagnostics(&self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+        self.get_diagnostics_helper(Program::get_syntactic_diagnostics_for_file)
+    }
+
+    pub fn get_semantic_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
+        self.get_diagnostics_helper(Program::get_semantic_diagnostics_for_file)
     }
 
     fn get_diagnostics_producing_type_checker(&self) -> Rc<TypeChecker> {
@@ -238,7 +238,7 @@ impl ProgramConcrete {
 
     fn get_diagnostics_helper(
         &self,
-        get_diagnostics: fn(&ProgramConcrete, &SourceFile) -> Vec<Rc<Diagnostic>>,
+        get_diagnostics: fn(&Program, &SourceFile) -> Vec<Rc<Diagnostic>>,
     ) -> Vec<Rc<Diagnostic>> {
         self.get_source_files()
             .iter()
@@ -274,7 +274,7 @@ impl ProgramConcrete {
     ) -> Vec<Rc<Diagnostic>> {
         self.get_and_cache_diagnostics(
             source_file,
-            ProgramConcrete::get_bind_and_check_diagnostics_for_file_no_cache,
+            Program::get_bind_and_check_diagnostics_for_file_no_cache,
         )
     }
 
@@ -299,26 +299,16 @@ impl ProgramConcrete {
     fn get_and_cache_diagnostics(
         &self,
         source_file: &SourceFile,
-        get_diagnostics: fn(&ProgramConcrete, &SourceFile) -> Vec<Rc<Diagnostic>>,
+        get_diagnostics: fn(&Program, &SourceFile) -> Vec<Rc<Diagnostic>>,
     ) -> Vec<Rc<Diagnostic>> {
         let result = get_diagnostics(self, source_file);
         result
     }
 }
 
-impl ModuleSpecifierResolutionHost for ProgramConcrete {}
+impl ModuleSpecifierResolutionHost for Program {}
 
-impl Program for ProgramConcrete {
-    fn get_syntactic_diagnostics(&self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
-        self.get_diagnostics_helper(ProgramConcrete::get_syntactic_diagnostics_for_file)
-    }
-
-    fn get_semantic_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
-        self.get_diagnostics_helper(ProgramConcrete::get_semantic_diagnostics_for_file)
-    }
-}
-
-impl TypeCheckerHost for ProgramConcrete {
+impl TypeCheckerHost for Program {
     fn get_compiler_options(&self) -> Rc<CompilerOptions> {
         self.options.clone()
     }
@@ -328,7 +318,7 @@ impl TypeCheckerHost for ProgramConcrete {
     }
 }
 
-impl TypeCheckerHostDebuggable for ProgramConcrete {}
+impl TypeCheckerHostDebuggable for Program {}
 
 struct CreateProgramHelperContext<'a> {
     processing_other_files: &'a mut Vec<Rc<Node>>,
@@ -337,7 +327,7 @@ struct CreateProgramHelperContext<'a> {
     options: Rc<CompilerOptions>,
 }
 
-pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<impl Program> {
+pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program> {
     let CreateProgramOptions {
         root_names,
         options,
@@ -370,7 +360,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<impl Pr
         processing_other_files = None;
     }
 
-    ProgramConcrete::new(options, files)
+    Program::new(options, files)
 }
 
 fn filter_semantic_diagnostics(diagnostic: Vec<Rc<Diagnostic>>) -> Vec<Rc<Diagnostic>> {
