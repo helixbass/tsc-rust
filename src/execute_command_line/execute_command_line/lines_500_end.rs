@@ -3,20 +3,10 @@ use std::rc::Rc;
 
 use super::execute_command_line_worker;
 use crate::{
-    combine_paths, compare_strings_case_insensitive, contains, contains_rc,
-    convert_to_options_with_absolute_paths, convert_to_tsconfig, create_compiler_diagnostic,
-    create_diagnostic_reporter, create_program, emit_files_and_report_errors_and_get_exit_status,
-    file_extension_is, file_extension_is_one_of, filter, find_config_file, for_each,
-    format_message, get_diagnostic_text, get_line_starts, get_normalized_absolute_path,
-    is_incremental_compilation, is_watch_set, normalize_path, option_declarations,
-    options_for_build, options_for_watch, pad_left, pad_right, parse_build_command,
-    parse_command_line, parse_config_file_with_system, sort, string_contains,
-    supported_js_extensions_flat, supported_ts_extensions_flat, validate_locale_and_set_language,
-    version, BuildOptions, CharacterCodes, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionType, CompilerOptions, CreateProgramOptions, Diagnostic, DiagnosticMessage,
-    DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
-    ExtendedConfigCacheEntry, Extension, Node, ParsedBuildCommand, ParsedCommandLine, Program,
-    StringOrDiagnosticMessage, System, TypeCheckerHost, WatchOptions,
+    create_program, emit_files_and_report_errors_and_get_exit_status, parse_build_command,
+    parse_command_line, BuildOptions, CharacterCodes, CompilerOptions, CreateProgramOptions,
+    Diagnostic, DiagnosticReporter, EmitAndSemanticDiagnosticsBuilderProgram,
+    ExtendedConfigCacheEntry, ParsedBuildCommand, ParsedCommandLine, Program, System, WatchOptions,
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
