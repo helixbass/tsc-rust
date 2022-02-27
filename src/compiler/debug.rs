@@ -52,6 +52,12 @@ impl DebugType {
         self.current_log_level() <= level
     }
 
+    pub fn set_logging_host(&self, host: Option<Rc<dyn LoggingHost>>) {
+        logging_host.with(|logging_host_| {
+            *logging_host_.borrow_mut() = host;
+        });
+    }
+
     pub fn log_message(&self, level: LogLevel, s: &str) {
         logging_host.with(|logging_host_| {
             let logging_host_ = logging_host_.borrow();

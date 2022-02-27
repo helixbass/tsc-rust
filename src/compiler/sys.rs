@@ -10,6 +10,8 @@ pub(crate) enum FileSystemEntryKind {
 
 pub trait System {
     fn args(&self) -> &Vec<String>;
+    fn new_line(&self) -> &str;
+    fn write(&self, s: &str);
     fn read_file(&self, path: &str) -> Option<String>;
     fn get_executing_file_path(&self) -> Cow<'static, str>;
     fn get_current_directory(&self) -> String;
@@ -47,6 +49,14 @@ impl SystemConcrete {
 impl System for SystemConcrete {
     fn args(&self) -> &Vec<String> {
         &self.args
+    }
+
+    fn new_line(&self) -> &str {
+        LINE_ENDING
+    }
+
+    fn write(&self, s: &str) {
+        print!("{}", s);
     }
 
     fn read_file(&self, file_name: &str) -> Option<String> {
@@ -88,6 +98,11 @@ lazy_static! {
 pub fn get_sys() -> &'static impl System {
     &*SYS
 }
+
+#[cfg(windows)]
+const LINE_ENDING: &'static str = "\r\n";
+#[cfg(not(windows))]
+const LINE_ENDING: &'static str = "\n";
 
 pub struct Stats {
     metadata: Metadata,

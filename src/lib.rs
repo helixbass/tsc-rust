@@ -28,7 +28,7 @@ pub use compiler::core::{
 pub use compiler::core_public::{
     Comparer, Comparison, MapLike, Push, ReadonlyCollection, SortedArray,
 };
-pub use compiler::debug::Debug_;
+pub use compiler::debug::{Debug_, LogLevel, LoggingHost};
 pub use compiler::diagnostic_information_map_generated::Diagnostics;
 pub use compiler::emitter::create_printer;
 pub use compiler::factory::base_node_factory::{
