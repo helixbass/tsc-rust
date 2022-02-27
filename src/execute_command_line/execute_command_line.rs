@@ -486,6 +486,97 @@ fn get_possible_values(option: &CommandLineOption) -> String {
     }
 }
 
+fn generate_group_option_output(
+    sys: &dyn System,
+    options_list: &[Rc<CommandLineOption>],
+) -> Vec<String> {
+    let mut max_length = 0;
+    for option in options_list {
+        let cur_length = get_display_name_text_of_option(option).len();
+        max_length = if max_length > cur_length {
+            max_length
+        } else {
+            cur_length
+        };
+    }
+
+    let right_align_of_left_part = max_length + 2;
+    let left_align_of_right_part = right_align_of_left_part + 2;
+    let mut lines = vec![];
+    for option in options_list {
+        let mut tmp = generate_option_output(
+            sys,
+            option,
+            right_align_of_left_part,
+            left_align_of_right_part,
+        );
+        lines.append(&mut tmp);
+    }
+    if lines[lines.len() - 2] != sys.new_line() {
+        lines.push(sys.new_line().to_owned());
+    }
+    lines
+}
+
+fn generate_section_options_output(
+    sys: &dyn System,
+    section_name: &str,
+    options: &[Rc<CommandLineOption>],
+    sub_category: bool,
+    before_options_description: Option<&str>,
+    after_options_description: Option<&str>,
+) -> Vec<String> {
+    let mut res = vec![];
+    res.push(format!(
+        "{}{}{}",
+        create_colors(sys).bold(section_name),
+        sys.new_line(),
+        sys.new_line()
+    ));
+    if let Some(before_options_description) = before_options_description {
+        res.push(format!(
+            "{}{}{}",
+            before_options_description,
+            sys.new_line(),
+            sys.new_line()
+        ));
+    }
+    if !sub_category {
+        res.append(&mut generate_group_option_output(sys, options));
+        if let Some(after_options_description) = after_options_description {
+            res.push(format!(
+                "{}{}{}",
+                after_options_description,
+                sys.new_line(),
+                sys.new_line()
+            ));
+        }
+        return res;
+    }
+    let mut category_map = HashMap::new();
+    for option in options {
+        if option.maybe_category().is_none() {
+            continue;
+        }
+        let cur_category = get_diagnostic_text(option.maybe_category().unwrap(), None);
+        let options_of_cur_category = category_map.entry(cur_category).or_insert(vec![]);
+        options_of_cur_category.push(option.clone());
+    }
+    for (key, value) in category_map {
+        res.push(format!("### {}{}{}", key, sys.new_line(), sys.new_line()));
+        res.append(&mut generate_group_option_output(sys, &value));
+    }
+    if let Some(after_options_description) = after_options_description {
+        res.push(format!(
+            "{}{}{}",
+            after_options_description,
+            sys.new_line(),
+            sys.new_line()
+        ));
+    }
+    res
+}
+
 pub fn execute_command_line<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
