@@ -1,5 +1,6 @@
 pub mod binder;
 pub mod builder;
+pub mod builder_public;
 pub mod checker;
 pub mod command_line_parser;
 pub mod core;

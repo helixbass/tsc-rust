@@ -9,7 +9,7 @@ pub(crate) enum FileSystemEntryKind {
 }
 
 pub trait System {
-    fn args(&self) -> &Vec<String>;
+    fn args(&self) -> &[String];
     fn new_line(&self) -> &str;
     fn write(&self, s: &str);
     fn read_file(&self, path: &str) -> Option<String>;
@@ -17,6 +17,9 @@ pub trait System {
     fn get_current_directory(&self) -> String;
     fn resolve_path(&self, path: &str) -> String;
     fn file_exists(&self, path: &str) -> bool;
+    fn get_environment_variable(&self, name: &str) -> String;
+    fn try_enable_source_maps_for_host(&self) {}
+    fn set_blocking(&self) {}
 }
 
 struct SystemConcrete {
@@ -24,6 +27,10 @@ struct SystemConcrete {
 }
 
 impl SystemConcrete {
+    pub fn new(args: Vec<String>) -> Self {
+        Self { args }
+    }
+
     fn stat_sync(&self, path: &str) -> Option<Stats> {
         Some(Stats::new(fs::metadata(Path::new(path)).ok()?))
     }
@@ -47,7 +54,7 @@ impl SystemConcrete {
 }
 
 impl System for SystemConcrete {
-    fn args(&self) -> &Vec<String> {
+    fn args(&self) -> &[String] {
         &self.args
     }
 
@@ -87,12 +94,16 @@ impl System for SystemConcrete {
     fn file_exists(&self, path: &str) -> bool {
         self.file_system_entry_exists(path, FileSystemEntryKind::File)
     }
+
+    fn get_environment_variable(&self, name: &str) -> String {
+        env::var_os(name)
+            .map(|os_string| os_string.to_str().unwrap().to_owned())
+            .unwrap_or_else(|| "".to_owned())
+    }
 }
 
 lazy_static! {
-    static ref SYS: SystemConcrete = SystemConcrete {
-        args: env::args().skip(1).collect(),
-    };
+    static ref SYS: SystemConcrete = SystemConcrete::new(env::args().skip(1).collect(),);
 }
 
 pub fn get_sys() -> &'static impl System {

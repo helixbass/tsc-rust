@@ -190,7 +190,7 @@ pub(crate) fn get_mode_for_resolution_at_index<TFile: SourceFileImportsList>(
 }
 
 #[derive(Debug)]
-struct ProgramConcrete {
+pub struct ProgramConcrete {
     _rc_wrapper: RefCell<Option<Rc<ProgramConcrete>>>,
     options: Rc<CompilerOptions>,
     files: Vec<Rc</*SourceFile*/ Node>>,

@@ -31,6 +31,9 @@ thread_local! {
     pub static current_log_level: Cell<LogLevel> = Cell::new(LogLevel::Warning);
 }
 thread_local! {
+    pub static is_debugging: Cell<bool> = Cell::new(false);
+}
+thread_local! {
     pub static logging_host: RefCell<Option<Rc<dyn LoggingHost>>> = RefCell::new(None);
 }
 
@@ -46,6 +49,9 @@ impl DebugType {
     }
     pub fn current_log_level(&self) -> LogLevel {
         current_log_level.with(|current_log_level_| current_log_level_.get())
+    }
+    pub fn is_debugging(&self) -> bool {
+        is_debugging.with(|is_debugging_| is_debugging_.get())
     }
 
     pub fn should_log(&self, level: LogLevel) -> bool {
@@ -179,6 +185,10 @@ impl DebugType {
 
     pub fn attach_node_array_debug_info(&self, array: &mut NodeArray) {
         // TODO: implement this?
+    }
+
+    pub fn enable_debug_info(&self) {
+        unimplemented!()
     }
 }
 
