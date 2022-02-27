@@ -162,6 +162,18 @@ pub fn same_map<TItem: Clone, TCallback: FnMut(&TItem, usize) -> TItem>(
     result
 }
 
+pub fn flatten<TItem: Clone>(array: &[Vec<TItem>]) -> Vec<TItem> {
+    let mut result = vec![];
+    for v in array {
+        // if (v) {
+        // if isArray(v) {
+        add_range(&mut result, Some(v), None, None);
+        // }
+        // }
+    }
+    result
+}
+
 pub fn flat_map<
     TCollection: IntoIterator,
     TReturn: Clone,

@@ -6,8 +6,8 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    compare_strings_case_sensitive, compare_strings_case_sensitive_maybe, compare_values, for_each,
-    format_string_from_args, get_locale_specific_message, index_of, CommandLineOption,
+    compare_strings_case_sensitive, compare_strings_case_sensitive_maybe, compare_values, flatten,
+    for_each, format_string_from_args, get_locale_specific_message, index_of, CommandLineOption,
     CommandLineOptionInterface, Comparison, CompilerOptions, CompilerOptionsValue, Debug_,
     Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
     DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
@@ -485,6 +485,27 @@ pub fn get_script_kind_from_file_name(file_name: &str) -> ScriptKind {
         Some(Extension::Json) => ScriptKind::JSON,
         _ => ScriptKind::Unknown,
     }
+}
+
+lazy_static! {
+    pub static ref supported_ts_extensions: Vec<Vec<Extension>> = vec![
+        vec![Extension::Ts, Extension::Tsx, Extension::Dts],
+        vec![Extension::Cts, Extension::Dcts],
+        vec![Extension::Mts, Extension::Dmts]
+    ];
+}
+lazy_static! {
+    pub static ref supported_ts_extensions_flat: Vec<Extension> = flatten(&supported_ts_extensions);
+}
+lazy_static! {
+    pub static ref supported_js_extensions: Vec<Vec<Extension>> = vec![
+        vec![Extension::Js, Extension::Jsx],
+        vec![Extension::Mjs],
+        vec![Extension::Cjs]
+    ];
+}
+lazy_static! {
+    pub static ref supported_js_extensions_flat: Vec<Extension> = flatten(&supported_js_extensions);
 }
 
 pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {

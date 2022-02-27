@@ -217,6 +217,10 @@ impl Program {
         self.get_diagnostics_helper(Program::get_semantic_diagnostics_for_file)
     }
 
+    pub fn is_source_file_default_library(&self, file: &Node /*SourceFile*/) -> bool {
+        unimplemented!()
+    }
+
     fn get_diagnostics_producing_type_checker(&self) -> Rc<TypeChecker> {
         // self.diagnostics_producing_type_checker
         //     .get_or_insert_with(|| create_type_checker(self, true))

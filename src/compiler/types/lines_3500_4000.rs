@@ -183,6 +183,10 @@ impl SourceFile {
         self.path.borrow()
     }
 
+    pub fn path(&self) -> Ref<Path> {
+        Ref::map(self.path.borrow(), |option| option.as_ref().unwrap())
+    }
+
     pub fn set_path(&self, path: Path) {
         *self.path.borrow_mut() = Some(path);
     }
