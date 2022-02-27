@@ -5,12 +5,13 @@ use crate::{
     compare_strings_case_insensitive, contains, contains_rc, create_diagnostic_reporter,
     create_program, emit_files_and_report_errors_and_get_exit_status, file_extension_is,
     file_extension_is_one_of, filter, for_each, format_message, get_diagnostic_text,
-    get_line_starts, option_declarations, pad_left, pad_right, parse_command_line, sort,
-    string_contains, supported_js_extensions_flat, supported_ts_extensions_flat, version,
-    BuildOptions, CommandLineOption, CommandLineOptionInterface, CommandLineOptionType,
-    CompilerOptions, CreateProgramOptions, DiagnosticMessage, DiagnosticReporter, Diagnostics,
-    EmitAndSemanticDiagnosticsBuilderProgram, Extension, Node, ParsedCommandLine, Program,
-    StringOrDiagnosticMessage, System, TypeCheckerHost,
+    get_line_starts, option_declarations, options_for_build, options_for_watch, pad_left,
+    pad_right, parse_command_line, sort, string_contains, supported_js_extensions_flat,
+    supported_ts_extensions_flat, version, BuildOptions, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CreateProgramOptions,
+    DiagnosticMessage, DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram,
+    Extension, Node, ParsedCommandLine, Program, StringOrDiagnosticMessage, System,
+    TypeCheckerHost,
 };
 
 struct Statistic {
@@ -685,8 +686,133 @@ fn example(
     ));
 }
 
+fn print_all_help(
+    sys: &dyn System,
+    compiler_options: &[Rc<CommandLineOption>],
+    build_options: &[Rc<CommandLineOption>],
+    watch_options: &[Rc<CommandLineOption>],
+) {
+    let mut output = get_header(
+        sys,
+        &format!(
+            "{} - {}",
+            get_diagnostic_text(&Diagnostics::tsc_Colon_The_TypeScript_Compiler, None),
+            get_diagnostic_text(&Diagnostics::Version_0, Some(vec![version.to_owned()]))
+        ),
+    );
+    output.append(&mut generate_section_options_output(
+        sys,
+        &get_diagnostic_text(&Diagnostics::ALL_COMPILER_OPTIONS, None),
+        compiler_options,
+        true,
+        None,
+        Some(&format_message(
+            None,
+            &Diagnostics::You_can_learn_about_all_of_the_compiler_options_at_0,
+            Some(vec!["https://aka.ms/tsconfig-reference".to_owned()]),
+        )),
+    ));
+    output.append(&mut generate_section_options_output(
+        sys,
+        &get_diagnostic_text(&Diagnostics::WATCH_OPTIONS, None),
+        watch_options,
+        false,
+        Some(&get_diagnostic_text(&Diagnostics::Including_watch_w_will_start_watching_the_current_project_for_the_file_changes_Once_set_you_can_config_watch_mode_with_Colon, None)),
+        None
+    ));
+    output.append(&mut generate_section_options_output(
+        sys,
+        &get_diagnostic_text(&Diagnostics::BUILD_OPTIONS, None),
+        build_options,
+        false,
+        Some(&format_message(
+            None,
+            &Diagnostics::Using_build_b_will_make_tsc_behave_more_like_a_build_orchestrator_than_a_compiler_This_is_used_to_trigger_building_composite_projects_which_you_can_learn_more_about_at_0,
+            Some(vec!["https://aka.ms/tsc-composite-builds".to_owned()]),
+        )),
+        None
+    ));
+    for line in output {
+        sys.write(&line);
+    }
+}
+
+fn print_build_help(sys: &dyn System, build_options: &[Rc<CommandLineOption>]) {
+    let mut output = get_header(
+        sys,
+        &format!(
+            "{} - {}",
+            get_diagnostic_text(&Diagnostics::tsc_Colon_The_TypeScript_Compiler, None),
+            get_diagnostic_text(&Diagnostics::Version_0, Some(vec![version.to_owned()]))
+        ),
+    );
+    output.append(&mut generate_section_options_output(
+        sys,
+        &get_diagnostic_text(&Diagnostics::BUILD_OPTIONS, None),
+        build_options,
+        false,
+        Some(&format_message(
+            None,
+            &Diagnostics::Using_build_b_will_make_tsc_behave_more_like_a_build_orchestrator_than_a_compiler_This_is_used_to_trigger_building_composite_projects_which_you_can_learn_more_about_at_0,
+            Some(vec!["https://aka.ms/tsc-composite-builds".to_owned()]),
+        )),
+        None
+    ));
+    for line in output {
+        sys.write(&line);
+    }
+}
+
 fn get_header(sys: &dyn System, message: &str) -> Vec<String> {
-    unimplemented!()
+    let colors = create_colors(sys);
+    let mut header = vec![];
+    let terminal_width = sys.get_width_of_terminal().unwrap_or(0);
+    let ts_icon_length = 5;
+
+    let ts_icon_first_line = colors.blue_background(&pad_left("", ts_icon_length, None));
+    let ts_icon_second_line =
+        colors.blue_background(&colors.bright_white(&pad_left("TS ", ts_icon_length, None)));
+    if terminal_width >= message.len() + ts_icon_length {
+        let right_align = if terminal_width > 120 {
+            120
+        } else {
+            terminal_width
+        };
+        let left_align = right_align - ts_icon_length;
+        header.push(format!(
+            "{}{}{}",
+            pad_right(message, left_align),
+            ts_icon_first_line,
+            sys.new_line()
+        ));
+        header.push(format!(
+            "{}{}{}",
+            pad_left("", left_align, None),
+            ts_icon_second_line,
+            sys.new_line()
+        ));
+    } else {
+        header.push(format!("{}{}", message, sys.new_line()));
+        header.push(sys.new_line().to_owned());
+    }
+    header
+}
+
+fn print_help(sys: &dyn System, command_line: &ParsedCommandLine) {
+    if !matches!(command_line.options.all, Some(true)) {
+        print_easy_help(sys, &get_options_for_help(command_line));
+    } else {
+        options_for_build.with(|options_for_build_| {
+            options_for_watch.with(|options_for_watch_| {
+                print_all_help(
+                    sys,
+                    &get_options_for_help(command_line),
+                    &options_for_build_,
+                    &options_for_watch_,
+                )
+            })
+        });
+    }
 }
 
 pub fn execute_command_line<

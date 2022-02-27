@@ -11,7 +11,7 @@ pub use compiler::builder_public::EmitAndSemanticDiagnosticsBuilderProgram;
 pub use compiler::checker::{create_type_checker, get_node_id, get_symbol_id, NodeBuilder};
 use compiler::command_line_parser::{
     convert_to_object_worker, get_diagnostic_text, module_resolution_option_declarations,
-    option_declarations, options_affecting_program_structure,
+    option_declarations, options_affecting_program_structure, options_for_build, options_for_watch,
 };
 pub use compiler::command_line_parser::{parse_command_line, DiagnosticReporter, OptionsNameMap};
 pub use compiler::core::{

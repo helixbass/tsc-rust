@@ -145,6 +145,10 @@ thread_local! {
 }
 
 thread_local! {
+    pub(crate) static options_for_watch: Vec<Rc<CommandLineOption>> = vec![];
+}
+
+thread_local! {
     pub(crate) static common_options_with_build: Vec<Rc<CommandLineOption>> = vec![
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
@@ -2972,6 +2976,10 @@ thread_local! {
                 .map(Clone::clone)
                 .collect()
         });
+}
+
+thread_local! {
+    pub(crate) static options_for_build: Vec<Rc<CommandLineOption>> = vec![];
 }
 
 pub struct OptionsNameMap {
