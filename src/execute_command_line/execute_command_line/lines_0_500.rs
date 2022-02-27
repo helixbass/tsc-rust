@@ -1,6 +1,11 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use super::{
+    create_watch_of_config_file, create_watch_of_files_and_compiler_options, perform_compilation,
+    perform_incremental_compilation, report_watch_mode_without_sys_support, write_config_file,
+    ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine,
+};
 use crate::{
     combine_paths, compare_strings_case_insensitive, contains, contains_rc,
     convert_to_options_with_absolute_paths, convert_to_tsconfig, create_compiler_diagnostic,
@@ -18,12 +23,12 @@ use crate::{
     StringOrDiagnosticMessage, System, TypeCheckerHost, WatchOptions,
 };
 
-struct Statistic {
+pub(super) struct Statistic {
     pub name: String,
     pub value: String,
 }
 
-fn count_lines(program: &Program) -> HashMap<&'static str, usize> {
+pub(super) fn count_lines(program: &Program) -> HashMap<&'static str, usize> {
     let mut counts = get_counts_map();
     for_each(program.get_source_files(), |file, _| {
         let key = get_count_key(program, file);
@@ -34,7 +39,7 @@ fn count_lines(program: &Program) -> HashMap<&'static str, usize> {
     counts
 }
 
-fn count_nodes(program: &Program) -> HashMap<&'static str, usize> {
+pub(super) fn count_nodes(program: &Program) -> HashMap<&'static str, usize> {
     let mut counts = get_counts_map();
     for_each(program.get_source_files(), |file, _| {
         let key = get_count_key(program, file);
@@ -49,7 +54,7 @@ fn count_nodes(program: &Program) -> HashMap<&'static str, usize> {
     counts
 }
 
-fn get_counts_map() -> HashMap<&'static str, usize> {
+pub(super) fn get_counts_map() -> HashMap<&'static str, usize> {
     let mut counts = HashMap::new();
     counts.insert("Library", 0);
     counts.insert("Definitions", 0);
@@ -60,7 +65,7 @@ fn get_counts_map() -> HashMap<&'static str, usize> {
     counts
 }
 
-fn get_count_key(program: &Program, file: &Node /*SourceFile*/) -> &'static str {
+pub(super) fn get_count_key(program: &Program, file: &Node /*SourceFile*/) -> &'static str {
     let file_as_source_file = file.as_source_file();
     if program.is_source_file_default_library(file) {
         return "Library";
@@ -92,7 +97,7 @@ fn get_count_key(program: &Program, file: &Node /*SourceFile*/) -> &'static str 
     }
 }
 
-fn update_report_diagnostic(
+pub(super) fn update_report_diagnostic(
     sys: &dyn System,
     existing: Rc<dyn DiagnosticReporter>,
     options: CompilerOptionsOrBuildOptions,
@@ -104,7 +109,7 @@ fn update_report_diagnostic(
     }
 }
 
-enum CompilerOptionsOrBuildOptions {
+pub(super) enum CompilerOptionsOrBuildOptions {
     CompilerOptions(Rc<CompilerOptions>),
     BuildOptions(Rc<BuildOptions>),
 }
@@ -124,12 +129,12 @@ impl From<Rc<CompilerOptions>> for CompilerOptionsOrBuildOptions {
     }
 }
 
-fn default_is_pretty(sys: &dyn System) -> bool {
+pub(super) fn default_is_pretty(sys: &dyn System) -> bool {
     matches!(sys.write_output_is_tty(), Some(true))
         && sys.get_environment_variable("NO_COLOR").is_empty()
 }
 
-fn should_be_pretty(sys: &dyn System, options: CompilerOptionsOrBuildOptions) -> bool {
+pub(super) fn should_be_pretty(sys: &dyn System, options: CompilerOptionsOrBuildOptions) -> bool {
     if
     /* !options || */
     options.pretty().is_none() {
@@ -138,7 +143,7 @@ fn should_be_pretty(sys: &dyn System, options: CompilerOptionsOrBuildOptions) ->
     options.pretty().unwrap()
 }
 
-fn get_options_for_help(command_line: &ParsedCommandLine) -> Vec<Rc<CommandLineOption>> {
+pub(super) fn get_options_for_help(command_line: &ParsedCommandLine) -> Vec<Rc<CommandLineOption>> {
     option_declarations.with(|option_declarations_| {
         if matches!(command_line.options.all, Some(true)) {
             sort(option_declarations_, |a, b| {
@@ -154,7 +159,7 @@ fn get_options_for_help(command_line: &ParsedCommandLine) -> Vec<Rc<CommandLineO
     })
 }
 
-fn print_version(sys: &dyn System) {
+pub(super) fn print_version(sys: &dyn System) {
     sys.write(&format!(
         "{}{}",
         get_diagnostic_text(&Diagnostics::Version_0, Some(vec![version.to_owned()])),
@@ -162,7 +167,7 @@ fn print_version(sys: &dyn System) {
     ));
 }
 
-fn create_colors(sys: &dyn System) -> Rc<dyn Colors> {
+pub(super) fn create_colors(sys: &dyn System) -> Rc<dyn Colors> {
     let show_colors = default_is_pretty(sys);
     if !show_colors {
         return Rc::new(ColorsPassthrough::new());
@@ -188,14 +193,14 @@ fn create_colors(sys: &dyn System) -> Rc<dyn Colors> {
     ))
 }
 
-trait Colors {
+pub(super) trait Colors {
     fn bold(&self, str_: &str) -> String;
     fn blue(&self, str_: &str) -> String;
     fn blue_background(&self, str_: &str) -> String;
     fn bright_white(&self, str_: &str) -> String;
 }
 
-struct ColorsPassthrough {}
+pub(super) struct ColorsPassthrough {}
 
 impl ColorsPassthrough {
     pub fn new() -> Self {
@@ -221,7 +226,7 @@ impl Colors for ColorsPassthrough {
     }
 }
 
-struct ColorsConcrete {
+pub(super) struct ColorsConcrete {
     is_windows: bool,
     is_windows_terminal: bool,
     is_vs_code: bool,
@@ -270,7 +275,7 @@ impl Colors for ColorsConcrete {
     }
 }
 
-fn get_display_name_text_of_option(option: &CommandLineOption) -> String {
+pub(super) fn get_display_name_text_of_option(option: &CommandLineOption) -> String {
     format!(
         "--{}{}",
         option.name(),
@@ -281,7 +286,7 @@ fn get_display_name_text_of_option(option: &CommandLineOption) -> String {
     )
 }
 
-fn generate_option_output(
+pub(super) fn generate_option_output(
     sys: &dyn System,
     option: &CommandLineOption,
     right_align_of_left: usize,
@@ -376,7 +381,7 @@ fn generate_option_output(
     text
 }
 
-struct ValueCandidate {
+pub(super) struct ValueCandidate {
     pub value_type: String,
     pub possible_values: String,
 }
@@ -390,7 +395,7 @@ impl ValueCandidate {
     }
 }
 
-fn show_additional_info_output(
+pub(super) fn show_additional_info_output(
     value_candidates: Option<&ValueCandidate>,
     option: &CommandLineOption,
 ) -> bool {
@@ -424,7 +429,7 @@ fn show_additional_info_output(
     true
 }
 
-fn get_pretty_output(
+pub(super) fn get_pretty_output(
     colors: &dyn Colors,
     left: &str,
     right: &str,
@@ -461,7 +466,7 @@ fn get_pretty_output(
     res
 }
 
-fn get_value_candidate(option: &CommandLineOption) -> Option<ValueCandidate> {
+pub(super) fn get_value_candidate(option: &CommandLineOption) -> Option<ValueCandidate> {
     if matches!(option.type_(), CommandLineOptionType::Object) {
         return None;
     }
@@ -472,7 +477,7 @@ fn get_value_candidate(option: &CommandLineOption) -> Option<ValueCandidate> {
     ))
 }
 
-fn get_value_type(option: &CommandLineOption) -> String {
+pub(super) fn get_value_type(option: &CommandLineOption) -> String {
     match option.type_() {
         CommandLineOptionType::String
         | CommandLineOptionType::Number
@@ -482,7 +487,7 @@ fn get_value_type(option: &CommandLineOption) -> String {
     }
 }
 
-fn get_possible_values(option: &CommandLineOption) -> String {
+pub(super) fn get_possible_values(option: &CommandLineOption) -> String {
     match option.type_() {
         CommandLineOptionType::String
         | CommandLineOptionType::Number
@@ -498,7 +503,7 @@ fn get_possible_values(option: &CommandLineOption) -> String {
     }
 }
 
-fn generate_group_option_output(
+pub(super) fn generate_group_option_output(
     sys: &dyn System,
     options_list: &[Rc<CommandLineOption>],
 ) -> Vec<String> {
@@ -530,7 +535,7 @@ fn generate_group_option_output(
     lines
 }
 
-fn generate_section_options_output(
+pub(super) fn generate_section_options_output(
     sys: &dyn System,
     section_name: &str,
     options: &[Rc<CommandLineOption>],
@@ -589,7 +594,7 @@ fn generate_section_options_output(
     res
 }
 
-fn print_easy_help(sys: &dyn System, simple_options: &[Rc<CommandLineOption>]) {
+pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Rc<CommandLineOption>]) {
     let colors = create_colors(sys);
     let mut output = get_header(
         sys,
@@ -677,7 +682,7 @@ fn print_easy_help(sys: &dyn System, simple_options: &[Rc<CommandLineOption>]) {
     }
 }
 
-fn example(
+pub(super) fn example(
     output: &mut Vec<String>,
     colors: &dyn Colors,
     sys: &dyn System,
@@ -696,7 +701,7 @@ fn example(
     ));
 }
 
-fn print_all_help(
+pub(super) fn print_all_help(
     sys: &dyn System,
     compiler_options: &[Rc<CommandLineOption>],
     build_options: &[Rc<CommandLineOption>],
@@ -747,7 +752,7 @@ fn print_all_help(
     }
 }
 
-fn print_build_help(sys: &dyn System, build_options: &[Rc<CommandLineOption>]) {
+pub(super) fn print_build_help(sys: &dyn System, build_options: &[Rc<CommandLineOption>]) {
     let mut output = get_header(
         sys,
         &format!(
@@ -773,7 +778,7 @@ fn print_build_help(sys: &dyn System, build_options: &[Rc<CommandLineOption>]) {
     }
 }
 
-fn get_header(sys: &dyn System, message: &str) -> Vec<String> {
+pub(super) fn get_header(sys: &dyn System, message: &str) -> Vec<String> {
     let colors = create_colors(sys);
     let mut header = vec![];
     let terminal_width = sys.get_width_of_terminal().unwrap_or(0);
@@ -808,7 +813,7 @@ fn get_header(sys: &dyn System, message: &str) -> Vec<String> {
     header
 }
 
-fn print_help(sys: &dyn System, command_line: &ParsedCommandLine) {
+pub(super) fn print_help(sys: &dyn System, command_line: &ParsedCommandLine) {
     if !matches!(command_line.options.all, Some(true)) {
         print_easy_help(sys, &get_options_for_help(command_line));
     } else {
@@ -825,7 +830,7 @@ fn print_help(sys: &dyn System, command_line: &ParsedCommandLine) {
     }
 }
 
-fn execute_command_line_worker<
+pub(super) fn execute_command_line_worker<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
     sys: &dyn System,
@@ -1064,170 +1069,4 @@ fn execute_command_line_worker<
             perform_compilation(sys, cb, report_diagnostic, &command_line);
         }
     }
-}
-
-pub fn is_build(command_line_args: &[String]) -> bool {
-    if !command_line_args.is_empty()
-        && matches!(
-            command_line_args[0].chars().next(),
-            Some(CharacterCodes::minus)
-        )
-    {
-        let first_option: String = {
-            let chars: Vec<char> = command_line_args[0].chars().collect();
-            chars[(if matches!(chars.get(1), Some(&CharacterCodes::minus)) {
-                2
-            } else {
-                1
-            })..]
-                .iter()
-                .collect::<String>()
-                .to_lowercase()
-        };
-        return matches!(&*first_option, "build" | "b");
-    }
-    false
-}
-
-pub fn execute_command_line<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
-    system: &dyn System,
-    mut cb: TCallback,
-    command_line_args: &[String],
-) {
-    if is_build(command_line_args) {
-        let ParsedBuildCommand {
-            build_options,
-            watch_options,
-            projects,
-            errors,
-        } = parse_build_command(&command_line_args[1..]);
-        if let Some(build_options_generate_cpu_profile) =
-            build_options.generate_cpu_profile.as_ref()
-        {
-            system.enable_cpu_profiler(build_options_generate_cpu_profile, &mut || {
-                perform_build(
-                    system,
-                    &mut cb,
-                    &build_options,
-                    watch_options.as_ref(),
-                    &projects,
-                    &errors,
-                )
-            });
-            return; // TODO: the Typescript version doesn't actually return here but seems like it should?
-        } else {
-            perform_build(
-                system,
-                &mut cb,
-                &build_options,
-                watch_options.as_ref(),
-                &projects,
-                &errors,
-            );
-            return;
-        }
-    }
-
-    let mut command_line =
-        parse_command_line(command_line_args, Some(|path: &str| system.read_file(path)));
-    if let Some(command_line_options_generate_cpu_profile) =
-        command_line.options.generate_cpu_profile.clone()
-    {
-        system.enable_cpu_profiler(&command_line_options_generate_cpu_profile, &mut || {
-            execute_command_line_worker(system, &mut cb, &mut command_line)
-        })
-    } else {
-        execute_command_line_worker(system, &mut cb, &mut command_line)
-    }
-}
-
-pub enum ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
-    Program(Rc<Program>),
-    EmitAndSemanticDiagnosticsBuilderProgram(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>),
-    ParsedCommandLine(Rc<ParsedCommandLine>),
-}
-
-fn report_watch_mode_without_sys_support(
-    sys: &dyn System,
-    report_diagnostic: &dyn DiagnosticReporter,
-) -> bool {
-    unimplemented!()
-}
-
-fn perform_build<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
-    sys: &dyn System,
-    cb: &mut TCallback,
-    build_options: &BuildOptions,
-    watch_options: Option<&WatchOptions>,
-    projects: &[String],
-    errors: &[Rc<Diagnostic>],
-) {
-    unimplemented!()
-}
-
-fn perform_compilation<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
-    sys: &dyn System,
-    mut cb: TCallback,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
-    config: &ParsedCommandLine,
-) {
-    let program_options = CreateProgramOptions {
-        root_names: &config.file_names,
-        options: config.options.clone(),
-    };
-    let program = create_program(program_options);
-    let _exit_status = emit_files_and_report_errors_and_get_exit_status(program);
-}
-
-fn perform_incremental_compilation<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
-    sys: &dyn System,
-    mut cb: TCallback,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
-    config: &ParsedCommandLine,
-) {
-    unimplemented!()
-}
-
-fn create_watch_of_config_file<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
-    system: &dyn System,
-    mut cb: TCallback,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
-    config_parse_result: Rc<ParsedCommandLine>,
-    options_to_extend: Rc<CompilerOptions>,
-    watch_options_to_extend: Option<Rc<WatchOptions>>,
-    extended_config_cache: HashMap<String, ExtendedConfigCacheEntry>,
-) {
-    unimplemented!()
-}
-
-fn create_watch_of_files_and_compiler_options<
-    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
->(
-    system: &dyn System,
-    mut cb: TCallback,
-    report_diagnostic: Rc<dyn DiagnosticReporter>,
-    root_files: &[String],
-    options: Rc<CompilerOptions>,
-    watch_options: Option<Rc<WatchOptions>>,
-) {
-    unimplemented!()
-}
-
-fn write_config_file(
-    sys: &dyn System,
-    report_diagnostic: &dyn DiagnosticReporter,
-    options: &CompilerOptions,
-    file_names: &[String],
-) {
-    unimplemented!()
 }
