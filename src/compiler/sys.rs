@@ -26,6 +26,7 @@ pub trait System {
     fn get_current_directory(&self) -> String;
     fn resolve_path(&self, path: &str) -> String;
     fn file_exists(&self, path: &str) -> bool;
+    fn directory_exists(&self, path: &str) -> bool;
     fn exit(&self, exit_code: Option<ExitStatus>) -> !;
     fn disable_cpu_profiler(&self /*, continuation: &dyn FnMut()*/);
     fn get_environment_variable(&self, name: &str) -> String;
@@ -104,6 +105,10 @@ impl System for SystemConcrete {
 
     fn file_exists(&self, path: &str) -> bool {
         self.file_system_entry_exists(path, FileSystemEntryKind::File)
+    }
+
+    fn directory_exists(&self, path: &str) -> bool {
+        self.file_system_entry_exists(path, FileSystemEntryKind::Directory)
     }
 
     fn exit(&self, exit_code: Option<ExitStatus>) -> ! {

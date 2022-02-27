@@ -2,12 +2,14 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    compare_strings_case_insensitive, contains, contains_rc, create_compiler_diagnostic,
-    create_diagnostic_reporter, create_program, emit_files_and_report_errors_and_get_exit_status,
-    file_extension_is, file_extension_is_one_of, filter, for_each, format_message,
-    get_diagnostic_text, get_line_starts, option_declarations, options_for_build,
-    options_for_watch, pad_left, pad_right, parse_command_line, sort, string_contains,
-    supported_js_extensions_flat, supported_ts_extensions_flat, version, BuildOptions,
+    combine_paths, compare_strings_case_insensitive, contains, contains_rc,
+    convert_to_options_with_absolute_paths, create_compiler_diagnostic, create_diagnostic_reporter,
+    create_program, emit_files_and_report_errors_and_get_exit_status, file_extension_is,
+    file_extension_is_one_of, filter, find_config_file, for_each, format_message,
+    get_diagnostic_text, get_line_starts, get_normalized_absolute_path, normalize_path,
+    option_declarations, options_for_build, options_for_watch, pad_left, pad_right,
+    parse_command_line, sort, string_contains, supported_js_extensions_flat,
+    supported_ts_extensions_flat, validate_locale_and_set_language, version, BuildOptions,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
     CreateProgramOptions, DiagnosticMessage, DiagnosticReporter, Diagnostics,
     EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, Extension, Node, ParsedCommandLine,
@@ -820,7 +822,7 @@ fn execute_command_line_worker<
 >(
     sys: &dyn System,
     mut cb: TCallback,
-    command_line: ParsedCommandLine,
+    mut command_line: ParsedCommandLine,
 ) {
     let report_diagnostic = create_diagnostic_reporter(sys, None);
     if matches!(command_line.options.build, Some(true)) {
@@ -833,6 +835,129 @@ fn execute_command_line_worker<
         ));
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
+
+    let mut config_file_name: Option<String> = None;
+    if let Some(command_line_options_locale) = command_line.options.locale.as_ref() {
+        if !command_line_options_locale.is_empty() {
+            validate_locale_and_set_language(
+                command_line_options_locale,
+                sys,
+                Some(&mut command_line.errors),
+            );
+        }
+    }
+
+    if !command_line.errors.is_empty() {
+        command_line
+            .errors
+            .into_iter()
+            .for_each(|error| report_diagnostic.call(error));
+        sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+    }
+
+    if matches!(command_line.options.init, Some(true)) {
+        write_config_file(
+            sys,
+            &*report_diagnostic,
+            &command_line.options,
+            &command_line.file_names,
+        );
+        sys.exit(Some(ExitStatus::Success));
+    }
+
+    if matches!(command_line.options.version, Some(true)) {
+        print_version(sys);
+        sys.exit(Some(ExitStatus::Success));
+    }
+
+    if matches!(command_line.options.help, Some(true))
+        || matches!(command_line.options.all, Some(true))
+    {
+        print_help(sys, &command_line);
+        sys.exit(Some(ExitStatus::Success));
+    }
+
+    if matches!(command_line.options.watch, Some(true))
+        && matches!(command_line.options.list_files_only, Some(true))
+    {
+        report_diagnostic.call(Rc::new(
+            create_compiler_diagnostic(
+                &Diagnostics::Options_0_and_1_cannot_be_combined,
+                Some(vec!["watch".to_owned(), "listFilesOnly".to_owned()]),
+            )
+            .into(),
+        ));
+        sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+    }
+
+    if let Some(command_line_options_project) = command_line.options.project.as_ref() {
+        if !command_line.file_names.is_empty() {
+            report_diagnostic.call(Rc::new(
+                create_compiler_diagnostic(
+                    &Diagnostics::Option_project_cannot_be_mixed_with_source_files_on_a_command_line,
+                    None
+                )
+                .into(),
+            ));
+            sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+        }
+
+        let file_or_directory = normalize_path(command_line_options_project);
+        if file_or_directory.is_empty() || sys.directory_exists(&file_or_directory) {
+            config_file_name = Some(combine_paths(
+                &file_or_directory,
+                &vec![Some("tsconfig.json")],
+            ));
+            if !sys.file_exists(config_file_name.as_ref().unwrap()) {
+                report_diagnostic.call(Rc::new(
+                    create_compiler_diagnostic(
+                        &Diagnostics::Cannot_find_a_tsconfig_json_file_at_the_specified_directory_Colon_0,
+                        Some(vec![command_line_options_project.to_owned()])
+                    )
+                    .into(),
+                ));
+                sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+            }
+        } else {
+            config_file_name = Some(file_or_directory);
+            if !sys.file_exists(config_file_name.as_ref().unwrap()) {
+                report_diagnostic.call(Rc::new(
+                    create_compiler_diagnostic(
+                        &Diagnostics::The_specified_path_does_not_exist_Colon_0,
+                        Some(vec![command_line_options_project.to_owned()]),
+                    )
+                    .into(),
+                ));
+                sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+            }
+        }
+    } else if command_line.file_names.is_empty() {
+        let search_path = normalize_path(&sys.get_current_directory());
+        config_file_name =
+            find_config_file(&search_path, |file_name| sys.file_exists(file_name), None);
+    }
+
+    if command_line.file_names.is_empty() && config_file_name.is_none() {
+        if matches!(command_line.options.show_config, Some(true)) {
+            report_diagnostic.call(Rc::new(
+                create_compiler_diagnostic(
+                    &Diagnostics::Cannot_find_a_tsconfig_json_file_at_the_current_directory_Colon_0,
+                    Some(vec![normalize_path(&sys.get_current_directory())]),
+                )
+                .into(),
+            ));
+        } else {
+            print_version(sys);
+            print_help(sys, &command_line);
+        }
+        sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+    }
+
+    let current_directory = sys.get_current_directory();
+    let command_line_options =
+        convert_to_options_with_absolute_paths(command_line.options.clone(), |file_name| {
+            get_normalized_absolute_path(file_name, Some(&current_directory))
+        });
 
     perform_compilation(sys, command_line)
 }
@@ -861,4 +986,13 @@ fn perform_compilation(_sys: &dyn System, config: ParsedCommandLine) {
     };
     let program = create_program(program_options);
     let _exit_status = emit_files_and_report_errors_and_get_exit_status(program);
+}
+
+fn write_config_file(
+    sys: &dyn System,
+    report_diagnostic: &dyn DiagnosticReporter,
+    options: &CompilerOptions,
+    file_names: &[String],
+) {
+    unimplemented!()
 }

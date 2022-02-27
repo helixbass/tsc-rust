@@ -10,8 +10,9 @@ pub use compiler::builder::ProgramBuildInfo;
 pub use compiler::builder_public::EmitAndSemanticDiagnosticsBuilderProgram;
 pub use compiler::checker::{create_type_checker, get_node_id, get_symbol_id, NodeBuilder};
 use compiler::command_line_parser::{
-    convert_to_object_worker, get_diagnostic_text, module_resolution_option_declarations,
-    option_declarations, options_affecting_program_structure, options_for_build, options_for_watch,
+    convert_to_object_worker, convert_to_options_with_absolute_paths, get_diagnostic_text,
+    module_resolution_option_declarations, option_declarations,
+    options_affecting_program_structure, options_for_build, options_for_watch,
 };
 pub use compiler::command_line_parser::{parse_command_line, DiagnosticReporter, OptionsNameMap};
 pub use compiler::core::{
@@ -144,8 +145,8 @@ pub use compiler::path::{
     path_is_relative, reduce_path_components, remove_trailing_directory_separator, resolve_path,
     starts_with_directory, to_path,
 };
-pub use compiler::program::create_program;
 use compiler::program::get_mode_for_resolution_at_index;
+pub use compiler::program::{create_program, find_config_file};
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position, compute_line_starts,
     compute_position_of_line_and_character, get_line_starts, get_lines_between_positions,

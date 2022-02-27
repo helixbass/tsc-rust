@@ -309,10 +309,10 @@ lazy_static! {
     ];
 }
 
-pub fn validate_locale_and_set_language<TSys: System>(
+pub fn validate_locale_and_set_language(
     locale: &str,
-    sys: &TSys,
-    mut errors: Option<&mut Push<Diagnostic>>,
+    sys: &dyn System,
+    mut errors: Option<&mut Push<Rc<Diagnostic>>>,
 ) {
     let lower_case_locale = locale.to_lowercase();
     lazy_static! {
@@ -322,7 +322,7 @@ pub fn validate_locale_and_set_language<TSys: System>(
 
     if match_result.is_none() {
         if let Some(errors) = errors {
-            errors.push(create_compiler_diagnostic(&Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1, Some(vec!["en".to_owned(), "ja-jp".to_owned()])).into());
+            errors.push(Rc::new(create_compiler_diagnostic(&Diagnostics::Locale_must_be_of_the_form_language_or_language_territory_For_example_0_or_1, Some(vec!["en".to_owned(), "ja-jp".to_owned()])).into()));
         }
         return;
     }
@@ -341,11 +341,11 @@ pub fn validate_locale_and_set_language<TSys: System>(
     set_ui_locale(Some(locale.to_owned()));
 }
 
-fn try_set_language_and_territory<TSys: System>(
-    sys: &TSys,
+fn try_set_language_and_territory(
+    sys: &dyn System,
     language: &str,
     territory: Option<&str>,
-    errors: &mut Option<&mut Push<Diagnostic>>,
+    errors: &mut Option<&mut Push<Rc<Diagnostic>>>,
 ) -> bool {
     let compiler_file_path = normalize_path(&sys.get_executing_file_path());
     let containing_directory_path = get_directory_path(&compiler_file_path);
@@ -369,13 +369,13 @@ fn try_set_language_and_territory<TSys: System>(
     file_contents = sys.read_file(&file_path);
     if file_contents.is_none() {
         if let Some(errors) = errors {
-            errors.push(
+            errors.push(Rc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Unable_to_open_file_0,
                     Some(vec![file_path]),
                 )
                 .into(),
-            );
+            ));
         }
         return false;
     }
@@ -384,13 +384,13 @@ fn try_set_language_and_territory<TSys: System>(
         serde_json::from_str(&file_contents);
     if parsed_file_contents.is_err() {
         if let Some(errors) = errors {
-            errors.push(
+            errors.push(Rc::new(
                 create_compiler_diagnostic(
                     &Diagnostics::Corrupted_locale_file_0,
                     Some(vec![file_path]),
                 )
                 .into(),
-            );
+            ));
         }
         return false;
     }

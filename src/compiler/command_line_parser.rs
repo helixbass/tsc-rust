@@ -3113,6 +3113,7 @@ fn parse_command_line_worker(command_line: &[String]) -> ParsedCommandLine {
             use_define_for_class_fields: None,
         }),
         file_names: command_line.to_vec(),
+        errors: vec![],
     }
 }
 
@@ -3139,4 +3140,11 @@ pub(crate) fn convert_to_object_worker<TRootExpression: Borrow<Node>>(
     json_conversion_notifier: Option<JsonConversionNotifier>,
 ) {
     unimplemented!()
+}
+
+pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: FnMut(&str) -> String>(
+    options: Rc<CompilerOptions>,
+    to_absolute_path: TToAbsolutePath,
+) -> Rc<CompilerOptions> {
+    options
 }
