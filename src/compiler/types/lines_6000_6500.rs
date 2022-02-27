@@ -231,6 +231,9 @@ pub struct CompilerOptions {
     // [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
 }
 
+#[derive(Debug)]
+pub struct WatchOptions {}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ModuleKind {
     None = 0,
@@ -318,6 +321,7 @@ pub enum LanguageVariant {
 pub struct ParsedCommandLine {
     pub options: Rc<CompilerOptions>,
     pub file_names: Vec<String>,
+    pub watch_options: Option<Rc<WatchOptions>>,
     pub errors: Vec<Rc<Diagnostic>>,
 }
 

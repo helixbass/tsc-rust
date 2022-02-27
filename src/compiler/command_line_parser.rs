@@ -1,3 +1,4 @@
+use serde::Serialize;
 use std::array::IntoIter;
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -12,7 +13,8 @@ use crate::{
     CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, Diagnostic,
     DiagnosticMessage, DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
     ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind, Node,
-    ParsedCommandLine, Push, ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
+    ParsedCommandLine, Push, ScriptTarget, StringOrDiagnosticMessage, System, TsConfigOnlyOption,
+    WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -3113,6 +3115,7 @@ fn parse_command_line_worker(command_line: &[String]) -> ParsedCommandLine {
             use_define_for_class_fields: None,
         }),
         file_names: command_line.to_vec(),
+        watch_options: None,
         errors: vec![],
     }
 }
@@ -3142,9 +3145,27 @@ pub(crate) fn convert_to_object_worker<TRootExpression: Borrow<Node>>(
     unimplemented!()
 }
 
+#[derive(Serialize)]
+pub(crate) struct TSConfig {}
+
+pub(crate) fn convert_to_tsconfig(
+    config_parse_result: &ParsedCommandLine,
+    config_file_name: &str,
+    host: &dyn System, /*ConvertToTSConfigHost*/
+) -> TSConfig {
+    unimplemented!()
+}
+
 pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: FnMut(&str) -> String>(
     options: Rc<CompilerOptions>,
     to_absolute_path: TToAbsolutePath,
 ) -> Rc<CompilerOptions> {
     options
+}
+
+pub struct ParsedTsconfig {}
+
+pub struct ExtendedConfigCacheEntry {
+    pub extended_result: Rc<Node /*TsConfigSourceFile*/>,
+    pub extended_config: Option<ParsedTsconfig>,
 }

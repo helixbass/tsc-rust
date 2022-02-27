@@ -3,17 +3,19 @@ use std::rc::Rc;
 
 use crate::{
     combine_paths, compare_strings_case_insensitive, contains, contains_rc,
-    convert_to_options_with_absolute_paths, create_compiler_diagnostic, create_diagnostic_reporter,
-    create_program, emit_files_and_report_errors_and_get_exit_status, file_extension_is,
-    file_extension_is_one_of, filter, find_config_file, for_each, format_message,
-    get_diagnostic_text, get_line_starts, get_normalized_absolute_path, normalize_path,
-    option_declarations, options_for_build, options_for_watch, pad_left, pad_right,
-    parse_command_line, sort, string_contains, supported_js_extensions_flat,
+    convert_to_options_with_absolute_paths, convert_to_tsconfig, create_compiler_diagnostic,
+    create_diagnostic_reporter, create_program, emit_files_and_report_errors_and_get_exit_status,
+    file_extension_is, file_extension_is_one_of, filter, find_config_file, for_each,
+    format_message, get_diagnostic_text, get_line_starts, get_normalized_absolute_path,
+    is_incremental_compilation, is_watch_set, normalize_path, option_declarations,
+    options_for_build, options_for_watch, pad_left, pad_right, parse_command_line,
+    parse_config_file_with_system, sort, string_contains, supported_js_extensions_flat,
     supported_ts_extensions_flat, validate_locale_and_set_language, version, BuildOptions,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
     CreateProgramOptions, DiagnosticMessage, DiagnosticReporter, Diagnostics,
-    EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, Extension, Node, ParsedCommandLine,
-    Program, StringOrDiagnosticMessage, System, TypeCheckerHost,
+    EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, ExtendedConfigCacheEntry, Extension,
+    Node, ParsedCommandLine, Program, StringOrDiagnosticMessage, System, TypeCheckerHost,
+    WatchOptions,
 };
 
 struct Statistic {
@@ -113,6 +115,12 @@ impl CompilerOptionsOrBuildOptions {
             Self::CompilerOptions(options) => options.pretty,
             Self::BuildOptions(options) => options.pretty,
         }
+    }
+}
+
+impl From<Rc<CompilerOptions>> for CompilerOptionsOrBuildOptions {
+    fn from(value: Rc<CompilerOptions>) -> Self {
+        Self::CompilerOptions(value)
     }
 }
 
@@ -824,7 +832,7 @@ fn execute_command_line_worker<
     mut cb: TCallback,
     mut command_line: ParsedCommandLine,
 ) {
-    let report_diagnostic = create_diagnostic_reporter(sys, None);
+    let mut report_diagnostic = create_diagnostic_reporter(sys, None);
     if matches!(command_line.options.build, Some(true)) {
         report_diagnostic.call(Rc::new(
             create_compiler_diagnostic(
@@ -959,7 +967,101 @@ fn execute_command_line_worker<
             get_normalized_absolute_path(file_name, Some(&current_directory))
         });
 
-    perform_compilation(sys, command_line)
+    if let Some(config_file_name) = config_file_name {
+        let extended_config_cache: HashMap<String, ExtendedConfigCacheEntry> = HashMap::new();
+        let config_parse_result = parse_config_file_with_system(
+            &config_file_name,
+            &command_line_options,
+            Some(&extended_config_cache),
+            command_line.watch_options.clone(),
+            sys,
+            &*report_diagnostic,
+        )
+        .unwrap();
+        if matches!(command_line.options.show_config, Some(true)) {
+            if !config_parse_result.errors.is_empty() {
+                report_diagnostic = update_report_diagnostic(
+                    sys,
+                    report_diagnostic,
+                    config_parse_result.options.clone().into(),
+                );
+                config_parse_result
+                    .errors
+                    .iter()
+                    .for_each(|error| report_diagnostic.call(error.clone()));
+                sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+            }
+            sys.write(&format!(
+                "{}{}",
+                serde_json::to_string_pretty(&convert_to_tsconfig(
+                    &config_parse_result,
+                    &config_file_name,
+                    sys
+                ))
+                .unwrap(),
+                sys.new_line()
+            ));
+            sys.exit(Some(ExitStatus::Success));
+        }
+        report_diagnostic = update_report_diagnostic(
+            sys,
+            report_diagnostic,
+            config_parse_result.options.clone().into(),
+        );
+        if is_watch_set(&config_parse_result.options) {
+            if report_watch_mode_without_sys_support(sys, &*report_diagnostic) {
+                return;
+            }
+            create_watch_of_config_file(
+                sys,
+                cb,
+                report_diagnostic,
+                config_parse_result,
+                command_line_options,
+                command_line.watch_options,
+                extended_config_cache,
+            );
+        } else if is_incremental_compilation(&config_parse_result.options) {
+            perform_incremental_compilation(sys, cb, report_diagnostic, config_parse_result);
+        } else {
+            perform_compilation(sys, cb, report_diagnostic, config_parse_result);
+        }
+    } else {
+        if matches!(command_line.options.show_config, Some(true)) {
+            sys.write(&format!(
+                "{}{}",
+                serde_json::to_string_pretty(&convert_to_tsconfig(
+                    &command_line,
+                    &combine_paths(&current_directory, &vec![Some("tsconfig.json")]),
+                    sys
+                ))
+                .unwrap(),
+                sys.new_line()
+            ));
+            sys.exit(Some(ExitStatus::Success));
+        }
+        report_diagnostic =
+            update_report_diagnostic(sys, report_diagnostic, command_line_options.clone().into());
+        if is_watch_set(&command_line_options) {
+            if report_watch_mode_without_sys_support(sys, &*report_diagnostic) {
+                return;
+            }
+            create_watch_of_files_and_compiler_options(
+                sys,
+                cb,
+                report_diagnostic,
+                &command_line.file_names,
+                command_line_options,
+                command_line.watch_options,
+            );
+        } else if is_incremental_compilation(&command_line_options) {
+            command_line.options = command_line_options;
+            perform_incremental_compilation(sys, cb, report_diagnostic, command_line);
+        } else {
+            command_line.options = command_line_options;
+            perform_compilation(sys, cb, report_diagnostic, command_line);
+        }
+    }
 }
 
 pub fn execute_command_line<
@@ -979,13 +1081,65 @@ pub enum ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
     ParsedCommandLine(Rc<ParsedCommandLine>),
 }
 
-fn perform_compilation(_sys: &dyn System, config: ParsedCommandLine) {
+fn report_watch_mode_without_sys_support(
+    sys: &dyn System,
+    report_diagnostic: &dyn DiagnosticReporter,
+) -> bool {
+    unimplemented!()
+}
+
+fn perform_compilation<
+    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
+>(
+    sys: &dyn System,
+    mut cb: TCallback,
+    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    config: ParsedCommandLine,
+) {
     let program_options = CreateProgramOptions {
         root_names: &config.file_names,
         options: config.options,
     };
     let program = create_program(program_options);
     let _exit_status = emit_files_and_report_errors_and_get_exit_status(program);
+}
+
+fn perform_incremental_compilation<
+    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
+>(
+    sys: &dyn System,
+    mut cb: TCallback,
+    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    config: ParsedCommandLine,
+) {
+    unimplemented!()
+}
+
+fn create_watch_of_config_file<
+    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
+>(
+    system: &dyn System,
+    mut cb: TCallback,
+    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    config_parse_result: ParsedCommandLine,
+    options_to_extend: Rc<CompilerOptions>,
+    watch_options_to_extend: Option<Rc<WatchOptions>>,
+    extended_config_cache: HashMap<String, ExtendedConfigCacheEntry>,
+) {
+    unimplemented!()
+}
+
+fn create_watch_of_files_and_compiler_options<
+    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
+>(
+    system: &dyn System,
+    mut cb: TCallback,
+    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    root_files: &[String],
+    options: Rc<CompilerOptions>,
+    watch_options: Option<Rc<WatchOptions>>,
+) {
+    unimplemented!()
 }
 
 fn write_config_file(

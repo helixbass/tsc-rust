@@ -9,8 +9,8 @@ use crate::{
     get_element_or_property_access_name, is_bindable_static_access_expression,
     is_entity_name_expression, is_identifier, is_property_access_expression,
     walk_up_parenthesized_expressions, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode,
-    BaseSymbol, BaseType, CheckFlags, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    BaseSymbol, BaseType, CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, MapLike, Node, NodeFlags,
     NodeInterface, ObjectFlags, PrefixUnaryExpression, Signature, SignatureFlags, SourceFileLike,
     Symbol, SymbolFlags, SyntaxKind, TransformFlags, TransientSymbolInterface, Type, TypeFlags,
@@ -60,6 +60,10 @@ pub fn is_empty_object_literal(expression: &Node) -> bool {
             .as_object_literal_expression()
             .properties
             .is_empty()
+}
+
+pub fn is_watch_set(options: &CompilerOptions) -> bool {
+    matches!(options.watch, Some(true))
 }
 
 pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {

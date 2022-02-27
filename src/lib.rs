@@ -10,11 +10,13 @@ pub use compiler::builder::ProgramBuildInfo;
 pub use compiler::builder_public::EmitAndSemanticDiagnosticsBuilderProgram;
 pub use compiler::checker::{create_type_checker, get_node_id, get_symbol_id, NodeBuilder};
 use compiler::command_line_parser::{
-    convert_to_object_worker, convert_to_options_with_absolute_paths, get_diagnostic_text,
-    module_resolution_option_declarations, option_declarations,
+    convert_to_object_worker, convert_to_options_with_absolute_paths, convert_to_tsconfig,
+    get_diagnostic_text, module_resolution_option_declarations, option_declarations,
     options_affecting_program_structure, options_for_build, options_for_watch,
 };
-pub use compiler::command_line_parser::{parse_command_line, DiagnosticReporter, OptionsNameMap};
+pub use compiler::command_line_parser::{
+    parse_command_line, DiagnosticReporter, ExtendedConfigCacheEntry, OptionsNameMap,
+};
 pub use compiler::core::{
     add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key, cast,
     compare_strings_case_insensitive, compare_strings_case_sensitive,
@@ -266,7 +268,7 @@ pub use compiler::types::{
     UnionTypeNode, UnparsedPrepend, UnparsedPrologue, UnparsedSectionInterface, UnparsedSource,
     UnparsedTextLike, VariableDeclaration, VariableDeclarationList,
     VariableLikeDeclarationInterface, VariableStatement, VarianceFlags, VoidExpression,
-    WhileStatement, WithStatement, YieldExpression, __String,
+    WatchOptions, WhileStatement, WithStatement, YieldExpression, __String,
 };
 use compiler::types::{
     CommandLineOptionType, CommentDirectivesMap, EmitNode, ExternalEmitHelpers, ReadonlyPragmaMap,
@@ -314,8 +316,8 @@ pub use compiler::utilities::{
     is_expression_with_type_arguments_in_class_extends_clause, is_external_or_common_js_module,
     is_function_block, is_function_expression_or_arrow_function, is_function_symbol,
     is_global_scope_augmentation, is_identifier_name, is_import_call, is_in_js_file, is_in_jsdoc,
-    is_in_top_level_context, is_jsdoc_construct_signature, is_jsdoc_type_alias,
-    is_json_source_file, is_keyword, is_literal_import_type_node,
+    is_in_top_level_context, is_incremental_compilation, is_jsdoc_construct_signature,
+    is_jsdoc_type_alias, is_json_source_file, is_keyword, is_literal_import_type_node,
     is_logical_or_coalescing_assignment_operator, is_module_augmentation_external,
     is_module_exports_access_expression, is_object_literal_method,
     is_object_literal_or_class_expression_method_or_accessor, is_parameter_declaration,
@@ -324,8 +326,8 @@ pub use compiler::utilities::{
     is_require_variable_declaration, is_signed_numeric_literal, is_special_property_declaration,
     is_static, is_string_or_numeric_literal_like, is_super_property, is_this_identifier,
     is_this_initialized_declaration, is_type_alias, is_type_node_kind, is_variable_like,
-    is_write_only_access, maybe_set_parent, modifier_to_flag, modifiers_to_flags, node_is_missing,
-    node_is_present, node_is_synthesized, object_allocator, parse_pseudo_big_int,
+    is_watch_set, is_write_only_access, maybe_set_parent, modifier_to_flag, modifiers_to_flags,
+    node_is_missing, node_is_present, node_is_synthesized, object_allocator, parse_pseudo_big_int,
     position_is_synthesized, pseudo_big_int_to_string, remove_file_extension, set_parent,
     set_parent_recursive, set_text_range_pos, set_text_range_pos_end, set_text_range_pos_width,
     set_value_declaration, should_preserve_const_enums, skip_parentheses, slice_after,
@@ -406,6 +408,7 @@ use compiler::utilities_public::{
 };
 pub use compiler::watch::{
     create_diagnostic_reporter, emit_files_and_report_errors_and_get_exit_status,
+    parse_config_file_with_system,
 };
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::number::Number;

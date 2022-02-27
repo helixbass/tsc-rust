@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    add_range, sort_and_deduplicate_diagnostics, Diagnostic, DiagnosticReporter, ExitStatus,
-    Program, SortedArray, System,
+    add_range, sort_and_deduplicate_diagnostics, CompilerOptions, Diagnostic, DiagnosticReporter,
+    ExitStatus, ExtendedConfigCacheEntry, ParsedCommandLine, Program, SortedArray, System,
+    WatchOptions,
 };
 
 pub fn create_diagnostic_reporter(
@@ -24,6 +26,17 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
     fn call(&self, diagnostic: Rc<Diagnostic>) {
         unimplemented!()
     }
+}
+
+pub fn parse_config_file_with_system(
+    config_file_name: &str,
+    options_to_extend: &CompilerOptions,
+    extended_config_cache: Option<&HashMap<String, ExtendedConfigCacheEntry>>,
+    watch_options_to_extend: Option<Rc<WatchOptions>>,
+    system: &dyn System,
+    report_diagnostic: &dyn DiagnosticReporter,
+) -> Option<ParsedCommandLine> {
+    unimplemented!()
 }
 
 struct EmitFilesAndReportErrorsReturn {
