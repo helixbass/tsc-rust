@@ -6,13 +6,15 @@ use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
-    CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
-    CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType,
-    CommandLineOptionOfListType, CommandLineOptionOfNumberType, CommandLineOptionOfStringType,
-    CommandLineOptionType, CompilerOptions, Diagnostic, Diagnostics, ImportsNotUsedAsValues,
-    JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind, Node, ParsedCommandLine, Push,
-    ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
+    create_compiler_diagnostic, CommandLineOption, CommandLineOptionBase,
+    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType,
+    CommandLineOptionOfCustomType, CommandLineOptionOfListType, CommandLineOptionOfNumberType,
+    CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, Diagnostic,
+    DiagnosticMessage, DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
+    ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind, Node,
+    ParsedCommandLine, Push, ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
 };
+use local_macros::enum_unwrapped;
 
 thread_local! {
     pub(crate) static compile_on_save_command_line_option: Rc<CommandLineOption> =
@@ -3104,6 +3106,14 @@ fn parse_command_line_worker(command_line: &[String]) -> ParsedCommandLine {
         }),
         file_names: command_line.to_vec(),
     }
+}
+
+pub(crate) fn get_diagnostic_text(
+    message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
+) -> String {
+    let diagnostic = create_compiler_diagnostic(message, args);
+    enum_unwrapped!(diagnostic.message_text(), [DiagnosticMessageText, String]).clone()
 }
 
 pub trait DiagnosticReporter {

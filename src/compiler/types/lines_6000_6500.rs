@@ -347,6 +347,20 @@ pub enum CommandLineOptionType {
     Map(HashMap<&'static str, CommandLineOptionMapTypeValue /*number | string*/>),
 }
 
+impl CommandLineOptionType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::String => "string",
+            Self::Number => "number",
+            Self::Boolean => "boolean",
+            Self::Object => "object",
+            Self::List => "list",
+            Self::Map(_) => "map",
+        }
+    }
+}
+
+#[derive(Eq, PartialEq)]
 pub enum StringOrDiagnosticMessage {
     String(String),
     DiagnosticMessage(DiagnosticMessage),
@@ -602,6 +616,12 @@ pub enum CommandLineOption {
     CommandLineOptionOfBooleanType(CommandLineOptionOfBooleanType),
     TsConfigOnlyOption(TsConfigOnlyOption),
     CommandLineOptionOfListType(CommandLineOptionOfListType),
+}
+
+impl CommandLineOption {
+    pub fn as_command_line_option_of_list_type(&self) -> &CommandLineOptionOfListType {
+        enum_unwrapped!(self, [CommandLineOption, CommandLineOptionOfListType])
+    }
 }
 
 #[non_exhaustive]

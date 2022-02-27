@@ -10,8 +10,8 @@ pub use compiler::builder::ProgramBuildInfo;
 pub use compiler::builder_public::EmitAndSemanticDiagnosticsBuilderProgram;
 pub use compiler::checker::{create_type_checker, get_node_id, get_symbol_id, NodeBuilder};
 use compiler::command_line_parser::{
-    convert_to_object_worker, module_resolution_option_declarations,
-    options_affecting_program_structure,
+    convert_to_object_worker, get_diagnostic_text, module_resolution_option_declarations,
+    option_declarations, options_affecting_program_structure,
 };
 pub use compiler::command_line_parser::{parse_command_line, DiagnosticReporter, OptionsNameMap};
 pub use compiler::core::{
@@ -22,13 +22,13 @@ pub use compiler::core::{
     every, filter, find, find_index, first_defined, first_or_undefined, flat_map,
     flat_map_to_mutable, flatten, for_each, for_each_bool, get_ranges_where,
     get_spelling_suggestion, get_string_comparer, insert_sorted, last, last_or_undefined, length,
-    map, map_defined, maybe_for_each, not_implemented, range_equals, same_map, set_ui_locale,
-    single_element_array, single_or_undefined, some, sort_and_deduplicate, starts_with,
-    string_contains, sum, trim_string_start, try_cast, AssertionLevel, GetCanonicalFileName,
-    Pattern,
+    map, map_defined, maybe_for_each, not_implemented, pad_left, pad_right, range_equals, same_map,
+    set_ui_locale, single_element_array, single_or_undefined, some, sort, sort_and_deduplicate,
+    starts_with, string_contains, sum, trim_string_start, try_cast, AssertionLevel,
+    GetCanonicalFileName, Pattern,
 };
 pub use compiler::core_public::{
-    Comparer, Comparison, MapLike, Push, ReadonlyCollection, SortedArray,
+    version, Comparer, Comparison, MapLike, Push, ReadonlyCollection, SortedArray,
 };
 pub use compiler::debug::{Debug_, LogLevel, LoggingHost};
 pub use compiler::diagnostic_information_map_generated::Diagnostics;

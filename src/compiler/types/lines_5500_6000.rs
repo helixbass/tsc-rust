@@ -260,7 +260,7 @@ pub enum AssignmentDeclarationKind {
     ObjectDefinePrototypeProperty,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DiagnosticMessage {
     pub key: &'static str,
     pub category: DiagnosticCategory,
@@ -853,7 +853,7 @@ impl From<DiagnosticWithDetachedLocation> for DiagnosticRelatedInformation {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DiagnosticCategory {
     Warning,
     Error,

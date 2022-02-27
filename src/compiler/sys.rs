@@ -15,6 +15,9 @@ pub trait System {
     fn write_output_is_tty(&self) -> Option<bool> {
         None
     }
+    fn get_width_of_terminal(&self) -> Option<usize> {
+        None
+    }
     fn read_file(&self, path: &str) -> Option<String>;
     fn get_executing_file_path(&self) -> Cow<'static, str>;
     fn get_current_directory(&self) -> String;

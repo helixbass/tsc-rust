@@ -448,7 +448,7 @@ fn comparison_to_ordering(comparison: Comparison) -> Ordering {
 //     |a, b| comparison_to_ordering(comparer(a, b))
 // }
 
-fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+pub fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     comparer: TComparer,
 ) -> SortedArray<TItem> {
