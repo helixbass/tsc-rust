@@ -2,16 +2,16 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    compare_strings_case_insensitive, contains, contains_rc, create_diagnostic_reporter,
-    create_program, emit_files_and_report_errors_and_get_exit_status, file_extension_is,
-    file_extension_is_one_of, filter, for_each, format_message, get_diagnostic_text,
-    get_line_starts, option_declarations, options_for_build, options_for_watch, pad_left,
-    pad_right, parse_command_line, sort, string_contains, supported_js_extensions_flat,
-    supported_ts_extensions_flat, version, BuildOptions, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CreateProgramOptions,
-    DiagnosticMessage, DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram,
-    Extension, Node, ParsedCommandLine, Program, StringOrDiagnosticMessage, System,
-    TypeCheckerHost,
+    compare_strings_case_insensitive, contains, contains_rc, create_compiler_diagnostic,
+    create_diagnostic_reporter, create_program, emit_files_and_report_errors_and_get_exit_status,
+    file_extension_is, file_extension_is_one_of, filter, for_each, format_message,
+    get_diagnostic_text, get_line_starts, option_declarations, options_for_build,
+    options_for_watch, pad_left, pad_right, parse_command_line, sort, string_contains,
+    supported_js_extensions_flat, supported_ts_extensions_flat, version, BuildOptions,
+    CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
+    CreateProgramOptions, DiagnosticMessage, DiagnosticReporter, Diagnostics,
+    EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, Extension, Node, ParsedCommandLine,
+    Program, StringOrDiagnosticMessage, System, TypeCheckerHost,
 };
 
 struct Statistic {
@@ -815,6 +815,28 @@ fn print_help(sys: &dyn System, command_line: &ParsedCommandLine) {
     }
 }
 
+fn execute_command_line_worker<
+    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
+>(
+    sys: &dyn System,
+    mut cb: TCallback,
+    command_line: ParsedCommandLine,
+) {
+    let report_diagnostic = create_diagnostic_reporter(sys, None);
+    if matches!(command_line.options.build, Some(true)) {
+        report_diagnostic.call(Rc::new(
+            create_compiler_diagnostic(
+                &Diagnostics::Option_build_must_be_the_first_command_line_argument,
+                None,
+            )
+            .into(),
+        ));
+        sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+    }
+
+    perform_compilation(sys, command_line)
+}
+
 pub fn execute_command_line<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
@@ -823,17 +845,13 @@ pub fn execute_command_line<
     command_line_args: &[String],
 ) {
     let command_line = parse_command_line(command_line_args);
-    execute_command_line_worker(system, command_line)
+    execute_command_line_worker(system, cb, command_line)
 }
 
 pub enum ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
     Program(Rc<Program>),
     EmitAndSemanticDiagnosticsBuilderProgram(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>),
     ParsedCommandLine(Rc<ParsedCommandLine>),
-}
-
-fn execute_command_line_worker(sys: &dyn System, command_line: ParsedCommandLine) {
-    perform_compilation(sys, command_line)
 }
 
 fn perform_compilation(_sys: &dyn System, config: ParsedCommandLine) {

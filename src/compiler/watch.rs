@@ -9,7 +9,21 @@ pub fn create_diagnostic_reporter(
     sys: &dyn System,
     pretty: Option<bool>,
 ) -> Rc<dyn DiagnosticReporter> {
-    unimplemented!()
+    Rc::new(DiagnosticReporterConcrete::new())
+}
+
+struct DiagnosticReporterConcrete {}
+
+impl DiagnosticReporterConcrete {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl DiagnosticReporter for DiagnosticReporterConcrete {
+    fn call(&self, diagnostic: Rc<Diagnostic>) {
+        unimplemented!()
+    }
 }
 
 struct EmitFilesAndReportErrorsReturn {

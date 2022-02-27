@@ -80,8 +80,20 @@ impl EmitTransformers {
 
 #[allow(non_camel_case_types)]
 pub enum ExitStatus {
-    Success,
-    DiagnosticsPresent_OutputsGenerated,
+    Success = 0,
+
+    DiagnosticsPresent_OutputsSkipped = 1,
+
+    DiagnosticsPresent_OutputsGenerated = 2,
+
+    InvalidProject_OutputsSkipped = 3,
+
+    ProjectReferenceCycle_OutputsSkipped = 4,
+}
+
+impl ExitStatus {
+    pub const ProjectReferenceCycle_OutputsSkupped: ExitStatus =
+        ExitStatus::ProjectReferenceCycle_OutputsSkipped;
 }
 
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {

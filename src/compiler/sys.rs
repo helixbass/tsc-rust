@@ -1,7 +1,10 @@
 use std::borrow::Cow;
 use std::fs::Metadata;
 use std::path::Path;
+use std::process;
 use std::{env, fs};
+
+use crate::ExitStatus;
 
 pub(crate) enum FileSystemEntryKind {
     File,
@@ -23,6 +26,8 @@ pub trait System {
     fn get_current_directory(&self) -> String;
     fn resolve_path(&self, path: &str) -> String;
     fn file_exists(&self, path: &str) -> bool;
+    fn exit(&self, exit_code: Option<ExitStatus>) -> !;
+    fn disable_cpu_profiler(&self /*, continuation: &dyn FnMut()*/);
     fn get_environment_variable(&self, name: &str) -> String;
     fn try_enable_source_maps_for_host(&self) {}
     fn set_blocking(&self) {}
@@ -100,6 +105,13 @@ impl System for SystemConcrete {
     fn file_exists(&self, path: &str) -> bool {
         self.file_system_entry_exists(path, FileSystemEntryKind::File)
     }
+
+    fn exit(&self, exit_code: Option<ExitStatus>) -> ! {
+        self.disable_cpu_profiler();
+        process::exit(exit_code.map_or(0, |exit_code| exit_code as i32))
+    }
+
+    fn disable_cpu_profiler(&self) {}
 
     fn get_environment_variable(&self, name: &str) -> String {
         env::var_os(name)

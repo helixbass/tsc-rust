@@ -3125,7 +3125,7 @@ pub(crate) fn get_diagnostic_text(
 }
 
 pub trait DiagnosticReporter {
-    fn report(&self, diagnostic: Rc<Diagnostic>);
+    fn call(&self, diagnostic: Rc<Diagnostic>);
 }
 
 pub(crate) type JsonConversionNotifier = ();
