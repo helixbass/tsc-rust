@@ -7,7 +7,7 @@ use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
-    create_compiler_diagnostic, CommandLineOption, CommandLineOptionBase,
+    create_compiler_diagnostic, BuildOptions, CommandLineOption, CommandLineOptionBase,
     CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType,
     CommandLineOptionOfCustomType, CommandLineOptionOfListType, CommandLineOptionOfNumberType,
     CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, Diagnostic,
@@ -2989,7 +2989,10 @@ pub struct OptionsNameMap {
     pub short_option_names: HashMap<String, String>,
 }
 
-pub fn parse_command_line(command_line: &[String]) -> ParsedCommandLine {
+pub fn parse_command_line<TReadFile: FnMut(&str) -> Option<String>>(
+    command_line: &[String],
+    read_file: Option<TReadFile>,
+) -> ParsedCommandLine {
     parse_command_line_worker(command_line)
 }
 
@@ -3116,6 +3119,25 @@ fn parse_command_line_worker(command_line: &[String]) -> ParsedCommandLine {
         }),
         file_names: command_line.to_vec(),
         watch_options: None,
+        errors: vec![],
+    }
+}
+
+pub(crate) struct ParsedBuildCommand {
+    pub build_options: BuildOptions,
+    pub watch_options: Option<WatchOptions>,
+    pub projects: Vec<String>,
+    pub errors: Vec<Rc<Diagnostic>>,
+}
+
+pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
+    ParsedBuildCommand {
+        build_options: BuildOptions {
+            pretty: None,
+            generate_cpu_profile: None,
+        },
+        watch_options: None,
+        projects: vec![],
         errors: vec![],
     }
 }

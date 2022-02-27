@@ -8,14 +8,14 @@ use crate::{
     file_extension_is, file_extension_is_one_of, filter, find_config_file, for_each,
     format_message, get_diagnostic_text, get_line_starts, get_normalized_absolute_path,
     is_incremental_compilation, is_watch_set, normalize_path, option_declarations,
-    options_for_build, options_for_watch, pad_left, pad_right, parse_command_line,
-    parse_config_file_with_system, sort, string_contains, supported_js_extensions_flat,
-    supported_ts_extensions_flat, validate_locale_and_set_language, version, BuildOptions,
-    CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
-    CreateProgramOptions, DiagnosticMessage, DiagnosticReporter, Diagnostics,
-    EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, ExtendedConfigCacheEntry, Extension,
-    Node, ParsedCommandLine, Program, StringOrDiagnosticMessage, System, TypeCheckerHost,
-    WatchOptions,
+    options_for_build, options_for_watch, pad_left, pad_right, parse_build_command,
+    parse_command_line, parse_config_file_with_system, sort, string_contains,
+    supported_js_extensions_flat, supported_ts_extensions_flat, validate_locale_and_set_language,
+    version, BuildOptions, CharacterCodes, CommandLineOption, CommandLineOptionInterface,
+    CommandLineOptionType, CompilerOptions, CreateProgramOptions, Diagnostic, DiagnosticMessage,
+    DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
+    ExtendedConfigCacheEntry, Extension, Node, ParsedBuildCommand, ParsedCommandLine, Program,
+    StringOrDiagnosticMessage, System, TypeCheckerHost, WatchOptions,
 };
 
 struct Statistic {
@@ -829,8 +829,8 @@ fn execute_command_line_worker<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
     sys: &dyn System,
-    mut cb: TCallback,
-    mut command_line: ParsedCommandLine,
+    cb: &mut TCallback,
+    command_line: &mut ParsedCommandLine,
 ) {
     let mut report_diagnostic = create_diagnostic_reporter(sys, None);
     if matches!(command_line.options.build, Some(true)) {
@@ -858,8 +858,8 @@ fn execute_command_line_worker<
     if !command_line.errors.is_empty() {
         command_line
             .errors
-            .into_iter()
-            .for_each(|error| report_diagnostic.call(error));
+            .iter()
+            .for_each(|error| report_diagnostic.call(error.clone()));
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
@@ -969,15 +969,17 @@ fn execute_command_line_worker<
 
     if let Some(config_file_name) = config_file_name {
         let extended_config_cache: HashMap<String, ExtendedConfigCacheEntry> = HashMap::new();
-        let config_parse_result = parse_config_file_with_system(
-            &config_file_name,
-            &command_line_options,
-            Some(&extended_config_cache),
-            command_line.watch_options.clone(),
-            sys,
-            &*report_diagnostic,
-        )
-        .unwrap();
+        let config_parse_result = Rc::new(
+            parse_config_file_with_system(
+                &config_file_name,
+                &command_line_options,
+                Some(&extended_config_cache),
+                command_line.watch_options.clone(),
+                sys,
+                &*report_diagnostic,
+            )
+            .unwrap(),
+        );
         if matches!(command_line.options.show_config, Some(true)) {
             if !config_parse_result.errors.is_empty() {
                 report_diagnostic = update_report_diagnostic(
@@ -1018,13 +1020,13 @@ fn execute_command_line_worker<
                 report_diagnostic,
                 config_parse_result,
                 command_line_options,
-                command_line.watch_options,
+                command_line.watch_options.clone(),
                 extended_config_cache,
             );
         } else if is_incremental_compilation(&config_parse_result.options) {
-            perform_incremental_compilation(sys, cb, report_diagnostic, config_parse_result);
+            perform_incremental_compilation(sys, cb, report_diagnostic, &config_parse_result);
         } else {
-            perform_compilation(sys, cb, report_diagnostic, config_parse_result);
+            perform_compilation(sys, cb, report_diagnostic, &config_parse_result);
         }
     } else {
         if matches!(command_line.options.show_config, Some(true)) {
@@ -1052,16 +1054,39 @@ fn execute_command_line_worker<
                 report_diagnostic,
                 &command_line.file_names,
                 command_line_options,
-                command_line.watch_options,
+                command_line.watch_options.clone(),
             );
         } else if is_incremental_compilation(&command_line_options) {
             command_line.options = command_line_options;
-            perform_incremental_compilation(sys, cb, report_diagnostic, command_line);
+            perform_incremental_compilation(sys, cb, report_diagnostic, &command_line);
         } else {
             command_line.options = command_line_options;
-            perform_compilation(sys, cb, report_diagnostic, command_line);
+            perform_compilation(sys, cb, report_diagnostic, &command_line);
         }
     }
+}
+
+pub fn is_build(command_line_args: &[String]) -> bool {
+    if !command_line_args.is_empty()
+        && matches!(
+            command_line_args[0].chars().next(),
+            Some(CharacterCodes::minus)
+        )
+    {
+        let first_option: String = {
+            let chars: Vec<char> = command_line_args[0].chars().collect();
+            chars[(if matches!(chars.get(1), Some(&CharacterCodes::minus)) {
+                2
+            } else {
+                1
+            })..]
+                .iter()
+                .collect::<String>()
+                .to_lowercase()
+        };
+        return matches!(&*first_option, "build" | "b");
+    }
+    false
 }
 
 pub fn execute_command_line<
@@ -1071,8 +1096,51 @@ pub fn execute_command_line<
     mut cb: TCallback,
     command_line_args: &[String],
 ) {
-    let command_line = parse_command_line(command_line_args);
-    execute_command_line_worker(system, cb, command_line)
+    if is_build(command_line_args) {
+        let ParsedBuildCommand {
+            build_options,
+            watch_options,
+            projects,
+            errors,
+        } = parse_build_command(&command_line_args[1..]);
+        if let Some(build_options_generate_cpu_profile) =
+            build_options.generate_cpu_profile.as_ref()
+        {
+            system.enable_cpu_profiler(build_options_generate_cpu_profile, &mut || {
+                perform_build(
+                    system,
+                    &mut cb,
+                    &build_options,
+                    watch_options.as_ref(),
+                    &projects,
+                    &errors,
+                )
+            });
+            return; // TODO: the Typescript version doesn't actually return here but seems like it should?
+        } else {
+            perform_build(
+                system,
+                &mut cb,
+                &build_options,
+                watch_options.as_ref(),
+                &projects,
+                &errors,
+            );
+            return;
+        }
+    }
+
+    let mut command_line =
+        parse_command_line(command_line_args, Some(|path: &str| system.read_file(path)));
+    if let Some(command_line_options_generate_cpu_profile) =
+        command_line.options.generate_cpu_profile.clone()
+    {
+        system.enable_cpu_profiler(&command_line_options_generate_cpu_profile, &mut || {
+            execute_command_line_worker(system, &mut cb, &mut command_line)
+        })
+    } else {
+        execute_command_line_worker(system, &mut cb, &mut command_line)
+    }
 }
 
 pub enum ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
@@ -1088,17 +1156,30 @@ fn report_watch_mode_without_sys_support(
     unimplemented!()
 }
 
+fn perform_build<
+    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
+>(
+    sys: &dyn System,
+    cb: &mut TCallback,
+    build_options: &BuildOptions,
+    watch_options: Option<&WatchOptions>,
+    projects: &[String],
+    errors: &[Rc<Diagnostic>],
+) {
+    unimplemented!()
+}
+
 fn perform_compilation<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
     sys: &dyn System,
     mut cb: TCallback,
     report_diagnostic: Rc<dyn DiagnosticReporter>,
-    config: ParsedCommandLine,
+    config: &ParsedCommandLine,
 ) {
     let program_options = CreateProgramOptions {
         root_names: &config.file_names,
-        options: config.options,
+        options: config.options.clone(),
     };
     let program = create_program(program_options);
     let _exit_status = emit_files_and_report_errors_and_get_exit_status(program);
@@ -1110,7 +1191,7 @@ fn perform_incremental_compilation<
     sys: &dyn System,
     mut cb: TCallback,
     report_diagnostic: Rc<dyn DiagnosticReporter>,
-    config: ParsedCommandLine,
+    config: &ParsedCommandLine,
 ) {
     unimplemented!()
 }
@@ -1121,7 +1202,7 @@ fn create_watch_of_config_file<
     system: &dyn System,
     mut cb: TCallback,
     report_diagnostic: Rc<dyn DiagnosticReporter>,
-    config_parse_result: ParsedCommandLine,
+    config_parse_result: Rc<ParsedCommandLine>,
     options_to_extend: Rc<CompilerOptions>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     extended_config_cache: HashMap<String, ExtendedConfigCacheEntry>,

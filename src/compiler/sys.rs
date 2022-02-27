@@ -28,7 +28,10 @@ pub trait System {
     fn file_exists(&self, path: &str) -> bool;
     fn directory_exists(&self, path: &str) -> bool;
     fn exit(&self, exit_code: Option<ExitStatus>) -> !;
-    fn disable_cpu_profiler(&self /*, continuation: &dyn FnMut()*/);
+    fn enable_cpu_profiler(&self, path: &str, continuation: &mut dyn FnMut()) {
+        continuation()
+    }
+    fn disable_cpu_profiler(&self /*, continuation: &dyn FnMut()*/) {}
     fn get_environment_variable(&self, name: &str) -> String;
     fn try_enable_source_maps_for_host(&self) {}
     fn set_blocking(&self) {}
@@ -115,8 +118,6 @@ impl System for SystemConcrete {
         self.disable_cpu_profiler();
         process::exit(exit_code.map_or(0, |exit_code| exit_code as i32))
     }
-
-    fn disable_cpu_profiler(&self) {}
 
     fn get_environment_variable(&self, name: &str) -> String {
         env::var_os(name)
