@@ -12,6 +12,9 @@ pub trait System {
     fn args(&self) -> &[String];
     fn new_line(&self) -> &str;
     fn write(&self, s: &str);
+    fn write_output_is_tty(&self) -> Option<bool> {
+        None
+    }
     fn read_file(&self, path: &str) -> Option<String>;
     fn get_executing_file_path(&self) -> Cow<'static, str>;
     fn get_current_directory(&self) -> String;

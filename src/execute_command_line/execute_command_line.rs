@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    create_program, emit_files_and_report_errors_and_get_exit_status, file_extension_is,
-    file_extension_is_one_of, for_each, get_line_starts, parse_command_line,
-    supported_js_extensions_flat, supported_ts_extensions_flat, CreateProgramOptions,
-    EmitAndSemanticDiagnosticsBuilderProgram, Extension, Node, ParsedCommandLine, Program, System,
-    TypeCheckerHost,
+    create_diagnostic_reporter, create_program, emit_files_and_report_errors_and_get_exit_status,
+    file_extension_is, file_extension_is_one_of, for_each, get_line_starts, parse_command_line,
+    supported_js_extensions_flat, supported_ts_extensions_flat, BuildOptions, CompilerOptions,
+    CreateProgramOptions, DiagnosticReporter, EmitAndSemanticDiagnosticsBuilderProgram, Extension,
+    Node, ParsedCommandLine, Program, System, TypeCheckerHost,
 };
 
 struct Statistic {
@@ -20,6 +20,21 @@ fn count_lines(program: &Program) -> HashMap<&'static str, usize> {
         let key = get_count_key(program, file);
         let line_count = get_line_starts(file.as_source_file()).len();
         counts.insert(key, *counts.get(key).unwrap() + line_count);
+        Option::<()>::None
+    });
+    counts
+}
+
+fn count_nodes(program: &Program) -> HashMap<&'static str, usize> {
+    let mut counts = get_counts_map();
+    for_each(program.get_source_files(), |file, _| {
+        let key = get_count_key(program, file);
+        let file_as_source_file = file.as_source_file();
+        let line_count = get_line_starts(file_as_source_file).len();
+        counts.insert(
+            key,
+            *counts.get(key).unwrap() + file_as_source_file.node_count(),
+        );
         Option::<()>::None
     });
     counts
@@ -66,6 +81,46 @@ fn get_count_key(program: &Program, file: &Node /*SourceFile*/) -> &'static str 
     } else {
         "Other"
     }
+}
+
+fn update_report_diagnostic(
+    sys: &dyn System,
+    existing: Rc<dyn DiagnosticReporter>,
+    options: CompilerOptionsOrBuildOptions,
+) -> Rc<dyn DiagnosticReporter> {
+    if should_be_pretty(sys, options) {
+        create_diagnostic_reporter(sys, Some(true))
+    } else {
+        existing
+    }
+}
+
+enum CompilerOptionsOrBuildOptions {
+    CompilerOptions(Rc<CompilerOptions>),
+    BuildOptions(Rc<BuildOptions>),
+}
+
+impl CompilerOptionsOrBuildOptions {
+    pub fn pretty(&self) -> Option<bool> {
+        match self {
+            Self::CompilerOptions(options) => options.pretty,
+            Self::BuildOptions(options) => options.pretty,
+        }
+    }
+}
+
+fn default_is_pretty(sys: &dyn System) -> bool {
+    matches!(sys.write_output_is_tty(), Some(true))
+        && sys.get_environment_variable("NO_COLOR").is_empty()
+}
+
+fn should_be_pretty(sys: &dyn System, options: CompilerOptionsOrBuildOptions) -> bool {
+    if
+    /* !options || */
+    options.pretty().is_none() {
+        return default_is_pretty(sys);
+    }
+    options.pretty().unwrap()
 }
 
 pub fn execute_command_line<

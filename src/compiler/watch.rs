@@ -1,8 +1,16 @@
 use std::rc::Rc;
 
 use crate::{
-    add_range, sort_and_deduplicate_diagnostics, Diagnostic, ExitStatus, Program, SortedArray,
+    add_range, sort_and_deduplicate_diagnostics, Diagnostic, DiagnosticReporter, ExitStatus,
+    Program, SortedArray, System,
 };
+
+pub fn create_diagnostic_reporter(
+    sys: &dyn System,
+    pretty: Option<bool>,
+) -> Rc<dyn DiagnosticReporter> {
+    unimplemented!()
+}
 
 struct EmitFilesAndReportErrorsReturn {
     diagnostics: SortedArray<Rc<Diagnostic>>,

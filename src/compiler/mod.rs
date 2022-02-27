@@ -17,6 +17,7 @@ pub mod scanner;
 pub mod sys;
 pub mod transformer;
 pub mod transformers;
+pub mod tsbuild_public;
 pub mod types;
 pub mod utilities;
 pub mod utilities_public;

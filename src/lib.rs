@@ -13,7 +13,7 @@ use compiler::command_line_parser::{
     convert_to_object_worker, module_resolution_option_declarations,
     options_affecting_program_structure,
 };
-pub use compiler::command_line_parser::{parse_command_line, OptionsNameMap};
+pub use compiler::command_line_parser::{parse_command_line, DiagnosticReporter, OptionsNameMap};
 pub use compiler::core::{
     add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key, cast,
     compare_strings_case_insensitive, compare_strings_case_sensitive,
@@ -170,6 +170,7 @@ pub use compiler::transformers::{
     transform_jsx, transform_module, transform_node_module, transform_system_module,
     transform_type_script,
 };
+pub use compiler::tsbuild_public::BuildOptions;
 pub use compiler::types::{
     maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,
     text_str_num_chars, text_substring, AllAccessorDeclarations, ArrayBindingPattern,
@@ -402,7 +403,9 @@ use compiler::utilities_public::{
     is_unary_expression_with_write, needs_scope_marker, node_has_name,
     supported_locale_directories, text_range_contains_position_inclusive,
 };
-pub use compiler::watch::emit_files_and_report_errors_and_get_exit_status;
+pub use compiler::watch::{
+    create_diagnostic_reporter, emit_files_and_report_errors_and_get_exit_status,
+};
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::number::Number;
 pub use rust_helpers::weak_self::WeakSelf;

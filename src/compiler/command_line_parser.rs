@@ -3106,6 +3106,10 @@ fn parse_command_line_worker(command_line: &[String]) -> ParsedCommandLine {
     }
 }
 
+pub trait DiagnosticReporter {
+    fn report(&self, diagnostic: Rc<Diagnostic>);
+}
+
 pub(crate) type JsonConversionNotifier = ();
 
 pub(crate) fn convert_to_object_worker<TRootExpression: Borrow<Node>>(
