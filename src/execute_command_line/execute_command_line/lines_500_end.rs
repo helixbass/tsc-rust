@@ -19,8 +19,8 @@ use crate::{
     DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
     ExtendedConfigCacheEntry, IncrementalCompilationOptions, Node, ParsedBuildCommand,
     ParsedCommandLine, Program, ProgramHost, ReportEmitErrorSummary, ScriptTarget,
-    SemanticDiagnosticsBuilderProgram, SolutionBuilderHostBase, System, WatchOptions,
-    WatchStatusReporter,
+    SemanticDiagnosticsBuilderProgram, SolutionBuilderHostBase, System, WatchCompilerHost,
+    WatchOptions, WatchStatusReporter,
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
@@ -415,6 +415,25 @@ pub(super) fn update_create_program<TBuilderProgram: BuilderProgram>(
     //     }
     //     return compileUsingBuilder(rootNames, options, host, oldProgram, configFileParsingDiagnostics, projectReferences);
     // };
+}
+
+pub(super) fn update_watch_compilation_host<
+    TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
+    TEmitAndSemanticDiagnosticsBuilderProgram: EmitAndSemanticDiagnosticsBuilderProgram,
+    TWatchCompilerHost: WatchCompilerHost<TEmitAndSemanticDiagnosticsBuilderProgram>,
+>(
+    sys: &dyn System,
+    mut cb: TCallback,
+    watch_compiler_host: &mut TWatchCompilerHost,
+) {
+    update_create_program(sys, watch_compiler_host.as_program_host());
+    // TODO: how to model this?
+    // const emitFilesUsingBuilder = watchCompilerHost.afterProgramCreate!;
+    // watchCompilerHost.afterProgramCreate = builderProgram => {
+    //     emitFilesUsingBuilder(builderProgram);
+    //     reportStatistics(sys, builderProgram.getProgram());
+    //     cb(builderProgram);
+    // }
 }
 
 pub(super) fn create_watch_status_reporter(

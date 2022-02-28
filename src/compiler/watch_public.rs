@@ -20,3 +20,9 @@ pub trait CreateProgram<TBuilderProgram: BuilderProgram> {}
 pub trait WatchHost {}
 
 pub trait ProgramHost<TBuilderProgram: BuilderProgram> {}
+
+pub trait WatchCompilerHost<TBuilderProgram: BuilderProgram>:
+    ProgramHost<TBuilderProgram> + WatchHost
+{
+    fn as_program_host(&self) -> &dyn ProgramHost<TBuilderProgram>;
+}

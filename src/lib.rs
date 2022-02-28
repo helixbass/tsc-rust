@@ -426,7 +426,8 @@ pub use compiler::watch::{
     IncrementalCompilationOptions,
 };
 pub use compiler::watch_public::{
-    create_incremental_compiler_host, CreateProgram, ProgramHost, WatchHost, WatchStatusReporter,
+    create_incremental_compiler_host, CreateProgram, ProgramHost, WatchCompilerHost, WatchHost,
+    WatchStatusReporter,
 };
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::number::Number;
