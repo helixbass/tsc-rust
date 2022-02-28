@@ -1033,7 +1033,12 @@ pub(super) fn execute_command_line_worker<
                 extended_config_cache,
             );
         } else if is_incremental_compilation(&config_parse_result.options) {
-            perform_incremental_compilation(&*sys, cb, report_diagnostic, &config_parse_result);
+            perform_incremental_compilation(
+                sys.clone(),
+                cb,
+                report_diagnostic,
+                &config_parse_result,
+            );
         } else {
             perform_compilation(sys, cb, report_diagnostic, &config_parse_result);
         }
@@ -1070,7 +1075,7 @@ pub(super) fn execute_command_line_worker<
             );
         } else if is_incremental_compilation(&command_line_options) {
             command_line.options = command_line_options;
-            perform_incremental_compilation(&*sys, cb, report_diagnostic, &command_line);
+            perform_incremental_compilation(sys, cb, report_diagnostic, &command_line);
         } else {
             command_line.options = command_line_options;
             perform_compilation(sys, cb, report_diagnostic, &command_line);

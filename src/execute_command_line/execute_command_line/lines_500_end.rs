@@ -8,17 +8,19 @@ use super::{
 use crate::{
     build_opts, change_compiler_host_like_to_use_cache, create_builder_status_reporter,
     create_compiler_diagnostic, create_compiler_host_worker, create_diagnostic_reporter,
-    create_get_canonical_file_name, create_program, create_solution_builder,
-    create_solution_builder_host, create_solution_builder_with_watch,
+    create_get_canonical_file_name, create_incremental_compiler_host, create_program,
+    create_solution_builder, create_solution_builder_host, create_solution_builder_with_watch,
     create_solution_builder_with_watch_host, dump_tracing_legend,
     emit_files_and_report_errors_and_get_exit_status, get_config_file_parsing_diagnostics,
-    get_error_summary_text, parse_build_command, parse_command_line, to_path,
+    get_error_summary_text, parse_build_command, parse_command_line,
+    perform_incremental_compilation as perform_incremental_compilation_, to_path,
     validate_locale_and_set_language, BuildOptions, BuilderProgram, CharacterCodes, CompilerHost,
     CompilerOptions, CreateProgram, CreateProgramOptions, CustomTransformers, Diagnostic,
     DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
-    ExtendedConfigCacheEntry, Node, ParsedBuildCommand, ParsedCommandLine, Program,
-    ReportEmitErrorSummary, ScriptTarget, SemanticDiagnosticsBuilderProgram,
-    SolutionBuilderHostBase, System, WatchOptions, WatchStatusReporter,
+    ExtendedConfigCacheEntry, IncrementalCompilationOptions, Node, ParsedBuildCommand,
+    ParsedCommandLine, Program, ReportEmitErrorSummary, ScriptTarget,
+    SemanticDiagnosticsBuilderProgram, SolutionBuilderHostBase, System, WatchOptions,
+    WatchStatusReporter,
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
@@ -108,6 +110,14 @@ pub enum ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
 impl From<Rc<Program>> for ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
     fn from(value: Rc<Program>) -> Self {
         Self::Program(value)
+    }
+}
+
+impl From<Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>>
+    for ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine
+{
+    fn from(value: Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>) -> Self {
+        Self::EmitAndSemanticDiagnosticsBuilderProgram(value)
     }
 }
 
@@ -248,7 +258,11 @@ pub(super) fn perform_build<
 
 struct BuilderProgramDummy {}
 
-impl BuilderProgram for BuilderProgramDummy {}
+impl BuilderProgram for BuilderProgramDummy {
+    fn get_program(&self) -> Rc<Program> {
+        unimplemented!()
+    }
+}
 
 impl SemanticDiagnosticsBuilderProgram for BuilderProgramDummy {}
 
@@ -338,12 +352,36 @@ pub(super) fn perform_compilation<
 pub(super) fn perform_incremental_compilation<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    sys: &dyn System,
+    sys: Rc<dyn System>,
     mut cb: TCallback,
     report_diagnostic: Rc<dyn DiagnosticReporter>,
     config: &ParsedCommandLine,
 ) {
-    unimplemented!()
+    let options = config.options.clone();
+    let file_names = &config.file_names;
+    let project_references = &config.project_references;
+    enable_statistics_and_tracing(&*sys, &options, false);
+    let host = Rc::new(create_incremental_compiler_host(
+        &options,
+        Some(sys.clone()),
+    ));
+    let exit_status = perform_incremental_compilation_(IncrementalCompilationOptions {
+        host: Some(host),
+        system: Some(&*sys),
+        root_names: file_names,
+        options: &options.clone(),
+        config_file_parsing_diagnostics: Some(&get_config_file_parsing_diagnostics(config)),
+        project_references: project_references.as_deref(),
+        report_diagnostic: Some(report_diagnostic),
+        report_error_summary: create_report_error_summary(sys.clone(), options.into()),
+        after_program_emit_and_diagnostics: Some(&|builder_program: Rc<
+            dyn EmitAndSemanticDiagnosticsBuilderProgram,
+        >| {
+            report_statistics(&*sys, &builder_program.get_program());
+            cb(builder_program.into());
+        }),
+    });
+    sys.exit(Some(exit_status));
 }
 
 pub(super) fn update_solution_builder_host<
