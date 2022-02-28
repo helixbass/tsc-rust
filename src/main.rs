@@ -26,7 +26,7 @@ fn main() {
     sys.set_blocking();
     // }
 
-    execute_command_line(sys, |_| {}, sys.args());
+    execute_command_line(sys.clone(), |_| {}, sys.args());
 }
 
 struct LoggingHostConcrete {}

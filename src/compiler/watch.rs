@@ -39,6 +39,10 @@ pub fn parse_config_file_with_system(
     unimplemented!()
 }
 
+pub fn get_error_summary_text(error_count: usize, new_line: &str) -> String {
+    unimplemented!()
+}
+
 struct EmitFilesAndReportErrorsReturn {
     diagnostics: SortedArray<Rc<Diagnostic>>,
 }

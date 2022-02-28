@@ -17,7 +17,9 @@ pub struct BuildOptions {
     pub(crate) generate_cpu_profile: Option<String>,
 }
 
-pub type ReportEmitErrorSummary = ();
+pub trait ReportEmitErrorSummary {
+    fn call(&self, error_count: usize);
+}
 
 pub trait SolutionBuilderHostBase<TBuilderProgram: BuilderProgram> {}
 
@@ -66,7 +68,7 @@ pub fn create_solution_builder_host<
     create_program: Option<TCreateProgram>,
     report_diagnostic: Option<Rc<dyn DiagnosticReporter>>,
     report_solution_builder_status: Option<Rc<dyn DiagnosticReporter>>,
-    report_error_summary: Option<ReportEmitErrorSummary>,
+    report_error_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
 ) -> SolutionBuilderHostConcrete<TBuilderProgram> {
     unimplemented!()
 }

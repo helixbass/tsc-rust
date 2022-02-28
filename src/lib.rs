@@ -416,7 +416,7 @@ use compiler::utilities_public::{
 };
 pub use compiler::watch::{
     create_diagnostic_reporter, emit_files_and_report_errors_and_get_exit_status,
-    parse_config_file_with_system,
+    get_error_summary_text, parse_config_file_with_system,
 };
 pub use compiler::watch_public::{CreateProgram, WatchHost, WatchStatusReporter};
 pub use execute_command_line::execute_command_line::execute_command_line;

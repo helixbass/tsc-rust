@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::fs::Metadata;
 use std::path::Path;
 use std::process;
+use std::rc::Rc;
 use std::{env, fs};
 
 use crate::ExitStatus;
@@ -151,12 +152,12 @@ impl System for SystemConcrete {
     }
 }
 
-lazy_static! {
-    static ref SYS: SystemConcrete = SystemConcrete::new(env::args().skip(1).collect(),);
+thread_local! {
+    static SYS: Rc<dyn System> = Rc::new(SystemConcrete::new(env::args().skip(1).collect(),));
 }
 
-pub fn get_sys() -> &'static impl System {
-    &*SYS
+pub fn get_sys() -> Rc<dyn System> {
+    SYS.with(|sys| sys.clone())
 }
 
 #[cfg(windows)]

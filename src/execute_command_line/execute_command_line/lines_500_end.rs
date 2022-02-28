@@ -10,11 +10,11 @@ use crate::{
     create_diagnostic_reporter, create_program, create_solution_builder,
     create_solution_builder_host, create_solution_builder_with_watch,
     create_solution_builder_with_watch_host, dump_tracing_legend,
-    emit_files_and_report_errors_and_get_exit_status, parse_build_command, parse_command_line,
-    validate_locale_and_set_language, BuildOptions, BuilderProgram, CharacterCodes,
-    CompilerOptions, CreateProgram, CreateProgramOptions, CustomTransformers, Diagnostic,
-    DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
-    ExtendedConfigCacheEntry, ParsedBuildCommand, ParsedCommandLine, Program,
+    emit_files_and_report_errors_and_get_exit_status, get_error_summary_text, parse_build_command,
+    parse_command_line, validate_locale_and_set_language, BuildOptions, BuilderProgram,
+    CharacterCodes, CompilerOptions, CreateProgram, CreateProgramOptions, CustomTransformers,
+    Diagnostic, DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram,
+    ExitStatus, ExtendedConfigCacheEntry, ParsedBuildCommand, ParsedCommandLine, Program,
     ReportEmitErrorSummary, SemanticDiagnosticsBuilderProgram, SolutionBuilderHostBase, System,
     WatchOptions, WatchStatusReporter,
 };
@@ -45,7 +45,7 @@ pub fn is_build(command_line_args: &[String]) -> bool {
 pub fn execute_command_line<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    system: &dyn System,
+    system: Rc<dyn System>,
     mut cb: TCallback,
     command_line_args: &[String],
 ) {
@@ -62,7 +62,7 @@ pub fn execute_command_line<
         {
             system.enable_cpu_profiler(build_options_generate_cpu_profile, &mut || {
                 perform_build(
-                    system,
+                    system.clone(),
                     &mut cb,
                     build_options.clone(),
                     watch_options.as_ref(),
@@ -90,10 +90,10 @@ pub fn execute_command_line<
         command_line.options.generate_cpu_profile.clone()
     {
         system.enable_cpu_profiler(&command_line_options_generate_cpu_profile, &mut || {
-            execute_command_line_worker(system, &mut cb, &mut command_line)
+            execute_command_line_worker(&*system, &mut cb, &mut command_line)
         })
     } else {
-        execute_command_line_worker(system, &mut cb, &mut command_line)
+        execute_command_line_worker(&*system, &mut cb, &mut command_line)
     }
 }
 
@@ -123,7 +123,7 @@ pub(super) fn report_watch_mode_without_sys_support(
 pub(super) fn perform_build<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    sys: &dyn System,
+    sys: Rc<dyn System>,
     cb: &mut TCallback,
     build_options: Rc<BuildOptions>,
     watch_options: Option<&WatchOptions>,
@@ -131,14 +131,14 @@ pub(super) fn perform_build<
     mut errors: Vec<Rc<Diagnostic>>,
 ) {
     let report_diagnostic = update_report_diagnostic(
-        sys,
-        create_diagnostic_reporter(sys, None),
+        &*sys,
+        create_diagnostic_reporter(&*sys, None),
         build_options.clone().into(),
     );
 
     if let Some(build_options_locale) = build_options.locale.as_ref() {
         if !build_options_locale.is_empty() {
-            validate_locale_and_set_language(build_options_locale, sys, Some(&mut errors));
+            validate_locale_and_set_language(build_options_locale, &*sys, Some(&mut errors));
         }
     }
 
@@ -150,17 +150,17 @@ pub(super) fn perform_build<
     }
 
     if matches!(build_options.help, Some(true)) {
-        print_version(sys);
+        print_version(&*sys);
         build_opts.with(|build_opts_| {
-            print_build_help(sys, &build_opts_);
+            print_build_help(&*sys, &build_opts_);
         });
         sys.exit(Some(ExitStatus::Success));
     }
 
     if projects.is_empty() {
-        print_version(sys);
+        print_version(&*sys);
         build_opts.with(|build_opts_| {
-            print_build_help(sys, &build_opts_);
+            print_build_help(&*sys, &build_opts_);
         });
         sys.exit(Some(ExitStatus::Success));
     }
@@ -180,23 +180,23 @@ pub(super) fn perform_build<
     }
 
     if matches!(build_options.watch, Some(true)) {
-        if report_watch_mode_without_sys_support(sys, &*report_diagnostic) {
+        if report_watch_mode_without_sys_support(&*sys, &*report_diagnostic) {
             return;
         }
         let mut build_host = create_solution_builder_with_watch_host(
-            Some(sys),
+            Some(&*sys),
             Option::<CreateProgramDummy>::None,
             Some(report_diagnostic.clone()),
             Some(create_builder_status_reporter(
-                sys,
-                Some(should_be_pretty(sys, build_options.clone().into())),
+                &*sys,
+                Some(should_be_pretty(&*sys, build_options.clone().into())),
             )),
             Some(create_watch_status_reporter(
-                sys,
+                &*sys,
                 build_options.clone().into(),
             )),
         );
-        update_solution_builder_host(sys, cb, &mut build_host);
+        update_solution_builder_host(&*sys, cb, &mut build_host);
         let builder = create_solution_builder_with_watch(
             &build_host,
             projects,
@@ -213,16 +213,16 @@ pub(super) fn perform_build<
     }
 
     let mut build_host = create_solution_builder_host(
-        Some(sys),
+        Some(&*sys),
         Option::<CreateProgramDummy>::None,
         Some(report_diagnostic.clone()),
         Some(create_builder_status_reporter(
-            sys,
-            Some(should_be_pretty(sys, build_options.clone().into())),
+            &*sys,
+            Some(should_be_pretty(&*sys, build_options.clone().into())),
         )),
-        create_report_error_summary(sys, build_options.clone().into()),
+        create_report_error_summary(sys.clone(), build_options.clone().into()),
     );
-    update_solution_builder_host(sys, cb, &mut build_host);
+    update_solution_builder_host(&*sys, cb, &mut build_host);
     let builder = create_solution_builder(&build_host, projects, &build_options);
     let exit_status = if matches!(build_options.clean, Some(true)) {
         builder.clean(None)
@@ -251,10 +251,31 @@ struct CreateProgramDummy {}
 impl CreateProgram<BuilderProgramDummy> for CreateProgramDummy {}
 
 pub(super) fn create_report_error_summary(
-    sys: &dyn System,
+    sys: Rc<dyn System>,
     options: CompilerOptionsOrBuildOptions,
-) -> Option<ReportEmitErrorSummary> {
-    unimplemented!()
+) -> Option<Rc<dyn ReportEmitErrorSummary>> {
+    if should_be_pretty(&*sys, options) {
+        Some(Rc::new(ReportEmitErrorSummaryConcrete::new(sys)))
+    } else {
+        None
+    }
+}
+
+pub(super) struct ReportEmitErrorSummaryConcrete {
+    sys: Rc<dyn System>,
+}
+
+impl ReportEmitErrorSummaryConcrete {
+    pub fn new(sys: Rc<dyn System>) -> Self {
+        Self { sys }
+    }
+}
+
+impl ReportEmitErrorSummary for ReportEmitErrorSummaryConcrete {
+    fn call(&self, error_count: usize) {
+        self.sys
+            .write(&get_error_summary_text(error_count, self.sys.new_line()));
+    }
 }
 
 pub(super) fn perform_compilation<

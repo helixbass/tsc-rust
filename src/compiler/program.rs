@@ -117,7 +117,7 @@ fn create_compiler_host_worker(
 
 struct CompilerHostConcrete {
     set_parent_nodes: Option<bool>,
-    system: &'static dyn System,
+    system: Rc<dyn System>,
 }
 
 impl ModuleResolutionHost for CompilerHostConcrete {
