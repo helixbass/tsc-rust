@@ -8,6 +8,7 @@ use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
 use super::{BaseType, Node, Symbol, SymbolTable, Type, TypeChecker, TypePredicate};
+use crate::ScriptKind;
 use local_macros::{enum_unwrapped, type_type};
 
 pub trait ResolvedTypeInterface {
@@ -260,7 +261,13 @@ pub enum AssignmentDeclarationKind {
     ObjectDefinePrototypeProperty,
 }
 
-#[derive(Clone, Debug)]
+pub struct FileExtensionInfo {
+    pub extension: String,
+    pub is_mixed_content: bool,
+    pub script_kind: Option<ScriptKind>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DiagnosticMessage {
     pub key: &'static str,
     pub category: DiagnosticCategory,
@@ -853,7 +860,7 @@ impl From<DiagnosticWithDetachedLocation> for DiagnosticRelatedInformation {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DiagnosticCategory {
     Warning,
     Error,

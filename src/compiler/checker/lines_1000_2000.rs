@@ -121,6 +121,14 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn get_symbols_of_parameter_property_declaration_(
+        &self,
+        parameter: &Node, /*ParameterDeclaration*/
+        parameter_name: &__String,
+    ) -> Vec<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn resolve_name<TLocation: NodeInterface, TNameArg: Into<ResolveNameNameArg>>(
         &self,
         location: Option<&TLocation>,

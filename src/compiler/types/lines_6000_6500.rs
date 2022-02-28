@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
-use crate::{MapLike, OptionsNameMap};
+use crate::{CompilerHost, Diagnostic, MapLike, OptionsNameMap, Program};
 use local_macros::{command_line_option_type, enum_unwrapped};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -231,6 +231,9 @@ pub struct CompilerOptions {
     // [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
 }
 
+#[derive(Debug)]
+pub struct WatchOptions {}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ModuleKind {
     None = 0,
@@ -318,11 +321,18 @@ pub enum LanguageVariant {
 pub struct ParsedCommandLine {
     pub options: Rc<CompilerOptions>,
     pub file_names: Vec<String>,
+    pub project_references: Option<Vec<Rc<ProjectReference>>>,
+    pub watch_options: Option<Rc<WatchOptions>>,
+    pub errors: Vec<Rc<Diagnostic>>,
 }
 
-pub struct CreateProgramOptions<'config> {
-    pub root_names: &'config [String],
+pub struct CreateProgramOptions {
+    pub root_names: Vec<String>,
     pub options: Rc<CompilerOptions>,
+    pub project_references: Option<Vec<Rc<ProjectReference>>>,
+    pub host: Option<Rc<dyn CompilerHost>>,
+    pub old_program: Option<Rc<Program>>,
+    pub config_file_parsing_diagnostics: Option<Vec<Rc<Diagnostic>>>,
 }
 
 #[derive(Debug)]
@@ -347,6 +357,20 @@ pub enum CommandLineOptionType {
     Map(HashMap<&'static str, CommandLineOptionMapTypeValue /*number | string*/>),
 }
 
+impl CommandLineOptionType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::String => "string",
+            Self::Number => "number",
+            Self::Boolean => "boolean",
+            Self::Object => "object",
+            Self::List => "list",
+            Self::Map(_) => "map",
+        }
+    }
+}
+
+#[derive(Eq, PartialEq)]
 pub enum StringOrDiagnosticMessage {
     String(String),
     DiagnosticMessage(DiagnosticMessage),
@@ -602,6 +626,12 @@ pub enum CommandLineOption {
     CommandLineOptionOfBooleanType(CommandLineOptionOfBooleanType),
     TsConfigOnlyOption(TsConfigOnlyOption),
     CommandLineOptionOfListType(CommandLineOptionOfListType),
+}
+
+impl CommandLineOption {
+    pub fn as_command_line_option_of_list_type(&self) -> &CommandLineOptionOfListType {
+        enum_unwrapped!(self, [CommandLineOption, CommandLineOptionOfListType])
+    }
 }
 
 #[non_exhaustive]

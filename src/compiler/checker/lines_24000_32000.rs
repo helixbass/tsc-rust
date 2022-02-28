@@ -16,6 +16,14 @@ use crate::{
 };
 
 impl TypeChecker {
+    pub(super) fn get_type_of_symbol_at_location_(
+        &self,
+        symbol: &Symbol,
+        location: &Node,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn check_identifier(
         &self,
         node: &Node, /*Identifier*/
@@ -79,7 +87,7 @@ impl TypeChecker {
                 if false {
                     unimplemented!()
                 } else if t.flags().intersects(TypeFlags::StructuredType) {
-                    let prop = self.get_property_of_type(t, name);
+                    let prop = self.get_property_of_type_(t, name);
                     if let Some(prop) = prop {
                         return if false {
                             None

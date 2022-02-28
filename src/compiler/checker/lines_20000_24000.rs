@@ -291,7 +291,7 @@ impl TypeChecker {
     }
 
     pub(super) fn remove_missing_type(&self, type_: &Type, is_optional: bool) -> Rc<Type> {
-        if self.exact_optional_property_types && is_optional {
+        if matches!(self.exact_optional_property_types, Some(true)) && is_optional {
             unimplemented!()
         } else {
             type_.type_wrapper()

@@ -2,13 +2,14 @@
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::rc::Rc;
 
 use super::{
     BaseNode, BaseTextRange, BuildInfo, CompilerOptions, Diagnostic, EmitHelper, FileReference,
     FlowNode, LanguageVariant, Node, NodeArray, Path, PatternAmbientModule, ReadonlyPragmaMap,
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol,
-    SymbolTable, TypeCheckerHost,
+    SymbolTable, TypeChecker,
 };
 use crate::{ModeAwareCache, PragmaContext, __String};
 use local_macros::ast_type;
@@ -180,6 +181,10 @@ impl SourceFile {
 
     pub fn maybe_path(&self) -> Ref<Option<Path>> {
         self.path.borrow()
+    }
+
+    pub fn path(&self) -> Ref<Path> {
+        Ref::map(self.path.borrow(), |option| option.as_ref().unwrap())
     }
 
     pub fn set_path(&self, path: Path) {
@@ -660,7 +665,20 @@ pub trait ScriptReferenceHost {
     fn get_current_directory(&self) -> String;
 }
 
-pub trait Program: TypeCheckerHost {
-    fn get_syntactic_diagnostics(&mut self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>>;
-    fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>>;
+pub type WriteFileCallback = ();
+
+pub trait CancellationToken {
+    fn is_cancellation_requested(&self) -> bool;
+
+    fn throw_if_cancellation_requested(&self);
+}
+
+pub trait CancellationTokenDebuggable: CancellationToken + fmt::Debug {}
+
+#[derive(Debug)]
+pub struct Program {
+    pub(crate) _rc_wrapper: RefCell<Option<Rc<Program>>>,
+    pub(crate) options: Rc<CompilerOptions>,
+    pub(crate) files: Vec<Rc</*SourceFile*/ Node>>,
+    pub(crate) diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
 }

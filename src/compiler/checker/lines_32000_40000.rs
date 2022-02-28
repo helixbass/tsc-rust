@@ -306,11 +306,11 @@ impl TypeChecker {
         // TODO
     }
 
-    pub(super) fn check_property_declaration(&mut self, node: &Node /*PropertySignature*/) {
+    pub(super) fn check_property_declaration(&self, node: &Node /*PropertySignature*/) {
         self.check_variable_like_declaration(node);
     }
 
-    pub(super) fn check_property_signature(&mut self, node: &Node /*PropertySignature*/) {
+    pub(super) fn check_property_signature(&self, node: &Node /*PropertySignature*/) {
         if is_private_identifier(&*node.as_property_signature().name()) {
             self.error(
                 Some(node.node_wrapper()),
@@ -336,7 +336,7 @@ impl TypeChecker {
         .unwrap()
     }
 
-    pub(super) fn check_type_reference_node(&mut self, node: &Node /*TypeReferenceNode*/) {
+    pub(super) fn check_type_reference_node(&self, node: &Node /*TypeReferenceNode*/) {
         maybe_for_each(
             node.as_type_reference_node().type_arguments.as_ref(),
             |type_argument, _| {
@@ -347,12 +347,12 @@ impl TypeChecker {
         let type_ = self.get_type_from_type_reference(node);
     }
 
-    pub(super) fn check_array_type(&mut self, node: &Node /*ArrayTypeNode*/) {
+    pub(super) fn check_array_type(&self, node: &Node /*ArrayTypeNode*/) {
         self.check_source_element(Some(&*node.as_array_type_node().element_type));
     }
 
     pub(super) fn check_union_or_intersection_type(
-        &mut self,
+        &self,
         node: &Node, /*UnionOrIntersectionTypeNode*/
     ) {
         for_each(
@@ -416,21 +416,21 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn check_function_declaration(&mut self, node: &Node /*FunctionDeclaration*/) {
+    pub(super) fn check_function_declaration(&self, node: &Node /*FunctionDeclaration*/) {
         if self.produce_diagnostics {
             self.check_function_or_method_declaration(node);
         }
     }
 
     pub(super) fn check_function_or_method_declaration(
-        &mut self,
+        &self,
         node: &Node, /*FunctionDeclaration | MethodDeclaration | MethodSignature*/
     ) {
         // self.check_decorators(node);
         // self.check_signature_declaration(node);
     }
 
-    pub(super) fn check_block(&mut self, node: &Node /*Block*/) {
+    pub(super) fn check_block(&self, node: &Node /*Block*/) {
         let node_as_block = node.as_block();
         if is_function_or_module_block(node) {
             for_each(&node_as_block.statements, |statement, _| {
@@ -449,7 +449,7 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn check_variable_like_declaration(&mut self, node: &Node) {
+    pub(super) fn check_variable_like_declaration(&self, node: &Node) {
         let node_as_variable_like_declaration = node.as_variable_like_declaration();
         if !is_binding_element(node) {
             self.check_source_element(node_as_variable_like_declaration.maybe_type());
@@ -478,11 +478,11 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_variable_declaration(&mut self, node: &Node /*VariableDeclaration*/) {
+    pub(super) fn check_variable_declaration(&self, node: &Node /*VariableDeclaration*/) {
         self.check_variable_like_declaration(node);
     }
 
-    pub(super) fn check_variable_statement(&mut self, node: &Node /*VariableStatement*/) {
+    pub(super) fn check_variable_statement(&self, node: &Node /*VariableStatement*/) {
         for_each(
             &node
                 .as_variable_statement()
@@ -493,12 +493,12 @@ impl TypeChecker {
         );
     }
 
-    pub(super) fn check_expression_statement(&mut self, node: &Node /*ExpressionStatement*/) {
+    pub(super) fn check_expression_statement(&self, node: &Node /*ExpressionStatement*/) {
         let expression = &node.as_expression_statement().expression;
         self.check_expression(expression, None);
     }
 
-    pub(super) fn check_if_statement(&mut self, node: &Node /*IfStatement*/) {
+    pub(super) fn check_if_statement(&self, node: &Node /*IfStatement*/) {
         let node_as_if_statement = node.as_if_statement();
         let type_ = self.check_truthiness_expression(&node_as_if_statement.expression, None);
         self.check_source_element(Some(&*node_as_if_statement.then_statement));
@@ -596,10 +596,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn check_interface_declaration(
-        &mut self,
-        node: &Node, /*InterfaceDeclaration*/
-    ) {
+    pub(super) fn check_interface_declaration(&self, node: &Node /*InterfaceDeclaration*/) {
         let node_as_interface_declaration = node.as_interface_declaration();
         self.check_type_parameters(
             node_as_interface_declaration
@@ -612,10 +609,7 @@ impl TypeChecker {
         });
     }
 
-    pub(super) fn check_type_alias_declaration(
-        &mut self,
-        node: &Node, /*TypeAliasDeclaration*/
-    ) {
+    pub(super) fn check_type_alias_declaration(&self, node: &Node /*TypeAliasDeclaration*/) {
         let node_as_type_alias_declaration = node.as_type_alias_declaration();
         self.check_type_parameters(
             node_as_type_alias_declaration

@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -10,7 +11,10 @@ use super::{
     RedirectTargetsMap, ResolvedProjectReference, ScriptReferenceHost, ScriptTarget, SyntaxKind,
     SynthesizedComment, TextRange,
 };
-use crate::ProgramBuildInfo;
+use crate::{
+    CancellationToken, ModuleResolutionCache, ParsedCommandLine, Path, ProgramBuildInfo,
+    SymlinkCache,
+};
 
 pub trait ModuleResolutionHost {
     fn read_file(&self, file_name: &str) -> Option<String>;
@@ -90,6 +94,11 @@ impl Extension {
     }
 }
 
+pub struct ResolvedModuleWithFailedLookupLocations {
+    pub resolved_module: Option<ResolvedModuleFull>,
+    pub failed_lookup_locations: Vec<String>,
+}
+
 #[derive(Debug)]
 pub struct ResolvedTypeReferenceDirective {
     pub primary: bool,
@@ -104,9 +113,116 @@ pub trait CompilerHost: ModuleResolutionHost {
         &self,
         file_name: &str,
         language_version: ScriptTarget,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        should_create_new_source_file: Option<bool>,
     ) -> Option<Rc<Node /*SourceFile*/>>;
+    fn get_source_file_by_path(
+        &self,
+        file_name: &str,
+        path: &Path,
+        language_version: ScriptTarget,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        should_create_new_source_file: Option<bool>,
+    ) -> Option<Rc<Node /*SourceFile*/>> {
+        None
+    }
+    fn get_cancellation_token(&self) -> Option<Rc<dyn CancellationToken>> {
+        None
+    }
+    fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String;
+    fn get_default_lib_location(&self) -> Option<String> {
+        None
+    }
+    fn write_file(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    );
     fn get_current_directory(&self) -> String;
-    fn get_canonical_file_name(&self, file_name: &str) -> String;
+    fn get_canonical_file_name<'file_name>(
+        &self,
+        file_name: &'file_name str,
+    ) -> Cow<'file_name, str>;
+    fn use_case_sensitive_file_names(&self) -> bool;
+    fn get_new_line(&self) -> String;
+    fn read_directory(
+        &self,
+        root_dir: &str,
+        extensions: &[&str],
+        excludes: Option<&[&str]>,
+        includes: &[&str],
+        depth: Option<usize>,
+    ) -> Option<Vec<String>> {
+        None
+    }
+
+    fn resolve_module_names(
+        &self,
+        module_names: &[&str],
+        containing_file: &str,
+        reused_names: Option<&[&str]>,
+        redirected_reference: Option<ResolvedProjectReference>,
+        options: &CompilerOptions,
+        containing_source_file: Option<Rc<Node /*SourceFile*/>>,
+    ) -> Option<Vec<Option<ResolvedModuleFull>>> {
+        None
+    }
+    fn get_module_resolution_cache(&self) -> Option<&dyn ModuleResolutionCache> {
+        None
+    }
+    fn resolve_type_reference_directives(
+        &self,
+        type_reference_directive_names: &[&str],
+        containing_file: &str,
+        redirected_reference: Option<ResolvedProjectReference>,
+        options: &CompilerOptions,
+    ) -> Option<Vec<Option<Rc<ResolvedTypeReferenceDirective>>>> {
+        None
+    }
+    fn get_environment_variable(&self, name: &str) -> Option<String> {
+        None
+    }
+    fn on_release_old_source_file(
+        &self,
+        old_source_file: &Node, /*SourceFile*/
+        old_options: &CompilerOptions,
+        has_source_file_by_path: bool,
+    ) {
+    }
+    fn on_release_parsed_command_line(
+        &self,
+        config_file_name: &str,
+        old_resolved_ref: Option<ResolvedProjectReference>,
+        option_options: &CompilerOptions,
+    ) {
+    }
+    fn has_invalidated_resolution(&self, source_file: &Path) -> Option<bool> {
+        None
+    }
+    fn has_changed_automatic_type_directive_names(&self) -> Option<bool> {
+        None
+    }
+    fn create_hash(&self, data: &str) -> Option<String> {
+        None
+    }
+    fn get_parsed_command_line(&self, file_name: &str) -> Option<ParsedCommandLine> {
+        None
+    }
+    fn use_source_of_project_reference_redirect(&self) -> Option<bool> {
+        None
+    }
+
+    fn create_directory(&self, directory: &str) {}
+    fn get_symlink_cache(&self) -> Option<SymlinkCache> {
+        None
+    }
+
+    fn disable_use_file_version_as_signature(&self) -> Option<bool> {
+        None
+    }
 }
 
 bitflags! {
@@ -445,6 +561,47 @@ bitflags! {
     }
 }
 
+bitflags! {
+    pub(crate) struct ExternalEmitHelpers: u32 {
+        const None = 0;
+        const Extends = 1 << 0;
+        const Assign = 1 << 1;
+        const Rest = 1 << 2;
+        const Decorate = 1 << 3;
+        const Metadata = 1 << 4;
+        const Param = 1 << 5;
+        const Awaiter = 1 << 6;
+        const Generator = 1 << 7;
+        const Values = 1 << 8;
+        const Read = 1 << 9;
+        const SpreadArray = 1 << 10;
+        const Await = 1 << 11;
+        const AsyncGenerator = 1 << 12;
+        const AsyncDelegator = 1 << 13;
+        const AsyncValues = 1 << 14;
+        const ExportStar = 1 << 15;
+        const ImportStar = 1 << 16;
+        const ImportDefault = 1 << 17;
+        const MakeTemplateObject = 1 << 18;
+        const ClassPrivateFieldGet = 1 << 19;
+        const ClassPrivateFieldSet = 1 << 20;
+        const ClassPrivateFieldIn = 1 << 21;
+        const CreateBinding = 1 << 22;
+        const FirstEmitHelper = Self::Extends.bits;
+        const LastEmitHelper = Self::CreateBinding.bits;
+
+        const ForOfIncludes = Self::Values.bits;
+
+        const ForAwaitOfIncludes = Self::AsyncValues.bits;
+
+        const AsyncGeneratorIncludes = Self::Await.bits | Self::AsyncGenerator.bits;
+
+        const AsyncDelegatorIncludes = Self::Await.bits | Self::AsyncDelegator.bits | Self::AsyncValues.bits;
+
+        const SpreadIncludes = Self::Read.bits | Self::SpreadArray.bits;
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmitHint {
     Expression,
@@ -464,7 +621,7 @@ pub trait SourceFileMayBeEmittedHost {
 pub trait EmitHost:
     ScriptReferenceHost + ModuleSpecifierResolutionHost + SourceFileMayBeEmittedHost
 {
-    fn get_source_files(&self) -> Vec<Rc<Node /*SourceFile*/>>;
+    fn get_source_files(&self) -> &[Rc<Node /*SourceFile*/>];
     fn use_case_sensitive_file_names(&self) -> bool;
     fn get_current_directory(&self) -> String;
 

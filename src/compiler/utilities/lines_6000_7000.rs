@@ -6,8 +6,8 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    compare_strings_case_sensitive, compare_strings_case_sensitive_maybe, compare_values, for_each,
-    format_string_from_args, get_locale_specific_message, index_of, CommandLineOption,
+    compare_strings_case_sensitive, compare_strings_case_sensitive_maybe, compare_values, flatten,
+    for_each, format_string_from_args, get_locale_specific_message, index_of, CommandLineOption,
     CommandLineOptionInterface, Comparison, CompilerOptions, CompilerOptionsValue, Debug_,
     Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
     DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
@@ -200,7 +200,13 @@ pub fn get_emit_script_target(compiler_options: &CompilerOptions) -> ScriptTarge
 }
 
 pub fn get_emit_module_kind(compiler_options: &CompilerOptions) -> ModuleKind {
-    unimplemented!()
+    compiler_options.module.unwrap_or_else(|| {
+        if get_emit_script_target(compiler_options) >= ScriptTarget::ES2015 {
+            ModuleKind::ES2015
+        } else {
+            ModuleKind::CommonJS
+        }
+    })
 }
 
 pub fn unreachable_code_is_error(options: &CompilerOptions) -> bool {
@@ -214,199 +220,211 @@ pub fn unused_label_is_error(options: &CompilerOptions) -> bool {
 fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> CompilerOptionsValue {
     match name {
         "all" => CompilerOptionsValue::Bool(options.all.clone()),
-        "allow_js" => CompilerOptionsValue::Bool(options.allow_js.clone()),
-        "allow_non_ts_extensions" => {
+        "allowJs" => CompilerOptionsValue::Bool(options.allow_js.clone()),
+        "allowNonTsExtensions" => {
             CompilerOptionsValue::Bool(options.allow_non_ts_extensions.clone())
         }
-        "allow_synthetic_default_imports" => {
+        "allowSyntheticDefaultImports" => {
             CompilerOptionsValue::Bool(options.allow_synthetic_default_imports.clone())
         }
-        "allow_umd_global_access" => {
+        "allowUmdGlobalAccess" => {
             CompilerOptionsValue::Bool(options.allow_umd_global_access.clone())
         }
-        "allow_unreachable_code" => {
+        "allowUnreachableCode" => {
             CompilerOptionsValue::Bool(options.allow_unreachable_code.clone())
         }
-        "allow_unused_labels" => CompilerOptionsValue::Bool(options.allow_unused_labels.clone()),
-        "always_strict" => CompilerOptionsValue::Bool(options.always_strict.clone()),
-        "base_url" => CompilerOptionsValue::String(options.base_url.clone()),
+        "allowUnusedLabels" => CompilerOptionsValue::Bool(options.allow_unused_labels.clone()),
+        "alwaysStrict" => CompilerOptionsValue::Bool(options.always_strict.clone()),
+        "baseUrl" => CompilerOptionsValue::String(options.base_url.clone()),
         "build" => CompilerOptionsValue::Bool(options.build.clone()),
         "charset" => CompilerOptionsValue::String(options.charset.clone()),
-        "check_js" => CompilerOptionsValue::Bool(options.check_js.clone()),
-        "config_file_path" => CompilerOptionsValue::String(options.config_file_path.clone()),
-        "config_file" => CompilerOptionsValue::SourceFile(options.config_file.clone()),
+        "checkJs" => CompilerOptionsValue::Bool(options.check_js.clone()),
+        "configFilePath" => CompilerOptionsValue::String(options.config_file_path.clone()),
+        "configFile" => CompilerOptionsValue::SourceFile(options.config_file.clone()),
         "declaration" => CompilerOptionsValue::Bool(options.declaration.clone()),
-        "declaration_map" => CompilerOptionsValue::Bool(options.declaration_map.clone()),
-        "emit_declaration_only" => {
-            CompilerOptionsValue::Bool(options.emit_declaration_only.clone())
-        }
-        "declaration_dir" => CompilerOptionsValue::String(options.declaration_dir.clone()),
+        "declarationMap" => CompilerOptionsValue::Bool(options.declaration_map.clone()),
+        "emitDeclarationOnly" => CompilerOptionsValue::Bool(options.emit_declaration_only.clone()),
+        "declarationDir" => CompilerOptionsValue::String(options.declaration_dir.clone()),
         "diagnostics" => CompilerOptionsValue::Bool(options.diagnostics.clone()),
-        "extended_diagnostics" => CompilerOptionsValue::Bool(options.extended_diagnostics.clone()),
-        "disable_size_limit" => CompilerOptionsValue::Bool(options.disable_size_limit.clone()),
-        "disable_source_of_project_reference_redirect" => {
+        "extendedDiagnostics" => CompilerOptionsValue::Bool(options.extended_diagnostics.clone()),
+        "disableSizeLimit" => CompilerOptionsValue::Bool(options.disable_size_limit.clone()),
+        "disableSourceOfProjectReferenceRedirect" => {
             CompilerOptionsValue::Bool(options.disable_source_of_project_reference_redirect.clone())
         }
-        "disable_solution_searching" => {
+        "disableSolutionSearching" => {
             CompilerOptionsValue::Bool(options.disable_solution_searching.clone())
         }
-        "disable_referenced_project_load" => {
+        "disableReferencedProjectLoad" => {
             CompilerOptionsValue::Bool(options.disable_referenced_project_load.clone())
         }
-        "downlevel_iteration" => CompilerOptionsValue::Bool(options.downlevel_iteration.clone()),
-        "emit_bom" => CompilerOptionsValue::Bool(options.emit_bom.clone()),
-        "emit_decorator_metadata" => {
+        "downlevelIteration" => CompilerOptionsValue::Bool(options.downlevel_iteration.clone()),
+        "emitBom" => CompilerOptionsValue::Bool(options.emit_bom.clone()),
+        "emitDecoratorMetadata" => {
             CompilerOptionsValue::Bool(options.emit_decorator_metadata.clone())
         }
-        "exact_optional_property_types" => {
+        "exactOptionalPropertyTypes" => {
             CompilerOptionsValue::Bool(options.exact_optional_property_types.clone())
         }
-        "experimental_decorators" => {
+        "experimentalDecorators" => {
             CompilerOptionsValue::Bool(options.experimental_decorators.clone())
         }
-        "force_consistent_casing_in_file_names" => {
+        "forceConsistentCasingInFileNames" => {
             CompilerOptionsValue::Bool(options.force_consistent_casing_in_file_names.clone())
         }
-        "generate_cpu_profile" => {
-            CompilerOptionsValue::String(options.generate_cpu_profile.clone())
-        }
-        "generate_trace" => CompilerOptionsValue::String(options.generate_trace.clone()),
+        "generateCpuProfile" => CompilerOptionsValue::String(options.generate_cpu_profile.clone()),
+        "generateTrace" => CompilerOptionsValue::String(options.generate_trace.clone()),
         "help" => CompilerOptionsValue::Bool(options.help.clone()),
-        "import_helpers" => CompilerOptionsValue::Bool(options.import_helpers.clone()),
-        "imports_not_used_as_values" => {
+        "importHelpers" => CompilerOptionsValue::Bool(options.import_helpers.clone()),
+        "importsNotUsedAsValues" => {
             CompilerOptionsValue::ImportsNotUsedAsValues(options.imports_not_used_as_values.clone())
         }
         "init" => CompilerOptionsValue::Bool(options.init.clone()),
-        "inline_source_map" => CompilerOptionsValue::Bool(options.inline_source_map.clone()),
-        "inline_sources" => CompilerOptionsValue::Bool(options.inline_sources.clone()),
-        "isolated_modules" => CompilerOptionsValue::Bool(options.isolated_modules.clone()),
+        "inlineSource_map" => CompilerOptionsValue::Bool(options.inline_source_map.clone()),
+        "inlineSources" => CompilerOptionsValue::Bool(options.inline_sources.clone()),
+        "isolatedModules" => CompilerOptionsValue::Bool(options.isolated_modules.clone()),
         "jsx" => CompilerOptionsValue::JsxEmit(options.jsx.clone()),
-        "keyof_strings_only" => CompilerOptionsValue::Bool(options.keyof_strings_only.clone()),
+        "keyofStrings_only" => CompilerOptionsValue::Bool(options.keyof_strings_only.clone()),
         "lib" => CompilerOptionsValue::VecString(options.lib.clone()),
-        "list_emitted_files" => CompilerOptionsValue::Bool(options.list_emitted_files.clone()),
-        "list_files" => CompilerOptionsValue::Bool(options.list_files.clone()),
-        "explain_files" => CompilerOptionsValue::Bool(options.explain_files.clone()),
-        "list_files_only" => CompilerOptionsValue::Bool(options.list_files_only.clone()),
+        "listEmittedFiles" => CompilerOptionsValue::Bool(options.list_emitted_files.clone()),
+        "listFiles" => CompilerOptionsValue::Bool(options.list_files.clone()),
+        "explainFiles" => CompilerOptionsValue::Bool(options.explain_files.clone()),
+        "listFilesOnly" => CompilerOptionsValue::Bool(options.list_files_only.clone()),
         "locale" => CompilerOptionsValue::String(options.locale.clone()),
-        "map_root" => CompilerOptionsValue::String(options.map_root.clone()),
-        "max_node_module_js_depth" => {
+        "mapRoot" => CompilerOptionsValue::String(options.map_root.clone()),
+        "maxNodeModuleJsDepth" => {
             CompilerOptionsValue::Usize(options.max_node_module_js_depth.clone())
         }
         "module" => CompilerOptionsValue::ModuleKind(options.module.clone()),
-        "module_resolution" => {
+        "moduleResolution" => {
             CompilerOptionsValue::ModuleResolutionKind(options.module_resolution.clone())
         }
-        "new_line" => CompilerOptionsValue::NewLineKind(options.new_line.clone()),
-        "no_emit" => CompilerOptionsValue::Bool(options.no_emit.clone()),
-        "no_emit_for_js_files" => CompilerOptionsValue::Bool(options.no_emit_for_js_files.clone()),
-        "no_emit_helpers" => CompilerOptionsValue::Bool(options.no_emit_helpers.clone()),
-        "no_emit_on_error" => CompilerOptionsValue::Bool(options.no_emit_on_error.clone()),
-        "no_error_truncation" => CompilerOptionsValue::Bool(options.no_error_truncation.clone()),
-        "no_fallthrough_cases_in_switch" => {
+        "newLine" => CompilerOptionsValue::NewLineKind(options.new_line.clone()),
+        "noEmit" => CompilerOptionsValue::Bool(options.no_emit.clone()),
+        "noEmitForJsFiles" => CompilerOptionsValue::Bool(options.no_emit_for_js_files.clone()),
+        "noEmitHelpers" => CompilerOptionsValue::Bool(options.no_emit_helpers.clone()),
+        "noEmitOnError" => CompilerOptionsValue::Bool(options.no_emit_on_error.clone()),
+        "noErrorTruncation" => CompilerOptionsValue::Bool(options.no_error_truncation.clone()),
+        "noFallthroughCasesInSwitch" => {
             CompilerOptionsValue::Bool(options.no_fallthrough_cases_in_switch.clone())
         }
-        "no_implicit_any" => CompilerOptionsValue::Bool(options.no_implicit_any.clone()),
-        "no_implicit_returns" => CompilerOptionsValue::Bool(options.no_implicit_returns.clone()),
-        "no_implicit_this" => CompilerOptionsValue::Bool(options.no_implicit_this.clone()),
-        "no_strict_generic_checks" => {
+        "noImplicitAny" => CompilerOptionsValue::Bool(options.no_implicit_any.clone()),
+        "noImplicitReturns" => CompilerOptionsValue::Bool(options.no_implicit_returns.clone()),
+        "noImplicitThis" => CompilerOptionsValue::Bool(options.no_implicit_this.clone()),
+        "noStrictGenericChecks" => {
             CompilerOptionsValue::Bool(options.no_strict_generic_checks.clone())
         }
-        "no_unused_locals" => CompilerOptionsValue::Bool(options.no_unused_locals.clone()),
-        "no_unused_parameters" => CompilerOptionsValue::Bool(options.no_unused_parameters.clone()),
-        "no_implicit_use_strict" => {
-            CompilerOptionsValue::Bool(options.no_implicit_use_strict.clone())
-        }
-        "no_property_access_from_index_signature" => {
+        "noUnusedLocals" => CompilerOptionsValue::Bool(options.no_unused_locals.clone()),
+        "noUnusedParameters" => CompilerOptionsValue::Bool(options.no_unused_parameters.clone()),
+        "noImplicitUseStrict" => CompilerOptionsValue::Bool(options.no_implicit_use_strict.clone()),
+        "noPropertyAccessFromIndexSignature" => {
             CompilerOptionsValue::Bool(options.no_property_access_from_index_signature.clone())
         }
-        "assume_changes_only_affect_direct_dependencies" => CompilerOptionsValue::Bool(
+        "assumeChangesOnlyAffectDirectDependencies" => CompilerOptionsValue::Bool(
             options
                 .assume_changes_only_affect_direct_dependencies
                 .clone(),
         ),
-        "no_lib" => CompilerOptionsValue::Bool(options.no_lib.clone()),
-        "no_resolve" => CompilerOptionsValue::Bool(options.no_resolve.clone()),
-        "no_unchecked_indexed_access" => {
+        "noLib" => CompilerOptionsValue::Bool(options.no_lib.clone()),
+        "noResolve" => CompilerOptionsValue::Bool(options.no_resolve.clone()),
+        "noUncheckedIndexedAccess" => {
             CompilerOptionsValue::Bool(options.no_unchecked_indexed_access.clone())
         }
         "out" => CompilerOptionsValue::String(options.out.clone()),
-        "out_dir" => CompilerOptionsValue::String(options.out_dir.clone()),
-        "out_file" => CompilerOptionsValue::String(options.out_file.clone()),
+        "outDir" => CompilerOptionsValue::String(options.out_dir.clone()),
+        "outFile" => CompilerOptionsValue::String(options.out_file.clone()),
         "paths" => CompilerOptionsValue::MapLikeVecString(options.paths.clone()),
-        "paths_base_path" => CompilerOptionsValue::String(options.paths_base_path.clone()),
+        "pathsBasePath" => CompilerOptionsValue::String(options.paths_base_path.clone()),
         "plugins" => CompilerOptionsValue::VecPluginImport(options.plugins.clone()),
-        "preserve_const_enums" => CompilerOptionsValue::Bool(options.preserve_const_enums.clone()),
-        "no_implicit_override" => CompilerOptionsValue::Bool(options.no_implicit_override.clone()),
-        "preserve_symlinks" => CompilerOptionsValue::Bool(options.preserve_symlinks.clone()),
-        "preserve_value_imports" => {
+        "preserveConstEnums" => CompilerOptionsValue::Bool(options.preserve_const_enums.clone()),
+        "noImplicitOverride" => CompilerOptionsValue::Bool(options.no_implicit_override.clone()),
+        "preserveSymlinks" => CompilerOptionsValue::Bool(options.preserve_symlinks.clone()),
+        "preserveValueImports" => {
             CompilerOptionsValue::Bool(options.preserve_value_imports.clone())
         }
-        "preserve_watch_output" => {
-            CompilerOptionsValue::Bool(options.preserve_watch_output.clone())
-        }
+        "preserveWatchOutput" => CompilerOptionsValue::Bool(options.preserve_watch_output.clone()),
         "project" => CompilerOptionsValue::String(options.project.clone()),
         "pretty" => CompilerOptionsValue::Bool(options.pretty.clone()),
-        "react_namespace" => CompilerOptionsValue::String(options.react_namespace.clone()),
-        "jsx_factory" => CompilerOptionsValue::String(options.jsx_factory.clone()),
-        "jsx_fragment_factory" => {
-            CompilerOptionsValue::String(options.jsx_fragment_factory.clone())
-        }
-        "jsx_import_source" => CompilerOptionsValue::String(options.jsx_import_source.clone()),
+        "reactNamespace" => CompilerOptionsValue::String(options.react_namespace.clone()),
+        "jsxFactory" => CompilerOptionsValue::String(options.jsx_factory.clone()),
+        "jsxFragmentFactory" => CompilerOptionsValue::String(options.jsx_fragment_factory.clone()),
+        "jsxImportSource" => CompilerOptionsValue::String(options.jsx_import_source.clone()),
         "composite" => CompilerOptionsValue::Bool(options.composite.clone()),
         "incremental" => CompilerOptionsValue::Bool(options.incremental.clone()),
-        "ts_build_info_file" => CompilerOptionsValue::String(options.ts_build_info_file.clone()),
-        "remove_comments" => CompilerOptionsValue::Bool(options.remove_comments.clone()),
-        "root_dir" => CompilerOptionsValue::String(options.root_dir.clone()),
-        "root_dirs" => CompilerOptionsValue::VecString(options.root_dirs.clone()),
-        "skip_lib_check" => CompilerOptionsValue::Bool(options.skip_lib_check.clone()),
-        "skip_default_lib_check" => {
-            CompilerOptionsValue::Bool(options.skip_default_lib_check.clone())
-        }
-        "source_map" => CompilerOptionsValue::Bool(options.source_map.clone()),
-        "source_root" => CompilerOptionsValue::String(options.source_root.clone()),
+        "tsBuildInfoFile" => CompilerOptionsValue::String(options.ts_build_info_file.clone()),
+        "removeComments" => CompilerOptionsValue::Bool(options.remove_comments.clone()),
+        "rootDir" => CompilerOptionsValue::String(options.root_dir.clone()),
+        "rootDirs" => CompilerOptionsValue::VecString(options.root_dirs.clone()),
+        "skipLibCheck" => CompilerOptionsValue::Bool(options.skip_lib_check.clone()),
+        "skipDefaultLibCheck" => CompilerOptionsValue::Bool(options.skip_default_lib_check.clone()),
+        "sourceMap" => CompilerOptionsValue::Bool(options.source_map.clone()),
+        "sourceRoot" => CompilerOptionsValue::String(options.source_root.clone()),
         "strict" => CompilerOptionsValue::Bool(options.strict.clone()),
-        "strict_function_types" => {
-            CompilerOptionsValue::Bool(options.strict_function_types.clone())
-        }
-        "strict_bind_call_apply" => {
-            CompilerOptionsValue::Bool(options.strict_bind_call_apply.clone())
-        }
-        "strict_null_checks" => CompilerOptionsValue::Bool(options.strict_null_checks.clone()),
-        "strict_property_initialization" => {
+        "strictFunctionTypes" => CompilerOptionsValue::Bool(options.strict_function_types.clone()),
+        "strictBindCallApply" => CompilerOptionsValue::Bool(options.strict_bind_call_apply.clone()),
+        "strictNullChecks" => CompilerOptionsValue::Bool(options.strict_null_checks.clone()),
+        "strictPropertyInitialization" => {
             CompilerOptionsValue::Bool(options.strict_property_initialization.clone())
         }
-        "strip_internal" => CompilerOptionsValue::Bool(options.strip_internal.clone()),
-        "suppress_excess_property_errors" => {
+        "stripInternal" => CompilerOptionsValue::Bool(options.strip_internal.clone()),
+        "suppressExcessPropertyErrors" => {
             CompilerOptionsValue::Bool(options.suppress_excess_property_errors.clone())
         }
-        "suppress_implicit_any_index_errors" => {
+        "suppressImplicitAnyIndexErrors" => {
             CompilerOptionsValue::Bool(options.suppress_implicit_any_index_errors.clone())
         }
-        "suppress_output_path_check" => {
+        "suppressOutputPathCheck" => {
             CompilerOptionsValue::Bool(options.suppress_output_path_check.clone())
         }
         "target" => CompilerOptionsValue::ScriptTarget(options.target.clone()),
-        "trace_resolution" => CompilerOptionsValue::Bool(options.trace_resolution.clone()),
-        "use_unknown_in_catch_variables" => {
+        "traceResolution" => CompilerOptionsValue::Bool(options.trace_resolution.clone()),
+        "useUnknownInCatchVariables" => {
             CompilerOptionsValue::Bool(options.use_unknown_in_catch_variables.clone())
         }
-        "resolve_json_module" => CompilerOptionsValue::Bool(options.resolve_json_module.clone()),
+        "resolveJsonModule" => CompilerOptionsValue::Bool(options.resolve_json_module.clone()),
         "types" => CompilerOptionsValue::VecString(options.types.clone()),
-        "type_roots" => CompilerOptionsValue::VecString(options.type_roots.clone()),
+        "typeRoots" => CompilerOptionsValue::VecString(options.type_roots.clone()),
         "version" => CompilerOptionsValue::Bool(options.version.clone()),
         "watch" => CompilerOptionsValue::Bool(options.watch.clone()),
-        "es_module_interop" => CompilerOptionsValue::Bool(options.es_module_interop.clone()),
-        "show_config" => CompilerOptionsValue::Bool(options.show_config.clone()),
-        "use_define_for_class_fields" => {
+        "esModuleInterop" => CompilerOptionsValue::Bool(options.es_module_interop.clone()),
+        "showConfig" => CompilerOptionsValue::Bool(options.show_config.clone()),
+        "useDefineForClassFields" => {
             CompilerOptionsValue::Bool(options.use_define_for_class_fields.clone())
         }
         _ => panic!("Unknown compiler option: {:?}", name),
     }
 }
 
+pub fn get_es_module_interop(compiler_options: &CompilerOptions) -> Option<bool> {
+    if compiler_options.es_module_interop.is_some() {
+        return compiler_options.es_module_interop;
+    }
+    match get_emit_module_kind(compiler_options) {
+        ModuleKind::Node12 | ModuleKind::NodeNext => {
+            return Some(true);
+        }
+        _ => (),
+    }
+    None
+}
+
+pub fn get_allow_synthetic_default_imports(compiler_options: &CompilerOptions) -> bool {
+    let module_kind = get_emit_module_kind(compiler_options);
+    if compiler_options.allow_synthetic_default_imports.is_some() {
+        compiler_options.allow_synthetic_default_imports.unwrap()
+    } else {
+        matches!(get_es_module_interop(compiler_options), Some(true))
+            || module_kind == ModuleKind::System
+    }
+}
+
 pub fn should_preserve_const_enums(compiler_options: &CompilerOptions) -> bool {
     matches!(compiler_options.preserve_const_enums, Some(true))
         || matches!(compiler_options.isolated_modules, Some(true))
+}
+
+pub fn is_incremental_compilation(compiler_options: &CompilerOptions) -> bool {
+    matches!(compiler_options.incremental, Some(true))
+        || matches!(compiler_options.composite, Some(true))
 }
 
 pub fn get_strict_option_value(
@@ -416,6 +434,14 @@ pub fn get_strict_option_value(
     match lookup_compiler_option_value(compiler_options, flag).as_option_bool() {
         None => compiler_options.strict.unwrap_or(false),
         Some(bool_) => bool_,
+    }
+}
+
+pub fn get_use_define_for_class_fields(compiler_options: &CompilerOptions) -> bool {
+    if compiler_options.use_define_for_class_fields.is_none() {
+        get_emit_script_target(compiler_options) == ScriptTarget::ESNext
+    } else {
+        compiler_options.use_define_for_class_fields.unwrap()
     }
 }
 
@@ -437,6 +463,8 @@ pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {
         Some(JsxEmit::React | JsxEmit::ReactJSX | JsxEmit::ReactJSXDev)
     )
 }
+
+pub struct SymlinkCache {}
 
 pub fn ensure_script_kind(file_name: &str, script_kind: Option<ScriptKind>) -> ScriptKind {
     script_kind.unwrap_or_else(|| {
@@ -462,6 +490,27 @@ pub fn get_script_kind_from_file_name(file_name: &str) -> ScriptKind {
         Some(Extension::Json) => ScriptKind::JSON,
         _ => ScriptKind::Unknown,
     }
+}
+
+lazy_static! {
+    pub static ref supported_ts_extensions: Vec<Vec<Extension>> = vec![
+        vec![Extension::Ts, Extension::Tsx, Extension::Dts],
+        vec![Extension::Cts, Extension::Dcts],
+        vec![Extension::Mts, Extension::Dmts]
+    ];
+}
+lazy_static! {
+    pub static ref supported_ts_extensions_flat: Vec<Extension> = flatten(&supported_ts_extensions);
+}
+lazy_static! {
+    pub static ref supported_js_extensions: Vec<Vec<Extension>> = vec![
+        vec![Extension::Js, Extension::Jsx],
+        vec![Extension::Mjs],
+        vec![Extension::Cjs]
+    ];
+}
+lazy_static! {
+    pub static ref supported_js_extensions_flat: Vec<Extension> = flatten(&supported_js_extensions);
 }
 
 pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {

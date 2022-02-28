@@ -1,3 +1,4 @@
+use serde::Serialize;
 use std::array::IntoIter;
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -6,13 +7,16 @@ use std::iter::FromIterator;
 use std::rc::Rc;
 
 use crate::{
-    CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
-    CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType,
-    CommandLineOptionOfListType, CommandLineOptionOfNumberType, CommandLineOptionOfStringType,
-    CommandLineOptionType, CompilerOptions, Diagnostic, Diagnostics, ImportsNotUsedAsValues,
-    JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind, Node, ParsedCommandLine, Push,
-    ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
+    create_compiler_diagnostic, BuildOptions, CommandLineOption, CommandLineOptionBase,
+    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionOfBooleanType,
+    CommandLineOptionOfCustomType, CommandLineOptionOfListType, CommandLineOptionOfNumberType,
+    CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, Diagnostic,
+    DiagnosticMessage, DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
+    ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind, Node,
+    ParsedCommandLine, Push, ScriptTarget, StringOrDiagnosticMessage, System, TsConfigOnlyOption,
+    WatchOptions,
 };
+use local_macros::enum_unwrapped;
 
 thread_local! {
     pub(crate) static compile_on_save_command_line_option: Rc<CommandLineOption> =
@@ -140,6 +144,10 @@ thread_local! {
 thread_local! {
     pub(crate) static lib_map: HashMap<&'static str, &'static str> = lib_entries
         .with(|lib_entries_| HashMap::from_iter(lib_entries_.iter().map(|tuple| (tuple.0, tuple.1))));
+}
+
+thread_local! {
+    pub(crate) static options_for_watch: Vec<Rc<CommandLineOption>> = vec![];
 }
 
 thread_local! {
@@ -2972,12 +2980,23 @@ thread_local! {
         });
 }
 
+thread_local! {
+    pub(crate) static options_for_build: Vec<Rc<CommandLineOption>> = vec![];
+}
+
+thread_local! {
+    pub(crate) static build_opts: Vec<Rc<CommandLineOption>> = vec![];
+}
+
 pub struct OptionsNameMap {
     pub options_name_map: HashMap<String, Rc<CommandLineOption>>,
     pub short_option_names: HashMap<String, String>,
 }
 
-pub fn parse_command_line(command_line: &[String]) -> ParsedCommandLine {
+pub fn parse_command_line<TReadFile: FnMut(&str) -> Option<String>>(
+    command_line: &[String],
+    read_file: Option<TReadFile>,
+) -> ParsedCommandLine {
     parse_command_line_worker(command_line)
 }
 
@@ -3102,9 +3121,49 @@ fn parse_command_line_worker(command_line: &[String]) -> ParsedCommandLine {
             show_config: None,
             use_define_for_class_fields: None,
         }),
+        project_references: None,
         file_names: command_line.to_vec(),
+        watch_options: None,
+        errors: vec![],
     }
 }
+
+pub(crate) struct ParsedBuildCommand {
+    pub build_options: BuildOptions,
+    pub watch_options: Option<WatchOptions>,
+    pub projects: Vec<String>,
+    pub errors: Vec<Rc<Diagnostic>>,
+}
+
+pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
+    ParsedBuildCommand {
+        build_options: BuildOptions {
+            clean: None,
+            watch: None,
+            help: None,
+            pretty: None,
+            locale: None,
+            generate_cpu_profile: None,
+        },
+        watch_options: None,
+        projects: vec![],
+        errors: vec![],
+    }
+}
+
+pub(crate) fn get_diagnostic_text(
+    message: &DiagnosticMessage,
+    args: Option<Vec<String>>,
+) -> String {
+    let diagnostic = create_compiler_diagnostic(message, args);
+    enum_unwrapped!(diagnostic.message_text(), [DiagnosticMessageText, String]).clone()
+}
+
+pub trait DiagnosticReporter {
+    fn call(&self, diagnostic: Rc<Diagnostic>);
+}
+
+pub trait ConfigFileDiagnosticsReporter {}
 
 pub(crate) type JsonConversionNotifier = ();
 
@@ -3117,4 +3176,29 @@ pub(crate) fn convert_to_object_worker<TRootExpression: Borrow<Node>>(
     json_conversion_notifier: Option<JsonConversionNotifier>,
 ) {
     unimplemented!()
+}
+
+#[derive(Serialize)]
+pub(crate) struct TSConfig {}
+
+pub(crate) fn convert_to_tsconfig(
+    config_parse_result: &ParsedCommandLine,
+    config_file_name: &str,
+    host: &dyn System, /*ConvertToTSConfigHost*/
+) -> TSConfig {
+    unimplemented!()
+}
+
+pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: FnMut(&str) -> String>(
+    options: Rc<CompilerOptions>,
+    to_absolute_path: TToAbsolutePath,
+) -> Rc<CompilerOptions> {
+    options
+}
+
+pub struct ParsedTsconfig {}
+
+pub struct ExtendedConfigCacheEntry {
+    pub extended_result: Rc<Node /*TsConfigSourceFile*/>,
+    pub extended_config: Option<ParsedTsconfig>,
 }

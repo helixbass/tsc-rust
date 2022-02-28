@@ -1,8 +1,10 @@
+use regex::{Captures, Regex};
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::mem;
+use std::ops::Add;
 use std::ptr;
 use std::rc::Rc;
 
@@ -157,6 +159,18 @@ pub fn same_map<TItem: Clone, TCallback: FnMut(&TItem, usize) -> TItem>(
             some_result.push(f(item, i));
         }
         result = Some(some_result);
+    }
+    result
+}
+
+pub fn flatten<TItem: Clone>(array: &[Vec<TItem>]) -> Vec<TItem> {
+    let mut result = vec![];
+    for v in array {
+        // if (v) {
+        // if isArray(v) {
+        add_range(&mut result, Some(v), None, None);
+        // }
+        // }
     }
     result
 }
@@ -336,6 +350,17 @@ pub fn sort_and_deduplicate<
     )
 }
 
+pub fn sum<TItem, TGetValue: FnMut(&TItem) -> usize>(
+    array: &[TItem],
+    mut get_value: TGetValue,
+) -> usize {
+    let mut result = 0;
+    for v in array {
+        result += get_value(v);
+    }
+    result
+}
+
 pub fn append<TItem>(to: &mut Vec<TItem>, value: Option<TItem>) {
     if value.is_none() {
         return /*to*/;
@@ -424,7 +449,7 @@ fn comparison_to_ordering(comparison: Comparison) -> Ordering {
 //     |a, b| comparison_to_ordering(comparer(a, b))
 // }
 
-fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+pub fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     comparer: TComparer,
 ) -> SortedArray<TItem> {
@@ -625,6 +650,23 @@ pub fn cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: Option<TIn>, test: TTest) -
 
 fn identity<TValue>(x: TValue) -> TValue {
     x
+}
+
+pub fn to_lower_case(x: &str) -> String {
+    x.to_lowercase()
+}
+
+lazy_static! {
+    static ref file_name_lower_case_reg_exp: Regex = Regex::new(r#"[^\u0130\u0131\u00DFa-z0-9\\/:\-_\. ]+"#/*/g*/).unwrap();
+}
+
+pub fn to_file_name_lower_case(x: &str) -> Cow<'_, str> {
+    if file_name_lower_case_reg_exp.is_match(x) {
+        file_name_lower_case_reg_exp
+            .replace_all(x, |captures: &Captures| to_lower_case(&captures[0]))
+    } else {
+        x.into()
+    }
 }
 
 pub fn not_implemented() -> ! {
@@ -860,7 +902,18 @@ pub fn string_contains(str_: &str, substring: &str) -> bool {
     str_.find(substring).is_some()
 }
 
-pub type GetCanonicalFileName = fn(&str) -> String;
+pub type GetCanonicalFileName = fn(&str) -> Cow<'_, str>;
+pub fn create_get_canonical_file_name(use_case_sensitive_file_names: bool) -> GetCanonicalFileName {
+    if use_case_sensitive_file_names {
+        identity_str_to_cow
+    } else {
+        to_file_name_lower_case
+    }
+}
+
+pub fn identity_str_to_cow(str_: &str) -> Cow<'_, str> {
+    str_.into()
+}
 
 #[derive(Clone, Debug)]
 pub struct Pattern {
@@ -877,6 +930,8 @@ impl Pattern {
 pub fn starts_with(str_: &str, prefix: &str) -> bool {
     str_.starts_with(prefix)
 }
+
+// pub fn and<TValue, TFirstCallback: FnMut(TValue) -> bool, TSecondCallback: FnMut(TValue) -> bool>()
 
 pub fn single_element_array<TItem>(t: Option<TItem>) -> Option<Vec<TItem>> {
     t.map(|t| vec![t])

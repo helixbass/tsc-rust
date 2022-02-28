@@ -1,23 +1,126 @@
+use std::borrow::Cow;
+use std::cell::RefCell;
+use std::cmp;
 use std::rc::Rc;
+use std::time::SystemTime;
 
 use crate::{
-    concatenate, create_source_file, create_type_checker, for_each, get_emit_script_target,
-    get_sys, normalize_path, to_path as to_path_helper, CompilerHost, CompilerOptions,
-    CreateProgramOptions, Diagnostic, ModuleKind, ModuleResolutionHost,
-    ModuleSpecifierResolutionHost, Node, Path, Program, ScriptTarget, SourceFile,
-    StructureIsReused, System, TypeChecker, TypeCheckerHost,
+    combine_paths, concatenate, create_source_file, create_type_checker, for_each,
+    for_each_ancestor_directory_str, get_directory_path, get_emit_script_target,
+    get_normalized_path_components, get_path_from_path_components, get_sys, is_rooted_disk_path,
+    normalize_path, to_path as to_path_helper, CompilerHost, CompilerOptions, CreateProgramOptions,
+    Diagnostic, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node,
+    ParsedCommandLine, Path, Program, ScriptReferenceHost, ScriptTarget, SourceFile,
+    StructureIsReused, System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
 };
+
+pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
+    search_path: &str,
+    mut file_exists: TFileExists,
+    config_name: Option<&str>,
+) -> Option<String> {
+    let config_name = config_name.unwrap_or("tsconfig.json");
+    for_each_ancestor_directory_str(search_path, |ancestor| {
+        let file_name = combine_paths(ancestor, &vec![Some(config_name)]);
+        if file_exists(&file_name) {
+            Some(file_name)
+        } else {
+            None
+        }
+    })
+}
+
+pub fn resolve_tripleslash_reference(module_name: &str, containing_file: &str) -> String {
+    let base_path = get_directory_path(containing_file);
+    let referenced_file_name = if is_rooted_disk_path(module_name) {
+        module_name.to_owned()
+    } else {
+        combine_paths(&base_path, &vec![Some(module_name)])
+    };
+    normalize_path(&referenced_file_name)
+}
+
+pub(crate) fn compute_common_source_directory_of_filenames<
+    TFileName: AsRef<str>,
+    TGetCanonicalFileName: FnMut(&str) -> String,
+>(
+    file_names: &[TFileName],
+    current_directory: &str,
+    mut get_canonical_file_name: TGetCanonicalFileName,
+) -> String {
+    let mut common_path_components: Option<Vec<String>> = None;
+    let failed = for_each(file_names, |source_file, _| {
+        let source_file = source_file.as_ref();
+        let mut source_path_components =
+            get_normalized_path_components(source_file, Some(current_directory));
+        source_path_components.pop();
+
+        if common_path_components.is_none() {
+            common_path_components = Some(source_path_components);
+            return None;
+        }
+        let mut common_path_components = common_path_components.as_mut().unwrap();
+
+        let n = cmp::min(common_path_components.len(), source_path_components.len());
+        for i in 0..n {
+            if get_canonical_file_name(&common_path_components[i])
+                != get_canonical_file_name(&source_path_components[i])
+            {
+                if i == 0 {
+                    return Some(());
+                }
+
+                common_path_components.truncate(i);
+                break;
+            }
+        }
+
+        if source_path_components.len() < common_path_components.len() {
+            common_path_components.truncate(source_path_components.len());
+        }
+        None
+    });
+
+    if failed.is_some() {
+        return "".to_owned();
+    }
+
+    if common_path_components.is_none() {
+        return current_directory.to_owned();
+    }
+    let common_path_components = common_path_components.unwrap();
+
+    get_path_from_path_components(&common_path_components)
+}
+
+struct OutputFingerprint {
+    pub hash: String,
+    pub byte_order_mark: bool,
+    pub mtime: SystemTime,
+}
 
 fn create_compiler_host(
     options: &CompilerOptions,
     set_parent_nodes: Option<bool>,
 ) -> impl CompilerHost {
-    create_compiler_host_worker(options, set_parent_nodes)
+    create_compiler_host_worker(options, set_parent_nodes, None)
+}
+
+pub(crate) fn create_compiler_host_worker(
+    options: &CompilerOptions,
+    set_parent_nodes: Option<bool>,
+    system: Option<Rc<dyn System>>,
+) -> impl CompilerHost {
+    let system = system.unwrap_or_else(|| get_sys());
+    CompilerHostConcrete {
+        set_parent_nodes,
+        system,
+    }
 }
 
 struct CompilerHostConcrete {
     set_parent_nodes: Option<bool>,
-    system: &'static dyn System,
+    system: Rc<dyn System>,
 }
 
 impl ModuleResolutionHost for CompilerHostConcrete {
@@ -31,6 +134,8 @@ impl CompilerHost for CompilerHostConcrete {
         &self,
         file_name: &str,
         language_version: ScriptTarget,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        should_create_new_source_file: Option<bool>,
     ) -> Option<Rc<Node /*SourceFile*/>> {
         let text = self.read_file(file_name);
         text.map(|text| {
@@ -44,23 +149,52 @@ impl CompilerHost for CompilerHostConcrete {
         })
     }
 
-    fn get_canonical_file_name(&self, file_name: &str) -> String {
-        file_name.to_string()
+    fn get_canonical_file_name<'file_name>(
+        &self,
+        file_name: &'file_name str,
+    ) -> Cow<'file_name, str> {
+        file_name.into()
     }
 
     fn get_current_directory(&self) -> String {
         self.system.get_current_directory()
     }
+
+    fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String {
+        unimplemented!()
+    }
+
+    fn write_file(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&mut dyn FnMut(&str)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    ) {
+        unimplemented!()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        true
+    }
+
+    fn get_new_line(&self) -> String {
+        unimplemented!()
+    }
 }
 
-fn create_compiler_host_worker(
-    options: &CompilerOptions,
-    set_parent_nodes: Option<bool>,
-) -> impl CompilerHost {
-    CompilerHostConcrete {
-        set_parent_nodes,
-        system: get_sys(),
-    }
+pub(crate) fn change_compiler_host_like_to_use_cache<
+    THost: CompilerHost,
+    TToPath: FnMut(&str) -> Path,
+    TGetSourceFile: FnMut(&str, ScriptTarget, Option<&mut dyn FnMut(&str)>, Option<bool>) -> Option<Rc<Node>>,
+>(
+    host: &THost,
+    to_path: TToPath,
+    get_source_file: Option<TGetSourceFile>,
+) /*-> */
+{
+    // unimplemented!()
 }
 
 pub(crate) trait SourceFileImportsList {}
@@ -74,22 +208,46 @@ pub(crate) fn get_mode_for_resolution_at_index<TFile: SourceFileImportsList>(
     unimplemented!()
 }
 
-struct ProgramConcrete {
-    options: Rc<CompilerOptions>,
-    files: Vec<Rc</*SourceFile*/ Node>>,
-    diagnostics_producing_type_checker: Option<TypeChecker>,
+pub fn get_config_file_parsing_diagnostics(
+    config_file_parse_result: &ParsedCommandLine,
+) -> Vec<Rc<Diagnostic>> {
+    // unimplemented!()
+    vec![]
 }
 
-impl ProgramConcrete {
-    pub fn new(options: Rc<CompilerOptions>, files: Vec<Rc<Node>>) -> Self {
-        ProgramConcrete {
+impl Program {
+    pub fn new(options: Rc<CompilerOptions>, files: Vec<Rc<Node>>) -> Rc<Self> {
+        let rc = Rc::new(Program {
+            _rc_wrapper: RefCell::new(None),
             options,
             files,
-            diagnostics_producing_type_checker: None,
-        }
+            diagnostics_producing_type_checker: RefCell::new(None),
+        });
+        rc.set_rc_wrapper(Some(rc.clone()));
+        rc
     }
 
-    fn get_diagnostics_producing_type_checker(&mut self) -> &mut TypeChecker {
+    pub fn set_rc_wrapper(&self, rc_wrapper: Option<Rc<Program>>) {
+        *self._rc_wrapper.borrow_mut() = rc_wrapper;
+    }
+
+    pub fn rc_wrapper(&self) -> Rc<Program> {
+        self._rc_wrapper.borrow().clone().unwrap()
+    }
+
+    pub fn get_syntactic_diagnostics(&self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+        self.get_diagnostics_helper(Program::get_syntactic_diagnostics_for_file)
+    }
+
+    pub fn get_semantic_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
+        self.get_diagnostics_helper(Program::get_semantic_diagnostics_for_file)
+    }
+
+    pub fn is_source_file_default_library(&self, file: &Node /*SourceFile*/) -> bool {
+        unimplemented!()
+    }
+
+    fn get_diagnostics_producing_type_checker(&self) -> Rc<TypeChecker> {
         // self.diagnostics_producing_type_checker
         //     .get_or_insert_with(|| create_type_checker(self, true))
 
@@ -99,15 +257,18 @@ impl ProgramConcrete {
         //     self.diagnostics_producing_type_checker = Some(create_type_checker(self, true));
         //     self.diagnostics_producing_type_checker.as_ref().unwrap()
         // }
-        if self.diagnostics_producing_type_checker.is_none() {
-            self.diagnostics_producing_type_checker = Some(create_type_checker(self, true));
+        let mut diagnostics_producing_type_checker =
+            self.diagnostics_producing_type_checker.borrow_mut();
+        if diagnostics_producing_type_checker.is_none() {
+            *diagnostics_producing_type_checker =
+                Some(Rc::new(create_type_checker(self.rc_wrapper(), true)));
         }
-        self.diagnostics_producing_type_checker.as_mut().unwrap()
+        diagnostics_producing_type_checker.as_ref().unwrap().clone()
     }
 
     fn get_diagnostics_helper(
-        &mut self,
-        get_diagnostics: fn(&mut ProgramConcrete, &SourceFile) -> Vec<Rc<Diagnostic>>,
+        &self,
+        get_diagnostics: fn(&Program, &SourceFile) -> Vec<Rc<Diagnostic>>,
     ) -> Vec<Rc<Diagnostic>> {
         self.get_source_files()
             .iter()
@@ -126,17 +287,11 @@ impl ProgramConcrete {
         func()
     }
 
-    fn get_syntactic_diagnostics_for_file(
-        &mut self,
-        source_file: &SourceFile,
-    ) -> Vec<Rc<Diagnostic>> {
+    fn get_syntactic_diagnostics_for_file(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         source_file.parse_diagnostics().clone()
     }
 
-    fn get_semantic_diagnostics_for_file(
-        &mut self,
-        source_file: &SourceFile,
-    ) -> Vec<Rc<Diagnostic>> {
+    fn get_semantic_diagnostics_for_file(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
         concatenate(
             filter_semantic_diagnostics(self.get_bind_and_check_diagnostics_for_file(source_file)),
             self.get_program_diagnostics(source_file),
@@ -144,17 +299,17 @@ impl ProgramConcrete {
     }
 
     fn get_bind_and_check_diagnostics_for_file(
-        &mut self,
+        &self,
         source_file: &SourceFile,
     ) -> Vec<Rc<Diagnostic>> {
         self.get_and_cache_diagnostics(
             source_file,
-            ProgramConcrete::get_bind_and_check_diagnostics_for_file_no_cache,
+            Program::get_bind_and_check_diagnostics_for_file_no_cache,
         )
     }
 
     fn get_bind_and_check_diagnostics_for_file_no_cache(
-        &mut self,
+        &self,
         source_file: &SourceFile,
     ) -> Vec<Rc<Diagnostic>> {
         // self.run_with_cancellation_token(|| {
@@ -172,36 +327,46 @@ impl ProgramConcrete {
     }
 
     fn get_and_cache_diagnostics(
-        &mut self,
+        &self,
         source_file: &SourceFile,
-        get_diagnostics: fn(&mut ProgramConcrete, &SourceFile) -> Vec<Rc<Diagnostic>>,
+        get_diagnostics: fn(&Program, &SourceFile) -> Vec<Rc<Diagnostic>>,
     ) -> Vec<Rc<Diagnostic>> {
         let result = get_diagnostics(self, source_file);
         result
     }
 }
 
-impl ModuleSpecifierResolutionHost for ProgramConcrete {}
-
-impl Program for ProgramConcrete {
-    fn get_syntactic_diagnostics(&mut self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
-        self.get_diagnostics_helper(ProgramConcrete::get_syntactic_diagnostics_for_file)
-    }
-
-    fn get_semantic_diagnostics(&mut self) -> Vec<Rc<Diagnostic>> {
-        self.get_diagnostics_helper(ProgramConcrete::get_semantic_diagnostics_for_file)
-    }
-}
-
-impl TypeCheckerHost for ProgramConcrete {
+impl ScriptReferenceHost for Program {
     fn get_compiler_options(&self) -> Rc<CompilerOptions> {
         self.options.clone()
     }
 
-    fn get_source_files(&self) -> Vec<Rc<Node>> {
-        self.files.clone()
+    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
+        unimplemented!()
+    }
+
+    fn get_source_file_by_path(&self, path: &Path) -> Option<Rc<Node /*SourceFile*/>> {
+        unimplemented!()
+    }
+
+    fn get_current_directory(&self) -> String {
+        unimplemented!()
     }
 }
+
+impl ModuleSpecifierResolutionHost for Program {}
+
+impl TypeCheckerHost for Program {
+    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+        self.options.clone()
+    }
+
+    fn get_source_files(&self) -> &[Rc<Node>] {
+        &self.files
+    }
+}
+
+impl TypeCheckerHostDebuggable for Program {}
 
 struct CreateProgramHelperContext<'a> {
     processing_other_files: &'a mut Vec<Rc<Node>>,
@@ -210,10 +375,11 @@ struct CreateProgramHelperContext<'a> {
     options: Rc<CompilerOptions>,
 }
 
-pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Program {
+pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program> {
     let CreateProgramOptions {
         root_names,
         options,
+        ..
     } = root_names_or_options;
 
     let mut processing_other_files: Option<Vec<Rc<Node>>> = None;
@@ -234,7 +400,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Progr
             options: options.clone(),
         };
         for_each(root_names, |name, _index| {
-            process_root_file(&mut helper_context, name);
+            process_root_file(&mut helper_context, &name);
             Option::<()>::None
         });
 
@@ -243,7 +409,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> impl Progr
         processing_other_files = None;
     }
 
-    ProgramConcrete::new(options, files)
+    Program::new(options, files)
 }
 
 fn filter_semantic_diagnostics(diagnostic: Vec<Rc<Diagnostic>>) -> Vec<Rc<Diagnostic>> {
@@ -280,9 +446,13 @@ fn find_source_file_worker(
 ) -> Option<Rc<Node>> {
     let _path = to_path(helper_context, file_name);
 
-    let file = helper_context
-        .host
-        .get_source_file(file_name, get_emit_script_target(&*helper_context.options));
+    let file = helper_context.host.get_source_file(
+        file_name,
+        get_emit_script_target(&*helper_context.options),
+        // TODO: this is wrong
+        None,
+        None,
+    );
 
     file.map(|file| {
         let file_as_source_file = file.as_source_file();
@@ -301,9 +471,9 @@ fn to_path(helper_context: &mut CreateProgramHelperContext, file_name: &str) -> 
     )
 }
 
-fn get_canonical_file_name(
+fn get_canonical_file_name<'file_name>(
     helper_context: &mut CreateProgramHelperContext,
-    file_name: &str,
-) -> String {
+    file_name: &'file_name str,
+) -> Cow<'file_name, str> {
     helper_context.host.get_canonical_file_name(file_name)
 }

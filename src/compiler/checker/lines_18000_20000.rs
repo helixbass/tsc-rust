@@ -570,7 +570,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
         for target_prop in self.exclude_properties(properties, excluded_properties) {
             let name = target_prop.escaped_name();
             if true {
-                let source_prop = self.type_checker.get_property_of_type(source, name);
+                let source_prop = self.type_checker.get_property_of_type_(source, name);
                 if let Some(source_prop) = source_prop {
                     if !Rc::ptr_eq(&source_prop, &target_prop) {
                         let related = self.property_related_to(

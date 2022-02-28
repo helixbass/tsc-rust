@@ -39,7 +39,11 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
-    pub(super) fn get_property_of_type(&self, type_: &Type, name: &__String) -> Option<Rc<Symbol>> {
+    pub(super) fn get_property_of_type_(
+        &self,
+        type_: &Type,
+        name: &__String,
+    ) -> Option<Rc<Symbol>> {
         let type_ = self.get_reduced_apparent_type(type_);
         if type_.flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(&type_);
@@ -900,7 +904,7 @@ impl TypeChecker {
             self.get_property_name_from_index(index_type)
         };
         if let Some(prop_name) = prop_name {
-            let prop = self.get_property_of_type(object_type, &prop_name);
+            let prop = self.get_property_of_type_(object_type, &prop_name);
             if let Some(prop) = prop {
                 let prop_type = self.get_type_of_symbol(&*prop);
                 return if false {
