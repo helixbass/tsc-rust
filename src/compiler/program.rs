@@ -10,8 +10,8 @@ use crate::{
     get_normalized_path_components, get_path_from_path_components, get_sys, is_rooted_disk_path,
     normalize_path, to_path as to_path_helper, CompilerHost, CompilerOptions, CreateProgramOptions,
     Diagnostic, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node,
-    ParsedCommandLine, Path, Program, ScriptTarget, SourceFile, StructureIsReused, System,
-    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
+    ParsedCommandLine, Path, Program, ScriptReferenceHost, ScriptTarget, SourceFile,
+    StructureIsReused, System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -333,6 +333,24 @@ impl Program {
     ) -> Vec<Rc<Diagnostic>> {
         let result = get_diagnostics(self, source_file);
         result
+    }
+}
+
+impl ScriptReferenceHost for Program {
+    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+        self.options.clone()
+    }
+
+    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
+        unimplemented!()
+    }
+
+    fn get_source_file_by_path(&self, path: &Path) -> Option<Rc<Node /*SourceFile*/>> {
+        unimplemented!()
+    }
+
+    fn get_current_directory(&self) -> String {
+        unimplemented!()
     }
 }
 

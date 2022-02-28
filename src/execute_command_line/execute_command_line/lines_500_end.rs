@@ -1,9 +1,10 @@
 use std::collections::HashMap;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{
     execute_command_line_worker, print_build_help, print_version, should_be_pretty,
-    update_report_diagnostic, CompilerOptionsOrBuildOptions,
+    update_report_diagnostic, CompilerOptionsOrBuildOptions, Statistic,
 };
 use crate::{
     build_opts, change_compiler_host_like_to_use_cache, create_builder_status_reporter,
@@ -13,15 +14,16 @@ use crate::{
     create_solution_builder_with_watch_host, create_watch_compiler_host_of_config_file,
     create_watch_program, create_watch_status_reporter as create_watch_status_reporter_,
     dump_tracing_legend, emit_files_and_report_errors_and_get_exit_status,
-    get_config_file_parsing_diagnostics, get_error_summary_text, parse_build_command,
+    get_config_file_parsing_diagnostics, get_error_summary_text, get_sys, parse_build_command,
     parse_command_line, perform_incremental_compilation as perform_incremental_compilation_,
-    to_path, validate_locale_and_set_language, BuildOptions, BuilderProgram, CharacterCodes,
-    CompilerHost, CompilerOptions, CreateProgram, CreateProgramOptions,
+    start_tracing, to_path, validate_locale_and_set_language, BuildOptions, BuilderProgram,
+    CharacterCodes, CompilerHost, CompilerOptions, CreateProgram, CreateProgramOptions,
     CreateWatchCompilerHostOfConfigFileInput, CustomTransformers, Diagnostic, DiagnosticReporter,
     Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, ExtendedConfigCacheEntry,
     IncrementalCompilationOptions, Node, ParsedBuildCommand, ParsedCommandLine, Program,
-    ProgramHost, ReportEmitErrorSummary, ScriptTarget, SemanticDiagnosticsBuilderProgram,
-    SolutionBuilderHostBase, System, WatchCompilerHost, WatchOptions, WatchStatusReporter,
+    ProgramHost, ReportEmitErrorSummary, ScriptReferenceHost, ScriptTarget,
+    SemanticDiagnosticsBuilderProgram, SolutionBuilderHostBase, System, WatchCompilerHost,
+    WatchOptions, WatchStatusReporter,
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
@@ -493,16 +495,49 @@ pub(super) fn create_watch_of_files_and_compiler_options<
     unimplemented!()
 }
 
+pub(super) fn can_report_diagnostics(
+    system: &dyn System,
+    compiler_options: &CompilerOptions,
+) -> bool {
+    ptr::eq(system, &*get_sys())
+        && (matches!(compiler_options.diagnostics, Some(true))
+            || matches!(compiler_options.extended_diagnostics, Some(true)))
+}
+
+pub(super) fn can_trace(system: &dyn System, compiler_options: &CompilerOptions) -> bool {
+    ptr::eq(system, &*get_sys())
+        && matches!(compiler_options.generate_trace.as_ref(), Some(generate_trace) if !generate_trace.is_empty())
+}
+
 pub(super) fn enable_statistics_and_tracing(
-    sys: &dyn System,
+    system: &dyn System,
     compiler_options: &CompilerOptions,
     is_build_mode: bool,
 ) {
-    // unimplemented!()
+    if can_report_diagnostics(system, compiler_options) {
+        // performance.enable(system);
+    }
+
+    if can_trace(system, compiler_options) {
+        start_tracing(
+            if is_build_mode { "build" } else { "project" },
+            compiler_options.generate_trace.as_ref().unwrap(),
+            compiler_options.config_file_path.as_deref(),
+        );
+    }
 }
 
 pub(super) fn report_statistics(sys: &dyn System, program: &Program) {
-    // unimplemented!()
+    let compiler_options = program.get_compiler_options();
+
+    if can_trace(sys, &compiler_options) {
+        // tracing?.stopTracing();
+    }
+
+    let mut statistics: Vec<Statistic> = vec![];
+    if can_report_diagnostics(sys, &compiler_options) {
+        unimplemented!()
+    }
 }
 
 pub(super) fn write_config_file(
