@@ -18,7 +18,7 @@ use crate::{
     CompilerOptions, CreateProgram, CreateProgramOptions, CustomTransformers, Diagnostic,
     DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
     ExtendedConfigCacheEntry, IncrementalCompilationOptions, Node, ParsedBuildCommand,
-    ParsedCommandLine, Program, ReportEmitErrorSummary, ScriptTarget,
+    ParsedCommandLine, Program, ProgramHost, ReportEmitErrorSummary, ScriptTarget,
     SemanticDiagnosticsBuilderProgram, SolutionBuilderHostBase, System, WatchOptions,
     WatchStatusReporter,
 };
@@ -393,7 +393,28 @@ pub(super) fn update_solution_builder_host<
     mut cb: TCallback,
     build_host: &mut TBuildHost,
 ) {
-    unimplemented!()
+    update_create_program(sys, build_host.as_program_host());
+    // TODO: how to model this?
+    // buildHost.afterProgramEmitAndDiagnostics = program => {
+    //     reportStatistics(sys, program.getProgram());
+    //     cb(program);
+    // }
+    // buildHost.afterEmitBundle = cb;
+}
+
+pub(super) fn update_create_program<TBuilderProgram: BuilderProgram>(
+    sys: &dyn System,
+    host: &dyn ProgramHost<TBuilderProgram>,
+) {
+    // TODO: how to model this?
+    // const compileUsingBuilder = host.createProgram;
+    // host.createProgram = (rootNames, options, host, oldProgram, configFileParsingDiagnostics, projectReferences) => {
+    //     Debug.assert(rootNames !== undefined || (options === undefined && !!oldProgram));
+    //     if (options !== undefined) {
+    //         enableStatisticsAndTracing(sys, options, /*isBuildMode*/ true);
+    //     }
+    //     return compileUsingBuilder(rootNames, options, host, oldProgram, configFileParsingDiagnostics, projectReferences);
+    // };
 }
 
 pub(super) fn create_watch_status_reporter(

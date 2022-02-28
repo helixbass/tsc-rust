@@ -3,7 +3,8 @@ use std::rc::Rc;
 
 use crate::{
     BuilderProgram, CancellationToken, CreateProgram, CustomTransformers, DiagnosticReporter,
-    ExitStatus, System, WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback,
+    ExitStatus, ProgramHost, System, WatchHost, WatchOptions, WatchStatusReporter,
+    WriteFileCallback,
 };
 
 pub struct BuildOptions {
@@ -21,7 +22,11 @@ pub trait ReportEmitErrorSummary {
     fn call(&self, error_count: usize);
 }
 
-pub trait SolutionBuilderHostBase<TBuilderProgram: BuilderProgram> {}
+pub trait SolutionBuilderHostBase<TBuilderProgram: BuilderProgram>:
+    ProgramHost<TBuilderProgram>
+{
+    fn as_program_host(&self) -> &dyn ProgramHost<TBuilderProgram>;
+}
 
 pub trait SolutionBuilderHost<TBuilderProgram: BuilderProgram>:
     SolutionBuilderHostBase<TBuilderProgram>
@@ -77,9 +82,17 @@ pub struct SolutionBuilderHostConcrete<TBuilderProgram: BuilderProgram> {
     phantom: PhantomData<TBuilderProgram>,
 }
 
+impl<TBuilderProgram: BuilderProgram> ProgramHost<TBuilderProgram>
+    for SolutionBuilderHostConcrete<TBuilderProgram>
+{
+}
+
 impl<TBuilderProgram: BuilderProgram> SolutionBuilderHostBase<TBuilderProgram>
     for SolutionBuilderHostConcrete<TBuilderProgram>
 {
+    fn as_program_host(&self) -> &dyn ProgramHost<TBuilderProgram> {
+        self
+    }
 }
 
 impl<TBuilderProgram: BuilderProgram> SolutionBuilderHost<TBuilderProgram>
@@ -104,9 +117,17 @@ pub struct SolutionBuilderWithWatchHostConcrete<TBuilderProgram: BuilderProgram>
     phantom: PhantomData<TBuilderProgram>,
 }
 
+impl<TBuilderProgram: BuilderProgram> ProgramHost<TBuilderProgram>
+    for SolutionBuilderWithWatchHostConcrete<TBuilderProgram>
+{
+}
+
 impl<TBuilderProgram: BuilderProgram> SolutionBuilderHostBase<TBuilderProgram>
     for SolutionBuilderWithWatchHostConcrete<TBuilderProgram>
 {
+    fn as_program_host(&self) -> &dyn ProgramHost<TBuilderProgram> {
+        self
+    }
 }
 
 impl<TBuilderProgram: BuilderProgram> SolutionBuilderWithWatchHost<TBuilderProgram>
