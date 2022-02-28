@@ -8,8 +8,8 @@ use std::convert::{TryFrom, TryInto};
 use crate::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, compare_values, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, get_string_comparer,
-    last_or_undefined, some, starts_with, string_contains, CharacterCodes, Comparison, Debug_,
-    GetCanonicalFileName, Path,
+    identity_str_to_cow, last_or_undefined, some, starts_with, string_contains, CharacterCodes,
+    Comparison, Debug_, GetCanonicalFileName, Path,
 };
 
 pub const directory_separator: char = '/';
@@ -473,7 +473,7 @@ pub fn get_normalized_absolute_path_without_root(
     ))
 }
 
-pub fn to_path<TGetCanonicalFileName: FnMut(&str) -> String>(
+pub fn to_path<TGetCanonicalFileName: FnMut(&str) -> Cow<'_, str>>(
     file_name: &str,
     base_path: Option<&str>,
     mut get_canonical_file_name: TGetCanonicalFileName,
@@ -483,7 +483,7 @@ pub fn to_path<TGetCanonicalFileName: FnMut(&str) -> String>(
     } else {
         get_normalized_absolute_path(file_name, base_path)
     };
-    Path::new(get_canonical_file_name(&non_canonicalized_path))
+    Path::new(get_canonical_file_name(&non_canonicalized_path).into_owned())
 }
 
 pub struct PathAndParts {
@@ -738,10 +738,6 @@ pub fn get_path_components_relative_to(
     ret
 }
 
-fn str_to_string(str_: &str) -> String {
-    str_.to_string()
-}
-
 pub enum GetCanonicalFileNameOrBool {
     GetCanonicalFileName(GetCanonicalFileName),
     Bool(bool),
@@ -778,7 +774,7 @@ pub fn get_relative_path_from_directory<
         _ =>
         /*identity*/
         {
-            str_to_string
+            identity_str_to_cow
         }
     };
     let ignore_case = match get_canonical_file_name_or_ignore_case {

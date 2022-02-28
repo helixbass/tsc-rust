@@ -3121,6 +3121,7 @@ fn parse_command_line_worker(command_line: &[String]) -> ParsedCommandLine {
             show_config: None,
             use_define_for_class_fields: None,
         }),
+        project_references: None,
         file_names: command_line.to_vec(),
         watch_options: None,
         errors: vec![],

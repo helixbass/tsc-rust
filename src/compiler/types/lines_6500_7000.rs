@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -141,7 +142,10 @@ pub trait CompilerHost: ModuleResolutionHost {
         source_files: Option<&[Rc<Node /*SourceFile*/>]>,
     );
     fn get_current_directory(&self) -> String;
-    fn get_canonical_file_name(&self, file_name: &str) -> String;
+    fn get_canonical_file_name<'file_name>(
+        &self,
+        file_name: &'file_name str,
+    ) -> Cow<'file_name, str>;
     fn use_case_sensitive_file_names(&self) -> bool;
     fn get_new_line(&self) -> String;
     fn read_directory(

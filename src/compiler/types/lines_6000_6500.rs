@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
-use crate::{Diagnostic, MapLike, OptionsNameMap};
+use crate::{CompilerHost, Diagnostic, MapLike, OptionsNameMap, Program};
 use local_macros::{command_line_option_type, enum_unwrapped};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -321,13 +321,18 @@ pub enum LanguageVariant {
 pub struct ParsedCommandLine {
     pub options: Rc<CompilerOptions>,
     pub file_names: Vec<String>,
+    pub project_references: Option<Vec<Rc<ProjectReference>>>,
     pub watch_options: Option<Rc<WatchOptions>>,
     pub errors: Vec<Rc<Diagnostic>>,
 }
 
-pub struct CreateProgramOptions<'config> {
-    pub root_names: &'config [String],
+pub struct CreateProgramOptions {
+    pub root_names: Vec<String>,
     pub options: Rc<CompilerOptions>,
+    pub project_references: Option<Vec<Rc<ProjectReference>>>,
+    pub host: Option<Rc<dyn CompilerHost>>,
+    pub old_program: Option<Rc<Program>>,
+    pub config_file_parsing_diagnostics: Option<Vec<Rc<Diagnostic>>>,
 }
 
 #[derive(Debug)]

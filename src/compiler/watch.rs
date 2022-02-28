@@ -2,9 +2,10 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
-    add_range, sort_and_deduplicate_diagnostics, CompilerOptions, Diagnostic, DiagnosticReporter,
-    ExitStatus, ExtendedConfigCacheEntry, ParsedCommandLine, Program, SortedArray, System,
-    WatchOptions,
+    add_range, sort_and_deduplicate_diagnostics, CancellationToken, CompilerOptions,
+    CustomTransformers, Diagnostic, DiagnosticReporter, ExitStatus, ExtendedConfigCacheEntry,
+    ParsedCommandLine, Program, ReportEmitErrorSummary, SortedArray, System, WatchOptions,
+    WriteFileCallback,
 };
 
 pub fn create_diagnostic_reporter(
@@ -73,7 +74,16 @@ fn emit_files_and_report_errors(program: Rc<Program>) -> EmitFilesAndReportError
     EmitFilesAndReportErrorsReturn { diagnostics }
 }
 
-pub fn emit_files_and_report_errors_and_get_exit_status(program: Rc<Program>) -> ExitStatus {
+pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
+    program: Rc<Program>,
+    report_diagnostic: Rc<dyn DiagnosticReporter>,
+    write: Option<TWrite>,
+    report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
+    write_file: Option<WriteFileCallback>,
+    cancellation_token: Option<Rc<dyn CancellationToken>>,
+    enit_only_dts_files: Option<bool>,
+    custom_transformers: Option<CustomTransformers>,
+) -> ExitStatus {
     let EmitFilesAndReportErrorsReturn { diagnostics } = emit_files_and_report_errors(program);
     println!("diagnostics: {:#?}", diagnostics);
     if !diagnostics.is_empty() {

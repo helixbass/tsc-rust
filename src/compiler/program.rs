@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp;
 use std::rc::Rc;
@@ -8,9 +9,9 @@ use crate::{
     for_each_ancestor_directory_str, get_directory_path, get_emit_script_target,
     get_normalized_path_components, get_path_from_path_components, get_sys, is_rooted_disk_path,
     normalize_path, to_path as to_path_helper, CompilerHost, CompilerOptions, CreateProgramOptions,
-    Diagnostic, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node, Path,
-    Program, ScriptTarget, SourceFile, StructureIsReused, System, TypeChecker, TypeCheckerHost,
-    TypeCheckerHostDebuggable,
+    Diagnostic, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node,
+    ParsedCommandLine, Path, Program, ScriptTarget, SourceFile, StructureIsReused, System,
+    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -102,16 +103,18 @@ fn create_compiler_host(
     options: &CompilerOptions,
     set_parent_nodes: Option<bool>,
 ) -> impl CompilerHost {
-    create_compiler_host_worker(options, set_parent_nodes)
+    create_compiler_host_worker(options, set_parent_nodes, None)
 }
 
-fn create_compiler_host_worker(
+pub(crate) fn create_compiler_host_worker(
     options: &CompilerOptions,
     set_parent_nodes: Option<bool>,
+    system: Option<Rc<dyn System>>,
 ) -> impl CompilerHost {
+    let system = system.unwrap_or_else(|| get_sys());
     CompilerHostConcrete {
         set_parent_nodes,
-        system: get_sys(),
+        system,
     }
 }
 
@@ -146,8 +149,11 @@ impl CompilerHost for CompilerHostConcrete {
         })
     }
 
-    fn get_canonical_file_name(&self, file_name: &str) -> String {
-        file_name.to_string()
+    fn get_canonical_file_name<'file_name>(
+        &self,
+        file_name: &'file_name str,
+    ) -> Cow<'file_name, str> {
+        file_name.into()
     }
 
     fn get_current_directory(&self) -> String {
@@ -170,12 +176,25 @@ impl CompilerHost for CompilerHostConcrete {
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
-        unimplemented!()
+        true
     }
 
     fn get_new_line(&self) -> String {
         unimplemented!()
     }
+}
+
+pub(crate) fn change_compiler_host_like_to_use_cache<
+    THost: CompilerHost,
+    TToPath: FnMut(&str) -> Path,
+    TGetSourceFile: FnMut(&str, ScriptTarget, Option<&mut dyn FnMut(&str)>, Option<bool>) -> Option<Rc<Node>>,
+>(
+    host: &THost,
+    to_path: TToPath,
+    get_source_file: Option<TGetSourceFile>,
+) /*-> */
+{
+    // unimplemented!()
 }
 
 pub(crate) trait SourceFileImportsList {}
@@ -187,6 +206,13 @@ pub(crate) fn get_mode_for_resolution_at_index<TFile: SourceFileImportsList>(
     index: usize,
 ) -> Option<ModuleKind> {
     unimplemented!()
+}
+
+pub fn get_config_file_parsing_diagnostics(
+    config_file_parse_result: &ParsedCommandLine,
+) -> Vec<Rc<Diagnostic>> {
+    // unimplemented!()
+    vec![]
 }
 
 impl Program {
@@ -335,6 +361,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
     let CreateProgramOptions {
         root_names,
         options,
+        ..
     } = root_names_or_options;
 
     let mut processing_other_files: Option<Vec<Rc<Node>>> = None;
@@ -355,7 +382,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
             options: options.clone(),
         };
         for_each(root_names, |name, _index| {
-            process_root_file(&mut helper_context, name);
+            process_root_file(&mut helper_context, &name);
             Option::<()>::None
         });
 
@@ -426,9 +453,9 @@ fn to_path(helper_context: &mut CreateProgramHelperContext, file_name: &str) -> 
     )
 }
 
-fn get_canonical_file_name(
+fn get_canonical_file_name<'file_name>(
     helper_context: &mut CreateProgramHelperContext,
-    file_name: &str,
-) -> String {
+    file_name: &'file_name str,
+) -> Cow<'file_name, str> {
     helper_context.host.get_canonical_file_name(file_name)
 }

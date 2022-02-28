@@ -1,3 +1,4 @@
+use regex::{Captures, Regex};
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
@@ -651,6 +652,23 @@ fn identity<TValue>(x: TValue) -> TValue {
     x
 }
 
+pub fn to_lower_case(x: &str) -> String {
+    x.to_lowercase()
+}
+
+lazy_static! {
+    static ref file_name_lower_case_reg_exp: Regex = Regex::new(r#"[^\u0130\u0131\u00DFa-z0-9\\/:\-_\. ]+"#/*/g*/).unwrap();
+}
+
+pub fn to_file_name_lower_case(x: &str) -> Cow<'_, str> {
+    if file_name_lower_case_reg_exp.is_match(x) {
+        file_name_lower_case_reg_exp
+            .replace_all(x, |captures: &Captures| to_lower_case(&captures[0]))
+    } else {
+        x.into()
+    }
+}
+
 pub fn not_implemented() -> ! {
     unimplemented!()
 }
@@ -884,7 +902,18 @@ pub fn string_contains(str_: &str, substring: &str) -> bool {
     str_.find(substring).is_some()
 }
 
-pub type GetCanonicalFileName = fn(&str) -> String;
+pub type GetCanonicalFileName = fn(&str) -> Cow<'_, str>;
+pub fn create_get_canonical_file_name(use_case_sensitive_file_names: bool) -> GetCanonicalFileName {
+    if use_case_sensitive_file_names {
+        identity_str_to_cow
+    } else {
+        to_file_name_lower_case
+    }
+}
+
+pub fn identity_str_to_cow(str_: &str) -> Cow<'_, str> {
+    str_.into()
+}
 
 #[derive(Clone, Debug)]
 pub struct Pattern {

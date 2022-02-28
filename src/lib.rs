@@ -24,14 +24,15 @@ pub use compiler::core::{
     add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key, cast,
     compare_strings_case_insensitive, compare_strings_case_sensitive,
     compare_strings_case_sensitive_maybe, compare_values, concatenate, contains, contains_rc,
-    ends_with, equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values,
-    every, filter, find, find_index, first_defined, first_or_undefined, flat_map,
-    flat_map_to_mutable, flatten, for_each, for_each_bool, get_ranges_where,
-    get_spelling_suggestion, get_string_comparer, insert_sorted, last, last_or_undefined, length,
-    map, map_defined, maybe_for_each, not_implemented, pad_left, pad_right, range_equals, same_map,
-    set_ui_locale, single_element_array, single_or_undefined, some, sort, sort_and_deduplicate,
-    starts_with, string_contains, sum, trim_string_start, try_cast, AssertionLevel,
-    GetCanonicalFileName, Pattern,
+    create_get_canonical_file_name, ends_with, equate_strings_case_insensitive,
+    equate_strings_case_sensitive, equate_values, every, filter, find, find_index, first_defined,
+    first_or_undefined, flat_map, flat_map_to_mutable, flatten, for_each, for_each_bool,
+    get_ranges_where, get_spelling_suggestion, get_string_comparer, identity_str_to_cow,
+    insert_sorted, last, last_or_undefined, length, map, map_defined, maybe_for_each,
+    not_implemented, pad_left, pad_right, range_equals, same_map, set_ui_locale,
+    single_element_array, single_or_undefined, some, sort, sort_and_deduplicate, starts_with,
+    string_contains, sum, trim_string_start, try_cast, AssertionLevel, GetCanonicalFileName,
+    Pattern,
 };
 pub use compiler::core_public::{
     version, Comparer, Comparison, MapLike, Push, ReadonlyCollection, SortedArray,
@@ -150,8 +151,13 @@ pub use compiler::path::{
     path_is_relative, reduce_path_components, remove_trailing_directory_separator, resolve_path,
     starts_with_directory, to_path,
 };
-use compiler::program::get_mode_for_resolution_at_index;
-pub use compiler::program::{create_program, find_config_file};
+use compiler::program::{
+    change_compiler_host_like_to_use_cache, create_compiler_host_worker,
+    get_mode_for_resolution_at_index,
+};
+pub use compiler::program::{
+    create_program, find_config_file, get_config_file_parsing_diagnostics,
+};
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position, compute_line_starts,
     compute_position_of_line_and_character, get_line_starts, get_lines_between_positions,

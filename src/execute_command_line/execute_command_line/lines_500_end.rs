@@ -6,17 +6,19 @@ use super::{
     update_report_diagnostic, CompilerOptionsOrBuildOptions,
 };
 use crate::{
-    build_opts, create_builder_status_reporter, create_compiler_diagnostic,
-    create_diagnostic_reporter, create_program, create_solution_builder,
+    build_opts, change_compiler_host_like_to_use_cache, create_builder_status_reporter,
+    create_compiler_diagnostic, create_compiler_host_worker, create_diagnostic_reporter,
+    create_get_canonical_file_name, create_program, create_solution_builder,
     create_solution_builder_host, create_solution_builder_with_watch,
     create_solution_builder_with_watch_host, dump_tracing_legend,
-    emit_files_and_report_errors_and_get_exit_status, get_error_summary_text, parse_build_command,
-    parse_command_line, validate_locale_and_set_language, BuildOptions, BuilderProgram,
-    CharacterCodes, CompilerOptions, CreateProgram, CreateProgramOptions, CustomTransformers,
-    Diagnostic, DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram,
-    ExitStatus, ExtendedConfigCacheEntry, ParsedBuildCommand, ParsedCommandLine, Program,
-    ReportEmitErrorSummary, SemanticDiagnosticsBuilderProgram, SolutionBuilderHostBase, System,
-    WatchOptions, WatchStatusReporter,
+    emit_files_and_report_errors_and_get_exit_status, get_config_file_parsing_diagnostics,
+    get_error_summary_text, parse_build_command, parse_command_line, to_path,
+    validate_locale_and_set_language, BuildOptions, BuilderProgram, CharacterCodes, CompilerHost,
+    CompilerOptions, CreateProgram, CreateProgramOptions, CustomTransformers, Diagnostic,
+    DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
+    ExtendedConfigCacheEntry, Node, ParsedBuildCommand, ParsedCommandLine, Program,
+    ReportEmitErrorSummary, ScriptTarget, SemanticDiagnosticsBuilderProgram,
+    SolutionBuilderHostBase, System, WatchOptions, WatchStatusReporter,
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
@@ -90,10 +92,10 @@ pub fn execute_command_line<
         command_line.options.generate_cpu_profile.clone()
     {
         system.enable_cpu_profiler(&command_line_options_generate_cpu_profile, &mut || {
-            execute_command_line_worker(&*system, &mut cb, &mut command_line)
+            execute_command_line_worker(system.clone(), &mut cb, &mut command_line)
         })
     } else {
-        execute_command_line_worker(&*system, &mut cb, &mut command_line)
+        execute_command_line_worker(system, &mut cb, &mut command_line)
     }
 }
 
@@ -101,6 +103,12 @@ pub enum ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
     Program(Rc<Program>),
     EmitAndSemanticDiagnosticsBuilderProgram(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>),
     ParsedCommandLine(Rc<ParsedCommandLine>),
+}
+
+impl From<Rc<Program>> for ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
+    fn from(value: Rc<Program>) -> Self {
+        Self::Program(value)
+    }
 }
 
 pub(super) fn report_watch_mode_without_sys_support(
@@ -281,17 +289,50 @@ impl ReportEmitErrorSummary for ReportEmitErrorSummaryConcrete {
 pub(super) fn perform_compilation<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    sys: &dyn System,
+    sys: Rc<dyn System>,
     mut cb: TCallback,
     report_diagnostic: Rc<dyn DiagnosticReporter>,
     config: &ParsedCommandLine,
 ) {
+    let file_names = &config.file_names;
+    let options = config.options.clone();
+    let project_references = &config.project_references;
+    let host = create_compiler_host_worker(&options, None, Some(sys.clone()));
+    let current_directory = host.get_current_directory();
+    let get_canonical_file_name =
+        create_get_canonical_file_name(host.use_case_sensitive_file_names());
+    change_compiler_host_like_to_use_cache(
+        &host,
+        |file_name| to_path(file_name, Some(&current_directory), get_canonical_file_name),
+        Option::<
+            fn(&str, ScriptTarget, Option<&mut dyn FnMut(&str)>, Option<bool>) -> Option<Rc<Node>>,
+        >::None,
+    );
+
+    enable_statistics_and_tracing(&*sys, &options, false);
+
     let program_options = CreateProgramOptions {
-        root_names: &config.file_names,
-        options: config.options.clone(),
+        root_names: config.file_names.clone(),
+        options: options.clone(),
+        project_references: project_references.clone(),
+        host: Some(Rc::new(host)),
+        config_file_parsing_diagnostics: Some(get_config_file_parsing_diagnostics(config)),
+        old_program: None,
     };
     let program = create_program(program_options);
-    let _exit_status = emit_files_and_report_errors_and_get_exit_status(program);
+    let exit_status = emit_files_and_report_errors_and_get_exit_status(
+        program.clone(),
+        report_diagnostic,
+        Some(|s: &str| sys.write(&format!("{}{}", s, sys.new_line()))),
+        create_report_error_summary(sys.clone(), options.into()),
+        None,
+        None,
+        None,
+        None,
+    );
+    report_statistics(&*sys, &program);
+    cb(program.into());
+    sys.exit(Some(exit_status));
 }
 
 pub(super) fn perform_incremental_compilation<
@@ -349,6 +390,18 @@ pub(super) fn create_watch_of_files_and_compiler_options<
     watch_options: Option<Rc<WatchOptions>>,
 ) {
     unimplemented!()
+}
+
+pub(super) fn enable_statistics_and_tracing(
+    sys: &dyn System,
+    compiler_options: &CompilerOptions,
+    is_build_mode: bool,
+) {
+    // unimplemented!()
+}
+
+pub(super) fn report_statistics(sys: &dyn System, program: &Program) {
+    // unimplemented!()
 }
 
 pub(super) fn write_config_file(

@@ -837,11 +837,11 @@ pub(super) fn print_help(sys: &dyn System, command_line: &ParsedCommandLine) {
 pub(super) fn execute_command_line_worker<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    sys: &dyn System,
+    sys: Rc<dyn System>,
     cb: &mut TCallback,
     command_line: &mut ParsedCommandLine,
 ) {
-    let mut report_diagnostic = create_diagnostic_reporter(sys, None);
+    let mut report_diagnostic = create_diagnostic_reporter(&*sys, None);
     if matches!(command_line.options.build, Some(true)) {
         report_diagnostic.call(Rc::new(
             create_compiler_diagnostic(
@@ -858,7 +858,7 @@ pub(super) fn execute_command_line_worker<
         if !command_line_options_locale.is_empty() {
             validate_locale_and_set_language(
                 command_line_options_locale,
-                sys,
+                &*sys,
                 Some(&mut command_line.errors),
             );
         }
@@ -874,7 +874,7 @@ pub(super) fn execute_command_line_worker<
 
     if matches!(command_line.options.init, Some(true)) {
         write_config_file(
-            sys,
+            &*sys,
             &*report_diagnostic,
             &command_line.options,
             &command_line.file_names,
@@ -883,14 +883,14 @@ pub(super) fn execute_command_line_worker<
     }
 
     if matches!(command_line.options.version, Some(true)) {
-        print_version(sys);
+        print_version(&*sys);
         sys.exit(Some(ExitStatus::Success));
     }
 
     if matches!(command_line.options.help, Some(true))
         || matches!(command_line.options.all, Some(true))
     {
-        print_help(sys, &command_line);
+        print_help(&*sys, &command_line);
         sys.exit(Some(ExitStatus::Success));
     }
 
@@ -964,8 +964,8 @@ pub(super) fn execute_command_line_worker<
                 .into(),
             ));
         } else {
-            print_version(sys);
-            print_help(sys, &command_line);
+            print_version(&*sys);
+            print_help(&*sys, &command_line);
         }
         sys.exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
@@ -984,7 +984,7 @@ pub(super) fn execute_command_line_worker<
                 &command_line_options,
                 Some(&extended_config_cache),
                 command_line.watch_options.clone(),
-                sys,
+                &*sys,
                 &*report_diagnostic,
             )
             .unwrap(),
@@ -992,7 +992,7 @@ pub(super) fn execute_command_line_worker<
         if matches!(command_line.options.show_config, Some(true)) {
             if !config_parse_result.errors.is_empty() {
                 report_diagnostic = update_report_diagnostic(
-                    sys,
+                    &*sys,
                     report_diagnostic,
                     config_parse_result.options.clone().into(),
                 );
@@ -1007,7 +1007,7 @@ pub(super) fn execute_command_line_worker<
                 serde_json::to_string_pretty(&convert_to_tsconfig(
                     &config_parse_result,
                     &config_file_name,
-                    sys
+                    &*sys
                 ))
                 .unwrap(),
                 sys.new_line()
@@ -1015,16 +1015,16 @@ pub(super) fn execute_command_line_worker<
             sys.exit(Some(ExitStatus::Success));
         }
         report_diagnostic = update_report_diagnostic(
-            sys,
+            &*sys,
             report_diagnostic,
             config_parse_result.options.clone().into(),
         );
         if is_watch_set(&config_parse_result.options) {
-            if report_watch_mode_without_sys_support(sys, &*report_diagnostic) {
+            if report_watch_mode_without_sys_support(&*sys, &*report_diagnostic) {
                 return;
             }
             create_watch_of_config_file(
-                sys,
+                &*sys,
                 cb,
                 report_diagnostic,
                 config_parse_result,
@@ -1033,7 +1033,7 @@ pub(super) fn execute_command_line_worker<
                 extended_config_cache,
             );
         } else if is_incremental_compilation(&config_parse_result.options) {
-            perform_incremental_compilation(sys, cb, report_diagnostic, &config_parse_result);
+            perform_incremental_compilation(&*sys, cb, report_diagnostic, &config_parse_result);
         } else {
             perform_compilation(sys, cb, report_diagnostic, &config_parse_result);
         }
@@ -1044,21 +1044,24 @@ pub(super) fn execute_command_line_worker<
                 serde_json::to_string_pretty(&convert_to_tsconfig(
                     &command_line,
                     &combine_paths(&current_directory, &vec![Some("tsconfig.json")]),
-                    sys
+                    &*sys
                 ))
                 .unwrap(),
                 sys.new_line()
             ));
             sys.exit(Some(ExitStatus::Success));
         }
-        report_diagnostic =
-            update_report_diagnostic(sys, report_diagnostic, command_line_options.clone().into());
+        report_diagnostic = update_report_diagnostic(
+            &*sys,
+            report_diagnostic,
+            command_line_options.clone().into(),
+        );
         if is_watch_set(&command_line_options) {
-            if report_watch_mode_without_sys_support(sys, &*report_diagnostic) {
+            if report_watch_mode_without_sys_support(&*sys, &*report_diagnostic) {
                 return;
             }
             create_watch_of_files_and_compiler_options(
-                sys,
+                &*sys,
                 cb,
                 report_diagnostic,
                 &command_line.file_names,
@@ -1067,7 +1070,7 @@ pub(super) fn execute_command_line_worker<
             );
         } else if is_incremental_compilation(&command_line_options) {
             command_line.options = command_line_options;
-            perform_incremental_compilation(sys, cb, report_diagnostic, &command_line);
+            perform_incremental_compilation(&*sys, cb, report_diagnostic, &command_line);
         } else {
             command_line.options = command_line_options;
             perform_compilation(sys, cb, report_diagnostic, &command_line);
