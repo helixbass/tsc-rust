@@ -8,6 +8,7 @@ use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
 use super::{BaseType, Node, Symbol, SymbolTable, Type, TypeChecker, TypePredicate};
+use crate::ScriptKind;
 use local_macros::{enum_unwrapped, type_type};
 
 pub trait ResolvedTypeInterface {
@@ -258,6 +259,12 @@ pub enum AssignmentDeclarationKind {
     ObjectDefinePropertyValue,
     ObjectDefinePropertyExports,
     ObjectDefinePrototypeProperty,
+}
+
+pub struct FileExtensionInfo {
+    pub extension: String,
+    pub is_mixed_content: bool,
+    pub script_kind: Option<ScriptKind>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

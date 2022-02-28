@@ -3163,6 +3163,8 @@ pub trait DiagnosticReporter {
     fn call(&self, diagnostic: Rc<Diagnostic>);
 }
 
+pub trait ConfigFileDiagnosticsReporter {}
+
 pub(crate) type JsonConversionNotifier = ();
 
 pub(crate) fn convert_to_object_worker<TRootExpression: Borrow<Node>>(

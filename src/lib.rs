@@ -18,7 +18,8 @@ use compiler::command_line_parser::{
     parse_build_command, ParsedBuildCommand,
 };
 pub use compiler::command_line_parser::{
-    parse_command_line, DiagnosticReporter, ExtendedConfigCacheEntry, OptionsNameMap,
+    parse_command_line, ConfigFileDiagnosticsReporter, DiagnosticReporter,
+    ExtendedConfigCacheEntry, OptionsNameMap,
 };
 pub use compiler::core::{
     add_range, append, append_if_unique, arrays_equal, binary_search, binary_search_copy_key, cast,
@@ -219,13 +220,13 @@ pub use compiler::types::{
     EmitResolverDebuggable, EmitTextWriter, EmitTransformers, EmptyStatement, EnumDeclaration,
     EnumMember, ExitStatus, ExportAssignment, ExportDeclaration, ExportSpecifier,
     ExpressionStatement, ExpressionWithTypeArguments, Extension, ExternalModuleReference,
-    FileReference, FlowAssignment, FlowCall, FlowCondition, FlowFlags, FlowLabel, FlowNode,
-    FlowNodeBase, FlowReduceLabel, FlowStart, FlowSwitchClause, ForInStatement, ForOfStatement,
-    ForStatement, FreshableIntrinsicType, FunctionDeclaration, FunctionExpression,
-    FunctionLikeDeclarationBase, FunctionLikeDeclarationInterface, FunctionTypeNode,
-    GeneratedIdentifierFlags, GenericNamedDeclarationInterface, GenericTypeInterface,
-    GenericableTypeInterface, GetAccessorDeclaration, HasConditionInterface, HasElementsInterface,
-    HasExpressionInterface, HasInitializerInterface, HasIsTypeOnlyInterface,
+    FileExtensionInfo, FileReference, FlowAssignment, FlowCall, FlowCondition, FlowFlags,
+    FlowLabel, FlowNode, FlowNodeBase, FlowReduceLabel, FlowStart, FlowSwitchClause,
+    ForInStatement, ForOfStatement, ForStatement, FreshableIntrinsicType, FunctionDeclaration,
+    FunctionExpression, FunctionLikeDeclarationBase, FunctionLikeDeclarationInterface,
+    FunctionTypeNode, GeneratedIdentifierFlags, GenericNamedDeclarationInterface,
+    GenericTypeInterface, GenericableTypeInterface, GetAccessorDeclaration, HasConditionInterface,
+    HasElementsInterface, HasExpressionInterface, HasInitializerInterface, HasIsTypeOnlyInterface,
     HasJSDocDotPosInterface, HasLabelInterface, HasQuestionDotTokenInterface,
     HasQuestionTokenInterface, HasStatementInterface, HasStatementsInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, HeritageClause,
@@ -421,13 +422,14 @@ use compiler::utilities_public::{
     supported_locale_directories, text_range_contains_position_inclusive,
 };
 pub use compiler::watch::{
-    create_diagnostic_reporter, emit_files_and_report_errors_and_get_exit_status,
+    create_diagnostic_reporter, create_watch_compiler_host_of_config_file,
+    create_watch_status_reporter, emit_files_and_report_errors_and_get_exit_status,
     get_error_summary_text, parse_config_file_with_system, perform_incremental_compilation,
-    IncrementalCompilationOptions,
+    CreateWatchCompilerHostOfConfigFileInput, IncrementalCompilationOptions,
 };
 pub use compiler::watch_public::{
-    create_incremental_compiler_host, CreateProgram, ProgramHost, WatchCompilerHost, WatchHost,
-    WatchStatusReporter,
+    create_incremental_compiler_host, create_watch_program, CreateProgram, ProgramHost,
+    WatchCompilerHost, WatchCompilerHostOfConfigFile, WatchHost, WatchStatusReporter,
 };
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::number::Number;

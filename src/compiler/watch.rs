@@ -1,11 +1,14 @@
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::{
-    add_range, sort_and_deduplicate_diagnostics, CancellationToken, CompilerHost, CompilerOptions,
-    CustomTransformers, Diagnostic, DiagnosticReporter, EmitAndSemanticDiagnosticsBuilderProgram,
-    ExitStatus, ExtendedConfigCacheEntry, ParsedCommandLine, Program, ProjectReference,
-    ReportEmitErrorSummary, SortedArray, System, WatchOptions, WriteFileCallback,
+    add_range, sort_and_deduplicate_diagnostics, BuilderProgram, CancellationToken, CompilerHost,
+    CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgram, CustomTransformers, Diagnostic,
+    DiagnosticReporter, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
+    ExtendedConfigCacheEntry, FileExtensionInfo, ParsedCommandLine, Program, ProgramHost,
+    ProjectReference, ReportEmitErrorSummary, SortedArray, System, WatchCompilerHost,
+    WatchCompilerHostOfConfigFile, WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback,
 };
 
 pub fn create_diagnostic_reporter(
@@ -27,6 +30,13 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
     fn call(&self, diagnostic: Rc<Diagnostic>) {
         unimplemented!()
     }
+}
+
+pub fn create_watch_status_reporter(
+    system: &dyn System,
+    pretty: Option<bool>,
+) -> WatchStatusReporter {
+    unimplemented!()
 }
 
 pub fn parse_config_file_with_system(
@@ -90,6 +100,61 @@ pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
         return ExitStatus::DiagnosticsPresent_OutputsGenerated;
     }
     ExitStatus::Success
+}
+
+pub struct CreateWatchCompilerHostOfConfigFileInput<
+    'a,
+    TBuilderProgram: BuilderProgram,
+    // TCreateProgram: CreateProgram<TBuilderProgram>,
+> {
+    pub system: &'a dyn System,
+    pub create_program: Option<&'a dyn CreateProgram<TBuilderProgram>>,
+    pub report_diagnostic: Option<&'a dyn DiagnosticReporter>,
+    pub report_watch_status: Option<WatchStatusReporter>,
+    pub config_file_name: &'a str,
+    pub options_to_extend: Option<&'a CompilerOptions>,
+    pub watch_options_to_extend: Option<Rc<WatchOptions>>,
+    pub extra_file_extensions: Option<&'a [FileExtensionInfo]>,
+}
+
+pub fn create_watch_compiler_host_of_config_file<'a, TBuilderProgram: BuilderProgram>(
+    _: CreateWatchCompilerHostOfConfigFileInput<'a, TBuilderProgram>,
+) -> impl WatchCompilerHostOfConfigFile<TBuilderProgram> {
+    WatchCompilerHostOfConfigFileConcrete {
+        phantom: PhantomData,
+    }
+}
+
+pub struct WatchCompilerHostOfConfigFileConcrete<TBuilderProgram: BuilderProgram> {
+    phantom: PhantomData<TBuilderProgram>,
+}
+
+impl<TBuilderProgram: BuilderProgram> WatchCompilerHostOfConfigFile<TBuilderProgram>
+    for WatchCompilerHostOfConfigFileConcrete<TBuilderProgram>
+{
+}
+
+impl<TBuilderProgram: BuilderProgram> WatchCompilerHost<TBuilderProgram>
+    for WatchCompilerHostOfConfigFileConcrete<TBuilderProgram>
+{
+    fn as_program_host(&self) -> &dyn ProgramHost<TBuilderProgram> {
+        self
+    }
+}
+
+impl<TBuilderProgram: BuilderProgram> ProgramHost<TBuilderProgram>
+    for WatchCompilerHostOfConfigFileConcrete<TBuilderProgram>
+{
+}
+
+impl<TBuilderProgram: BuilderProgram> WatchHost
+    for WatchCompilerHostOfConfigFileConcrete<TBuilderProgram>
+{
+}
+
+impl<TBuilderProgram: BuilderProgram> ConfigFileDiagnosticsReporter
+    for WatchCompilerHostOfConfigFileConcrete<TBuilderProgram>
+{
 }
 
 pub struct IncrementalCompilationOptions<'a> {

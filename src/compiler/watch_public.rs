@@ -1,7 +1,8 @@
 use std::rc::Rc;
 
 use crate::{
-    create_compiler_host_worker, get_sys, BuilderProgram, CompilerHost, CompilerOptions, System,
+    create_compiler_host_worker, get_sys, BuilderProgram, CompilerHost, CompilerOptions,
+    ConfigFileDiagnosticsReporter, System,
 };
 
 pub fn create_incremental_compiler_host(
@@ -25,4 +26,16 @@ pub trait WatchCompilerHost<TBuilderProgram: BuilderProgram>:
     ProgramHost<TBuilderProgram> + WatchHost
 {
     fn as_program_host(&self) -> &dyn ProgramHost<TBuilderProgram>;
+}
+
+pub trait WatchCompilerHostOfConfigFile<TBuilderProgram: BuilderProgram>:
+    WatchCompilerHost<TBuilderProgram> + ConfigFileDiagnosticsReporter
+{
+}
+
+pub fn create_watch_program<TBuilderProgram: BuilderProgram>(
+    host: &dyn WatchCompilerHostOfConfigFile<TBuilderProgram>,
+) /* -> */
+{
+    unimplemented!()
 }

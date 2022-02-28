@@ -10,17 +10,18 @@ use crate::{
     create_compiler_diagnostic, create_compiler_host_worker, create_diagnostic_reporter,
     create_get_canonical_file_name, create_incremental_compiler_host, create_program,
     create_solution_builder, create_solution_builder_host, create_solution_builder_with_watch,
-    create_solution_builder_with_watch_host, dump_tracing_legend,
-    emit_files_and_report_errors_and_get_exit_status, get_config_file_parsing_diagnostics,
-    get_error_summary_text, parse_build_command, parse_command_line,
-    perform_incremental_compilation as perform_incremental_compilation_, to_path,
-    validate_locale_and_set_language, BuildOptions, BuilderProgram, CharacterCodes, CompilerHost,
-    CompilerOptions, CreateProgram, CreateProgramOptions, CustomTransformers, Diagnostic,
-    DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
-    ExtendedConfigCacheEntry, IncrementalCompilationOptions, Node, ParsedBuildCommand,
-    ParsedCommandLine, Program, ProgramHost, ReportEmitErrorSummary, ScriptTarget,
-    SemanticDiagnosticsBuilderProgram, SolutionBuilderHostBase, System, WatchCompilerHost,
-    WatchOptions, WatchStatusReporter,
+    create_solution_builder_with_watch_host, create_watch_compiler_host_of_config_file,
+    create_watch_program, create_watch_status_reporter as create_watch_status_reporter_,
+    dump_tracing_legend, emit_files_and_report_errors_and_get_exit_status,
+    get_config_file_parsing_diagnostics, get_error_summary_text, parse_build_command,
+    parse_command_line, perform_incremental_compilation as perform_incremental_compilation_,
+    to_path, validate_locale_and_set_language, BuildOptions, BuilderProgram, CharacterCodes,
+    CompilerHost, CompilerOptions, CreateProgram, CreateProgramOptions,
+    CreateWatchCompilerHostOfConfigFileInput, CustomTransformers, Diagnostic, DiagnosticReporter,
+    Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, ExtendedConfigCacheEntry,
+    IncrementalCompilationOptions, Node, ParsedBuildCommand, ParsedCommandLine, Program,
+    ProgramHost, ReportEmitErrorSummary, ScriptTarget, SemanticDiagnosticsBuilderProgram,
+    SolutionBuilderHostBase, System, WatchCompilerHost, WatchOptions, WatchStatusReporter,
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
@@ -440,7 +441,7 @@ pub(super) fn create_watch_status_reporter(
     sys: &dyn System,
     options: CompilerOptionsOrBuildOptions,
 ) -> WatchStatusReporter {
-    unimplemented!()
+    create_watch_status_reporter_(sys, Some(should_be_pretty(sys, options)))
 }
 
 pub(super) fn create_watch_of_config_file<
@@ -454,7 +455,29 @@ pub(super) fn create_watch_of_config_file<
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     extended_config_cache: HashMap<String, ExtendedConfigCacheEntry>,
 ) {
-    unimplemented!()
+    let mut watch_compiler_host =
+        create_watch_compiler_host_of_config_file(CreateWatchCompilerHostOfConfigFileInput {
+            config_file_name: config_parse_result
+                .options
+                .config_file_path
+                .as_ref()
+                .unwrap(),
+            options_to_extend: Some(&options_to_extend),
+            watch_options_to_extend,
+            system,
+            report_diagnostic: Some(&*report_diagnostic),
+            report_watch_status: Some(create_watch_status_reporter(
+                system,
+                config_parse_result.options.clone().into(),
+            )),
+            create_program: Option::<&dyn CreateProgram<BuilderProgramDummy>>::None,
+            extra_file_extensions: None,
+        });
+    update_watch_compilation_host(system, cb, &mut watch_compiler_host);
+    // TODO: how to model this?
+    // watchCompilerHost.configFileParsingResult = configParseResult;
+    // watchCompilerHost.extendedConfigCache = extendedConfigCache;
+    create_watch_program(&watch_compiler_host);
 }
 
 pub(super) fn create_watch_of_files_and_compiler_options<
