@@ -665,6 +665,8 @@ pub trait ScriptReferenceHost {
     fn get_current_directory(&self) -> String;
 }
 
+pub type WriteFileCallback = ();
+
 pub trait CancellationToken {
     fn is_cancellation_requested(&self) -> bool;
 

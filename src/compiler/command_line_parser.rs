@@ -2984,6 +2984,10 @@ thread_local! {
     pub(crate) static options_for_build: Vec<Rc<CommandLineOption>> = vec![];
 }
 
+thread_local! {
+    pub(crate) static build_opts: Vec<Rc<CommandLineOption>> = vec![];
+}
+
 pub struct OptionsNameMap {
     pub options_name_map: HashMap<String, Rc<CommandLineOption>>,
     pub short_option_names: HashMap<String, String>,
@@ -3133,7 +3137,11 @@ pub(crate) struct ParsedBuildCommand {
 pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
     ParsedBuildCommand {
         build_options: BuildOptions {
+            clean: None,
+            watch: None,
+            help: None,
             pretty: None,
+            locale: None,
             generate_cpu_profile: None,
         },
         watch_options: None,

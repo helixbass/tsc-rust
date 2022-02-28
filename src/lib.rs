@@ -7,13 +7,15 @@ mod rust_helpers;
 
 pub use compiler::binder::{bind_source_file, get_module_instance_state, ModuleInstanceState};
 pub use compiler::builder::ProgramBuildInfo;
-pub use compiler::builder_public::EmitAndSemanticDiagnosticsBuilderProgram;
+pub use compiler::builder_public::{
+    BuilderProgram, EmitAndSemanticDiagnosticsBuilderProgram, SemanticDiagnosticsBuilderProgram,
+};
 pub use compiler::checker::{create_type_checker, get_node_id, get_symbol_id, NodeBuilder};
 use compiler::command_line_parser::{
-    convert_to_object_worker, convert_to_options_with_absolute_paths, convert_to_tsconfig,
-    get_diagnostic_text, module_resolution_option_declarations, option_declarations,
-    options_affecting_program_structure, options_for_build, options_for_watch, parse_build_command,
-    ParsedBuildCommand,
+    build_opts, convert_to_object_worker, convert_to_options_with_absolute_paths,
+    convert_to_tsconfig, get_diagnostic_text, module_resolution_option_declarations,
+    option_declarations, options_affecting_program_structure, options_for_build, options_for_watch,
+    parse_build_command, ParsedBuildCommand,
 };
 pub use compiler::command_line_parser::{
     parse_command_line, DiagnosticReporter, ExtendedConfigCacheEntry, OptionsNameMap,
@@ -167,6 +169,7 @@ pub use compiler::scanner::{
     reduce_each_trailing_comment_range, token_to_string, ErrorCallback, Scanner,
 };
 pub use compiler::sys::{get_sys, System};
+pub use compiler::tracing::dump_tracing_legend;
 pub use compiler::transformers::{
     chain_bundle, transform_class_fields, transform_declarations, transform_ecmascript_module,
     transform_es2015, transform_es2016, transform_es2017, transform_es2018, transform_es2019,
@@ -174,7 +177,11 @@ pub use compiler::transformers::{
     transform_jsx, transform_module, transform_node_module, transform_system_module,
     transform_type_script,
 };
-pub use compiler::tsbuild_public::BuildOptions;
+pub use compiler::tsbuild_public::{
+    create_builder_status_reporter, create_solution_builder, create_solution_builder_host,
+    create_solution_builder_with_watch, create_solution_builder_with_watch_host, BuildOptions,
+    ReportEmitErrorSummary, SolutionBuilderHostBase,
+};
 pub use compiler::types::{
     maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,
     text_str_num_chars, text_substring, AllAccessorDeclarations, ArrayBindingPattern,
@@ -269,7 +276,7 @@ pub use compiler::types::{
     UnionTypeNode, UnparsedPrepend, UnparsedPrologue, UnparsedSectionInterface, UnparsedSource,
     UnparsedTextLike, VariableDeclaration, VariableDeclarationList,
     VariableLikeDeclarationInterface, VariableStatement, VarianceFlags, VoidExpression,
-    WatchOptions, WhileStatement, WithStatement, YieldExpression, __String,
+    WatchOptions, WhileStatement, WithStatement, WriteFileCallback, YieldExpression, __String,
 };
 use compiler::types::{
     CommandLineOptionType, CommentDirectivesMap, EmitNode, ExternalEmitHelpers, ReadonlyPragmaMap,
@@ -411,6 +418,7 @@ pub use compiler::watch::{
     create_diagnostic_reporter, emit_files_and_report_errors_and_get_exit_status,
     parse_config_file_with_system,
 };
+pub use compiler::watch_public::{CreateProgram, WatchHost, WatchStatusReporter};
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::number::Number;
 pub use rust_helpers::weak_self::WeakSelf;

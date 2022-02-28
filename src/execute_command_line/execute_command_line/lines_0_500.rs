@@ -127,6 +127,12 @@ impl From<Rc<CompilerOptions>> for CompilerOptionsOrBuildOptions {
     }
 }
 
+impl From<Rc<BuildOptions>> for CompilerOptionsOrBuildOptions {
+    fn from(value: Rc<BuildOptions>) -> Self {
+        Self::BuildOptions(value)
+    }
+}
+
 pub(super) fn default_is_pretty(sys: &dyn System) -> bool {
     matches!(sys.write_output_is_tty(), Some(true))
         && sys.get_environment_variable("NO_COLOR").is_empty()

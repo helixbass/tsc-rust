@@ -22,11 +22,16 @@ pub trait System {
         None
     }
     fn read_file(&self, path: &str) -> Option<String>;
-    fn get_executing_file_path(&self) -> Cow<'static, str>;
-    fn get_current_directory(&self) -> String;
+    fn is_watch_file_supported(&self) -> bool;
+    fn is_watch_directory_supported(&self) -> bool;
     fn resolve_path(&self, path: &str) -> String;
     fn file_exists(&self, path: &str) -> bool;
     fn directory_exists(&self, path: &str) -> bool;
+    fn get_executing_file_path(&self) -> Cow<'static, str>;
+    fn get_current_directory(&self) -> String;
+    fn is_get_modified_time_supported(&self) -> bool;
+    fn is_set_modified_time_supported(&self) -> bool;
+    fn is_delete_file_supported(&self) -> bool;
     fn exit(&self, exit_code: Option<ExitStatus>) -> !;
     fn enable_cpu_profiler(&self, path: &str, continuation: &mut dyn FnMut()) {
         continuation()
@@ -85,6 +90,14 @@ impl System for SystemConcrete {
         self.read_file_worker(file_name)
     }
 
+    fn is_watch_file_supported(&self) -> bool {
+        false
+    }
+
+    fn is_watch_directory_supported(&self) -> bool {
+        false
+    }
+
     fn resolve_path(&self, path: &str) -> String {
         Path::new(path)
             .canonicalize()
@@ -104,6 +117,18 @@ impl System for SystemConcrete {
             .into_os_string()
             .into_string()
             .unwrap()
+    }
+
+    fn is_get_modified_time_supported(&self) -> bool {
+        false
+    }
+
+    fn is_set_modified_time_supported(&self) -> bool {
+        false
+    }
+
+    fn is_delete_file_supported(&self) -> bool {
+        false
     }
 
     fn file_exists(&self, path: &str) -> bool {
