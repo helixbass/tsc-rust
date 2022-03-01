@@ -1,3 +1,4 @@
+use derive_builder::Builder;
 use serde::Serialize;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -9,9 +10,10 @@ use super::{
 };
 use crate::{
     create_compiler_diagnostic, create_diagnostic_for_node_in_source_file, every,
-    extend_compiler_options, extend_watch_options, first_defined, get_directory_path,
-    get_normalized_absolute_path, get_ts_config_prop_array, normalize_path, normalize_slashes,
-    CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage, Diagnostics,
+    extend_compiler_options, extend_watch_options, filter_mutate, first_defined,
+    get_directory_path, get_normalized_absolute_path, get_ts_config_prop_array, index_of,
+    normalize_path, normalize_slashes, CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic,
+    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
     ExtendedConfigCacheEntry, FileExtensionInfo, HasInitializerInterface, Node, NodeInterface,
     ParseConfigHost, ParsedCommandLine, Path, ProjectReference, System, TypeAcquisition,
     WatchOptions,
@@ -509,6 +511,10 @@ fn create_compiler_diagnostic_only_if_json<TSourceFile: Borrow<Node>>(
     }
 }
 
+pub(super) fn is_error_no_input_files(error: &Diagnostic) -> bool {
+    error.code() == Diagnostics::No_inputs_were_found_in_config_file_0_Specified_include_paths_were_1_and_exclude_paths_were_2.code
+}
+
 pub(super) fn get_error_for_no_input_files(
     config_file_specs: &ConfigFileSpecs,
     config_file_name: Option<&str>,
@@ -521,8 +527,8 @@ pub(super) fn get_error_for_no_input_files(
             &Diagnostics::No_inputs_were_found_in_config_file_0_Specified_include_paths_were_1_and_exclude_paths_were_2,
             Some(vec![
                  config_file_name.unwrap_or("tsconfig.json").to_owned(),
-                 serde_json::to_string(include_specs.unwrap_or_else(|| &default_specs_vec)).unwrap(),
-                 serde_json::to_string(exclude_specs.unwrap_or_else(|| &default_specs_vec)).unwrap(),
+                 serde_json::to_string(include_specs.unwrap_or(&default_specs_vec)).unwrap(),
+                 serde_json::to_string(exclude_specs.unwrap_or(&default_specs_vec)).unwrap(),
             ])
         ).into()
     )
@@ -547,6 +553,28 @@ pub(crate) fn can_json_report_no_input_files(raw: Option<&serde_json::Value>) ->
     }
 }
 
+pub(crate) fn update_error_for_no_input_files(
+    file_names: &[String],
+    config_file_name: &str,
+    config_file_specs: &ConfigFileSpecs,
+    config_parse_diagnostics: &mut Vec<Rc<Diagnostic>>,
+    can_json_report_no_input_files: bool,
+) -> bool {
+    let existing_errors = config_parse_diagnostics.len();
+    if should_report_no_input_files(file_names, can_json_report_no_input_files, None) {
+        config_parse_diagnostics.push(get_error_for_no_input_files(
+            config_file_specs,
+            Some(config_file_name),
+        ));
+    } else {
+        filter_mutate(config_parse_diagnostics, |error| {
+            !is_error_no_input_files(error)
+        });
+    }
+    existing_errors != config_parse_diagnostics.len()
+}
+
+#[derive(Builder)]
 pub struct ParsedTsconfig {
     pub raw: Option<serde_json::Value>,
     pub options: Option<Rc<CompilerOptions>>,
@@ -555,15 +583,76 @@ pub struct ParsedTsconfig {
     pub extended_config_path: Option<String>,
 }
 
+pub(super) fn is_successful_parsed_tsconfig(value: &ParsedTsconfig) -> bool {
+    value.options.is_some()
+}
+
 pub(super) fn parse_config<TSourceFile: Borrow<Node>, THost: ParseConfigHost>(
     json: Option<serde_json::Value>,
     source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
     host: &THost,
     base_path: &str,
     config_file_name: Option<&str>,
-    resolution_stack: Option<&[Path]>,
+    resolution_stack: &[&str],
     errors: &mut Vec<Rc<Diagnostic>>,
     extended_config_cache: Option<&HashMap<String, ExtendedConfigCacheEntry>>,
 ) -> ParsedTsconfig {
-    unimplemented!()
+    let base_path = normalize_slashes(base_path);
+    let resolved_path = get_normalized_absolute_path(config_file_name.unwrap_or(""), &base_path);
+
+    if index_of(resolution_stack, &resolved_path) >= 0 {
+        errors.push(Rc::new(
+            create_compiler_diagnostic(
+                &Diagnostics::Circularity_detected_while_resolving_configuration_Colon_0,
+                Some(vec![[resolution_stack, &vec![&resolved_path]]
+                    .concat()
+                    .join(" -> ")]),
+            )
+            .into(),
+        ));
+        return ParsedTsconfigBuilder::default()
+            .raw(json.or_else(|| convert_to_object(source_file.unwrap().borrow(), errors)))
+            .build()
+            .unwrap();
+    }
+
+    let mut own_config: ParsedTsconfig = if let Some(json) = json {
+        parse_own_config_of_json(json, host, base_path, config_file_name, errors)
+    } else {
+        parse_own_config_of_json_source_file(
+            source_file.unwrap().borrow(),
+            host,
+            base_path,
+            config_file_name,
+            errors,
+        )
+    };
+
+    if own_config
+        .options
+        .as_ref()
+        .and_then(|options| options.paths.as_ref())
+        .is_some()
+    {
+        own_config.options.as_mut().unwrap().paths_base_path = Some(base_path);
+    }
+    if let Some(own_config_extended_config_path) = own_config.as_ref().extended_config_path {
+        let resolution_stack = [resolution_stack, &vec![&resolved_path]].concat();
+        let extended_config = get_extended_config(
+            source_file,
+            own_config_extended_config_path,
+            host,
+            resolution_stack,
+            errors,
+            extended_config_cache,
+        );
+        if let Some(extended_config) = extended_config
+            .filter(|extended_config| is_successful_parsed_tsconfig(&extended_config))
+        {
+            let base_raw = &extended_config.raw;
+            let raw = &own_config.raw;
+        }
+    }
+
+    own_config
 }

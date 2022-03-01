@@ -127,6 +127,17 @@ pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
     })
 }
 
+pub fn filter_mutate<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+    array: &mut Vec<TItem>,
+    mut predicate: TCallback,
+) {
+    *array = array
+        .into_iter()
+        .filter(|item| predicate(item))
+        .map(|item| item.clone())
+        .collect();
+}
+
 pub fn map<
     TCollection: IntoIterator,
     TReturn,
