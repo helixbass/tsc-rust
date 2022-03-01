@@ -117,7 +117,7 @@ pub struct SourceFile {
     end_flow_node: RefCell<Option<Rc<FlowNode>>>,
 
     // TsConfigSourceFile
-    config_file_specs: RefCell<Option<ConfigFileSpecs>>,
+    config_file_specs: RefCell<Option<Rc<ConfigFileSpecs>>>,
 }
 
 impl SourceFile {
@@ -422,7 +422,7 @@ impl SourceFile {
         *self.end_flow_node.borrow_mut() = end_flow_node;
     }
 
-    pub fn set_config_file_specs(&self, config_file_specs: Option<ConfigFileSpecs>) {
+    pub fn set_config_file_specs(&self, config_file_specs: Option<Rc<ConfigFileSpecs>>) {
         *self.config_file_specs.borrow_mut() = config_file_specs;
     }
 

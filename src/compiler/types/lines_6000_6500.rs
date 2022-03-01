@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
-use crate::{CompilerHost, Diagnostic, MapLike, OptionsNameMap, Program};
+use crate::{CompilerHost, Diagnostic, MapLike, OptionsNameMap, Program, StringOrPattern};
 use local_macros::{command_line_option_type, enum_unwrapped};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -260,8 +260,301 @@ pub struct CompilerOptions {
     // [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
 }
 
-#[derive(Debug)]
-pub struct WatchOptions {}
+pub fn extend_compiler_options(a: &CompilerOptions, b: &CompilerOptions) -> CompilerOptions {
+    CompilerOptions {
+        all: a.all.or(b.all),
+        allow_js: a.allow_js.or(b.allow_js),
+        allow_non_ts_extensions: a.allow_non_ts_extensions.or(b.allow_non_ts_extensions),
+        allow_synthetic_default_imports: a
+            .allow_synthetic_default_imports
+            .or(b.allow_synthetic_default_imports),
+        allow_umd_global_access: a.allow_umd_global_access.or(b.allow_umd_global_access),
+        allow_unreachable_code: a.allow_unreachable_code.or(b.allow_unreachable_code),
+        allow_unused_labels: a.allow_unused_labels.or(b.allow_unused_labels),
+        always_strict: a.always_strict.or(b.always_strict),
+        base_url: a
+            .base_url
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.base_url.as_ref().map(Clone::clone)),
+        build: a.build.or(b.build),
+        charset: a
+            .charset
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.charset.as_ref().map(Clone::clone)),
+        check_js: a.check_js.or(b.check_js),
+        config_file_path: a
+            .config_file_path
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.config_file_path.as_ref().map(Clone::clone)),
+        config_file: a
+            .config_file
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.config_file.as_ref().map(Clone::clone)),
+        declaration: a.declaration.or(b.declaration),
+        declaration_map: a.declaration_map.or(b.declaration_map),
+        emit_declaration_only: a.emit_declaration_only.or(b.emit_declaration_only),
+        declaration_dir: a
+            .declaration_dir
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.declaration_dir.as_ref().map(Clone::clone)),
+        diagnostics: a.diagnostics.or(b.diagnostics),
+        extended_diagnostics: a.extended_diagnostics.or(b.extended_diagnostics),
+        disable_size_limit: a.disable_size_limit.or(b.disable_size_limit),
+        disable_source_of_project_reference_redirect: a
+            .disable_source_of_project_reference_redirect
+            .or(b.disable_source_of_project_reference_redirect),
+        disable_solution_searching: a
+            .disable_solution_searching
+            .or(b.disable_solution_searching),
+        disable_referenced_project_load: a
+            .disable_referenced_project_load
+            .or(b.disable_referenced_project_load),
+        downlevel_iteration: a.downlevel_iteration.or(b.downlevel_iteration),
+        emit_bom: a.emit_bom.or(b.emit_bom),
+        emit_decorator_metadata: a.emit_decorator_metadata.or(b.emit_decorator_metadata),
+        exact_optional_property_types: a
+            .exact_optional_property_types
+            .or(b.exact_optional_property_types),
+        experimental_decorators: a.experimental_decorators.or(b.experimental_decorators),
+        force_consistent_casing_in_file_names: a
+            .force_consistent_casing_in_file_names
+            .or(b.force_consistent_casing_in_file_names),
+        generate_cpu_profile: a
+            .generate_cpu_profile
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.generate_cpu_profile.as_ref().map(Clone::clone)),
+        generate_trace: a
+            .generate_trace
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.generate_trace.as_ref().map(Clone::clone)),
+        help: a.help.or(b.help),
+        import_helpers: a.import_helpers.or(b.import_helpers),
+        imports_not_used_as_values: a
+            .imports_not_used_as_values
+            .or(b.imports_not_used_as_values),
+        init: a.init.or(b.init),
+        inline_source_map: a.inline_source_map.or(b.inline_source_map),
+        inline_sources: a.inline_sources.or(b.inline_sources),
+        isolated_modules: a.isolated_modules.or(b.isolated_modules),
+        jsx: a.jsx.or(b.jsx),
+        keyof_strings_only: a.keyof_strings_only.or(b.keyof_strings_only),
+        lib: a
+            .lib
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.lib.as_ref().map(Clone::clone)),
+        list_emitted_files: a.list_emitted_files.or(b.list_emitted_files),
+        list_files: a.list_files.or(b.list_files),
+        explain_files: a.explain_files.or(b.explain_files),
+        list_files_only: a.list_files_only.or(b.list_files_only),
+        locale: a
+            .locale
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.locale.as_ref().map(Clone::clone)),
+        map_root: a
+            .map_root
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.map_root.as_ref().map(Clone::clone)),
+        max_node_module_js_depth: a.max_node_module_js_depth.or(b.max_node_module_js_depth),
+        module: a.module.or(b.module),
+        module_resolution: a.module_resolution.or(b.module_resolution),
+        new_line: a.new_line.or(b.new_line),
+        no_emit: a.no_emit.or(b.no_emit),
+        no_emit_for_js_files: a.no_emit_for_js_files.or(b.no_emit_for_js_files),
+        no_emit_helpers: a.no_emit_helpers.or(b.no_emit_helpers),
+        no_emit_on_error: a.no_emit_on_error.or(b.no_emit_on_error),
+        no_error_truncation: a.no_error_truncation.or(b.no_error_truncation),
+        no_fallthrough_cases_in_switch: a
+            .no_fallthrough_cases_in_switch
+            .or(b.no_fallthrough_cases_in_switch),
+        no_implicit_any: a.no_implicit_any.or(b.no_implicit_any),
+        no_implicit_returns: a.no_implicit_returns.or(b.no_implicit_returns),
+        no_implicit_this: a.no_implicit_this.or(b.no_implicit_this),
+        no_strict_generic_checks: a.no_strict_generic_checks.or(b.no_strict_generic_checks),
+        no_unused_locals: a.no_unused_locals.or(b.no_unused_locals),
+        no_unused_parameters: a.no_unused_parameters.or(b.no_unused_parameters),
+        no_implicit_use_strict: a.no_implicit_use_strict.or(b.no_implicit_use_strict),
+        no_property_access_from_index_signature: a
+            .no_property_access_from_index_signature
+            .or(b.no_property_access_from_index_signature),
+        assume_changes_only_affect_direct_dependencies: a
+            .assume_changes_only_affect_direct_dependencies
+            .or(b.assume_changes_only_affect_direct_dependencies),
+        no_lib: a.no_lib.or(b.no_lib),
+        no_resolve: a.no_resolve.or(b.no_resolve),
+        no_unchecked_indexed_access: a
+            .no_unchecked_indexed_access
+            .or(b.no_unchecked_indexed_access),
+        out: a
+            .out
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.out.as_ref().map(Clone::clone)),
+        out_dir: a
+            .out_dir
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.out_dir.as_ref().map(Clone::clone)),
+        out_file: a
+            .out_file
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.out_file.as_ref().map(Clone::clone)),
+        paths: a
+            .paths
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.paths.as_ref().map(Clone::clone)),
+        paths_base_path: a
+            .paths_base_path
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.paths_base_path.as_ref().map(Clone::clone)),
+        plugins: a
+            .plugins
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.plugins.as_ref().map(Clone::clone)),
+        preserve_const_enums: a.preserve_const_enums.or(b.preserve_const_enums),
+        no_implicit_override: a.no_implicit_override.or(b.no_implicit_override),
+        preserve_symlinks: a.preserve_symlinks.or(b.preserve_symlinks),
+        preserve_value_imports: a.preserve_value_imports.or(b.preserve_value_imports),
+        preserve_watch_output: a.preserve_watch_output.or(b.preserve_watch_output),
+        project: a
+            .project
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.project.as_ref().map(Clone::clone)),
+        pretty: a.pretty.or(b.pretty),
+        react_namespace: a
+            .react_namespace
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.react_namespace.as_ref().map(Clone::clone)),
+        jsx_factory: a
+            .jsx_factory
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.jsx_factory.as_ref().map(Clone::clone)),
+        jsx_fragment_factory: a
+            .jsx_fragment_factory
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.jsx_fragment_factory.as_ref().map(Clone::clone)),
+        jsx_import_source: a
+            .jsx_import_source
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.jsx_import_source.as_ref().map(Clone::clone)),
+        composite: a.composite.or(b.composite),
+        incremental: a.incremental.or(b.incremental),
+        ts_build_info_file: a
+            .ts_build_info_file
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.ts_build_info_file.as_ref().map(Clone::clone)),
+        remove_comments: a.remove_comments.or(b.remove_comments),
+        root_dir: a
+            .root_dir
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.root_dir.as_ref().map(Clone::clone)),
+        root_dirs: a
+            .root_dirs
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.root_dirs.as_ref().map(Clone::clone)),
+        skip_lib_check: a.skip_lib_check.or(b.skip_lib_check),
+        skip_default_lib_check: a.skip_default_lib_check.or(b.skip_default_lib_check),
+        source_map: a.source_map.or(b.source_map),
+        source_root: a
+            .source_root
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.source_root.as_ref().map(Clone::clone)),
+        strict: a.strict.or(b.strict),
+        strict_function_types: a.strict_function_types.or(b.strict_function_types),
+        strict_bind_call_apply: a.strict_bind_call_apply.or(b.strict_bind_call_apply),
+        strict_null_checks: a.strict_null_checks.or(b.strict_null_checks),
+        strict_property_initialization: a
+            .strict_property_initialization
+            .or(b.strict_property_initialization),
+        strip_internal: a.strip_internal.or(b.strip_internal),
+        suppress_excess_property_errors: a
+            .suppress_excess_property_errors
+            .or(b.suppress_excess_property_errors),
+        suppress_implicit_any_index_errors: a
+            .suppress_implicit_any_index_errors
+            .or(b.suppress_implicit_any_index_errors),
+        suppress_output_path_check: a
+            .suppress_output_path_check
+            .or(b.suppress_output_path_check),
+        target: a.target.or(b.target),
+        trace_resolution: a.trace_resolution.or(b.trace_resolution),
+        use_unknown_in_catch_variables: a
+            .use_unknown_in_catch_variables
+            .or(b.use_unknown_in_catch_variables),
+        resolve_json_module: a.resolve_json_module.or(b.resolve_json_module),
+        types: a
+            .types
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.types.as_ref().map(Clone::clone)),
+        type_roots: a
+            .type_roots
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.type_roots.as_ref().map(Clone::clone)),
+        version: a.version.or(b.version),
+        watch: a.watch.or(b.watch),
+        es_module_interop: a.es_module_interop.or(b.es_module_interop),
+        show_config: a.show_config.or(b.show_config),
+        use_define_for_class_fields: a
+            .use_define_for_class_fields
+            .or(b.use_define_for_class_fields),
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct WatchOptions {
+    pub watch_file: Option<WatchFileKind>,
+    pub watch_directory: Option<WatchDirectoryKind>,
+    pub fallback_polling: Option<PollingWatchKind>,
+    pub synchronous_watch_directory: Option<bool>,
+    pub exclude_directories: Option<Vec<String>>,
+    pub exclude_files: Option<Vec<String>>,
+    // [option: string]: CompilerOptionsValue | undefined;
+}
+
+pub fn extend_watch_options(a: &WatchOptions, b: &WatchOptions) -> WatchOptions {
+    WatchOptions {
+        watch_file: a.watch_file.or(b.watch_file),
+        watch_directory: a.watch_directory.or(b.watch_directory),
+        fallback_polling: a.fallback_polling.or(b.fallback_polling),
+        synchronous_watch_directory: a
+            .synchronous_watch_directory
+            .or(b.synchronous_watch_directory),
+        exclude_directories: a
+            .exclude_directories
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.exclude_directories.as_ref().map(Clone::clone)),
+        exclude_files: a
+            .exclude_files
+            .as_ref()
+            .map(Clone::clone)
+            .or_else(|| b.exclude_files.as_ref().map(Clone::clone)),
+    }
+}
 
 #[derive(Debug)]
 pub struct TypeAcquisition {}
@@ -370,7 +663,15 @@ bitflags! {
 }
 
 #[derive(Debug)]
-pub struct ConfigFileSpecs {}
+pub struct ConfigFileSpecs {
+    pub files_specs: Option<Vec<String>>,
+    pub include_specs: Option<Vec<String>>,
+    pub exclude_specs: Option<Vec<String>>,
+    pub validated_files_spec: Option<Vec<String>>,
+    pub validated_include_specs: Option<Vec<String>>,
+    pub validated_exclude_specs: Option<Vec<String>>,
+    pub path_patterns: Option<Vec<StringOrPattern>>,
+}
 
 pub struct CreateProgramOptions {
     pub root_names: Vec<String>,

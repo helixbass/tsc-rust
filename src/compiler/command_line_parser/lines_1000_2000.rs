@@ -1,21 +1,16 @@
-use serde::Serialize;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{
-    command_options_without_build, common_options_with_build, get_default_type_acquisition,
-    get_wildcard_directories,
-};
+use super::{command_options_without_build, common_options_with_build};
 use crate::{
-    create_compiler_diagnostic, for_each, normalize_path, normalize_slashes,
-    AlternateModeDiagnostics, BuildOptions, CommandLineOption, CommandLineOptionBase,
-    CommandLineOptionInterface, CommandLineOptionOfBooleanType, CommandLineOptionOfListType,
-    CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
-    Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    FileExtensionInfo, ModuleKind, Node, ParseConfigHost, ParsedCommandLine, Path, Push,
-    ScriptTarget, StringOrDiagnosticMessage, System, WatchOptions,
+    create_compiler_diagnostic, for_each, AlternateModeDiagnostics, BuildOptions,
+    CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
+    CommandLineOptionOfBooleanType, CommandLineOptionOfListType, CommandLineOptionOfStringType,
+    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, Diagnostic, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, ModuleKind, Node, ParsedCommandLine, Push,
+    ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 

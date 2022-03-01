@@ -517,6 +517,7 @@ pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
     unimplemented!()
 }
 
+#[derive(Debug)]
 pub enum StringOrPattern {
     String(String),
     Pattern(Pattern),
