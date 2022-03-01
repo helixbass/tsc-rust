@@ -84,6 +84,17 @@ thread_local! {
 }
 
 thread_local! {
+    pub(crate) static transpile_option_value_compiler_options: Vec<Rc<CommandLineOption>> =
+        option_declarations.with(|option_declarations_| {
+            option_declarations_
+                .iter()
+                .filter(|option| option.transpile_option_value().is_some())
+                .map(Clone::clone)
+                .collect()
+        });
+}
+
+thread_local! {
     pub(crate) static options_for_build: Vec<Rc<CommandLineOption>> = vec![];
 }
 

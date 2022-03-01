@@ -9,7 +9,8 @@ use crate::{
     CommandLineOptionOfBooleanType, CommandLineOptionOfCustomType, CommandLineOptionOfListType,
     CommandLineOptionOfNumberType, CommandLineOptionOfStringType, CommandLineOptionType,
     Diagnostics, ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind,
-    ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
+    PollingWatchKind, ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
+    WatchDirectoryKind, WatchFileKind,
 };
 
 thread_local! {
@@ -141,7 +142,218 @@ thread_local! {
 }
 
 thread_local! {
-    pub(crate) static options_for_watch: Vec<Rc<CommandLineOption>> = vec![];
+    pub(crate) static options_for_watch: Vec<Rc<CommandLineOption>> = vec![
+        CommandLineOptionOfCustomType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
+            name: "watchFile".to_string(),
+            type_: CommandLineOptionType::Map(
+                HashMap::from_iter(IntoIter::new([
+                    ("fixedpollinginterval", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::FixedPollingInterval)),
+                    ("prioritypollinginterval", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::PriorityPollingInterval)),
+                    ("dynamicprioritypolling", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::DynamicPriorityPolling)),
+                    ("fixedchunksizepolling", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::FixedChunkSizePolling)),
+                    ("usefsevents", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::UseFsEvents)),
+                    ("usefseventsonparentdirectory", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::UseFsEventsOnParentDirectory)),
+                ]))
+            ),
+            is_file_path: None,
+            short_name: None,
+            description: Some(Diagnostics::Specify_how_the_TypeScript_watch_mode_works),
+            default_value_description: None,
+            param_type: None,
+            is_tsconfig_only: None,
+            is_command_line_only: None,
+            show_in_simplified_help_view: None,
+            category: Some(Diagnostics::Watch_and_Build_Modes),
+            strict_flag: None,
+            affects_source_file: None,
+            affects_module_resolution: None,
+            affects_bind_diagnostics: None,
+            affects_semantic_diagnostics: None,
+            affects_emit: None,
+            affects_program_structure: None,
+            transpile_option_value: None,
+        }).into(),
+        CommandLineOptionOfCustomType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
+            name: "watchDirectory".to_string(),
+            type_: CommandLineOptionType::Map(
+                HashMap::from_iter(IntoIter::new([
+                    ("usefsevents", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::UseFsEvents)),
+                    ("fixedpollinginterval", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::FixedPollingInterval)),
+                    ("dynamicprioritypolling", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::DynamicPriorityPolling)),
+                    ("fixedchunksizepolling", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::FixedChunkSizePolling)),
+                ]))
+            ),
+            is_file_path: None,
+            short_name: None,
+            description: Some(Diagnostics::Specify_how_directories_are_watched_on_systems_that_lack_recursive_file_watching_functionality),
+            default_value_description: None,
+            param_type: None,
+            is_tsconfig_only: None,
+            is_command_line_only: None,
+            show_in_simplified_help_view: None,
+            category: Some(Diagnostics::Watch_and_Build_Modes),
+            strict_flag: None,
+            affects_source_file: None,
+            affects_module_resolution: None,
+            affects_bind_diagnostics: None,
+            affects_semantic_diagnostics: None,
+            affects_emit: None,
+            affects_program_structure: None,
+            transpile_option_value: None,
+        }).into(),
+        CommandLineOptionOfCustomType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
+            name: "fallbackPolling".to_string(),
+            type_: CommandLineOptionType::Map(
+                HashMap::from_iter(IntoIter::new([
+                    ("fixedinterval", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::FixedInterval)),
+                    ("priorityinterval", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::PriorityInterval)),
+                    ("dynamicpriority", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::DynamicPriority)),
+                    ("fixedchunksize", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::FixedChunkSize)),
+                ]))
+            ),
+            is_file_path: None,
+            short_name: None,
+            description: Some(Diagnostics::Specify_what_approach_the_watcher_should_use_if_the_system_runs_out_of_native_file_watchers),
+            default_value_description: None,
+            param_type: None,
+            is_tsconfig_only: None,
+            is_command_line_only: None,
+            show_in_simplified_help_view: None,
+            category: Some(Diagnostics::Watch_and_Build_Modes),
+            strict_flag: None,
+            affects_source_file: None,
+            affects_module_resolution: None,
+            affects_bind_diagnostics: None,
+            affects_semantic_diagnostics: None,
+            affects_emit: None,
+            affects_program_structure: None,
+            transpile_option_value: None,
+        }).into(),
+        CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
+            name: "synchronousWatchDirectory".to_string(),
+            type_: CommandLineOptionType::Boolean,
+            is_file_path: None,
+            short_name: None,
+            description: Some(Diagnostics::Synchronously_call_callbacks_and_update_the_state_of_directory_watchers_on_platforms_that_don_t_support_recursive_watching_natively),
+            default_value_description: Some(StringOrDiagnosticMessage::String("false".to_string())),
+            param_type: None,
+            is_tsconfig_only: None,
+            is_command_line_only: None,
+            show_in_simplified_help_view: None,
+            category: Some(Diagnostics::Watch_and_Build_Modes),
+            strict_flag: None,
+            affects_source_file: None,
+            affects_module_resolution: None,
+            affects_bind_diagnostics: None,
+            affects_semantic_diagnostics: None,
+            affects_emit: None,
+            affects_program_structure: None,
+            transpile_option_value: None,
+        })
+        .into(),
+        CommandLineOptionOfListType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
+            name: "excludeDirectories".to_string(),
+            type_: CommandLineOptionType::List,
+            is_file_path: None,
+            short_name: None,
+            description: Some(Diagnostics::Remove_a_list_of_directories_from_the_watch_process),
+            default_value_description: None,
+            param_type: None,
+            is_tsconfig_only: None,
+            is_command_line_only: None,
+            show_in_simplified_help_view: None,
+            category: Some(Diagnostics::Watch_and_Build_Modes),
+            strict_flag: None,
+            affects_source_file: None,
+            affects_module_resolution: None,
+            affects_bind_diagnostics: None,
+            affects_semantic_diagnostics: None,
+            affects_emit: None,
+            affects_program_structure: None,
+            transpile_option_value: None,
+        },
+            CommandLineOptionOfStringType::new(CommandLineOptionBase {
+                _command_line_option_wrapper: RefCell::new(None),
+                name: "excludeDirectories".to_string(),
+                type_: CommandLineOptionType::String,
+                is_file_path: Some(true),
+                short_name: None,
+                description: None,
+                default_value_description: None,
+                param_type: None,
+                is_tsconfig_only: None,
+                is_command_line_only: None,
+                show_in_simplified_help_view: None,
+                category: None,
+                strict_flag: None,
+                affects_source_file: None,
+                affects_module_resolution: None,
+                affects_bind_diagnostics: None,
+                affects_semantic_diagnostics: None,
+                affects_emit: None,
+                affects_program_structure: None,
+                transpile_option_value: None,
+                // TODO: implement this?
+                // extraValidation: specToDiagnostic,
+            })
+            .into(),
+        )
+        .into(),
+        CommandLineOptionOfListType::new(CommandLineOptionBase {
+            _command_line_option_wrapper: RefCell::new(None),
+            name: "excludeFiles".to_string(),
+            type_: CommandLineOptionType::List,
+            is_file_path: None,
+            short_name: None,
+            description: Some(Diagnostics::Remove_a_list_of_files_from_the_watch_mode_s_processing),
+            default_value_description: None,
+            param_type: None,
+            is_tsconfig_only: None,
+            is_command_line_only: None,
+            show_in_simplified_help_view: None,
+            category: Some(Diagnostics::Watch_and_Build_Modes),
+            strict_flag: None,
+            affects_source_file: None,
+            affects_module_resolution: None,
+            affects_bind_diagnostics: None,
+            affects_semantic_diagnostics: None,
+            affects_emit: None,
+            affects_program_structure: None,
+            transpile_option_value: None,
+        },
+            CommandLineOptionOfStringType::new(CommandLineOptionBase {
+                _command_line_option_wrapper: RefCell::new(None),
+                name: "excludeFiles".to_string(),
+                type_: CommandLineOptionType::String,
+                is_file_path: Some(true),
+                short_name: None,
+                description: None,
+                default_value_description: None,
+                param_type: None,
+                is_tsconfig_only: None,
+                is_command_line_only: None,
+                show_in_simplified_help_view: None,
+                category: None,
+                strict_flag: None,
+                affects_source_file: None,
+                affects_module_resolution: None,
+                affects_bind_diagnostics: None,
+                affects_semantic_diagnostics: None,
+                affects_emit: None,
+                affects_program_structure: None,
+                transpile_option_value: None,
+                // TODO: implement this?
+                // extraValidation: specToDiagnostic,
+            })
+            .into(),
+        )
+        .into(),
+    ];
 }
 
 thread_local! {
@@ -465,7 +677,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: None,
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
@@ -780,7 +992,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: None,
             affects_program_structure: Some(true),
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         },
             CommandLineOptionOfCustomType::new(CommandLineOptionBase {
                 _command_line_option_wrapper: RefCell::new(None),
@@ -902,7 +1114,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: Some(true),
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
@@ -925,7 +1137,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: Some(true),
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
@@ -948,7 +1160,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: Some(true),
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
@@ -994,7 +1206,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: Some(true),
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         })
         .into(),
         CommandLineOptionOfStringType::new(CommandLineOptionBase {
@@ -1063,7 +1275,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: Some(true),
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         })
         .into(),
         CommandLineOptionOfStringType::new(CommandLineOptionBase {
@@ -1086,7 +1298,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: Some(true),
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
@@ -1132,7 +1344,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: None,
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
@@ -1228,7 +1440,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: None,
             affects_program_structure: None,
-            transpile_option_value: Some(true),
+            transpile_option_value: Some(Some(true)),
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
@@ -1693,7 +1905,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: None,
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         }, None, None)
         .into(),
         CommandLineOptionOfListType::new(CommandLineOptionBase {
@@ -1716,7 +1928,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: None,
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         },
             CommandLineOptionOfStringType::new(CommandLineOptionBase {
                 _command_line_option_wrapper: RefCell::new(None),
@@ -1810,7 +2022,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: None,
             affects_program_structure: Some(true),
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         },
             CommandLineOptionOfStringType::new(CommandLineOptionBase {
                 _command_line_option_wrapper: RefCell::new(None),
@@ -2179,7 +2391,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: Some(true),
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         })
         .into(),
         CommandLineOptionOfStringType::new(CommandLineOptionBase {
@@ -2343,7 +2555,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: None,
             affects_program_structure: Some(true),
-            transpile_option_value: Some(true),
+            transpile_option_value: Some(Some(true)),
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
@@ -2366,7 +2578,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: None,
             affects_program_structure: None,
-            transpile_option_value: Some(true),
+            transpile_option_value: Some(Some(true)),
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
@@ -2550,7 +2762,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: Some(true),
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
@@ -2596,7 +2808,7 @@ thread_local! {
             affects_semantic_diagnostics: None,
             affects_emit: Some(true),
             affects_program_structure: None,
-            transpile_option_value: None,
+            transpile_option_value: Some(None),
         })
         .into(),
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {

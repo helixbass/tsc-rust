@@ -21,6 +21,32 @@ pub struct ProjectReference {
     pub circular: Option<bool>,
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum WatchFileKind {
+    FixedPollingInterval,
+    PriorityPollingInterval,
+    DynamicPriorityPolling,
+    FixedChunkSizePolling,
+    UseFsEvents,
+    UseFsEventsOnParentDirectory,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum WatchDirectoryKind {
+    UseFsEvents,
+    FixedPollingInterval,
+    DynamicPriorityPolling,
+    FixedChunkSizePolling,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum PollingWatchKind {
+    FixedInterval,
+    PriorityInterval,
+    DynamicPriority,
+    FixedChunkSize,
+}
+
 #[derive(Debug)]
 pub enum CompilerOptionsValue {
     Bool(Option<bool>),
@@ -345,6 +371,9 @@ pub enum CommandLineOptionMapTypeValue {
     ImportsNotUsedAsValues(ImportsNotUsedAsValues),
     ModuleResolutionKind(ModuleResolutionKind),
     NewLineKind(NewLineKind),
+    WatchFileKind(WatchFileKind),
+    WatchDirectoryKind(WatchDirectoryKind),
+    PollingWatchKind(PollingWatchKind),
 }
 
 #[derive(Debug)]
@@ -397,7 +426,7 @@ pub trait CommandLineOptionInterface {
     fn affects_semantic_diagnostics(&self) -> bool;
     fn affects_emit(&self) -> bool;
     fn affects_program_structure(&self) -> bool;
-    fn transpile_option_value(&self) -> bool;
+    fn transpile_option_value(&self) -> Option<Option<bool>>;
 }
 
 pub struct CommandLineOptionBase {
@@ -420,7 +449,7 @@ pub struct CommandLineOptionBase {
     pub affects_semantic_diagnostics: Option<bool>,
     pub affects_emit: Option<bool>,
     pub affects_program_structure: Option<bool>,
-    pub transpile_option_value: Option<bool>,
+    pub transpile_option_value: Option<Option<bool>>,
     // extra_validation: Option<Box<dyn Fn(CompilerOptionsValue) -> (DiagnosticMessage, Vec<String>)>>,
 }
 
@@ -510,8 +539,8 @@ impl CommandLineOptionInterface for CommandLineOptionBase {
         self.affects_program_structure.unwrap_or(false)
     }
 
-    fn transpile_option_value(&self) -> bool {
-        self.transpile_option_value.unwrap_or(false)
+    fn transpile_option_value(&self) -> Option<Option<bool>> {
+        self.transpile_option_value
     }
 }
 

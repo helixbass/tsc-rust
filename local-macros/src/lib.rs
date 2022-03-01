@@ -2287,7 +2287,7 @@ fn get_command_line_option_struct_interface_impl(
                         self.#first_field_name.affects_program_structure()
                     }
 
-                    fn transpile_option_value(&self) -> bool {
+                    fn transpile_option_value(&self) -> ::std::option::Option<::std::option::Option<bool>> {
                         self.#first_field_name.transpile_option_value()
                     }
                 }
@@ -2426,7 +2426,7 @@ fn get_command_line_option_enum_interface_impl(
                         }
                     }
 
-                    fn transpile_option_value(&self) -> bool {
+                    fn transpile_option_value(&self) -> ::std::option::Option<::std::option::Option<bool>> {
                         match self {
                             #(#command_line_option_type_name::#variant_names(nested) => nested.transpile_option_value()),*
                         }
