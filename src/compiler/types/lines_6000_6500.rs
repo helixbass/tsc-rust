@@ -1,5 +1,7 @@
 #![allow(non_upper_case_globals)]
 
+use bitflags::bitflags;
+use derive_builder::Builder;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
@@ -135,7 +137,7 @@ impl PartialEq for CompilerOptionsValue {
 
 impl Eq for CompilerOptionsValue {}
 
-#[derive(Debug, Default)]
+#[derive(Builder, Debug, Default)]
 pub struct CompilerOptions {
     pub(crate) all: Option<bool>,
     pub allow_js: Option<bool>,
@@ -146,6 +148,7 @@ pub struct CompilerOptions {
     pub allow_unused_labels: Option<bool>,
     pub always_strict: Option<bool>,
     pub base_url: Option<String>,
+    #[builder(setter(skip))]
     pub(crate) build: Option<bool>,
     pub charset: Option<String>,
     pub check_js: Option<bool>,
@@ -260,6 +263,9 @@ pub struct CompilerOptions {
 #[derive(Debug)]
 pub struct WatchOptions {}
 
+#[derive(Debug)]
+pub struct TypeAcquisition {}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ModuleKind {
     None = 0,
@@ -346,11 +352,25 @@ pub enum LanguageVariant {
 #[derive(Debug)]
 pub struct ParsedCommandLine {
     pub options: Rc<CompilerOptions>,
+    pub type_acquisition: Option<TypeAcquisition>,
     pub file_names: Vec<String>,
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
     pub watch_options: Option<Rc<WatchOptions>>,
+    pub raw: Option<serde_json::Value>,
     pub errors: Vec<Rc<Diagnostic>>,
+    pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
+    pub compile_on_save: Option<bool>,
 }
+
+bitflags! {
+    pub struct WatchDirectoryFlags: u32 {
+        const None = 0;
+        const Recursive = 1 << 0;
+    }
+}
+
+#[derive(Debug)]
+pub struct ConfigFileSpecs {}
 
 pub struct CreateProgramOptions {
     pub root_names: Vec<String>,
@@ -596,13 +616,13 @@ impl CommandLineOptionOfCustomType {
     }
 }
 
-pub trait AlternateModeDiagnostics {
-    fn diagnostic(&self) -> &DiagnosticMessage;
-    fn get_options_name_map(&self) -> OptionsNameMap;
+pub struct AlternateModeDiagnostics {
+    pub diagnostic: &'static DiagnosticMessage,
+    pub get_options_name_map: fn() -> Rc<OptionsNameMap>,
 }
 
 pub trait DidYouMeanOptionsDiagnostics {
-    fn maybe_alternate_mode(&self) -> Option<Box<dyn AlternateModeDiagnostics>>;
+    fn maybe_alternate_mode(&self) -> Option<AlternateModeDiagnostics>;
     fn option_declarations(&self) -> &[CommandLineOption];
     fn unknown_option_diagnostic(&self) -> &DiagnosticMessage;
     fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage;

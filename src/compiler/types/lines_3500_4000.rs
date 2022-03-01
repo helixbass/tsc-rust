@@ -11,7 +11,7 @@ use super::{
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol,
     SymbolTable, TypeChecker,
 };
-use crate::{ModeAwareCache, PragmaContext, __String};
+use crate::{ConfigFileSpecs, ModeAwareCache, PragmaContext, __String};
 use local_macros::ast_type;
 
 pub type SourceTextAsChars = Vec<char>;
@@ -115,6 +115,9 @@ pub struct SourceFile {
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
 
     end_flow_node: RefCell<Option<Rc<FlowNode>>>,
+
+    // TsConfigSourceFile
+    config_file_specs: RefCell<Option<ConfigFileSpecs>>,
 }
 
 impl SourceFile {
@@ -168,6 +171,7 @@ impl SourceFile {
             pattern_ambient_modules: RefCell::new(None),
             pragmas: RefCell::new(None),
             end_flow_node: RefCell::new(None),
+            config_file_specs: RefCell::new(None),
         }
     }
 
@@ -418,6 +422,10 @@ impl SourceFile {
         *self.end_flow_node.borrow_mut() = end_flow_node;
     }
 
+    pub fn set_config_file_specs(&self, config_file_specs: Option<ConfigFileSpecs>) {
+        *self.config_file_specs.borrow_mut() = config_file_specs;
+    }
+
     pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
         self._symbols_without_a_symbol_table_strong_references
             .borrow_mut()
@@ -663,6 +671,10 @@ pub trait ScriptReferenceHost {
     fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>>;
     fn get_source_file_by_path(&self, path: &Path) -> Option<Rc<Node /*SourceFile*/>>;
     fn get_current_directory(&self) -> String;
+}
+
+pub trait ParseConfigHost {
+    fn use_case_sensitive_file_names(&self) -> bool;
 }
 
 pub type WriteFileCallback = ();
