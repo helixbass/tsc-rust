@@ -570,7 +570,14 @@ pub fn extend_watch_options(a: &WatchOptions, b: &WatchOptions) -> WatchOptions 
 }
 
 #[derive(Debug)]
-pub struct TypeAcquisition {}
+pub struct TypeAcquisition {
+    pub enable_auto_discovery: Option<bool>,
+    pub enable: Option<bool>,
+    pub include: Option<Vec<String>>,
+    pub exclude: Option<Vec<String>>,
+    pub disable_filename_based_type_acquisition: Option<bool>,
+    // [option: string]: CompilerOptionsValue | undefined;
+}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ModuleKind {

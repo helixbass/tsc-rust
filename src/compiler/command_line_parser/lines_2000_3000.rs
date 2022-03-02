@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use super::{
     convert_compile_on_save_option_from_json, convert_compiler_options_from_json_worker,
-    convert_to_object, convert_type_acquisition_from_json_worker,
+    convert_config_file_to_object, convert_to_object, convert_type_acquisition_from_json_worker,
     convert_watch_options_from_json_worker, get_default_compiler_options,
     get_default_type_acquisition, get_extended_config, get_file_names_from_config_specs,
     get_wildcard_directories, validate_specs,
@@ -15,12 +15,13 @@ use crate::{
     combine_paths, convert_to_relative_path, create_compiler_diagnostic,
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, every,
     extend_compiler_options, extend_watch_options, filter_mutate, first_defined,
-    get_directory_path, get_normalized_absolute_path, get_ts_config_prop_array, index_of,
-    is_rooted_disk_path, map, maybe_extend_compiler_options, normalize_path, normalize_slashes,
-    CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry,
-    FileExtensionInfo, HasInitializerInterface, Node, NodeInterface, ParseConfigHost,
-    ParsedCommandLine, Path, ProjectReference, System, TypeAcquisition, WatchOptions,
+    get_directory_path, get_normalized_absolute_path, get_text_of_property_name,
+    get_ts_config_prop_array, index_of, is_rooted_disk_path, map, maybe_extend_compiler_options,
+    normalize_path, normalize_slashes, CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic,
+    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
+    ExtendedConfigCacheEntry, FileExtensionInfo, HasInitializerInterface, JsonConversionNotifier,
+    Node, NodeInterface, ParseConfigHost, ParsedCommandLine, Path, ProjectReference, System,
+    TypeAcquisition, WatchOptions,
 };
 
 #[derive(Serialize)]
@@ -628,7 +629,10 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
         parse_own_config_of_json(json, host, &base_path, config_file_name, errors)
     } else {
         parse_own_config_of_json_source_file(
-            source_file.clone(),
+            source_file
+                .as_ref()
+                .map(|source_file| source_file.borrow())
+                .unwrap(),
             host,
             &base_path,
             config_file_name,
@@ -814,11 +818,8 @@ pub(super) fn parse_own_config_of_json<THost: ParseConfigHost>(
     }
 }
 
-pub(super) fn parse_own_config_of_json_source_file<
-    TSourceFile: Borrow<Node>,
-    THost: ParseConfigHost,
->(
-    source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
+pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
+    source_file: &Node, /*TsConfigSourceFile*/
     host: &THost,
     base_path: &str,
     config_file_name: Option<&str>,
@@ -831,8 +832,68 @@ pub(super) fn parse_own_config_of_json_source_file<
     let mut extended_config_path: Option<String> = None;
     let mut root_compiler_options: Option<Vec<Rc<Node /*PropertyName*/>>> = None;
 
-    unimplemented!()
+    let options_iterator = ParseOwnConfigOfJsonSourceFile::new();
+    let json = convert_config_file_to_object(source_file, errors, true, Some(options_iterator));
+
+    if type_acquisition.is_none() {
+        if let Some(typing_options_type_acquisition) = typing_options_type_acquisition {
+            type_acquisition = Some(
+                if let Some(typing_options_type_acquisition_enable_auto_discovery) =
+                    typing_options_type_acquisition.enable_auto_discovery
+                {
+                    TypeAcquisition {
+                        enable_auto_discovery: None,
+                        enable: Some(typing_options_type_acquisition_enable_auto_discovery),
+                        include: typing_options_type_acquisition.include.clone(),
+                        exclude: typing_options_type_acquisition.exclude.clone(),
+                        disable_filename_based_type_acquisition: None,
+                    }
+                } else {
+                    typing_options_type_acquisition
+                },
+            );
+        } else {
+            type_acquisition = Some(get_default_type_acquisition(config_file_name));
+        }
+    }
+
+    if let Some(root_compiler_options) = root_compiler_options {
+        if let Some(json) = json.as_ref() {
+            if !matches!(json, serde_json::Value::Object(map) if map.contains_key("compilerOptions"))
+            {
+                errors.push(
+                    Rc::new(
+                        create_diagnostic_for_node_in_source_file(
+                            source_file,
+                            &root_compiler_options[0],
+                            &Diagnostics::_0_should_be_set_inside_the_compilerOptions_object_of_the_config_json_file,
+                            Some(vec![(&*get_text_of_property_name(&root_compiler_options[0])).to_owned()])
+                        )
+                        .into()
+                    )
+                );
+            }
+        }
+    }
+
+    ParsedTsconfig {
+        raw: json,
+        options: Some(Rc::new(options)),
+        watch_options: watch_options.map(|watch_options| Rc::new(watch_options)),
+        type_acquisition: type_acquisition.map(|type_acquisition| Rc::new(type_acquisition)),
+        extended_config_path,
+    }
 }
+
+struct ParseOwnConfigOfJsonSourceFile {}
+
+impl ParseOwnConfigOfJsonSourceFile {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl JsonConversionNotifier for ParseOwnConfigOfJsonSourceFile {}
 
 pub(super) fn get_extends_config_path<
     THost: ParseConfigHost,

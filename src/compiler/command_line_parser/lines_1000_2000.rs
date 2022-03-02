@@ -649,7 +649,7 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
     errors: &mut Vec<Rc<Diagnostic>>,
     report_options_errors: bool,
     options_iterator: Option<TOptionsIterator>,
-) -> serde_json::Value {
+) -> Option<serde_json::Value> {
     let source_file_as_source_file = source_file.as_source_file();
     let root_expression = source_file_as_source_file
         .statements
@@ -694,11 +694,10 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
                     true,
                     known_root_options,
                     options_iterator,
-                )
-                .unwrap();
+                );
             }
         }
-        return serde_json::Value::Object(serde_json::Map::new());
+        return Some(serde_json::Value::Object(serde_json::Map::new()));
     }
     convert_to_object_worker(
         source_file,
@@ -708,7 +707,6 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
         known_root_options,
         options_iterator,
     )
-    .unwrap()
 }
 
 pub fn convert_to_object(
