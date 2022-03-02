@@ -5,7 +5,9 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
-    convert_to_object, get_default_type_acquisition, get_extended_config,
+    convert_compile_on_save_option_from_json, convert_compiler_options_from_json_worker,
+    convert_to_object, convert_type_acquisition_from_json_worker,
+    convert_watch_options_from_json_worker, get_default_type_acquisition, get_extended_config,
     get_file_names_from_config_specs, get_wildcard_directories, validate_specs,
 };
 use crate::{
@@ -738,7 +740,77 @@ pub(super) fn parse_own_config_of_json<THost: ParseConfigHost>(
     config_file_name: Option<&str>,
     errors: &mut Vec<Rc<Diagnostic>>,
 ) -> ParsedTsconfig {
-    unimplemented!()
+    let mut json = match json {
+        serde_json::Value::Object(json) => json,
+        _ => panic!("Expected object"),
+    };
+    if json.contains_key("excludes") {
+        errors.push(Rc::new(
+            create_compiler_diagnostic(
+                &Diagnostics::Unknown_option_excludes_Did_you_mean_exclude,
+                None,
+            )
+            .into(),
+        ));
+    }
+
+    let options = convert_compiler_options_from_json_worker(
+        json.get("compilerOptions"),
+        base_path,
+        errors,
+        config_file_name,
+    );
+    let type_acquisition = convert_type_acquisition_from_json_worker(
+        json.get("typeAcquisition")
+            .or_else(|| json.get("typingOptions")),
+        base_path,
+        errors,
+        config_file_name,
+    );
+    let watch_options =
+        convert_watch_options_from_json_worker(json.get("watchOptions"), base_path, errors);
+    json.insert(
+        "compileOnSave".to_owned(),
+        serde_json::Value::Bool(convert_compile_on_save_option_from_json(
+            &json, base_path, errors,
+        )),
+    );
+    let mut extended_config_path: Option<String> = None;
+
+    if let Some(json_extends) = json.get("extends") {
+        match json_extends {
+            serde_json::Value::String(json_extends) => {
+                let new_base = if let Some(config_file_name) = config_file_name {
+                    directory_of_combined_path(config_file_name, base_path)
+                } else {
+                    base_path.to_owned()
+                };
+                extended_config_path = get_extends_config_path(
+                    json_extends,
+                    host,
+                    &new_base,
+                    errors,
+                    |message, args| Rc::new(create_compiler_diagnostic(message, args).into()),
+                );
+            }
+            _ => {
+                errors.push(Rc::new(
+                    create_compiler_diagnostic(
+                        &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
+                        Some(vec!["extends".to_owned(), "string".to_owned()]),
+                    )
+                    .into(),
+                ));
+            }
+        }
+    }
+    ParsedTsconfig {
+        raw: Some(serde_json::Value::Object(json)),
+        options: Some(Rc::new(options)),
+        watch_options: watch_options.map(|watch_options| Rc::new(watch_options)),
+        type_acquisition: type_acquisition.map(|type_acquisition| Rc::new(type_acquisition)),
+        extended_config_path,
+    }
 }
 
 pub(super) fn parse_own_config_of_json_source_file<
@@ -751,5 +823,18 @@ pub(super) fn parse_own_config_of_json_source_file<
     config_file_name: Option<&str>,
     errors: &mut Vec<Rc<Diagnostic>>,
 ) -> ParsedTsconfig {
+    unimplemented!()
+}
+
+pub(super) fn get_extends_config_path<
+    THost: ParseConfigHost,
+    TCreateDiagnostic: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Rc<Diagnostic>,
+>(
+    extended_config: &str,
+    host: &THost,
+    base_path: &str,
+    errors: &mut Vec<Rc<Diagnostic>>,
+    create_diagnostic: TCreateDiagnostic,
+) -> Option<String> {
     unimplemented!()
 }
