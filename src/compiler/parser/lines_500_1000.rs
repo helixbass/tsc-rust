@@ -527,7 +527,7 @@ impl ParserType {
                 &mut *result_as_source_file.parse_diagnostics(),
                 false,
                 None,
-                Option::<JsonConversionNotifierDummy>::None,
+                Option::<&JsonConversionNotifierDummy>::None,
             );
             result_as_source_file.set_referenced_files(vec![]);
             result_as_source_file.set_type_reference_directives(vec![]);

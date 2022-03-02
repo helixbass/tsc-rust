@@ -833,7 +833,7 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
     let mut root_compiler_options: Option<Vec<Rc<Node /*PropertyName*/>>> = None;
 
     let options_iterator = ParseOwnConfigOfJsonSourceFile::new();
-    let json = convert_config_file_to_object(source_file, errors, true, Some(options_iterator));
+    let json = convert_config_file_to_object(source_file, errors, true, Some(&options_iterator));
 
     if type_acquisition.is_none() {
         if let Some(typing_options_type_acquisition) = typing_options_type_acquisition {

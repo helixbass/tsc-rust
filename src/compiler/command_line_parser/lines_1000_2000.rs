@@ -13,8 +13,8 @@ use crate::{
     CommandLineOptionOfBooleanType, CommandLineOptionOfListType, CommandLineOptionOfStringType,
     CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, DidYouMeanOptionsDiagnostics, ModuleKind,
-    Node, NodeArray, NodeInterface, Number, ParsedCommandLine, Push, ScriptTarget,
-    StringOrDiagnosticMessage, SyntaxKind, WatchOptions,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, ParsedCommandLine, Push,
+    ScriptTarget, StringOrDiagnosticMessage, SyntaxKind, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -669,7 +669,7 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
     source_file: &Node, /*JsonSourceFile*/
     errors: &mut Vec<Rc<Diagnostic>>,
     report_options_errors: bool,
-    options_iterator: Option<TOptionsIterator>,
+    options_iterator: Option<&TOptionsIterator>,
 ) -> Option<serde_json::Value> {
     let source_file_as_source_file = source_file.as_source_file();
     let root_expression = source_file_as_source_file
@@ -744,7 +744,7 @@ pub fn convert_to_object(
         errors,
         true,
         None,
-        Option::<JsonConversionNotifierDummy>::None,
+        Option::<&JsonConversionNotifierDummy>::None,
     )
 }
 
@@ -757,7 +757,7 @@ pub(crate) fn convert_to_object_worker<
     errors: &mut Push<Rc<Diagnostic>>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
-    json_conversion_notifier: Option<TJsonConversionNotifier>,
+    json_conversion_notifier: Option<&TJsonConversionNotifier>,
 ) -> Option<serde_json::Value> {
     if root_expression.is_none() {
         return if return_value {
@@ -769,7 +769,14 @@ pub(crate) fn convert_to_object_worker<
     let root_expression = root_expression.unwrap();
     let root_expression = root_expression.borrow();
 
-    convert_property_value_to_json(errors, source_file, root_expression, known_root_options)
+    convert_property_value_to_json(
+        errors,
+        source_file,
+        json_conversion_notifier,
+        return_value,
+        root_expression,
+        known_root_options,
+    )
 }
 
 pub(super) fn convert_object_literal_expression_to_json<
@@ -784,8 +791,8 @@ pub(super) fn convert_object_literal_expression_to_json<
     extra_key_diagnostics: Option<&Box<dyn DidYouMeanOptionsDiagnostics>>,
     parent_option: Option<&str>,
 ) -> Option<serde_json::Value> {
-    let result = if return_value {
-        Some(serde_json::Value::Object(serde_json::Map::new()))
+    let mut result = if return_value {
+        Some(serde_json::Map::new())
     } else {
         None
     };
@@ -817,11 +824,11 @@ pub(super) fn convert_object_literal_expression_to_json<
                 .into(),
             ));
         }
-        if !is_double_quoted_string(&element_as_property_assignment.name) {
+        if !is_double_quoted_string(source_file, &element_as_property_assignment.name()) {
             errors.push(Rc::new(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
-                    &element_as_property_assignment.name,
+                    &element_as_property_assignment.name(),
                     &Diagnostics::String_literal_with_double_quotes_expected,
                     None,
                 )
@@ -829,11 +836,11 @@ pub(super) fn convert_object_literal_expression_to_json<
             ));
         }
 
-        let text_of_key = if is_computed_non_literal_name(&element_as_property_assignment.name) {
+        let text_of_key = if is_computed_non_literal_name(&element_as_property_assignment.name()) {
             None
         } else {
             Some(get_text_of_property_name(
-                &element_as_property_assignment.name,
+                &element_as_property_assignment.name(),
             ))
         };
         let key_text = text_of_key.map(|text_of_key| unescape_leading_underscores(&text_of_key));
@@ -852,7 +859,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                                 Rc::new(
                                     create_diagnostic_for_node_in_source_file(
                                         source_file,
-                                        &element_as_property_assignment.name,
+                                        &element_as_property_assignment.name(),
                                         message,
                                         args,
                                     )
@@ -864,8 +871,8 @@ pub(super) fn convert_object_literal_expression_to_json<
                         errors.push(Rc::new(
                             create_diagnostic_for_node_in_source_file(
                                 source_file,
-                                &element_as_property_assignment.name,
-                                extra_key_diagnostics.unknown_option_diagnostic,
+                                &element_as_property_assignment.name(),
+                                extra_key_diagnostics.unknown_option_diagnostic(),
                                 key_text,
                             )
                             .into(),
@@ -877,13 +884,18 @@ pub(super) fn convert_object_literal_expression_to_json<
         let value = convert_property_value_to_json(
             errors,
             source_file,
+            json_conversion_notifier,
+            return_value,
             &element_as_property_assignment.initializer,
             option,
         );
         if let Some(key_text) = key_text {
             if return_value {
                 if let Some(value) = value.as_ref() {
-                    result.insert(key_text.clone(), value.clone());
+                    result
+                        .as_mut()
+                        .unwrap()
+                        .insert(key_text.clone(), value.clone());
                 }
             }
             if let Some(json_conversion_notifier) = json_conversion_notifier {
@@ -901,14 +913,14 @@ pub(super) fn convert_object_literal_expression_to_json<
                         if is_valid_option_value {
                             json_conversion_notifier.on_set_valid_option_key_value_in_root(
                                 &key_text,
-                                &element_as_property_assignment.name,
+                                &element_as_property_assignment.name(),
                                 value.as_ref(),
                                 &element_as_property_assignment.initializer,
                             );
                         } else if option.is_none() {
                             json_conversion_notifier.on_set_unknown_option_key_value_in_root(
                                 &key_text,
-                                &element_as_property_assignment.name,
+                                &element_as_property_assignment.name(),
                                 value.as_ref(),
                                 &element_as_property_assignment.initializer,
                             );
@@ -918,7 +930,7 @@ pub(super) fn convert_object_literal_expression_to_json<
             }
         }
     }
-    result
+    result.map(|result| serde_json::Value::Object(result))
 }
 
 pub(super) fn convert_array_literal_expression_to_json(
@@ -928,9 +940,11 @@ pub(super) fn convert_array_literal_expression_to_json(
     unimplemented!()
 }
 
-pub(super) fn convert_property_value_to_json(
+pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConversionNotifier>(
     errors: &mut Push<Rc<Diagnostic>>,
-    source_file: &Node,      /*JsonSourceFile*/
+    source_file: &Node, /*JsonSourceFile*/
+    json_conversion_notifier: Option<&TJsonConversionNotifier>,
+    return_value: bool,
     value_expression: &Node, /*Expression*/
     option: Option<&CommandLineOption>,
 ) -> Option<serde_json::Value> {
@@ -1143,6 +1157,10 @@ pub(super) fn convert_property_value_to_json(
                     source_file,
                     value_expression,
                     convert_object_literal_expression_to_json(
+                        return_value,
+                        errors,
+                        source_file,
+                        json_conversion_notifier,
                         object_literal_expression,
                         element_options,
                         extra_key_diagnostics,
@@ -1157,6 +1175,10 @@ pub(super) fn convert_property_value_to_json(
                     source_file,
                     value_expression,
                     convert_object_literal_expression_to_json(
+                        return_value,
+                        errors,
+                        source_file,
+                        json_conversion_notifier,
                         object_literal_expression,
                         None,
                         None,
