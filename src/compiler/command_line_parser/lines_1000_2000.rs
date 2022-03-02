@@ -632,6 +632,24 @@ pub trait ConfigFileDiagnosticsReporter {}
 
 pub(crate) type JsonConversionNotifier = ();
 
+pub fn convert_to_object(
+    source_file: &Node, /*JsonSourceFile*/
+    errors: &mut Push<Rc<Diagnostic>>,
+) -> Option<serde_json::Value> {
+    convert_to_object_worker(
+        source_file,
+        source_file
+            .as_source_file()
+            .statements
+            .get(0)
+            .map(|statement| statement.as_expression_statement().expression.clone()),
+        errors,
+        true,
+        None,
+        None,
+    )
+}
+
 pub(crate) fn convert_to_object_worker<TRootExpression: Borrow<Node>>(
     source_file: &Node, /*JsonSourceFile*/
     root_expression: Option<TRootExpression>,
@@ -639,6 +657,6 @@ pub(crate) fn convert_to_object_worker<TRootExpression: Borrow<Node>>(
     return_value: bool,
     known_root_options: Option<CommandLineOption>,
     json_conversion_notifier: Option<JsonConversionNotifier>,
-) {
+) -> Option<serde_json::Value> {
     unimplemented!()
 }

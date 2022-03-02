@@ -8,6 +8,17 @@ use crate::{
     TypeAcquisition, WatchDirectoryFlags,
 };
 
+pub(crate) fn get_extended_config<TSourceFile: Borrow<Node>, THost: ParseConfigHost>(
+    source_file: Option<TSourceFile>,
+    extended_config_path: &str,
+    host: &THost,
+    resolution_stack: &[&str],
+    errors: &mut Vec<Rc<Diagnostic>>,
+    extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
+) -> Option<ParsedTsconfig> {
+    unimplemented!()
+}
+
 pub struct ExtendedConfigCacheEntry {
     pub extended_result: Rc<Node /*TsConfigSourceFile*/>,
     pub extended_config: Option<ParsedTsconfig>,

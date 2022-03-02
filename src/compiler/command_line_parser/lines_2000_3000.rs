@@ -5,18 +5,19 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
-    command_options_without_build, common_options_with_build, get_default_type_acquisition,
+    convert_to_object, get_default_type_acquisition, get_extended_config,
     get_file_names_from_config_specs, get_wildcard_directories, validate_specs,
 };
 use crate::{
-    create_compiler_diagnostic, create_diagnostic_for_node_in_source_file, every,
+    combine_paths, convert_to_relative_path, create_compiler_diagnostic,
+    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, every,
     extend_compiler_options, extend_watch_options, filter_mutate, first_defined,
     get_directory_path, get_normalized_absolute_path, get_ts_config_prop_array, index_of,
-    normalize_path, normalize_slashes, CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    ExtendedConfigCacheEntry, FileExtensionInfo, HasInitializerInterface, Node, NodeInterface,
-    ParseConfigHost, ParsedCommandLine, Path, ProjectReference, System, TypeAcquisition,
-    WatchOptions,
+    is_rooted_disk_path, map, maybe_extend_compiler_options, normalize_path, normalize_slashes,
+    CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry,
+    FileExtensionInfo, HasInitializerInterface, Node, NodeInterface, ParseConfigHost,
+    ParsedCommandLine, Path, ProjectReference, System, TypeAcquisition, WatchOptions,
 };
 
 #[derive(Serialize)]
@@ -64,7 +65,7 @@ pub(super) fn parse_json_config_file_content_worker<
     config_file_name: Option<&str>,
     resolution_stack: Option<&[Path]>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
-    extended_config_cache: Option<&HashMap<String, ExtendedConfigCacheEntry>>,
+    extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
 ) -> ParsedCommandLine {
     let existing_options = existing_options.unwrap_or_else(|| Rc::new(Default::default()));
     let resolution_stack_default = vec![];
@@ -83,7 +84,10 @@ pub(super) fn parse_json_config_file_content_worker<
         host,
         base_path,
         config_file_name,
-        Some(resolution_stack),
+        &*resolution_stack
+            .into_iter()
+            .map(|path| &**path)
+            .collect::<Vec<_>>(),
         &mut errors,
         extended_config_cache,
     );
@@ -154,7 +158,7 @@ pub(super) fn parse_json_config_file_content_worker<
         type_acquisition: Some(
             parsed_config
                 .type_acquisition
-                .unwrap_or_else(|| get_default_type_acquisition(None)),
+                .unwrap_or_else(|| Rc::new(get_default_type_acquisition(None))),
         ),
         raw: raw.map(Clone::clone),
         errors,
@@ -579,7 +583,7 @@ pub struct ParsedTsconfig {
     pub raw: Option<serde_json::Value>,
     pub options: Option<Rc<CompilerOptions>>,
     pub watch_options: Option<Rc<WatchOptions>>,
-    pub type_acquisition: Option<TypeAcquisition>,
+    pub type_acquisition: Option<Rc<TypeAcquisition>>,
     pub extended_config_path: Option<String>,
 }
 
@@ -587,7 +591,7 @@ pub(super) fn is_successful_parsed_tsconfig(value: &ParsedTsconfig) -> bool {
     value.options.is_some()
 }
 
-pub(super) fn parse_config<TSourceFile: Borrow<Node>, THost: ParseConfigHost>(
+pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfigHost>(
     json: Option<serde_json::Value>,
     source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
     host: &THost,
@@ -595,16 +599,17 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node>, THost: ParseConfigHost>(
     config_file_name: Option<&str>,
     resolution_stack: &[&str],
     errors: &mut Vec<Rc<Diagnostic>>,
-    extended_config_cache: Option<&HashMap<String, ExtendedConfigCacheEntry>>,
+    extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
 ) -> ParsedTsconfig {
     let base_path = normalize_slashes(base_path);
-    let resolved_path = get_normalized_absolute_path(config_file_name.unwrap_or(""), &base_path);
+    let resolved_path =
+        get_normalized_absolute_path(config_file_name.unwrap_or(""), Some(&base_path));
 
-    if index_of(resolution_stack, &resolved_path) >= 0 {
+    if index_of(resolution_stack, &&*resolved_path, |a, b| a == b) >= 0 {
         errors.push(Rc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Circularity_detected_while_resolving_configuration_Colon_0,
-                Some(vec![[resolution_stack, &vec![&resolved_path]]
+                Some(vec![[resolution_stack, &*vec![&*resolved_path]]
                     .concat()
                     .join(" -> ")]),
             )
@@ -617,12 +622,12 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node>, THost: ParseConfigHost>(
     }
 
     let mut own_config: ParsedTsconfig = if let Some(json) = json {
-        parse_own_config_of_json(json, host, base_path, config_file_name, errors)
+        parse_own_config_of_json(json, host, &base_path, config_file_name, errors)
     } else {
         parse_own_config_of_json_source_file(
-            source_file.unwrap().borrow(),
+            source_file.clone(),
             host,
-            base_path,
+            &base_path,
             config_file_name,
             errors,
         )
@@ -634,25 +639,117 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node>, THost: ParseConfigHost>(
         .and_then(|options| options.paths.as_ref())
         .is_some()
     {
-        own_config.options.as_mut().unwrap().paths_base_path = Some(base_path);
+        // own_config.options.as_mut().unwrap().paths_base_path = Some(base_path.clone());
+        own_config.options = {
+            let mut options = maybe_extend_compiler_options(None, own_config.options.as_deref());
+            options.paths_base_path = Some(base_path.clone());
+            Some(Rc::new(options))
+        };
     }
-    if let Some(own_config_extended_config_path) = own_config.as_ref().extended_config_path {
-        let resolution_stack = [resolution_stack, &vec![&resolved_path]].concat();
-        let extended_config = get_extended_config(
+    if let Some(own_config_extended_config_path) = own_config.extended_config_path.as_ref() {
+        let resolution_stack = [resolution_stack, &*vec![&*resolved_path]].concat();
+        let extended_config: Option<ParsedTsconfig> = get_extended_config(
             source_file,
             own_config_extended_config_path,
             host,
-            resolution_stack,
+            &resolution_stack,
             errors,
             extended_config_cache,
         );
         if let Some(extended_config) = extended_config
             .filter(|extended_config| is_successful_parsed_tsconfig(&extended_config))
         {
-            let base_raw = &extended_config.raw;
-            let raw = &own_config.raw;
+            let base_raw = match extended_config.raw.as_ref().unwrap() {
+                serde_json::Value::Object(map) => map,
+                _ => panic!("Expected object"),
+            };
+            let mut raw = match own_config.raw.as_mut().unwrap() {
+                serde_json::Value::Object(map) => map,
+                _ => panic!("Expected object"),
+            };
+            let mut relative_difference: Option<String> = None;
+            let mut set_property_in_raw_if_not_undefined = |property_name: &str| {
+                let base_raw_property = base_raw.get(property_name);
+                if let Some(serde_json::Value::Array(base_raw_property)) = base_raw_property {
+                    let mut raw_property = raw.entry(property_name);
+                    raw_property.or_insert_with(|| {
+                        serde_json::Value::Array(
+                            map(Some(base_raw_property), |path, _| {
+                                let path = match path {
+                                    serde_json::Value::String(path) => path,
+                                    _ => panic!("Expected string"),
+                                };
+                                serde_json::Value::String(if is_rooted_disk_path(path) {
+                                    path.to_owned()
+                                } else {
+                                    if relative_difference.is_none() {
+                                        relative_difference = Some(convert_to_relative_path(
+                                            &get_directory_path(own_config_extended_config_path),
+                                            &base_path,
+                                            create_get_canonical_file_name(
+                                                host.use_case_sensitive_file_names(),
+                                            ),
+                                        ));
+                                    }
+                                    combine_paths(
+                                        relative_difference.as_ref().unwrap(),
+                                        &*vec![Some(&**path)],
+                                    )
+                                })
+                            })
+                            .unwrap(),
+                        )
+                    });
+                }
+            };
+            set_property_in_raw_if_not_undefined("include");
+            set_property_in_raw_if_not_undefined("exclude");
+            set_property_in_raw_if_not_undefined("files");
+            if let Some(base_raw_compile_on_save) = base_raw.get("compileOnSave") {
+                raw.entry("compileOnSave")
+                    .or_insert_with(|| base_raw_compile_on_save.clone());
+            }
+            own_config.options = Some(Rc::new(maybe_extend_compiler_options(
+                extended_config.options.as_deref(),
+                own_config.options.as_deref(),
+            )));
+            own_config.watch_options =
+                if own_config.watch_options.is_some() && extended_config.watch_options.is_some() {
+                    Some(Rc::new(extend_watch_options(
+                        extended_config.watch_options.as_ref().unwrap(),
+                        own_config.watch_options.as_ref().unwrap(),
+                    )))
+                } else {
+                    own_config
+                        .watch_options
+                        .clone()
+                        .or_else(|| extended_config.watch_options.clone())
+                };
         }
     }
 
     own_config
+}
+
+pub(super) fn parse_own_config_of_json<THost: ParseConfigHost>(
+    json: serde_json::Value,
+    host: &THost,
+    base_path: &str,
+    config_file_name: Option<&str>,
+    errors: &mut Vec<Rc<Diagnostic>>,
+) -> ParsedTsconfig {
+    unimplemented!()
+}
+
+pub(super) fn parse_own_config_of_json_source_file<
+    TSourceFile: Borrow<Node>,
+    THost: ParseConfigHost,
+>(
+    source_file: Option<TSourceFile /*TsConfigSourceFile*/>,
+    host: &THost,
+    base_path: &str,
+    config_file_name: Option<&str>,
+    errors: &mut Vec<Rc<Diagnostic>>,
+) -> ParsedTsconfig {
+    unimplemented!()
 }

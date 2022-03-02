@@ -524,6 +524,19 @@ pub fn extend_compiler_options(a: &CompilerOptions, b: &CompilerOptions) -> Comp
     }
 }
 
+pub fn maybe_extend_compiler_options(
+    a: Option<&CompilerOptions>,
+    b: Option<&CompilerOptions>,
+) -> CompilerOptions {
+    match (a, b) {
+        (Some(a), Some(b)) => extend_compiler_options(a, b),
+        _ => {
+            let default: CompilerOptions = Default::default();
+            extend_compiler_options(a.unwrap_or(&default), b.unwrap_or(&default))
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct WatchOptions {
     pub watch_file: Option<WatchFileKind>,
@@ -645,7 +658,7 @@ pub enum LanguageVariant {
 #[derive(Debug)]
 pub struct ParsedCommandLine {
     pub options: Rc<CompilerOptions>,
-    pub type_acquisition: Option<TypeAcquisition>,
+    pub type_acquisition: Option<Rc<TypeAcquisition>>,
     pub file_names: Vec<String>,
     pub project_references: Option<Vec<Rc<ProjectReference>>>,
     pub watch_options: Option<Rc<WatchOptions>>,
