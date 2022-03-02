@@ -2290,6 +2290,14 @@ fn get_command_line_option_struct_interface_impl(
                     fn transpile_option_value(&self) -> ::std::option::Option<::std::option::Option<bool>> {
                         self.#first_field_name.transpile_option_value()
                     }
+
+                    fn maybe_extra_validation(
+                        &self,
+                    ) -> ::std::option::Option<
+                        fn(::std::option::Option<&serde_json::Value>) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                    > {
+                        self.#first_field_name.maybe_extra_validation()
+                    }
                 }
             }
         }
@@ -2429,6 +2437,16 @@ fn get_command_line_option_enum_interface_impl(
                     fn transpile_option_value(&self) -> ::std::option::Option<::std::option::Option<bool>> {
                         match self {
                             #(#command_line_option_type_name::#variant_names(nested) => nested.transpile_option_value()),*
+                        }
+                    }
+
+                    fn maybe_extra_validation(
+                        &self,
+                    ) -> ::std::option::Option<
+                        fn(::std::option::Option<&serde_json::Value>) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                    > {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_extra_validation()),*
                         }
                     }
                 }

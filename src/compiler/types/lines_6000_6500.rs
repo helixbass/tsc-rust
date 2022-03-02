@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
-use crate::{CompilerHost, Diagnostic, MapLike, OptionsNameMap, Program, StringOrPattern};
+use crate::{CompilerHost, Diagnostic, MapLike, Number, OptionsNameMap, Program, StringOrPattern};
 use local_macros::{command_line_option_type, enum_unwrapped};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -64,6 +64,7 @@ pub enum CompilerOptionsValue {
     MapLikeVecString(Option<MapLike<Vec<String>>>),
     VecPluginImport(Option<Vec<PluginImport>>),
     ScriptTarget(Option<ScriptTarget>),
+    Number(Option<Number>),
 }
 
 impl CompilerOptionsValue {
@@ -129,6 +130,10 @@ impl PartialEq for CompilerOptionsValue {
             (
                 CompilerOptionsValue::ScriptTarget(self_value),
                 CompilerOptionsValue::ScriptTarget(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::Number(self_value),
+                CompilerOptionsValue::Number(other_value),
             ) => self_value == other_value,
             _ => false,
         }
@@ -738,6 +743,10 @@ impl CommandLineOptionType {
             Self::Map(_) => "map",
         }
     }
+
+    pub fn as_map(&self) -> &HashMap<&'static str, CommandLineOptionMapTypeValue> {
+        enum_unwrapped!(self, [CommandLineOptionType, Map])
+    }
 }
 
 #[derive(Eq, PartialEq)]
@@ -767,7 +776,13 @@ pub trait CommandLineOptionInterface {
     fn affects_semantic_diagnostics(&self) -> bool;
     fn affects_emit(&self) -> bool;
     fn affects_program_structure(&self) -> bool;
+    // TODO: rename maybe_transpile_option_value() for consistency?
     fn transpile_option_value(&self) -> Option<Option<bool>>;
+    fn maybe_extra_validation(
+        &self,
+    ) -> Option<
+        fn(Option<&serde_json::Value>) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+    >;
 }
 
 pub struct CommandLineOptionBase {
@@ -882,6 +897,14 @@ impl CommandLineOptionInterface for CommandLineOptionBase {
 
     fn transpile_option_value(&self) -> Option<Option<bool>> {
         self.transpile_option_value
+    }
+
+    fn maybe_extra_validation(
+        &self,
+    ) -> Option<
+        fn(Option<&serde_json::Value>) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+    > {
+        None
     }
 }
 
@@ -1001,6 +1024,10 @@ pub enum CommandLineOption {
 impl CommandLineOption {
     pub fn as_command_line_option_of_list_type(&self) -> &CommandLineOptionOfListType {
         enum_unwrapped!(self, [CommandLineOption, CommandLineOptionOfListType])
+    }
+
+    pub fn as_ts_config_only_option(&self) -> &TsConfigOnlyOption {
+        enum_unwrapped!(self, [CommandLineOption, TsConfigOnlyOption])
     }
 }
 

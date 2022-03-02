@@ -1,5 +1,6 @@
 use std::fmt;
 use std::hash;
+use std::ops;
 
 #[derive(Clone, Copy, Debug, PartialOrd)]
 pub struct Number(f64);
@@ -38,6 +39,7 @@ impl PartialEq for Number {
 
 impl Eq for Number {}
 
+// TODO: should really use TryFrom for this?
 impl From<&str> for Number {
     fn from(str: &str) -> Self {
         Number::new(str.parse::<f64>().unwrap())
@@ -47,5 +49,13 @@ impl From<&str> for Number {
 impl fmt::Display for Number {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+impl ops::Neg for Number {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self::new(-self.value())
     }
 }

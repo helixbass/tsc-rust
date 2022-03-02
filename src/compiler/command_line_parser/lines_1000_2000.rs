@@ -7,12 +7,13 @@ use super::{command_options_without_build, common_options_with_build};
 use crate::{
     create_compiler_diagnostic, create_diagnostic_for_node_in_source_file, find, for_each,
     get_base_file_name, is_array_literal_expression, is_object_literal_expression,
-    AlternateModeDiagnostics, BuildOptions, CommandLineOption, CommandLineOptionBase,
-    CommandLineOptionInterface, CommandLineOptionOfBooleanType, CommandLineOptionOfListType,
-    CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, ModuleKind,
-    Node, NodeInterface, ParsedCommandLine, Push, ScriptTarget, StringOrDiagnosticMessage,
-    SyntaxKind, WatchOptions,
+    is_string_double_quoted, is_string_literal, AlternateModeDiagnostics, BuildOptions,
+    CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
+    CommandLineOptionOfBooleanType, CommandLineOptionOfListType, CommandLineOptionOfStringType,
+    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, Diagnostic, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, DidYouMeanOptionsDiagnostics, ModuleKind,
+    Node, NodeArray, NodeInterface, Number, ParsedCommandLine, Push, ScriptTarget,
+    StringOrDiagnosticMessage, SyntaxKind, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -439,6 +440,25 @@ thread_local! {
 
 // pub(crate) fn convert_enable_auto_discovery_to_enable(type_acquisition: )
 
+pub(super) fn create_diagnostic_for_invalid_custom_type<
+    TCreateDiagnostic: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Rc<Diagnostic>,
+>(
+    opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
+    mut create_diagnostic: TCreateDiagnostic,
+) -> Rc<Diagnostic> {
+    let names_of_type = opt
+        .type_()
+        .as_map()
+        .keys()
+        .map(|key| format!("'{}'", key))
+        .collect::<Vec<_>>()
+        .join(", ");
+    create_diagnostic(
+        &Diagnostics::Argument_for_0_option_must_be_Colon_1,
+        Some(vec![format!("--{}", opt.name()), names_of_type]),
+    )
+}
+
 pub fn parse_command_line<TReadFile: FnMut(&str) -> Option<String>>(
     command_line: &[String],
     read_file: Option<TReadFile>,
@@ -692,7 +712,7 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
                     Some(&**first_object),
                     errors,
                     true,
-                    known_root_options,
+                    known_root_options.as_deref(),
                     options_iterator,
                 );
             }
@@ -704,7 +724,7 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
         root_expression,
         errors,
         true,
-        known_root_options,
+        known_root_options.as_deref(),
         options_iterator,
     )
 }
@@ -735,8 +755,399 @@ pub(crate) fn convert_to_object_worker<
     root_expression: Option<TRootExpression>,
     errors: &mut Push<Rc<Diagnostic>>,
     return_value: bool,
-    known_root_options: Option<Rc<CommandLineOption>>,
+    known_root_options: Option<&CommandLineOption>,
     json_conversion_notifier: Option<TJsonConversionNotifier>,
 ) -> Option<serde_json::Value> {
+    if root_expression.is_none() {
+        return if return_value {
+            Some(serde_json::Value::Object(serde_json::Map::new()))
+        } else {
+            None
+        };
+    }
+    let root_expression = root_expression.unwrap();
+    let root_expression = root_expression.borrow();
+
+    convert_property_value_to_json(errors, source_file, root_expression, known_root_options)
+}
+
+pub(super) fn convert_object_literal_expression_to_json(
+    node: &Node, /*ObjectLiteralExpression*/
+    known_options: Option<&HashMap<String, CommandLineOption>>,
+    extra_key_diagnostics: Option<&Box<dyn DidYouMeanOptionsDiagnostics>>,
+    parent_option: Option<&str>,
+) -> Option<serde_json::Value> {
     unimplemented!()
+}
+
+pub(super) fn convert_array_literal_expression_to_json(
+    element: &NodeArray, /*<Expression>*/
+    element_option: Option<&CommandLineOption>,
+) -> Option<serde_json::Value> {
+    unimplemented!()
+}
+
+pub(super) fn convert_property_value_to_json(
+    errors: &mut Push<Rc<Diagnostic>>,
+    source_file: &Node,      /*JsonSourceFile*/
+    value_expression: &Node, /*Expression*/
+    option: Option<&CommandLineOption>,
+) -> Option<serde_json::Value> {
+    let mut invalid_reported: Option<bool> = None;
+    match value_expression.kind() {
+        SyntaxKind::TrueKeyword => {
+            report_invalid_option_value(
+                errors,
+                &mut invalid_reported,
+                source_file,
+                value_expression,
+                option,
+                Some(
+                    matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfBooleanType(_))),
+                ),
+            );
+            return validate_value(
+                invalid_reported,
+                option,
+                errors,
+                source_file,
+                value_expression,
+                Some(serde_json::Value::Bool(true)),
+            );
+        }
+
+        SyntaxKind::FalseKeyword => {
+            report_invalid_option_value(
+                errors,
+                &mut invalid_reported,
+                source_file,
+                value_expression,
+                option,
+                Some(
+                    matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfBooleanType(_))),
+                ),
+            );
+            return validate_value(
+                invalid_reported,
+                option,
+                errors,
+                source_file,
+                value_expression,
+                Some(serde_json::Value::Bool(false)),
+            );
+        }
+
+        SyntaxKind::NullKeyword => {
+            report_invalid_option_value(
+                errors,
+                &mut invalid_reported,
+                source_file,
+                value_expression,
+                option,
+                Some(matches!(option, Some(option) if option.name() == "extends")),
+            );
+            return validate_value(
+                invalid_reported,
+                option,
+                errors,
+                source_file,
+                value_expression,
+                Some(serde_json::Value::Null),
+            );
+        }
+
+        SyntaxKind::StringLiteral => {
+            if !is_double_quoted_string(source_file, value_expression) {
+                errors.push(Rc::new(
+                    create_diagnostic_for_node_in_source_file(
+                        source_file,
+                        value_expression,
+                        &Diagnostics::String_literal_with_double_quotes_expected,
+                        None,
+                    )
+                    .into(),
+                ));
+            }
+            report_invalid_option_value(
+                errors,
+                &mut invalid_reported,
+                source_file,
+                value_expression,
+                option,
+                Some(
+                    matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfStringType(_))),
+                ),
+            );
+            let text = value_expression.as_literal_like_node().text();
+            if let Some(custom_option) = option.as_ref() {
+                if let CommandLineOptionType::Map(custom_option_type) = custom_option.type_() {
+                    if !custom_option_type.contains_key(&&*text.to_lowercase()) {
+                        errors.push(create_diagnostic_for_invalid_custom_type(
+                            custom_option,
+                            |message, args| {
+                                Rc::new(
+                                    create_diagnostic_for_node_in_source_file(
+                                        source_file,
+                                        value_expression,
+                                        message,
+                                        args,
+                                    )
+                                    .into(),
+                                )
+                            },
+                        ));
+                        invalid_reported = Some(true);
+                    }
+                }
+            }
+            return validate_value(
+                invalid_reported,
+                option,
+                errors,
+                source_file,
+                value_expression,
+                Some(serde_json::Value::String(text.clone())),
+            );
+        }
+
+        SyntaxKind::NumericLiteral => {
+            report_invalid_option_value(
+                errors,
+                &mut invalid_reported,
+                source_file,
+                value_expression,
+                option,
+                Some(
+                    matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfNumberType(_))),
+                ),
+            );
+            return validate_value(
+                invalid_reported,
+                option,
+                errors,
+                source_file,
+                value_expression,
+                Some(serde_json::Value::Number(
+                    (&**value_expression.as_literal_like_node().text())
+                        .parse()
+                        .unwrap(),
+                )),
+            );
+        }
+
+        SyntaxKind::PrefixUnaryExpression => {
+            let value_expression_as_prefix_unary_expression =
+                value_expression.as_prefix_unary_expression();
+            if value_expression_as_prefix_unary_expression.operator != SyntaxKind::MinusToken
+                || value_expression_as_prefix_unary_expression.operand.kind()
+                    != SyntaxKind::NumericLiteral
+            {
+            } else {
+                report_invalid_option_value(
+                    errors,
+                    &mut invalid_reported,
+                    source_file,
+                    value_expression,
+                    option,
+                    Some(
+                        matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfNumberType(_))),
+                    ),
+                );
+                return validate_value(
+                    invalid_reported,
+                    option,
+                    errors,
+                    source_file,
+                    value_expression,
+                    Some(serde_json::Value::Number(
+                        serde_json::Number::from_f64(
+                            -Into::<Number>::into(
+                                &**value_expression_as_prefix_unary_expression
+                                    .operand
+                                    .as_literal_like_node()
+                                    .text(),
+                            )
+                            .value(),
+                        )
+                        .unwrap(),
+                    )),
+                );
+            }
+        }
+
+        SyntaxKind::ObjectLiteralExpression => {
+            report_invalid_option_value(
+                errors,
+                &mut invalid_reported,
+                source_file,
+                value_expression,
+                option,
+                Some(
+                    matches!(option, Some(option) if !matches!(option, CommandLineOption::TsConfigOnlyOption(_))),
+                ),
+            );
+            let object_literal_expression = value_expression;
+
+            if let Some(option) = option {
+                let option_as_ts_config_only_option = option.as_ts_config_only_option();
+                let element_options = option_as_ts_config_only_option.element_options.as_ref();
+                let extra_key_diagnostics = option_as_ts_config_only_option
+                    .extra_key_diagnostics
+                    .as_ref();
+                let option_name = option.name();
+                return validate_value(
+                    invalid_reported,
+                    Some(option),
+                    errors,
+                    source_file,
+                    value_expression,
+                    convert_object_literal_expression_to_json(
+                        object_literal_expression,
+                        element_options,
+                        extra_key_diagnostics,
+                        Some(option_name),
+                    ),
+                );
+            } else {
+                return validate_value(
+                    invalid_reported,
+                    option,
+                    errors,
+                    source_file,
+                    value_expression,
+                    convert_object_literal_expression_to_json(
+                        object_literal_expression,
+                        None,
+                        None,
+                        None,
+                    ),
+                );
+            }
+        }
+
+        SyntaxKind::ArrayLiteralExpression => {
+            report_invalid_option_value(
+                errors,
+                &mut invalid_reported,
+                source_file,
+                value_expression,
+                option,
+                Some(
+                    matches!(option, Some(option) if !matches!(option, CommandLineOption::CommandLineOptionOfListType(_))),
+                ),
+            );
+            return validate_value(
+                invalid_reported,
+                option,
+                errors,
+                source_file,
+                value_expression,
+                convert_array_literal_expression_to_json(
+                    &value_expression.as_array_literal_expression().elements,
+                    option.and_then(|option| match option {
+                        CommandLineOption::CommandLineOptionOfListType(option) => {
+                            Some(&*option.element)
+                        }
+                        _ => None,
+                    }),
+                ),
+            );
+        }
+
+        _ => (),
+    }
+
+    if option.is_some() {
+        report_invalid_option_value(
+            errors,
+            &mut invalid_reported,
+            source_file,
+            value_expression,
+            option,
+            Some(true),
+        );
+    } else {
+        errors.push(Rc::new(
+            create_diagnostic_for_node_in_source_file(
+                source_file,
+                value_expression,
+                &Diagnostics::Property_value_can_only_be_string_literal_numeric_literal_true_false_null_object_literal_or_array_literal,
+                None
+            )
+            .into()
+        ));
+    }
+
+    None
+}
+
+pub(super) fn validate_value(
+    invalid_reported: Option<bool>,
+    option: Option<&CommandLineOption>,
+    errors: &mut Push<Rc<Diagnostic>>,
+    source_file: &Node,      /*JsonSourceFile*/
+    value_expression: &Node, /*Expression*/
+    value: Option<serde_json::Value>,
+) -> Option<serde_json::Value> {
+    if !matches!(invalid_reported, Some(true)) {
+        let diagnostic = option
+            .and_then(|option| option.maybe_extra_validation())
+            .and_then(|extra_validation| extra_validation(value.as_ref()));
+        if let Some((diagnostic_message, args)) = diagnostic {
+            errors.push(Rc::new(
+                create_diagnostic_for_node_in_source_file(
+                    source_file,
+                    value_expression,
+                    diagnostic_message,
+                    args,
+                )
+                .into(),
+            ));
+            return None;
+        }
+    }
+    value
+}
+
+pub(super) fn report_invalid_option_value(
+    errors: &mut Push<Rc<Diagnostic>>,
+    invalid_reported: &mut Option<bool>,
+    source_file: &Node,      /*JsonSourceFile*/
+    value_expression: &Node, /*Expression*/
+    option: Option<&CommandLineOption>,
+    is_error: Option<bool>,
+) {
+    if matches!(is_error, Some(true)) {
+        errors.push(Rc::new(
+            create_diagnostic_for_node_in_source_file(
+                source_file,
+                value_expression,
+                &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
+                Some(vec![
+                    option.unwrap().name().to_owned(),
+                    get_compiler_option_value_type_string(option.unwrap()).to_owned(),
+                ]),
+            )
+            .into(),
+        ));
+        *invalid_reported = Some(true);
+    }
+}
+
+pub(super) fn is_double_quoted_string(
+    source_file: &Node, /*JsonSourceFile*/
+    node: &Node,
+) -> bool {
+    is_string_literal(node) && is_string_double_quoted(node, source_file)
+}
+
+pub(super) fn get_compiler_option_value_type_string(option: &CommandLineOption) -> &'static str {
+    match option {
+        CommandLineOption::CommandLineOptionOfListType(_) => "Array",
+        CommandLineOption::CommandLineOptionOfStringType(_) => "string",
+        CommandLineOption::CommandLineOptionOfNumberType(_) => "number",
+        CommandLineOption::CommandLineOptionOfBooleanType(_) => "boolean",
+        CommandLineOption::TsConfigOnlyOption(_) => "object",
+        CommandLineOption::CommandLineOptionOfCustomType(_) => "string",
+    }
 }
