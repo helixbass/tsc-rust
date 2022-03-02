@@ -7,8 +7,9 @@ use std::rc::Rc;
 use super::{
     convert_compile_on_save_option_from_json, convert_compiler_options_from_json_worker,
     convert_to_object, convert_type_acquisition_from_json_worker,
-    convert_watch_options_from_json_worker, get_default_type_acquisition, get_extended_config,
-    get_file_names_from_config_specs, get_wildcard_directories, validate_specs,
+    convert_watch_options_from_json_worker, get_default_compiler_options,
+    get_default_type_acquisition, get_extended_config, get_file_names_from_config_specs,
+    get_wildcard_directories, validate_specs,
 };
 use crate::{
     combine_paths, convert_to_relative_path, create_compiler_diagnostic,
@@ -823,6 +824,13 @@ pub(super) fn parse_own_config_of_json_source_file<
     config_file_name: Option<&str>,
     errors: &mut Vec<Rc<Diagnostic>>,
 ) -> ParsedTsconfig {
+    let options = get_default_compiler_options(config_file_name);
+    let mut type_acquisition: Option<TypeAcquisition> = None;
+    let mut typing_options_type_acquisition: Option<TypeAcquisition> = None;
+    let mut watch_options: Option<WatchOptions> = None;
+    let mut extended_config_path: Option<String> = None;
+    let mut root_compiler_options: Option<Vec<Rc<Node /*PropertyName*/>>> = None;
+
     unimplemented!()
 }
 

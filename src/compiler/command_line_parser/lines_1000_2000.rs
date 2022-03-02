@@ -5,12 +5,14 @@ use std::rc::Rc;
 
 use super::{command_options_without_build, common_options_with_build};
 use crate::{
-    create_compiler_diagnostic, for_each, AlternateModeDiagnostics, BuildOptions,
-    CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
-    CommandLineOptionOfBooleanType, CommandLineOptionOfListType, CommandLineOptionOfStringType,
-    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, ModuleKind, Node, ParsedCommandLine, Push,
-    ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
+    create_compiler_diagnostic, create_diagnostic_for_node_in_source_file, find, for_each,
+    get_base_file_name, is_array_literal_expression, is_object_literal_expression,
+    AlternateModeDiagnostics, BuildOptions, CommandLineOption, CommandLineOptionBase,
+    CommandLineOptionInterface, CommandLineOptionOfBooleanType, CommandLineOptionOfListType,
+    CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
+    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, ModuleKind,
+    Node, NodeInterface, ParsedCommandLine, Push, ScriptTarget, StringOrDiagnosticMessage,
+    SyntaxKind, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -630,7 +632,84 @@ pub trait DiagnosticReporter {
 
 pub trait ConfigFileDiagnosticsReporter {}
 
-pub(crate) type JsonConversionNotifier = ();
+pub(super) fn get_tsconfig_root_options_map() -> Rc<CommandLineOption> {
+    unimplemented!()
+}
+
+pub(crate) trait JsonConversionNotifier {
+    // on_set_valid_option_key_value_in_parent()
+}
+
+pub(crate) struct JsonConversionNotifierDummy {}
+
+impl JsonConversionNotifier for JsonConversionNotifierDummy {}
+
+pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNotifier>(
+    source_file: &Node, /*JsonSourceFile*/
+    errors: &mut Vec<Rc<Diagnostic>>,
+    report_options_errors: bool,
+    options_iterator: Option<TOptionsIterator>,
+) -> serde_json::Value {
+    let source_file_as_source_file = source_file.as_source_file();
+    let root_expression = source_file_as_source_file
+        .statements
+        .get(0)
+        .map(|statement| statement.as_expression_statement().expression.clone());
+    let known_root_options: Option<Rc<CommandLineOption>> = if report_options_errors {
+        Some(get_tsconfig_root_options_map())
+    } else {
+        None
+    };
+    if let Some(root_expression) = root_expression
+        .as_ref()
+        .filter(|root_expression| root_expression.kind() != SyntaxKind::ObjectLiteralExpression)
+    {
+        errors.push(Rc::new(
+            create_diagnostic_for_node_in_source_file(
+                source_file,
+                root_expression,
+                &Diagnostics::The_root_value_of_a_0_file_must_be_an_object,
+                Some(vec![
+                    if get_base_file_name(&source_file_as_source_file.file_name(), None, None)
+                        == "jsconfig.json"
+                    {
+                        "jsconfig.json".to_owned()
+                    } else {
+                        "tsconfig.json".to_owned()
+                    },
+                ]),
+            )
+            .into(),
+        ));
+        if is_array_literal_expression(root_expression) {
+            let first_object = find(
+                &root_expression.as_array_literal_expression().elements,
+                |element, _| is_object_literal_expression(element),
+            );
+            if let Some(first_object) = first_object {
+                return convert_to_object_worker(
+                    source_file,
+                    Some(&**first_object),
+                    errors,
+                    true,
+                    known_root_options,
+                    options_iterator,
+                )
+                .unwrap();
+            }
+        }
+        return serde_json::Value::Object(serde_json::Map::new());
+    }
+    convert_to_object_worker(
+        source_file,
+        root_expression,
+        errors,
+        true,
+        known_root_options,
+        options_iterator,
+    )
+    .unwrap()
+}
 
 pub fn convert_to_object(
     source_file: &Node, /*JsonSourceFile*/
@@ -646,17 +725,20 @@ pub fn convert_to_object(
         errors,
         true,
         None,
-        None,
+        Option::<JsonConversionNotifierDummy>::None,
     )
 }
 
-pub(crate) fn convert_to_object_worker<TRootExpression: Borrow<Node>>(
+pub(crate) fn convert_to_object_worker<
+    TRootExpression: Borrow<Node>,
+    TJsonConversionNotifier: JsonConversionNotifier,
+>(
     source_file: &Node, /*JsonSourceFile*/
     root_expression: Option<TRootExpression>,
     errors: &mut Push<Rc<Diagnostic>>,
     return_value: bool,
-    known_root_options: Option<CommandLineOption>,
-    json_conversion_notifier: Option<JsonConversionNotifier>,
+    known_root_options: Option<Rc<CommandLineOption>>,
+    json_conversion_notifier: Option<TJsonConversionNotifier>,
 ) -> Option<serde_json::Value> {
     unimplemented!()
 }

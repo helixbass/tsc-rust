@@ -15,7 +15,7 @@ use compiler::command_line_parser::{
     build_opts, convert_to_object_worker, convert_to_options_with_absolute_paths,
     convert_to_tsconfig, get_diagnostic_text, module_resolution_option_declarations,
     option_declarations, options_affecting_program_structure, options_for_build, options_for_watch,
-    parse_build_command, ParsedBuildCommand,
+    parse_build_command, JsonConversionNotifier, JsonConversionNotifierDummy, ParsedBuildCommand,
 };
 pub use compiler::command_line_parser::{
     parse_command_line, ConfigFileDiagnosticsReporter, DiagnosticReporter,

@@ -32,6 +32,10 @@ pub(super) fn convert_compile_on_save_option_from_json(
     unimplemented!()
 }
 
+pub(super) fn get_default_compiler_options(config_file_name: Option<&str>) -> CompilerOptions {
+    unimplemented!()
+}
+
 pub(crate) fn convert_compiler_options_from_json_worker(
     json_options: Option<&serde_json::Value>,
     base_path: &str,
