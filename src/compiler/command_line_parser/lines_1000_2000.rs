@@ -6,8 +6,9 @@ use std::rc::Rc;
 use super::{command_options_without_build, common_options_with_build};
 use crate::{
     create_compiler_diagnostic, create_diagnostic_for_node_in_source_file, find, for_each,
-    get_base_file_name, is_array_literal_expression, is_object_literal_expression,
-    is_string_double_quoted, is_string_literal, AlternateModeDiagnostics, BuildOptions,
+    get_base_file_name, get_text_of_property_name, is_array_literal_expression,
+    is_computed_non_literal_name, is_object_literal_expression, is_string_double_quoted,
+    is_string_literal, unescape_leading_underscores, AlternateModeDiagnostics, BuildOptions,
     CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
     CommandLineOptionOfBooleanType, CommandLineOptionOfListType, CommandLineOptionOfStringType,
     CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, Diagnostic, DiagnosticMessage,
@@ -771,13 +772,153 @@ pub(crate) fn convert_to_object_worker<
     convert_property_value_to_json(errors, source_file, root_expression, known_root_options)
 }
 
-pub(super) fn convert_object_literal_expression_to_json(
+pub(super) fn convert_object_literal_expression_to_json<
+    TJsonConversionNotifier: JsonConversionNotifier,
+>(
+    return_value: bool,
+    errors: &mut Push<Rc<Diagnostic>>,
+    source_file: &Node, /*JsonSourceFile*/
+    json_conversion_notifier: Option<&TJsonConversionNotifier>,
     node: &Node, /*ObjectLiteralExpression*/
     known_options: Option<&HashMap<String, CommandLineOption>>,
     extra_key_diagnostics: Option<&Box<dyn DidYouMeanOptionsDiagnostics>>,
     parent_option: Option<&str>,
 ) -> Option<serde_json::Value> {
-    unimplemented!()
+    let result = if return_value {
+        Some(serde_json::Value::Object(serde_json::Map::new()))
+    } else {
+        None
+    };
+    for element in &node.as_object_literal_expression().properties {
+        if element.kind() != SyntaxKind::PropertyAssignment {
+            errors.push(Rc::new(
+                create_diagnostic_for_node_in_source_file(
+                    source_file,
+                    element,
+                    &Diagnostics::Property_assignment_expected,
+                    None,
+                )
+                .into(),
+            ));
+            continue;
+        }
+
+        let element_as_property_assignment = element.as_property_assignment();
+        if let Some(element_as_property_assignment_question_token) =
+            element_as_property_assignment.question_token.as_ref()
+        {
+            errors.push(Rc::new(
+                create_diagnostic_for_node_in_source_file(
+                    source_file,
+                    element_as_property_assignment_question_token,
+                    &Diagnostics::The_0_modifier_can_only_be_used_in_TypeScript_files,
+                    Some(vec!["?".to_owned()]),
+                )
+                .into(),
+            ));
+        }
+        if !is_double_quoted_string(&element_as_property_assignment.name) {
+            errors.push(Rc::new(
+                create_diagnostic_for_node_in_source_file(
+                    source_file,
+                    &element_as_property_assignment.name,
+                    &Diagnostics::String_literal_with_double_quotes_expected,
+                    None,
+                )
+                .into(),
+            ));
+        }
+
+        let text_of_key = if is_computed_non_literal_name(&element_as_property_assignment.name) {
+            None
+        } else {
+            Some(get_text_of_property_name(
+                &element_as_property_assignment.name,
+            ))
+        };
+        let key_text = text_of_key.map(|text_of_key| unescape_leading_underscores(&text_of_key));
+        let option = match (key_text.as_ref(), known_options) {
+            (Some(key_text), Some(known_options)) => known_options.get(key_text),
+            _ => None,
+        };
+        if let Some(key_text) = key_text.as_ref() {
+            if let Some(extra_key_diagnostics) = extra_key_diagnostics {
+                if option.is_none() {
+                    if known_options.is_some() {
+                        errors.push(create_unknown_option_error(
+                            key_text,
+                            extra_key_diagnostics,
+                            |message, args| {
+                                Rc::new(
+                                    create_diagnostic_for_node_in_source_file(
+                                        source_file,
+                                        &element_as_property_assignment.name,
+                                        message,
+                                        args,
+                                    )
+                                    .into(),
+                                )
+                            },
+                        ))
+                    } else {
+                        errors.push(Rc::new(
+                            create_diagnostic_for_node_in_source_file(
+                                source_file,
+                                &element_as_property_assignment.name,
+                                extra_key_diagnostics.unknown_option_diagnostic,
+                                key_text,
+                            )
+                            .into(),
+                        ));
+                    }
+                }
+            }
+        }
+        let value = convert_property_value_to_json(
+            errors,
+            source_file,
+            &element_as_property_assignment.initializer,
+            option,
+        );
+        if let Some(key_text) = key_text {
+            if return_value {
+                if let Some(value) = value.as_ref() {
+                    result.insert(key_text.clone(), value.clone());
+                }
+            }
+            if let Some(json_conversion_notifier) = json_conversion_notifier {
+                if parent_option.is_some() || is_root_option_map(known_options) {
+                    let is_valid_option_value = is_compiler_options_value(option, value.as_ref());
+                    if let Some(parent_option) = parent_option {
+                        if is_valid_option_value {
+                            json_conversion_notifier.on_set_valid_option_key_value_in_parent(
+                                parent_option,
+                                option.unwrap(),
+                                value.as_ref(),
+                            );
+                        }
+                    } else if is_root_option_map(known_options) {
+                        if is_valid_option_value {
+                            json_conversion_notifier.on_set_valid_option_key_value_in_root(
+                                &key_text,
+                                &element_as_property_assignment.name,
+                                value.as_ref(),
+                                &element_as_property_assignment.initializer,
+                            );
+                        } else if option.is_none() {
+                            json_conversion_notifier.on_set_unknown_option_key_value_in_root(
+                                &key_text,
+                                &element_as_property_assignment.name,
+                                value.as_ref(),
+                                &element_as_property_assignment.initializer,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+    result
 }
 
 pub(super) fn convert_array_literal_expression_to_json(
