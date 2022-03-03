@@ -1,9 +1,10 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ptr;
 use std::rc::Rc;
 
-use super::{command_options_without_build, common_options_with_build};
+use super::{command_options_without_build, common_options_with_build, is_compiler_options_value};
 use crate::{
     create_compiler_diagnostic, create_diagnostic_for_node_in_source_file, find, for_each,
     get_base_file_name, get_text_of_property_name, is_array_literal_expression,
@@ -460,11 +461,14 @@ pub(super) fn create_diagnostic_for_invalid_custom_type<
     )
 }
 
-pub fn parse_command_line<TReadFile: FnMut(&str) -> Option<String>>(
-    command_line: &[String],
-    read_file: Option<TReadFile>,
-) -> ParsedCommandLine {
-    parse_command_line_worker(command_line)
+pub(super) fn create_unknown_option_error<
+    TCreateDiagnostics: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Rc<Diagnostic>,
+>(
+    unknown_option: &str,
+    diagnostics: &Box<dyn DidYouMeanOptionsDiagnostics>,
+    create_diagnostics: TCreateDiagnostics,
+    unknown_option_error_text: Option<&str>,
+) -> Rc<Diagnostic> {
 }
 
 pub(super) fn parse_command_line_worker(command_line: &[String]) -> ParsedCommandLine {
@@ -599,6 +603,13 @@ pub(super) fn parse_command_line_worker(command_line: &[String]) -> ParsedComman
     }
 }
 
+pub fn parse_command_line<TReadFile: FnMut(&str) -> Option<String>>(
+    command_line: &[String],
+    read_file: Option<TReadFile>,
+) -> ParsedCommandLine {
+    parse_command_line_worker(command_line)
+}
+
 pub(crate) struct ParsedBuildCommand {
     pub build_options: BuildOptions,
     pub watch_options: Option<WatchOptions>,
@@ -658,12 +669,60 @@ pub(super) fn get_tsconfig_root_options_map() -> Rc<CommandLineOption> {
 }
 
 pub(crate) trait JsonConversionNotifier {
-    // on_set_valid_option_key_value_in_parent()
+    fn on_set_valid_option_key_value_in_parent(
+        &self,
+        parent_option: &str,
+        option: &CommandLineOption,
+        value: Option<&serde_json::Value>,
+    );
+    fn on_set_valid_option_key_value_in_root(
+        &self,
+        key: &str,
+        key_node: &Node, /*PropertyName*/
+        value: Option<&serde_json::Value>,
+        value_node: &Node, /*Expression*/
+    );
+    fn on_set_unknown_option_key_value_in_root(
+        &self,
+        key: &str,
+        key_node: &Node, /*PropertyName*/
+        value: Option<&serde_json::Value>,
+        value_node: &Node, /*Expression*/
+    );
 }
 
 pub(crate) struct JsonConversionNotifierDummy {}
 
-impl JsonConversionNotifier for JsonConversionNotifierDummy {}
+impl JsonConversionNotifier for JsonConversionNotifierDummy {
+    fn on_set_valid_option_key_value_in_parent(
+        &self,
+        parent_option: &str,
+        option: &CommandLineOption,
+        value: Option<&serde_json::Value>,
+    ) {
+        unimplemented!()
+    }
+
+    fn on_set_valid_option_key_value_in_root(
+        &self,
+        key: &str,
+        key_node: &Node, /*PropertyName*/
+        value: Option<&serde_json::Value>,
+        value_node: &Node, /*Expression*/
+    ) {
+        unimplemented!()
+    }
+
+    fn on_set_unknown_option_key_value_in_root(
+        &self,
+        key: &str,
+        key_node: &Node, /*PropertyName*/
+        value: Option<&serde_json::Value>,
+        value_node: &Node, /*Expression*/
+    ) {
+        unimplemented!()
+    }
+}
 
 pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNotifier>(
     source_file: &Node, /*JsonSourceFile*/
@@ -774,9 +833,25 @@ pub(crate) fn convert_to_object_worker<
         source_file,
         json_conversion_notifier,
         return_value,
+        known_root_options,
         root_expression,
         known_root_options,
     )
+}
+
+pub(super) fn is_root_option_map(
+    known_root_options: Option<&CommandLineOption>,
+    known_options: Option<&HashMap<String, CommandLineOption>>,
+) -> bool {
+    match known_root_options {
+        None => false,
+        Some(known_root_options) => match known_root_options {
+            CommandLineOption::TsConfigOnlyOption(known_root_options) => {
+                matches!(known_root_options.element_options.as_ref(), Some(element_options) if matches!(known_options, Some(known_options) if ptr::eq(element_options, known_options)))
+            }
+            _ => false,
+        },
+    }
 }
 
 pub(super) fn convert_object_literal_expression_to_json<
@@ -786,6 +861,7 @@ pub(super) fn convert_object_literal_expression_to_json<
     errors: &mut Push<Rc<Diagnostic>>,
     source_file: &Node, /*JsonSourceFile*/
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
+    known_root_options: Option<&CommandLineOption>,
     node: &Node, /*ObjectLiteralExpression*/
     known_options: Option<&HashMap<String, CommandLineOption>>,
     extra_key_diagnostics: Option<&Box<dyn DidYouMeanOptionsDiagnostics>>,
@@ -866,6 +942,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                                     .into(),
                                 )
                             },
+                            None,
                         ))
                     } else {
                         errors.push(Rc::new(
@@ -873,7 +950,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                                 source_file,
                                 &element_as_property_assignment.name(),
                                 extra_key_diagnostics.unknown_option_diagnostic(),
-                                key_text,
+                                Some(vec![key_text.clone()]),
                             )
                             .into(),
                         ));
@@ -886,6 +963,7 @@ pub(super) fn convert_object_literal_expression_to_json<
             source_file,
             json_conversion_notifier,
             return_value,
+            known_root_options,
             &element_as_property_assignment.initializer,
             option,
         );
@@ -899,7 +977,8 @@ pub(super) fn convert_object_literal_expression_to_json<
                 }
             }
             if let Some(json_conversion_notifier) = json_conversion_notifier {
-                if parent_option.is_some() || is_root_option_map(known_options) {
+                if parent_option.is_some() || is_root_option_map(known_root_options, known_options)
+                {
                     let is_valid_option_value = is_compiler_options_value(option, value.as_ref());
                     if let Some(parent_option) = parent_option {
                         if is_valid_option_value {
@@ -909,7 +988,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                                 value.as_ref(),
                             );
                         }
-                    } else if is_root_option_map(known_options) {
+                    } else if is_root_option_map(known_root_options, known_options) {
                         if is_valid_option_value {
                             json_conversion_notifier.on_set_valid_option_key_value_in_root(
                                 &key_text,
@@ -945,6 +1024,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
     source_file: &Node, /*JsonSourceFile*/
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
     return_value: bool,
+    known_root_options: Option<&CommandLineOption>,
     value_expression: &Node, /*Expression*/
     option: Option<&CommandLineOption>,
 ) -> Option<serde_json::Value> {
@@ -1161,6 +1241,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                         errors,
                         source_file,
                         json_conversion_notifier,
+                        known_root_options,
                         object_literal_expression,
                         element_options,
                         extra_key_diagnostics,
@@ -1179,6 +1260,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                         errors,
                         source_file,
                         json_conversion_notifier,
+                        known_root_options,
                         object_literal_expression,
                         None,
                         None,

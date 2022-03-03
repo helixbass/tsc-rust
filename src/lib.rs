@@ -331,9 +331,9 @@ pub use compiler::utilities::{
     is_assignment_operator, is_assignment_target, is_async_function,
     is_bindable_object_define_property_call, is_bindable_static_access_expression,
     is_bindable_static_element_access_expression, is_bindable_static_name_expression,
-    is_block_or_catch_scoped, is_destructuring_assignment, is_dotted_name, is_dynamic_name,
-    is_effective_module_declaration, is_empty_object_literal, is_entity_name_expression,
-    is_enum_const, is_exports_identifier,
+    is_block_or_catch_scoped, is_computed_non_literal_name, is_destructuring_assignment,
+    is_dotted_name, is_dynamic_name, is_effective_module_declaration, is_empty_object_literal,
+    is_entity_name_expression, is_enum_const, is_exports_identifier,
     is_expression_with_type_arguments_in_class_extends_clause, is_external_or_common_js_module,
     is_function_block, is_function_expression_or_arrow_function, is_function_symbol,
     is_global_scope_augmentation, is_identifier_name, is_import_call, is_in_js_file, is_in_jsdoc,
@@ -360,7 +360,8 @@ pub use compiler::utilities::{
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,
-    get_element_or_property_access_name, has_invalid_escape, set_localized_diagnostic_messages,
+    get_element_or_property_access_name, has_invalid_escape, set_compiler_option_value,
+    set_localized_diagnostic_messages,
 };
 pub use compiler::utilities_public::{
     collapse_text_change_ranges_across_multiple_versions, create_text_change_range,

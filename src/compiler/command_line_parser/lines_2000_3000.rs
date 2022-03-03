@@ -9,7 +9,7 @@ use super::{
     convert_config_file_to_object, convert_to_object, convert_type_acquisition_from_json_worker,
     convert_watch_options_from_json_worker, get_default_compiler_options,
     get_default_type_acquisition, get_extended_config, get_file_names_from_config_specs,
-    get_wildcard_directories, validate_specs,
+    get_wildcard_directories, normalize_option_value, validate_specs,
 };
 use crate::{
     combine_paths, convert_to_relative_path, create_compiler_diagnostic,
@@ -17,12 +17,43 @@ use crate::{
     extend_compiler_options, extend_watch_options, filter_mutate, first_defined,
     get_directory_path, get_normalized_absolute_path, get_text_of_property_name,
     get_ts_config_prop_array, index_of, is_rooted_disk_path, map, maybe_extend_compiler_options,
-    normalize_path, normalize_slashes, CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
+    normalize_path, normalize_slashes, set_compiler_option_value, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, ConfigFileSpecs, Debug_,
+    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
     ExtendedConfigCacheEntry, FileExtensionInfo, HasInitializerInterface, JsonConversionNotifier,
     Node, NodeInterface, ParseConfigHost, ParsedCommandLine, Path, ProjectReference, System,
     TypeAcquisition, WatchOptions,
 };
+
+pub(super) fn is_compiler_options_value(
+    option: Option<&CommandLineOption>,
+    value: Option<&serde_json::Value>,
+) -> bool {
+    if let Some(option) = option {
+        if match value {
+            None => true,
+            Some(value) => match value {
+                serde_json::Value::Null => true,
+                _ => false,
+            },
+        } {
+            return true;
+        }
+        let value = value.unwrap();
+        if matches!(option.type_(), CommandLineOptionType::List) {
+            return matches!(value, serde_json::Value::Array(_));
+        }
+        return match option.type_() {
+            CommandLineOptionType::String => matches!(value, serde_json::Value::String(_)),
+            CommandLineOptionType::Number => matches!(value, serde_json::Value::Number(_)),
+            CommandLineOptionType::Boolean => matches!(value, serde_json::Value::Bool(_)),
+            CommandLineOptionType::Object => matches!(value, serde_json::Value::Object(_)),
+            CommandLineOptionType::Map(_) => matches!(value, serde_json::Value::String(_)),
+            CommandLineOptionType::List => panic!("Already handled list"),
+        };
+    }
+    false
+}
 
 #[derive(Serialize)]
 pub(crate) struct TSConfig {}
@@ -825,14 +856,14 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
     config_file_name: Option<&str>,
     errors: &mut Vec<Rc<Diagnostic>>,
 ) -> ParsedTsconfig {
-    let options = get_default_compiler_options(config_file_name);
+    let mut options = get_default_compiler_options(config_file_name);
     let mut type_acquisition: Option<TypeAcquisition> = None;
     let mut typing_options_type_acquisition: Option<TypeAcquisition> = None;
     let mut watch_options: Option<WatchOptions> = None;
     let mut extended_config_path: Option<String> = None;
     let mut root_compiler_options: Option<Vec<Rc<Node /*PropertyName*/>>> = None;
 
-    let options_iterator = ParseOwnConfigOfJsonSourceFile::new();
+    let options_iterator = ParseOwnConfigOfJsonSourceFile::new(&mut options, &base_path.to_owned());
     let json = convert_config_file_to_object(source_file, errors, true, Some(&options_iterator));
 
     if type_acquisition.is_none() {
@@ -885,15 +916,56 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
     }
 }
 
-struct ParseOwnConfigOfJsonSourceFile {}
+struct ParseOwnConfigOfJsonSourceFile<'a> {
+    options: &'a mut CompilerOptions,
+    base_path: &'a str,
+}
 
-impl ParseOwnConfigOfJsonSourceFile {
-    pub fn new() -> Self {
-        Self {}
+impl<'a> ParseOwnConfigOfJsonSourceFile<'a> {
+    pub fn new(options: &'a mut CompilerOptions, base_path: &'a str) -> Self {
+        Self { options, base_path }
     }
 }
 
-impl JsonConversionNotifier for ParseOwnConfigOfJsonSourceFile {}
+impl<'a> JsonConversionNotifier for ParseOwnConfigOfJsonSourceFile<'a> {
+    fn on_set_valid_option_key_value_in_parent(
+        &self,
+        parent_option: &str,
+        option: &CommandLineOption,
+        value: Option<&serde_json::Value>,
+    ) {
+        match parent_option {
+            "compilerOptions" => {
+                // set_compiler_option_value(self.options, self.base_path,)
+                set_compiler_option_value(
+                    self.options,
+                    option.name(),
+                    normalize_option_value(option, self.base_path, value),
+                );
+            }
+        }
+    }
+
+    fn on_set_valid_option_key_value_in_root(
+        &self,
+        key: &str,
+        key_node: &Node, /*PropertyName*/
+        value: Option<&serde_json::Value>,
+        value_node: &Node, /*Expression*/
+    ) {
+        unimplemented!()
+    }
+
+    fn on_set_unknown_option_key_value_in_root(
+        &self,
+        key: &str,
+        key_node: &Node, /*PropertyName*/
+        value: Option<&serde_json::Value>,
+        value_node: &Node, /*Expression*/
+    ) {
+        unimplemented!()
+    }
+}
 
 pub(super) fn get_extends_config_path<
     THost: ParseConfigHost,

@@ -217,6 +217,25 @@ pub fn unused_label_is_error(options: &CompilerOptions) -> bool {
     matches!(options.allow_unused_labels, Some(false))
 }
 
+fn json_value_to_bool(value: Option<serde_json::Value>) -> Option<bool> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::Bool(value) => Some(value),
+    })
+}
+
+pub(crate) fn set_compiler_option_value(
+    options: &mut CompilerOptions,
+    name: &str,
+    value: Option<serde_json::Value>,
+) {
+    match name {
+        "all" => {
+            options.all = json_value_to_bool(value);
+        }
+    }
+}
+
 fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> CompilerOptionsValue {
     match name {
         "all" => CompilerOptionsValue::Bool(options.all.clone()),
