@@ -1,6 +1,7 @@
 use derive_builder::Builder;
 use serde::Serialize;
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -863,8 +864,10 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
     let mut extended_config_path: Option<String> = None;
     let mut root_compiler_options: Option<Vec<Rc<Node /*PropertyName*/>>> = None;
 
-    let options_iterator = ParseOwnConfigOfJsonSourceFile::new(&mut options, &base_path.to_owned());
-    let json = convert_config_file_to_object(source_file, errors, true, Some(&options_iterator));
+    let base_path_string = base_path.to_owned();
+    let mut options_iterator = ParseOwnConfigOfJsonSourceFile::new(&mut options, &base_path_string);
+    let json =
+        convert_config_file_to_object(source_file, errors, true, Some(&mut options_iterator));
 
     if type_acquisition.is_none() {
         if let Some(typing_options_type_acquisition) = typing_options_type_acquisition {
@@ -917,13 +920,16 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
 }
 
 struct ParseOwnConfigOfJsonSourceFile<'a> {
-    options: &'a mut CompilerOptions,
+    options: RefCell<&'a mut CompilerOptions>,
     base_path: &'a str,
 }
 
 impl<'a> ParseOwnConfigOfJsonSourceFile<'a> {
     pub fn new(options: &'a mut CompilerOptions, base_path: &'a str) -> Self {
-        Self { options, base_path }
+        Self {
+            options: RefCell::new(options),
+            base_path,
+        }
     }
 }
 
@@ -936,9 +942,8 @@ impl<'a> JsonConversionNotifier for ParseOwnConfigOfJsonSourceFile<'a> {
     ) {
         match parent_option {
             "compilerOptions" => {
-                // set_compiler_option_value(self.options, self.base_path,)
                 set_compiler_option_value(
-                    self.options,
+                    &mut self.options.borrow_mut(),
                     option.name(),
                     normalize_option_value(option, self.base_path, value),
                 );

@@ -221,6 +221,7 @@ fn json_value_to_bool(value: Option<serde_json::Value>) -> Option<bool> {
     value.and_then(|value| match value {
         serde_json::Value::Null => None,
         serde_json::Value::Bool(value) => Some(value),
+        _ => panic!("Expected bool"),
     })
 }
 

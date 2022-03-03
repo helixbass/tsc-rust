@@ -469,6 +469,7 @@ pub(super) fn create_unknown_option_error<
     create_diagnostics: TCreateDiagnostics,
     unknown_option_error_text: Option<&str>,
 ) -> Rc<Diagnostic> {
+    unimplemented!()
 }
 
 pub(super) fn parse_command_line_worker(command_line: &[String]) -> ParsedCommandLine {
@@ -976,7 +977,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                         .insert(key_text.clone(), value.clone());
                 }
             }
-            if let Some(json_conversion_notifier) = json_conversion_notifier {
+            if let Some(mut json_conversion_notifier) = json_conversion_notifier {
                 if parent_option.is_some() || is_root_option_map(known_root_options, known_options)
                 {
                     let is_valid_option_value = is_compiler_options_value(option, value.as_ref());
@@ -1230,42 +1231,44 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                     .extra_key_diagnostics
                     .as_ref();
                 let option_name = option.name();
+                let converted = convert_object_literal_expression_to_json(
+                    return_value,
+                    errors,
+                    source_file,
+                    json_conversion_notifier,
+                    known_root_options,
+                    object_literal_expression,
+                    element_options,
+                    extra_key_diagnostics,
+                    Some(option_name),
+                );
                 return validate_value(
                     invalid_reported,
                     Some(option),
                     errors,
                     source_file,
                     value_expression,
-                    convert_object_literal_expression_to_json(
-                        return_value,
-                        errors,
-                        source_file,
-                        json_conversion_notifier,
-                        known_root_options,
-                        object_literal_expression,
-                        element_options,
-                        extra_key_diagnostics,
-                        Some(option_name),
-                    ),
+                    converted,
                 );
             } else {
+                let converted = convert_object_literal_expression_to_json(
+                    return_value,
+                    errors,
+                    source_file,
+                    json_conversion_notifier,
+                    known_root_options,
+                    object_literal_expression,
+                    None,
+                    None,
+                    None,
+                );
                 return validate_value(
                     invalid_reported,
                     option,
                     errors,
                     source_file,
                     value_expression,
-                    convert_object_literal_expression_to_json(
-                        return_value,
-                        errors,
-                        source_file,
-                        json_conversion_notifier,
-                        known_root_options,
-                        object_literal_expression,
-                        None,
-                        None,
-                        None,
-                    ),
+                    converted,
                 );
             }
         }
