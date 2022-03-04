@@ -28,47 +28,6 @@ use crate::{
     WatchOptions,
 };
 
-pub(super) fn is_compiler_options_value(
-    option: Option<&CommandLineOption>,
-    value: Option<&serde_json::Value>,
-) -> bool {
-    if let Some(option) = option {
-        if match value {
-            None => true,
-            Some(value) => match value {
-                serde_json::Value::Null => true,
-                _ => false,
-            },
-        } {
-            return true;
-        }
-        let value = value.unwrap();
-        if matches!(option.type_(), CommandLineOptionType::List) {
-            return matches!(value, serde_json::Value::Array(_));
-        }
-        return match option.type_() {
-            CommandLineOptionType::String => matches!(value, serde_json::Value::String(_)),
-            CommandLineOptionType::Number => matches!(value, serde_json::Value::Number(_)),
-            CommandLineOptionType::Boolean => matches!(value, serde_json::Value::Bool(_)),
-            CommandLineOptionType::Object => matches!(value, serde_json::Value::Object(_)),
-            CommandLineOptionType::Map(_) => matches!(value, serde_json::Value::String(_)),
-            CommandLineOptionType::List => panic!("Already handled list"),
-        };
-    }
-    false
-}
-
-#[derive(Serialize)]
-pub(crate) struct TSConfig {}
-
-pub(crate) fn convert_to_tsconfig(
-    config_parse_result: &ParsedCommandLine,
-    config_file_name: &str,
-    host: &dyn System, /*ConvertToTSConfigHost*/
-) -> TSConfig {
-    unimplemented!()
-}
-
 pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: FnMut(&str) -> String>(
     options: Rc<CompilerOptions>,
     to_absolute_path: TToAbsolutePath,
