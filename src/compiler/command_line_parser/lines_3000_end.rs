@@ -4,11 +4,12 @@ use std::rc::Rc;
 
 use super::{
     convert_enable_auto_discovery_to_enable, create_compiler_diagnostic_for_invalid_custom_type,
-    create_unknown_option_error, get_compiler_option_value_type_string, is_compiler_options_value,
-    ParsedTsconfig,
+    create_unknown_option_error, get_command_line_watch_options_map,
+    get_compiler_option_value_type_string, is_compiler_options_value,
+    type_acquisition_did_you_mean_diagnostics, ParsedTsconfig,
 };
 use crate::{
-    create_compiler_diagnostic, filter, get_normalized_absolute_path, map,
+    create_compiler_diagnostic, filter, filter_owning, get_normalized_absolute_path, map,
     set_type_acquisition_value, CommandLineOption, CommandLineOptionInterface,
     CommandLineOptionType, CompilerOptions, CompilerOptionsValue, ConfigFileSpecs, Diagnostic,
     Diagnostics, DidYouMeanOptionsDiagnostics, FileExtensionInfo, Node, ParseConfigHost,
@@ -71,7 +72,7 @@ pub(crate) fn convert_type_acquisition_from_json_worker(
         json_options,
         base_path,
         &mut options,
-        type_acquisition_did_you_mean_diagnostics,
+        &*type_acquisition_did_you_mean_diagnostics(),
         errors,
     );
     options
@@ -90,7 +91,7 @@ pub(super) fn convert_options_from_json_type_acquisition(
     json_options: Option<&serde_json::Value>,
     base_path: &str,
     default_options: &mut TypeAcquisition,
-    diagnostics: &Box<dyn DidYouMeanOptionsDiagnostics>,
+    diagnostics: &dyn DidYouMeanOptionsDiagnostics,
     errors: &mut Vec<Rc<Diagnostic>>,
 ) {
     if json_options.is_none() {
@@ -106,7 +107,7 @@ pub(super) fn convert_options_from_json_type_acquisition(
                     set_type_acquisition_value(
                         default_options,
                         opt,
-                        convert_json_option(opt, map_value, base_path, errors),
+                        convert_json_option(opt, Some(map_value), base_path, errors),
                     );
                 } else {
                     errors.push(create_unknown_option_error(
@@ -128,75 +129,32 @@ pub(crate) fn convert_json_option(
     value: Option<&serde_json::Value>,
     base_path: &str,
     errors: &mut Vec<Rc<Diagnostic>>,
-) -> Option<serde_json::Value> {
-    if is_compiler_options_value(Some(opt), value) {
-        let opt_type = opt.type_();
-        if matches!(opt_type, CommandLineOptionType::List)
-            && matches!(value, Some(serde_json::Value::Array(_)))
-        {
-            return Some(serde_json::Value::Array(convert_json_option_of_list_type(
-                opt,
-                match value {
-                    serde_json::Value::Array(value) => value,
-                    _ => panic!("Expected array"),
-                },
-                base_path,
-                errors,
-            )));
-        } else if matches!(opt_type, CommandLineOptionType::Map(_)) {
-            return convert_json_option_of_custom_type(opt, value, errors);
-        }
-        let validated_value = validate_json_option_value(opt, value, errors);
-        return validated_value.map(|validated_value| match validated_value {
-            serde_json::Value::Null => validated_value,
-            validated_value => normalize_non_list_option_value(opt, base_path, validated_value),
-        });
-    } else {
-        errors.push(Rc::new(
-            create_compiler_diagnostic(
-                &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
-                Some(vec![
-                    opt.name().to_owned(),
-                    get_compiler_option_value_type_string(opt),
-                ]),
-            )
-            .into(),
-        ));
-    }
-    None
-}
-
-pub(crate) fn convert_json_option_compiler_options_value(
-    opt: &CommandLineOption,
-    value: Option<&serde_json::Value>,
-    base_path: &str,
-    errors: &mut Vec<Rc<Diagnostic>>,
 ) -> CompilerOptionsValue {
     if is_compiler_options_value(Some(opt), value) {
         let opt_type = opt.type_();
         if matches!(opt_type, CommandLineOptionType::List)
             && matches!(value, Some(serde_json::Value::Array(_)))
         {
-            return convert_json_option_of_list_type_compiler_options_value(
+            return convert_json_option_of_list_type(
                 opt,
                 match value {
-                    serde_json::Value::Array(value) => value,
+                    Some(serde_json::Value::Array(value)) => value,
                     _ => panic!("Expected array"),
                 },
                 base_path,
                 errors,
             );
         } else if matches!(opt_type, CommandLineOptionType::Map(_)) {
-            return convert_json_option_of_custom_type_compiler_options_value(
+            return convert_json_option_of_custom_type(
                 opt,
-                match value {
-                    serde_json::Value::String(value) => value,
+                value.map(|value| match value {
+                    serde_json::Value::String(value) => &*value,
                     _ => panic!("Expected string"),
-                },
+                }),
                 errors,
             );
         }
-        let validated_value = validate_json_option_value_compiler_options_value(opt, value, errors);
+        let validated_value = validate_json_option_value(opt, value, errors);
         return if !validated_value.is_some() {
             validated_value
         } else {
@@ -208,7 +166,7 @@ pub(crate) fn convert_json_option_compiler_options_value(
                 &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
                 Some(vec![
                     opt.name().to_owned(),
-                    get_compiler_option_value_type_string(opt),
+                    get_compiler_option_value_type_string(opt).to_owned(),
                 ]),
             )
             .into(),
@@ -221,10 +179,10 @@ pub(super) fn normalize_option_value(
     option: &CommandLineOption,
     base_path: &str,
     value: Option<&serde_json::Value>,
-) -> Option<serde_json::Value> {
+) -> CompilerOptionsValue {
     let value = value?;
     if matches!(value, serde_json::Value::Null) {
-        return Some(serde_json::Value::Null);
+        return option.to_compiler_options_value_none();
     }
     match option.type_() {
         CommandLineOptionType::List => {
@@ -260,13 +218,13 @@ pub(super) fn normalize_option_value(
             }
             Some(value.clone())
         }
-        // CommandLineOptionType::Map(map) => map
-        //     .get(match value {
-        //         serde_json::Value::String(value) => &value.to_lowercase(),
-        //         _ => panic!("Expected string"),
-        //     })
-        //     .map(Clone::clone),
-        CommandLineOptionType::Map(_) => Some(value.clone()),
+        CommandLineOptionType::Map(map) => match map.get(match value {
+            serde_json::Value::String(value) => &value.to_lowercase(),
+            _ => panic!("Expected string"),
+        }) {
+            None => option.to_compiler_options_value_none(),
+            Some(map_value) => map_value.as_compiler_options_value(),
+        },
         _ => Some(normalize_non_list_option_value(option, base_path, value)),
     }
 }
@@ -275,7 +233,7 @@ pub(super) fn normalize_non_list_option_value(
     option: &CommandLineOption,
     base_path: &str,
     value: &serde_json::Value,
-) -> serde_json::Value {
+) -> CompilerOptionsValue {
     if option.is_file_path() {
         let mut value_string = get_normalized_absolute_path(
             match value {
@@ -287,42 +245,63 @@ pub(super) fn normalize_non_list_option_value(
         if value_string == "" {
             value_string = ".".to_owned();
         }
-        return serde_json::Value::String(value_string);
+        return option.to_compiler_options_value(serde_json::Value::String(value_string));
     }
-    value.clone()
+    option.to_compiler_options_value(value)
 }
 
-pub(super) fn validate_json_option_value(
+pub(super) fn normalize_non_list_option_value_compiler_options_value(
+    option: &CommandLineOption,
+    base_path: &str,
+    value: CompilerOptionsValue,
+) -> CompilerOptionsValue {
+    if option.is_file_path() {
+        let mut value_string = get_normalized_absolute_path(
+            &match value {
+                CompilerOptionsValue::String(value) => value,
+                _ => panic!("Expected string"),
+            },
+            Some(base_path),
+        );
+        if value_string == "" {
+            value_string = ".".to_owned();
+        }
+        return CompilerOptionsValue::String(value_string);
+    }
+    value
+}
+
+pub(super) fn validate_json_option_value_compiler_options_value(
     opt: &CommandLineOption,
-    value: Option<&serde_json::Value>,
+    value: CompilerOptionsValue,
     errors: &mut Vec<Rc<Diagnostic>>,
-) -> Option<serde_json::Value> {
-    let value = value?;
-    if matches!(value, serde_json::Value::Null) {
-        return Some(serde_json::Value::Null);
+) -> CompilerOptionsValue {
+    if !value.is_some() {
+        return opt.to_compiler_options_value_none();
     }
     let d = opt
-        .maybe_extra_validation()
-        .and_then(|extra_validation| extra_validation(Some(value)));
+        .maybe_extra_validation_compiler_options_value()
+        .and_then(|extra_validation| extra_validation(&value));
     if d.is_none() {
-        return Some(value.clone());
+        return value;
     }
     let d = d.unwrap();
     let (diagnostic_message, args) = d;
     errors.push(Rc::new(
         create_compiler_diagnostic(diagnostic_message, args).into(),
     ));
-    None
+    opt.to_compiler_options_value_none()
 }
 
-pub(super) fn validate_json_option_value_compiler_options_value(
+pub(super) fn validate_json_option_value(
     opt: &CommandLineOption,
     value: Option<&serde_json::Value>,
     errors: &mut Vec<Rc<Diagnostic>>,
 ) -> CompilerOptionsValue {
-    if !value.is_some() {
+    if value.is_none() {
         return opt.to_compiler_options_value_none();
     }
+    let value = value.unwrap();
     let d = opt
         .maybe_extra_validation()
         .and_then(|extra_validation| extra_validation(Some(value)));
@@ -337,52 +316,7 @@ pub(super) fn validate_json_option_value_compiler_options_value(
     opt.to_compiler_options_value_none()
 }
 
-// pub(super) fn validate_json_option_value_compiler_options_value(
-//     opt: &CommandLineOption,
-//     value: CompilerOptionsValue,
-//     errors: &mut Vec<Rc<Diagnostic>>,
-// ) -> CompilerOptionsValue {
-//     if !value.is_some() {
-//         return value;
-//     }
-//     let d = opt
-//         .maybe_extra_validation_compiler_options_value()
-//         .and_then(|extra_validation| extra_validation(&value));
-//     if d.is_none() {
-//         return value;
-//     }
-//     let d = d.unwrap();
-//     let (diagnostic_message, args) = d;
-//     errors.push(Rc::new(
-//         create_compiler_diagnostic(diagnostic_message, args).into(),
-//     ));
-//     value.as_none()
-// }
-
 pub(super) fn convert_json_option_of_custom_type(
-    opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
-    value: Option<&serde_json::Value>,
-    errors: &mut Vec<Rc<Diagnostic>>,
-) -> Option<serde_json::Value> {
-    let value = value?;
-    if matches!(value, serde_json::Value::Null) {
-        return Some(serde_json::Value::Null);
-    }
-    let value = match value {
-        serde_json::Value::String(value) => value,
-        _ => panic!("Expected string"),
-    };
-    let key = value.to_lowercase();
-    let val = opt.type_().as_map().get(&&*key);
-    if let Some(val) = val {
-        return validate_json_option_value(opt, Some(val), errors);
-    } else {
-        errors.push(create_compiler_diagnostic_for_invalid_custom_type(opt));
-    }
-    None
-}
-
-pub(super) fn convert_json_option_of_custom_type_compiler_options_value(
     opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
     value: Option<&str>,
     errors: &mut Vec<Rc<Diagnostic>>,
@@ -423,9 +357,9 @@ pub(super) fn convert_json_option_of_list_type(
     values: &[serde_json::Value],
     base_path: &str,
     errors: &mut Vec<Rc<Diagnostic>>,
-) -> Vec<serde_json::Value> {
+) -> Vec<CompilerOptionsValue> {
     let option_as_command_line_option_of_list_type = option.as_command_line_option_of_list_type();
-    filter(
+    filter_owning(
         map(Some(values), |v, _| {
             convert_json_option(
                 &option_as_command_line_option_of_list_type.element,
@@ -433,20 +367,10 @@ pub(super) fn convert_json_option_of_list_type(
                 base_path,
                 errors,
             )
-        }),
-        |v| match v {
-            None => false,
-            Some(v) => match v {
-                serde_json::Value::Null => false,
-                serde_json::Value::String(v) => !v.is_empty(),
-                _ => true,
-            },
-        },
+        })
+        .unwrap(),
+        |v| v.is_some(),
     )
-    .unwrap()
-    .into_iter()
-    .map(Option::unwrap)
-    .collect::<Vec<_>>()
 }
 
 pub(crate) fn get_file_names_from_config_specs<THost: ParseConfigHost>(

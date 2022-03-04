@@ -5,19 +5,20 @@ use std::rc::Rc;
 
 use super::{
     compiler_options_alternate_mode, convert_property_value_to_json, create_option_name_map,
-    option_declarations, parse_command_line_worker, parse_custom_type_option,
-    parse_list_type_option, parse_strings, validate_json_option_value_compiler_options_value,
-    ParseCommandLineWorkerDiagnostics,
+    get_compiler_option_value_type_string, get_option_name, get_options_name_map,
+    option_declarations, options_for_watch, parse_command_line_worker, parse_custom_type_option,
+    parse_list_type_option, parse_strings, type_acquisition_declarations,
+    validate_json_option_value, ParseCommandLineWorkerDiagnostics,
 };
 use crate::{
-    build_opts, create_compiler_diagnostic, create_diagnostic_for_node_in_source_file, find,
-    get_base_file_name, is_array_literal_expression, is_object_literal_expression,
-    maybe_text_char_at_index, starts_with, text_char_at_index, text_substring,
-    AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionType, CompilerOptionsValue, Diagnostic,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    DidYouMeanOptionsDiagnostics, Node, NodeInterface, OptionsNameMap, ParsedCommandLine, Push,
-    SyntaxKind, WatchOptions,
+    array_to_map, build_opts, create_compiler_diagnostic,
+    create_diagnostic_for_node_in_source_file, find, get_base_file_name, get_sys,
+    is_array_literal_expression, is_object_literal_expression, maybe_text_char_at_index,
+    starts_with, text_char_at_index, text_substring, AlternateModeDiagnostics, BuildOptions,
+    CharacterCodes, CommandLineOption, CommandLineOptionInterface, CommandLineOptionType,
+    CompilerOptionsValue, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    Diagnostics, DidYouMeanOptionsDiagnostics, Node, NodeInterface, OptionsNameMap,
+    ParsedCommandLine, Push, SyntaxKind, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -108,7 +109,7 @@ pub(super) fn parse_option_value(
             if matches!(opt_value, Some("false")) {
                 options.insert(
                     opt.name().to_owned(),
-                    validate_json_option_value_compiler_options_value(
+                    validate_json_option_value(
                         opt,
                         CompilerOptionsValue::Bool(Some(false)),
                         errors,
@@ -152,7 +153,7 @@ pub(super) fn parse_option_value(
                 CommandLineOptionType::Number => {
                     options.insert(
                         opt.name().to_owned(),
-                        validate_json_option_value_compiler_options_value(
+                        validate_json_option_value(
                             opt,
                             CompilerOptionsValue::Usize(Some(args[i].parse::<usize>().unwrap())),
                             errors,
@@ -164,7 +165,7 @@ pub(super) fn parse_option_value(
                     let opt_value = args.get(i).map(|arg| &**arg);
                     options.insert(
                         opt.name().to_owned(),
-                        validate_json_option_value_compiler_options_value(
+                        validate_json_option_value(
                             opt,
                             CompilerOptionsValue::Bool(Some(!matches!(opt_value, Some("false")))),
                             errors,
@@ -177,7 +178,7 @@ pub(super) fn parse_option_value(
                 CommandLineOptionType::String => {
                     options.insert(
                         opt.name().to_owned(),
-                        validate_json_option_value_compiler_options_value(
+                        validate_json_option_value(
                             opt,
                             CompilerOptionsValue::String(Some(
                                 args.get(i)
@@ -375,6 +376,137 @@ pub(crate) fn try_read_file<TReadFile: FnMut(&str) -> Option<String>>(
         .into(),
         Some(text) => text.into(),
     }
+}
+
+pub(super) fn command_line_options_to_map(
+    options: &[Rc<CommandLineOption>],
+) -> HashMap<String, Rc<CommandLineOption>> {
+    array_to_map(
+        options,
+        |option| get_option_name(option).to_owned(),
+        |item| item.clone(),
+    )
+}
+
+thread_local! {
+    static type_acquisition_did_you_mean_diagnostics_: Rc<dyn DidYouMeanOptionsDiagnostics> = Rc::new(TypeAcquisitionDidYouMeanDiagnostics::new());
+}
+
+struct TypeAcquisitionDidYouMeanDiagnostics {}
+
+impl TypeAcquisitionDidYouMeanDiagnostics {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl DidYouMeanOptionsDiagnostics for TypeAcquisitionDidYouMeanDiagnostics {
+    fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>> {
+        None
+    }
+
+    fn option_declarations(&self) -> Vec<Rc<CommandLineOption>> {
+        type_acquisition_declarations
+            .with(|type_acquisition_declarations_| type_acquisition_declarations_.clone())
+    }
+
+    fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
+        &Diagnostics::Unknown_type_acquisition_option_0
+    }
+
+    fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage {
+        &Diagnostics::Unknown_type_acquisition_option_0_Did_you_mean_1
+    }
+}
+
+pub(super) fn type_acquisition_did_you_mean_diagnostics() -> Rc<dyn DidYouMeanOptionsDiagnostics> {
+    type_acquisition_did_you_mean_diagnostics_.with(|type_acquisition_did_you_mean_diagnostics| {
+        type_acquisition_did_you_mean_diagnostics.clone()
+    })
+}
+
+thread_local! {
+    pub(super) static watch_options_name_map_cache: RefCell<Option<Rc<OptionsNameMap>>> = RefCell::new(None);
+}
+
+pub(super) fn get_watch_options_name_map() -> Rc<OptionsNameMap> {
+    watch_options_name_map_cache.with(|watch_options_name_map_cache_| {
+        let mut watch_options_name_map_cache_ = watch_options_name_map_cache_.borrow_mut();
+        if watch_options_name_map_cache_.is_none() {
+            options_for_watch.with(|options_for_watch_| {
+                *watch_options_name_map_cache_ =
+                    Some(Rc::new(create_option_name_map(&options_for_watch_)));
+            });
+        }
+        watch_options_name_map_cache_.as_ref().unwrap().clone()
+    })
+}
+
+thread_local! {
+    static watch_options_did_you_mean_diagnostics_: Rc<dyn DidYouMeanOptionsDiagnostics> = Rc::new(WatchOptionsDidYouMeanDiagnostics::new());
+}
+
+pub struct WatchOptionsDidYouMeanDiagnostics {}
+
+impl WatchOptionsDidYouMeanDiagnostics {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl DidYouMeanOptionsDiagnostics for WatchOptionsDidYouMeanDiagnostics {
+    fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>> {
+        None
+    }
+
+    fn option_declarations(&self) -> Vec<Rc<CommandLineOption>> {
+        options_for_watch.with(|options_for_watch_| options_for_watch_.clone())
+    }
+
+    fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
+        &Diagnostics::Unknown_watch_option_0
+    }
+
+    fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage {
+        &Diagnostics::Unknown_watch_option_0_Did_you_mean_1
+    }
+}
+
+impl ParseCommandLineWorkerDiagnostics for WatchOptionsDidYouMeanDiagnostics {
+    fn get_options_name_map(&self) -> Rc<OptionsNameMap> {
+        get_watch_options_name_map()
+    }
+
+    fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
+        &Diagnostics::Watch_option_0_requires_a_value_of_type_1
+    }
+}
+
+pub(super) fn watch_options_did_you_mean_diagnostics() -> Rc<dyn DidYouMeanOptionsDiagnostics> {
+    watch_options_did_you_mean_diagnostics_.with(|watch_options_did_you_mean_diagnostics| {
+        watch_options_did_you_mean_diagnostics.clone()
+    })
+}
+
+thread_local! {
+    static command_line_watch_options_map_cache: RefCell<Option<Rc<HashMap<String, Rc<CommandLineOption>>>>> = RefCell::new(None);
+}
+
+pub(super) fn get_command_line_watch_options_map() -> Rc<HashMap<String, Rc<CommandLineOption>>> {
+    command_line_watch_options_map_cache.with(|command_line_watch_options_map_cache_| {
+        let mut command_line_watch_options_map_cache_ =
+            command_line_watch_options_map_cache_.borrow_mut();
+        if command_line_watch_options_map_cache_.is_none() {
+            *command_line_watch_options_map_cache_ =
+                Some(Rc::new(options_for_watch.with(|options_for_watch_| {
+                    command_line_options_to_map(&options_for_watch_)
+                })));
+        }
+        command_line_watch_options_map_cache_
+            .as_ref()
+            .unwrap()
+            .clone()
+    })
 }
 
 pub(super) fn get_tsconfig_root_options_map() -> Rc<CommandLineOption> {

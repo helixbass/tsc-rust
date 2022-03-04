@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
-    command_options_without_build, common_options_with_build,
-    convert_json_option_of_custom_type_compiler_options_value, get_build_options_name_map,
-    get_option_declaration_from_name, validate_json_option_value_compiler_options_value,
+    command_options_without_build, common_options_with_build, convert_json_option_of_custom_type,
+    get_build_options_name_map, get_option_declaration_from_name, parse_option_value,
+    parse_response_file, validate_json_option_value, watch_options_did_you_mean_diagnostics,
 };
 use crate::{
     create_compiler_diagnostic, for_each, starts_with, trim_string, AlternateModeDiagnostics,
@@ -509,11 +509,7 @@ pub(crate) fn parse_custom_type_option(
     value: Option<&str>,
     errors: &mut Vec<Rc<Diagnostic>>,
 ) -> CompilerOptionsValue {
-    convert_json_option_of_custom_type_compiler_options_value(
-        opt,
-        trim_string(value.unwrap_or("")),
-        errors,
-    )
+    convert_json_option_of_custom_type(opt, trim_string(value.unwrap_or("")), errors)
 }
 
 pub(crate) fn parse_list_type_option(
@@ -535,7 +531,7 @@ pub(crate) fn parse_list_type_option(
         CommandLineOption::String => Some(
             value
                 .map(|v| {
-                    match validate_json_option_value_compiler_options_value(
+                    match validate_json_option_value(
                         &opt_as_command_line_option_of_list_type.element,
                         CompilerOptionsValue::String(v.to_owned()),
                         errors,
@@ -555,6 +551,10 @@ pub(crate) trait ParseCommandLineWorkerDiagnostics: DidYouMeanOptionsDiagnostics
     fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage;
 }
 
+pub(super) fn get_option_name(option: &CommandLineOption) -> &str {
+    option.name()
+}
+
 pub(super) fn create_unknown_option_error<
     TCreateDiagnostics: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Rc<Diagnostic>,
 >(
@@ -569,6 +569,12 @@ pub(super) fn create_unknown_option_error<
 pub(super) fn hash_map_to_compiler_options(
     options: &HashMap<String, CompilerOptionsValue>,
 ) -> CompilerOptions {
+    unimplemented!()
+}
+
+pub(super) fn hash_map_to_watch_options(
+    options: &HashMap<String, CompilerOptionsValue>,
+) -> WatchOptions {
     unimplemented!()
 }
 
@@ -639,31 +645,23 @@ pub(super) fn parse_strings(
             if let Some(opt) = opt {
                 i = parse_option_value(args, i, diagnostics, &opt, options, errors);
             } else {
-                let watch_opt = watch_options_did_you_mean_diagnostics.with(
-                    |watch_options_did_you_mean_diagnostics_| {
-                        get_option_declaration_from_name(
-                            || watch_options_did_you_mean_diagnostics_.get_options_name_map(),
-                            &input_option_name,
-                            Some(true),
-                        )
-                    },
+                let watch_opt = get_option_declaration_from_name(
+                    watch_options_did_you_mean_diagnostics().get_options_name_map(),
+                    &input_option_name,
+                    Some(true),
                 );
                 if let Some(watch_opt) = watch_opt {
                     let mut watch_options = watch_options.borrow_mut();
                     if watch_options.is_none() {
                         *watch_options = Some(HashMap::new());
                     }
-                    i = watch_options_did_you_mean_diagnostics.with(
-                        |watch_options_did_you_mean_diagnostics_| {
-                            parse_option_value(
-                                args,
-                                i,
-                                watch_options_did_you_mean_diagnostics_,
-                                &watch_opt,
-                                watch_options.as_mut().unwrap(),
-                                errors,
-                            )
-                        },
+                    i = parse_option_value(
+                        args,
+                        i,
+                        watch_options_did_you_mean_diagnostics(),
+                        &watch_opt,
+                        watch_options.as_mut().unwrap(),
+                        errors,
                     );
                 } else {
                     errors.push(create_unknown_option_error(

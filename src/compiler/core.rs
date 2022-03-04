@@ -2,6 +2,7 @@ use regex::{Captures, Regex};
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::mem;
 use std::ops::Add;
@@ -125,6 +126,13 @@ pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
             .map(Clone::clone)
             .collect()
     })
+}
+
+pub fn filter_owning<TItem, TCallback: FnMut(&TItem) -> bool>(
+    array: Vec<TItem>,
+    mut predicate: TCallback,
+) -> Vec<TItem> {
+    array.into_iter().filter(|item| predicate(item)).collect()
 }
 
 pub fn filter_mutate<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
@@ -637,6 +645,27 @@ fn binary_search_key_copy_key<
     }
 
     !low
+}
+
+pub fn array_to_map<
+    TItem,
+    TKey,
+    TValue,
+    TMakeKey: FnMut(&TItem) -> Option<TKey>,
+    TMakeValue: FnMut(&TItem) -> TValue,
+>(
+    array: &[TItem],
+    mut make_key: TMakeKey,
+    mut make_value: TMakeValue,
+) -> HashMap<TKey, TValue> {
+    let mut result = HashMap::new();
+    for value in array {
+        let key = make_key(value);
+        if let Some(key) = key {
+            result.insert(key, make_value(value));
+        }
+    }
+    result
 }
 
 pub fn try_cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> Option<TIn> {

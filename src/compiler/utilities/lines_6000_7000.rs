@@ -332,63 +332,56 @@ fn json_value_to_vec_plugin_import(value: Option<serde_json::Value>) -> Option<V
 pub(crate) fn set_type_acquisition_value(
     options: &mut TypeAcquisition,
     option: &CommandLineOption,
-    value: Option<serde_json::Value>,
+    value: CompilerOptionsValue,
 ) {
     match option.name() {
         "enableAutoDiscovery" => {
-            options.enable_auto_discovery = json_value_to_bool(value);
+            options.enable_auto_discovery = value.into_option_bool();
         }
         "enable" => {
-            options.enable = json_value_to_bool(value);
+            options.enable = value.into_option_bool();
         }
         "include" => {
-            options.include = json_value_to_vec_string(value);
+            options.include = value.into_option_vec_string();
         }
         "exclude" => {
-            options.exclude = json_value_to_vec_string(value);
+            options.exclude = value.into_option_vec_string();
         }
         "disableFilenameBasedTypeAcquisition" => {
-            options.disable_filename_based_type_acquisition = json_value_to_bool(value);
+            options.disable_filename_based_type_acquisition = value.into_option_bool();
         }
         _ => panic!("Unknown type acquisition field: {:?}", option.name()),
     }
 }
 
+// json_value_to_map_value(value, option, |map_value| match map_value {
+//     CommandLineOptionMapTypeValue::WatchDirectoryKind(map_value) => *map_value,
+//     _ => panic!("Expected WatchDirectoryKind"),
+// });
+
 pub(crate) fn set_watch_option_value(
     options: &mut WatchOptions,
     option: &CommandLineOption,
-    value: Option<serde_json::Value>,
+    value: CompilerOptionsValue,
 ) {
     match option.name() {
         "watchFile" => {
-            options.watch_file =
-                json_value_to_map_value(value, option, |map_value| match map_value {
-                    CommandLineOptionMapTypeValue::WatchFileKind(map_value) => *map_value,
-                    _ => panic!("Expected WatchFileKind"),
-                });
+            options.watch_file = value.into_option_watch_file_kind();
         }
         "watchDirectory" => {
-            options.watch_directory =
-                json_value_to_map_value(value, option, |map_value| match map_value {
-                    CommandLineOptionMapTypeValue::WatchDirectoryKind(map_value) => *map_value,
-                    _ => panic!("Expected WatchDirectoryKind"),
-                });
+            options.watch_directory = value.into_option_watch_directory_kind();
         }
         "fallbackPolling" => {
-            options.fallback_polling =
-                json_value_to_map_value(value, option, |map_value| match map_value {
-                    CommandLineOptionMapTypeValue::PollingWatchKind(map_value) => *map_value,
-                    _ => panic!("Expected PollingWatchKind"),
-                });
+            options.fallback_polling = value.into_option_polling_watch_kind();
         }
         "synchronousWatchDirectory" => {
-            options.synchronous_watch_directory = json_value_to_bool(value);
+            options.synchronous_watch_directory = value.into_option_bool();
         }
         "excludeDirectories" => {
-            options.exclude_directories = json_value_to_vec_string(value);
+            options.exclude_directories = value.into_option_vec_string();
         }
         "excludeFiles" => {
-            options.exclude_files = json_value_to_vec_string(value);
+            options.exclude_files = value.into_option_vec_string();
         }
         _ => panic!("Unknown watch option: {:?}", option.name()),
     }
@@ -397,380 +390,359 @@ pub(crate) fn set_watch_option_value(
 pub(crate) fn set_compiler_option_value(
     options: &mut CompilerOptions,
     option: &CommandLineOption,
-    value: Option<serde_json::Value>,
+    value: CompilerOptionsValue,
 ) {
     match option.name() {
         "all" => {
-            options.all = json_value_to_bool(value);
+            options.all = value.into_option_bool();
         }
         "allowJs" => {
-            options.allow_js = json_value_to_bool(value);
+            options.allow_js = value.into_option_bool();
         }
         "allowNonTsExtensions" => {
-            options.allow_non_ts_extensions = json_value_to_bool(value);
+            options.allow_non_ts_extensions = value.into_option_bool();
         }
         "allowSyntheticDefaultImports" => {
-            options.allow_synthetic_default_imports = json_value_to_bool(value);
+            options.allow_synthetic_default_imports = value.into_option_bool();
         }
         "allowUmdGlobalAccess" => {
-            options.allow_umd_global_access = json_value_to_bool(value);
+            options.allow_umd_global_access = value.into_option_bool();
         }
         "allowUnreachableCode" => {
-            options.allow_unreachable_code = json_value_to_bool(value);
+            options.allow_unreachable_code = value.into_option_bool();
         }
         "allowUnusedLabels" => {
-            options.allow_unused_labels = json_value_to_bool(value);
+            options.allow_unused_labels = value.into_option_bool();
         }
         "alwaysStrict" => {
-            options.always_strict = json_value_to_bool(value);
+            options.always_strict = value.into_option_bool();
         }
         "baseUrl" => {
-            options.base_url = json_value_to_string(value);
+            options.base_url = value.into_option_string();
         }
         "build" => {
-            options.build = json_value_to_bool(value);
+            options.build = value.into_option_bool();
         }
         "charset" => {
-            options.charset = json_value_to_string(value);
+            options.charset = value.into_option_string();
         }
         "checkJs" => {
-            options.check_js = json_value_to_bool(value);
+            options.check_js = value.into_option_bool();
         }
         "configFilePath" => {
-            options.config_file_path = json_value_to_string(value);
+            options.config_file_path = value.into_option_string();
         }
         "configFile" => {
-            panic!("Can't set configFile from JSON");
+            options.config_file = value.into_option_rc_node();
         }
         "declaration" => {
-            options.declaration = json_value_to_bool(value);
+            options.declaration = value.into_option_bool();
         }
         "declarationMap" => {
-            options.declaration_map = json_value_to_bool(value);
+            options.declaration_map = value.into_option_bool();
         }
         "emitDeclarationOnly" => {
-            options.emit_declaration_only = json_value_to_bool(value);
+            options.emit_declaration_only = value.into_option_bool();
         }
         "declarationDir" => {
-            options.declaration_dir = json_value_to_string(value);
+            options.declaration_dir = value.into_option_string();
         }
         "diagnostics" => {
-            options.diagnostics = json_value_to_bool(value);
+            options.diagnostics = value.into_option_bool();
         }
         "extendedDiagnostics" => {
-            options.extended_diagnostics = json_value_to_bool(value);
+            options.extended_diagnostics = value.into_option_bool();
         }
         "disableSizeLimit" => {
-            options.disable_size_limit = json_value_to_bool(value);
+            options.disable_size_limit = value.into_option_bool();
         }
         "disableSourceOfProjectReferenceRedirect" => {
-            options.disable_source_of_project_reference_redirect = json_value_to_bool(value);
+            options.disable_source_of_project_reference_redirect = value.into_option_bool();
         }
         "disableSolutionSearching" => {
-            options.disable_solution_searching = json_value_to_bool(value);
+            options.disable_solution_searching = value.into_option_bool();
         }
         "disableReferencedProjectLoad" => {
-            options.disable_referenced_project_load = json_value_to_bool(value);
+            options.disable_referenced_project_load = value.into_option_bool();
         }
         "downlevelIteration" => {
-            options.downlevel_iteration = json_value_to_bool(value);
+            options.downlevel_iteration = value.into_option_bool();
         }
         "emitBom" => {
-            options.emit_bom = json_value_to_bool(value);
+            options.emit_bom = value.into_option_bool();
         }
         "emitDecoratorMetadata" => {
-            options.emit_decorator_metadata = json_value_to_bool(value);
+            options.emit_decorator_metadata = value.into_option_bool();
         }
         "exactOptionalPropertyTypes" => {
-            options.exact_optional_property_types = json_value_to_bool(value);
+            options.exact_optional_property_types = value.into_option_bool();
         }
         "experimentalDecorators" => {
-            options.experimental_decorators = json_value_to_bool(value);
+            options.experimental_decorators = value.into_option_bool();
         }
         "forceConsistentCasingInFileNames" => {
-            options.force_consistent_casing_in_file_names = json_value_to_bool(value);
+            options.force_consistent_casing_in_file_names = value.into_option_bool();
         }
         "generateCpuProfile" => {
-            options.generate_cpu_profile = json_value_to_string(value);
+            options.generate_cpu_profile = value.into_option_string();
         }
         "generateTrace" => {
-            options.generate_trace = json_value_to_string(value);
+            options.generate_trace = value.into_option_string();
         }
         "help" => {
-            options.help = json_value_to_bool(value);
+            options.help = value.into_option_bool();
         }
         "importHelpers" => {
-            options.import_helpers = json_value_to_bool(value);
+            options.import_helpers = value.into_option_bool();
         }
         "importsNotUsedAsValues" => {
-            options.imports_not_used_as_values =
-                json_value_to_map_value(value, option, |map_value| match map_value {
-                    CommandLineOptionMapTypeValue::ImportsNotUsedAsValues(map_value) => *map_value,
-                    _ => panic!("Expected ImportsNotUsedAsValues"),
-                });
+            options.imports_not_used_as_values = value.into_option_imports_not_used_as_values();
         }
         "init" => {
-            options.init = json_value_to_bool(value);
+            options.init = value.into_option_bool();
         }
         "inlineSourceMap" => {
-            options.inline_source_map = json_value_to_bool(value);
+            options.inline_source_map = value.into_option_bool();
         }
         "inlineSources" => {
-            options.inline_sources = json_value_to_bool(value);
+            options.inline_sources = value.into_option_bool();
         }
         "isolatedModules" => {
-            options.isolated_modules = json_value_to_bool(value);
+            options.isolated_modules = value.into_option_bool();
         }
         "jsx" => {
-            options.jsx = json_value_to_map_value(value, option, |map_value| match map_value {
-                CommandLineOptionMapTypeValue::JsxEmit(map_value) => *map_value,
-                _ => panic!("Expected JsxEmit"),
-            });
+            options.jsx = value.into_option_jsx_emit();
         }
         "keyofStringsOnly" => {
-            options.keyof_strings_only = json_value_to_bool(value);
+            options.keyof_strings_only = value.into_option_bool();
         }
         "lib" => {
-            options.lib = json_value_to_vec_string(value);
+            options.lib = value.into_option_vec_string();
         }
         "listEmittedFiles" => {
-            options.list_emitted_files = json_value_to_bool(value);
+            options.list_emitted_files = value.into_option_bool();
         }
         "listFiles" => {
-            options.list_files = json_value_to_bool(value);
+            options.list_files = value.into_option_bool();
         }
         "explainFiles" => {
-            options.explain_files = json_value_to_bool(value);
+            options.explain_files = value.into_option_bool();
         }
         "listFilesOnly" => {
-            options.list_files_only = json_value_to_bool(value);
+            options.list_files_only = value.into_option_bool();
         }
         "locale" => {
-            options.locale = json_value_to_string(value);
+            options.locale = value.into_option_string();
         }
         "mapRoot" => {
-            options.map_root = json_value_to_string(value);
+            options.map_root = value.into_option_string();
         }
         "maxNodeModuleJsDepth" => {
-            options.max_node_module_js_depth = json_value_to_usize(value);
+            options.max_node_module_js_depth = value.into_option_usize();
         }
         "module" => {
-            options.module = json_value_to_map_value(value, option, |map_value| match map_value {
-                CommandLineOptionMapTypeValue::ModuleKind(map_value) => *map_value,
-                _ => panic!("Expected ModuleKind"),
-            });
+            options.module = value.into_option_module_kind();
         }
         "moduleResolution" => {
-            options.module_resolution =
-                json_value_to_map_value(value, option, |map_value| match map_value {
-                    CommandLineOptionMapTypeValue::ModuleResolutionKind(map_value) => *map_value,
-                    _ => panic!("Expected ModuleResolutionKind"),
-                });
+            options.module_resolution = value.into_option_module_resolution_kind();
         }
         "newLine" => {
-            options.new_line =
-                json_value_to_map_value(value, option, |map_value| match map_value {
-                    CommandLineOptionMapTypeValue::NewLineKind(map_value) => *map_value,
-                    _ => panic!("Expected NewLineKind"),
-                });
+            options.new_line = value.into_option_new_line_kind();
         }
         "noEmit" => {
-            options.no_emit = json_value_to_bool(value);
+            options.no_emit = value.into_option_bool();
         }
         "noEmitForJsFiles" => {
-            options.no_emit_for_js_files = json_value_to_bool(value);
+            options.no_emit_for_js_files = value.into_option_bool();
         }
         "noEmitHelpers" => {
-            options.no_emit_helpers = json_value_to_bool(value);
+            options.no_emit_helpers = value.into_option_bool();
         }
         "noEmitOnError" => {
-            options.no_emit_on_error = json_value_to_bool(value);
+            options.no_emit_on_error = value.into_option_bool();
         }
         "noErrorTruncation" => {
-            options.no_error_truncation = json_value_to_bool(value);
+            options.no_error_truncation = value.into_option_bool();
         }
         "noFallthroughCasesInSwitch" => {
-            options.no_fallthrough_cases_in_switch = json_value_to_bool(value);
+            options.no_fallthrough_cases_in_switch = value.into_option_bool();
         }
         "noImplicitAny" => {
-            options.no_implicit_any = json_value_to_bool(value);
+            options.no_implicit_any = value.into_option_bool();
         }
         "noImplicitReturns" => {
-            options.no_implicit_returns = json_value_to_bool(value);
+            options.no_implicit_returns = value.into_option_bool();
         }
         "noImplicitThis" => {
-            options.no_implicit_this = json_value_to_bool(value);
+            options.no_implicit_this = value.into_option_bool();
         }
         "noStrictGenericChecks" => {
-            options.no_strict_generic_checks = json_value_to_bool(value);
+            options.no_strict_generic_checks = value.into_option_bool();
         }
         "noUnusedLocals" => {
-            options.no_unused_locals = json_value_to_bool(value);
+            options.no_unused_locals = value.into_option_bool();
         }
         "noUnusedParameters" => {
-            options.no_unused_parameters = json_value_to_bool(value);
+            options.no_unused_parameters = value.into_option_bool();
         }
         "noImplicitUseStrict" => {
-            options.no_implicit_use_strict = json_value_to_bool(value);
+            options.no_implicit_use_strict = value.into_option_bool();
         }
         "noPropertyAccessFromIndexSignature" => {
-            options.no_property_access_from_index_signature = json_value_to_bool(value);
+            options.no_property_access_from_index_signature = value.into_option_bool();
         }
         "assumeChangesOnlyAffectDirectDependencies" => {
-            options.assume_changes_only_affect_direct_dependencies = json_value_to_bool(value);
+            options.assume_changes_only_affect_direct_dependencies = value.into_option_bool();
         }
         "noLib" => {
-            options.no_lib = json_value_to_bool(value);
+            options.no_lib = value.into_option_bool();
         }
         "noResolve" => {
-            options.no_resolve = json_value_to_bool(value);
+            options.no_resolve = value.into_option_bool();
         }
         "noUncheckedIndexedAccess" => {
-            options.no_unchecked_indexed_access = json_value_to_bool(value);
+            options.no_unchecked_indexed_access = value.into_option_bool();
         }
         "out" => {
-            options.out = json_value_to_string(value);
+            options.out = value.into_option_string();
         }
         "outDir" => {
-            options.out_dir = json_value_to_string(value);
+            options.out_dir = value.into_option_string();
         }
         "outFile" => {
-            options.out_file = json_value_to_string(value);
+            options.out_file = value.into_option_string();
         }
         "paths" => {
-            options.paths = json_value_to_map_like_vec_string(value);
+            options.paths = value.into_option_map_like_vec_string();
         }
         "pathsBasePath" => {
-            options.paths_base_path = json_value_to_string(value);
+            options.paths_base_path = value.into_option_string();
         }
         "plugins" => {
-            options.plugins = json_value_to_vec_plugin_import(value);
+            options.plugins = value.into_option_vec_plugin_import();
         }
         "preserveConstEnums" => {
-            options.preserve_const_enums = json_value_to_bool(value);
+            options.preserve_const_enums = value.into_option_bool();
         }
         "noImplicitOverride" => {
-            options.no_implicit_override = json_value_to_bool(value);
+            options.no_implicit_override = value.into_option_bool();
         }
         "preserveSymlinks" => {
-            options.preserve_symlinks = json_value_to_bool(value);
+            options.preserve_symlinks = value.into_option_bool();
         }
         "preserveValueImports" => {
-            options.preserve_value_imports = json_value_to_bool(value);
+            options.preserve_value_imports = value.into_option_bool();
         }
         "preserveWatchOutput" => {
-            options.preserve_watch_output = json_value_to_bool(value);
+            options.preserve_watch_output = value.into_option_bool();
         }
         "project" => {
-            options.project = json_value_to_string(value);
+            options.project = value.into_option_string();
         }
         "pretty" => {
-            options.pretty = json_value_to_bool(value);
+            options.pretty = value.into_option_bool();
         }
         "reactNamespace" => {
-            options.react_namespace = json_value_to_string(value);
+            options.react_namespace = value.into_option_string();
         }
         "jsxFactory" => {
-            options.jsx_factory = json_value_to_string(value);
+            options.jsx_factory = value.into_option_string();
         }
         "jsxFragmentFactory" => {
-            options.jsx_fragment_factory = json_value_to_string(value);
+            options.jsx_fragment_factory = value.into_option_string();
         }
         "jsxImportSource" => {
-            options.jsx_import_source = json_value_to_string(value);
+            options.jsx_import_source = value.into_option_string();
         }
         "composite" => {
-            options.composite = json_value_to_bool(value);
+            options.composite = value.into_option_bool();
         }
         "incremental" => {
-            options.incremental = json_value_to_bool(value);
+            options.incremental = value.into_option_bool();
         }
         "tsBuildInfoFile" => {
-            options.ts_build_info_file = json_value_to_string(value);
+            options.ts_build_info_file = value.into_option_string();
         }
         "removeComments" => {
-            options.remove_comments = json_value_to_bool(value);
+            options.remove_comments = value.into_option_bool();
         }
         "rootDir" => {
-            options.root_dir = json_value_to_string(value);
+            options.root_dir = value.into_option_string();
         }
         "rootDirs" => {
-            options.root_dirs = json_value_to_vec_string(value);
+            options.root_dirs = value.into_option_vec_string();
         }
         "skipLibCheck" => {
-            options.skip_lib_check = json_value_to_bool(value);
+            options.skip_lib_check = value.into_option_bool();
         }
         "skipDefaultLibCheck" => {
-            options.skip_default_lib_check = json_value_to_bool(value);
+            options.skip_default_lib_check = value.into_option_bool();
         }
         "sourceMap" => {
-            options.source_map = json_value_to_bool(value);
+            options.source_map = value.into_option_bool();
         }
         "sourceRoot" => {
-            options.source_root = json_value_to_string(value);
+            options.source_root = value.into_option_string();
         }
         "strict" => {
-            options.strict = json_value_to_bool(value);
+            options.strict = value.into_option_bool();
         }
         "strictFunctionTypes" => {
-            options.strict_function_types = json_value_to_bool(value);
+            options.strict_function_types = value.into_option_bool();
         }
         "strictBindCallApply" => {
-            options.strict_bind_call_apply = json_value_to_bool(value);
+            options.strict_bind_call_apply = value.into_option_bool();
         }
         "strictNullChecks" => {
-            options.strict_null_checks = json_value_to_bool(value);
+            options.strict_null_checks = value.into_option_bool();
         }
         "strictPropertyInitialization" => {
-            options.strict_property_initialization = json_value_to_bool(value);
+            options.strict_property_initialization = value.into_option_bool();
         }
         "stripInternal" => {
-            options.strip_internal = json_value_to_bool(value);
+            options.strip_internal = value.into_option_bool();
         }
         "suppressExcessPropertyErrors" => {
-            options.suppress_excess_property_errors = json_value_to_bool(value);
+            options.suppress_excess_property_errors = value.into_option_bool();
         }
         "suppressImplicitAnyIndexErrors" => {
-            options.suppress_implicit_any_index_errors = json_value_to_bool(value);
+            options.suppress_implicit_any_index_errors = value.into_option_bool();
         }
         "suppressOutputPathCheck" => {
-            options.suppress_output_path_check = json_value_to_bool(value);
+            options.suppress_output_path_check = value.into_option_bool();
         }
         "target" => {
-            options.target = json_value_to_map_value(value, option, |map_value| match map_value {
-                CommandLineOptionMapTypeValue::ScriptTarget(map_value) => *map_value,
-                _ => panic!("Expected ScriptTarget"),
-            });
+            options.target = value.into_option_script_target();
         }
         "traceResolution" => {
-            options.trace_resolution = json_value_to_bool(value);
+            options.trace_resolution = value.into_option_bool();
         }
         "useUnknownInCatchVariables" => {
-            options.use_unknown_in_catch_variables = json_value_to_bool(value);
+            options.use_unknown_in_catch_variables = value.into_option_bool();
         }
         "resolveJsonModule" => {
-            options.resolve_json_module = json_value_to_bool(value);
+            options.resolve_json_module = value.into_option_bool();
         }
         "types" => {
-            options.types = json_value_to_vec_string(value);
+            options.types = value.into_option_vec_string();
         }
         "typeRoots" => {
-            options.type_roots = json_value_to_vec_string(value);
+            options.type_roots = value.into_option_vec_string();
         }
         "version" => {
-            options.version = json_value_to_bool(value);
+            options.version = value.into_option_bool();
         }
         "watch" => {
-            options.watch = json_value_to_bool(value);
+            options.watch = value.into_option_bool();
         }
         "esModuleInterop" => {
-            options.es_module_interop = json_value_to_bool(value);
+            options.es_module_interop = value.into_option_bool();
         }
         "showConfig" => {
-            options.show_config = json_value_to_bool(value);
+            options.show_config = value.into_option_bool();
         }
         "useDefineForClassFields" => {
-            options.use_define_for_class_fields = json_value_to_bool(value);
+            options.use_define_for_class_fields = value.into_option_bool();
         }
         _ => panic!("Unknown compiler option: {:?}", option.name()),
     }

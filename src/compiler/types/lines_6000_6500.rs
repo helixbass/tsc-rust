@@ -126,6 +126,70 @@ impl CompilerOptionsValue {
     pub fn as_option_bool(&self) -> Option<bool> {
         enum_unwrapped!(self, [CompilerOptionsValue, Bool]).clone()
     }
+
+    pub fn into_option_bool(self) -> Option<bool> {
+        enum_unwrapped!(self, [CompilerOptionsValue, Bool])
+    }
+
+    pub fn into_option_vec_string(self) -> Option<Vec<String>> {
+        enum_unwrapped!(self, [CompilerOptionsValue, VecString])
+    }
+
+    pub fn into_option_watch_file_kind(self) -> Option<WatchFileKind> {
+        enum_unwrapped!(self, [CompilerOptionsValue, WatchFileKind])
+    }
+
+    pub fn into_option_watch_directory_kind(self) -> Option<WatchDirectoryKind> {
+        enum_unwrapped!(self, [CompilerOptionsValue, WatchDirectoryKind])
+    }
+
+    pub fn into_option_polling_watch_kind(self) -> Option<PollingWatchKind> {
+        enum_unwrapped!(self, [CompilerOptionsValue, PollingWatchKind])
+    }
+
+    pub fn into_option_string(self) -> Option<String> {
+        enum_unwrapped!(self, [CompilerOptionsValue, String])
+    }
+
+    pub fn into_option_vec_plugin_import(self) -> Option<Vec<PluginImport>> {
+        enum_unwrapped!(self, [CompilerOptionsValue, VecPluginImport])
+    }
+
+    pub fn into_option_new_line_kind(self) -> Option<NewLineKind> {
+        enum_unwrapped!(self, [CompilerOptionsValue, NewLineKind])
+    }
+
+    pub fn into_option_module_kind(self) -> Option<ModuleKind> {
+        enum_unwrapped!(self, [CompilerOptionsValue, ModuleKind])
+    }
+
+    pub fn into_option_module_resolution_kind(self) -> Option<ModuleResolutionKind> {
+        enum_unwrapped!(self, [CompilerOptionsValue, ModuleResolutionKind])
+    }
+
+    pub fn into_option_usize(self) -> Option<usize> {
+        enum_unwrapped!(self, [CompilerOptionsValue, Usize])
+    }
+
+    pub fn into_option_rc_node(self) -> Option<Rc<Node>> {
+        enum_unwrapped!(self, [CompilerOptionsValue, SourceFile])
+    }
+
+    pub fn into_option_imports_not_used_as_values(self) -> Option<ImportsNotUsedAsValues> {
+        enum_unwrapped!(self, [CompilerOptionsValue, ImportsNotUsedAsValues])
+    }
+
+    pub fn into_option_map_like_vec_string(self) -> Option<MapLike<Vec<String>>> {
+        enum_unwrapped!(self, [CompilerOptionsValue, MapLikeVecString])
+    }
+
+    pub fn into_option_script_target(self) -> Option<ScriptTarget> {
+        enum_unwrapped!(self, [CompilerOptionsValue, ScriptTarget])
+    }
+
+    pub fn into_option_jsx_emit(self) -> Option<JsxEmit> {
+        enum_unwrapped!(self, [CompilerOptionsValue, JsxEmit])
+    }
 }
 
 impl PartialEq for CompilerOptionsValue {
@@ -1132,6 +1196,32 @@ impl CommandLineOption {
 
     pub fn as_ts_config_only_option(&self) -> &TsConfigOnlyOption {
         enum_unwrapped!(self, [CommandLineOption, TsConfigOnlyOption])
+    }
+
+    pub fn to_compiler_options_value_none(&self) -> CompilerOptionsValue {
+        match self {
+            Self::CommandLineOptionOfCustomType(_) => self
+                .type_()
+                .as_map()
+                .values()
+                .next()
+                .unwrap()
+                .as_compiler_options_value()
+                .as_none(),
+            Self::CommandLineOptionOfStringType(_) => CompilerOptionsValue::String(None),
+            Self::CommandLineOptionOfNumberType(_) => CompilerOptionsValue::Usize(None),
+            Self::CommandLineOptionOfBooleanType(_) => CompilerOptionsValue::Bool(None),
+            Self::TsConfigOnlyOption(_) => CompilerOptionsValue::MapLikeVecString(None),
+            Self::CommandLineOptionOfListType(list_type) => match list_type.element.type_() {
+                CommandLineOptionType::String => CompilerOptionsValue::VecString(None),
+                CommandLineOptionType::Object => CompilerOptionsValue::VecPluginImport(None),
+                _ => panic!("Unexpected element type"),
+            },
+        }
+    }
+
+    pub fn to_compiler_options_value(&self, value: &serde_json::Value) -> CompilerOptionsValue {
+        unimplemented!()
     }
 }
 
