@@ -1,35 +1,17 @@
-use derive_builder::Builder;
 use serde::Serialize;
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    command_options_without_build, convert_compile_on_save_option_from_json,
-    convert_compiler_options_from_json_worker, convert_config_file_to_object, convert_to_object,
-    convert_type_acquisition_from_json_worker, convert_watch_options_from_json_worker,
-    create_diagnostic_for_invalid_custom_type, create_unknown_option_error,
-    get_default_compiler_options, get_default_type_acquisition, get_extended_config,
-    get_file_names_from_config_specs, get_wildcard_directories, normalize_option_value,
-    validate_specs,
-};
+use super::{create_diagnostic_for_invalid_custom_type, create_unknown_option_error};
 use crate::{
-    append, combine_paths, convert_to_relative_path, create_compiler_diagnostic,
-    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, every,
-    extend_compiler_options, extend_watch_options, filter_mutate, find, first_defined,
-    get_directory_path, get_normalized_absolute_path, get_text_of_property_name,
-    get_ts_config_prop_array, index_of, is_computed_non_literal_name, is_rooted_disk_path,
-    is_string_double_quoted, is_string_literal, map, maybe_extend_compiler_options, normalize_path,
-    normalize_slashes, set_compiler_option_value, set_type_acquisition_value,
-    set_watch_option_value, unescape_leading_underscores, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, ConfigFileSpecs, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo,
-    HasInitializerInterface, JsonConversionNotifier, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, Number, ParseConfigHost, ParsedCommandLine, Path, ProjectReference, Push,
-    SyntaxKind, System, TypeAcquisition, WatchOptions,
+    create_diagnostic_for_node_in_source_file, get_text_of_property_name,
+    is_computed_non_literal_name, is_string_double_quoted, is_string_literal,
+    unescape_leading_underscores, CommandLineOption, CommandLineOptionInterface,
+    CommandLineOptionType, Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics,
+    JsonConversionNotifier, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number,
+    ParsedCommandLine, Push, SyntaxKind, System,
 };
 
 pub(super) fn is_root_option_map(

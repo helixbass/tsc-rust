@@ -1,24 +1,14 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    command_options_without_build, common_options_with_build, convert_property_value_to_json,
-    create_option_name_map, is_compiler_options_value, parse_command_line_worker,
-};
+use super::{convert_property_value_to_json, create_option_name_map, parse_command_line_worker};
 use crate::{
     build_opts, create_compiler_diagnostic, create_diagnostic_for_node_in_source_file, find,
-    for_each, get_base_file_name, get_text_of_property_name, is_array_literal_expression,
-    is_computed_non_literal_name, is_object_literal_expression, is_string_double_quoted,
-    is_string_literal, unescape_leading_underscores, AlternateModeDiagnostics, BuildOptions,
-    CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
-    CommandLineOptionOfBooleanType, CommandLineOptionOfListType, CommandLineOptionOfStringType,
-    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, DidYouMeanOptionsDiagnostics, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, OptionsNameMap,
-    ParsedCommandLine, Push, ScriptTarget, StringOrDiagnosticMessage, SyntaxKind, WatchOptions,
+    get_base_file_name, is_array_literal_expression, is_object_literal_expression, BuildOptions,
+    CommandLineOption, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    Diagnostics, Node, NodeInterface, OptionsNameMap, ParsedCommandLine, Push, SyntaxKind,
+    WatchOptions,
 };
 use local_macros::enum_unwrapped;
 

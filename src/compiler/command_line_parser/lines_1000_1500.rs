@@ -1,26 +1,15 @@
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    command_options_without_build, common_options_with_build, get_build_options_name_map,
-    is_compiler_options_value,
-};
+use super::{command_options_without_build, common_options_with_build, get_build_options_name_map};
 use crate::{
-    create_compiler_diagnostic, create_diagnostic_for_node_in_source_file, find, for_each,
-    get_base_file_name, get_text_of_property_name, is_array_literal_expression,
-    is_computed_non_literal_name, is_object_literal_expression, is_string_double_quoted,
-    is_string_literal, unescape_leading_underscores, AlternateModeDiagnostics, BuildOptions,
-    CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
-    CommandLineOptionOfBooleanType, CommandLineOptionOfListType, CommandLineOptionOfStringType,
-    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, DidYouMeanOptionsDiagnostics, ModuleKind,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, ParsedCommandLine, Push,
-    ScriptTarget, StringOrDiagnosticMessage, SyntaxKind, WatchOptions,
+    for_each, AlternateModeDiagnostics, CommandLineOption, CommandLineOptionBase,
+    CommandLineOptionInterface, CommandLineOptionOfBooleanType, CommandLineOptionOfListType,
+    CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
+    Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, ModuleKind,
+    ParsedCommandLine, ScriptTarget, StringOrDiagnosticMessage,
 };
-use local_macros::enum_unwrapped;
 
 thread_local! {
     pub(crate) static option_declarations: Vec<Rc<CommandLineOption>> =

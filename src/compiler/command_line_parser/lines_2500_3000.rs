@@ -1,5 +1,4 @@
 use derive_builder::Builder;
-use serde::Serialize;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -20,12 +19,11 @@ use crate::{
     get_directory_path, get_normalized_absolute_path, get_text_of_property_name,
     get_ts_config_prop_array, index_of, is_rooted_disk_path, map, maybe_extend_compiler_options,
     normalize_path, normalize_slashes, set_compiler_option_value, set_type_acquisition_value,
-    set_watch_option_value, CommandLineOption, CommandLineOptionInterface, CommandLineOptionType,
-    CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry,
-    FileExtensionInfo, HasInitializerInterface, JsonConversionNotifier, Node, NodeInterface,
-    ParseConfigHost, ParsedCommandLine, Path, ProjectReference, System, TypeAcquisition,
-    WatchOptions,
+    set_watch_option_value, CommandLineOption, CommandLineOptionInterface, CompilerOptions,
+    ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    Diagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, HasInitializerInterface,
+    JsonConversionNotifier, Node, NodeInterface, ParseConfigHost, ParsedCommandLine, Path,
+    ProjectReference, TypeAcquisition, WatchOptions,
 };
 
 pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: FnMut(&str) -> String>(
