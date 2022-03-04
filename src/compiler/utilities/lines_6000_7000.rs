@@ -2,16 +2,18 @@
 
 use std::borrow::Cow;
 use std::cmp;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
     compare_strings_case_sensitive, compare_strings_case_sensitive_maybe, compare_values, flatten,
     for_each, format_string_from_args, get_locale_specific_message, index_of, CommandLineOption,
-    CommandLineOptionInterface, Comparison, CompilerOptions, CompilerOptionsValue, Debug_,
-    Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    Extension, JsxEmit, LanguageVariant, ModuleKind, Pattern, ScriptKind, ScriptTarget,
+    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison,
+    CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
+    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Extension, JsxEmit, LanguageVariant, MapLike,
+    ModuleKind, Pattern, PluginImport, ScriptKind, ScriptTarget,
 };
 use local_macros::enum_unwrapped;
 
@@ -225,15 +227,487 @@ fn json_value_to_bool(value: Option<serde_json::Value>) -> Option<bool> {
     })
 }
 
+fn json_value_to_string(value: Option<serde_json::Value>) -> Option<String> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::String(value) => Some(value),
+        _ => panic!("Expected string"),
+    })
+}
+
+fn json_value_to_map_value<TReturn, TCallback: Fn(&CommandLineOptionMapTypeValue) -> TReturn>(
+    value: Option<serde_json::Value>,
+    option: &CommandLineOption,
+    callback: TCallback,
+) -> Option<TReturn> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::String(value) => match option.type_() {
+            CommandLineOptionType::Map(map) => map.get(&&*value).map(callback),
+            _ => panic!("Expected map"),
+        },
+        _ => panic!("Expected string"),
+    })
+}
+
+fn json_value_to_vec_string(value: Option<serde_json::Value>) -> Option<Vec<String>> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::Array(value) => Some(
+            value
+                .into_iter()
+                .map(|item| match item {
+                    serde_json::Value::String(item) => item,
+                    _ => panic!("Expected string"),
+                })
+                .collect::<Vec<_>>(),
+        ),
+        _ => panic!("Expected array"),
+    })
+}
+
+fn json_value_to_usize(value: Option<serde_json::Value>) -> Option<usize> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::Number(value) => Some(
+            value
+                .as_u64()
+                .expect("Couldn't convert JSON number to u64")
+                .try_into()
+                .expect("Couldn't convert u64 to usize"),
+        ),
+        _ => panic!("Expected number"),
+    })
+}
+
+fn json_value_to_map_like_vec_string(
+    value: Option<serde_json::Value>,
+) -> Option<MapLike<Vec<String>>> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::Object(value) => Some({
+            let mut map: HashMap<String, Vec<String>> = HashMap::new();
+            for (key, map_value) in value {
+                map.insert(
+                    key,
+                    match map_value {
+                        serde_json::Value::Array(map_value) => map_value
+                            .into_iter()
+                            .map(|item| match item {
+                                serde_json::Value::String(item) => item,
+                                _ => panic!("Expected string"),
+                            })
+                            .collect::<Vec<_>>(),
+                        _ => panic!("Expected array"),
+                    },
+                );
+            }
+            map
+        }),
+        _ => panic!("Expected object"),
+    })
+}
+
+fn json_value_to_vec_plugin_import(value: Option<serde_json::Value>) -> Option<Vec<PluginImport>> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::Array(value) => Some(
+            value
+                .into_iter()
+                .map(|item| match item {
+                    serde_json::Value::Object(item) => PluginImport {
+                        name: match item.get("name").expect("Expected name") {
+                            serde_json::Value::String(name) => name.clone(),
+                            _ => panic!("Expected string"),
+                        },
+                    },
+                    _ => panic!("Expected object"),
+                })
+                .collect::<Vec<_>>(),
+        ),
+        _ => panic!("Expected array"),
+    })
+}
+
 pub(crate) fn set_compiler_option_value(
     options: &mut CompilerOptions,
-    name: &str,
+    option: &CommandLineOption,
     value: Option<serde_json::Value>,
 ) {
-    match name {
+    match option.name() {
         "all" => {
             options.all = json_value_to_bool(value);
         }
+        "allowJs" => {
+            options.allow_js = json_value_to_bool(value);
+        }
+        "allowNonTsExtensions" => {
+            options.allow_non_ts_extensions = json_value_to_bool(value);
+        }
+        "allowSyntheticDefaultImports" => {
+            options.allow_synthetic_default_imports = json_value_to_bool(value);
+        }
+        "allowUmdGlobalAccess" => {
+            options.allow_umd_global_access = json_value_to_bool(value);
+        }
+        "allowUnreachableCode" => {
+            options.allow_unreachable_code = json_value_to_bool(value);
+        }
+        "allowUnusedLabels" => {
+            options.allow_unused_labels = json_value_to_bool(value);
+        }
+        "alwaysStrict" => {
+            options.always_strict = json_value_to_bool(value);
+        }
+        "baseUrl" => {
+            options.base_url = json_value_to_string(value);
+        }
+        "build" => {
+            options.build = json_value_to_bool(value);
+        }
+        "charset" => {
+            options.charset = json_value_to_string(value);
+        }
+        "checkJs" => {
+            options.check_js = json_value_to_bool(value);
+        }
+        "configFilePath" => {
+            options.config_file_path = json_value_to_string(value);
+        }
+        "configFile" => {
+            panic!("Can't set configFile from JSON");
+        }
+        "declaration" => {
+            options.declaration = json_value_to_bool(value);
+        }
+        "declarationMap" => {
+            options.declaration_map = json_value_to_bool(value);
+        }
+        "emitDeclarationOnly" => {
+            options.emit_declaration_only = json_value_to_bool(value);
+        }
+        "declarationDir" => {
+            options.declaration_dir = json_value_to_string(value);
+        }
+        "diagnostics" => {
+            options.diagnostics = json_value_to_bool(value);
+        }
+        "extendedDiagnostics" => {
+            options.extended_diagnostics = json_value_to_bool(value);
+        }
+        "disableSizeLimit" => {
+            options.disable_size_limit = json_value_to_bool(value);
+        }
+        "disableSourceOfProjectReferenceRedirect" => {
+            options.disable_source_of_project_reference_redirect = json_value_to_bool(value);
+        }
+        "disableSolutionSearching" => {
+            options.disable_solution_searching = json_value_to_bool(value);
+        }
+        "disableReferencedProjectLoad" => {
+            options.disable_referenced_project_load = json_value_to_bool(value);
+        }
+        "downlevelIteration" => {
+            options.downlevel_iteration = json_value_to_bool(value);
+        }
+        "emitBom" => {
+            options.emit_bom = json_value_to_bool(value);
+        }
+        "emitDecoratorMetadata" => {
+            options.emit_decorator_metadata = json_value_to_bool(value);
+        }
+        "exactOptionalPropertyTypes" => {
+            options.exact_optional_property_types = json_value_to_bool(value);
+        }
+        "experimentalDecorators" => {
+            options.experimental_decorators = json_value_to_bool(value);
+        }
+        "forceConsistentCasingInFileNames" => {
+            options.force_consistent_casing_in_file_names = json_value_to_bool(value);
+        }
+        "generateCpuProfile" => {
+            options.generate_cpu_profile = json_value_to_string(value);
+        }
+        "generateTrace" => {
+            options.generate_trace = json_value_to_string(value);
+        }
+        "help" => {
+            options.help = json_value_to_bool(value);
+        }
+        "importHelpers" => {
+            options.import_helpers = json_value_to_bool(value);
+        }
+        "importsNotUsedAsValues" => {
+            options.imports_not_used_as_values =
+                json_value_to_map_value(value, option, |map_value| match map_value {
+                    CommandLineOptionMapTypeValue::ImportsNotUsedAsValues(map_value) => *map_value,
+                    _ => panic!("Expected ImportsNotUsedAsValues"),
+                });
+        }
+        "init" => {
+            options.init = json_value_to_bool(value);
+        }
+        "inlineSourceMap" => {
+            options.inline_source_map = json_value_to_bool(value);
+        }
+        "inlineSources" => {
+            options.inline_sources = json_value_to_bool(value);
+        }
+        "isolatedModules" => {
+            options.isolated_modules = json_value_to_bool(value);
+        }
+        "jsx" => {
+            options.jsx = json_value_to_map_value(value, option, |map_value| match map_value {
+                CommandLineOptionMapTypeValue::JsxEmit(map_value) => *map_value,
+                _ => panic!("Expected JsxEmit"),
+            });
+        }
+        "keyofStringsOnly" => {
+            options.keyof_strings_only = json_value_to_bool(value);
+        }
+        "lib" => {
+            options.lib = json_value_to_vec_string(value);
+        }
+        "listEmittedFiles" => {
+            options.list_emitted_files = json_value_to_bool(value);
+        }
+        "listFiles" => {
+            options.list_files = json_value_to_bool(value);
+        }
+        "explainFiles" => {
+            options.explain_files = json_value_to_bool(value);
+        }
+        "listFilesOnly" => {
+            options.list_files_only = json_value_to_bool(value);
+        }
+        "locale" => {
+            options.locale = json_value_to_string(value);
+        }
+        "mapRoot" => {
+            options.map_root = json_value_to_string(value);
+        }
+        "maxNodeModuleJsDepth" => {
+            options.max_node_module_js_depth = json_value_to_usize(value);
+        }
+        "module" => {
+            options.module = json_value_to_map_value(value, option, |map_value| match map_value {
+                CommandLineOptionMapTypeValue::ModuleKind(map_value) => *map_value,
+                _ => panic!("Expected ModuleKind"),
+            });
+        }
+        "moduleResolution" => {
+            options.module_resolution =
+                json_value_to_map_value(value, option, |map_value| match map_value {
+                    CommandLineOptionMapTypeValue::ModuleResolutionKind(map_value) => *map_value,
+                    _ => panic!("Expected ModuleResolutionKind"),
+                });
+        }
+        "newLine" => {
+            options.new_line =
+                json_value_to_map_value(value, option, |map_value| match map_value {
+                    CommandLineOptionMapTypeValue::NewLineKind(map_value) => *map_value,
+                    _ => panic!("Expected NewLineKind"),
+                });
+        }
+        "noEmit" => {
+            options.no_emit = json_value_to_bool(value);
+        }
+        "noEmitForJsFiles" => {
+            options.no_emit_for_js_files = json_value_to_bool(value);
+        }
+        "noEmitHelpers" => {
+            options.no_emit_helpers = json_value_to_bool(value);
+        }
+        "noEmitOnError" => {
+            options.no_emit_on_error = json_value_to_bool(value);
+        }
+        "noErrorTruncation" => {
+            options.no_error_truncation = json_value_to_bool(value);
+        }
+        "noFallthroughCasesInSwitch" => {
+            options.no_fallthrough_cases_in_switch = json_value_to_bool(value);
+        }
+        "noImplicitAny" => {
+            options.no_implicit_any = json_value_to_bool(value);
+        }
+        "noImplicitReturns" => {
+            options.no_implicit_returns = json_value_to_bool(value);
+        }
+        "noImplicitThis" => {
+            options.no_implicit_this = json_value_to_bool(value);
+        }
+        "noStrictGenericChecks" => {
+            options.no_strict_generic_checks = json_value_to_bool(value);
+        }
+        "noUnusedLocals" => {
+            options.no_unused_locals = json_value_to_bool(value);
+        }
+        "noUnusedParameters" => {
+            options.no_unused_parameters = json_value_to_bool(value);
+        }
+        "noImplicitUseStrict" => {
+            options.no_implicit_use_strict = json_value_to_bool(value);
+        }
+        "noPropertyAccessFromIndexSignature" => {
+            options.no_property_access_from_index_signature = json_value_to_bool(value);
+        }
+        "assumeChangesOnlyAffectDirectDependencies" => {
+            options.assume_changes_only_affect_direct_dependencies = json_value_to_bool(value);
+        }
+        "noLib" => {
+            options.no_lib = json_value_to_bool(value);
+        }
+        "noResolve" => {
+            options.no_resolve = json_value_to_bool(value);
+        }
+        "noUncheckedIndexedAccess" => {
+            options.no_unchecked_indexed_access = json_value_to_bool(value);
+        }
+        "out" => {
+            options.out = json_value_to_string(value);
+        }
+        "outDir" => {
+            options.out_dir = json_value_to_string(value);
+        }
+        "outFile" => {
+            options.out_file = json_value_to_string(value);
+        }
+        "paths" => {
+            options.paths = json_value_to_map_like_vec_string(value);
+        }
+        "pathsBasePath" => {
+            options.paths_base_path = json_value_to_string(value);
+        }
+        "plugins" => {
+            options.plugins = json_value_to_vec_plugin_import(value);
+        }
+        "preserveConstEnums" => {
+            options.preserve_const_enums = json_value_to_bool(value);
+        }
+        "noImplicitOverride" => {
+            options.no_implicit_override = json_value_to_bool(value);
+        }
+        "preserveSymlinks" => {
+            options.preserve_symlinks = json_value_to_bool(value);
+        }
+        "preserveValueImports" => {
+            options.preserve_value_imports = json_value_to_bool(value);
+        }
+        "preserveWatchOutput" => {
+            options.preserve_watch_output = json_value_to_bool(value);
+        }
+        "project" => {
+            options.project = json_value_to_string(value);
+        }
+        "pretty" => {
+            options.pretty = json_value_to_bool(value);
+        }
+        "reactNamespace" => {
+            options.react_namespace = json_value_to_string(value);
+        }
+        "jsxFactory" => {
+            options.jsx_factory = json_value_to_string(value);
+        }
+        "jsxFragmentFactory" => {
+            options.jsx_fragment_factory = json_value_to_string(value);
+        }
+        "jsxImportSource" => {
+            options.jsx_import_source = json_value_to_string(value);
+        }
+        "composite" => {
+            options.composite = json_value_to_bool(value);
+        }
+        "incremental" => {
+            options.incremental = json_value_to_bool(value);
+        }
+        "tsBuildInfoFile" => {
+            options.ts_build_info_file = json_value_to_string(value);
+        }
+        "removeComments" => {
+            options.remove_comments = json_value_to_bool(value);
+        }
+        "rootDir" => {
+            options.root_dir = json_value_to_string(value);
+        }
+        "rootDirs" => {
+            options.root_dirs = json_value_to_vec_string(value);
+        }
+        "skipLibCheck" => {
+            options.skip_lib_check = json_value_to_bool(value);
+        }
+        "skipDefaultLibCheck" => {
+            options.skip_default_lib_check = json_value_to_bool(value);
+        }
+        "sourceMap" => {
+            options.source_map = json_value_to_bool(value);
+        }
+        "sourceRoot" => {
+            options.source_root = json_value_to_string(value);
+        }
+        "strict" => {
+            options.strict = json_value_to_bool(value);
+        }
+        "strictFunctionTypes" => {
+            options.strict_function_types = json_value_to_bool(value);
+        }
+        "strictBindCallApply" => {
+            options.strict_bind_call_apply = json_value_to_bool(value);
+        }
+        "strictNullChecks" => {
+            options.strict_null_checks = json_value_to_bool(value);
+        }
+        "strictPropertyInitialization" => {
+            options.strict_property_initialization = json_value_to_bool(value);
+        }
+        "stripInternal" => {
+            options.strip_internal = json_value_to_bool(value);
+        }
+        "suppressExcessPropertyErrors" => {
+            options.suppress_excess_property_errors = json_value_to_bool(value);
+        }
+        "suppressImplicitAnyIndexErrors" => {
+            options.suppress_implicit_any_index_errors = json_value_to_bool(value);
+        }
+        "suppressOutputPathCheck" => {
+            options.suppress_output_path_check = json_value_to_bool(value);
+        }
+        "target" => {
+            options.target = json_value_to_map_value(value, option, |map_value| match map_value {
+                CommandLineOptionMapTypeValue::ScriptTarget(map_value) => *map_value,
+                _ => panic!("Expected ScriptTarget"),
+            });
+        }
+        "traceResolution" => {
+            options.trace_resolution = json_value_to_bool(value);
+        }
+        "useUnknownInCatchVariables" => {
+            options.use_unknown_in_catch_variables = json_value_to_bool(value);
+        }
+        "resolveJsonModule" => {
+            options.resolve_json_module = json_value_to_bool(value);
+        }
+        "types" => {
+            options.types = json_value_to_vec_string(value);
+        }
+        "typeRoots" => {
+            options.type_roots = json_value_to_vec_string(value);
+        }
+        "version" => {
+            options.version = json_value_to_bool(value);
+        }
+        "watch" => {
+            options.watch = json_value_to_bool(value);
+        }
+        "esModuleInterop" => {
+            options.es_module_interop = json_value_to_bool(value);
+        }
+        "showConfig" => {
+            options.show_config = json_value_to_bool(value);
+        }
+        "useDefineForClassFields" => {
+            options.use_define_for_class_fields = json_value_to_bool(value);
+        }
+        _ => panic!("Unknown compiler option: {:?}", option.name()),
     }
 }
 
@@ -299,11 +773,11 @@ fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> Compil
             CompilerOptionsValue::ImportsNotUsedAsValues(options.imports_not_used_as_values.clone())
         }
         "init" => CompilerOptionsValue::Bool(options.init.clone()),
-        "inlineSource_map" => CompilerOptionsValue::Bool(options.inline_source_map.clone()),
+        "inlineSourceMap" => CompilerOptionsValue::Bool(options.inline_source_map.clone()),
         "inlineSources" => CompilerOptionsValue::Bool(options.inline_sources.clone()),
         "isolatedModules" => CompilerOptionsValue::Bool(options.isolated_modules.clone()),
         "jsx" => CompilerOptionsValue::JsxEmit(options.jsx.clone()),
-        "keyofStrings_only" => CompilerOptionsValue::Bool(options.keyof_strings_only.clone()),
+        "keyofStringsOnly" => CompilerOptionsValue::Bool(options.keyof_strings_only.clone()),
         "lib" => CompilerOptionsValue::VecString(options.lib.clone()),
         "listEmittedFiles" => CompilerOptionsValue::Bool(options.list_emitted_files.clone()),
         "listFiles" => CompilerOptionsValue::Bool(options.list_files.clone()),

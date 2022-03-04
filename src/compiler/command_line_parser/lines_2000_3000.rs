@@ -944,7 +944,7 @@ impl<'a> JsonConversionNotifier for ParseOwnConfigOfJsonSourceFile<'a> {
             "compilerOptions" => {
                 set_compiler_option_value(
                     &mut self.options.borrow_mut(),
-                    option.name(),
+                    &option,
                     normalize_option_value(option, self.base_path, value),
                 );
             }
