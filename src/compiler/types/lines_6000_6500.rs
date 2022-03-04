@@ -49,7 +49,7 @@ pub enum PollingWatchKind {
     FixedChunkSize,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum CompilerOptionsValue {
     Bool(Option<bool>),
     String(Option<String>),
@@ -65,9 +65,64 @@ pub enum CompilerOptionsValue {
     VecPluginImport(Option<Vec<PluginImport>>),
     ScriptTarget(Option<ScriptTarget>),
     Number(Option<Number>),
+    WatchFileKind(Option<WatchFileKind>),
+    WatchDirectoryKind(Option<WatchDirectoryKind>),
+    PollingWatchKind(Option<PollingWatchKind>),
 }
 
 impl CompilerOptionsValue {
+    pub fn is_some(&self) -> bool {
+        match self {
+            Self::Bool(value) => value.is_some(),
+            Self::String(value) => value.is_some(),
+            Self::SourceFile(value) => value.is_some(),
+            Self::ImportsNotUsedAsValues(value) => value.is_some(),
+            Self::JsxEmit(value) => value.is_some(),
+            Self::VecString(value) => value.is_some(),
+            Self::Usize(value) => value.is_some(),
+            Self::ModuleKind(value) => value.is_some(),
+            Self::ModuleResolutionKind(value) => value.is_some(),
+            Self::NewLineKind(value) => value.is_some(),
+            Self::MapLikeVecString(value) => value.is_some(),
+            Self::VecPluginImport(value) => value.is_some(),
+            Self::ScriptTarget(value) => value.is_some(),
+            Self::Number(value) => value.is_some(),
+            Self::WatchFileKind(value) => value.is_some(),
+            Self::WatchDirectoryKind(value) => value.is_some(),
+            Self::PollingWatchKind(value) => value.is_some(),
+        }
+    }
+
+    pub fn as_none(&self) -> Self {
+        match self {
+            Self::Bool(_) => Self::Bool(None),
+            Self::String(_) => Self::String(None),
+            Self::SourceFile(_) => Self::SourceFile(None),
+            Self::ImportsNotUsedAsValues(_) => Self::ImportsNotUsedAsValues(None),
+            Self::JsxEmit(_) => Self::JsxEmit(None),
+            Self::VecString(_) => Self::VecString(None),
+            Self::Usize(_) => Self::Usize(None),
+            Self::ModuleKind(_) => Self::ModuleKind(None),
+            Self::ModuleResolutionKind(_) => Self::ModuleResolutionKind(None),
+            Self::NewLineKind(_) => Self::NewLineKind(None),
+            Self::MapLikeVecString(_) => Self::MapLikeVecString(None),
+            Self::VecPluginImport(_) => Self::VecPluginImport(None),
+            Self::ScriptTarget(_) => Self::ScriptTarget(None),
+            Self::Number(_) => Self::Number(None),
+            Self::WatchFileKind(_) => Self::WatchFileKind(None),
+            Self::WatchDirectoryKind(_) => Self::WatchDirectoryKind(None),
+            Self::PollingWatchKind(_) => Self::PollingWatchKind(None),
+        }
+    }
+
+    pub fn or_empty_vec(self) -> Self {
+        match self {
+            Self::VecString(option) => Self::VecString(option.or_else(|| Some(vec![]))),
+            Self::VecPluginImport(option) => Self::VecPluginImport(option.or_else(|| Some(vec![]))),
+            _ => panic!("Expected vec option"),
+        }
+    }
+
     pub fn as_option_bool(&self) -> Option<bool> {
         enum_unwrapped!(self, [CompilerOptionsValue, Bool]).clone()
     }
@@ -134,6 +189,18 @@ impl PartialEq for CompilerOptionsValue {
             (
                 CompilerOptionsValue::Number(self_value),
                 CompilerOptionsValue::Number(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::WatchFileKind(self_value),
+                CompilerOptionsValue::WatchFileKind(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::WatchDirectoryKind(self_value),
+                CompilerOptionsValue::WatchDirectoryKind(other_value),
+            ) => self_value == other_value,
+            (
+                CompilerOptionsValue::PollingWatchKind(self_value),
+                CompilerOptionsValue::PollingWatchKind(other_value),
             ) => self_value == other_value,
             _ => false,
         }
@@ -722,6 +789,30 @@ pub enum CommandLineOptionMapTypeValue {
     PollingWatchKind(PollingWatchKind),
 }
 
+impl CommandLineOptionMapTypeValue {
+    pub fn as_compiler_options_value(&self) -> CompilerOptionsValue {
+        match self {
+            Self::StaticStr(value) => CompilerOptionsValue::String(Some((*value).to_owned())),
+            Self::String(value) => CompilerOptionsValue::String(Some(value.clone())),
+            Self::ScriptTarget(value) => CompilerOptionsValue::ScriptTarget(Some(*value)),
+            Self::ModuleKind(value) => CompilerOptionsValue::ModuleKind(Some(*value)),
+            Self::JsxEmit(value) => CompilerOptionsValue::JsxEmit(Some(*value)),
+            Self::ImportsNotUsedAsValues(value) => {
+                CompilerOptionsValue::ImportsNotUsedAsValues(Some(*value))
+            }
+            Self::ModuleResolutionKind(value) => {
+                CompilerOptionsValue::ModuleResolutionKind(Some(*value))
+            }
+            Self::NewLineKind(value) => CompilerOptionsValue::NewLineKind(Some(*value)),
+            Self::WatchFileKind(value) => CompilerOptionsValue::WatchFileKind(Some(*value)),
+            Self::WatchDirectoryKind(value) => {
+                CompilerOptionsValue::WatchDirectoryKind(Some(*value))
+            }
+            Self::PollingWatchKind(value) => CompilerOptionsValue::PollingWatchKind(Some(*value)),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum CommandLineOptionType {
     String,
@@ -782,6 +873,11 @@ pub trait CommandLineOptionInterface {
         &self,
     ) -> Option<
         fn(Option<&serde_json::Value>) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+    >;
+    fn maybe_extra_validation_compiler_options_value(
+        &self,
+    ) -> Option<
+        fn(&CompilerOptionsValue) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
     >;
 }
 
@@ -906,6 +1002,14 @@ impl CommandLineOptionInterface for CommandLineOptionBase {
     > {
         None
     }
+
+    fn maybe_extra_validation_compiler_options_value(
+        &self,
+    ) -> Option<
+        fn(&CompilerOptionsValue) -> Option<(&'static DiagnosticMessage, Option<Vec<String>>)>,
+    > {
+        None
+    }
 }
 
 #[command_line_option_type]
@@ -966,8 +1070,8 @@ pub struct AlternateModeDiagnostics {
 }
 
 pub trait DidYouMeanOptionsDiagnostics {
-    fn maybe_alternate_mode(&self) -> Option<AlternateModeDiagnostics>;
-    fn option_declarations(&self) -> &[CommandLineOption];
+    fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>>;
+    fn option_declarations(&self) -> Vec<Rc<CommandLineOption>>;
     fn unknown_option_diagnostic(&self) -> &DiagnosticMessage;
     fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage;
 }

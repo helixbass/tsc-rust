@@ -2,13 +2,18 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::{command_options_without_build, common_options_with_build, get_build_options_name_map};
+use super::{
+    command_options_without_build, common_options_with_build,
+    convert_json_option_of_custom_type_compiler_options_value, get_build_options_name_map,
+    get_option_declaration_from_name, validate_json_option_value_compiler_options_value,
+};
 use crate::{
-    for_each, AlternateModeDiagnostics, CommandLineOption, CommandLineOptionBase,
-    CommandLineOptionInterface, CommandLineOptionOfBooleanType, CommandLineOptionOfListType,
-    CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
+    create_compiler_diagnostic, for_each, starts_with, trim_string, AlternateModeDiagnostics,
+    CharacterCodes, CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
+    CommandLineOptionOfBooleanType, CommandLineOptionOfListType, CommandLineOptionOfStringType,
+    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
     Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, ModuleKind,
-    ParsedCommandLine, ScriptTarget, StringOrDiagnosticMessage,
+    ParsedCommandLine, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
 };
 
 thread_local! {
@@ -432,7 +437,53 @@ thread_local! {
             .build().unwrap());
 }
 
-// pub(crate) fn convert_enable_auto_discovery_to_enable(type_acquisition: )
+pub(crate) fn convert_enable_auto_discovery_to_enable(
+    type_acquisition: Option<&serde_json::Value>,
+) -> Option<serde_json::Value> {
+    if let Some(type_acquisition) =
+        type_acquisition.filter(|type_acquisition| match type_acquisition {
+            serde_json::Value::Object(type_acquisition) => {
+                type_acquisition.contains_key("enableAutoDiscovery")
+                    && !type_acquisition.contains_key("enable")
+            }
+            _ => false,
+        })
+    {
+        let type_acquisition = match type_acquisition {
+            serde_json::Value::Object(type_acquisition) => type_acquisition,
+            _ => panic!("Expected object"),
+        };
+        return Some(serde_json::Value::Object({
+            let map = serde_json::Map::new();
+            map.insert(
+                "enable".to_owned(),
+                type_acquisition.get("enableAutoDiscovery").unwrap().clone(),
+            );
+            map.insert(
+                "include".to_owned(),
+                type_acquisition
+                    .get("include")
+                    .map_or_else(|| serde_json::Value::Array(vec![]), Clone::clone),
+            );
+            map.insert(
+                "exclude".to_owned(),
+                type_acquisition
+                    .get("exclude")
+                    .map_or_else(|| serde_json::Value::Array(vec![]), Clone::clone),
+            );
+            map
+        }));
+    }
+    type_acquisition.map(Clone::clone)
+}
+
+pub(crate) fn create_compiler_diagnostic_for_invalid_custom_type(
+    opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
+) -> Rc<Diagnostic> {
+    create_diagnostic_for_invalid_custom_type(opt, |message, args| {
+        Rc::new(create_compiler_diagnostic(message, args).into())
+    })
+}
 
 pub(super) fn create_diagnostic_for_invalid_custom_type<
     TCreateDiagnostic: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Rc<Diagnostic>,
@@ -453,145 +504,178 @@ pub(super) fn create_diagnostic_for_invalid_custom_type<
     )
 }
 
+pub(crate) fn parse_custom_type_option(
+    opt: &CommandLineOption, /*CommandLineOptionOfCustomType*/
+    value: Option<&str>,
+    errors: &mut Vec<Rc<Diagnostic>>,
+) -> CompilerOptionsValue {
+    convert_json_option_of_custom_type_compiler_options_value(
+        opt,
+        trim_string(value.unwrap_or("")),
+        errors,
+    )
+}
+
+pub(crate) fn parse_list_type_option(
+    opt: &CommandLineOption, /*CommandLineOptionOfListType*/
+    value: Option<&str>,
+    errors: &mut Vec<Rc<Diagnostic>>,
+) -> Option<Vec<String>> {
+    let value = value.unwrap_or("");
+    if starts_with(value, "-") {
+        return None;
+    }
+    if value == "" {
+        return Some(vec![]);
+    }
+    let values = value.split(",");
+    let opt_as_command_line_option_of_list_type = opt.as_command_line_option_of_list_type();
+    match opt_as_command_line_option_of_list_type.element.type_() {
+        // CommandLineOptionType::Number =>
+        CommandLineOption::String => Some(
+            value
+                .map(|v| {
+                    match validate_json_option_value_compiler_options_value(
+                        &opt_as_command_line_option_of_list_type.element,
+                        CompilerOptionsValue::String(v.to_owned()),
+                        errors,
+                    ) {
+                        CompilerOptionsValue::String(v) => v,
+                        _ => panic!("Expected string"),
+                    }
+                })
+                .collect(),
+        ),
+        _ => panic!("Expected vec of strings"),
+    }
+}
+
+pub(crate) trait ParseCommandLineWorkerDiagnostics: DidYouMeanOptionsDiagnostics {
+    fn get_options_name_map(&self) -> Rc<OptionsNameMap>;
+    fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage;
+}
+
 pub(super) fn create_unknown_option_error<
     TCreateDiagnostics: FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Rc<Diagnostic>,
 >(
     unknown_option: &str,
-    diagnostics: &Box<dyn DidYouMeanOptionsDiagnostics>,
+    diagnostics: &dyn DidYouMeanOptionsDiagnostics,
     create_diagnostics: TCreateDiagnostics,
     unknown_option_error_text: Option<&str>,
 ) -> Rc<Diagnostic> {
     unimplemented!()
 }
 
-pub(super) fn parse_command_line_worker(command_line: &[String]) -> ParsedCommandLine {
+pub(super) fn hash_map_to_compiler_options(
+    options: &HashMap<String, CompilerOptionsValue>,
+) -> CompilerOptions {
+    unimplemented!()
+}
+
+pub(super) fn parse_command_line_worker<TReadFile: FnMut(&str) -> Option<String>>(
+    diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
+    command_line: &[String],
+    read_file: Option<TReadFile>,
+) -> ParsedCommandLine {
+    let mut options: HashMap<String, CompilerOptionsValue> = HashMap::new();
+    let watch_options: RefCell<Option<HashMap<String, CompilerOptionsValue>>> = RefCell::new(None);
+    let mut file_names: Vec<String> = vec![];
+    let mut errors: Vec<Rc<Diagnostic>> = vec![];
+
+    parse_strings(
+        &mut file_names,
+        diagnostics,
+        &mut options,
+        &mut errors,
+        &watch_options,
+        command_line,
+    );
+
     ParsedCommandLine {
-        options: Rc::new(CompilerOptions {
-            all: None,
-            allow_js: None,
-            allow_non_ts_extensions: None,
-            allow_synthetic_default_imports: None,
-            allow_umd_global_access: None,
-            allow_unreachable_code: None,
-            allow_unused_labels: None,
-            always_strict: None,
-            base_url: None,
-            build: None,
-            charset: None,
-            check_js: None,
-            config_file_path: None,
-            config_file: None,
-            declaration: None,
-            declaration_map: None,
-            emit_declaration_only: None,
-            declaration_dir: None,
-            diagnostics: None,
-            extended_diagnostics: None,
-            disable_size_limit: None,
-            disable_source_of_project_reference_redirect: None,
-            disable_solution_searching: None,
-            disable_referenced_project_load: None,
-            downlevel_iteration: None,
-            emit_bom: None,
-            emit_decorator_metadata: None,
-            exact_optional_property_types: None,
-            experimental_decorators: None,
-            force_consistent_casing_in_file_names: None,
-            generate_cpu_profile: None,
-            generate_trace: None,
-            help: None,
-            import_helpers: None,
-            imports_not_used_as_values: None,
-            init: None,
-            inline_source_map: None,
-            inline_sources: None,
-            isolated_modules: None,
-            jsx: None,
-            keyof_strings_only: None,
-            lib: None,
-            list_emitted_files: None,
-            list_files: None,
-            explain_files: None,
-            list_files_only: None,
-            locale: None,
-            map_root: None,
-            max_node_module_js_depth: None,
-            module: None,
-            module_resolution: None,
-            new_line: None,
-            no_emit: None,
-            no_emit_for_js_files: None,
-            no_emit_helpers: None,
-            no_emit_on_error: None,
-            no_error_truncation: None,
-            no_fallthrough_cases_in_switch: None,
-            no_implicit_any: None,
-            no_implicit_returns: None,
-            no_implicit_this: None,
-            no_strict_generic_checks: None,
-            no_unused_locals: None,
-            no_unused_parameters: None,
-            no_implicit_use_strict: None,
-            no_property_access_from_index_signature: None,
-            assume_changes_only_affect_direct_dependencies: None,
-            no_lib: None,
-            no_resolve: None,
-            no_unchecked_indexed_access: None,
-            out: None,
-            out_dir: None,
-            out_file: None,
-            paths: None,
-            paths_base_path: None,
-            plugins: None,
-            preserve_const_enums: None,
-            no_implicit_override: None,
-            preserve_symlinks: None,
-            preserve_value_imports: None,
-            preserve_watch_output: None,
-            project: None,
-            pretty: None,
-            react_namespace: None,
-            jsx_factory: None,
-            jsx_fragment_factory: None,
-            jsx_import_source: None,
-            composite: None,
-            incremental: None,
-            ts_build_info_file: None,
-            remove_comments: None,
-            root_dir: None,
-            root_dirs: None,
-            skip_lib_check: None,
-            skip_default_lib_check: None,
-            source_map: None,
-            source_root: None,
-            strict: None,
-            strict_function_types: None,
-            strict_bind_call_apply: None,
-            strict_null_checks: None,
-            strict_property_initialization: None,
-            strip_internal: None,
-            suppress_excess_property_errors: None,
-            suppress_implicit_any_index_errors: None,
-            suppress_output_path_check: None,
-            target: None,
-            trace_resolution: None,
-            use_unknown_in_catch_variables: None,
-            resolve_json_module: None,
-            types: None,
-            type_roots: None,
-            version: None,
-            watch: None,
-            es_module_interop: None,
-            show_config: None,
-            use_define_for_class_fields: None,
-        }),
-        project_references: None,
-        file_names: command_line.to_vec(),
-        watch_options: None,
-        errors: vec![],
-        compile_on_save: None,
-        raw: None,
+        options: Rc::new(hash_map_to_compiler_options(&options)),
+        watch_options: watch_options
+            .borrow()
+            .as_ref()
+            .map(|watch_options| Rc::new(hash_map_to_watch_options(watch_options))),
+        file_names,
+        errors,
         type_acquisition: None,
+        project_references: None,
+        raw: None,
         wildcard_directories: None,
+        compile_on_save: None,
+    }
+}
+
+pub(super) fn parse_strings(
+    file_names: &mut Vec<String>,
+    diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
+    options: &mut HashMap<String, CompilerOptionsValue>,
+    errors: &mut Vec<Rc<Diagnostic>>,
+    watch_options: &RefCell<Option<HashMap<String, CompilerOptionsValue>>>,
+    args: &[String],
+) {
+    let mut i = 0;
+    while i < args.len() {
+        let s = &args[i];
+        i += 1;
+        let s_as_chars: Vec<char> = s.chars().collect::<Vec<_>>();
+        if matches!(s_as_chars.get(0).copied(), Some(CharacterCodes::at)) {
+            parse_response_file(&s_as_chars[1..].iter().collect::<String>());
+        } else if matches!(s_as_chars.get(0).copied(), Some(CharacterCodes::minus)) {
+            let input_option_name =
+                if matches!(s_as_chars.get(1).copied(), Some(CharacterCodes::minus)) {
+                    &s_as_chars[2..]
+                } else {
+                    &s_as_chars[1..]
+                }
+                .iter()
+                .collect::<String>();
+            let opt = get_option_declaration_from_name(
+                || diagnostics.get_options_name_map(),
+                &input_option_name,
+                Some(true),
+            );
+            if let Some(opt) = opt {
+                i = parse_option_value(args, i, diagnostics, &opt, options, errors);
+            } else {
+                let watch_opt = watch_options_did_you_mean_diagnostics.with(
+                    |watch_options_did_you_mean_diagnostics_| {
+                        get_option_declaration_from_name(
+                            || watch_options_did_you_mean_diagnostics_.get_options_name_map(),
+                            &input_option_name,
+                            Some(true),
+                        )
+                    },
+                );
+                if let Some(watch_opt) = watch_opt {
+                    let mut watch_options = watch_options.borrow_mut();
+                    if watch_options.is_none() {
+                        *watch_options = Some(HashMap::new());
+                    }
+                    i = watch_options_did_you_mean_diagnostics.with(
+                        |watch_options_did_you_mean_diagnostics_| {
+                            parse_option_value(
+                                args,
+                                i,
+                                watch_options_did_you_mean_diagnostics_,
+                                &watch_opt,
+                                watch_options.as_mut().unwrap(),
+                                errors,
+                            )
+                        },
+                    );
+                } else {
+                    errors.push(create_unknown_option_error(
+                        &input_option_name,
+                        diagnostics,
+                        |message, args| Rc::new(create_compiler_diagnostic(message, args).into()),
+                        Some(s),
+                    ));
+                }
+            }
+        } else {
+            file_names.push(s.clone());
+        }
     }
 }

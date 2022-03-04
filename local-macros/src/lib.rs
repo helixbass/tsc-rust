@@ -2298,6 +2298,14 @@ fn get_command_line_option_struct_interface_impl(
                     > {
                         self.#first_field_name.maybe_extra_validation()
                     }
+
+                    fn maybe_extra_validation_compiler_options_value(
+                        &self,
+                    ) -> ::std::option::Option<
+                        fn(&crate::CompilerOptionsValue) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                    > {
+                        self.#first_field_name.maybe_extra_validation_compiler_options_value()
+                    }
                 }
             }
         }
@@ -2447,6 +2455,16 @@ fn get_command_line_option_enum_interface_impl(
                     > {
                         match self {
                             #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_extra_validation()),*
+                        }
+                    }
+
+                    fn maybe_extra_validation_compiler_options_value(
+                        &self,
+                    ) -> ::std::option::Option<
+                        fn(&crate::CompilerOptionsValue) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                    > {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_extra_validation_compiler_options_value()),*
                         }
                     }
                 }
