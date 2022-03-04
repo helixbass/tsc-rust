@@ -13,7 +13,7 @@ use crate::{
     CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, Extension, JsxEmit, LanguageVariant, MapLike,
-    ModuleKind, Pattern, PluginImport, ScriptKind, ScriptTarget,
+    ModuleKind, Pattern, PluginImport, ScriptKind, ScriptTarget, TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -327,6 +327,71 @@ fn json_value_to_vec_plugin_import(value: Option<serde_json::Value>) -> Option<V
         ),
         _ => panic!("Expected array"),
     })
+}
+
+pub(crate) fn set_type_acquisition_value(
+    options: &mut TypeAcquisition,
+    option: &CommandLineOption,
+    value: Option<serde_json::Value>,
+) {
+    match option.name() {
+        "enableAutoDiscovery" => {
+            options.enable_auto_discovery = json_value_to_bool(value);
+        }
+        "enable" => {
+            options.enable = json_value_to_bool(value);
+        }
+        "include" => {
+            options.include = json_value_to_vec_string(value);
+        }
+        "exclude" => {
+            options.exclude = json_value_to_vec_string(value);
+        }
+        "disableFilenameBasedTypeAcquisition" => {
+            options.disable_filename_based_type_acquisition = json_value_to_bool(value);
+        }
+        _ => panic!("Unknown type acquisition field: {:?}", option.name()),
+    }
+}
+
+pub(crate) fn set_watch_option_value(
+    options: &mut WatchOptions,
+    option: &CommandLineOption,
+    value: Option<serde_json::Value>,
+) {
+    match option.name() {
+        "watchFile" => {
+            options.watch_file =
+                json_value_to_map_value(value, option, |map_value| match map_value {
+                    CommandLineOptionMapTypeValue::WatchFileKind(map_value) => *map_value,
+                    _ => panic!("Expected WatchFileKind"),
+                });
+        }
+        "watchDirectory" => {
+            options.watch_directory =
+                json_value_to_map_value(value, option, |map_value| match map_value {
+                    CommandLineOptionMapTypeValue::WatchDirectoryKind(map_value) => *map_value,
+                    _ => panic!("Expected WatchDirectoryKind"),
+                });
+        }
+        "fallbackPolling" => {
+            options.fallback_polling =
+                json_value_to_map_value(value, option, |map_value| match map_value {
+                    CommandLineOptionMapTypeValue::PollingWatchKind(map_value) => *map_value,
+                    _ => panic!("Expected PollingWatchKind"),
+                });
+        }
+        "synchronousWatchDirectory" => {
+            options.synchronous_watch_directory = json_value_to_bool(value);
+        }
+        "excludeDirectories" => {
+            options.exclude_directories = json_value_to_vec_string(value);
+        }
+        "excludeFiles" => {
+            options.exclude_files = json_value_to_vec_string(value);
+        }
+        _ => panic!("Unknown watch option: {:?}", option.name()),
+    }
 }
 
 pub(crate) fn set_compiler_option_value(

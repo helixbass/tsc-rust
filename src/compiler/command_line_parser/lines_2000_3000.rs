@@ -18,12 +18,13 @@ use crate::{
     extend_compiler_options, extend_watch_options, filter_mutate, first_defined,
     get_directory_path, get_normalized_absolute_path, get_text_of_property_name,
     get_ts_config_prop_array, index_of, is_rooted_disk_path, map, maybe_extend_compiler_options,
-    normalize_path, normalize_slashes, set_compiler_option_value, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, ConfigFileSpecs, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    ExtendedConfigCacheEntry, FileExtensionInfo, HasInitializerInterface, JsonConversionNotifier,
-    Node, NodeInterface, ParseConfigHost, ParsedCommandLine, Path, ProjectReference, System,
-    TypeAcquisition, WatchOptions,
+    normalize_path, normalize_slashes, set_compiler_option_value, set_type_acquisition_value,
+    set_watch_option_value, CommandLineOption, CommandLineOptionInterface, CommandLineOptionType,
+    CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry,
+    FileExtensionInfo, HasInitializerInterface, JsonConversionNotifier, Node, NodeInterface,
+    ParseConfigHost, ParsedCommandLine, Path, ProjectReference, System, TypeAcquisition,
+    WatchOptions,
 };
 
 pub(super) fn is_compiler_options_value(
@@ -858,20 +859,29 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
     errors: &mut Vec<Rc<Diagnostic>>,
 ) -> ParsedTsconfig {
     let mut options = get_default_compiler_options(config_file_name);
-    let mut type_acquisition: Option<TypeAcquisition> = None;
-    let mut typing_options_type_acquisition: Option<TypeAcquisition> = None;
-    let mut watch_options: Option<WatchOptions> = None;
+    let type_acquisition: RefCell<Option<TypeAcquisition>> = RefCell::new(None);
+    let typing_options_type_acquisition: RefCell<Option<TypeAcquisition>> = RefCell::new(None);
+    let watch_options: RefCell<Option<WatchOptions>> = RefCell::new(None);
     let mut extended_config_path: Option<String> = None;
     let mut root_compiler_options: Option<Vec<Rc<Node /*PropertyName*/>>> = None;
 
     let base_path_string = base_path.to_owned();
-    let mut options_iterator = ParseOwnConfigOfJsonSourceFile::new(&mut options, &base_path_string);
+    let mut options_iterator = ParseOwnConfigOfJsonSourceFile::new(
+        &mut options,
+        &base_path_string,
+        &watch_options,
+        config_file_name,
+        &type_acquisition,
+        &typing_options_type_acquisition,
+    );
     let json =
         convert_config_file_to_object(source_file, errors, true, Some(&mut options_iterator));
 
+    let mut type_acquisition = type_acquisition.borrow_mut();
+    let typing_options_type_acquisition = typing_options_type_acquisition.borrow();
     if type_acquisition.is_none() {
-        if let Some(typing_options_type_acquisition) = typing_options_type_acquisition {
-            type_acquisition = Some(
+        if let Some(typing_options_type_acquisition) = typing_options_type_acquisition.as_ref() {
+            *type_acquisition = Some(
                 if let Some(typing_options_type_acquisition_enable_auto_discovery) =
                     typing_options_type_acquisition.enable_auto_discovery
                 {
@@ -883,11 +893,11 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
                         disable_filename_based_type_acquisition: None,
                     }
                 } else {
-                    typing_options_type_acquisition
+                    typing_options_type_acquisition.clone()
                 },
             );
         } else {
-            type_acquisition = Some(get_default_type_acquisition(config_file_name));
+            *type_acquisition = Some(get_default_type_acquisition(config_file_name));
         }
     }
 
@@ -910,11 +920,16 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
         }
     }
 
+    let watch_options = watch_options.borrow();
     ParsedTsconfig {
         raw: json,
         options: Some(Rc::new(options)),
-        watch_options: watch_options.map(|watch_options| Rc::new(watch_options)),
-        type_acquisition: type_acquisition.map(|type_acquisition| Rc::new(type_acquisition)),
+        watch_options: watch_options
+            .as_ref()
+            .map(|watch_options| Rc::new(watch_options.clone())),
+        type_acquisition: type_acquisition
+            .as_ref()
+            .map(|type_acquisition| Rc::new(type_acquisition.clone())),
         extended_config_path,
     }
 }
@@ -922,13 +937,28 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
 struct ParseOwnConfigOfJsonSourceFile<'a> {
     options: RefCell<&'a mut CompilerOptions>,
     base_path: &'a str,
+    watch_options: &'a RefCell<Option<WatchOptions>>,
+    config_file_name: Option<&'a str>,
+    type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
+    typing_options_type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
 }
 
 impl<'a> ParseOwnConfigOfJsonSourceFile<'a> {
-    pub fn new(options: &'a mut CompilerOptions, base_path: &'a str) -> Self {
+    pub fn new(
+        options: &'a mut CompilerOptions,
+        base_path: &'a str,
+        watch_options: &'a RefCell<Option<WatchOptions>>,
+        config_file_name: Option<&'a str>,
+        type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
+        typing_options_type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
+    ) -> Self {
         Self {
             options: RefCell::new(options),
             base_path,
+            watch_options,
+            config_file_name,
+            type_acquisition,
+            typing_options_type_acquisition,
         }
     }
 }
@@ -948,6 +978,42 @@ impl<'a> JsonConversionNotifier for ParseOwnConfigOfJsonSourceFile<'a> {
                     normalize_option_value(option, self.base_path, value),
                 );
             }
+            "watchOptions" => {
+                let mut watch_options = self.watch_options.borrow_mut();
+                if watch_options.is_none() {
+                    *watch_options = Some(Default::default());
+                }
+                set_watch_option_value(
+                    watch_options.as_mut().unwrap(),
+                    &option,
+                    normalize_option_value(option, self.base_path, value),
+                );
+            }
+            "typeAcquisition" => {
+                let mut type_acquisition = self.type_acquisition.borrow_mut();
+                if type_acquisition.is_none() {
+                    *type_acquisition = Some(get_default_type_acquisition(self.config_file_name));
+                }
+                set_type_acquisition_value(
+                    type_acquisition.as_mut().unwrap(),
+                    &option,
+                    normalize_option_value(option, self.base_path, value),
+                );
+            }
+            "typingOptions" => {
+                let mut typing_options_type_acquisition =
+                    self.typing_options_type_acquisition.borrow_mut();
+                if typing_options_type_acquisition.is_none() {
+                    *typing_options_type_acquisition =
+                        Some(get_default_type_acquisition(self.config_file_name));
+                }
+                set_type_acquisition_value(
+                    typing_options_type_acquisition.as_mut().unwrap(),
+                    &option,
+                    normalize_option_value(option, self.base_path, value),
+                );
+            }
+            _ => Debug_.fail(Some("Unknown option")),
         }
     }
 

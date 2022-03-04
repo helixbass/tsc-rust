@@ -542,7 +542,7 @@ pub fn maybe_extend_compiler_options(
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct WatchOptions {
     pub watch_file: Option<WatchFileKind>,
     pub watch_directory: Option<WatchDirectoryKind>,
@@ -574,7 +574,7 @@ pub fn extend_watch_options(a: &WatchOptions, b: &WatchOptions) -> WatchOptions 
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TypeAcquisition {
     pub enable_auto_discovery: Option<bool>,
     pub enable: Option<bool>,

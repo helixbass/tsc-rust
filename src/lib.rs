@@ -361,7 +361,7 @@ pub use compiler::utilities::{
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,
     get_element_or_property_access_name, has_invalid_escape, set_compiler_option_value,
-    set_localized_diagnostic_messages,
+    set_localized_diagnostic_messages, set_type_acquisition_value, set_watch_option_value,
 };
 pub use compiler::utilities_public::{
     collapse_text_change_ranges_across_multiple_versions, create_text_change_range,
