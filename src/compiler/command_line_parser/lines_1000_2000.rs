@@ -727,7 +727,7 @@ impl JsonConversionNotifier for JsonConversionNotifierDummy {
 
 pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNotifier>(
     source_file: &Node, /*JsonSourceFile*/
-    errors: &mut Vec<Rc<Diagnostic>>,
+    errors: &RefCell<&mut Vec<Rc<Diagnostic>>>,
     report_options_errors: bool,
     options_iterator: Option<&TOptionsIterator>,
 ) -> Option<serde_json::Value> {
@@ -745,7 +745,7 @@ pub(super) fn convert_config_file_to_object<TOptionsIterator: JsonConversionNoti
         .as_ref()
         .filter(|root_expression| root_expression.kind() != SyntaxKind::ObjectLiteralExpression)
     {
-        errors.push(Rc::new(
+        errors.borrow_mut().push(Rc::new(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 root_expression,
@@ -801,7 +801,7 @@ pub fn convert_to_object(
             .statements
             .get(0)
             .map(|statement| statement.as_expression_statement().expression.clone()),
-        errors,
+        &RefCell::new(errors),
         true,
         None,
         Option::<&JsonConversionNotifierDummy>::None,
@@ -814,7 +814,7 @@ pub(crate) fn convert_to_object_worker<
 >(
     source_file: &Node, /*JsonSourceFile*/
     root_expression: Option<TRootExpression>,
-    errors: &mut Push<Rc<Diagnostic>>,
+    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
@@ -859,7 +859,7 @@ pub(super) fn convert_object_literal_expression_to_json<
     TJsonConversionNotifier: JsonConversionNotifier,
 >(
     return_value: bool,
-    errors: &mut Push<Rc<Diagnostic>>,
+    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
     source_file: &Node, /*JsonSourceFile*/
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
     known_root_options: Option<&CommandLineOption>,
@@ -875,7 +875,7 @@ pub(super) fn convert_object_literal_expression_to_json<
     };
     for element in &node.as_object_literal_expression().properties {
         if element.kind() != SyntaxKind::PropertyAssignment {
-            errors.push(Rc::new(
+            errors.borrow_mut().push(Rc::new(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     element,
@@ -891,7 +891,7 @@ pub(super) fn convert_object_literal_expression_to_json<
         if let Some(element_as_property_assignment_question_token) =
             element_as_property_assignment.question_token.as_ref()
         {
-            errors.push(Rc::new(
+            errors.borrow_mut().push(Rc::new(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     element_as_property_assignment_question_token,
@@ -902,7 +902,7 @@ pub(super) fn convert_object_literal_expression_to_json<
             ));
         }
         if !is_double_quoted_string(source_file, &element_as_property_assignment.name()) {
-            errors.push(Rc::new(
+            errors.borrow_mut().push(Rc::new(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     &element_as_property_assignment.name(),
@@ -929,7 +929,7 @@ pub(super) fn convert_object_literal_expression_to_json<
             if let Some(extra_key_diagnostics) = extra_key_diagnostics {
                 if option.is_none() {
                     if known_options.is_some() {
-                        errors.push(create_unknown_option_error(
+                        errors.borrow_mut().push(create_unknown_option_error(
                             key_text,
                             extra_key_diagnostics,
                             |message, args| {
@@ -946,7 +946,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                             None,
                         ))
                     } else {
-                        errors.push(Rc::new(
+                        errors.borrow_mut().push(Rc::new(
                             create_diagnostic_for_node_in_source_file(
                                 source_file,
                                 &element_as_property_assignment.name(),
@@ -1021,7 +1021,7 @@ pub(super) fn convert_array_literal_expression_to_json(
 }
 
 pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConversionNotifier>(
-    errors: &mut Push<Rc<Diagnostic>>,
+    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
     source_file: &Node, /*JsonSourceFile*/
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
     return_value: bool,
@@ -1094,7 +1094,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 
         SyntaxKind::StringLiteral => {
             if !is_double_quoted_string(source_file, value_expression) {
-                errors.push(Rc::new(
+                errors.borrow_mut().push(Rc::new(
                     create_diagnostic_for_node_in_source_file(
                         source_file,
                         value_expression,
@@ -1118,20 +1118,22 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
             if let Some(custom_option) = option.as_ref() {
                 if let CommandLineOptionType::Map(custom_option_type) = custom_option.type_() {
                     if !custom_option_type.contains_key(&&*text.to_lowercase()) {
-                        errors.push(create_diagnostic_for_invalid_custom_type(
-                            custom_option,
-                            |message, args| {
-                                Rc::new(
-                                    create_diagnostic_for_node_in_source_file(
-                                        source_file,
-                                        value_expression,
-                                        message,
-                                        args,
+                        errors
+                            .borrow_mut()
+                            .push(create_diagnostic_for_invalid_custom_type(
+                                custom_option,
+                                |message, args| {
+                                    Rc::new(
+                                        create_diagnostic_for_node_in_source_file(
+                                            source_file,
+                                            value_expression,
+                                            message,
+                                            args,
+                                        )
+                                        .into(),
                                     )
-                                    .into(),
-                                )
-                            },
-                        ));
+                                },
+                            ));
                         invalid_reported = Some(true);
                     }
                 }
@@ -1315,7 +1317,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
             Some(true),
         );
     } else {
-        errors.push(Rc::new(
+        errors.borrow_mut().push(Rc::new(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 value_expression,
@@ -1332,7 +1334,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 pub(super) fn validate_value(
     invalid_reported: Option<bool>,
     option: Option<&CommandLineOption>,
-    errors: &mut Push<Rc<Diagnostic>>,
+    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
     source_file: &Node,      /*JsonSourceFile*/
     value_expression: &Node, /*Expression*/
     value: Option<serde_json::Value>,
@@ -1342,7 +1344,7 @@ pub(super) fn validate_value(
             .and_then(|option| option.maybe_extra_validation())
             .and_then(|extra_validation| extra_validation(value.as_ref()));
         if let Some((diagnostic_message, args)) = diagnostic {
-            errors.push(Rc::new(
+            errors.borrow_mut().push(Rc::new(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     value_expression,
@@ -1358,7 +1360,7 @@ pub(super) fn validate_value(
 }
 
 pub(super) fn report_invalid_option_value(
-    errors: &mut Push<Rc<Diagnostic>>,
+    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
     invalid_reported: &mut Option<bool>,
     source_file: &Node,      /*JsonSourceFile*/
     value_expression: &Node, /*Expression*/
@@ -1366,7 +1368,7 @@ pub(super) fn report_invalid_option_value(
     is_error: Option<bool>,
 ) {
     if matches!(is_error, Some(true)) {
-        errors.push(Rc::new(
+        errors.borrow_mut().push(Rc::new(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 value_expression,

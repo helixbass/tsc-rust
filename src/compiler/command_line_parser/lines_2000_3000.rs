@@ -6,16 +6,17 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
-    convert_compile_on_save_option_from_json, convert_compiler_options_from_json_worker,
-    convert_config_file_to_object, convert_to_object, convert_type_acquisition_from_json_worker,
-    convert_watch_options_from_json_worker, get_default_compiler_options,
-    get_default_type_acquisition, get_extended_config, get_file_names_from_config_specs,
-    get_wildcard_directories, normalize_option_value, validate_specs,
+    command_options_without_build, convert_compile_on_save_option_from_json,
+    convert_compiler_options_from_json_worker, convert_config_file_to_object, convert_to_object,
+    convert_type_acquisition_from_json_worker, convert_watch_options_from_json_worker,
+    get_default_compiler_options, get_default_type_acquisition, get_extended_config,
+    get_file_names_from_config_specs, get_wildcard_directories, normalize_option_value,
+    validate_specs,
 };
 use crate::{
-    combine_paths, convert_to_relative_path, create_compiler_diagnostic,
+    append, combine_paths, convert_to_relative_path, create_compiler_diagnostic,
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, every,
-    extend_compiler_options, extend_watch_options, filter_mutate, first_defined,
+    extend_compiler_options, extend_watch_options, filter_mutate, find, first_defined,
     get_directory_path, get_normalized_absolute_path, get_text_of_property_name,
     get_ts_config_prop_array, index_of, is_rooted_disk_path, map, maybe_extend_compiler_options,
     normalize_path, normalize_slashes, set_compiler_option_value, set_type_acquisition_value,
@@ -862,20 +863,25 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
     let type_acquisition: RefCell<Option<TypeAcquisition>> = RefCell::new(None);
     let typing_options_type_acquisition: RefCell<Option<TypeAcquisition>> = RefCell::new(None);
     let watch_options: RefCell<Option<WatchOptions>> = RefCell::new(None);
-    let mut extended_config_path: Option<String> = None;
-    let mut root_compiler_options: Option<Vec<Rc<Node /*PropertyName*/>>> = None;
+    let extended_config_path: RefCell<Option<String>> = RefCell::new(None);
+    let root_compiler_options: RefCell<Option<Vec<Rc<Node /*PropertyName*/>>>> = RefCell::new(None);
 
     let base_path_string = base_path.to_owned();
-    let mut options_iterator = ParseOwnConfigOfJsonSourceFile::new(
+    let errors = RefCell::new(errors);
+    let mut options_iterator = ParseOwnConfigOfJsonSourceFileOptionsIterator::new(
         &mut options,
         &base_path_string,
         &watch_options,
         config_file_name,
         &type_acquisition,
         &typing_options_type_acquisition,
+        &extended_config_path,
+        host,
+        &errors,
+        source_file,
+        &root_compiler_options,
     );
-    let json =
-        convert_config_file_to_object(source_file, errors, true, Some(&mut options_iterator));
+    let json = convert_config_file_to_object(source_file, &errors, true, Some(&options_iterator));
 
     let mut type_acquisition = type_acquisition.borrow_mut();
     let typing_options_type_acquisition = typing_options_type_acquisition.borrow();
@@ -901,11 +907,11 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
         }
     }
 
-    if let Some(root_compiler_options) = root_compiler_options {
+    if let Some(root_compiler_options) = root_compiler_options.borrow().as_ref() {
         if let Some(json) = json.as_ref() {
             if !matches!(json, serde_json::Value::Object(map) if map.contains_key("compilerOptions"))
             {
-                errors.push(
+                errors.borrow_mut().push(
                     Rc::new(
                         create_diagnostic_for_node_in_source_file(
                             source_file,
@@ -921,6 +927,7 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
     }
 
     let watch_options = watch_options.borrow();
+    let extended_config_path = extended_config_path.borrow();
     ParsedTsconfig {
         raw: json,
         options: Some(Rc::new(options)),
@@ -930,20 +937,25 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
         type_acquisition: type_acquisition
             .as_ref()
             .map(|type_acquisition| Rc::new(type_acquisition.clone())),
-        extended_config_path,
+        extended_config_path: extended_config_path.clone(),
     }
 }
 
-struct ParseOwnConfigOfJsonSourceFile<'a> {
+struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost> {
     options: RefCell<&'a mut CompilerOptions>,
     base_path: &'a str,
     watch_options: &'a RefCell<Option<WatchOptions>>,
     config_file_name: Option<&'a str>,
     type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
     typing_options_type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
+    extended_config_path: &'a RefCell<Option<String>>,
+    host: &'a THost,
+    errors: &'a RefCell<&'a mut Vec<Rc<Diagnostic>>>,
+    source_file: &'a Node,
+    root_compiler_options: &'a RefCell<Option<Vec<Rc<Node>>>>,
 }
 
-impl<'a> ParseOwnConfigOfJsonSourceFile<'a> {
+impl<'a, THost: ParseConfigHost> ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost> {
     pub fn new(
         options: &'a mut CompilerOptions,
         base_path: &'a str,
@@ -951,6 +963,11 @@ impl<'a> ParseOwnConfigOfJsonSourceFile<'a> {
         config_file_name: Option<&'a str>,
         type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
         typing_options_type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
+        extended_config_path: &'a RefCell<Option<String>>,
+        host: &'a THost,
+        errors: &'a RefCell<&'a mut Vec<Rc<Diagnostic>>>,
+        source_file: &'a Node,
+        root_compiler_options: &'a RefCell<Option<Vec<Rc<Node>>>>,
     ) -> Self {
         Self {
             options: RefCell::new(options),
@@ -959,11 +976,18 @@ impl<'a> ParseOwnConfigOfJsonSourceFile<'a> {
             config_file_name,
             type_acquisition,
             typing_options_type_acquisition,
+            extended_config_path,
+            host,
+            errors,
+            source_file,
+            root_compiler_options,
         }
     }
 }
 
-impl<'a> JsonConversionNotifier for ParseOwnConfigOfJsonSourceFile<'a> {
+impl<'a, THost: ParseConfigHost> JsonConversionNotifier
+    for ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost>
+{
     fn on_set_valid_option_key_value_in_parent(
         &self,
         parent_option: &str,
@@ -1024,7 +1048,36 @@ impl<'a> JsonConversionNotifier for ParseOwnConfigOfJsonSourceFile<'a> {
         value: Option<&serde_json::Value>,
         value_node: &Node, /*Expression*/
     ) {
-        unimplemented!()
+        match key {
+            "extends" => {
+                let new_base = if let Some(config_file_name) = self.config_file_name {
+                    directory_of_combined_path(config_file_name, self.base_path)
+                } else {
+                    self.base_path.to_owned()
+                };
+                *self.extended_config_path.borrow_mut() = get_extends_config_path(
+                    match value {
+                        Some(serde_json::Value::String(value)) => value,
+                        _ => panic!("Expected string"),
+                    },
+                    self.host,
+                    &new_base,
+                    &mut self.errors.borrow_mut(),
+                    |message, args| {
+                        Rc::new(
+                            create_diagnostic_for_node_in_source_file(
+                                self.source_file,
+                                value_node,
+                                message,
+                                args,
+                            )
+                            .into(),
+                        )
+                    },
+                );
+            }
+            _ => (),
+        }
     }
 
     fn on_set_unknown_option_key_value_in_root(
@@ -1034,7 +1087,29 @@ impl<'a> JsonConversionNotifier for ParseOwnConfigOfJsonSourceFile<'a> {
         value: Option<&serde_json::Value>,
         value_node: &Node, /*Expression*/
     ) {
-        unimplemented!()
+        if key == "excludes" {
+            self.errors.borrow_mut().push(Rc::new(
+                create_diagnostic_for_node_in_source_file(
+                    self.source_file,
+                    key_node,
+                    &Diagnostics::Unknown_option_excludes_Did_you_mean_exclude,
+                    None,
+                )
+                .into(),
+            ));
+        }
+        command_options_without_build.with(|command_options_without_build_| {
+            if find(command_options_without_build_, |opt, _| opt.name() == key).is_some() {
+                let mut root_compiler_options = self.root_compiler_options.borrow_mut();
+                if root_compiler_options.is_none() {
+                    *root_compiler_options = Some(vec![]);
+                }
+                append(
+                    root_compiler_options.as_mut().unwrap(),
+                    Some(key_node.node_wrapper()),
+                );
+            }
+        });
     }
 }
 
