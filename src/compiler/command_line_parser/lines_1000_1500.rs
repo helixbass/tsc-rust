@@ -8,12 +8,12 @@ use super::{
     parse_response_file, validate_json_option_value, watch_options_did_you_mean_diagnostics,
 };
 use crate::{
-    create_compiler_diagnostic, for_each, starts_with, trim_string, AlternateModeDiagnostics,
-    CharacterCodes, CommandLineOption, CommandLineOptionBase, CommandLineOptionInterface,
-    CommandLineOptionOfBooleanType, CommandLineOptionOfListType, CommandLineOptionOfStringType,
-    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
-    Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, ModuleKind,
-    ParsedCommandLine, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
+    create_compiler_diagnostic, for_each, get_spelling_suggestion, starts_with, trim_string,
+    AlternateModeDiagnostics, CharacterCodes, CommandLineOption, CommandLineOptionBase,
+    CommandLineOptionInterface, CommandLineOptionOfBooleanType, CommandLineOptionOfListType,
+    CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
+    CompilerOptionsValue, Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics,
+    ModuleKind, ParsedCommandLine, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
 };
 
 thread_local! {
@@ -546,6 +546,10 @@ pub(crate) fn parse_list_type_option(
     }
 }
 
+// export interface OptionsBase {
+//     [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
+// }
+
 pub(crate) trait ParseCommandLineWorkerDiagnostics: DidYouMeanOptionsDiagnostics {
     fn get_options_name_map(&self) -> Rc<OptionsNameMap>;
     fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage;
@@ -564,7 +568,40 @@ pub(super) fn create_unknown_option_error<
     create_diagnostics: TCreateDiagnostics,
     unknown_option_error_text: Option<&str>,
 ) -> Rc<Diagnostic> {
-    unimplemented!()
+    if let Some(diagnostics_alternate_mode) = diagnostics.maybe_alternate_mode() {
+        if (diagnostics_alternate_mode.get_options_name_map)()
+            .options_name_map
+            .contains_key(&unknown_option.to_lowercase())
+        {
+            return create_diagnostics(
+                diagnostics_alternate_mode.diagnostic,
+                Some(vec![unknown_option.to_owned()]),
+            );
+        }
+    }
+
+    let possible_option = get_spelling_suggestion(
+        unknown_option,
+        &diagnostics.option_declarations(),
+        |candidate| Some(get_option_name(candidate).to_owned()),
+    );
+    match possible_option {
+        Some(possible_option) => create_diagnostics(
+            diagnostics.unknown_did_you_mean_diagnostic(),
+            Some(vec![
+                unknown_option_error_text
+                    .unwrap_or(unknown_option)
+                    .to_owned(),
+                possible_option.name().to_owned(),
+            ]),
+        ),
+        None => create_diagnostics(
+            diagnostics.unknown_option_diagnostic(),
+            Some(vec![unknown_option_error_text
+                .unwrap_or(unknown_option)
+                .to_owned()]),
+        ),
+    }
 }
 
 pub(super) fn hash_map_to_compiler_options(
