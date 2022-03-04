@@ -23,18 +23,19 @@ use crate::{
 use local_macros::enum_unwrapped;
 
 pub(super) fn parse_response_file<TReadFile: FnMut(&str) -> Option<String>>(
-    file_name: &str,
     read_file: Option<TReadFile>,
     errors: &mut Vec<Rc<Diagnostic>>,
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     options: &mut HashMap<String, CompilerOptionsValue>,
     watch_options: &RefCell<Option<HashMap<String, CompilerOptionsValue>>>,
+    file_name: &str,
 ) {
-    let text: StringOrRcDiagnostic = try_read_file(
-        file_name,
-        read_file.unwrap_or_else(|| |file_name| get_sys().read_file(file_name)),
-    );
+    let sys = get_sys();
+    let text: StringOrRcDiagnostic = try_read_file(file_name, |file_name| match read_file {
+        Some(read_file) => read_file(file_name),
+        None => sys.read_file(file_name),
+    });
     match text {
         StringOrRcDiagnostic::RcDiagnostic(text) => {
             errors.push(text);
@@ -45,7 +46,7 @@ pub(super) fn parse_response_file<TReadFile: FnMut(&str) -> Option<String>>(
             let text_as_chars = text.chars().collect::<Vec<_>>();
             loop {
                 while pos < text_as_chars.len()
-                    && text_char_at_index(text, pos) <= CharacterCodes::space
+                    && text_char_at_index(&text_as_chars, pos) <= CharacterCodes::space
                 {
                     pos += 1;
                 }
@@ -53,15 +54,15 @@ pub(super) fn parse_response_file<TReadFile: FnMut(&str) -> Option<String>>(
                     break;
                 }
                 let start = pos;
-                if text_char_at_index(text, start) == CharacterCodes::double_quote {
+                if text_char_at_index(&text_as_chars, start) == CharacterCodes::double_quote {
                     pos += 1;
                     while pos < text_as_chars.len()
-                        && text_char_at_index(text, pos) != CharacterCodes::double_quote
+                        && text_char_at_index(&text_as_chars, pos) != CharacterCodes::double_quote
                     {
                         pos += 1;
                     }
                     if pos < text_as_chars.len() {
-                        args.push(text_substring(text, start + 1, pos));
+                        args.push(text_substring(&text_as_chars, start + 1, pos));
                         pos += 1;
                     } else {
                         errors.push(Rc::new(
@@ -73,11 +74,11 @@ pub(super) fn parse_response_file<TReadFile: FnMut(&str) -> Option<String>>(
                         ));
                     }
                 } else {
-                    while matches!(maybe_text_char_at_index(text, pos), Some(ch) if ch > CharacterCodes::space)
+                    while matches!(maybe_text_char_at_index(&text_as_chars, pos), Some(ch) if ch > CharacterCodes::space)
                     {
                         pos += 1;
                     }
-                    args.push(text_substring(text, start, pos));
+                    args.push(text_substring(&text_as_chars, start, pos));
                 }
             }
             parse_strings(
@@ -86,6 +87,7 @@ pub(super) fn parse_response_file<TReadFile: FnMut(&str) -> Option<String>>(
                 options,
                 errors,
                 watch_options,
+                read_file,
                 &args,
             );
         }
@@ -109,11 +111,7 @@ pub(super) fn parse_option_value(
             if matches!(opt_value, Some("false")) {
                 options.insert(
                     opt.name().to_owned(),
-                    validate_json_option_value(
-                        opt,
-                        CompilerOptionsValue::Bool(Some(false)),
-                        errors,
-                    ),
+                    validate_json_option_value(opt, Some(&serde_json::Value::Bool(false)), errors),
                 );
                 i += 1;
             } else {
@@ -142,7 +140,7 @@ pub(super) fn parse_option_value(
                     diagnostics.option_type_mismatch_diagnostic(),
                     Some(vec![
                         opt.name().to_owned(),
-                        get_compiler_option_value_type_string(opt),
+                        get_compiler_option_value_type_string(opt).to_owned(),
                     ]),
                 )
                 .into(),
@@ -155,7 +153,9 @@ pub(super) fn parse_option_value(
                         opt.name().to_owned(),
                         validate_json_option_value(
                             opt,
-                            CompilerOptionsValue::Usize(Some(args[i].parse::<usize>().unwrap())),
+                            Some(&serde_json::Value::Number(
+                                args[i].parse::<usize>().unwrap().into(),
+                            )),
                             errors,
                         ),
                     );
@@ -167,7 +167,10 @@ pub(super) fn parse_option_value(
                         opt.name().to_owned(),
                         validate_json_option_value(
                             opt,
-                            CompilerOptionsValue::Bool(Some(!matches!(opt_value, Some("false")))),
+                            Some(&serde_json::Value::Bool(!matches!(
+                                opt_value,
+                                Some("false")
+                            ))),
                             errors,
                         ),
                     );
@@ -180,7 +183,7 @@ pub(super) fn parse_option_value(
                         opt.name().to_owned(),
                         validate_json_option_value(
                             opt,
-                            CompilerOptionsValue::String(Some(
+                            Some(&serde_json::Value::String(
                                 args.get(i)
                                     .map_or_else(|| "".to_owned(), |arg| arg.to_owned()),
                             )),
@@ -191,7 +194,8 @@ pub(super) fn parse_option_value(
                 }
                 CommandLineOptionType::List => {
                     let result: CompilerOptionsValue =
-                        parse_list_type_option(opt, args.get(i), errors).unwrap_or_else(|| vec![]);
+                        parse_list_type_option(opt, args.get(i).map(|arg| &**arg), errors)
+                            .unwrap_or_else(|| vec![]);
                     let result_is_some = result.is_some();
                     options.insert(opt.name().to_owned(), result.or_empty_vec());
                     if result_is_some {
@@ -255,6 +259,10 @@ impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics 
     fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
         &Diagnostics::Compiler_option_0_expects_an_argument
     }
+
+    fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics {
+        self
+    }
 }
 
 pub fn parse_command_line<TReadFile: FnMut(&str) -> Option<String>>(
@@ -263,7 +271,7 @@ pub fn parse_command_line<TReadFile: FnMut(&str) -> Option<String>>(
 ) -> ParsedCommandLine {
     compiler_options_did_you_mean_diagnostics.with(|compiler_options_did_you_mean_diagnostics_| {
         parse_command_line_worker(
-            &compiler_options_did_you_mean_diagnostics_,
+            &**compiler_options_did_you_mean_diagnostics_,
             command_line,
             read_file,
         )
@@ -286,7 +294,7 @@ pub(super) fn get_option_declaration_from_name<TGetOptionNameMap: FnMut() -> Rc<
             option_name = short.clone();
         }
     }
-    options_name_map.get(option_name).map(Clone::clone)
+    options_name_map.get(&option_name).map(Clone::clone)
 }
 
 pub(crate) struct ParsedBuildCommand {
@@ -366,14 +374,13 @@ pub(crate) fn try_read_file<TReadFile: FnMut(&str) -> Option<String>>(
 ) -> StringOrRcDiagnostic {
     let text = read_file(file_name); // TODO: should read_file (eg System::read_file()) return a Result? And then could mimic the error including message here?
     match text {
-        None => Rc::new(
+        None => Into::<StringOrRcDiagnostic>::into(Rc::new(
             create_compiler_diagnostic(
                 &Diagnostics::Cannot_read_file_0,
                 Some(vec![file_name.to_owned()]),
             )
             .into(),
-        )
-        .into(),
+        )),
         Some(text) => text.into(),
     }
 }
@@ -383,7 +390,7 @@ pub(super) fn command_line_options_to_map(
 ) -> HashMap<String, Rc<CommandLineOption>> {
     array_to_map(
         options,
-        |option| get_option_name(option).to_owned(),
+        |option| Some(get_option_name(option).to_owned()),
         |item| item.clone(),
     )
 }
@@ -443,7 +450,7 @@ pub(super) fn get_watch_options_name_map() -> Rc<OptionsNameMap> {
 }
 
 thread_local! {
-    static watch_options_did_you_mean_diagnostics_: Rc<dyn DidYouMeanOptionsDiagnostics> = Rc::new(WatchOptionsDidYouMeanDiagnostics::new());
+    static watch_options_did_you_mean_diagnostics_: Rc<dyn ParseCommandLineWorkerDiagnostics> = Rc::new(WatchOptionsDidYouMeanDiagnostics::new());
 }
 
 pub struct WatchOptionsDidYouMeanDiagnostics {}
@@ -480,9 +487,14 @@ impl ParseCommandLineWorkerDiagnostics for WatchOptionsDidYouMeanDiagnostics {
     fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
         &Diagnostics::Watch_option_0_requires_a_value_of_type_1
     }
+
+    fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics {
+        self
+    }
 }
 
-pub(super) fn watch_options_did_you_mean_diagnostics() -> Rc<dyn DidYouMeanOptionsDiagnostics> {
+pub(super) fn watch_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLineWorkerDiagnostics>
+{
     watch_options_did_you_mean_diagnostics_.with(|watch_options_did_you_mean_diagnostics| {
         watch_options_did_you_mean_diagnostics.clone()
     })

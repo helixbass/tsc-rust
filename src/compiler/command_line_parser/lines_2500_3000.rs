@@ -804,7 +804,7 @@ pub(super) fn parse_own_config_of_json<THost: ParseConfigHost>(
         raw: Some(serde_json::Value::Object(json)),
         options: Some(Rc::new(options)),
         watch_options: watch_options.map(|watch_options| Rc::new(watch_options)),
-        type_acquisition: type_acquisition.map(|type_acquisition| Rc::new(type_acquisition)),
+        type_acquisition: Some(Rc::new(type_acquisition)),
         extended_config_path,
     }
 }

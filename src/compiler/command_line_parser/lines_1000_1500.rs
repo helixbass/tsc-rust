@@ -509,7 +509,7 @@ pub(crate) fn parse_custom_type_option(
     value: Option<&str>,
     errors: &mut Vec<Rc<Diagnostic>>,
 ) -> CompilerOptionsValue {
-    convert_json_option_of_custom_type(opt, trim_string(value.unwrap_or("")), errors)
+    convert_json_option_of_custom_type(opt, Some(trim_string(value.unwrap_or(""))), errors)
 }
 
 pub(crate) fn parse_list_type_option(
@@ -528,12 +528,12 @@ pub(crate) fn parse_list_type_option(
     let opt_as_command_line_option_of_list_type = opt.as_command_line_option_of_list_type();
     match opt_as_command_line_option_of_list_type.element.type_() {
         // CommandLineOptionType::Number =>
-        CommandLineOption::String => Some(
-            value
-                .map(|v| {
+        CommandLineOptionType::String => Some(
+            values
+                .filter_map(|v| {
                     match validate_json_option_value(
                         &opt_as_command_line_option_of_list_type.element,
-                        CompilerOptionsValue::String(v.to_owned()),
+                        Some(&serde_json::Value::String(v.to_owned())),
                         errors,
                     ) {
                         CompilerOptionsValue::String(v) => v,
@@ -549,6 +549,7 @@ pub(crate) fn parse_list_type_option(
 pub(crate) trait ParseCommandLineWorkerDiagnostics: DidYouMeanOptionsDiagnostics {
     fn get_options_name_map(&self) -> Rc<OptionsNameMap>;
     fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage;
+    fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics;
 }
 
 pub(super) fn get_option_name(option: &CommandLineOption) -> &str {
@@ -594,6 +595,7 @@ pub(super) fn parse_command_line_worker<TReadFile: FnMut(&str) -> Option<String>
         &mut options,
         &mut errors,
         &watch_options,
+        read_file,
         command_line,
     );
 
@@ -613,12 +615,13 @@ pub(super) fn parse_command_line_worker<TReadFile: FnMut(&str) -> Option<String>
     }
 }
 
-pub(super) fn parse_strings(
+pub(super) fn parse_strings<TReadFile: FnMut(&str) -> Option<String>>(
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     options: &mut HashMap<String, CompilerOptionsValue>,
     errors: &mut Vec<Rc<Diagnostic>>,
     watch_options: &RefCell<Option<HashMap<String, CompilerOptionsValue>>>,
+    read_file: Option<TReadFile>,
     args: &[String],
 ) {
     let mut i = 0;
@@ -627,7 +630,15 @@ pub(super) fn parse_strings(
         i += 1;
         let s_as_chars: Vec<char> = s.chars().collect::<Vec<_>>();
         if matches!(s_as_chars.get(0).copied(), Some(CharacterCodes::at)) {
-            parse_response_file(&s_as_chars[1..].iter().collect::<String>());
+            parse_response_file(
+                read_file,
+                errors,
+                file_names,
+                diagnostics,
+                options,
+                watch_options,
+                &s_as_chars[1..].iter().collect::<String>(),
+            );
         } else if matches!(s_as_chars.get(0).copied(), Some(CharacterCodes::minus)) {
             let input_option_name =
                 if matches!(s_as_chars.get(1).copied(), Some(CharacterCodes::minus)) {
@@ -646,7 +657,7 @@ pub(super) fn parse_strings(
                 i = parse_option_value(args, i, diagnostics, &opt, options, errors);
             } else {
                 let watch_opt = get_option_declaration_from_name(
-                    watch_options_did_you_mean_diagnostics().get_options_name_map(),
+                    || watch_options_did_you_mean_diagnostics().get_options_name_map(),
                     &input_option_name,
                     Some(true),
                 );
@@ -658,7 +669,7 @@ pub(super) fn parse_strings(
                     i = parse_option_value(
                         args,
                         i,
-                        watch_options_did_you_mean_diagnostics(),
+                        &*watch_options_did_you_mean_diagnostics(),
                         &watch_opt,
                         watch_options.as_mut().unwrap(),
                         errors,
@@ -666,7 +677,7 @@ pub(super) fn parse_strings(
                 } else {
                     errors.push(create_unknown_option_error(
                         &input_option_name,
-                        diagnostics,
+                        diagnostics.as_did_you_mean_options_diagnostics(),
                         |message, args| Rc::new(create_compiler_diagnostic(message, args).into()),
                         Some(s),
                     ));

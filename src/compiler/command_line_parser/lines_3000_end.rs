@@ -68,7 +68,7 @@ pub(crate) fn convert_type_acquisition_from_json_worker(
     let type_acquisition = convert_enable_auto_discovery_to_enable(json_options);
 
     convert_options_from_json_type_acquisition(
-        get_command_line_watch_options_map(),
+        &get_command_line_watch_options_map(),
         json_options,
         base_path,
         &mut options,
@@ -148,7 +148,7 @@ pub(crate) fn convert_json_option(
             return convert_json_option_of_custom_type(
                 opt,
                 value.map(|value| match value {
-                    serde_json::Value::String(value) => &*value,
+                    serde_json::Value::String(value) => &**value,
                     _ => panic!("Expected string"),
                 }),
                 errors,
@@ -180,7 +180,10 @@ pub(super) fn normalize_option_value(
     base_path: &str,
     value: Option<&serde_json::Value>,
 ) -> CompilerOptionsValue {
-    let value = value?;
+    if value.is_none() {
+        return option.to_compiler_options_value_none();
+    }
+    let value = value.unwrap();
     if matches!(value, serde_json::Value::Null) {
         return option.to_compiler_options_value_none();
     }
@@ -218,8 +221,8 @@ pub(super) fn normalize_option_value(
             }
             Some(value.clone())
         }
-        CommandLineOptionType::Map(map) => match map.get(match value {
-            serde_json::Value::String(value) => &value.to_lowercase(),
+        CommandLineOptionType::Map(map) => match map.get(&match value {
+            serde_json::Value::String(value) => &*value.to_lowercase(),
             _ => panic!("Expected string"),
         }) {
             None => option.to_compiler_options_value_none(),
@@ -245,7 +248,7 @@ pub(super) fn normalize_non_list_option_value(
         if value_string == "" {
             value_string = ".".to_owned();
         }
-        return option.to_compiler_options_value(serde_json::Value::String(value_string));
+        return option.to_compiler_options_value(&serde_json::Value::String(value_string));
     }
     option.to_compiler_options_value(value)
 }
@@ -258,7 +261,7 @@ pub(super) fn normalize_non_list_option_value_compiler_options_value(
     if option.is_file_path() {
         let mut value_string = get_normalized_absolute_path(
             &match value {
-                CompilerOptionsValue::String(value) => value,
+                CompilerOptionsValue::String(Some(value)) => value,
                 _ => panic!("Expected string"),
             },
             Some(base_path),
@@ -266,7 +269,7 @@ pub(super) fn normalize_non_list_option_value_compiler_options_value(
         if value_string == "" {
             value_string = ".".to_owned();
         }
-        return CompilerOptionsValue::String(value_string);
+        return CompilerOptionsValue::String(Some(value_string));
     }
     value
 }

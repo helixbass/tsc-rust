@@ -39,7 +39,7 @@ pub(super) fn convert_object_literal_expression_to_json<
     known_root_options: Option<&CommandLineOption>,
     node: &Node, /*ObjectLiteralExpression*/
     known_options: Option<&HashMap<String, CommandLineOption>>,
-    extra_key_diagnostics: Option<&Box<dyn DidYouMeanOptionsDiagnostics>>,
+    extra_key_diagnostics: Option<&dyn DidYouMeanOptionsDiagnostics>,
     parent_option: Option<&str>,
 ) -> Option<serde_json::Value> {
     let mut result = if return_value {
@@ -405,7 +405,7 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                 let element_options = option_as_ts_config_only_option.element_options.as_ref();
                 let extra_key_diagnostics = option_as_ts_config_only_option
                     .extra_key_diagnostics
-                    .as_ref();
+                    .as_deref();
                 let option_name = option.name();
                 let converted = convert_object_literal_expression_to_json(
                     return_value,

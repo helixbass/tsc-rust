@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
+use std::hash;
 use std::mem;
 use std::ops::Add;
 use std::ptr;
@@ -649,7 +650,7 @@ fn binary_search_key_copy_key<
 
 pub fn array_to_map<
     TItem,
-    TKey,
+    TKey: hash::Hash + Eq,
     TValue,
     TMakeKey: FnMut(&TItem) -> Option<TKey>,
     TMakeValue: FnMut(&TItem) -> TValue,
