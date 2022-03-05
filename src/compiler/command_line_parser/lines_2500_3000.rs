@@ -33,6 +33,31 @@ pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: FnMut(&str
     options
 }
 
+pub fn parse_json_source_file_config_file_content_worker<THost: ParseConfigHost>(
+    source_file: &Node, /*TsConfigSourceFile*/
+    host: &THost,
+    base_path: &str,
+    existing_options: Option<Rc<CompilerOptions>>,
+    config_file_name: Option<&str>,
+    resolution_stack: Option<&[Path]>,
+    extra_file_extensions: Option<&[FileExtensionInfo]>,
+    extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
+    existing_watch_options: Option<Rc<WatchOptions>>,
+) -> ParsedCommandLine {
+    parse_json_config_file_content_worker(
+        None,
+        Some(source_file),
+        host,
+        base_path,
+        existing_options,
+        existing_watch_options,
+        config_file_name,
+        resolution_stack,
+        extra_file_extensions,
+        extended_config_cache,
+    )
+}
+
 pub(crate) fn set_config_file_in_options<TConfigFile: Borrow<Node>>(
     options: &mut CompilerOptions,
     config_file: Option<TConfigFile /*TsConfigSourceFile*/>,

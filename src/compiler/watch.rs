@@ -155,6 +155,9 @@ impl<TBuilderProgram: BuilderProgram> WatchHost
 impl<TBuilderProgram: BuilderProgram> ConfigFileDiagnosticsReporter
     for WatchCompilerHostOfConfigFileConcrete<TBuilderProgram>
 {
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>) {
+        unimplemented!()
+    }
 }
 
 pub struct IncrementalCompilationOptions<'a> {

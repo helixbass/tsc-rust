@@ -16,6 +16,7 @@ use compiler::command_line_parser::{
     convert_to_tsconfig, get_diagnostic_text, module_resolution_option_declarations,
     option_declarations, options_affecting_program_structure, options_for_build, options_for_watch,
     parse_build_command, JsonConversionNotifier, JsonConversionNotifierDummy, ParsedBuildCommand,
+    StringOrRcDiagnostic,
 };
 pub use compiler::command_line_parser::{
     hash_map_to_compiler_options, parse_command_line, ConfigFileDiagnosticsReporter,
@@ -127,7 +128,7 @@ use compiler::module_name_resolver::create_mode_aware_cache;
 pub use compiler::module_name_resolver::{ModeAwareCache, ModuleResolutionCache};
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_returns,
-    is_external_module, IncrementalParser, IncrementalParserSyntaxCursor,
+    is_external_module, parse_json_text, IncrementalParser, IncrementalParserSyntaxCursor,
     IncrementalParserSyntaxCursorInterface, IncrementalParserSyntaxCursorReparseTopLevelAwait,
     IncrementalParserType, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
 };

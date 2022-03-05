@@ -7,18 +7,22 @@ use super::{
     compiler_options_alternate_mode, convert_property_value_to_json, create_option_name_map,
     get_compiler_option_value_type_string, get_option_name, get_options_name_map,
     hash_map_to_build_options, option_declarations, options_for_watch, parse_command_line_worker,
-    parse_custom_type_option, parse_list_type_option, parse_strings, type_acquisition_declarations,
+    parse_custom_type_option, parse_json_source_file_config_file_content_worker,
+    parse_list_type_option, parse_strings, type_acquisition_declarations,
     validate_json_option_value, ParseCommandLineWorkerDiagnostics,
 };
 use crate::{
     array_to_map, build_opts, create_compiler_diagnostic,
-    create_diagnostic_for_node_in_source_file, find, get_base_file_name, get_sys,
+    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, find,
+    get_base_file_name, get_directory_path, get_normalized_absolute_path, get_sys,
     is_array_literal_expression, is_object_literal_expression, maybe_text_char_at_index,
-    starts_with, text_char_at_index, text_substring, AlternateModeDiagnostics, BuildOptions,
-    CharacterCodes, CommandLineOption, CommandLineOptionInterface, CommandLineOptionType,
-    CompilerOptionsValue, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    Diagnostics, DidYouMeanOptionsDiagnostics, Node, NodeInterface, OptionsNameMap,
-    ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push, SyntaxKind, WatchOptions,
+    parse_json_text, starts_with, text_char_at_index, text_substring, to_path,
+    AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
+    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
+    DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, Node, NodeInterface,
+    OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
+    SyntaxKind, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -470,7 +474,51 @@ pub trait DiagnosticReporter {
     fn call(&self, diagnostic: Rc<Diagnostic>);
 }
 
-pub trait ConfigFileDiagnosticsReporter {}
+pub trait ConfigFileDiagnosticsReporter {
+    fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Rc<Diagnostic>);
+}
+
+pub trait ParseConfigFileHost: ParseConfigHost + ConfigFileDiagnosticsReporter {
+    fn get_current_directory(&self) -> &str;
+}
+
+pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
+    config_file_name: &str,
+    options_to_extend: Option<Rc<CompilerOptions>>,
+    host: &THost,
+    extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
+    watch_options_to_extend: Option<Rc<WatchOptions>>,
+    extra_file_extensions: Option<&[FileExtensionInfo]>,
+) -> Option<ParsedCommandLine> {
+    let config_file_text = try_read_file(config_file_name, |file_name| host.read_file(file_name));
+    if let StringOrRcDiagnostic::RcDiagnostic(ref config_file_text) = config_file_text {
+        host.on_un_recoverable_config_file_diagnostic(config_file_text.clone());
+        return None;
+    }
+    let config_file_text = enum_unwrapped!(config_file_text, [StringOrRcDiagnostic, String]);
+
+    let result = parse_json_text(config_file_name, config_file_text);
+    let cwd = host.get_current_directory();
+    let result_as_source_file = result.as_source_file();
+    result_as_source_file.set_path(to_path(
+        config_file_name,
+        Some(cwd),
+        create_get_canonical_file_name(host.use_case_sensitive_file_names()),
+    ));
+    result_as_source_file.set_resolved_path(Some(result_as_source_file.path().clone()));
+    result_as_source_file.set_original_file_name(Some(result_as_source_file.file_name().clone()));
+    Some(parse_json_source_file_config_file_content_worker(
+        &result,
+        host,
+        &get_normalized_absolute_path(&get_directory_path(config_file_name), Some(cwd)),
+        options_to_extend,
+        Some(&get_normalized_absolute_path(config_file_name, Some(cwd))),
+        None,
+        extra_file_extensions,
+        extended_config_cache,
+        watch_options_to_extend,
+    ))
+}
 
 pub(crate) enum StringOrRcDiagnostic {
     String(String),
