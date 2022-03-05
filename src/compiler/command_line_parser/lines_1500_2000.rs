@@ -758,6 +758,28 @@ pub(super) fn watch_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLin
 }
 
 thread_local! {
+    static command_line_compiler_options_map_cache: RefCell<Option<Rc<HashMap<String, Rc<CommandLineOption>>>>> = RefCell::new(None);
+}
+
+pub(super) fn get_command_line_compiler_options_map() -> Rc<HashMap<String, Rc<CommandLineOption>>>
+{
+    command_line_compiler_options_map_cache.with(|command_line_compiler_options_map_cache_| {
+        let mut command_line_compiler_options_map_cache_ =
+            command_line_compiler_options_map_cache_.borrow_mut();
+        if command_line_compiler_options_map_cache_.is_none() {
+            *command_line_compiler_options_map_cache_ =
+                Some(Rc::new(option_declarations.with(|option_declarations_| {
+                    command_line_options_to_map(&option_declarations_)
+                })));
+        }
+        command_line_compiler_options_map_cache_
+            .as_ref()
+            .unwrap()
+            .clone()
+    })
+}
+
+thread_local! {
     static command_line_watch_options_map_cache: RefCell<Option<Rc<HashMap<String, Rc<CommandLineOption>>>>> = RefCell::new(None);
 }
 
