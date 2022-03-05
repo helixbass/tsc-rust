@@ -14,7 +14,7 @@ use crate::{
 };
 
 thread_local! {
-    pub(crate) static compile_on_save_command_line_option: Rc<CommandLineOption> =
+    pub(crate) static compile_on_save_command_line_option_: Rc<CommandLineOption> =
         CommandLineOptionOfBooleanType::new(CommandLineOptionBase {
             _command_line_option_wrapper: RefCell::new(None),
             name: "compileOnSave".to_string(),
@@ -38,6 +38,11 @@ thread_local! {
             transpile_option_value: None,
         })
         .into();
+}
+
+pub(crate) fn compile_on_save_command_line_option() -> Rc<CommandLineOption> {
+    compile_on_save_command_line_option_
+        .with(|compile_on_save_command_line_option| compile_on_save_command_line_option.clone())
 }
 
 thread_local! {

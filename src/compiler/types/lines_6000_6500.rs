@@ -9,7 +9,7 @@ use std::rc::{Rc, Weak};
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
 use crate::{
     hash_map_to_compiler_options, CompilerHost, Diagnostic, MapLike, Number, OptionsNameMap,
-    Program, StringOrPattern,
+    ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
 };
 use local_macros::{command_line_option_type, enum_unwrapped};
 
@@ -1175,21 +1175,56 @@ pub trait DidYouMeanOptionsDiagnostics {
 #[command_line_option_type]
 pub struct TsConfigOnlyOption {
     _command_line_option_base: CommandLineOptionBase,
-    pub element_options: Option<HashMap<String, CommandLineOption>>,
-    pub extra_key_diagnostics: Option<Box<dyn DidYouMeanOptionsDiagnostics>>,
+    pub element_options: Option<Rc<HashMap<String, Rc<CommandLineOption>>>>,
+    pub extra_key_diagnostics:
+        Option<RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics>,
 }
 
 impl TsConfigOnlyOption {
     pub(crate) fn new(
         command_line_option_base: CommandLineOptionBase,
-        element_options: Option<HashMap<String, CommandLineOption>>,
-        extra_key_diagnostics: Option<Box<dyn DidYouMeanOptionsDiagnostics>>,
+        element_options: Option<Rc<HashMap<String, Rc<CommandLineOption>>>>,
+        extra_key_diagnostics: Option<
+            RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics,
+        >,
     ) -> Self {
         Self {
             _command_line_option_base: command_line_option_base,
             element_options,
             extra_key_diagnostics,
         }
+    }
+}
+
+pub enum RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics {
+    RcDynDidYouMeanOptionsDiagnostics(Rc<dyn DidYouMeanOptionsDiagnostics>),
+    RcDynParseCommandLineWorkerDiagnostics(Rc<dyn ParseCommandLineWorkerDiagnostics>),
+}
+
+impl RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics {
+    pub fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics {
+        match self {
+            Self::RcDynDidYouMeanOptionsDiagnostics(value) => &**value,
+            Self::RcDynParseCommandLineWorkerDiagnostics(value) => {
+                value.as_did_you_mean_options_diagnostics()
+            }
+        }
+    }
+}
+
+impl From<Rc<dyn DidYouMeanOptionsDiagnostics>>
+    for RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics
+{
+    fn from(value: Rc<dyn DidYouMeanOptionsDiagnostics>) -> Self {
+        Self::RcDynDidYouMeanOptionsDiagnostics(value)
+    }
+}
+
+impl From<Rc<dyn ParseCommandLineWorkerDiagnostics>>
+    for RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics
+{
+    fn from(value: Rc<dyn ParseCommandLineWorkerDiagnostics>) -> Self {
+        Self::RcDynParseCommandLineWorkerDiagnostics(value)
     }
 }
 

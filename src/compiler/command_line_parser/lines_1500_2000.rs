@@ -4,12 +4,12 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
-    compiler_options_alternate_mode, convert_property_value_to_json, create_option_name_map,
-    get_compiler_option_value_type_string, get_option_name, get_options_name_map,
-    hash_map_to_build_options, option_declarations, options_for_watch, parse_command_line_worker,
-    parse_custom_type_option, parse_json_source_file_config_file_content_worker,
-    parse_list_type_option, parse_strings, type_acquisition_declarations,
-    validate_json_option_value, ParseCommandLineWorkerDiagnostics,
+    compile_on_save_command_line_option, compiler_options_alternate_mode,
+    convert_property_value_to_json, create_option_name_map, get_compiler_option_value_type_string,
+    get_option_name, get_options_name_map, hash_map_to_build_options, option_declarations,
+    options_for_watch, parse_command_line_worker, parse_custom_type_option,
+    parse_json_source_file_config_file_content_worker, parse_list_type_option, parse_strings,
+    type_acquisition_declarations, validate_json_option_value, ParseCommandLineWorkerDiagnostics,
 };
 use crate::{
     array_to_map, build_opts, create_compiler_diagnostic,
@@ -18,12 +18,13 @@ use crate::{
     is_array_literal_expression, is_object_literal_expression, maybe_text_char_at_index,
     parse_json_text, starts_with, text_char_at_index, text_substring, to_path,
     AlternateModeDiagnostics, BaseNode, BuildOptions, CharacterCodes, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
+    CommandLineOptionBase, CommandLineOptionInterface, CommandLineOptionOfListType,
+    CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
     Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
     DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, LanguageVariant,
     Node, NodeArray, NodeFlags, NodeInterface, OptionsNameMap, ParseConfigHost, ParsedCommandLine,
-    ParsedCommandLineWithBaseOptions, Push, ScriptKind, ScriptTarget, SourceFile, SyntaxKind,
-    TransformFlags, WatchOptions,
+    ParsedCommandLineWithBaseOptions, Push, ScriptKind, ScriptTarget, SourceFile,
+    StringOrDiagnosticMessage, SyntaxKind, TransformFlags, TsConfigOnlyOption, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -769,7 +770,7 @@ pub(super) fn get_command_line_compiler_options_map() -> Rc<HashMap<String, Rc<C
         if command_line_compiler_options_map_cache_.is_none() {
             *command_line_compiler_options_map_cache_ =
                 Some(Rc::new(option_declarations.with(|option_declarations_| {
-                    command_line_options_to_map(&option_declarations_)
+                    command_line_options_to_map(option_declarations_)
                 })));
         }
         command_line_compiler_options_map_cache_
@@ -790,7 +791,7 @@ pub(super) fn get_command_line_watch_options_map() -> Rc<HashMap<String, Rc<Comm
         if command_line_watch_options_map_cache_.is_none() {
             *command_line_watch_options_map_cache_ =
                 Some(Rc::new(options_for_watch.with(|options_for_watch_| {
-                    command_line_options_to_map(&options_for_watch_)
+                    command_line_options_to_map(options_for_watch_)
                 })));
         }
         command_line_watch_options_map_cache_
@@ -800,8 +801,397 @@ pub(super) fn get_command_line_watch_options_map() -> Rc<HashMap<String, Rc<Comm
     })
 }
 
+thread_local! {
+    static command_line_type_acquisition_map_cache: RefCell<Option<Rc<HashMap<String, Rc<CommandLineOption>>>>> = RefCell::new(None);
+}
+
+pub(super) fn get_command_line_type_acquisition_map() -> Rc<HashMap<String, Rc<CommandLineOption>>>
+{
+    command_line_type_acquisition_map_cache.with(|command_line_type_acquisition_map_cache_| {
+        let mut command_line_type_acquisition_map_cache_ =
+            command_line_type_acquisition_map_cache_.borrow_mut();
+        if command_line_type_acquisition_map_cache_.is_none() {
+            *command_line_type_acquisition_map_cache_ = Some(Rc::new(
+                type_acquisition_declarations.with(|type_acquisition_declarations_| {
+                    command_line_options_to_map(type_acquisition_declarations_)
+                }),
+            ));
+        }
+        command_line_type_acquisition_map_cache_
+            .as_ref()
+            .unwrap()
+            .clone()
+    })
+}
+
+thread_local! {
+    static _tsconfig_root_options: RefCell<Option<Rc<CommandLineOption>>> = RefCell::new(None);
+}
 pub(super) fn get_tsconfig_root_options_map() -> Rc<CommandLineOption> {
-    unimplemented!()
+    _tsconfig_root_options.with(|tsconfig_root_options| {
+        let mut tsconfig_root_options = tsconfig_root_options.borrow_mut();
+        if tsconfig_root_options.is_none() {
+            *tsconfig_root_options = Some(Rc::new(
+                TsConfigOnlyOption::new(
+                    CommandLineOptionBase {
+                        _command_line_option_wrapper: RefCell::new(None),
+                        name: "TSCONFIG ROOT OPTIONS".to_string(),
+                        type_: CommandLineOptionType::Object,
+                        is_file_path: None,
+                        short_name: None,
+                        description: None,
+                        default_value_description: None,
+                        param_type: None,
+                        is_tsconfig_only: None,
+                        is_command_line_only: None,
+                        show_in_simplified_help_view: None,
+                        category: None,
+                        strict_flag: None,
+                        affects_source_file: None,
+                        affects_module_resolution: None,
+                        affects_bind_diagnostics: None,
+                        affects_semantic_diagnostics: None,
+                        affects_emit: None,
+                        affects_program_structure: None,
+                        transpile_option_value: None,
+                    },
+                    Some(Rc::new(command_line_options_to_map(&vec![
+                        TsConfigOnlyOption::new(
+                            CommandLineOptionBase {
+                                _command_line_option_wrapper: RefCell::new(None),
+                                name: "compilerOptions".to_string(),
+                                type_: CommandLineOptionType::Object,
+                                is_file_path: None,
+                                short_name: None,
+                                description: None,
+                                default_value_description: None,
+                                param_type: None,
+                                is_tsconfig_only: None,
+                                is_command_line_only: None,
+                                show_in_simplified_help_view: None,
+                                category: None,
+                                strict_flag: None,
+                                affects_source_file: None,
+                                affects_module_resolution: None,
+                                affects_bind_diagnostics: None,
+                                affects_semantic_diagnostics: None,
+                                affects_emit: None,
+                                affects_program_structure: None,
+                                transpile_option_value: None,
+                            },
+                            Some(get_command_line_compiler_options_map()),
+                            Some(compiler_options_did_you_mean_diagnostics().into()),
+                        )
+                        .into(),
+                        TsConfigOnlyOption::new(
+                            CommandLineOptionBase {
+                                _command_line_option_wrapper: RefCell::new(None),
+                                name: "watchOptions".to_string(),
+                                type_: CommandLineOptionType::Object,
+                                is_file_path: None,
+                                short_name: None,
+                                description: None,
+                                default_value_description: None,
+                                param_type: None,
+                                is_tsconfig_only: None,
+                                is_command_line_only: None,
+                                show_in_simplified_help_view: None,
+                                category: None,
+                                strict_flag: None,
+                                affects_source_file: None,
+                                affects_module_resolution: None,
+                                affects_bind_diagnostics: None,
+                                affects_semantic_diagnostics: None,
+                                affects_emit: None,
+                                affects_program_structure: None,
+                                transpile_option_value: None,
+                            },
+                            Some(get_command_line_watch_options_map()),
+                            Some(watch_options_did_you_mean_diagnostics().into()),
+                        )
+                        .into(),
+                        TsConfigOnlyOption::new(
+                            CommandLineOptionBase {
+                                _command_line_option_wrapper: RefCell::new(None),
+                                name: "typingOptions".to_string(),
+                                type_: CommandLineOptionType::Object,
+                                is_file_path: None,
+                                short_name: None,
+                                description: None,
+                                default_value_description: None,
+                                param_type: None,
+                                is_tsconfig_only: None,
+                                is_command_line_only: None,
+                                show_in_simplified_help_view: None,
+                                category: None,
+                                strict_flag: None,
+                                affects_source_file: None,
+                                affects_module_resolution: None,
+                                affects_bind_diagnostics: None,
+                                affects_semantic_diagnostics: None,
+                                affects_emit: None,
+                                affects_program_structure: None,
+                                transpile_option_value: None,
+                            },
+                            Some(get_command_line_type_acquisition_map()),
+                            Some(type_acquisition_did_you_mean_diagnostics().into()),
+                        )
+                        .into(),
+                        TsConfigOnlyOption::new(
+                            CommandLineOptionBase {
+                                _command_line_option_wrapper: RefCell::new(None),
+                                name: "typeAcquisition".to_string(),
+                                type_: CommandLineOptionType::Object,
+                                is_file_path: None,
+                                short_name: None,
+                                description: None,
+                                default_value_description: None,
+                                param_type: None,
+                                is_tsconfig_only: None,
+                                is_command_line_only: None,
+                                show_in_simplified_help_view: None,
+                                category: None,
+                                strict_flag: None,
+                                affects_source_file: None,
+                                affects_module_resolution: None,
+                                affects_bind_diagnostics: None,
+                                affects_semantic_diagnostics: None,
+                                affects_emit: None,
+                                affects_program_structure: None,
+                                transpile_option_value: None,
+                            },
+                            Some(get_command_line_type_acquisition_map()),
+                            Some(type_acquisition_did_you_mean_diagnostics().into()),
+                        )
+                        .into(),
+                        CommandLineOptionOfStringType::new(CommandLineOptionBase {
+                            _command_line_option_wrapper: RefCell::new(None),
+                            name: "extends".to_string(),
+                            type_: CommandLineOptionType::String,
+                            is_file_path: None,
+                            short_name: None,
+                            description: None,
+                            default_value_description: None,
+                            param_type: None,
+                            is_tsconfig_only: None,
+                            is_command_line_only: None,
+                            show_in_simplified_help_view: None,
+                            category: Some(Diagnostics::File_Management),
+                            strict_flag: None,
+                            affects_source_file: None,
+                            affects_module_resolution: None,
+                            affects_bind_diagnostics: None,
+                            affects_semantic_diagnostics: None,
+                            affects_emit: None,
+                            affects_program_structure: None,
+                            transpile_option_value: None,
+                        })
+                        .into(),
+                        CommandLineOptionOfListType::new(
+                            CommandLineOptionBase {
+                                _command_line_option_wrapper: RefCell::new(None),
+                                name: "references".to_string(),
+                                type_: CommandLineOptionType::List,
+                                is_file_path: None,
+                                short_name: None,
+                                description: None,
+                                default_value_description: None,
+                                param_type: None,
+                                is_tsconfig_only: None,
+                                is_command_line_only: None,
+                                show_in_simplified_help_view: None,
+                                category: Some(Diagnostics::Projects),
+                                strict_flag: None,
+                                affects_source_file: None,
+                                affects_module_resolution: None,
+                                affects_bind_diagnostics: None,
+                                affects_semantic_diagnostics: None,
+                                affects_emit: None,
+                                affects_program_structure: None,
+                                transpile_option_value: None,
+                            },
+                            TsConfigOnlyOption::new(
+                                CommandLineOptionBase {
+                                    _command_line_option_wrapper: RefCell::new(None),
+                                    name: "references".to_string(),
+                                    type_: CommandLineOptionType::Object,
+                                    is_file_path: None,
+                                    short_name: None,
+                                    description: None,
+                                    default_value_description: None,
+                                    param_type: None,
+                                    is_tsconfig_only: None,
+                                    is_command_line_only: None,
+                                    show_in_simplified_help_view: None,
+                                    category: None,
+                                    strict_flag: None,
+                                    affects_source_file: None,
+                                    affects_module_resolution: None,
+                                    affects_bind_diagnostics: None,
+                                    affects_semantic_diagnostics: None,
+                                    affects_emit: None,
+                                    affects_program_structure: None,
+                                    transpile_option_value: None,
+                                },
+                                None,
+                                None,
+                            )
+                            .into(),
+                        )
+                        .into(),
+                        CommandLineOptionOfListType::new(
+                            CommandLineOptionBase {
+                                _command_line_option_wrapper: RefCell::new(None),
+                                name: "files".to_string(),
+                                type_: CommandLineOptionType::List,
+                                is_file_path: None,
+                                short_name: None,
+                                description: None,
+                                default_value_description: None,
+                                param_type: None,
+                                is_tsconfig_only: None,
+                                is_command_line_only: None,
+                                show_in_simplified_help_view: None,
+                                category: Some(Diagnostics::File_Management),
+                                strict_flag: None,
+                                affects_source_file: None,
+                                affects_module_resolution: None,
+                                affects_bind_diagnostics: None,
+                                affects_semantic_diagnostics: None,
+                                affects_emit: None,
+                                affects_program_structure: None,
+                                transpile_option_value: None,
+                            },
+                            CommandLineOptionOfStringType::new(CommandLineOptionBase {
+                                _command_line_option_wrapper: RefCell::new(None),
+                                name: "files".to_string(),
+                                type_: CommandLineOptionType::String,
+                                is_file_path: None,
+                                short_name: None,
+                                description: None,
+                                default_value_description: None,
+                                param_type: None,
+                                is_tsconfig_only: None,
+                                is_command_line_only: None,
+                                show_in_simplified_help_view: None,
+                                category: None,
+                                strict_flag: None,
+                                affects_source_file: None,
+                                affects_module_resolution: None,
+                                affects_bind_diagnostics: None,
+                                affects_semantic_diagnostics: None,
+                                affects_emit: None,
+                                affects_program_structure: None,
+                                transpile_option_value: None,
+                            })
+                            .into(),
+                        )
+                        .into(),
+                        CommandLineOptionOfListType::new(
+                            CommandLineOptionBase {
+                                _command_line_option_wrapper: RefCell::new(None),
+                                name: "include".to_string(),
+                                type_: CommandLineOptionType::List,
+                                is_file_path: None,
+                                short_name: None,
+                                description: None,
+                                default_value_description: Some(StringOrDiagnosticMessage::DiagnosticMessage(Diagnostics::if_files_is_specified_otherwise_Asterisk_Asterisk_Slash_Asterisk)),
+                                param_type: None,
+                                is_tsconfig_only: None,
+                                is_command_line_only: None,
+                                show_in_simplified_help_view: None,
+                                category: Some(Diagnostics::File_Management),
+                                strict_flag: None,
+                                affects_source_file: None,
+                                affects_module_resolution: None,
+                                affects_bind_diagnostics: None,
+                                affects_semantic_diagnostics: None,
+                                affects_emit: None,
+                                affects_program_structure: None,
+                                transpile_option_value: None,
+                            },
+                            CommandLineOptionOfStringType::new(CommandLineOptionBase {
+                                _command_line_option_wrapper: RefCell::new(None),
+                                name: "include".to_string(),
+                                type_: CommandLineOptionType::String,
+                                is_file_path: None,
+                                short_name: None,
+                                description: None,
+                                default_value_description: None,
+                                param_type: None,
+                                is_tsconfig_only: None,
+                                is_command_line_only: None,
+                                show_in_simplified_help_view: None,
+                                category: None,
+                                strict_flag: None,
+                                affects_source_file: None,
+                                affects_module_resolution: None,
+                                affects_bind_diagnostics: None,
+                                affects_semantic_diagnostics: None,
+                                affects_emit: None,
+                                affects_program_structure: None,
+                                transpile_option_value: None,
+                            })
+                            .into(),
+                        )
+                        .into(),
+                        CommandLineOptionOfListType::new(
+                            CommandLineOptionBase {
+                                _command_line_option_wrapper: RefCell::new(None),
+                                name: "exclude".to_string(),
+                                type_: CommandLineOptionType::List,
+                                is_file_path: None,
+                                short_name: None,
+                                description: None,
+                                default_value_description: Some(StringOrDiagnosticMessage::DiagnosticMessage(Diagnostics::node_modules_bower_components_jspm_packages_plus_the_value_of_outDir_if_one_is_specified)),
+                                param_type: None,
+                                is_tsconfig_only: None,
+                                is_command_line_only: None,
+                                show_in_simplified_help_view: None,
+                                category: Some(Diagnostics::File_Management),
+                                strict_flag: None,
+                                affects_source_file: None,
+                                affects_module_resolution: None,
+                                affects_bind_diagnostics: None,
+                                affects_semantic_diagnostics: None,
+                                affects_emit: None,
+                                affects_program_structure: None,
+                                transpile_option_value: None,
+                            },
+                            CommandLineOptionOfStringType::new(CommandLineOptionBase {
+                                _command_line_option_wrapper: RefCell::new(None),
+                                name: "exclude".to_string(),
+                                type_: CommandLineOptionType::String,
+                                is_file_path: None,
+                                short_name: None,
+                                description: None,
+                                default_value_description: None,
+                                param_type: None,
+                                is_tsconfig_only: None,
+                                is_command_line_only: None,
+                                show_in_simplified_help_view: None,
+                                category: None,
+                                strict_flag: None,
+                                affects_source_file: None,
+                                affects_module_resolution: None,
+                                affects_bind_diagnostics: None,
+                                affects_semantic_diagnostics: None,
+                                affects_emit: None,
+                                affects_program_structure: None,
+                                transpile_option_value: None,
+                            })
+                            .into(),
+                        )
+                        .into(),
+                        compile_on_save_command_line_option(),
+                    ]))),
+                    None,
+                )
+                .into(),
+            ));
+        }
+        tsconfig_root_options.as_ref().unwrap().clone()
+    })
 }
 
 pub(crate) trait JsonConversionNotifier {

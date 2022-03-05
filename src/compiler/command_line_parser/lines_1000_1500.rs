@@ -557,7 +557,7 @@ pub(crate) fn parse_list_type_option(
 //     [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
 // }
 
-pub(crate) trait ParseCommandLineWorkerDiagnostics: DidYouMeanOptionsDiagnostics {
+pub trait ParseCommandLineWorkerDiagnostics: DidYouMeanOptionsDiagnostics {
     fn get_options_name_map(&self) -> Rc<OptionsNameMap>;
     fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage;
     fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics;

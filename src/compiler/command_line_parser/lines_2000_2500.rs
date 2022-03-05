@@ -16,13 +16,13 @@ use crate::{
 
 pub(super) fn is_root_option_map(
     known_root_options: Option<&CommandLineOption>,
-    known_options: Option<&HashMap<String, CommandLineOption>>,
+    known_options: Option<&HashMap<String, Rc<CommandLineOption>>>,
 ) -> bool {
     match known_root_options {
         None => false,
         Some(known_root_options) => match known_root_options {
             CommandLineOption::TsConfigOnlyOption(known_root_options) => {
-                matches!(known_root_options.element_options.as_ref(), Some(element_options) if matches!(known_options, Some(known_options) if ptr::eq(element_options, known_options)))
+                matches!(known_root_options.element_options.as_deref(), Some(element_options) if matches!(known_options, Some(known_options) if ptr::eq(element_options, known_options)))
             }
             _ => false,
         },
@@ -38,7 +38,7 @@ pub(super) fn convert_object_literal_expression_to_json<
     json_conversion_notifier: Option<&TJsonConversionNotifier>,
     known_root_options: Option<&CommandLineOption>,
     node: &Node, /*ObjectLiteralExpression*/
-    known_options: Option<&HashMap<String, CommandLineOption>>,
+    known_options: Option<&HashMap<String, Rc<CommandLineOption>>>,
     extra_key_diagnostics: Option<&dyn DidYouMeanOptionsDiagnostics>,
     parent_option: Option<&str>,
 ) -> Option<serde_json::Value> {
@@ -96,7 +96,9 @@ pub(super) fn convert_object_literal_expression_to_json<
         };
         let key_text = text_of_key.map(|text_of_key| unescape_leading_underscores(&text_of_key));
         let option = match (key_text.as_ref(), known_options) {
-            (Some(key_text), Some(known_options)) => known_options.get(key_text),
+            (Some(key_text), Some(known_options)) => {
+                known_options.get(key_text).map(|option| &**option)
+            }
             _ => None,
         };
         if let Some(key_text) = key_text.as_ref() {
@@ -402,10 +404,13 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
 
             if let Some(option) = option {
                 let option_as_ts_config_only_option = option.as_ts_config_only_option();
-                let element_options = option_as_ts_config_only_option.element_options.as_ref();
+                let element_options = option_as_ts_config_only_option.element_options.as_deref();
                 let extra_key_diagnostics = option_as_ts_config_only_option
                     .extra_key_diagnostics
-                    .as_deref();
+                    .as_ref()
+                    .map(|extra_key_diagnostics| {
+                        extra_key_diagnostics.as_did_you_mean_options_diagnostics()
+                    });
                 let option_name = option.name();
                 let converted = convert_object_literal_expression_to_json(
                     return_value,
