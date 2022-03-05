@@ -520,6 +520,47 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     ))
 }
 
+pub fn read_config_file<TReadFile: FnMut(&str) -> Option<String>>(
+    file_name: &str,
+    read_file: TReadFile,
+) -> ReadConfigFileReturn {
+    let text_or_diagnostic = try_read_file(file_name, read_file);
+    match text_or_diagnostic {
+        StringOrRcDiagnostic::String(text_or_diagnostic) => {
+            parse_config_file_text_to_json(file_name, text_or_diagnostic)
+        }
+        StringOrRcDiagnostic::RcDiagnostic(text_or_diagnostic) => ReadConfigFileReturn {
+            config: Some(serde_json::Value::Object(serde_json::Map::new())),
+            error: Some(text_or_diagnostic),
+        },
+    }
+}
+
+pub struct ReadConfigFileReturn {
+    pub config: Option<serde_json::Value>,
+    pub error: Option<Rc<Diagnostic>>,
+}
+
+pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> ReadConfigFileReturn {
+    let json_source_file = parse_json_text(file_name, json_text);
+    let mut json_source_file_parse_diagnostics =
+        json_source_file.as_source_file().parse_diagnostics();
+    let config = convert_config_file_to_object(
+        &json_source_file,
+        &RefCell::new(&mut *json_source_file_parse_diagnostics),
+        false,
+        Option::<&JsonConversionNotifierDummy>::None,
+    );
+    ReadConfigFileReturn {
+        config,
+        error: if !json_source_file_parse_diagnostics.is_empty() {
+            Some(json_source_file_parse_diagnostics[0].clone())
+        } else {
+            None
+        },
+    }
+}
+
 pub(crate) enum StringOrRcDiagnostic {
     String(String),
     RcDiagnostic(Rc<Diagnostic>),
