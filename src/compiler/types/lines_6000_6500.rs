@@ -1224,6 +1224,41 @@ pub struct WatchOptions {
     // [option: string]: CompilerOptionsValue | undefined;
 }
 
+impl ToHashMapOfCompilerOptionsValues for WatchOptions {
+    fn to_hash_map_of_compiler_options_values(
+        &self,
+    ) -> HashMap<&'static str, CompilerOptionsValue> {
+        let mut result = HashMap::new();
+
+        if self.watch_file.is_some() {
+            result.insert("watchFile", self.watch_file.into());
+        }
+        if self.watch_directory.is_some() {
+            result.insert("watchDirectory", self.watch_directory.into());
+        }
+        if self.fallback_polling.is_some() {
+            result.insert("fallbackPolling", self.fallback_polling.into());
+        }
+        if self.synchronous_watch_directory.is_some() {
+            result.insert(
+                "synchronousWatchDirectory",
+                self.synchronous_watch_directory.into(),
+            );
+        }
+        if self.exclude_directories.is_some() {
+            result.insert(
+                "excludeDirectories",
+                self.exclude_directories.clone().into(),
+            );
+        }
+        if self.exclude_files.is_some() {
+            result.insert("excludeFiles", self.exclude_files.clone().into());
+        }
+
+        result
+    }
+}
+
 pub fn extend_watch_options(a: &WatchOptions, b: &WatchOptions) -> WatchOptions {
     WatchOptions {
         watch_file: a.watch_file.or(b.watch_file),

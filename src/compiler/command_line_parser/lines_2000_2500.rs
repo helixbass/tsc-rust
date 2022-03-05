@@ -6,16 +6,18 @@ use std::rc::Rc;
 
 use super::{
     create_diagnostic_for_invalid_custom_type, create_unknown_option_error, get_options_name_map,
+    get_watch_options_name_map, hash_map_to_compiler_options,
 };
 use crate::{
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, get_directory_path,
     get_normalized_absolute_path, get_relative_path_from_file, get_text_of_property_name,
-    is_computed_non_literal_name, is_string_double_quoted, is_string_literal,
+    is_computed_non_literal_name, is_string_double_quoted, is_string_literal, map,
     unescape_leading_underscores, CommandLineOption, CommandLineOptionInterface,
     CommandLineOptionMapTypeValue, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
     Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics, JsonConversionNotifier,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, OptionsNameMap,
     ParsedCommandLine, ProjectReference, Push, SyntaxKind, ToHashMapOfCompilerOptionsValues,
+    WatchOptions,
 };
 
 pub(super) fn is_root_option_map(
@@ -733,7 +735,77 @@ pub(crate) fn convert_to_tsconfig(
             use_case_sensitive_file_names: host.use_case_sensitive_file_names(),
         }),
     );
-    unimplemented!()
+    let watch_option_map = config_parse_result
+        .watch_options
+        .as_ref()
+        .map(|watch_options| serialize_watch_options(watch_options, None));
+    let mut compiler_options: CompilerOptions = hash_map_to_compiler_options(&option_map);
+    compiler_options.show_config = None;
+    compiler_options.config_file = None;
+    compiler_options.config_file_path = None;
+    compiler_options.help = None;
+    compiler_options.init = None;
+    compiler_options.list_files = None;
+    compiler_options.list_emitted_files = None;
+    compiler_options.project = None;
+    compiler_options.build = None;
+    compiler_options.version = None;
+
+    let mut config = TSConfig {
+        compiler_options: Rc::new(compiler_options),
+        // watch_options: watch_option_map.map(|watch_option_map| Rc::new(hash_map_to_watch_options(&watch_option_map))),
+        references: map(config_parse_result.project_references.as_ref(), |r, _| {
+            Rc::new(ProjectReference {
+                path: r
+                    .original_path
+                    .as_ref()
+                    .map_or_else(|| "".to_owned(), |original_path| original_path.clone()),
+                original_path: None,
+                prepend: r.prepend,
+                circular: r.circular,
+            })
+        }),
+        files: if !files.is_empty() { Some(files) } else { None },
+        include: None,
+        exclude: None,
+        compile_on_save: if matches!(config_parse_result.compile_on_save, Some(true)) {
+            Some(true)
+        } else {
+            None
+        },
+    };
+    if let Some(config_file_specs) =
+        config_parse_result
+            .options
+            .config_file
+            .as_ref()
+            .and_then(|config_file| {
+                config_file
+                    .as_source_file()
+                    .maybe_config_file_specs()
+                    .clone()
+            })
+    {
+        config.include =
+            filter_same_as_default_include(config_file_specs.validated_include_specs.as_deref());
+        config.exclude = config_file_specs.validated_exclude_specs.clone();
+    }
+    config
+}
+
+pub(super) fn filter_same_as_default_include(specs: Option<&[String]>) -> Option<Vec<String>> {
+    specs.and_then(|specs| {
+        if specs.is_empty() {
+            return None;
+        }
+        if specs.len() != 1 {
+            return Some(specs.to_owned());
+        }
+        if specs[0] == "**/*" {
+            return None;
+        }
+        Some(specs.to_owned())
+    })
 }
 
 pub(super) fn matches_specs(
@@ -792,6 +864,13 @@ pub(super) fn serialize_compiler_options(
     path_options: Option<SerializeOptionBaseObjectPathOptions>,
 ) -> HashMap<&'static str, CompilerOptionsValue> {
     serialize_option_base_object(options, &get_options_name_map(), path_options)
+}
+
+pub(super) fn serialize_watch_options(
+    options: &WatchOptions,
+    path_options: Option<SerializeOptionBaseObjectPathOptions>,
+) -> HashMap<&'static str, CompilerOptionsValue> {
+    serialize_option_base_object(options, &get_watch_options_name_map(), None)
 }
 
 pub(super) fn serialize_option_base_object<TOptions: ToHashMapOfCompilerOptionsValues>(

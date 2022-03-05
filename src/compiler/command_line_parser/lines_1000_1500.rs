@@ -692,12 +692,13 @@ pub fn hash_map_to_build_options(options: &HashMap<String, CompilerOptionsValue>
     build_options
 }
 
-pub fn hash_map_to_compiler_options(
-    options: &HashMap<String, CompilerOptionsValue>,
+pub fn hash_map_to_compiler_options<TKey: AsRef<str>>(
+    options: &HashMap<TKey, CompilerOptionsValue>,
 ) -> CompilerOptions {
     let mut compiler_options: CompilerOptions = Default::default();
     for (option_name, value) in options {
-        match &**option_name {
+        let option_name = option_name.as_ref();
+        match option_name {
             "all" => {
                 compiler_options.all = enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
             }
