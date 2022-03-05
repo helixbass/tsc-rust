@@ -194,7 +194,7 @@ pub(super) fn normalize_option_value(
                 || matches!(list_option.element.type_(), CommandLineOptionType::Map(_))
             {
                 return match value {
-                    serde_json::Value::Array(value) => Some(serde_json::Value::Array(
+                    serde_json::Value::Array(value) => CompilerOptionsValue::VecString(Some(
                         filter(
                             Some(
                                 &map(Some(value), |v, _| {
@@ -202,33 +202,40 @@ pub(super) fn normalize_option_value(
                                 })
                                 .unwrap(),
                             ),
-                            |v| match v {
-                                None => false,
-                                Some(value) => match value {
-                                    serde_json::Value::Null => false,
-                                    serde_json::Value::String(value) => !value.is_empty(),
-                                    _ => true,
-                                },
-                            },
+                            |v| v.is_some(),
                         )
                         .unwrap()
                         .into_iter()
-                        .map(|option| option.unwrap())
-                        .collect::<Vec<_>>(),
+                        .map(|item| match item {
+                            CompilerOptionsValue::String(Some(item)) => item,
+                            _ => panic!("Expected only vec of strings?"),
+                        })
+                        .collect::<Vec<String>>(),
                     )),
                     _ => panic!("Expected array"),
                 };
             }
-            Some(value.clone())
+            match value {
+                serde_json::Value::Array(value) => CompilerOptionsValue::VecString(Some(
+                    value
+                        .into_iter()
+                        .map(|item| match item {
+                            serde_json::Value::String(item) => item.clone(),
+                            _ => panic!("Expected only vec of strings?"),
+                        })
+                        .collect::<Vec<String>>(),
+                )),
+                _ => panic!("Expected array"),
+            }
         }
-        CommandLineOptionType::Map(map) => match map.get(&match value {
-            serde_json::Value::String(value) => &*value.to_lowercase(),
+        CommandLineOptionType::Map(map) => match map.get(&&*match value {
+            serde_json::Value::String(value) => value.to_lowercase(),
             _ => panic!("Expected string"),
         }) {
             None => option.to_compiler_options_value_none(),
             Some(map_value) => map_value.as_compiler_options_value(),
         },
-        _ => Some(normalize_non_list_option_value(option, base_path, value)),
+        _ => normalize_non_list_option_value(option, base_path, value),
     }
 }
 
@@ -360,20 +367,24 @@ pub(super) fn convert_json_option_of_list_type(
     values: &[serde_json::Value],
     base_path: &str,
     errors: &mut Vec<Rc<Diagnostic>>,
-) -> Vec<CompilerOptionsValue> {
+) -> CompilerOptionsValue {
     let option_as_command_line_option_of_list_type = option.as_command_line_option_of_list_type();
-    filter_owning(
-        map(Some(values), |v, _| {
-            convert_json_option(
-                &option_as_command_line_option_of_list_type.element,
-                Some(v),
-                base_path,
-                errors,
-            )
-        })
-        .unwrap(),
-        |v| v.is_some(),
-    )
+    CompilerOptionsValue::VecString(Some(
+        values
+            .into_iter()
+            .filter_map(|v| {
+                match convert_json_option(
+                    &option_as_command_line_option_of_list_type.element,
+                    Some(v),
+                    base_path,
+                    errors,
+                ) {
+                    CompilerOptionsValue::String(v) => v,
+                    _ => panic!("Expected only vec of strings?"),
+                }
+            })
+            .collect::<Vec<String>>(),
+    ))
 }
 
 pub(crate) fn get_file_names_from_config_specs<THost: ParseConfigHost>(

@@ -15,6 +15,7 @@ use crate::{
     CompilerOptionsValue, Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics,
     ModuleKind, ParsedCommandLine, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
 };
+use local_macros::enum_unwrapped;
 
 thread_local! {
     pub(crate) static option_declarations: Vec<Rc<CommandLineOption>> =
@@ -459,7 +460,7 @@ pub(crate) fn convert_enable_auto_discovery_to_enable(
             _ => panic!("Expected object"),
         };
         return Some(serde_json::Value::Object({
-            let map = serde_json::Map::new();
+            let mut map = serde_json::Map::new();
             map.insert(
                 "enable".to_owned(),
                 type_acquisition.get("enableAutoDiscovery").unwrap().clone(),
@@ -570,7 +571,7 @@ pub(super) fn create_unknown_option_error<
 >(
     unknown_option: &str,
     diagnostics: &dyn DidYouMeanOptionsDiagnostics,
-    create_diagnostics: TCreateDiagnostics,
+    mut create_diagnostics: TCreateDiagnostics,
     unknown_option_error_text: Option<&str>,
 ) -> Rc<Diagnostic> {
     if let Some(diagnostics_alternate_mode) = diagnostics.maybe_alternate_mode() {
@@ -585,9 +586,10 @@ pub(super) fn create_unknown_option_error<
         }
     }
 
+    let diagnostics_option_declarations = diagnostics.option_declarations();
     let possible_option = get_spelling_suggestion(
         unknown_option,
-        &diagnostics.option_declarations(),
+        &diagnostics_option_declarations,
         |candidate| Some(get_option_name(candidate).to_owned()),
     );
     match possible_option {
@@ -612,14 +614,521 @@ pub(super) fn create_unknown_option_error<
 pub(super) fn hash_map_to_compiler_options(
     options: &HashMap<String, CompilerOptionsValue>,
 ) -> CompilerOptions {
+    let mut compiler_options: CompilerOptions = Default::default();
+    for (option_name, value) in options {
+        match &**option_name {
+            "all" => {
+                compiler_options.all = enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "allowJs" => {
+                compiler_options.allow_js =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "allowNonTsExtensions" => {
+                compiler_options.allow_non_ts_extensions =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "allowSyntheticDefaultImports" => {
+                compiler_options.allow_synthetic_default_imports =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "allowUmdGlobalAccess" => {
+                compiler_options.allow_umd_global_access =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "allowUnreachableCode" => {
+                compiler_options.allow_unreachable_code =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "allowUnusedLabels" => {
+                compiler_options.allow_unused_labels =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "alwaysStrict" => {
+                compiler_options.always_strict =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "baseUrl" => {
+                compiler_options.base_url =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "build" => {
+                compiler_options.build =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "charset" => {
+                compiler_options.charset =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "checkJs" => {
+                compiler_options.check_js =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "configFilePath" => {
+                compiler_options.config_file_path =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "configFile" => {
+                compiler_options.config_file =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, SourceFile]);
+            }
+            "declaration" => {
+                compiler_options.declaration =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "declarationMap" => {
+                compiler_options.declaration_map =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "emitDeclarationOnly" => {
+                compiler_options.emit_declaration_only =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "declarationDir" => {
+                compiler_options.declaration_dir =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "diagnostics" => {
+                compiler_options.diagnostics =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "extendedDiagnostics" => {
+                compiler_options.extended_diagnostics =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "disableSizeLimit" => {
+                compiler_options.disable_size_limit =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "disableSourceOfProjectReferenceRedirect" => {
+                compiler_options.disable_source_of_project_reference_redirect =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "disableSolutionSearching" => {
+                compiler_options.disable_solution_searching =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "disableReferencedProjectLoad" => {
+                compiler_options.disable_referenced_project_load =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "downlevelIteration" => {
+                compiler_options.downlevel_iteration =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "emitBom" => {
+                compiler_options.emit_bom =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "emitDecoratorMetadata" => {
+                compiler_options.emit_decorator_metadata =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "exactOptionalPropertyTypes" => {
+                compiler_options.exact_optional_property_types =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "experimentalDecorators" => {
+                compiler_options.experimental_decorators =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "forceConsistentCasingInFileNames" => {
+                compiler_options.force_consistent_casing_in_file_names =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "generateCpuProfile" => {
+                compiler_options.generate_cpu_profile =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "generateTrace" => {
+                compiler_options.generate_trace =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "help" => {
+                compiler_options.help =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "importHelpers" => {
+                compiler_options.import_helpers =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "importsNotUsedAsValues" => {
+                compiler_options.imports_not_used_as_values = enum_unwrapped!(
+                    value.clone(),
+                    [CompilerOptionsValue, ImportsNotUsedAsValues]
+                );
+            }
+            "init" => {
+                compiler_options.init =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "inlineSourceMap" => {
+                compiler_options.inline_source_map =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "inlineSources" => {
+                compiler_options.inline_sources =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "isolatedModules" => {
+                compiler_options.isolated_modules =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "jsx" => {
+                compiler_options.jsx =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, JsxEmit]);
+            }
+            "keyofStringsOnly" => {
+                compiler_options.keyof_strings_only =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "lib" => {
+                compiler_options.lib =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, VecString]);
+            }
+            "listEmittedFiles" => {
+                compiler_options.list_emitted_files =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "listFiles" => {
+                compiler_options.list_files =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "explainFiles" => {
+                compiler_options.explain_files =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "listFilesOnly" => {
+                compiler_options.list_files_only =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "locale" => {
+                compiler_options.locale =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "mapRoot" => {
+                compiler_options.map_root =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "maxNodeModuleJsDepth" => {
+                compiler_options.max_node_module_js_depth =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Usize]);
+            }
+            "module" => {
+                compiler_options.module =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, ModuleKind]);
+            }
+            "moduleResolution" => {
+                compiler_options.module_resolution =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, ModuleResolutionKind]);
+            }
+            "newLine" => {
+                compiler_options.new_line =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, NewLineKind]);
+            }
+            "noEmit" => {
+                compiler_options.no_emit =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noEmitForJsFiles" => {
+                compiler_options.no_emit_for_js_files =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noEmitHelpers" => {
+                compiler_options.no_emit_helpers =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noEmitOnError" => {
+                compiler_options.no_emit_on_error =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noErrorTruncation" => {
+                compiler_options.no_error_truncation =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noFallthroughCasesInSwitch" => {
+                compiler_options.no_fallthrough_cases_in_switch =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noImplicitAny" => {
+                compiler_options.no_implicit_any =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noImplicitReturns" => {
+                compiler_options.no_implicit_returns =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noImplicitThis" => {
+                compiler_options.no_implicit_this =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noStrictGenericChecks" => {
+                compiler_options.no_strict_generic_checks =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noUnusedLocals" => {
+                compiler_options.no_unused_locals =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noUnusedParameters" => {
+                compiler_options.no_unused_parameters =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noImplicitUseStrict" => {
+                compiler_options.no_implicit_use_strict =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noPropertyAccessFromIndexSignature" => {
+                compiler_options.no_property_access_from_index_signature =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "assumeChangesOnlyAffectDirectDependencies" => {
+                compiler_options.assume_changes_only_affect_direct_dependencies =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noLib" => {
+                compiler_options.no_lib =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noResolve" => {
+                compiler_options.no_resolve =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noUncheckedIndexedAccess" => {
+                compiler_options.no_unchecked_indexed_access =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "out" => {
+                compiler_options.out =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "outDir" => {
+                compiler_options.out_dir =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "outFile" => {
+                compiler_options.out_file =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "paths" => {
+                compiler_options.paths =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, MapLikeVecString]);
+            }
+            "pathsBasePath" => {
+                compiler_options.paths_base_path =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "plugins" => {
+                compiler_options.plugins =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, VecPluginImport]);
+            }
+            "preserveConstEnums" => {
+                compiler_options.preserve_const_enums =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "noImplicitOverride" => {
+                compiler_options.no_implicit_override =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "preserveSymlinks" => {
+                compiler_options.preserve_symlinks =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "preserveValueImports" => {
+                compiler_options.preserve_value_imports =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "preserveWatchOutput" => {
+                compiler_options.preserve_watch_output =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "project" => {
+                compiler_options.project =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "pretty" => {
+                compiler_options.pretty =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "reactNamespace" => {
+                compiler_options.react_namespace =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "jsxFactory" => {
+                compiler_options.jsx_factory =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "jsxFragmentFactory" => {
+                compiler_options.jsx_fragment_factory =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "jsxImportSource" => {
+                compiler_options.jsx_import_source =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "composite" => {
+                compiler_options.composite =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "incremental" => {
+                compiler_options.incremental =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "tsBuildInfoFile" => {
+                compiler_options.ts_build_info_file =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "removeComments" => {
+                compiler_options.remove_comments =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "rootDir" => {
+                compiler_options.root_dir =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "rootDirs" => {
+                compiler_options.root_dirs =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, VecString]);
+            }
+            "skipLibCheck" => {
+                compiler_options.skip_lib_check =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "skipDefaultLibCheck" => {
+                compiler_options.skip_default_lib_check =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "sourceMap" => {
+                compiler_options.source_map =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "sourceRoot" => {
+                compiler_options.source_root =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "strict" => {
+                compiler_options.strict =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "strictFunctionTypes" => {
+                compiler_options.strict_function_types =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "strictBindCallApply" => {
+                compiler_options.strict_bind_call_apply =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "strictNullChecks" => {
+                compiler_options.strict_null_checks =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "strictPropertyInitialization" => {
+                compiler_options.strict_property_initialization =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "stripInternal" => {
+                compiler_options.strip_internal =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "suppressExcessPropertyErrors" => {
+                compiler_options.suppress_excess_property_errors =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "suppressImplicitAnyIndexErrors" => {
+                compiler_options.suppress_implicit_any_index_errors =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "suppressOutputPathCheck" => {
+                compiler_options.suppress_output_path_check =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "target" => {
+                compiler_options.target =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, ScriptTarget]);
+            }
+            "traceResolution" => {
+                compiler_options.trace_resolution =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "useUnknownInCatchVariables" => {
+                compiler_options.use_unknown_in_catch_variables =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "resolveJsonModule" => {
+                compiler_options.resolve_json_module =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "types" => {
+                compiler_options.types =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, VecString]);
+            }
+            "typeRoots" => {
+                compiler_options.type_roots =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, VecString]);
+            }
+            "version" => {
+                compiler_options.version =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "watch" => {
+                compiler_options.watch =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "esModuleInterop" => {
+                compiler_options.es_module_interop =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "showConfig" => {
+                compiler_options.show_config =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "useDefineForClassFields" => {
+                compiler_options.use_define_for_class_fields =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            _ => panic!("Unknown compiler option"),
+        }
+    }
+    compiler_options
 }
 
 pub(super) fn hash_map_to_watch_options(
     options: &HashMap<String, CompilerOptionsValue>,
 ) -> WatchOptions {
+    let mut watch_options: WatchOptions = Default::default();
+    for (option_name, value) in options {
+        match &**option_name {
+            "watchFile" => {
+                watch_options.watch_file =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, WatchFileKind]);
+            }
+            "watchDirectory" => {
+                watch_options.watch_directory =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, WatchDirectoryKind]);
+            }
+            "fallbackPolling" => {
+                watch_options.fallback_polling =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, PollingWatchKind]);
+            }
+            "synchronousWatchDirectory" => {
+                watch_options.synchronous_watch_directory =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "excludeDirectories" => {
+                watch_options.exclude_directories =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, VecString]);
+            }
+            "excludeFiles" => {
+                watch_options.exclude_files =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, VecString]);
+            }
+            _ => panic!("Unknown watch option"),
+        }
+    }
+    watch_options
 }
 
-pub(super) fn parse_command_line_worker<TReadFile: FnMut(&str) -> Option<String>>(
+pub(super) fn parse_command_line_worker<TReadFile: Fn(&str) -> Option<String>>(
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     command_line: &[String],
     read_file: Option<TReadFile>,
@@ -635,14 +1144,14 @@ pub(super) fn parse_command_line_worker<TReadFile: FnMut(&str) -> Option<String>
         &mut options,
         &mut errors,
         &watch_options,
-        read_file,
+        read_file.as_ref(),
         command_line,
     );
 
+    let watch_options = watch_options.borrow();
     ParsedCommandLine {
         options: Rc::new(hash_map_to_compiler_options(&options)),
         watch_options: watch_options
-            .borrow()
             .as_ref()
             .map(|watch_options| Rc::new(hash_map_to_watch_options(watch_options))),
         file_names,
@@ -655,13 +1164,13 @@ pub(super) fn parse_command_line_worker<TReadFile: FnMut(&str) -> Option<String>
     }
 }
 
-pub(super) fn parse_strings<TReadFile: FnMut(&str) -> Option<String>>(
+pub(super) fn parse_strings<TReadFile: Fn(&str) -> Option<String>>(
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     options: &mut HashMap<String, CompilerOptionsValue>,
     errors: &mut Vec<Rc<Diagnostic>>,
     watch_options: &RefCell<Option<HashMap<String, CompilerOptionsValue>>>,
-    read_file: Option<TReadFile>,
+    read_file: Option<&TReadFile>,
     args: &[String],
 ) {
     let mut i = 0;

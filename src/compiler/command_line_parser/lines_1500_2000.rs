@@ -22,8 +22,8 @@ use crate::{
 };
 use local_macros::enum_unwrapped;
 
-pub(super) fn parse_response_file<TReadFile: FnMut(&str) -> Option<String>>(
-    read_file: Option<TReadFile>,
+pub(super) fn parse_response_file<TReadFile: Fn(&str) -> Option<String>>(
+    read_file: Option<&TReadFile>,
     errors: &mut Vec<Rc<Diagnostic>>,
     file_names: &mut Vec<String>,
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
@@ -193,9 +193,10 @@ pub(super) fn parse_option_value(
                     i += 1;
                 }
                 CommandLineOptionType::List => {
-                    let result: CompilerOptionsValue =
+                    let result = CompilerOptionsValue::VecString(Some(
                         parse_list_type_option(opt, args.get(i).map(|arg| &**arg), errors)
-                            .unwrap_or_else(|| vec![]);
+                            .unwrap_or_else(|| vec![]),
+                    ));
                     let result_is_some = result.is_some();
                     options.insert(opt.name().to_owned(), result.or_empty_vec());
                     if result_is_some {
@@ -269,7 +270,7 @@ impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics 
     }
 }
 
-pub fn parse_command_line<TReadFile: FnMut(&str) -> Option<String>>(
+pub fn parse_command_line<TReadFile: Fn(&str) -> Option<String>>(
     command_line: &[String],
     read_file: Option<TReadFile>,
 ) -> ParsedCommandLine {
@@ -288,7 +289,7 @@ pub(crate) fn get_option_from_name(
 }
 
 pub(super) fn get_option_declaration_from_name<TGetOptionNameMap: FnMut() -> Rc<OptionsNameMap>>(
-    get_option_name_map: TGetOptionNameMap,
+    mut get_option_name_map: TGetOptionNameMap,
     option_name: &str,
     allow_short: Option<bool>,
 ) -> Option<Rc<CommandLineOption>> {
@@ -442,7 +443,7 @@ impl From<Rc<Diagnostic>> for StringOrRcDiagnostic {
 
 pub(crate) fn try_read_file<TReadFile: FnMut(&str) -> Option<String>>(
     file_name: &str,
-    read_file: TReadFile,
+    mut read_file: TReadFile,
 ) -> StringOrRcDiagnostic {
     let text = read_file(file_name); // TODO: should read_file (eg System::read_file()) return a Result? And then could mimic the error including message here?
     match text {

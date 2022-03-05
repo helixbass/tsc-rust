@@ -825,7 +825,7 @@ pub(super) fn parse_own_config_of_json_source_file<THost: ParseConfigHost>(
 
     let base_path_string = base_path.to_owned();
     let errors = RefCell::new(errors);
-    let mut options_iterator = ParseOwnConfigOfJsonSourceFileOptionsIterator::new(
+    let options_iterator = ParseOwnConfigOfJsonSourceFileOptionsIterator::new(
         &mut options,
         &base_path_string,
         &watch_options,

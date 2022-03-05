@@ -1223,6 +1223,27 @@ impl CommandLineOption {
     pub fn to_compiler_options_value(&self, value: &serde_json::Value) -> CompilerOptionsValue {
         unimplemented!()
     }
+
+    // pub fn to_compiler_options_value_from_vec(
+    //     &self,
+    //     values: Vec<CompilerOptionsValue>
+    // ) -> CompilerOptionsValue {
+    //     match self {
+    //         Self::CommandLineOptionOfListType(list_type) => match list_type.element.type_() {
+    //             CommandLineOptionType::String => CompilerOptionsValue::VecString(values.into_iter().map(|value| match value {
+    //                 CompilerOptionsValue::String(Some(value)) => value,
+    //                 _ => panic!("Expected string"),
+    //             }).collect()),
+    //             CommandLineOptionType::Object => CompilerOptionsValue::VecPluginImport(None),
+    //             CommandLineOptionType::String => CompilerOptionsValue::VecString(values.into_iter().map(|value| match value {
+    //                 CompilerOptionsValue::String(Some(value)) => value,
+    //                 _ => panic!("Expected string"),
+    //             }).collect()),
+    //             _ => panic!("Unexpected element type"),
+    //         },
+    //         _ => panic!("Expected list type")
+    //     }
+    // }
 }
 
 #[non_exhaustive]

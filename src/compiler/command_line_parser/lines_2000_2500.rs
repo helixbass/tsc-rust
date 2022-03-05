@@ -151,7 +151,7 @@ pub(super) fn convert_object_literal_expression_to_json<
                         .insert(key_text.clone(), value.clone());
                 }
             }
-            if let Some(mut json_conversion_notifier) = json_conversion_notifier {
+            if let Some(json_conversion_notifier) = json_conversion_notifier {
                 if parent_option.is_some() || is_root_option_map(known_root_options, known_options)
                 {
                     let is_valid_option_value = is_compiler_options_value(option, value.as_ref());
