@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use serde::Serialize;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
@@ -868,7 +869,7 @@ pub enum DiagnosticCategory {
     Message,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum ModuleResolutionKind {
     Classic = 1,
     NodeJs = 2,

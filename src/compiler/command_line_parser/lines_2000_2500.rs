@@ -9,9 +9,9 @@ use crate::{
     create_diagnostic_for_node_in_source_file, get_text_of_property_name,
     is_computed_non_literal_name, is_string_double_quoted, is_string_literal,
     unescape_leading_underscores, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionType, Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics,
+    CommandLineOptionType, CompilerOptions, Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics,
     JsonConversionNotifier, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number,
-    ParsedCommandLine, Push, SyntaxKind, System,
+    ParsedCommandLine, ProjectReference, Push, SyntaxKind, System,
 };
 
 pub(super) fn is_root_option_map(
@@ -189,11 +189,48 @@ pub(super) fn convert_object_literal_expression_to_json<
     result.map(|result| serde_json::Value::Object(result))
 }
 
-pub(super) fn convert_array_literal_expression_to_json(
-    element: &NodeArray, /*<Expression>*/
+pub(super) fn convert_array_literal_expression_to_json<
+    TJsonConversionNotifier: JsonConversionNotifier,
+>(
+    errors: &RefCell<&mut Push<Rc<Diagnostic>>>,
+    source_file: &Node, /*JsonSourceFile*/
+    json_conversion_notifier: Option<&TJsonConversionNotifier>,
+    return_value: bool,
+    known_root_options: Option<&CommandLineOption>,
+    elements: &NodeArray, /*<Expression>*/
     element_option: Option<&CommandLineOption>,
 ) -> Option<serde_json::Value> {
-    unimplemented!()
+    if !return_value {
+        elements.iter().for_each(|element| {
+            convert_property_value_to_json(
+                errors,
+                source_file,
+                json_conversion_notifier,
+                return_value,
+                known_root_options,
+                element,
+                element_option,
+            );
+        });
+        return None;
+    }
+
+    Some(serde_json::Value::Array(
+        elements
+            .iter()
+            .filter_map(|element| {
+                convert_property_value_to_json(
+                    errors,
+                    source_file,
+                    json_conversion_notifier,
+                    return_value,
+                    known_root_options,
+                    element,
+                    element_option,
+                )
+            })
+            .collect::<Vec<serde_json::Value>>(),
+    ))
 }
 
 pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConversionNotifier>(
@@ -472,6 +509,11 @@ pub(super) fn convert_property_value_to_json<TJsonConversionNotifier: JsonConver
                 source_file,
                 value_expression,
                 convert_array_literal_expression_to_json(
+                    errors,
+                    source_file,
+                    json_conversion_notifier,
+                    return_value,
+                    known_root_options,
                     &value_expression.as_array_literal_expression().elements,
                     option.and_then(|option| match option {
                         CommandLineOption::CommandLineOptionOfListType(option) => {
@@ -612,7 +654,14 @@ pub(super) fn is_compiler_options_value(
 }
 
 #[derive(Serialize)]
-pub(crate) struct TSConfig {}
+pub(crate) struct TSConfig {
+    pub compiler_options: Rc<CompilerOptions>,
+    pub compile_on_save: Option<bool>,
+    pub exclude: Option<Vec<String>>,
+    pub files: Option<Vec<String>>,
+    pub include: Option<Vec<String>>,
+    pub references: Option<Vec<Rc<ProjectReference>>>,
+}
 
 pub(crate) fn convert_to_tsconfig(
     config_parse_result: &ParsedCommandLine,

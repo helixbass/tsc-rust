@@ -2,6 +2,7 @@
 
 use bitflags::bitflags;
 use derive_builder::Builder;
+use serde::Serialize;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
@@ -13,12 +14,12 @@ use crate::{
 };
 use local_macros::{command_line_option_type, enum_unwrapped};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct PluginImport {
     pub name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ProjectReference {
     pub path: String,
     pub original_path: Option<String>,
@@ -276,7 +277,7 @@ impl PartialEq for CompilerOptionsValue {
 
 impl Eq for CompilerOptionsValue {}
 
-#[derive(Builder, Debug, Default)]
+#[derive(Builder, Debug, Default, Serialize)]
 pub struct CompilerOptions {
     pub(crate) all: Option<bool>,
     pub allow_js: Option<bool>,
@@ -292,6 +293,7 @@ pub struct CompilerOptions {
     pub charset: Option<String>,
     pub check_js: Option<bool>,
     pub(crate) config_file_path: Option<String>,
+    #[serde(skip_serializing)]
     pub(crate) config_file: Option<Rc<Node /*TsConfigSourceFile*/>>,
     pub declaration: Option<bool>,
     pub declaration_map: Option<bool>,
@@ -718,7 +720,7 @@ pub struct TypeAcquisition {
     // [option: string]: CompilerOptionsValue | undefined;
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
 pub enum ModuleKind {
     None = 0,
     CommonJS = 1,
@@ -735,7 +737,7 @@ pub enum ModuleKind {
     NodeNext = 199,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize)]
 pub enum JsxEmit {
     None = 0,
     Preserve = 1,
@@ -745,14 +747,14 @@ pub enum JsxEmit {
     ReactJSXDev = 5,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize)]
 pub enum ImportsNotUsedAsValues {
     Remove,
     Preserve,
     Error,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize)]
 pub enum NewLineKind {
     CarriageReturnLineFeed = 0,
     LineFeed = 1,
@@ -776,7 +778,7 @@ pub enum ScriptKind {
     Deferred = 7,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
 pub enum ScriptTarget {
     ES3 = 0,
     ES5 = 1,
