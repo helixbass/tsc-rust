@@ -17,12 +17,13 @@ use crate::{
     get_base_file_name, get_directory_path, get_normalized_absolute_path, get_sys,
     is_array_literal_expression, is_object_literal_expression, maybe_text_char_at_index,
     parse_json_text, starts_with, text_char_at_index, text_substring, to_path,
-    AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption,
+    AlternateModeDiagnostics, BaseNode, BuildOptions, CharacterCodes, CommandLineOption,
     CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
     Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, Node, NodeInterface,
-    OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
-    SyntaxKind, WatchOptions,
+    DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, LanguageVariant,
+    Node, NodeArray, NodeFlags, NodeInterface, OptionsNameMap, ParseConfigHost, ParsedCommandLine,
+    ParsedCommandLineWithBaseOptions, Push, ScriptKind, ScriptTarget, SourceFile, SyntaxKind,
+    TransformFlags, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -558,6 +559,52 @@ pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> Rea
         } else {
             None
         },
+    }
+}
+
+pub fn read_json_config_file<TReadFile: FnMut(&str) -> Option<String>>(
+    file_name: &str,
+    read_file: TReadFile,
+) -> Rc<Node /*TsConfigSourceFile*/> {
+    let text_or_diagnostic = try_read_file(file_name, read_file);
+    match text_or_diagnostic {
+        StringOrRcDiagnostic::String(text_or_diagnostic) => {
+            parse_json_text(file_name, text_or_diagnostic)
+        }
+        StringOrRcDiagnostic::RcDiagnostic(text_or_diagnostic) => {
+            let base_node = BaseNode::new(
+                SyntaxKind::Unknown,
+                NodeFlags::None,
+                TransformFlags::None,
+                -1,
+                -1,
+            );
+            let end_of_file_token: Rc<Node> = BaseNode::new(
+                SyntaxKind::EndOfFileToken,
+                NodeFlags::None,
+                TransformFlags::None,
+                -1,
+                -1,
+            )
+            .into();
+            let source_file: Rc<Node> = SourceFile::new(
+                base_node,
+                NodeArray::new(vec![], -1, -1, false, None),
+                end_of_file_token,
+                file_name.to_owned(),
+                "".to_owned(),
+                ScriptTarget::Latest,
+                LanguageVariant::Standard,
+                ScriptKind::Unknown,
+                false,
+                false,
+            )
+            .into();
+            source_file
+                .as_source_file()
+                .set_parse_diagnostics(vec![text_or_diagnostic]);
+            source_file
+        }
     }
 }
 
