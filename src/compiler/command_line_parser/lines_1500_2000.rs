@@ -6,8 +6,8 @@ use std::rc::Rc;
 use super::{
     compiler_options_alternate_mode, convert_property_value_to_json, create_option_name_map,
     get_compiler_option_value_type_string, get_option_name, get_options_name_map,
-    option_declarations, options_for_watch, parse_command_line_worker, parse_custom_type_option,
-    parse_list_type_option, parse_strings, type_acquisition_declarations,
+    hash_map_to_build_options, option_declarations, options_for_watch, parse_command_line_worker,
+    parse_custom_type_option, parse_list_type_option, parse_strings, type_acquisition_declarations,
     validate_json_option_value, ParseCommandLineWorkerDiagnostics,
 };
 use crate::{
@@ -18,7 +18,7 @@ use crate::{
     CharacterCodes, CommandLineOption, CommandLineOptionInterface, CommandLineOptionType,
     CompilerOptionsValue, Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface,
     Diagnostics, DidYouMeanOptionsDiagnostics, Node, NodeInterface, OptionsNameMap,
-    ParsedCommandLine, Push, SyntaxKind, WatchOptions,
+    ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push, SyntaxKind, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -279,6 +279,7 @@ pub fn parse_command_line<TReadFile: Fn(&str) -> Option<String>>(
         command_line,
         read_file,
     )
+    .into_parsed_command_line()
 }
 
 pub(crate) fn get_option_from_name(
@@ -309,7 +310,7 @@ pub(super) fn get_option_declaration_from_name<TGetOptionNameMap: FnMut() -> Rc<
 
 pub(crate) struct ParsedBuildCommand {
     pub build_options: BuildOptions,
-    pub watch_options: Option<WatchOptions>,
+    pub watch_options: Option<Rc<WatchOptions>>,
     pub projects: Vec<String>,
     pub errors: Vec<Rc<Diagnostic>>,
 }
@@ -395,18 +396,65 @@ pub(super) fn build_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLin
 }
 
 pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
+    let ParsedCommandLineWithBaseOptions {
+        options,
+        watch_options,
+        file_names: mut projects,
+        mut errors,
+        ..
+    } = parse_command_line_worker(
+        &*build_options_did_you_mean_diagnostics(),
+        args,
+        Option::<fn(&str) -> Option<String>>::None,
+    );
+    let build_options: BuildOptions = hash_map_to_build_options(&options);
+
+    if projects.is_empty() {
+        projects.push(".".to_owned());
+    }
+
+    if matches!(build_options.clean, Some(true)) && matches!(build_options.force, Some(true)) {
+        errors.push(Rc::new(
+            create_compiler_diagnostic(
+                &Diagnostics::Options_0_and_1_cannot_be_combined,
+                Some(vec!["clean".to_owned(), "force".to_owned()]),
+            )
+            .into(),
+        ));
+    }
+    if matches!(build_options.clean, Some(true)) && matches!(build_options.verbose, Some(true)) {
+        errors.push(Rc::new(
+            create_compiler_diagnostic(
+                &Diagnostics::Options_0_and_1_cannot_be_combined,
+                Some(vec!["clean".to_owned(), "verbose".to_owned()]),
+            )
+            .into(),
+        ));
+    }
+    if matches!(build_options.clean, Some(true)) && matches!(build_options.watch, Some(true)) {
+        errors.push(Rc::new(
+            create_compiler_diagnostic(
+                &Diagnostics::Options_0_and_1_cannot_be_combined,
+                Some(vec!["clean".to_owned(), "watch".to_owned()]),
+            )
+            .into(),
+        ));
+    }
+    if matches!(build_options.watch, Some(true)) && matches!(build_options.dry, Some(true)) {
+        errors.push(Rc::new(
+            create_compiler_diagnostic(
+                &Diagnostics::Options_0_and_1_cannot_be_combined,
+                Some(vec!["watch".to_owned(), "dry".to_owned()]),
+            )
+            .into(),
+        ));
+    }
+
     ParsedBuildCommand {
-        build_options: BuildOptions {
-            clean: None,
-            watch: None,
-            help: None,
-            pretty: None,
-            locale: None,
-            generate_cpu_profile: None,
-        },
-        watch_options: None,
-        projects: vec![],
-        errors: vec![],
+        build_options,
+        watch_options,
+        projects,
+        errors,
     }
 }
 

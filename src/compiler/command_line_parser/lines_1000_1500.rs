@@ -9,11 +9,12 @@ use super::{
 };
 use crate::{
     create_compiler_diagnostic, for_each, get_spelling_suggestion, starts_with, trim_string,
-    AlternateModeDiagnostics, CharacterCodes, CommandLineOption, CommandLineOptionBase,
-    CommandLineOptionInterface, CommandLineOptionOfBooleanType, CommandLineOptionOfListType,
-    CommandLineOptionOfStringType, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
-    CompilerOptionsValue, Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics,
-    ModuleKind, ParsedCommandLine, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
+    AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption,
+    CommandLineOptionBase, CommandLineOptionInterface, CommandLineOptionOfBooleanType,
+    CommandLineOptionOfListType, CommandLineOptionOfStringType, CommandLineOptionType,
+    CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue, Diagnostic, DiagnosticMessage,
+    Diagnostics, DidYouMeanOptionsDiagnostics, ModuleKind, ParsedCommandLine,
+    ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -611,7 +612,87 @@ pub(super) fn create_unknown_option_error<
     }
 }
 
-pub(super) fn hash_map_to_compiler_options(
+pub fn hash_map_to_build_options(options: &HashMap<String, CompilerOptionsValue>) -> BuildOptions {
+    let mut build_options: BuildOptions = Default::default();
+    for (option_name, value) in options {
+        match &**option_name {
+            "dry" => {
+                build_options.dry = enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "force" => {
+                build_options.force = enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "verbose" => {
+                build_options.verbose =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "clean" => {
+                build_options.clean = enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "watch" => {
+                build_options.watch = enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "help" => {
+                build_options.help = enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "preserveWatchOutput" => {
+                build_options.preserve_watch_output =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "listEmittedFiles" => {
+                build_options.list_emitted_files =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "listFiles" => {
+                build_options.list_files =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "explainFiles" => {
+                build_options.explain_files =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "pretty" => {
+                build_options.pretty = enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "incremental" => {
+                build_options.incremental =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "assumeChangesOnlyAffectDirectDependencies" => {
+                build_options.assume_changes_only_affect_direct_dependencies =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "traceResolution" => {
+                build_options.trace_resolution =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "diagnostics" => {
+                build_options.diagnostics =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "extendedDiagnostics" => {
+                build_options.extended_diagnostics =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, Bool]);
+            }
+            "locale" => {
+                build_options.locale =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "generateCpuProfile" => {
+                build_options.generate_cpu_profile =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            "generateTrace" => {
+                build_options.generate_trace =
+                    enum_unwrapped!(value.clone(), [CompilerOptionsValue, String]);
+            }
+            _ => panic!("Unknown build option"),
+        }
+    }
+    build_options
+}
+
+pub fn hash_map_to_compiler_options(
     options: &HashMap<String, CompilerOptionsValue>,
 ) -> CompilerOptions {
     let mut compiler_options: CompilerOptions = Default::default();
@@ -1132,7 +1213,7 @@ pub(super) fn parse_command_line_worker<TReadFile: Fn(&str) -> Option<String>>(
     diagnostics: &dyn ParseCommandLineWorkerDiagnostics,
     command_line: &[String],
     read_file: Option<TReadFile>,
-) -> ParsedCommandLine {
+) -> ParsedCommandLineWithBaseOptions {
     let mut options: HashMap<String, CompilerOptionsValue> = HashMap::new();
     let watch_options: RefCell<Option<HashMap<String, CompilerOptionsValue>>> = RefCell::new(None);
     let mut file_names: Vec<String> = vec![];
@@ -1149,8 +1230,8 @@ pub(super) fn parse_command_line_worker<TReadFile: Fn(&str) -> Option<String>>(
     );
 
     let watch_options = watch_options.borrow();
-    ParsedCommandLine {
-        options: Rc::new(hash_map_to_compiler_options(&options)),
+    ParsedCommandLineWithBaseOptions {
+        options,
         watch_options: watch_options
             .as_ref()
             .map(|watch_options| Rc::new(hash_map_to_watch_options(watch_options))),

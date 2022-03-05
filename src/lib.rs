@@ -18,8 +18,8 @@ use compiler::command_line_parser::{
     parse_build_command, JsonConversionNotifier, JsonConversionNotifierDummy, ParsedBuildCommand,
 };
 pub use compiler::command_line_parser::{
-    parse_command_line, ConfigFileDiagnosticsReporter, DiagnosticReporter,
-    ExtendedConfigCacheEntry, OptionsNameMap,
+    hash_map_to_compiler_options, parse_command_line, ConfigFileDiagnosticsReporter,
+    DiagnosticReporter, ExtendedConfigCacheEntry, OptionsNameMap,
 };
 pub use compiler::core::{
     add_range, append, append_if_unique, array_to_map, arrays_equal, binary_search,
@@ -256,12 +256,12 @@ pub use compiler::types::{
     ObjectBindingPattern, ObjectFlags, ObjectFlagsTypeInterface, ObjectLiteralExpression,
     ObjectType, ObjectTypeInterface, OmittedExpression, OptionalTypeNode, OuterExpressionKinds,
     PackageId, ParameterDeclaration, ParenthesizedExpression, ParenthesizedTypeNode,
-    ParenthesizerRules, ParseConfigHost, ParsedCommandLine, PartiallyEmittedExpression, Path,
-    PatternAmbientModule, PluginImport, PollingWatchKind, PostfixUnaryExpression,
-    PrefixUnaryExpression, PrintHandlers, Printer, PrinterOptions, PrivateIdentifier, Program,
-    ProjectReference, PropertyAccessExpression, PropertyAssignment, PropertyDeclaration,
-    PropertySignature, PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec, ReadonlyTextRange,
-    RedirectTargetsMap, RegularExpressionLiteral, RelationComparisonResult,
+    ParenthesizerRules, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions,
+    PartiallyEmittedExpression, Path, PatternAmbientModule, PluginImport, PollingWatchKind,
+    PostfixUnaryExpression, PrefixUnaryExpression, PrintHandlers, Printer, PrinterOptions,
+    PrivateIdentifier, Program, ProjectReference, PropertyAccessExpression, PropertyAssignment,
+    PropertyDeclaration, PropertySignature, PseudoBigInt, QualifiedName, RcNodeOrNodeArrayOrVec,
+    ReadonlyTextRange, RedirectTargetsMap, RegularExpressionLiteral, RelationComparisonResult,
     ResolvableTypeInterface, ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations,
     ResolvedProjectReference, ResolvedTypeInterface, ResolvedTypeReferenceDirective, RestTypeNode,
     ReturnStatement, ScriptKind, ScriptReferenceHost, ScriptTarget, SemicolonClassElement,

@@ -7,7 +7,10 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
-use crate::{CompilerHost, Diagnostic, MapLike, Number, OptionsNameMap, Program, StringOrPattern};
+use crate::{
+    hash_map_to_compiler_options, CompilerHost, Diagnostic, MapLike, Number, OptionsNameMap,
+    Program, StringOrPattern,
+};
 use local_macros::{command_line_option_type, enum_unwrapped};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -799,6 +802,35 @@ pub enum LanguageVariant {
 }
 
 #[derive(Debug)]
+pub struct ParsedCommandLineWithBaseOptions {
+    pub options: HashMap<String, CompilerOptionsValue>,
+    pub type_acquisition: Option<Rc<TypeAcquisition>>,
+    pub file_names: Vec<String>,
+    pub project_references: Option<Vec<Rc<ProjectReference>>>,
+    pub watch_options: Option<Rc<WatchOptions>>,
+    pub raw: Option<serde_json::Value>,
+    pub errors: Vec<Rc<Diagnostic>>,
+    pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
+    pub compile_on_save: Option<bool>,
+}
+
+impl ParsedCommandLineWithBaseOptions {
+    pub fn into_parsed_command_line(self) -> ParsedCommandLine {
+        ParsedCommandLine {
+            options: Rc::new(hash_map_to_compiler_options(&self.options)),
+            type_acquisition: self.type_acquisition,
+            file_names: self.file_names,
+            project_references: self.project_references,
+            watch_options: self.watch_options,
+            raw: self.raw,
+            errors: self.errors,
+            wildcard_directories: self.wildcard_directories,
+            compile_on_save: self.compile_on_save,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ParsedCommandLine {
     pub options: Rc<CompilerOptions>,
     pub type_acquisition: Option<Rc<TypeAcquisition>>,
@@ -1223,27 +1255,6 @@ impl CommandLineOption {
     pub fn to_compiler_options_value(&self, value: &serde_json::Value) -> CompilerOptionsValue {
         unimplemented!()
     }
-
-    // pub fn to_compiler_options_value_from_vec(
-    //     &self,
-    //     values: Vec<CompilerOptionsValue>
-    // ) -> CompilerOptionsValue {
-    //     match self {
-    //         Self::CommandLineOptionOfListType(list_type) => match list_type.element.type_() {
-    //             CommandLineOptionType::String => CompilerOptionsValue::VecString(values.into_iter().map(|value| match value {
-    //                 CompilerOptionsValue::String(Some(value)) => value,
-    //                 _ => panic!("Expected string"),
-    //             }).collect()),
-    //             CommandLineOptionType::Object => CompilerOptionsValue::VecPluginImport(None),
-    //             CommandLineOptionType::String => CompilerOptionsValue::VecString(values.into_iter().map(|value| match value {
-    //                 CompilerOptionsValue::String(Some(value)) => value,
-    //                 _ => panic!("Expected string"),
-    //             }).collect()),
-    //             _ => panic!("Unexpected element type"),
-    //         },
-    //         _ => panic!("Expected list type")
-    //     }
-    // }
 }
 
 #[non_exhaustive]
