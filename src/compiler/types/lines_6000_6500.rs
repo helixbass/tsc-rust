@@ -277,6 +277,108 @@ impl PartialEq for CompilerOptionsValue {
 
 impl Eq for CompilerOptionsValue {}
 
+impl From<Option<bool>> for CompilerOptionsValue {
+    fn from(value: Option<bool>) -> Self {
+        Self::Bool(value)
+    }
+}
+
+impl From<Option<String>> for CompilerOptionsValue {
+    fn from(value: Option<String>) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Option<Rc<Node>>> for CompilerOptionsValue {
+    fn from(value: Option<Rc<Node>>) -> Self {
+        Self::SourceFile(value)
+    }
+}
+
+impl From<Option<ImportsNotUsedAsValues>> for CompilerOptionsValue {
+    fn from(value: Option<ImportsNotUsedAsValues>) -> Self {
+        Self::ImportsNotUsedAsValues(value)
+    }
+}
+
+impl From<Option<JsxEmit>> for CompilerOptionsValue {
+    fn from(value: Option<JsxEmit>) -> Self {
+        Self::JsxEmit(value)
+    }
+}
+
+impl From<Option<Vec<String>>> for CompilerOptionsValue {
+    fn from(value: Option<Vec<String>>) -> Self {
+        Self::VecString(value)
+    }
+}
+
+impl From<Option<usize>> for CompilerOptionsValue {
+    fn from(value: Option<usize>) -> Self {
+        Self::Usize(value)
+    }
+}
+
+impl From<Option<ModuleKind>> for CompilerOptionsValue {
+    fn from(value: Option<ModuleKind>) -> Self {
+        Self::ModuleKind(value)
+    }
+}
+
+impl From<Option<ModuleResolutionKind>> for CompilerOptionsValue {
+    fn from(value: Option<ModuleResolutionKind>) -> Self {
+        Self::ModuleResolutionKind(value)
+    }
+}
+
+impl From<Option<NewLineKind>> for CompilerOptionsValue {
+    fn from(value: Option<NewLineKind>) -> Self {
+        Self::NewLineKind(value)
+    }
+}
+
+impl From<Option<MapLike<Vec<String>>>> for CompilerOptionsValue {
+    fn from(value: Option<MapLike<Vec<String>>>) -> Self {
+        Self::MapLikeVecString(value)
+    }
+}
+
+impl From<Option<Vec<PluginImport>>> for CompilerOptionsValue {
+    fn from(value: Option<Vec<PluginImport>>) -> Self {
+        Self::VecPluginImport(value)
+    }
+}
+
+impl From<Option<ScriptTarget>> for CompilerOptionsValue {
+    fn from(value: Option<ScriptTarget>) -> Self {
+        Self::ScriptTarget(value)
+    }
+}
+
+impl From<Option<Number>> for CompilerOptionsValue {
+    fn from(value: Option<Number>) -> Self {
+        Self::Number(value)
+    }
+}
+
+impl From<Option<WatchFileKind>> for CompilerOptionsValue {
+    fn from(value: Option<WatchFileKind>) -> Self {
+        Self::WatchFileKind(value)
+    }
+}
+
+impl From<Option<WatchDirectoryKind>> for CompilerOptionsValue {
+    fn from(value: Option<WatchDirectoryKind>) -> Self {
+        Self::WatchDirectoryKind(value)
+    }
+}
+
+impl From<Option<PollingWatchKind>> for CompilerOptionsValue {
+    fn from(value: Option<PollingWatchKind>) -> Self {
+        Self::PollingWatchKind(value)
+    }
+}
+
 #[derive(Builder, Debug, Default, Serialize)]
 pub struct CompilerOptions {
     pub(crate) all: Option<bool>,

@@ -6,12 +6,13 @@ use std::rc::Rc;
 
 use super::{create_diagnostic_for_invalid_custom_type, create_unknown_option_error};
 use crate::{
-    create_diagnostic_for_node_in_source_file, get_text_of_property_name,
+    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name,
+    get_normalized_absolute_path, get_relative_path_from_file, get_text_of_property_name,
     is_computed_non_literal_name, is_string_double_quoted, is_string_literal,
     unescape_leading_underscores, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionType, CompilerOptions, Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics,
-    JsonConversionNotifier, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number,
-    ParsedCommandLine, ProjectReference, Push, SyntaxKind, System,
+    CommandLineOptionType, CompilerOptions, CompilerOptionsValue, Diagnostic, Diagnostics,
+    DidYouMeanOptionsDiagnostics, JsonConversionNotifier, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, Number, ParsedCommandLine, ProjectReference, Push, SyntaxKind,
 };
 
 pub(super) fn is_root_option_map(
@@ -663,10 +664,545 @@ pub(crate) struct TSConfig {
     pub references: Option<Vec<Rc<ProjectReference>>>,
 }
 
+pub trait ConvertToTSConfigHost {
+    fn get_current_directory(&self) -> String;
+    fn use_case_sensitive_file_names(&self) -> bool;
+}
+
 pub(crate) fn convert_to_tsconfig(
     config_parse_result: &ParsedCommandLine,
     config_file_name: &str,
-    host: &dyn System, /*ConvertToTSConfigHost*/
+    host: &dyn ConvertToTSConfigHost,
 ) -> TSConfig {
+    let get_canonical_file_name =
+        create_get_canonical_file_name(host.use_case_sensitive_file_names());
+    let maybe_config_file_specs =
+        config_parse_result
+            .options
+            .config_file
+            .as_ref()
+            .and_then(|config_file| {
+                config_file
+                    .as_source_file()
+                    .maybe_config_file_specs()
+                    .clone()
+            });
+    let matches_specs_callback: Option<MatchesSpecs> = maybe_config_file_specs
+        .as_ref()
+        .and_then(|config_file_specs| config_file_specs.validated_include_specs.as_ref())
+        .map(|validated_include_specs| {
+            matches_specs(
+                config_file_name,
+                Some(validated_include_specs),
+                maybe_config_file_specs
+                    .as_ref()
+                    .and_then(|config_file_specs| {
+                        config_file_specs.validated_exclude_specs.as_deref()
+                    }),
+                host,
+            )
+        });
+    let files = config_parse_result
+        .file_names
+        .iter()
+        .filter(|file_name| match matches_specs_callback.as_ref() {
+            Some(matches_specs_callback) => matches_specs_callback.call(file_name),
+            None => true,
+        })
+        .map(|f| {
+            get_relative_path_from_file(
+                &get_normalized_absolute_path(
+                    config_file_name,
+                    Some(&host.get_current_directory()),
+                ),
+                &get_normalized_absolute_path(f, Some(&host.get_current_directory())),
+                get_canonical_file_name,
+            )
+        })
+        .collect::<Vec<String>>();
+    let option_map = serialize_compiler_options(
+        &config_parse_result.options,
+        Some(SerializeOptionBaseObjectPathOptions {
+            config_file_path: get_normalized_absolute_path(
+                config_file_name,
+                Some(&host.get_current_directory()),
+            ),
+            use_case_sensitive_file_names: host.use_case_sensitive_file_names(),
+        }),
+    );
     unimplemented!()
+}
+
+pub(super) fn matches_specs(
+    path: &str,
+    include_specs: Option<&[String]>,
+    exclude_specs: Option<&[String]>,
+    host: &dyn ConvertToTSConfigHost,
+) -> MatchesSpecs {
+    unimplemented!()
+}
+
+pub(super) struct MatchesSpecs {}
+
+impl MatchesSpecs {
+    pub fn call(&self, file_name: &str) -> bool {
+        unimplemented!()
+    }
+}
+
+pub(super) struct SerializeOptionBaseObjectPathOptions {
+    pub config_file_path: String,
+    pub use_case_sensitive_file_names: bool,
+}
+
+pub(super) fn serialize_compiler_options(
+    options: &CompilerOptions,
+    path_options: Option<SerializeOptionBaseObjectPathOptions>,
+) -> HashMap<&'static str, CompilerOptionsValue> {
+    let mut result = HashMap::new();
+    let get_canonical_file_name = path_options.as_ref().map(|path_options| {
+        create_get_canonical_file_name(path_options.use_case_sensitive_file_names)
+    });
+
+    if options.all.is_some() {
+        result.insert("all", options.all.into());
+    }
+    if options.allow_js.is_some() {
+        result.insert("allowJs", options.allow_js.into());
+    }
+    if options.allow_non_ts_extensions.is_some() {
+        result.insert(
+            "allowNonTsExtensions",
+            options.allow_non_ts_extensions.into(),
+        );
+    }
+    if options.allow_synthetic_default_imports.is_some() {
+        result.insert(
+            "allowSyntheticDefaultImports",
+            options.allow_synthetic_default_imports.into(),
+        );
+    }
+    if options.allow_umd_global_access.is_some() {
+        result.insert(
+            "allowUmdGlobalAccess",
+            options.allow_umd_global_access.into(),
+        );
+    }
+    if options.allow_unreachable_code.is_some() {
+        result.insert(
+            "allowUnreachableCode",
+            options.allow_unreachable_code.into(),
+        );
+    }
+    if options.allow_unused_labels.is_some() {
+        result.insert("allowUnusedLabels", options.allow_unused_labels.into());
+    }
+    if options.always_strict.is_some() {
+        result.insert("alwaysStrict", options.always_strict.into());
+    }
+    if options.base_url.is_some() {
+        result.insert("baseUrl", options.base_url.clone().into());
+    }
+    if options.build.is_some() {
+        result.insert("build", options.build.into());
+    }
+    if options.charset.is_some() {
+        result.insert("charset", options.charset.clone().into());
+    }
+    if options.check_js.is_some() {
+        result.insert("checkJs", options.check_js.into());
+    }
+    if options.config_file_path.is_some() {
+        result.insert("configFilePath", options.config_file_path.clone().into());
+    }
+    if options.config_file.is_some() {
+        result.insert("configFile", options.config_file.clone().into());
+    }
+    if options.declaration.is_some() {
+        result.insert("declaration", options.declaration.into());
+    }
+    if options.declaration_map.is_some() {
+        result.insert("declarationMap", options.declaration_map.into());
+    }
+    if options.emit_declaration_only.is_some() {
+        result.insert("emitDeclarationOnly", options.emit_declaration_only.into());
+    }
+    if options.declaration_dir.is_some() {
+        result.insert("declarationDir", options.declaration_dir.clone().into());
+    }
+    if options.diagnostics.is_some() {
+        result.insert("diagnostics", options.diagnostics.into());
+    }
+    if options.extended_diagnostics.is_some() {
+        result.insert("extendedDiagnostics", options.extended_diagnostics.into());
+    }
+    if options.disable_size_limit.is_some() {
+        result.insert("disableSizeLimit", options.disable_size_limit.into());
+    }
+    if options
+        .disable_source_of_project_reference_redirect
+        .is_some()
+    {
+        result.insert(
+            "disableSourceOfProjectReferenceRedirect",
+            options.disable_source_of_project_reference_redirect.into(),
+        );
+    }
+    if options.disable_solution_searching.is_some() {
+        result.insert(
+            "disableSolutionSearching",
+            options.disable_solution_searching.into(),
+        );
+    }
+    if options.disable_referenced_project_load.is_some() {
+        result.insert(
+            "disableReferencedProjectLoad",
+            options.disable_referenced_project_load.into(),
+        );
+    }
+    if options.downlevel_iteration.is_some() {
+        result.insert("downlevelIteration", options.downlevel_iteration.into());
+    }
+    if options.emit_bom.is_some() {
+        result.insert("emitBom", options.emit_bom.into());
+    }
+    if options.emit_decorator_metadata.is_some() {
+        result.insert(
+            "emitDecoratorMetadata",
+            options.emit_decorator_metadata.into(),
+        );
+    }
+    if options.exact_optional_property_types.is_some() {
+        result.insert(
+            "exactOptionalPropertyTypes",
+            options.exact_optional_property_types.into(),
+        );
+    }
+    if options.experimental_decorators.is_some() {
+        result.insert(
+            "experimentalDecorators",
+            options.experimental_decorators.into(),
+        );
+    }
+    if options.force_consistent_casing_in_file_names.is_some() {
+        result.insert(
+            "forceConsistentCasingInFileNames",
+            options.force_consistent_casing_in_file_names.into(),
+        );
+    }
+    if options.generate_cpu_profile.is_some() {
+        result.insert(
+            "generateCpuProfile",
+            options.generate_cpu_profile.clone().into(),
+        );
+    }
+    if options.generate_trace.is_some() {
+        result.insert("generateTrace", options.generate_trace.clone().into());
+    }
+    if options.help.is_some() {
+        result.insert("help", options.help.into());
+    }
+    if options.import_helpers.is_some() {
+        result.insert("importHelpers", options.import_helpers.into());
+    }
+    if options.imports_not_used_as_values.is_some() {
+        result.insert(
+            "importsNotUsedAsValues",
+            options.imports_not_used_as_values.into(),
+        );
+    }
+    if options.init.is_some() {
+        result.insert("init", options.init.into());
+    }
+    if options.inline_source_map.is_some() {
+        result.insert("inlineSourceMap", options.inline_source_map.into());
+    }
+    if options.inline_sources.is_some() {
+        result.insert("inlineSources", options.inline_sources.into());
+    }
+    if options.isolated_modules.is_some() {
+        result.insert("isolatedModules", options.isolated_modules.into());
+    }
+    if options.jsx.is_some() {
+        result.insert("jsx", options.jsx.into());
+    }
+    if options.keyof_strings_only.is_some() {
+        result.insert("keyofStringsOnly", options.keyof_strings_only.into());
+    }
+    if options.lib.is_some() {
+        result.insert("lib", options.lib.clone().into());
+    }
+    if options.list_emitted_files.is_some() {
+        result.insert("listEmittedFiles", options.list_emitted_files.into());
+    }
+    if options.list_files.is_some() {
+        result.insert("listFiles", options.list_files.into());
+    }
+    if options.explain_files.is_some() {
+        result.insert("explainFiles", options.explain_files.into());
+    }
+    if options.list_files_only.is_some() {
+        result.insert("listFilesOnly", options.list_files_only.into());
+    }
+    if options.locale.is_some() {
+        result.insert("locale", options.locale.clone().into());
+    }
+    if options.map_root.is_some() {
+        result.insert("mapRoot", options.map_root.clone().into());
+    }
+    if options.max_node_module_js_depth.is_some() {
+        result.insert(
+            "maxNodeModuleJsDepth",
+            options.max_node_module_js_depth.into(),
+        );
+    }
+    if options.module.is_some() {
+        result.insert("module", options.module.into());
+    }
+    if options.module_resolution.is_some() {
+        result.insert("moduleResolution", options.module_resolution.into());
+    }
+    if options.new_line.is_some() {
+        result.insert("newLine", options.new_line.into());
+    }
+    if options.no_emit.is_some() {
+        result.insert("noEmit", options.no_emit.into());
+    }
+    if options.no_emit_for_js_files.is_some() {
+        result.insert("noEmitForJsFiles", options.no_emit_for_js_files.into());
+    }
+    if options.no_emit_helpers.is_some() {
+        result.insert("noEmitHelpers", options.no_emit_helpers.into());
+    }
+    if options.no_emit_on_error.is_some() {
+        result.insert("noEmitOnError", options.no_emit_on_error.into());
+    }
+    if options.no_error_truncation.is_some() {
+        result.insert("noErrorTruncation", options.no_error_truncation.into());
+    }
+    if options.no_fallthrough_cases_in_switch.is_some() {
+        result.insert(
+            "noFallthroughCasesInSwitch",
+            options.no_fallthrough_cases_in_switch.into(),
+        );
+    }
+    if options.no_implicit_any.is_some() {
+        result.insert("noImplicitAny", options.no_implicit_any.into());
+    }
+    if options.no_implicit_returns.is_some() {
+        result.insert("noImplicitReturns", options.no_implicit_returns.into());
+    }
+    if options.no_implicit_this.is_some() {
+        result.insert("noImplicitThis", options.no_implicit_this.into());
+    }
+    if options.no_strict_generic_checks.is_some() {
+        result.insert(
+            "noStrictGenericChecks",
+            options.no_strict_generic_checks.into(),
+        );
+    }
+    if options.no_unused_locals.is_some() {
+        result.insert("noUnusedLocals", options.no_unused_locals.into());
+    }
+    if options.no_unused_parameters.is_some() {
+        result.insert("noUnusedParameters", options.no_unused_parameters.into());
+    }
+    if options.no_implicit_use_strict.is_some() {
+        result.insert("noImplicitUseStrict", options.no_implicit_use_strict.into());
+    }
+    if options.no_property_access_from_index_signature.is_some() {
+        result.insert(
+            "noPropertyAccessFromIndexSignature",
+            options.no_property_access_from_index_signature.into(),
+        );
+    }
+    if options
+        .assume_changes_only_affect_direct_dependencies
+        .is_some()
+    {
+        result.insert(
+            "assumeChangesOnlyAffectDirectDependencies",
+            options
+                .assume_changes_only_affect_direct_dependencies
+                .into(),
+        );
+    }
+    if options.no_lib.is_some() {
+        result.insert("noLib", options.no_lib.into());
+    }
+    if options.no_resolve.is_some() {
+        result.insert("noResolve", options.no_resolve.into());
+    }
+    if options.no_unchecked_indexed_access.is_some() {
+        result.insert(
+            "noUncheckedIndexedAccess",
+            options.no_unchecked_indexed_access.into(),
+        );
+    }
+    if options.out.is_some() {
+        result.insert("out", options.out.clone().into());
+    }
+    if options.out_dir.is_some() {
+        result.insert("outDir", options.out_dir.clone().into());
+    }
+    if options.out_file.is_some() {
+        result.insert("outFile", options.out_file.clone().into());
+    }
+    if options.paths.is_some() {
+        result.insert("paths", options.paths.clone().into());
+    }
+    if options.paths_base_path.is_some() {
+        result.insert("pathsBasePath", options.paths_base_path.clone().into());
+    }
+    if options.plugins.is_some() {
+        result.insert("plugins", options.plugins.clone().into());
+    }
+    if options.preserve_const_enums.is_some() {
+        result.insert("preserveConstEnums", options.preserve_const_enums.into());
+    }
+    if options.no_implicit_override.is_some() {
+        result.insert("noImplicitOverride", options.no_implicit_override.into());
+    }
+    if options.preserve_symlinks.is_some() {
+        result.insert("preserveSymlinks", options.preserve_symlinks.into());
+    }
+    if options.preserve_value_imports.is_some() {
+        result.insert(
+            "preserveValueImports",
+            options.preserve_value_imports.into(),
+        );
+    }
+    if options.preserve_watch_output.is_some() {
+        result.insert("preserveWatchOutput", options.preserve_watch_output.into());
+    }
+    if options.project.is_some() {
+        result.insert("project", options.project.clone().into());
+    }
+    if options.pretty.is_some() {
+        result.insert("pretty", options.pretty.into());
+    }
+    if options.react_namespace.is_some() {
+        result.insert("reactNamespace", options.react_namespace.clone().into());
+    }
+    if options.jsx_factory.is_some() {
+        result.insert("jsxFactory", options.jsx_factory.clone().into());
+    }
+    if options.jsx_fragment_factory.is_some() {
+        result.insert(
+            "jsxFragmentFactory",
+            options.jsx_fragment_factory.clone().into(),
+        );
+    }
+    if options.jsx_import_source.is_some() {
+        result.insert("jsxImportSource", options.jsx_import_source.clone().into());
+    }
+    if options.composite.is_some() {
+        result.insert("composite", options.composite.into());
+    }
+    if options.incremental.is_some() {
+        result.insert("incremental", options.incremental.into());
+    }
+    if options.ts_build_info_file.is_some() {
+        result.insert("tsBuildInfoFile", options.ts_build_info_file.clone().into());
+    }
+    if options.remove_comments.is_some() {
+        result.insert("removeComments", options.remove_comments.into());
+    }
+    if options.root_dir.is_some() {
+        result.insert("rootDir", options.root_dir.clone().into());
+    }
+    if options.root_dirs.is_some() {
+        result.insert("rootDirs", options.root_dirs.clone().into());
+    }
+    if options.skip_lib_check.is_some() {
+        result.insert("skipLibCheck", options.skip_lib_check.into());
+    }
+    if options.skip_default_lib_check.is_some() {
+        result.insert("skipDefaultLibCheck", options.skip_default_lib_check.into());
+    }
+    if options.source_map.is_some() {
+        result.insert("sourceMap", options.source_map.into());
+    }
+    if options.source_root.is_some() {
+        result.insert("sourceRoot", options.source_root.clone().into());
+    }
+    if options.strict.is_some() {
+        result.insert("strict", options.strict.into());
+    }
+    if options.strict_function_types.is_some() {
+        result.insert("strictFunctionTypes", options.strict_function_types.into());
+    }
+    if options.strict_bind_call_apply.is_some() {
+        result.insert("strictBindCallApply", options.strict_bind_call_apply.into());
+    }
+    if options.strict_null_checks.is_some() {
+        result.insert("strictNullChecks", options.strict_null_checks.into());
+    }
+    if options.strict_property_initialization.is_some() {
+        result.insert(
+            "strictPropertyInitialization",
+            options.strict_property_initialization.into(),
+        );
+    }
+    if options.strip_internal.is_some() {
+        result.insert("stripInternal", options.strip_internal.into());
+    }
+    if options.suppress_excess_property_errors.is_some() {
+        result.insert(
+            "suppressExcessPropertyErrors",
+            options.suppress_excess_property_errors.into(),
+        );
+    }
+    if options.suppress_implicit_any_index_errors.is_some() {
+        result.insert(
+            "suppressImplicitAnyIndexErrors",
+            options.suppress_implicit_any_index_errors.into(),
+        );
+    }
+    if options.suppress_output_path_check.is_some() {
+        result.insert(
+            "suppressOutputPathCheck",
+            options.suppress_output_path_check.into(),
+        );
+    }
+    if options.target.is_some() {
+        result.insert("target", options.target.into());
+    }
+    if options.trace_resolution.is_some() {
+        result.insert("traceResolution", options.trace_resolution.into());
+    }
+    if options.use_unknown_in_catch_variables.is_some() {
+        result.insert(
+            "useUnknownInCatchVariables",
+            options.use_unknown_in_catch_variables.into(),
+        );
+    }
+    if options.resolve_json_module.is_some() {
+        result.insert("resolveJsonModule", options.resolve_json_module.into());
+    }
+    if options.types.is_some() {
+        result.insert("types", options.types.clone().into());
+    }
+    if options.type_roots.is_some() {
+        result.insert("typeRoots", options.type_roots.clone().into());
+    }
+    if options.version.is_some() {
+        result.insert("version", options.version.into());
+    }
+    if options.watch.is_some() {
+        result.insert("watch", options.watch.into());
+    }
+    if options.es_module_interop.is_some() {
+        result.insert("esModuleInterop", options.es_module_interop.into());
+    }
+    if options.show_config.is_some() {
+        result.insert("showConfig", options.show_config.into());
+    }
+    if options.use_define_for_class_fields.is_some() {
+        result.insert(
+            "useDefineForClassFields",
+            options.use_define_for_class_fields.into(),
+        );
+    }
+    result
 }

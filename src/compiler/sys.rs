@@ -5,14 +5,14 @@ use std::process;
 use std::rc::Rc;
 use std::{env, fs};
 
-use crate::ExitStatus;
+use crate::{ConvertToTSConfigHost, ExitStatus};
 
 pub(crate) enum FileSystemEntryKind {
     File,
     Directory,
 }
 
-pub trait System {
+pub trait System: ConvertToTSConfigHost {
     fn args(&self) -> &[String];
     fn new_line(&self) -> &str;
     fn write(&self, s: &str);
@@ -29,7 +29,6 @@ pub trait System {
     fn file_exists(&self, path: &str) -> bool;
     fn directory_exists(&self, path: &str) -> bool;
     fn get_executing_file_path(&self) -> Cow<'static, str>;
-    fn get_current_directory(&self) -> String;
     fn is_get_modified_time_supported(&self) -> bool;
     fn is_set_modified_time_supported(&self) -> bool;
     fn is_delete_file_supported(&self) -> bool;
@@ -41,6 +40,7 @@ pub trait System {
     fn get_environment_variable(&self, name: &str) -> String;
     fn try_enable_source_maps_for_host(&self) {}
     fn set_blocking(&self) {}
+    fn as_convert_to_tsconfig_host(&self) -> &dyn ConvertToTSConfigHost;
 }
 
 struct SystemConcrete {
@@ -71,6 +71,20 @@ impl SystemConcrete {
             FileSystemEntryKind::Directory => stat.is_directory(),
             _ => false,
         }
+    }
+}
+
+impl ConvertToTSConfigHost for SystemConcrete {
+    fn use_case_sensitive_file_names(&self) -> bool {
+        unimplemented!()
+    }
+
+    fn get_current_directory(&self) -> String {
+        env::current_dir()
+            .unwrap()
+            .into_os_string()
+            .into_string()
+            .unwrap()
     }
 }
 
@@ -112,14 +126,6 @@ impl System for SystemConcrete {
         Cow::Borrowed(file!())
     }
 
-    fn get_current_directory(&self) -> String {
-        env::current_dir()
-            .unwrap()
-            .into_os_string()
-            .into_string()
-            .unwrap()
-    }
-
     fn is_get_modified_time_supported(&self) -> bool {
         false
     }
@@ -149,6 +155,10 @@ impl System for SystemConcrete {
         env::var_os(name)
             .map(|os_string| os_string.to_str().unwrap().to_owned())
             .unwrap_or_else(|| "".to_owned())
+    }
+
+    fn as_convert_to_tsconfig_host(&self) -> &dyn ConvertToTSConfigHost {
+        self
     }
 }
 

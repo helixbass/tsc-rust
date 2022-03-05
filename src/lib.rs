@@ -20,7 +20,7 @@ use compiler::command_line_parser::{
 };
 pub use compiler::command_line_parser::{
     hash_map_to_compiler_options, parse_command_line, ConfigFileDiagnosticsReporter,
-    DiagnosticReporter, ExtendedConfigCacheEntry, OptionsNameMap,
+    ConvertToTSConfigHost, DiagnosticReporter, ExtendedConfigCacheEntry, OptionsNameMap,
     ParseCommandLineWorkerDiagnostics,
 };
 pub use compiler::core::{

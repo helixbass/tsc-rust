@@ -442,6 +442,10 @@ impl SourceFile {
         *self.end_flow_node.borrow_mut() = end_flow_node;
     }
 
+    pub fn maybe_config_file_specs(&self) -> Ref<Option<Rc<ConfigFileSpecs>>> {
+        self.config_file_specs.borrow()
+    }
+
     pub fn set_config_file_specs(&self, config_file_specs: Option<Rc<ConfigFileSpecs>>) {
         *self.config_file_specs.borrow_mut() = config_file_specs;
     }
