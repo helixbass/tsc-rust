@@ -419,10 +419,15 @@ pub(crate) fn get_options_name_map() -> Rc<OptionsNameMap> {
 }
 
 thread_local! {
-    pub(super) static compiler_options_alternate_mode: Rc<AlternateModeDiagnostics> = Rc::new(AlternateModeDiagnostics {
+    static compiler_options_alternate_mode_: Rc<AlternateModeDiagnostics> = Rc::new(AlternateModeDiagnostics {
         diagnostic: &Diagnostics::Compiler_option_0_may_only_be_used_with_build,
         get_options_name_map: get_build_options_name_map,
     });
+}
+
+pub(super) fn compiler_options_alternate_mode() -> Rc<AlternateModeDiagnostics> {
+    compiler_options_alternate_mode_
+        .with(|compiler_options_alternate_mode| compiler_options_alternate_mode.clone())
 }
 
 thread_local! {
@@ -607,13 +612,11 @@ pub(super) fn create_unknown_option_error<
 pub(super) fn hash_map_to_compiler_options(
     options: &HashMap<String, CompilerOptionsValue>,
 ) -> CompilerOptions {
-    unimplemented!()
 }
 
 pub(super) fn hash_map_to_watch_options(
     options: &HashMap<String, CompilerOptionsValue>,
 ) -> WatchOptions {
-    unimplemented!()
 }
 
 pub(super) fn parse_command_line_worker<TReadFile: FnMut(&str) -> Option<String>>(

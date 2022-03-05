@@ -219,7 +219,14 @@ pub(super) fn parse_option_value(
 }
 
 thread_local! {
-    pub(crate) static compiler_options_did_you_mean_diagnostics: Rc<dyn ParseCommandLineWorkerDiagnostics> = Rc::new(CompilerOptionsDidYouMeanDiagnostics::new());
+    static compiler_options_did_you_mean_diagnostics_: Rc<dyn ParseCommandLineWorkerDiagnostics> = Rc::new(CompilerOptionsDidYouMeanDiagnostics::new());
+}
+
+pub(crate) fn compiler_options_did_you_mean_diagnostics(
+) -> Rc<dyn ParseCommandLineWorkerDiagnostics> {
+    compiler_options_did_you_mean_diagnostics_.with(|compiler_options_did_you_mean_diagnostics| {
+        compiler_options_did_you_mean_diagnostics.clone()
+    })
 }
 
 pub struct CompilerOptionsDidYouMeanDiagnostics {}
@@ -232,10 +239,7 @@ impl CompilerOptionsDidYouMeanDiagnostics {
 
 impl DidYouMeanOptionsDiagnostics for CompilerOptionsDidYouMeanDiagnostics {
     fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>> {
-        Some(
-            compiler_options_alternate_mode
-                .with(|compiler_options_alternate_mode_| compiler_options_alternate_mode_.clone()),
-        )
+        Some(compiler_options_alternate_mode())
     }
 
     fn option_declarations(&self) -> Vec<Rc<CommandLineOption>> {
@@ -269,13 +273,18 @@ pub fn parse_command_line<TReadFile: FnMut(&str) -> Option<String>>(
     command_line: &[String],
     read_file: Option<TReadFile>,
 ) -> ParsedCommandLine {
-    compiler_options_did_you_mean_diagnostics.with(|compiler_options_did_you_mean_diagnostics_| {
-        parse_command_line_worker(
-            &**compiler_options_did_you_mean_diagnostics_,
-            command_line,
-            read_file,
-        )
-    })
+    parse_command_line_worker(
+        &*compiler_options_did_you_mean_diagnostics(),
+        command_line,
+        read_file,
+    )
+}
+
+pub(crate) fn get_option_from_name(
+    option_name: &str,
+    allow_short: Option<bool>,
+) -> Option<Rc<CommandLineOption>> {
+    get_option_declaration_from_name(get_options_name_map, option_name, allow_short)
 }
 
 pub(super) fn get_option_declaration_from_name<TGetOptionNameMap: FnMut() -> Rc<OptionsNameMap>>(
@@ -318,6 +327,69 @@ pub(crate) fn get_build_options_name_map() -> Rc<OptionsNameMap> {
             });
         }
         build_options_name_map_cache_.as_ref().unwrap().clone()
+    })
+}
+
+thread_local! {
+    static build_options_alternate_mode_: Rc<AlternateModeDiagnostics> = Rc::new(AlternateModeDiagnostics {
+        diagnostic: &Diagnostics::Compiler_option_0_may_not_be_used_with_build,
+        get_options_name_map,
+    });
+}
+
+pub(super) fn build_options_alternate_mode() -> Rc<AlternateModeDiagnostics> {
+    build_options_alternate_mode_
+        .with(|build_options_alternate_mode| build_options_alternate_mode.clone())
+}
+
+thread_local! {
+    static build_options_did_you_mean_diagnostics_: Rc<dyn ParseCommandLineWorkerDiagnostics> = Rc::new(BuildOptionsDidYouMeanDiagnostics::new());
+}
+
+pub struct BuildOptionsDidYouMeanDiagnostics {}
+
+impl BuildOptionsDidYouMeanDiagnostics {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl DidYouMeanOptionsDiagnostics for BuildOptionsDidYouMeanDiagnostics {
+    fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>> {
+        Some(build_options_alternate_mode())
+    }
+
+    fn option_declarations(&self) -> Vec<Rc<CommandLineOption>> {
+        build_opts.with(|build_opts_| build_opts_.clone())
+    }
+
+    fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
+        &Diagnostics::Unknown_build_option_0
+    }
+
+    fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage {
+        &Diagnostics::Unknown_build_option_0_Did_you_mean_1
+    }
+}
+
+impl ParseCommandLineWorkerDiagnostics for BuildOptionsDidYouMeanDiagnostics {
+    fn get_options_name_map(&self) -> Rc<OptionsNameMap> {
+        get_build_options_name_map()
+    }
+
+    fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
+        &Diagnostics::Build_option_0_requires_a_value_of_type_1
+    }
+
+    fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics {
+        self
+    }
+}
+
+pub(super) fn build_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLineWorkerDiagnostics>
+{
+    build_options_did_you_mean_diagnostics_.with(|build_options_did_you_mean_diagnostics| {
+        build_options_did_you_mean_diagnostics.clone()
     })
 }
 
