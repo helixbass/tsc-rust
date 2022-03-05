@@ -701,12 +701,13 @@ lazy_static! {
     static ref file_name_lower_case_reg_exp: Regex = Regex::new(r#"[^\u0130\u0131\u00DFa-z0-9\\/:\-_\. ]+"#/*/g*/).unwrap();
 }
 
-pub fn to_file_name_lower_case(x: &str) -> Cow<'_, str> {
+pub fn to_file_name_lower_case(x: &str) -> String {
     if file_name_lower_case_reg_exp.is_match(x) {
         file_name_lower_case_reg_exp
             .replace_all(x, |captures: &Captures| to_lower_case(&captures[0]))
+            .into_owned()
     } else {
-        x.into()
+        x.to_owned()
     }
 }
 
@@ -943,10 +944,10 @@ pub fn string_contains(str_: &str, substring: &str) -> bool {
     str_.find(substring).is_some()
 }
 
-pub type GetCanonicalFileName = fn(&str) -> Cow<'_, str>;
+pub type GetCanonicalFileName = fn(&str) -> String;
 pub fn create_get_canonical_file_name(use_case_sensitive_file_names: bool) -> GetCanonicalFileName {
     if use_case_sensitive_file_names {
-        identity_str_to_cow
+        identity_str_to_owned
     } else {
         to_file_name_lower_case
     }
@@ -954,6 +955,10 @@ pub fn create_get_canonical_file_name(use_case_sensitive_file_names: bool) -> Ge
 
 pub fn identity_str_to_cow(str_: &str) -> Cow<'_, str> {
     str_.into()
+}
+
+pub fn identity_str_to_owned(str_: &str) -> String {
+    str_.to_owned()
 }
 
 #[derive(Clone, Debug)]

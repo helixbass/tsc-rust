@@ -5,12 +5,18 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    compute_line_starts, flat_map, get_jsdoc_tags, is_binary_expression, is_class_element,
-    is_class_static_block_declaration, is_jsdoc_signature, is_jsdoc_template_tag,
-    is_jsdoc_type_alias, is_left_hand_side_expression, is_property_access_entity_name_expression,
-    is_white_space_like, last, str_to_source_text_as_chars, string_contains, CharacterCodes,
-    EmitTextWriter, ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags,
-    SymbolTracker, SymbolWriter, SyntaxKind,
+    combine_paths, compute_line_starts, create_get_canonical_file_name,
+    ensure_path_is_non_module_name, ensure_trailing_directory_separator, file_extension_is_one_of,
+    flat_map, get_directory_path, get_emit_module_kind, get_external_module_name, get_jsdoc_tags,
+    get_normalized_absolute_path, get_relative_path_to_directory_or_url, is_binary_expression,
+    is_class_element, is_class_static_block_declaration, is_external_module, is_jsdoc_signature,
+    is_jsdoc_template_tag, is_jsdoc_type_alias, is_json_source_file, is_left_hand_side_expression,
+    is_property_access_entity_name_expression, is_source_file_js, is_string_literal_like,
+    is_white_space_like, last, path_is_relative, remove_file_extension,
+    str_to_source_text_as_chars, string_contains, to_path, CharacterCodes, CompilerOptions, Debug_,
+    EmitHost, EmitResolver, EmitTextWriter, Extension, GetCanonicalFileName, ModifierFlags,
+    ModuleKind, Node, NodeArray, NodeFlags, NodeInterface, ScriptReferenceHost,
+    SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -413,6 +419,322 @@ impl<TWriter: EmitTextWriter> SymbolWriter for TrailingSemicolonDeferringWriter<
 
 // TODO: should explicitly forward all SymbolTracker methods to self.writer too?
 impl<TWriter: EmitTextWriter> SymbolTracker for TrailingSemicolonDeferringWriter<TWriter> {}
+
+pub fn host_uses_case_sensitive_file_names<TGetUseCaseSensitiveFileNames: Fn() -> Option<bool>>(
+    get_use_case_sensitive_file_names: TGetUseCaseSensitiveFileNames,
+) -> bool {
+    get_use_case_sensitive_file_names().unwrap_or(false)
+}
+
+pub fn host_get_canonical_file_name<TGetUseCaseSensitiveFileNames: Fn() -> Option<bool>>(
+    get_use_case_sensitive_file_names: TGetUseCaseSensitiveFileNames,
+) -> GetCanonicalFileName {
+    create_get_canonical_file_name(host_uses_case_sensitive_file_names(
+        get_use_case_sensitive_file_names,
+    ))
+}
+
+pub trait ResolveModuleNameResolutionHost {
+    fn get_canonical_file_name(&self, p: &str) -> String;
+    fn get_common_source_directory(&self) -> String;
+    fn get_current_directory(&self) -> String;
+}
+
+pub fn get_resolved_external_module_name<
+    THost: ResolveModuleNameResolutionHost,
+    TReferenceFile: Borrow<Node>,
+>(
+    host: &THost,
+    file: &Node, /*SourceFile*/
+    reference_file: Option<TReferenceFile /*SourceFile*/>,
+) -> String {
+    let file_as_source_file = file.as_source_file();
+    file_as_source_file
+        .maybe_module_name()
+        .as_ref()
+        .map_or_else(
+            || {
+                get_external_module_name_from_path(
+                    host,
+                    &file_as_source_file.file_name(),
+                    reference_file
+                        .map(|reference_file| {
+                            reference_file.borrow().as_source_file().file_name().clone()
+                        })
+                        .as_deref(),
+                )
+            },
+            |module_name| module_name.clone(),
+        )
+}
+
+pub(super) fn get_canonical_absolute_path<THost: ResolveModuleNameResolutionHost>(
+    host: &THost,
+    path: &str,
+) -> String {
+    host.get_canonical_file_name(&get_normalized_absolute_path(
+        path,
+        Some(&host.get_current_directory()),
+    ))
+}
+
+pub fn get_external_module_name_from_declaration<THost: ResolveModuleNameResolutionHost>(
+    host: &THost,
+    resolver: &dyn EmitResolver,
+    declaration: &Node, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ModuleDeclaration | ImportTypeNode*/
+) -> Option<String> {
+    let file = resolver.get_external_module_file_from_declaration(declaration);
+    if match file.as_ref() {
+        None => true,
+        Some(file) => file.as_source_file().is_declaration_file(),
+    } {
+        return None;
+    }
+    let file = file.unwrap();
+    let specifier = get_external_module_name(declaration);
+    if let Some(specifier) = specifier {
+        if is_string_literal_like(&specifier)
+            && !path_is_relative(&specifier.as_literal_like_node().text())
+            && !get_canonical_absolute_path(host, &file.as_source_file().path()).contains(
+                &*get_canonical_absolute_path(
+                    host,
+                    &ensure_trailing_directory_separator(&host.get_common_source_directory()),
+                ),
+            )
+        {
+            return None;
+        }
+    }
+    Some(get_resolved_external_module_name(
+        host,
+        &file,
+        Option::<&Node>::None,
+    ))
+}
+
+pub fn get_external_module_name_from_path<THost: ResolveModuleNameResolutionHost>(
+    host: &THost,
+    file_name: &str,
+    reference_path: Option<&str>,
+) -> String {
+    let get_canonical_file_name = |f: &str| host.get_canonical_file_name(f);
+    let dir = to_path(
+        &if let Some(reference_path) = reference_path {
+            get_directory_path(reference_path)
+        } else {
+            host.get_common_source_directory()
+        },
+        Some(&host.get_current_directory()),
+        get_canonical_file_name,
+    );
+    let file_path = get_normalized_absolute_path(file_name, Some(&host.get_current_directory()));
+    let relative_path = get_relative_path_to_directory_or_url(
+        &dir,
+        &file_path,
+        &dir,
+        get_canonical_file_name,
+        false,
+    );
+    let extensionless = remove_file_extension(&relative_path);
+    if reference_path.is_some() {
+        ensure_path_is_non_module_name(&extensionless)
+    } else {
+        extensionless.into_owned()
+    }
+}
+
+pub fn get_own_emit_output_file_path(
+    file_name: &str,
+    host: &dyn EmitHost,
+    extension: &str,
+) -> String {
+    let compiler_options = ScriptReferenceHost::get_compiler_options(host);
+    let emit_output_file_path_without_extension: String;
+    if let Some(compiler_options_out_dir) = compiler_options.out_dir.as_ref() {
+        emit_output_file_path_without_extension = remove_file_extension(
+            &get_source_file_path_in_new_dir(file_name, host, compiler_options_out_dir),
+        )
+        .into_owned();
+    } else {
+        emit_output_file_path_without_extension = remove_file_extension(file_name).into_owned();
+    }
+
+    format!("{}{}", emit_output_file_path_without_extension, extension)
+}
+
+pub fn get_declaration_emit_output_file_path(file_name: &str, host: &dyn EmitHost) -> String {
+    get_declaration_emit_output_file_path_worker(
+        file_name,
+        &ScriptReferenceHost::get_compiler_options(host),
+        &ScriptReferenceHost::get_current_directory(host),
+        &host.get_common_source_directory(),
+        |f| host.get_canonical_file_name(f),
+    )
+}
+
+pub fn get_declaration_emit_output_file_path_worker<TGetCanonicalFileName: Fn(&str) -> String>(
+    file_name: &str,
+    options: &CompilerOptions,
+    current_directory: &str,
+    common_source_directory: &str,
+    get_canonical_file_name: TGetCanonicalFileName,
+) -> String {
+    let output_dir: Option<&str> = options
+        .declaration_dir
+        .as_deref()
+        .or_else(|| options.out_dir.as_deref());
+
+    let path = if let Some(output_dir) = output_dir {
+        get_source_file_path_in_new_dir_worker(
+            file_name,
+            output_dir,
+            current_directory,
+            common_source_directory,
+            get_canonical_file_name,
+        )
+    } else {
+        file_name.to_owned()
+    };
+    let declaration_extension = get_declaration_emit_extension_for_path(&path);
+    format!("{}{}", remove_file_extension(&path), declaration_extension)
+}
+
+pub fn get_declaration_emit_extension_for_path(path: &str) -> &str {
+    if file_extension_is_one_of(
+        path,
+        &vec![Extension::Mjs.to_str(), Extension::Mts.to_str()],
+    ) {
+        Extension::Dmts.to_str()
+    } else if file_extension_is_one_of(
+        path,
+        &vec![Extension::Cjs.to_str(), Extension::Cts.to_str()],
+    ) {
+        Extension::Dcts.to_str()
+    } else if file_extension_is_one_of(path, &vec![Extension::Json.to_str()]) {
+        ".json.d.ts"
+    } else {
+        Extension::Dts.to_str()
+    }
+}
+
+pub fn out_file(options: &CompilerOptions) -> Option<&str> {
+    options
+        .out_file
+        .as_deref()
+        .or_else(|| options.out.as_deref())
+}
+
+pub fn get_paths_base_path<TGetCurrentDirectory: Fn() -> Option<String>>(
+    options: &CompilerOptions,
+    get_current_directory: TGetCurrentDirectory,
+) -> Option<String> {
+    if options.paths.is_none() {
+        return None;
+    }
+    options.base_url.clone().or_else(|| Some(Debug_.check_defined(options.paths_base_path.clone().or_else(|| get_current_directory()), Some("Encounted 'paths' without a 'baseUrl', config file, or host 'getCurrentDirectory'."))))
+}
+
+pub struct EmitFileNames {
+    pub js_file_path: Option<String>,
+    pub source_map_file_path: Option<String>,
+    pub declaration_file_path: Option<String>,
+    pub declaration_map_path: Option<String>,
+    pub build_info_path: Option<String>,
+}
+
+pub fn get_source_files_to_emit<TTargetSourceFile: Borrow<Node>>(
+    host: &dyn EmitHost,
+    target_source_file: Option<TTargetSourceFile /*SourceFile*/>,
+    force_dts_emit: Option<bool>,
+) -> Vec<Rc<Node /*SourceFile*/>> {
+    let options = ScriptReferenceHost::get_compiler_options(host);
+    if matches!(out_file(&options), Some(out_file) if !out_file.is_empty()) {
+        let module_kind = get_emit_module_kind(&options);
+        let module_emit_enabled = matches!(options.emit_declaration_only, Some(true))
+            || matches!(module_kind, ModuleKind::AMD | ModuleKind::System);
+        host.get_source_files()
+            .into_iter()
+            .filter(|source_file| {
+                (module_emit_enabled || !is_external_module(source_file))
+                    && source_file_may_be_emitted(
+                        source_file,
+                        host.as_source_file_may_be_emitted_host(),
+                        force_dts_emit,
+                    )
+            })
+            .map(Clone::clone)
+            .collect()
+    } else {
+        let source_files = match target_source_file {
+            None => host.get_source_files().to_owned(),
+            Some(target_source_file) => vec![target_source_file.borrow().node_wrapper()],
+        };
+        source_files
+            .into_iter()
+            .filter(|source_file| {
+                source_file_may_be_emitted(
+                    source_file,
+                    host.as_source_file_may_be_emitted_host(),
+                    force_dts_emit,
+                )
+            })
+            .collect()
+    }
+}
+
+pub fn source_file_may_be_emitted(
+    source_file: &Node, /*SourceFile*/
+    host: &dyn SourceFileMayBeEmittedHost,
+    force_dts_emit: Option<bool>,
+) -> bool {
+    let options = host.get_compiler_options();
+    let source_file_as_source_file = source_file.as_source_file();
+    !(matches!(options.no_emit_for_js_files, Some(true)) && is_source_file_js(source_file))
+        && !source_file_as_source_file.is_declaration_file()
+        && !host.is_source_file_from_external_library(source_file)
+        && (matches!(force_dts_emit, Some(true))
+            || (!(is_json_source_file(source_file)
+                && host
+                    .get_resolved_project_reference_to_redirect(
+                        &source_file_as_source_file.file_name(),
+                    )
+                    .is_some())
+                && !host.is_source_of_project_reference_redirect(
+                    &source_file_as_source_file.file_name(),
+                )))
+}
+
+pub fn get_source_file_path_in_new_dir(
+    file_name: &str,
+    host: &dyn EmitHost,
+    new_dir_path: &str,
+) -> String {
+    get_source_file_path_in_new_dir_worker(
+        file_name,
+        new_dir_path,
+        &EmitHost::get_current_directory(host),
+        &host.get_common_source_directory(),
+        |f| host.get_canonical_file_name(f),
+    )
+}
+
+pub fn get_source_file_path_in_new_dir_worker<TGetCanonicalFileName: Fn(&str) -> String>(
+    file_name: &str,
+    new_dir_path: &str,
+    current_directory: &str,
+    common_source_directory: &str,
+    get_canonical_file_name: TGetCanonicalFileName,
+) -> String {
+    let mut source_file_path = get_normalized_absolute_path(file_name, Some(current_directory));
+    let is_source_file_in_common_source_directory = get_canonical_file_name(&source_file_path)
+        .starts_with(&get_canonical_file_name(common_source_directory));
+    source_file_path = if is_source_file_in_common_source_directory {
+        source_file_path[0..common_source_directory.len()].to_owned()
+    } else {
+        source_file_path
+    };
+    combine_paths(new_dir_path, &vec![Some(&*source_file_path)])
+}
 
 pub fn get_first_constructor_with_body(
     node: &Node, /*ClassLikeDeclaration*/

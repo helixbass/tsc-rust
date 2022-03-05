@@ -79,6 +79,7 @@ pub struct SourceFile {
     original_file_name: RefCell<Option<String>>,
 
     amd_dependencies: RefCell<Option<Vec<AmdDependency>>>,
+    module_name: RefCell<Option<String>>,
     referenced_files: RefCell<Option<Vec<FileReference>>>,
     type_reference_directives: RefCell<Option<Vec<FileReference>>>,
     lib_reference_directives: RefCell<Option<Vec<FileReference>>>,
@@ -148,6 +149,7 @@ impl SourceFile {
             resolved_path: RefCell::new(None),
             original_file_name: RefCell::new(None),
             amd_dependencies: RefCell::new(None),
+            module_name: RefCell::new(None),
             referenced_files: RefCell::new(None),
             type_reference_directives: RefCell::new(None),
             lib_reference_directives: RefCell::new(None),
@@ -252,6 +254,10 @@ impl SourceFile {
 
     pub fn set_amd_dependencies(&self, amd_dependencies: Vec<AmdDependency>) {
         *self.amd_dependencies.borrow_mut() = Some(amd_dependencies);
+    }
+
+    pub fn maybe_module_name(&self) -> RefMut<Option<String>> {
+        self.module_name.borrow_mut()
     }
 
     pub fn referenced_files(&self) -> Ref<Vec<FileReference>> {

@@ -149,10 +149,7 @@ impl CompilerHost for CompilerHostConcrete {
         })
     }
 
-    fn get_canonical_file_name<'file_name>(
-        &self,
-        file_name: &'file_name str,
-    ) -> Cow<'file_name, str> {
+    fn get_canonical_file_name<'file_name>(&self, file_name: &'file_name str) -> String {
         file_name.into()
     }
 
@@ -474,6 +471,6 @@ fn to_path(helper_context: &mut CreateProgramHelperContext, file_name: &str) -> 
 fn get_canonical_file_name<'file_name>(
     helper_context: &mut CreateProgramHelperContext,
     file_name: &'file_name str,
-) -> Cow<'file_name, str> {
+) -> String {
     helper_context.host.get_canonical_file_name(file_name)
 }
