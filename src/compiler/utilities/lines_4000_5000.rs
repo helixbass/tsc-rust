@@ -5,6 +5,7 @@ use std::cell::RefCell;
 use std::cmp;
 use std::convert::TryInto;
 use std::io;
+use std::ptr;
 use std::rc::Rc;
 
 use crate::{
@@ -18,10 +19,11 @@ use crate::{
     get_jsdoc_tags, get_jsdoc_type, get_leading_comment_ranges, get_line_starts,
     get_normalized_absolute_path, get_property_name_for_property_name_node,
     get_relative_path_to_directory_or_url, get_root_length, has_dynamic_name, is_accessor,
-    is_binary_expression, is_class_element, is_class_static_block_declaration,
-    is_constructor_declaration, is_external_module, is_function_declaration, is_in_js_file,
-    is_jsdoc_property_like_tag, is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_alias,
-    is_json_source_file, is_left_hand_side_expression, is_parameter, is_pinned_comment,
+    is_binary_expression, is_class_element, is_class_like, is_class_static_block_declaration,
+    is_constructor_declaration, is_expression_with_type_arguments, is_external_module,
+    is_function_declaration, is_heritage_clause, is_in_js_file, is_jsdoc_property_like_tag,
+    is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_alias, is_json_source_file,
+    is_left_hand_side_expression, is_parameter, is_pinned_comment,
     is_property_access_entity_name_expression, is_qualified_name, is_source_file_js,
     is_string_literal_like, is_white_space_like, is_white_space_single_line, last,
     maybe_text_char_at_index, node_is_present, normalize_path, path_is_relative,
@@ -1511,6 +1513,15 @@ pub fn create_modifiers(modifier_flags: ModifierFlags) -> Option<ModifiersArray>
     }
 }
 
+pub fn is_logical_operator(token: SyntaxKind) -> bool {
+    matches!(
+        token,
+        SyntaxKind::BarBarToken
+            | SyntaxKind::AmpersandAmpersandToken
+            | SyntaxKind::ExclamationToken
+    )
+}
+
 pub fn is_logical_or_coalescing_assignment_operator(token: SyntaxKind) -> bool {
     matches!(
         token,
@@ -1520,8 +1531,40 @@ pub fn is_logical_or_coalescing_assignment_operator(token: SyntaxKind) -> bool {
     )
 }
 
+pub fn is_logical_or_coalescing_assignment_expression(expr: &Node, /*BinaryExpression*/) -> bool {
+    is_logical_or_coalescing_assignment_operator(expr.as_binary_expression().operator_token.kind())
+}
+
 pub fn is_assignment_operator(token: SyntaxKind) -> bool {
     token >= SyntaxKind::FirstAssignment && token <= SyntaxKind::LastAssignment
+}
+
+pub fn try_get_class_extending_expression_with_type_arguments(
+    node: &Node,
+) -> Option<Rc<Node /*ClassLikeDeclaration*/>> {
+    let cls = try_get_class_implementing_or_extending_expression_with_type_arguments(node);
+    cls.filter(|cls| !cls.is_implements).map(|cls| cls.class)
+}
+
+pub struct ClassImplementingOrExtendingExpressionWithTypeArguments {
+    pub class: Rc<Node /*ClassLikeDeclaration*/>,
+    pub is_implements: bool,
+}
+pub fn try_get_class_implementing_or_extending_expression_with_type_arguments(
+    node: &Node,
+) -> Option<ClassImplementingOrExtendingExpressionWithTypeArguments> {
+    if is_expression_with_type_arguments(node)
+        && is_heritage_clause(&node.parent())
+        && is_class_like(&node.parent().parent())
+    {
+        Some(ClassImplementingOrExtendingExpressionWithTypeArguments {
+            class: node.parent().parent(),
+            is_implements: node.parent().as_heritage_clause().token
+                == SyntaxKind::ImplementsKeyword,
+        })
+    } else {
+        None
+    }
 }
 
 pub fn is_assignment_expression(node: &Node, exclude_compound_assignment: Option<bool>) -> bool {
@@ -1534,7 +1577,12 @@ pub fn is_assignment_expression(node: &Node, exclude_compound_assignment: Option
         node_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken
     } else {
         is_assignment_operator(node_as_binary_expression.operator_token.kind())
-    }) && is_left_hand_side_expression(&*node_as_binary_expression.left)
+    }) && is_left_hand_side_expression(&node_as_binary_expression.left)
+}
+
+pub fn is_left_hand_side_of_assignment(node: &Node) -> bool {
+    is_assignment_expression(&node.parent(), None)
+        && ptr::eq(&*node.parent().as_binary_expression().left, node)
 }
 
 pub fn is_destructuring_assignment(node: &Node) -> bool {
@@ -1550,7 +1598,7 @@ pub fn is_destructuring_assignment(node: &Node) -> bool {
 }
 
 pub fn is_expression_with_type_arguments_in_class_extends_clause(node: &Node) -> bool {
-    unimplemented!()
+    try_get_class_extending_expression_with_type_arguments(node).is_some()
 }
 
 pub fn is_entity_name_expression(node: &Node) -> bool {
