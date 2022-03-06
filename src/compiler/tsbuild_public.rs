@@ -63,7 +63,7 @@ impl<TBuilderProgram: BuilderProgram> SolutionBuilder<TBuilderProgram> {
         &self,
         project: Option<&str>,
         cancellation_token: Option<Rc<dyn CancellationToken>>,
-        write_file: Option<WriteFileCallback>,
+        write_file: Option<&dyn WriteFileCallback>,
         get_custom_transformers: Option<TGetCustomTransformers>,
     ) -> ExitStatus {
         unimplemented!()

@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    combine_paths, compute_line_starts, create_get_canonical_file_name,
+    combine_paths, compute_line_starts, create_compiler_diagnostic, create_get_canonical_file_name,
     ensure_path_is_non_module_name, ensure_trailing_directory_separator, file_extension_is_one_of,
     flat_map, get_directory_path, get_emit_module_kind, get_external_module_name, get_jsdoc_tags,
     get_normalized_absolute_path, get_relative_path_to_directory_or_url, is_binary_expression,
@@ -14,9 +14,10 @@ use crate::{
     is_property_access_entity_name_expression, is_source_file_js, is_string_literal_like,
     is_white_space_like, last, path_is_relative, remove_file_extension,
     str_to_source_text_as_chars, string_contains, to_path, CharacterCodes, CompilerOptions, Debug_,
-    EmitHost, EmitResolver, EmitTextWriter, Extension, GetCanonicalFileName, ModifierFlags,
-    ModuleKind, Node, NodeArray, NodeFlags, NodeInterface, ScriptReferenceHost,
-    SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
+    DiagnosticCollection, Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
+    GetCanonicalFileName, ModifierFlags, ModuleKind, Node, NodeArray, NodeFlags, NodeInterface,
+    ScriptReferenceHost, SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker,
+    SymbolWriter, SyntaxKind, WriteFileCallback,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -734,6 +735,31 @@ pub fn get_source_file_path_in_new_dir_worker<TGetCanonicalFileName: Fn(&str) ->
         source_file_path
     };
     combine_paths(new_dir_path, &vec![Some(&*source_file_path)])
+}
+
+pub fn write_file(
+    write_file: &dyn WriteFileCallback,
+    diagnostics: &mut DiagnosticCollection,
+    file_name: &str,
+    data: &str,
+    write_byte_order_mark: bool,
+    source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+) {
+    write_file.call(
+        file_name,
+        data,
+        write_byte_order_mark,
+        Some(&|host_error_message| {
+            diagnostics.add(Rc::new(
+                create_compiler_diagnostic(
+                    &Diagnostics::Could_not_write_file_0_Colon_1,
+                    Some(vec![file_name.to_owned(), host_error_message]),
+                )
+                .into(),
+            ))
+        }),
+        source_files,
+    );
 }
 
 pub fn get_first_constructor_with_body(

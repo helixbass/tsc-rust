@@ -89,7 +89,7 @@ pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
     report_diagnostic: Rc<dyn DiagnosticReporter>,
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
-    write_file: Option<WriteFileCallback>,
+    write_file: Option<&dyn WriteFileCallback>,
     cancellation_token: Option<Rc<dyn CancellationToken>>,
     enit_only_dts_files: Option<bool>,
     custom_transformers: Option<CustomTransformers>,

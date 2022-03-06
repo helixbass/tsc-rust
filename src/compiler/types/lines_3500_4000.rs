@@ -721,7 +721,16 @@ pub trait ParseConfigHost {
     fn trace(&self, s: &str) {}
 }
 
-pub type WriteFileCallback = ();
+pub trait WriteFileCallback {
+    fn call(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&dyn FnMut(String)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    );
+}
 
 pub trait CancellationToken {
     fn is_cancellation_requested(&self) -> bool;
