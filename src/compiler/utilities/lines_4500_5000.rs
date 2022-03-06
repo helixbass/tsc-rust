@@ -1,10 +1,8 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::cmp;
 use std::convert::TryInto;
-use std::io;
 use std::ptr;
 use std::rc::Rc;
 
@@ -13,33 +11,20 @@ use super::{
     get_set_accessor_value_parameter,
 };
 use crate::{
-    combine_paths, compute_line_and_character_of_position, compute_line_of_position,
-    compute_line_starts, create_compiler_diagnostic, create_get_canonical_file_name,
-    ensure_path_is_non_module_name, ensure_trailing_directory_separator, factory,
-    file_extension_is_one_of, filter, find, flat_map, get_directory_path, get_emit_module_kind,
-    get_external_module_name, get_jsdoc_deprecated_tag_no_cache, get_jsdoc_override_tag_no_cache,
+    compute_line_and_character_of_position, factory, filter, flat_map,
+    get_jsdoc_deprecated_tag_no_cache, get_jsdoc_override_tag_no_cache,
     get_jsdoc_private_tag_no_cache, get_jsdoc_protected_tag_no_cache,
     get_jsdoc_public_tag_no_cache, get_jsdoc_readonly_tag_no_cache, get_jsdoc_return_type,
-    get_jsdoc_tags, get_jsdoc_type, get_leading_comment_ranges, get_line_starts,
-    get_normalized_absolute_path, get_property_name_for_property_name_node,
-    get_relative_path_to_directory_or_url, get_root_length, has_dynamic_name, is_accessor,
-    is_binary_expression, is_class_element, is_class_like, is_class_static_block_declaration,
-    is_constructor_declaration, is_expression_with_type_arguments, is_external_module,
-    is_function_declaration, is_heritage_clause, is_in_js_file, is_jsdoc_property_like_tag,
-    is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_alias, is_json_source_file,
+    get_jsdoc_tags, get_jsdoc_type, get_leading_comment_ranges, is_binary_expression,
+    is_class_element, is_class_like, is_class_static_block_declaration,
+    is_expression_with_type_arguments, is_function_declaration, is_heritage_clause, is_in_js_file,
+    is_jsdoc_property_like_tag, is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_alias,
     is_left_hand_side_expression, is_parameter, is_pinned_comment,
-    is_property_access_entity_name_expression, is_qualified_name, is_source_file_js,
-    is_string_literal_like, is_white_space_like, is_white_space_single_line, last,
-    maybe_text_char_at_index, node_is_present, normalize_path, path_is_relative,
-    remove_file_extension, skip_trivia, str_to_source_text_as_chars, string_contains,
-    synthetic_factory, text_char_at_index, text_substring, to_path, trim_string,
-    AllAccessorDeclarations, CharacterCodes, CommentRange, CompilerOptions, Debug_,
-    DiagnosticCollection, Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
-    FunctionLikeDeclarationInterface, GetCanonicalFileName, HasTypeInterface, ModifierFlags,
-    ModifiersArray, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
-    NodeInterface, ScriptReferenceHost, SignatureDeclarationInterface, SourceFileMayBeEmittedHost,
-    SourceTextAsChars, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind, TextRange,
-    WriteFileCallback,
+    is_property_access_entity_name_expression, is_white_space_single_line, last,
+    maybe_text_char_at_index, skip_trivia, synthetic_factory, text_char_at_index, text_substring,
+    trim_string, CharacterCodes, CommentRange, EmitTextWriter, Extension, ModifierFlags,
+    ModifiersArray, Node, NodeArray, NodeFlags, NodeInterface, SourceTextAsChars, SyntaxKind,
+    TextRange,
 };
 
 pub fn get_effective_type_annotation_node(node: &Node) -> Option<Rc<Node /*TypeNode*/>> {
