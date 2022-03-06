@@ -7,7 +7,7 @@ use std::rc::Rc;
 use super::{
     BaseNamedDeclaration, BaseNode, BaseSignatureDeclaration, HasExpressionInterface,
     HasIsTypeOnlyInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
-    SyntaxKind, TextRange,
+    SignatureDeclarationInterface, SyntaxKind, TextRange,
 };
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -391,8 +391,8 @@ pub type CommentKind = SyntaxKind; /*SyntaxKind.SingleLineCommentTrivia | Syntax
 pub struct CommentRange {
     pos: Cell<isize>,
     end: Cell<isize>,
-    has_trailing_new_line: Option<bool>,
-    kind: CommentKind,
+    pub has_trailing_new_line: Option<bool>,
+    pub kind: CommentKind,
 }
 
 impl CommentRange {
@@ -997,6 +997,36 @@ impl JSDocSignature {
             parameters,
             type_,
         }
+    }
+}
+
+impl SignatureDeclarationInterface for JSDocSignature {
+    fn parameters(&self) -> &NodeArray {
+        &self.parameters
+    }
+}
+
+impl NamedDeclarationInterface for JSDocSignature {
+    fn maybe_name(&self) -> Option<Rc<Node>> {
+        None
+    }
+
+    fn name(&self) -> Rc<Node> {
+        panic!("JSDocSignature doesn't have name")
+    }
+
+    fn set_name(&mut self, name: Rc<Node>) {
+        panic!("Tried to set name of JSDocSignature")
+    }
+}
+
+impl HasTypeInterface for JSDocSignature {
+    fn maybe_type(&self) -> Option<Rc<Node>> {
+        self.type_.clone()
+    }
+
+    fn set_type(&mut self, type_: Option<Rc<Node>>) {
+        self.type_ = type_;
     }
 }
 

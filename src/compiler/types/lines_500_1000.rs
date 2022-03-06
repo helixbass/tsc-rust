@@ -9,8 +9,8 @@ use super::{
     AssertClause, AssertEntry, AwaitExpression, BaseJSDocTag, BaseJSDocTypeLikeTag,
     BaseJSDocUnaryType, BigIntLiteral, BinaryExpression, BindingElement, Block, BreakStatement,
     Bundle, CallExpression, CallSignatureDeclaration, CaseBlock, CaseClause, CatchClause,
-    ClassDeclaration, ClassExpression, ClassStaticBlockDeclaration, CommaListExpression,
-    ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
+    ClassDeclaration, ClassExpression, ClassLikeDeclarationInterface, ClassStaticBlockDeclaration,
+    CommaListExpression, ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContinueStatement,
     DebuggerStatement, Decorator, DefaultClause, DeleteExpression, DoStatement,
     ElementAccessExpression, EmitNode, EmptyStatement, EnumDeclaration, EnumMember,
@@ -492,6 +492,7 @@ impl Node {
     pub fn as_signature_declaration(&self) -> &dyn SignatureDeclarationInterface {
         match self {
             Node::FunctionDeclaration(node) => node,
+            Node::JSDocSignature(node) => node,
             _ => panic!("Expected signature declaration"),
         }
     }
@@ -654,6 +655,14 @@ impl Node {
             Node::PropertySignature(node) => node,
             Node::PropertyDeclaration(node) => node,
             _ => panic!("Expected has question token"),
+        }
+    }
+
+    pub fn as_class_like_declaration(&self) -> &dyn ClassLikeDeclarationInterface {
+        match self {
+            Node::ClassExpression(node) => node,
+            Node::ClassDeclaration(node) => node,
+            _ => panic!("Expected class like declaration"),
         }
     }
 
@@ -1123,6 +1132,14 @@ impl Node {
 
     pub fn as_conditional_type_node(&self) -> &ConditionalTypeNode {
         enum_unwrapped!(self, [Node, ConditionalTypeNode])
+    }
+
+    pub fn as_constructor_declaration(&self) -> &ConstructorDeclaration {
+        enum_unwrapped!(self, [Node, ConstructorDeclaration])
+    }
+
+    pub fn as_set_accessor_declaration(&self) -> &SetAccessorDeclaration {
+        enum_unwrapped!(self, [Node, SetAccessorDeclaration])
     }
 }
 
