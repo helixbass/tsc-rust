@@ -27,7 +27,7 @@ pub struct ProjectReference {
     pub circular: Option<bool>,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize)]
 pub enum WatchFileKind {
     FixedPollingInterval,
     PriorityPollingInterval,
@@ -37,7 +37,7 @@ pub enum WatchFileKind {
     UseFsEventsOnParentDirectory,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize)]
 pub enum WatchDirectoryKind {
     UseFsEvents,
     FixedPollingInterval,
@@ -45,7 +45,7 @@ pub enum WatchDirectoryKind {
     FixedChunkSizePolling,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize)]
 pub enum PollingWatchKind {
     FixedInterval,
     PriorityInterval,
@@ -53,10 +53,11 @@ pub enum PollingWatchKind {
     FixedChunkSize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub enum CompilerOptionsValue {
     Bool(Option<bool>),
     String(Option<String>),
+    #[serde(skip_serializing)]
     SourceFile(Option<Rc<Node /*SourceFile*/>>),
     ImportsNotUsedAsValues(Option<ImportsNotUsedAsValues>),
     JsxEmit(Option<JsxEmit>),
@@ -1511,7 +1512,7 @@ impl CommandLineOptionType {
 #[derive(Eq, PartialEq)]
 pub enum StringOrDiagnosticMessage {
     String(String),
-    DiagnosticMessage(DiagnosticMessage),
+    DiagnosticMessage(&'static DiagnosticMessage),
 }
 
 pub trait CommandLineOptionInterface {
@@ -1555,13 +1556,13 @@ pub struct CommandLineOptionBase {
     pub type_: CommandLineOptionType,
     pub is_file_path: Option<bool>,
     pub short_name: Option<String>,
-    pub description: Option<DiagnosticMessage>,
+    pub description: Option<&'static DiagnosticMessage>,
     pub default_value_description: Option<StringOrDiagnosticMessage>,
-    pub param_type: Option<DiagnosticMessage>,
+    pub param_type: Option<&'static DiagnosticMessage>,
     pub is_tsconfig_only: Option<bool>,
     pub is_command_line_only: Option<bool>,
     pub show_in_simplified_help_view: Option<bool>,
-    pub category: Option<DiagnosticMessage>,
+    pub category: Option<&'static DiagnosticMessage>,
     pub strict_flag: Option<bool>,
     pub affects_source_file: Option<bool>,
     pub affects_module_resolution: Option<bool>,
@@ -1604,7 +1605,7 @@ impl CommandLineOptionInterface for CommandLineOptionBase {
     }
 
     fn maybe_description(&self) -> Option<&DiagnosticMessage> {
-        self.description.as_ref()
+        self.description
     }
 
     fn maybe_default_value_description(&self) -> Option<&StringOrDiagnosticMessage> {
@@ -1612,7 +1613,7 @@ impl CommandLineOptionInterface for CommandLineOptionBase {
     }
 
     fn maybe_param_type(&self) -> Option<&DiagnosticMessage> {
-        self.param_type.as_ref()
+        self.param_type
     }
 
     fn is_tsconfig_only(&self) -> bool {
@@ -1628,7 +1629,7 @@ impl CommandLineOptionInterface for CommandLineOptionBase {
     }
 
     fn maybe_category(&self) -> Option<&DiagnosticMessage> {
-        self.category.as_ref()
+        self.category
     }
 
     fn strict_flag(&self) -> bool {

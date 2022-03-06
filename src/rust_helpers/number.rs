@@ -1,8 +1,9 @@
+use serde::Serialize;
 use std::fmt;
 use std::hash;
 use std::ops;
 
-#[derive(Clone, Copy, Debug, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialOrd, Serialize)]
 pub struct Number(f64);
 
 impl Number {

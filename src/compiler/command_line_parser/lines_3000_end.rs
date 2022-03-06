@@ -414,3 +414,21 @@ pub(super) fn get_wildcard_directories(
 ) -> HashMap<String, WatchDirectoryFlags> {
     unimplemented!()
 }
+
+pub(super) fn get_default_value_for_option(option: &CommandLineOption) -> CompilerOptionsValue {
+    match option.type_() {
+        CommandLineOptionType::Number => CompilerOptionsValue::Usize(Some(1)),
+        CommandLineOptionType::Boolean => CompilerOptionsValue::Bool(Some(true)),
+        CommandLineOptionType::String => CompilerOptionsValue::String(Some(
+            if option.is_file_path() { "./" } else { "" }.to_owned(),
+        )),
+        CommandLineOptionType::Object => panic!("Not sure what the default should be"),
+        CommandLineOptionType::List => CompilerOptionsValue::VecString(Some(vec![])),
+        CommandLineOptionType::Map(map) => CompilerOptionsValue::String(Some(
+            map.keys()
+                .next()
+                .expect("Expected 'option.type' to have entries.")
+                .to_string(),
+        )),
+    }
+}

@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use regex::Regex;
 use std::borrow::Cow;
 use std::cmp;
 use std::collections::HashMap;
@@ -7,11 +8,12 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    compare_strings_case_sensitive, compare_strings_case_sensitive_maybe, compare_values, flatten,
-    for_each, format_string_from_args, get_locale_specific_message, index_of, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison,
-    CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    combine_paths, compare_strings_case_sensitive, compare_strings_case_sensitive_maybe,
+    compare_values, flatten, for_each, format_string_from_args, get_locale_specific_message,
+    index_of, normalize_path, CommandLineOption, CommandLineOptionInterface,
+    CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison, CompilerOptions,
+    CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, Extension, JsxEmit, LanguageVariant, MapLike,
     ModuleKind, Pattern, PluginImport, ScriptKind, ScriptTarget, TypeAcquisition, WatchOptions,
 };
@@ -996,6 +998,40 @@ pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {
 }
 
 pub struct SymlinkCache {}
+
+pub struct FileMatcherPatterns {
+    pub include_file_patterns: Option<Vec<String>>,
+    pub include_file_pattern: Option<String>,
+    pub include_directory_pattern: Option<String>,
+    pub exclude_pattern: Option<String>,
+    pub base_paths: Vec<String>,
+}
+
+pub fn get_file_matcher_patterns(
+    path: &str,
+    excludes: Option<&[String]>,
+    includes: Option<&[String]>,
+    use_case_sensitive_file_names: bool,
+    current_directory: &str,
+) -> FileMatcherPatterns {
+    let path = normalize_path(path);
+    let current_directory = normalize_path(current_directory);
+    let absolute_path = combine_paths(&current_directory, &*vec![Some(&*path)]);
+
+    unimplemented!()
+    // FileMatcherPatterns {
+
+    // }
+}
+
+pub fn get_regex_from_pattern(pattern: &str, use_case_sensitive_file_names: bool) -> Regex {
+    Regex::new(&if use_case_sensitive_file_names {
+        pattern.to_owned()
+    } else {
+        format!("(?i){}", pattern)
+    })
+    .unwrap()
+}
 
 pub fn ensure_script_kind(file_name: &str, script_kind: Option<ScriptKind>) -> ScriptKind {
     script_kind.unwrap_or_else(|| {

@@ -2,9 +2,11 @@ use regex::{Captures, Regex};
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::hash;
+use std::hash::Hash;
 use std::mem;
 use std::ops::Add;
 use std::ptr;
@@ -669,6 +671,39 @@ pub fn array_to_map<
     result
 }
 
+pub struct MultiMap<TKey, TValue>(HashMap<TKey, Vec<TValue>>);
+
+impl<TKey: Hash + Eq, TValue: Clone> MultiMap<TKey, TValue> {
+    pub fn add(&mut self, key: TKey, value: TValue) {
+        let values = self.0.entry(key).or_insert(vec![]);
+        values.push(value);
+    }
+
+    pub fn remove<TComparer: Fn(&TValue, &TValue) -> bool>(
+        &mut self,
+        key: TKey,
+        value: &TValue,
+        comparer: TComparer,
+    ) {
+        {
+            let mut values = self.0.entry(key);
+            match values {
+                Entry::Occupied(mut values) => {
+                    unordered_remove_item(values.get_mut(), value, comparer);
+                    if values.get().is_empty() {
+                        values.remove_entry();
+                    }
+                }
+                _ => (),
+            }
+        }
+    }
+}
+
+pub fn create_multi_map<TKey, TValue>() -> MultiMap<TKey, TValue> {
+    MultiMap(HashMap::new())
+}
+
 pub fn try_cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> Option<TIn> {
     if
     /*value !== undefined &&*/
@@ -942,6 +977,32 @@ pub fn ends_with(str_: &str, suffix: &str) -> bool {
 
 pub fn string_contains(str_: &str, substring: &str) -> bool {
     str_.find(substring).is_some()
+}
+
+pub fn unordered_remove_item_at<TItem: Clone>(array: &mut Vec<TItem>, index: usize) {
+    array[index] = array[array.len() - 1].clone();
+    array.pop();
+}
+
+pub fn unordered_remove_item<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> bool>(
+    array: &mut Vec<TItem>,
+    item: &TItem,
+    comparer: TComparer,
+) -> bool {
+    unordered_remove_first_item_where(array, |element| comparer(element, item))
+}
+
+pub fn unordered_remove_first_item_where<TItem: Clone, TPredicate: Fn(&TItem) -> bool>(
+    array: &mut Vec<TItem>,
+    predicate: TPredicate,
+) -> bool {
+    for i in 0..array.len() {
+        if predicate(&array[i]) {
+            unordered_remove_item_at(array, i);
+            return true;
+        }
+    }
+    false
 }
 
 pub type GetCanonicalFileName = fn(&str) -> String;

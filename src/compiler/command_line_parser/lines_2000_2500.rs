@@ -1,3 +1,4 @@
+use regex::Regex;
 use serde::Serialize;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -5,19 +6,22 @@ use std::ptr;
 use std::rc::Rc;
 
 use super::{
-    create_diagnostic_for_invalid_custom_type, create_unknown_option_error, get_options_name_map,
-    get_watch_options_name_map, hash_map_to_compiler_options,
+    command_options_without_build, create_diagnostic_for_invalid_custom_type,
+    create_unknown_option_error, default_init_compiler_options, get_default_value_for_option,
+    get_options_name_map, get_watch_options_name_map, hash_map_to_compiler_options,
+    option_declarations,
 };
 use crate::{
-    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, get_directory_path,
-    get_normalized_absolute_path, get_relative_path_from_file, get_text_of_property_name,
-    is_computed_non_literal_name, is_string_double_quoted, is_string_literal, map,
-    unescape_leading_underscores, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionMapTypeValue, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
-    Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics, JsonConversionNotifier,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, OptionsNameMap,
-    ParsedCommandLine, ProjectReference, Push, SyntaxKind, ToHashMapOfCompilerOptionsValues,
-    WatchOptions,
+    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, create_multi_map,
+    extend_compiler_options, get_directory_path, get_file_matcher_patterns,
+    get_normalized_absolute_path, get_regex_from_pattern, get_relative_path_from_file,
+    get_text_of_property_name, is_computed_non_literal_name, is_string_double_quoted,
+    is_string_literal, map, unescape_leading_underscores, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType,
+    CompilerOptions, CompilerOptionsValue, Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics,
+    FileMatcherPatterns, JsonConversionNotifier, MultiMap, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, Number, OptionsNameMap, ParsedCommandLine, ProjectReference, Push,
+    SyntaxKind, ToHashMapOfCompilerOptionsValues, WatchOptions,
 };
 
 pub(super) fn is_root_option_map(
@@ -814,14 +818,79 @@ pub(super) fn matches_specs(
     exclude_specs: Option<&[String]>,
     host: &dyn ConvertToTSConfigHost,
 ) -> MatchesSpecs {
-    unimplemented!()
+    MatchesSpecs::new(path, include_specs, exclude_specs, host)
 }
 
-pub(super) struct MatchesSpecs {}
+pub(super) struct MatchesSpecs {
+    include_specs_is_some: bool,
+    patterns: Option<FileMatcherPatterns>,
+    exclude_re: Option<Regex>,
+    include_re: Option<Regex>,
+}
 
 impl MatchesSpecs {
-    pub fn call(&self, file_name: &str) -> bool {
-        unimplemented!()
+    pub fn new(
+        path: &str,
+        include_specs: Option<&[String]>,
+        exclude_specs: Option<&[String]>,
+        host: &dyn ConvertToTSConfigHost,
+    ) -> Self {
+        let mut patterns: Option<FileMatcherPatterns> = None;
+        let mut exclude_re: Option<Regex> = None;
+        let mut include_re: Option<Regex> = None;
+
+        let include_specs_is_some = include_specs.is_some();
+        if include_specs_is_some {
+            patterns = Some(get_file_matcher_patterns(
+                path,
+                exclude_specs,
+                include_specs,
+                host.use_case_sensitive_file_names(),
+                &host.get_current_directory(),
+            ));
+            let patterns = patterns.as_ref().unwrap();
+            exclude_re = patterns
+                .exclude_pattern
+                .as_ref()
+                .map(|patterns_exclude_pattern| {
+                    get_regex_from_pattern(
+                        patterns_exclude_pattern,
+                        host.use_case_sensitive_file_names(),
+                    )
+                });
+            include_re = patterns
+                .include_file_pattern
+                .as_ref()
+                .map(|patterns_include_pattern| {
+                    get_regex_from_pattern(
+                        patterns_include_pattern,
+                        host.use_case_sensitive_file_names(),
+                    )
+                });
+        }
+
+        Self {
+            include_specs_is_some,
+            patterns,
+            exclude_re,
+            include_re,
+        }
+    }
+
+    pub fn call(&self, path: &str) -> bool {
+        if !self.include_specs_is_some {
+            return true;
+        }
+        if let Some(include_re) = self.include_re.as_ref() {
+            if let Some(exclude_re) = self.exclude_re.as_ref() {
+                return !(include_re.is_match(path) && !exclude_re.is_match(path));
+            }
+            return !include_re.is_match(path);
+        }
+        if let Some(exclude_re) = self.exclude_re.as_ref() {
+            return exclude_re.is_match(path);
+        }
+        true
     }
 }
 
@@ -953,4 +1022,97 @@ pub(super) fn serialize_option_base_object<TOptions: ToHashMapOfCompilerOptionsV
     }
 
     result
+}
+
+pub fn get_compiler_options_diff_value(options: &CompilerOptions, new_line: &str) -> String {
+    let compiler_options_map = get_serialized_compiler_option(options);
+    get_overwritten_default_options(&compiler_options_map, new_line)
+}
+
+fn make_padding(padding_length: usize) -> String {
+    " ".repeat(padding_length)
+}
+
+fn get_overwritten_default_options(
+    compiler_options_map: &HashMap<&'static str, CompilerOptionsValue>,
+    new_line: &str,
+) -> String {
+    let mut result: Vec<String> = vec![];
+    let tab = make_padding(2);
+    command_options_without_build.with(|command_options_without_build_| {
+        default_init_compiler_options.with(|default_init_compiler_options_| {
+            let default_init_compiler_options_as_hash_map =
+                default_init_compiler_options_.to_hash_map_of_compiler_options_values();
+            command_options_without_build_.iter().for_each(|cmd| {
+                if !compiler_options_map.contains_key(cmd.name()) {
+                    return;
+                }
+
+                let new_value = compiler_options_map.get(cmd.name()).unwrap();
+                let default_value = get_default_value_for_option(cmd);
+                if new_value != &default_value {
+                    // TODO: this presumably needs to print new_value "as JSON"?
+                    result.push(format!("{}{}: {:?}", tab, cmd.name(), new_value));
+                } else if match default_init_compiler_options_as_hash_map.get(cmd.name()) {
+                    None => false,
+                    Some(compiler_options_value) => compiler_options_value.is_some(),
+                } {
+                    result.push(format!("{}{}: {:?}", tab, cmd.name(), default_value));
+                }
+            });
+        })
+    });
+    format!("{}{}", result.join(new_line), new_line)
+}
+
+pub(super) fn get_serialized_compiler_option(
+    options: &CompilerOptions,
+) -> HashMap<&'static str, CompilerOptionsValue> {
+    let compiler_options = default_init_compiler_options.with(|default_init_compiler_options_| {
+        extend_compiler_options(options, &default_init_compiler_options_)
+    });
+    serialize_compiler_options(&compiler_options, None)
+}
+
+pub(crate) fn generate_tsconfig(
+    options: &CompilerOptions,
+    file_names: &[String],
+    new_line: &str,
+) -> String {
+    let compiler_options_map = get_serialized_compiler_option(options);
+    write_configurations(&compiler_options_map)
+}
+
+fn is_allowed_option_for_output(
+    compiler_options_map: &HashMap<&'static str, CompilerOptionsValue>,
+    option: &CommandLineOption,
+) -> bool {
+    let category = option.maybe_category();
+    let name = option.name();
+    let is_command_line_only = option.is_command_line_only();
+    let categories_to_skip = vec![
+        &Diagnostics::Command_line_Options,
+        &Diagnostics::Editor_Support,
+        &Diagnostics::Compiler_Diagnostics,
+        &Diagnostics::Backwards_Compatibility,
+        &Diagnostics::Watch_and_Build_Modes,
+        &Diagnostics::Output_Formatting,
+    ];
+    !is_command_line_only
+        && matches!(category, Some(category) if !categories_to_skip.iter().any(|category_to_skip| ptr::eq(*category_to_skip, category)) || compiler_options_map.contains_key(name))
+}
+
+fn write_configurations(
+    compiler_options_map: &HashMap<&'static str, CompilerOptionsValue>,
+) -> String {
+    let mut categorized_options: MultiMap<String, Rc<CommandLineOption>> = create_multi_map();
+    option_declarations.with(|option_declarations_| {
+        for option in option_declarations_ {
+            let category = option.maybe_category();
+
+            if is_allowed_option_for_output(compiler_options_map, option) {}
+        }
+    });
+
+    unimplemented!()
 }
