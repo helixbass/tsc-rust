@@ -671,7 +671,8 @@ pub fn array_to_map<
     result
 }
 
-pub struct MultiMap<TKey, TValue>(HashMap<TKey, Vec<TValue>>);
+// TODO: make the nested hash map private and implement iteration on the wrapper
+pub struct MultiMap<TKey, TValue>(pub HashMap<TKey, Vec<TValue>>);
 
 impl<TKey: Hash + Eq, TValue: Clone> MultiMap<TKey, TValue> {
     pub fn add(&mut self, key: TKey, value: TValue) {

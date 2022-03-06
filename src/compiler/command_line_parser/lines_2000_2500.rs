@@ -1,6 +1,7 @@
 use regex::Regex;
 use serde::Serialize;
 use std::cell::RefCell;
+use std::cmp;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
@@ -14,14 +15,15 @@ use super::{
 use crate::{
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, create_multi_map,
     extend_compiler_options, get_directory_path, get_file_matcher_patterns,
-    get_normalized_absolute_path, get_regex_from_pattern, get_relative_path_from_file,
-    get_text_of_property_name, is_computed_non_literal_name, is_string_double_quoted,
-    is_string_literal, map, unescape_leading_underscores, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType,
-    CompilerOptions, CompilerOptionsValue, Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics,
-    FileMatcherPatterns, JsonConversionNotifier, MultiMap, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, Number, OptionsNameMap, ParsedCommandLine, ProjectReference, Push,
-    SyntaxKind, ToHashMapOfCompilerOptionsValues, WatchOptions,
+    get_locale_specific_message, get_normalized_absolute_path, get_regex_from_pattern,
+    get_relative_path_from_file, get_text_of_property_name, is_computed_non_literal_name,
+    is_string_double_quoted, is_string_literal, map, unescape_leading_underscores,
+    CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    CommandLineOptionType, CompilerOptions, CompilerOptionsValue, Diagnostic, Diagnostics,
+    DidYouMeanOptionsDiagnostics, FileMatcherPatterns, JsonConversionNotifier, MultiMap,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, OptionsNameMap,
+    ParsedCommandLine, ProjectReference, Push, SyntaxKind, ToHashMapOfCompilerOptionsValues,
+    WatchOptions,
 };
 
 pub(super) fn is_root_option_map(
@@ -1080,7 +1082,7 @@ pub(crate) fn generate_tsconfig(
     new_line: &str,
 ) -> String {
     let compiler_options_map = get_serialized_compiler_option(options);
-    write_configurations(&compiler_options_map)
+    write_configurations(&compiler_options_map, file_names, new_line)
 }
 
 fn is_allowed_option_for_output(
@@ -1104,15 +1106,126 @@ fn is_allowed_option_for_output(
 
 fn write_configurations(
     compiler_options_map: &HashMap<&'static str, CompilerOptionsValue>,
+    file_names: &[String],
+    new_line: &str,
 ) -> String {
     let mut categorized_options: MultiMap<String, Rc<CommandLineOption>> = create_multi_map();
     option_declarations.with(|option_declarations_| {
         for option in option_declarations_ {
             let category = option.maybe_category();
 
-            if is_allowed_option_for_output(compiler_options_map, option) {}
+            if is_allowed_option_for_output(compiler_options_map, option) {
+                categorized_options.add(
+                    get_locale_specific_message(category.unwrap()),
+                    option.clone(),
+                );
+            }
         }
     });
 
-    unimplemented!()
+    let mut margin_length = 0;
+    let mut seen_known_keys = 0;
+    let mut entries: Vec<WriteConfigurationsEntry> = vec![];
+    for (category, options) in categorized_options.0 {
+        if !entries.is_empty() {
+            entries.push(WriteConfigurationsEntry::new("".to_owned(), None));
+        }
+        for option in options {
+            let option_name: String;
+            if compiler_options_map.contains_key(option.name()) {
+                option_name = format!(
+                    "\"{}\": {}{}",
+                    option.name(),
+                    serde_json::to_string(compiler_options_map.get(option.name()).unwrap())
+                        .unwrap(),
+                    {
+                        seen_known_keys += 1;
+                        if seen_known_keys == compiler_options_map.len() {
+                            ""
+                        } else {
+                            ","
+                        }
+                    }
+                );
+            } else {
+                option_name = format!(
+                    "// \"{}\": {},",
+                    option.name(),
+                    serde_json::to_string(&get_default_value_for_option(&option)).unwrap()
+                );
+            }
+            let option_name_len = option_name.len();
+            entries.push(WriteConfigurationsEntry::new(
+                option_name,
+                Some(format!(
+                    "/* {} */",
+                    option
+                        .maybe_description()
+                        .map(|description| get_locale_specific_message(description))
+                        .unwrap_or_else(|| option.name().to_owned())
+                )),
+            ));
+            margin_length = cmp::max(option_name_len, margin_length);
+        }
+    }
+
+    let tab = make_padding(2);
+    let mut result: Vec<String> = vec![];
+    result.push("{".to_owned());
+    result.push(format!("{}\"compilerOptions\": {{", tab));
+    result.push(format!("{}{}/* {} */", tab, tab, get_locale_specific_message(&Diagnostics::Visit_https_Colon_Slash_Slashaka_ms_Slashtsconfig_json_to_read_more_about_this_file)));
+    result.push("".to_owned());
+    for entry in entries {
+        let WriteConfigurationsEntry { value, description } = entry;
+        let description = description.unwrap_or_else(|| "".to_owned());
+        result.push(if value.is_empty() {
+            value
+        } else {
+            format!(
+                "{}{}{}{}",
+                tab,
+                tab,
+                value,
+                if description.is_empty() {
+                    description
+                } else {
+                    format!(
+                        "{}{}",
+                        make_padding(margin_length - value.len() + 2),
+                        description
+                    )
+                }
+            )
+        });
+    }
+    if !file_names.is_empty() {
+        result.push(format!("{}}},", tab));
+        result.push(format!("{}\"files\": [", tab));
+        for (i, file_name) in file_names.iter().enumerate() {
+            result.push(format!(
+                "{}{}{}{}",
+                tab,
+                tab,
+                serde_json::to_string(file_name).unwrap(),
+                if i == file_names.len() - 1 { "" } else { "," }
+            ));
+        }
+        result.push(format!("{}]", tab));
+    } else {
+        result.push(format!("{}}}", tab));
+    }
+    result.push("}".to_owned());
+
+    format!("{}{}", result.join(new_line), new_line)
+}
+
+struct WriteConfigurationsEntry {
+    pub value: String,
+    pub description: Option<String>,
+}
+
+impl WriteConfigurationsEntry {
+    pub fn new(value: String, description: Option<String>) -> Self {
+        Self { value, description }
+    }
 }
