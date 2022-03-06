@@ -1,30 +1,19 @@
-use derive_builder::Builder;
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
-    can_json_report_no_input_files, command_options_without_build,
-    convert_compile_on_save_option_from_json, convert_compiler_options_from_json_worker,
-    convert_config_file_to_object, convert_to_object, convert_type_acquisition_from_json_worker,
-    convert_watch_options_from_json_worker, create_compiler_diagnostic_only_if_json,
-    get_default_compiler_options, get_default_type_acquisition, get_error_for_no_input_files,
-    get_extended_config, get_file_names_from_config_specs, get_wildcard_directories,
-    normalize_option_value, parse_config, should_report_no_input_files, validate_specs,
+    can_json_report_no_input_files, create_compiler_diagnostic_only_if_json,
+    get_default_type_acquisition, get_error_for_no_input_files, get_file_names_from_config_specs,
+    get_wildcard_directories, parse_config, should_report_no_input_files, validate_specs,
 };
 use crate::{
-    append, combine_paths, convert_to_relative_path, create_compiler_diagnostic,
-    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, every,
-    extend_compiler_options, extend_watch_options, filter_mutate, find, first_defined,
-    get_directory_path, get_normalized_absolute_path, get_text_of_property_name,
-    get_ts_config_prop_array, index_of, is_rooted_disk_path, map, maybe_extend_compiler_options,
-    normalize_path, normalize_slashes, set_type_acquisition_value, set_watch_option_value,
-    CommandLineOption, CommandLineOptionInterface, CompilerOptions, ConfigFileSpecs, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    ExtendedConfigCacheEntry, FileExtensionInfo, HasInitializerInterface, JsonConversionNotifier,
-    Node, NodeInterface, ParseConfigHost, ParsedCommandLine, Path, ProjectReference,
-    TypeAcquisition, WatchOptions,
+    create_compiler_diagnostic, create_diagnostic_for_node_in_source_file, every,
+    extend_compiler_options, extend_watch_options, first_defined, get_directory_path,
+    get_normalized_absolute_path, get_ts_config_prop_array, normalize_path, normalize_slashes,
+    CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, Diagnostics, ExtendedConfigCacheEntry,
+    FileExtensionInfo, HasInitializerInterface, Node, NodeInterface, ParseConfigHost,
+    ParsedCommandLine, Path, ProjectReference, WatchOptions,
 };
 
 pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: FnMut(&str) -> String>(

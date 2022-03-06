@@ -9,20 +9,17 @@ use super::{
     convert_compiler_options_from_json_worker, convert_config_file_to_object, convert_to_object,
     convert_type_acquisition_from_json_worker, convert_watch_options_from_json_worker,
     directory_of_combined_path, get_default_compiler_options, get_default_type_acquisition,
-    get_extended_config, get_file_names_from_config_specs, get_wildcard_directories,
-    normalize_option_value, validate_specs,
+    get_extended_config, normalize_option_value,
 };
 use crate::{
     append, combine_paths, convert_to_relative_path, create_compiler_diagnostic,
-    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, every,
-    extend_compiler_options, extend_watch_options, filter_mutate, find, first_defined,
-    get_directory_path, get_normalized_absolute_path, get_text_of_property_name,
-    get_ts_config_prop_array, index_of, is_rooted_disk_path, map, maybe_extend_compiler_options,
-    normalize_path, normalize_slashes, set_type_acquisition_value, set_watch_option_value,
-    CommandLineOption, CommandLineOptionInterface, CompilerOptions, ConfigFileSpecs, Debug_,
-    Diagnostic, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    ExtendedConfigCacheEntry, FileExtensionInfo, HasInitializerInterface, JsonConversionNotifier,
-    Node, NodeInterface, ParseConfigHost, ParsedCommandLine, Path, ProjectReference,
+    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name,
+    extend_watch_options, filter_mutate, find, get_directory_path, get_normalized_absolute_path,
+    get_text_of_property_name, index_of, is_rooted_disk_path, map, maybe_extend_compiler_options,
+    normalize_slashes, set_type_acquisition_value, set_watch_option_value, CommandLineOption,
+    CommandLineOptionInterface, CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic,
+    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
+    ExtendedConfigCacheEntry, JsonConversionNotifier, Node, NodeInterface, ParseConfigHost, Path,
     TypeAcquisition, WatchOptions,
 };
 
