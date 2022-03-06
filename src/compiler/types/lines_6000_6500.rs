@@ -504,6 +504,373 @@ pub struct CompilerOptions {
     // [option: string]: CompilerOptionsValue | TsConfigSourceFile | undefined;
 }
 
+impl CompilerOptions {
+    pub fn set_value_from_command_line_option(
+        &mut self,
+        option: &CommandLineOption,
+        value: CompilerOptionsValue,
+    ) {
+        self.set_value(option.name(), value)
+    }
+
+    pub fn set_value(&mut self, option_name: &str, value: CompilerOptionsValue) {
+        match option_name {
+            "all" => {
+                self.all = value.into_option_bool();
+            }
+            "allowJs" => {
+                self.allow_js = value.into_option_bool();
+            }
+            "allowNonTsExtensions" => {
+                self.allow_non_ts_extensions = value.into_option_bool();
+            }
+            "allowSyntheticDefaultImports" => {
+                self.allow_synthetic_default_imports = value.into_option_bool();
+            }
+            "allowUmdGlobalAccess" => {
+                self.allow_umd_global_access = value.into_option_bool();
+            }
+            "allowUnreachableCode" => {
+                self.allow_unreachable_code = value.into_option_bool();
+            }
+            "allowUnusedLabels" => {
+                self.allow_unused_labels = value.into_option_bool();
+            }
+            "alwaysStrict" => {
+                self.always_strict = value.into_option_bool();
+            }
+            "baseUrl" => {
+                self.base_url = value.into_option_string();
+            }
+            "build" => {
+                self.build = value.into_option_bool();
+            }
+            "charset" => {
+                self.charset = value.into_option_string();
+            }
+            "checkJs" => {
+                self.check_js = value.into_option_bool();
+            }
+            "configFilePath" => {
+                self.config_file_path = value.into_option_string();
+            }
+            "configFile" => {
+                self.config_file = value.into_option_rc_node();
+            }
+            "declaration" => {
+                self.declaration = value.into_option_bool();
+            }
+            "declarationMap" => {
+                self.declaration_map = value.into_option_bool();
+            }
+            "emitDeclarationOnly" => {
+                self.emit_declaration_only = value.into_option_bool();
+            }
+            "declarationDir" => {
+                self.declaration_dir = value.into_option_string();
+            }
+            "diagnostics" => {
+                self.diagnostics = value.into_option_bool();
+            }
+            "extendedDiagnostics" => {
+                self.extended_diagnostics = value.into_option_bool();
+            }
+            "disableSizeLimit" => {
+                self.disable_size_limit = value.into_option_bool();
+            }
+            "disableSourceOfProjectReferenceRedirect" => {
+                self.disable_source_of_project_reference_redirect = value.into_option_bool();
+            }
+            "disableSolutionSearching" => {
+                self.disable_solution_searching = value.into_option_bool();
+            }
+            "disableReferencedProjectLoad" => {
+                self.disable_referenced_project_load = value.into_option_bool();
+            }
+            "downlevelIteration" => {
+                self.downlevel_iteration = value.into_option_bool();
+            }
+            "emitBom" => {
+                self.emit_bom = value.into_option_bool();
+            }
+            "emitDecoratorMetadata" => {
+                self.emit_decorator_metadata = value.into_option_bool();
+            }
+            "exactOptionalPropertyTypes" => {
+                self.exact_optional_property_types = value.into_option_bool();
+            }
+            "experimentalDecorators" => {
+                self.experimental_decorators = value.into_option_bool();
+            }
+            "forceConsistentCasingInFileNames" => {
+                self.force_consistent_casing_in_file_names = value.into_option_bool();
+            }
+            "generateCpuProfile" => {
+                self.generate_cpu_profile = value.into_option_string();
+            }
+            "generateTrace" => {
+                self.generate_trace = value.into_option_string();
+            }
+            "help" => {
+                self.help = value.into_option_bool();
+            }
+            "importHelpers" => {
+                self.import_helpers = value.into_option_bool();
+            }
+            "importsNotUsedAsValues" => {
+                self.imports_not_used_as_values = value.into_option_imports_not_used_as_values();
+            }
+            "init" => {
+                self.init = value.into_option_bool();
+            }
+            "inlineSourceMap" => {
+                self.inline_source_map = value.into_option_bool();
+            }
+            "inlineSources" => {
+                self.inline_sources = value.into_option_bool();
+            }
+            "isolatedModules" => {
+                self.isolated_modules = value.into_option_bool();
+            }
+            "jsx" => {
+                self.jsx = value.into_option_jsx_emit();
+            }
+            "keyofStringsOnly" => {
+                self.keyof_strings_only = value.into_option_bool();
+            }
+            "lib" => {
+                self.lib = value.into_option_vec_string();
+            }
+            "listEmittedFiles" => {
+                self.list_emitted_files = value.into_option_bool();
+            }
+            "listFiles" => {
+                self.list_files = value.into_option_bool();
+            }
+            "explainFiles" => {
+                self.explain_files = value.into_option_bool();
+            }
+            "listFilesOnly" => {
+                self.list_files_only = value.into_option_bool();
+            }
+            "locale" => {
+                self.locale = value.into_option_string();
+            }
+            "mapRoot" => {
+                self.map_root = value.into_option_string();
+            }
+            "maxNodeModuleJsDepth" => {
+                self.max_node_module_js_depth = value.into_option_usize();
+            }
+            "module" => {
+                self.module = value.into_option_module_kind();
+            }
+            "moduleResolution" => {
+                self.module_resolution = value.into_option_module_resolution_kind();
+            }
+            "newLine" => {
+                self.new_line = value.into_option_new_line_kind();
+            }
+            "noEmit" => {
+                self.no_emit = value.into_option_bool();
+            }
+            "noEmitForJsFiles" => {
+                self.no_emit_for_js_files = value.into_option_bool();
+            }
+            "noEmitHelpers" => {
+                self.no_emit_helpers = value.into_option_bool();
+            }
+            "noEmitOnError" => {
+                self.no_emit_on_error = value.into_option_bool();
+            }
+            "noErrorTruncation" => {
+                self.no_error_truncation = value.into_option_bool();
+            }
+            "noFallthroughCasesInSwitch" => {
+                self.no_fallthrough_cases_in_switch = value.into_option_bool();
+            }
+            "noImplicitAny" => {
+                self.no_implicit_any = value.into_option_bool();
+            }
+            "noImplicitReturns" => {
+                self.no_implicit_returns = value.into_option_bool();
+            }
+            "noImplicitThis" => {
+                self.no_implicit_this = value.into_option_bool();
+            }
+            "noStrictGenericChecks" => {
+                self.no_strict_generic_checks = value.into_option_bool();
+            }
+            "noUnusedLocals" => {
+                self.no_unused_locals = value.into_option_bool();
+            }
+            "noUnusedParameters" => {
+                self.no_unused_parameters = value.into_option_bool();
+            }
+            "noImplicitUseStrict" => {
+                self.no_implicit_use_strict = value.into_option_bool();
+            }
+            "noPropertyAccessFromIndexSignature" => {
+                self.no_property_access_from_index_signature = value.into_option_bool();
+            }
+            "assumeChangesOnlyAffectDirectDependencies" => {
+                self.assume_changes_only_affect_direct_dependencies = value.into_option_bool();
+            }
+            "noLib" => {
+                self.no_lib = value.into_option_bool();
+            }
+            "noResolve" => {
+                self.no_resolve = value.into_option_bool();
+            }
+            "noUncheckedIndexedAccess" => {
+                self.no_unchecked_indexed_access = value.into_option_bool();
+            }
+            "out" => {
+                self.out = value.into_option_string();
+            }
+            "outDir" => {
+                self.out_dir = value.into_option_string();
+            }
+            "outFile" => {
+                self.out_file = value.into_option_string();
+            }
+            "paths" => {
+                self.paths = value.into_option_map_like_vec_string();
+            }
+            "pathsBasePath" => {
+                self.paths_base_path = value.into_option_string();
+            }
+            "plugins" => {
+                self.plugins = value.into_option_vec_plugin_import();
+            }
+            "preserveConstEnums" => {
+                self.preserve_const_enums = value.into_option_bool();
+            }
+            "noImplicitOverride" => {
+                self.no_implicit_override = value.into_option_bool();
+            }
+            "preserveSymlinks" => {
+                self.preserve_symlinks = value.into_option_bool();
+            }
+            "preserveValueImports" => {
+                self.preserve_value_imports = value.into_option_bool();
+            }
+            "preserveWatchOutput" => {
+                self.preserve_watch_output = value.into_option_bool();
+            }
+            "project" => {
+                self.project = value.into_option_string();
+            }
+            "pretty" => {
+                self.pretty = value.into_option_bool();
+            }
+            "reactNamespace" => {
+                self.react_namespace = value.into_option_string();
+            }
+            "jsxFactory" => {
+                self.jsx_factory = value.into_option_string();
+            }
+            "jsxFragmentFactory" => {
+                self.jsx_fragment_factory = value.into_option_string();
+            }
+            "jsxImportSource" => {
+                self.jsx_import_source = value.into_option_string();
+            }
+            "composite" => {
+                self.composite = value.into_option_bool();
+            }
+            "incremental" => {
+                self.incremental = value.into_option_bool();
+            }
+            "tsBuildInfoFile" => {
+                self.ts_build_info_file = value.into_option_string();
+            }
+            "removeComments" => {
+                self.remove_comments = value.into_option_bool();
+            }
+            "rootDir" => {
+                self.root_dir = value.into_option_string();
+            }
+            "rootDirs" => {
+                self.root_dirs = value.into_option_vec_string();
+            }
+            "skipLibCheck" => {
+                self.skip_lib_check = value.into_option_bool();
+            }
+            "skipDefaultLibCheck" => {
+                self.skip_default_lib_check = value.into_option_bool();
+            }
+            "sourceMap" => {
+                self.source_map = value.into_option_bool();
+            }
+            "sourceRoot" => {
+                self.source_root = value.into_option_string();
+            }
+            "strict" => {
+                self.strict = value.into_option_bool();
+            }
+            "strictFunctionTypes" => {
+                self.strict_function_types = value.into_option_bool();
+            }
+            "strictBindCallApply" => {
+                self.strict_bind_call_apply = value.into_option_bool();
+            }
+            "strictNullChecks" => {
+                self.strict_null_checks = value.into_option_bool();
+            }
+            "strictPropertyInitialization" => {
+                self.strict_property_initialization = value.into_option_bool();
+            }
+            "stripInternal" => {
+                self.strip_internal = value.into_option_bool();
+            }
+            "suppressExcessPropertyErrors" => {
+                self.suppress_excess_property_errors = value.into_option_bool();
+            }
+            "suppressImplicitAnyIndexErrors" => {
+                self.suppress_implicit_any_index_errors = value.into_option_bool();
+            }
+            "suppressOutputPathCheck" => {
+                self.suppress_output_path_check = value.into_option_bool();
+            }
+            "target" => {
+                self.target = value.into_option_script_target();
+            }
+            "traceResolution" => {
+                self.trace_resolution = value.into_option_bool();
+            }
+            "useUnknownInCatchVariables" => {
+                self.use_unknown_in_catch_variables = value.into_option_bool();
+            }
+            "resolveJsonModule" => {
+                self.resolve_json_module = value.into_option_bool();
+            }
+            "types" => {
+                self.types = value.into_option_vec_string();
+            }
+            "typeRoots" => {
+                self.type_roots = value.into_option_vec_string();
+            }
+            "version" => {
+                self.version = value.into_option_bool();
+            }
+            "watch" => {
+                self.watch = value.into_option_bool();
+            }
+            "esModuleInterop" => {
+                self.es_module_interop = value.into_option_bool();
+            }
+            "showConfig" => {
+                self.show_config = value.into_option_bool();
+            }
+            "useDefineForClassFields" => {
+                self.use_define_for_class_fields = value.into_option_bool();
+            }
+            _ => panic!("Unknown compiler option: {:?}", option_name),
+        }
+    }
+}
+
 pub trait ToHashMapOfCompilerOptionsValues {
     fn to_hash_map_of_compiler_options_values(&self)
         -> HashMap<&'static str, CompilerOptionsValue>;
