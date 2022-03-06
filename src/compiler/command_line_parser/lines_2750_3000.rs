@@ -13,13 +13,14 @@ use super::{
 };
 use crate::{
     append, combine_paths, convert_to_relative_path, create_compiler_diagnostic,
-    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name,
+    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, ends_with,
     extend_watch_options, filter_mutate, find, get_directory_path, get_normalized_absolute_path,
     get_text_of_property_name, index_of, is_rooted_disk_path, map, maybe_extend_compiler_options,
-    normalize_slashes, set_type_acquisition_value, set_watch_option_value, CommandLineOption,
-    CommandLineOptionInterface, CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics,
-    ExtendedConfigCacheEntry, JsonConversionNotifier, Node, NodeInterface, ParseConfigHost, Path,
+    node_module_name_resolver, normalize_slashes, set_type_acquisition_value,
+    set_watch_option_value, starts_with, CommandLineOption, CommandLineOptionInterface,
+    CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry, Extension,
+    JsonConversionNotifier, ModuleResolutionKind, Node, NodeInterface, ParseConfigHost, Path,
     TypeAcquisition, WatchOptions,
 };
 
@@ -603,7 +604,47 @@ pub(super) fn get_extends_config_path<
     host: &THost,
     base_path: &str,
     errors: &mut Vec<Rc<Diagnostic>>,
-    create_diagnostic: TCreateDiagnostic,
+    mut create_diagnostic: TCreateDiagnostic,
 ) -> Option<String> {
-    unimplemented!()
+    let extended_config = normalize_slashes(extended_config);
+    if is_rooted_disk_path(&extended_config)
+        || starts_with(&extended_config, "./")
+        || starts_with(&extended_config, "../")
+    {
+        let mut extended_config_path =
+            get_normalized_absolute_path(&extended_config, Some(base_path));
+        if !host.file_exists(&extended_config_path)
+            && !ends_with(&extended_config_path, Extension::Json.to_str())
+        {
+            extended_config_path = format!("{}.json", extended_config_path);
+            if !host.file_exists(&extended_config_path) {
+                errors.push(create_diagnostic(
+                    &Diagnostics::File_0_not_found,
+                    Some(vec![extended_config]),
+                ));
+                return None;
+            }
+        }
+        return Some(extended_config_path);
+    }
+    let resolved = node_module_name_resolver(
+        &extended_config,
+        &combine_paths(base_path, &vec![Some("tsconfig.json")]),
+        &CompilerOptions {
+            module_resolution: Some(ModuleResolutionKind::NodeJs),
+            ..Default::default()
+        },
+        host,
+        None,
+        None,
+        None,
+    );
+    if let Some(resolved_resolved_module) = resolved.resolved_module.as_ref() {
+        return Some(resolved_resolved_module.resolved_file_name.clone());
+    }
+    errors.push(create_diagnostic(
+        &Diagnostics::File_0_not_found,
+        Some(vec![extended_config]),
+    ));
+    None
 }

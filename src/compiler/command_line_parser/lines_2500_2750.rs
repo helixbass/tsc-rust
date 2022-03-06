@@ -80,7 +80,32 @@ pub(super) fn convert_to_option_value_with_absolute_paths<TToAbsolutePath: Fn(&s
     value
 }
 
-pub fn parse_json_source_file_config_file_content_worker<THost: ParseConfigHost>(
+pub fn parse_json_config_file_content<THost: ParseConfigHost>(
+    json: Option<serde_json::Value>,
+    host: &THost,
+    base_path: &str,
+    existing_options: Option<Rc<CompilerOptions>>,
+    config_file_name: Option<&str>,
+    resolution_stack: Option<&[Path]>,
+    extra_file_extensions: Option<&[FileExtensionInfo]>,
+    extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
+    existing_watch_options: Option<Rc<WatchOptions>>,
+) -> ParsedCommandLine {
+    parse_json_config_file_content_worker(
+        json,
+        Option::<&Node>::None,
+        host,
+        base_path,
+        existing_options,
+        existing_watch_options,
+        config_file_name,
+        resolution_stack,
+        extra_file_extensions,
+        extended_config_cache,
+    )
+}
+
+pub fn parse_json_source_file_config_file_content<THost: ParseConfigHost>(
     source_file: &Node, /*TsConfigSourceFile*/
     host: &THost,
     base_path: &str,
@@ -114,6 +139,10 @@ pub(crate) fn set_config_file_in_options<TConfigFile: Borrow<Node>>(
         options.config_file = Some(config_file.node_wrapper());
     }
 }
+
+// function isNullOrUndefined(x: any) -> x is null | undefined {
+//     return x === undefined || x === null;
+// }
 
 pub(super) fn directory_of_combined_path(file_name: &str, base_path: &str) -> String {
     get_directory_path(&get_normalized_absolute_path(file_name, Some(base_path)))

@@ -126,7 +126,9 @@ pub use compiler::factory::utilities::{
 };
 pub use compiler::factory::utilities_public::set_text_range;
 use compiler::module_name_resolver::create_mode_aware_cache;
-pub use compiler::module_name_resolver::{ModeAwareCache, ModuleResolutionCache};
+pub use compiler::module_name_resolver::{
+    node_module_name_resolver, ModeAwareCache, ModuleResolutionCache,
+};
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_returns,
     is_external_module, parse_json_text, IncrementalParser, IncrementalParserSyntaxCursor,

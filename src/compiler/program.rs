@@ -127,6 +127,10 @@ impl ModuleResolutionHost for CompilerHostConcrete {
     fn read_file(&self, file_name: &str) -> Option<String> {
         self.system.read_file(file_name)
     }
+
+    fn file_exists(&self, file_name: &str) -> bool {
+        unimplemented!()
+    }
 }
 
 impl CompilerHost for CompilerHostConcrete {
@@ -384,7 +388,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
 
     let host = create_compiler_host(&options, None);
 
-    let current_directory = host.get_current_directory();
+    let current_directory = CompilerHost::get_current_directory(&host);
 
     let structure_is_reused = StructureIsReused::Not;
     if structure_is_reused != StructureIsReused::Completely {

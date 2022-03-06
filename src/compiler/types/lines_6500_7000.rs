@@ -1,7 +1,6 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -12,12 +11,47 @@ use super::{
     SynthesizedComment, TextRange,
 };
 use crate::{
-    CancellationToken, ModuleResolutionCache, ParsedCommandLine, Path, ProgramBuildInfo,
-    SymlinkCache,
+    CancellationToken, ModuleResolutionCache, ParseConfigHost, ParsedCommandLine, Path,
+    ProgramBuildInfo, SymlinkCache,
 };
 
 pub trait ModuleResolutionHost {
+    fn file_exists(&self, file_name: &str) -> bool;
     fn read_file(&self, file_name: &str) -> Option<String>;
+    fn trace(&self, s: &str) {}
+    fn directory_exists(&self, directory_name: &str) -> Option<bool> {
+        None
+    }
+    fn realpath(&self, path: &str) -> Option<String> {
+        None
+    }
+    fn get_current_directory(&self) -> Option<String> {
+        None
+    }
+    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+        None
+    }
+    fn use_case_sensitive_file_names(&self) -> Option<bool> {
+        None
+    }
+}
+
+impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
+    fn file_exists(&self, file_name: &str) -> bool {
+        ParseConfigHost::file_exists(self, file_name)
+    }
+
+    fn read_file(&self, file_name: &str) -> Option<String> {
+        ParseConfigHost::read_file(self, file_name)
+    }
+
+    fn trace(&self, s: &str) {
+        ParseConfigHost::trace(self, s)
+    }
+
+    fn use_case_sensitive_file_names(&self) -> Option<bool> {
+        Some(ParseConfigHost::use_case_sensitive_file_names(self))
+    }
 }
 
 #[derive(Debug)]

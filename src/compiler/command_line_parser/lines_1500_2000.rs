@@ -8,7 +8,7 @@ use super::{
     convert_property_value_to_json, create_option_name_map, get_compiler_option_value_type_string,
     get_option_name, get_options_name_map, hash_map_to_build_options, option_declarations,
     options_for_watch, parse_command_line_worker, parse_custom_type_option,
-    parse_json_source_file_config_file_content_worker, parse_list_type_option, parse_strings,
+    parse_json_source_file_config_file_content, parse_list_type_option, parse_strings,
     type_acquisition_declarations, validate_json_option_value, ParseCommandLineWorkerDiagnostics,
 };
 use crate::{
@@ -509,7 +509,7 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     ));
     result_as_source_file.set_resolved_path(Some(result_as_source_file.path().clone()));
     result_as_source_file.set_original_file_name(Some(result_as_source_file.file_name().clone()));
-    Some(parse_json_source_file_config_file_content_worker(
+    Some(parse_json_source_file_config_file_content(
         &result,
         host,
         &get_normalized_absolute_path(&get_directory_path(config_file_name), Some(cwd)),

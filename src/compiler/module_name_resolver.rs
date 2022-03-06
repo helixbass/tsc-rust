@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::{
-    CompilerOptions, MapLike, ModuleKind, Path, ResolvedModuleWithFailedLookupLocations,
-    ResolvedProjectReference,
+    CompilerOptions, MapLike, ModuleKind, ModuleResolutionHost, Path,
+    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
 };
 
 pub struct PackageJsonPathFields {}
@@ -68,6 +68,18 @@ pub trait PackageJsonInfoCache {
 pub struct PerModuleNameCache {}
 
 pub(crate) fn create_mode_aware_cache<TValue>() -> ModeAwareCache<TValue> {
+    unimplemented!()
+}
+
+pub fn node_module_name_resolver<THost: ModuleResolutionHost>(
+    module_name: &str,
+    containing_file: &str,
+    compiler_options: &CompilerOptions,
+    host: &THost,
+    cache: Option<&dyn ModuleResolutionCache>,
+    redirected_reference: Option<ResolvedProjectReference>,
+    lookup_config: Option<bool>,
+) -> ResolvedModuleWithFailedLookupLocations {
     unimplemented!()
 }
 
