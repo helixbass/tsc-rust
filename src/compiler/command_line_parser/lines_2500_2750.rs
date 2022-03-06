@@ -5,23 +5,79 @@ use std::rc::Rc;
 use super::{
     can_json_report_no_input_files, create_compiler_diagnostic_only_if_json,
     get_default_type_acquisition, get_error_for_no_input_files, get_file_names_from_config_specs,
-    get_wildcard_directories, parse_config, should_report_no_input_files, validate_specs,
+    get_options_name_map, get_wildcard_directories, parse_config, should_report_no_input_files,
+    validate_specs,
 };
 use crate::{
     create_compiler_diagnostic, create_diagnostic_for_node_in_source_file, every,
     extend_compiler_options, extend_watch_options, first_defined, get_directory_path,
     get_normalized_absolute_path, get_ts_config_prop_array, normalize_path, normalize_slashes,
-    CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, Diagnostics, ExtendedConfigCacheEntry,
-    FileExtensionInfo, HasInitializerInterface, Node, NodeInterface, ParseConfigHost,
-    ParsedCommandLine, Path, ProjectReference, WatchOptions,
+    CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
+    CompilerOptionsValue, ConfigFileSpecs, Debug_, Diagnostic, Diagnostics,
+    ExtendedConfigCacheEntry, FileExtensionInfo, HasInitializerInterface, Node, NodeInterface,
+    ParseConfigHost, ParsedCommandLine, Path, ProjectReference, ToHashMapOfCompilerOptionsValues,
+    WatchOptions,
 };
 
-pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: FnMut(&str) -> String>(
+pub(crate) fn convert_to_options_with_absolute_paths<TToAbsolutePath: Fn(&str) -> String>(
     options: Rc<CompilerOptions>,
     to_absolute_path: TToAbsolutePath,
 ) -> Rc<CompilerOptions> {
     let mut result: CompilerOptions = Default::default();
-    unimplemented!()
+    let options_name_map = &get_options_name_map().options_name_map;
+
+    for (name, value) in options.to_hash_map_of_compiler_options_values() {
+        result.set_value(
+            name,
+            convert_to_option_value_with_absolute_paths(
+                options_name_map
+                    .get(&name.to_lowercase())
+                    .map(|option| &**option),
+                value,
+                &to_absolute_path,
+            ),
+        );
+    }
+    if let Some(result_config_file_path) = result.config_file_path.as_ref() {
+        result.config_file_path = Some(to_absolute_path(result_config_file_path));
+    }
+    Rc::new(result)
+}
+
+pub(super) fn convert_to_option_value_with_absolute_paths<TToAbsolutePath: Fn(&str) -> String>(
+    option: Option<&CommandLineOption>,
+    value: CompilerOptionsValue,
+    to_absolute_path: &TToAbsolutePath,
+) -> CompilerOptionsValue {
+    if let Some(option) = option {
+        if value.is_some() {
+            if matches!(option.type_(), CommandLineOptionType::List) {
+                let values = match &value {
+                    CompilerOptionsValue::VecString(Some(value)) => value,
+                    _ => panic!("Expected vec of strings"),
+                };
+                if option
+                    .as_command_line_option_of_list_type()
+                    .element
+                    .is_file_path()
+                    && !values.is_empty()
+                {
+                    return CompilerOptionsValue::VecString(Some(
+                        values
+                            .into_iter()
+                            .map(|value| to_absolute_path(value))
+                            .collect(),
+                    ));
+                }
+            } else if option.is_file_path() {
+                return CompilerOptionsValue::String(Some(to_absolute_path(&match value {
+                    CompilerOptionsValue::String(Some(value)) => value,
+                    _ => panic!("Expected string"),
+                })));
+            }
+        }
+    }
+    value
 }
 
 pub fn parse_json_source_file_config_file_content_worker<THost: ParseConfigHost>(
