@@ -10,9 +10,9 @@ use std::rc::Rc;
 use crate::{
     combine_paths, compute_line_and_character_of_position, compute_line_of_position,
     compute_line_starts, create_compiler_diagnostic, create_get_canonical_file_name,
-    ensure_path_is_non_module_name, ensure_trailing_directory_separator, file_extension_is_one_of,
-    filter, find, flat_map, get_directory_path, get_emit_module_kind, get_external_module_name,
-    get_jsdoc_deprecated_tag_no_cache, get_jsdoc_override_tag_no_cache,
+    ensure_path_is_non_module_name, ensure_trailing_directory_separator, factory,
+    file_extension_is_one_of, filter, find, flat_map, get_directory_path, get_emit_module_kind,
+    get_external_module_name, get_jsdoc_deprecated_tag_no_cache, get_jsdoc_override_tag_no_cache,
     get_jsdoc_private_tag_no_cache, get_jsdoc_protected_tag_no_cache,
     get_jsdoc_public_tag_no_cache, get_jsdoc_readonly_tag_no_cache, get_jsdoc_return_type,
     get_jsdoc_tags, get_jsdoc_type, get_leading_comment_ranges, get_line_starts,
@@ -26,13 +26,14 @@ use crate::{
     is_string_literal_like, is_white_space_like, is_white_space_single_line, last,
     maybe_text_char_at_index, node_is_present, normalize_path, path_is_relative,
     remove_file_extension, skip_trivia, str_to_source_text_as_chars, string_contains,
-    text_char_at_index, text_substring, to_path, trim_string, AllAccessorDeclarations,
-    CharacterCodes, CommentRange, CompilerOptions, Debug_, DiagnosticCollection, Diagnostics,
-    EmitHost, EmitResolver, EmitTextWriter, Extension, FunctionLikeDeclarationInterface,
-    GetCanonicalFileName, HasTypeInterface, ModifierFlags, ModuleKind, NamedDeclarationInterface,
-    Node, NodeArray, NodeFlags, NodeInterface, ScriptReferenceHost, SignatureDeclarationInterface,
-    SourceFileMayBeEmittedHost, SourceTextAsChars, Symbol, SymbolFlags, SymbolTracker,
-    SymbolWriter, SyntaxKind, TextRange, WriteFileCallback,
+    synthetic_factory, text_char_at_index, text_substring, to_path, trim_string,
+    AllAccessorDeclarations, CharacterCodes, CommentRange, CompilerOptions, Debug_,
+    DiagnosticCollection, Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
+    FunctionLikeDeclarationInterface, GetCanonicalFileName, HasTypeInterface, ModifierFlags,
+    ModifiersArray, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
+    NodeInterface, ScriptReferenceHost, SignatureDeclarationInterface, SourceFileMayBeEmittedHost,
+    SourceTextAsChars, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind, TextRange,
+    WriteFileCallback,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -1332,7 +1333,7 @@ pub fn has_effective_modifier(node: &Node, flags: ModifierFlags) -> bool {
     get_selected_effective_modifier_flags(node, flags) != ModifierFlags::None
 }
 
-pub fn has_syntactic_modifier<TNode: NodeInterface>(node: &TNode, flags: ModifierFlags) -> bool {
+pub fn has_syntactic_modifier(node: &Node, flags: ModifierFlags) -> bool {
     get_selected_syntactic_modifier_flags(node, flags) != ModifierFlags::None
 }
 
@@ -1340,7 +1341,7 @@ pub fn is_static(node: &Node) -> bool {
     is_class_element(node) && has_static_modifier(node) || is_class_static_block_declaration(node)
 }
 
-pub fn has_static_modifier<TNode: NodeInterface>(node: &TNode) -> bool {
+pub fn has_static_modifier(node: &Node) -> bool {
     has_syntactic_modifier(node, ModifierFlags::Static)
 }
 
@@ -1364,15 +1365,12 @@ fn get_selected_effective_modifier_flags(node: &Node, flags: ModifierFlags) -> M
     get_effective_modifier_flags(node) & flags
 }
 
-fn get_selected_syntactic_modifier_flags<TNode: NodeInterface>(
-    node: &TNode,
-    flags: ModifierFlags,
-) -> ModifierFlags {
+fn get_selected_syntactic_modifier_flags(node: &Node, flags: ModifierFlags) -> ModifierFlags {
     get_syntactic_modifier_flags(node) & flags
 }
 
-fn get_modifier_flags_worker<TNode: NodeInterface>(
-    node: &TNode,
+fn get_modifier_flags_worker(
+    node: &Node,
     include_jsdoc: bool,
     always_include_jsdoc: Option<bool>,
 ) -> ModifierFlags {
@@ -1415,42 +1413,51 @@ pub fn get_effective_modifier_flags_always_include_jsdoc(node: &Node) -> Modifie
     get_modifier_flags_worker(node, true, Some(true))
 }
 
-pub fn get_syntactic_modifier_flags<TNode: NodeInterface>(node: &TNode) -> ModifierFlags {
+pub fn get_syntactic_modifier_flags(node: &Node) -> ModifierFlags {
     get_modifier_flags_worker(node, false, None)
 }
 
-fn get_jsdoc_modifier_flags_no_cache<TNode: NodeInterface>(node: &TNode) -> ModifierFlags {
-    unimplemented!()
-    // let mut flags = ModifierFlags::None;
-    // if node.maybe_parent().is_some() && !is_parameter(node) {
-    //     if is_in_js_file(Some(node)) {
-    //         if get_jsdoc_public_tag_no_cache(node).is_some() {
-    //             flags |= ModifierFlags::Public;
-    //         }
-    //         if get_jsdoc_private_tag_no_cache(node).is_some() {
-    //             flags |= ModifierFlags::Private;
-    //         }
-    //         if get_jsdoc_protected_tag_no_cache(node).is_some() {
-    //             flags |= ModifierFlags::Protected;
-    //         }
-    //         if get_jsdoc_readonly_tag_no_cache(node).is_some() {
-    //             flags |= ModifierFlags::Readonly;
-    //         }
-    //         if get_jsdoc_override_tag_no_cache(node).is_some() {
-    //             flags |= ModifierFlags::Override;
-    //         }
-    //     }
-    //     if get_jsdoc_deprecated_tag_no_cache(node).is_some() {
-    //         flags |= ModifierFlags::Deprecated;
-    //     }
-    // }
+fn get_jsdoc_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
+    let mut flags = ModifierFlags::None;
+    if node.maybe_parent().is_some() && !is_parameter(node) {
+        if is_in_js_file(Some(node)) {
+            if get_jsdoc_public_tag_no_cache(node).is_some() {
+                flags |= ModifierFlags::Public;
+            }
+            if get_jsdoc_private_tag_no_cache(node).is_some() {
+                flags |= ModifierFlags::Private;
+            }
+            if get_jsdoc_protected_tag_no_cache(node).is_some() {
+                flags |= ModifierFlags::Protected;
+            }
+            if get_jsdoc_readonly_tag_no_cache(node).is_some() {
+                flags |= ModifierFlags::Readonly;
+            }
+            if get_jsdoc_override_tag_no_cache(node).is_some() {
+                flags |= ModifierFlags::Override;
+            }
+        }
+        if get_jsdoc_deprecated_tag_no_cache(node).is_some() {
+            flags |= ModifierFlags::Deprecated;
+        }
+    }
 
-    // flags
+    flags
 }
 
-fn get_syntactic_modifier_flags_no_cache<TNode: NodeInterface>(node: &TNode) -> ModifierFlags {
+pub fn get_effective_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
+    get_syntactic_modifier_flags_no_cache(node) | get_jsdoc_modifier_flags_no_cache(node)
+}
+
+fn get_syntactic_modifier_flags_no_cache(node: &Node) -> ModifierFlags {
     let mut flags = modifiers_to_flags(node.maybe_modifiers().as_ref());
-    if node.flags().intersects(NodeFlags::NestedNamespace) || false {
+    if node.flags().intersects(NodeFlags::NestedNamespace)
+        || node.kind() == SyntaxKind::Identifier
+            && matches!(
+                node.as_identifier().maybe_is_in_jsdoc_namespace(),
+                Some(true)
+            )
+    {
         flags |= ModifierFlags::Export;
     }
     flags
@@ -1481,6 +1488,26 @@ pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
         SyntaxKind::ReadonlyKeyword => ModifierFlags::Static,
         SyntaxKind::OverrideKeyword => ModifierFlags::Override,
         _ => ModifierFlags::None,
+    }
+}
+
+pub fn create_modifiers(modifier_flags: ModifierFlags) -> Option<ModifiersArray> {
+    if modifier_flags != ModifierFlags::None {
+        Some(factory.with(|factory_| {
+            synthetic_factory.with(|synthetic_factory_| {
+                factory_.create_node_array(
+                    Some(
+                        factory_.create_modifiers_from_modifier_flags(
+                            synthetic_factory_,
+                            modifier_flags,
+                        ),
+                    ),
+                    None,
+                )
+            })
+        }))
+    } else {
+        None
     }
 }
 

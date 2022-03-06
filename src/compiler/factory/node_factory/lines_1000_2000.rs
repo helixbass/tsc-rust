@@ -285,7 +285,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         question_or_exclamation_token: Option<Rc<Node /*QuestionToken | ExclamationToken*/>>,
         type_: Option<Rc<Node /*TypeNode*/>>,
         initializer: Option<Rc<Node /*Expression*/>>,
-    ) -> PropertyDeclaration {
+    ) -> Rc<Node> /*PropertyDeclaration*/ {
         let node = self.create_base_variable_like_declaration(
             base_factory,
             SyntaxKind::PropertyDeclaration,
@@ -312,8 +312,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
                 | propagate_child_flags(node.exclamation_token.clone())
                 | TransformFlags::ContainsClassFields,
         );
-        if is_computed_property_name(&node.name())
-            || has_static_modifier(&node) && node.maybe_initializer().is_some()
+        let node: Rc<Node> = node.into();
+        let node_as_property_declaration = node.as_property_declaration();
+        if is_computed_property_name(&node_as_property_declaration.name())
+            || has_static_modifier(&node)
+                && node_as_property_declaration.maybe_initializer().is_some()
         {
             node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
         }

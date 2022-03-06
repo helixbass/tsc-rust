@@ -249,7 +249,7 @@ pub use compiler::types::{
     JsxText, KeywordTypeNode, LabeledStatement, LanguageVariant, LexicalEnvironmentFlags,
     LineAndCharacter, ListFormat, LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface,
     LiteralTypeNode, MappedTypeNode, MetaProperty, MethodDeclaration, MethodSignature,
-    MissingDeclaration, ModifierFlags, ModuleBlock, ModuleDeclaration, ModuleKind,
+    MissingDeclaration, ModifierFlags, ModifiersArray, ModuleBlock, ModuleDeclaration, ModuleKind,
     ModuleResolutionHost, ModuleResolutionKind, ModuleSpecifierResolutionHost,
     NamedDeclarationInterface, NamedExports, NamedImports, NamedTupleMember, NamespaceExport,
     NamespaceExportDeclaration, NamespaceImport, NewExpression, NewLineKind, Node, NodeArray,
