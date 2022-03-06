@@ -120,6 +120,7 @@ pub struct SourceFile {
     end_flow_node: RefCell<Option<Rc<FlowNode>>>,
 
     // TsConfigSourceFile
+    extended_source_files: RefCell<Option<Vec<String>>>,
     config_file_specs: RefCell<Option<Rc<ConfigFileSpecs>>>,
 }
 
@@ -177,6 +178,7 @@ impl SourceFile {
             pattern_ambient_modules: RefCell::new(None),
             pragmas: RefCell::new(None),
             end_flow_node: RefCell::new(None),
+            extended_source_files: RefCell::new(None),
             config_file_specs: RefCell::new(None),
         }
     }
@@ -446,6 +448,10 @@ impl SourceFile {
 
     pub fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>) {
         *self.end_flow_node.borrow_mut() = end_flow_node;
+    }
+
+    pub fn maybe_extended_source_files(&self) -> RefMut<Option<Vec<String>>> {
+        self.extended_source_files.borrow_mut()
     }
 
     pub fn maybe_config_file_specs(&self) -> Ref<Option<Rc<ConfigFileSpecs>>> {

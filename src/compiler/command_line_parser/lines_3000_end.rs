@@ -5,21 +5,20 @@ use std::rc::Rc;
 use super::{
     convert_enable_auto_discovery_to_enable, create_compiler_diagnostic_for_invalid_custom_type,
     create_unknown_option_error, get_command_line_watch_options_map,
-    get_compiler_option_value_type_string, is_compiler_options_value,
-    type_acquisition_did_you_mean_diagnostics, ParsedTsconfig,
+    get_compiler_option_value_type_string, is_compiler_options_value, parse_config,
+    read_json_config_file, type_acquisition_did_you_mean_diagnostics, ParsedTsconfig,
 };
 use crate::{
-    create_compiler_diagnostic, filter, filter_owning, get_normalized_absolute_path, map,
-    set_type_acquisition_value, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionType, CompilerOptions, CompilerOptionsValue, ConfigFileSpecs, Diagnostic,
-    Diagnostics, DidYouMeanOptionsDiagnostics, FileExtensionInfo, Node, ParseConfigHost,
-    TypeAcquisition, WatchDirectoryFlags, WatchOptions,
+    create_compiler_diagnostic, filter, get_base_file_name, get_directory_path,
+    get_normalized_absolute_path, map, set_type_acquisition_value, to_file_name_lower_case,
+    CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
+    CompilerOptionsValue, ConfigFileSpecs, Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics,
+    FileExtensionInfo, Node, ParseConfigHost, TypeAcquisition, WatchDirectoryFlags, WatchOptions,
 };
-use local_macros::enum_unwrapped;
 
 pub struct ExtendedConfigCacheEntry {
     pub extended_result: Rc<Node /*TsConfigSourceFile*/>,
-    pub extended_config: Option<ParsedTsconfig>,
+    pub extended_config: Option<Rc<ParsedTsconfig>>,
 }
 
 pub(crate) fn get_extended_config<TSourceFile: Borrow<Node>, THost: ParseConfigHost>(
@@ -28,9 +27,79 @@ pub(crate) fn get_extended_config<TSourceFile: Borrow<Node>, THost: ParseConfigH
     host: &THost,
     resolution_stack: &[&str],
     errors: &mut Vec<Rc<Diagnostic>>,
-    extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
-) -> Option<ParsedTsconfig> {
-    unimplemented!()
+    extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
+) -> Option<Rc<ParsedTsconfig>> {
+    let path = if host.use_case_sensitive_file_names() {
+        extended_config_path.to_owned()
+    } else {
+        to_file_name_lower_case(extended_config_path)
+    };
+    let mut extended_result: Option<Rc<Node /*TsConfigSourceFile*/>> = None;
+    let mut extended_config: Option<Rc<ParsedTsconfig>> = None;
+    if let Some(extended_config_cache) = extended_config_cache.as_ref() {
+        let value = extended_config_cache.get(&path);
+        if let Some(value) = value {
+            extended_result = Some(value.extended_result.clone());
+            extended_config = value.extended_config.clone();
+        }
+    }
+    if extended_result.is_none() {
+        extended_result = Some(read_json_config_file(extended_config_path, |path| {
+            host.read_file(path)
+        }));
+        if extended_result
+            .as_ref()
+            .unwrap()
+            .as_source_file()
+            .parse_diagnostics()
+            .is_empty()
+        {
+            extended_config = Some(Rc::new(parse_config(
+                None,
+                extended_result.as_deref(),
+                host,
+                &get_directory_path(extended_config_path),
+                Some(&get_base_file_name(extended_config_path, None, None)),
+                resolution_stack,
+                errors,
+                extended_config_cache,
+            )));
+        }
+        if let Some(extended_config_cache) = extended_config_cache {
+            extended_config_cache.insert(
+                path,
+                ExtendedConfigCacheEntry {
+                    extended_result: extended_result.clone().unwrap(),
+                    extended_config: extended_config.clone(),
+                },
+            );
+        }
+    }
+    let extended_result = extended_result.unwrap();
+    let extended_result_as_source_file = extended_result.as_source_file();
+    if let Some(source_file) = source_file {
+        let source_file = source_file.borrow();
+        let mut source_file_extended_source_files =
+            source_file.as_source_file().maybe_extended_source_files();
+        *source_file_extended_source_files =
+            Some(vec![extended_result_as_source_file.file_name().clone()]);
+        if let Some(extended_result_extended_source_files) =
+            &*extended_result_as_source_file.maybe_extended_source_files()
+        {
+            source_file_extended_source_files
+                .as_mut()
+                .unwrap()
+                .append(&mut extended_result_extended_source_files.clone());
+        }
+    }
+    if !extended_result_as_source_file
+        .parse_diagnostics()
+        .is_empty()
+    {
+        errors.append(&mut extended_result_as_source_file.parse_diagnostics().clone());
+        return None;
+    }
+    extended_config
 }
 
 pub(super) fn convert_compile_on_save_option_from_json(

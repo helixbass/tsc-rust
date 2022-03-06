@@ -119,7 +119,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
     config_file_name: Option<&str>,
     resolution_stack: &[&str],
     errors: &mut Vec<Rc<Diagnostic>>,
-    extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
+    extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
 ) -> ParsedTsconfig {
     let base_path = normalize_slashes(base_path);
     let resolved_path =
@@ -171,7 +171,7 @@ pub(super) fn parse_config<TSourceFile: Borrow<Node> + Clone, THost: ParseConfig
     }
     if let Some(own_config_extended_config_path) = own_config.extended_config_path.as_ref() {
         let resolution_stack = [resolution_stack, &*vec![&*resolved_path]].concat();
-        let extended_config: Option<ParsedTsconfig> = get_extended_config(
+        let extended_config: Option<Rc<ParsedTsconfig>> = get_extended_config(
             source_file,
             own_config_extended_config_path,
             host,

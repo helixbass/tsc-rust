@@ -161,7 +161,7 @@ pub(super) fn parse_json_config_file_content_worker<
     config_file_name: Option<&str>,
     resolution_stack: Option<&[Path]>,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
-    extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
+    mut extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
 ) -> ParsedCommandLine {
     let existing_options = existing_options.unwrap_or_else(|| Rc::new(Default::default()));
     let resolution_stack_default = vec![];
@@ -185,7 +185,7 @@ pub(super) fn parse_json_config_file_content_worker<
             .map(|path| &**path)
             .collect::<Vec<_>>(),
         &mut errors,
-        extended_config_cache,
+        &mut extended_config_cache,
     );
     let raw = parsed_config.raw.as_ref();
     let mut options: CompilerOptions = extend_compiler_options(
