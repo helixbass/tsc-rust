@@ -1034,6 +1034,26 @@ lazy_static! {
     pub static ref supported_ts_extensions_flat: Vec<Extension> = flatten(&supported_ts_extensions);
 }
 lazy_static! {
+    pub static ref supported_ts_extensions_with_json: Vec<Vec<Extension>> = {
+        let mut ret = supported_ts_extensions.clone();
+        ret.append(&mut vec![vec![Extension::Json]]);
+        ret
+    };
+}
+lazy_static! {
+    pub(super) static ref supported_ts_extensions_for_extract_extension: Vec<Extension> = vec![
+        Extension::Dts,
+        Extension::Dcts,
+        Extension::Dmts,
+        Extension::Cts,
+        Extension::Mts,
+        Extension::Ts,
+        Extension::Tsx,
+        Extension::Cts,
+        Extension::Mts,
+    ];
+}
+lazy_static! {
     pub static ref supported_js_extensions: Vec<Vec<Extension>> = vec![
         vec![Extension::Js, Extension::Jsx],
         vec![Extension::Mjs],

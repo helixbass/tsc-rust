@@ -3,24 +3,45 @@
 use regex::{Captures, Regex};
 use std::cell::RefCell;
 use std::convert::TryInto;
+use std::ptr;
 use std::rc::Rc;
 
+use super::supported_ts_extensions_for_extract_extension;
 use crate::{
-    get_element_or_property_access_name, is_bindable_static_access_expression,
-    is_entity_name_expression, is_identifier, is_property_access_expression,
-    walk_up_parenthesized_expressions, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode,
-    BaseSymbol, BaseType, CheckFlags, CompilerOptions, Debug_, Diagnostic, DiagnosticInterface,
-    DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    DiagnosticWithDetachedLocation, DiagnosticWithLocation, MapLike, Node, NodeFlags,
-    NodeInterface, ObjectFlags, PrefixUnaryExpression, Signature, SignatureFlags, SourceFileLike,
-    Symbol, SymbolFlags, SyntaxKind, TransformFlags, TransientSymbolInterface, Type, TypeFlags,
-    TypeInterface, __String,
+    entity_name_to_string, file_extension_is, find, get_element_or_property_access_name,
+    get_property_name_for_property_name_node, has_syntactic_modifier,
+    is_bindable_static_access_expression, is_element_access_expression, is_entity_name_expression,
+    is_identifier, is_jsdoc_member_name, is_property_access_expression, is_property_name,
+    is_qualified_name, unescape_leading_underscores, walk_up_parenthesized_expressions,
+    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseType, CheckFlags,
+    CompilerOptions, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    DiagnosticWithDetachedLocation, DiagnosticWithLocation, Extension, MapLike, ModifierFlags,
+    Node, NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, Signature, SignatureFlags,
+    SourceFileLike, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransformFlags,
+    TransientSymbolInterface, Type, TypeFlags, TypeInterface, __String,
 };
 
 pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
-    match node {
-        Node::Identifier(_) => node.node_wrapper(),
-        _ => unimplemented!(),
+    match node.kind() {
+        SyntaxKind::Identifier => node.node_wrapper(),
+        SyntaxKind::QualifiedName => {
+            let mut node = node.node_wrapper();
+            while {
+                node = node.as_qualified_name().left.clone();
+                node.kind() != SyntaxKind::Identifier
+            } {}
+            node
+        }
+        SyntaxKind::PropertyAccessExpression => {
+            let mut node = node.node_wrapper();
+            while {
+                node = node.as_property_access_expression().expression.clone();
+                node.kind() != SyntaxKind::Identifier
+            } {}
+            node
+        }
+        _ => panic!("Unexpected syntax kind"),
     }
 }
 
@@ -42,8 +63,48 @@ pub fn is_property_access_entity_name_expression(node: &Node) -> bool {
         return false;
     }
     let node_as_property_access_expression = node.as_property_access_expression();
-    is_identifier(&*node_as_property_access_expression.name)
-        && is_entity_name_expression(&*node_as_property_access_expression.expression)
+    is_identifier(&node_as_property_access_expression.name)
+        && is_entity_name_expression(&node_as_property_access_expression.expression)
+}
+
+pub fn try_get_property_access_or_identifier_to_string(
+    expr: &Node, /*Expression*/
+) -> Option<String> {
+    if is_property_access_expression(expr) {
+        let expr_as_property_access_expression = expr.as_property_access_expression();
+        let base_str = try_get_property_access_or_identifier_to_string(
+            &expr_as_property_access_expression.expression,
+        );
+        if let Some(base_str) = base_str {
+            return Some(format!(
+                "{}.{}",
+                base_str,
+                entity_name_to_string(&expr_as_property_access_expression.name)
+            ));
+        }
+    } else if is_element_access_expression(expr) {
+        let expr_as_element_access_expression = expr.as_element_access_expression();
+        let base_str = try_get_property_access_or_identifier_to_string(
+            &expr_as_element_access_expression.expression,
+        );
+        if let Some(base_str) = base_str {
+            if is_property_name(&expr_as_element_access_expression.argument_expression) {
+                return Some(format!(
+                    "{}.{}",
+                    base_str,
+                    &*get_property_name_for_property_name_node(
+                        &expr_as_element_access_expression.argument_expression
+                    )
+                    .unwrap()
+                ));
+            }
+        }
+    } else if is_identifier(expr) {
+        return Some(unescape_leading_underscores(
+            &expr.as_identifier().escaped_text,
+        ));
+    }
+    None
 }
 
 pub fn is_prototype_access(node: &Node) -> bool {
@@ -54,12 +115,68 @@ pub fn is_prototype_access(node: &Node) -> bool {
         }
 }
 
+pub fn is_right_side_of_qualified_name_or_property_access(node: &Node) -> bool {
+    node.parent().kind() == SyntaxKind::QualifiedName
+        && ptr::eq(&*node.parent().as_qualified_name().right, node)
+        || node.parent().kind() == SyntaxKind::PropertyAccessExpression
+            && ptr::eq(&*node.parent().as_property_access_expression().name, node)
+}
+
+pub fn is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name(
+    node: &Node,
+) -> bool {
+    is_qualified_name(&node.parent()) && ptr::eq(&*node.parent().as_qualified_name().right, node)
+        || is_property_access_expression(&node.parent())
+            && ptr::eq(&*node.parent().as_property_access_expression().name, node)
+        || is_jsdoc_member_name(&node.parent())
+            && ptr::eq(&*node.parent().as_jsdoc_member_name().right, node)
+}
+
 pub fn is_empty_object_literal(expression: &Node) -> bool {
     expression.kind() == SyntaxKind::ObjectLiteralExpression
         && expression
             .as_object_literal_expression()
             .properties
             .is_empty()
+}
+
+pub fn is_empty_array_literal(expression: &Node) -> bool {
+    expression.kind() == SyntaxKind::ArrayLiteralExpression
+        && expression.as_array_literal_expression().elements.is_empty()
+}
+
+pub fn get_local_symbol_for_export_default(symbol: &Symbol) -> Option<Rc<Symbol>> {
+    if !is_export_default_symbol(symbol) || symbol.maybe_declarations().is_none() {
+        return None;
+    }
+    for decl in symbol.maybe_declarations().as_ref().unwrap() {
+        if let Some(decl_local_symbol) = decl.maybe_local_symbol() {
+            return Some(decl_local_symbol);
+        }
+    }
+    None
+}
+
+fn is_export_default_symbol(symbol: &Symbol) -> bool {
+    /*symbol &&*/
+    match symbol
+        .maybe_declarations()
+        .as_ref()
+        .filter(|declarations| !declarations.is_empty())
+    {
+        None => false,
+        Some(symbol_declarations) => {
+            has_syntactic_modifier(&symbol_declarations[0], ModifierFlags::Default)
+        }
+    }
+}
+
+pub fn try_extract_extension(file_name: &str) -> Option<Extension> {
+    find(
+        &supported_ts_extensions_for_extract_extension,
+        |extension, _| file_extension_is(file_name, extension.to_str()),
+    )
+    .copied()
 }
 
 pub fn is_watch_set(options: &CompilerOptions) -> bool {
