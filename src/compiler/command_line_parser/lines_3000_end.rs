@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -12,11 +13,14 @@ use super::{
     ParsedTsconfig,
 };
 use crate::{
-    create_compiler_diagnostic, filter, get_base_file_name, get_directory_path,
-    get_normalized_absolute_path, map, normalize_slashes, set_type_acquisition_value,
-    set_watch_option_value, to_file_name_lower_case, CommandLineOption, CommandLineOptionInterface,
-    CommandLineOptionType, CompilerOptions, CompilerOptionsValue, ConfigFileSpecs, Diagnostic,
-    Diagnostics, DidYouMeanOptionsDiagnostics, FileExtensionInfo, Node, ParseConfigHost,
+    create_compiler_diagnostic, create_get_canonical_file_name, ends_with, file_extension_is,
+    filter, find_index, flatten, get_base_file_name, get_directory_path,
+    get_normalized_absolute_path, get_regex_from_pattern, get_regular_expressions_for_wildcards,
+    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, map,
+    normalize_path, normalize_slashes, set_type_acquisition_value, set_watch_option_value,
+    to_file_name_lower_case, CommandLineOption, CommandLineOptionInterface, CommandLineOptionType,
+    CompilerOptions, CompilerOptionsValue, ConfigFileSpecs, Diagnostic, Diagnostics,
+    DidYouMeanOptionsDiagnostics, Extension, FileExtensionInfo, Node, ParseConfigHost,
     TypeAcquisition, WatchDirectoryFlags, WatchOptions,
 };
 
@@ -630,6 +634,16 @@ pub(super) fn convert_json_option_of_list_type(
     ))
 }
 
+lazy_static! {
+    pub(super) static ref invalid_trailing_recursion_pattern: Regex =
+        Regex::new(r#"(^|/)\*\*/?$"#).unwrap();
+}
+
+lazy_static! {
+    pub(super) static ref wildcard_directory_pattern: Regex =
+        Regex::new(r#"^([^*?]*)/[^/]*[*?]"#).unwrap();
+}
+
 pub(crate) fn get_file_names_from_config_specs<THost: ParseConfigHost>(
     config_file_specs: &ConfigFileSpecs,
     base_path: &str,
@@ -637,7 +651,121 @@ pub(crate) fn get_file_names_from_config_specs<THost: ParseConfigHost>(
     host: &THost,
     extra_file_extensions: Option<&[FileExtensionInfo]>,
 ) -> Vec<String> {
-    unimplemented!()
+    let base_path = normalize_path(base_path);
+
+    let key_mapper = create_get_canonical_file_name(host.use_case_sensitive_file_names());
+
+    let mut literal_file_map: HashMap<String, String> = HashMap::new();
+
+    let mut wildcard_file_map: HashMap<String, String> = HashMap::new();
+
+    let mut wild_card_json_file_map: HashMap<String, String> = HashMap::new();
+    let validated_files_spec = config_file_specs.validated_files_spec.as_ref();
+    let validated_include_specs = config_file_specs.validated_include_specs.as_deref();
+    let validated_exclude_specs = config_file_specs.validated_exclude_specs.as_deref();
+
+    let supported_extensions = get_supported_extensions(Some(options), extra_file_extensions);
+    let supported_extensions_with_json_if_resolve_json_module =
+        get_supported_extensions_with_json_if_resolve_json_module(
+            Some(options),
+            &supported_extensions,
+        );
+
+    if let Some(validated_files_spec) = validated_files_spec {
+        for file_name in validated_files_spec {
+            let file = get_normalized_absolute_path(file_name, Some(&base_path));
+            literal_file_map.insert(key_mapper(&file), file);
+        }
+    }
+
+    let mut json_only_include_regexes: Option<Vec<Regex>> = None;
+    if let Some(validated_include_specs) = validated_include_specs {
+        if !validated_include_specs.is_empty() {
+            for file in host.read_directory(
+                &base_path,
+                &flatten(&supported_extensions_with_json_if_resolve_json_module)
+                    .iter()
+                    .map(|string| &**string)
+                    .collect::<Vec<_>>(),
+                validated_exclude_specs,
+                validated_include_specs,
+                None,
+            ) {
+                if file_extension_is(&file, Extension::Json.to_str()) {
+                    if json_only_include_regexes.is_none() {
+                        let includes = validated_include_specs
+                            .iter()
+                            .filter(|s| ends_with(s, Extension::Json.to_str()))
+                            .collect::<Vec<_>>();
+                        let include_file_patterns = map(
+                            get_regular_expressions_for_wildcards(
+                                Some(&includes),
+                                &base_path,
+                                "files",
+                            ),
+                            |pattern, _| format!("^{}$", pattern),
+                        );
+                        json_only_include_regexes =
+                            Some(if let Some(include_file_patterns) = include_file_patterns {
+                                include_file_patterns
+                                    .iter()
+                                    .map(|pattern| {
+                                        get_regex_from_pattern(
+                                            pattern,
+                                            host.use_case_sensitive_file_names(),
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                            } else {
+                                vec![]
+                            });
+                    }
+                    let include_index = find_index(
+                        json_only_include_regexes.as_ref().unwrap(),
+                        |re, _| re.is_match(&file),
+                        None,
+                    );
+                    if include_index.is_some() {
+                        let key = key_mapper(&file);
+                        if !literal_file_map.contains_key(&key)
+                            && !wild_card_json_file_map.contains_key(&key)
+                        {
+                            wild_card_json_file_map.insert(key, file.clone());
+                        }
+                    }
+                    continue;
+                }
+                if has_file_with_higher_priority_extension(
+                    &file,
+                    &literal_file_map,
+                    &wildcard_file_map,
+                    &supported_extensions,
+                    key_mapper,
+                ) {
+                    continue;
+                }
+
+                remove_wildcard_files_with_lower_priority_extension(
+                    &file,
+                    &mut wildcard_file_map,
+                    &supported_extensions,
+                    key_mapper,
+                );
+
+                let key = key_mapper(&file);
+                if !literal_file_map.contains_key(&key) && !wildcard_file_map.contains_key(&key) {
+                    wildcard_file_map.insert(key, file);
+                }
+            }
+        }
+    }
+
+    let mut literal_files: Vec<String> = literal_file_map.into_values().collect::<Vec<_>>();
+    let mut wildcard_files = wildcard_file_map.into_values().collect::<Vec<_>>();
+
+    literal_files.append(&mut wildcard_files);
+    literal_files.append(&mut wild_card_json_file_map.into_values().collect::<Vec<_>>());
+    literal_files
 }
 
 pub(super) fn validate_specs<TJsonSourceFile: Borrow<Node>>(
@@ -655,6 +783,25 @@ pub(super) fn get_wildcard_directories(
     path: &str,
     use_case_sensitive_file_names: bool,
 ) -> HashMap<String, WatchDirectoryFlags> {
+    unimplemented!()
+}
+
+pub(super) fn has_file_with_higher_priority_extension(
+    file: &str,
+    literal_files: &HashMap<String, String>,
+    wildcard_files: &HashMap<String, String>,
+    extensions: &[Vec<String>],
+    key_mapper: fn(&str) -> String,
+) -> bool {
+    unimplemented!()
+}
+
+pub(super) fn remove_wildcard_files_with_lower_priority_extension(
+    file: &str,
+    wildcard_files: &mut HashMap<String, String>,
+    extensions: &[Vec<String>],
+    key_mapper: fn(&str) -> String,
+) {
     unimplemented!()
 }
 

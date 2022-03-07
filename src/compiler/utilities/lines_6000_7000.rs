@@ -14,8 +14,9 @@ use crate::{
     CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison, CompilerOptions,
     CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Extension, JsxEmit, LanguageVariant, MapLike,
-    ModuleKind, Pattern, PluginImport, ScriptKind, ScriptTarget, TypeAcquisition, WatchOptions,
+    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, JsxEmit, LanguageVariant,
+    MapLike, ModuleKind, Pattern, PluginImport, ScriptKind, ScriptTarget, TypeAcquisition,
+    WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -638,6 +639,22 @@ pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {
 
 pub struct SymlinkCache {}
 
+pub fn get_regular_expression_for_wildcard(
+    specs: Option<&[String]>,
+    base_path: &str,
+    usage: &str, /*"files" | "directories" | "exclude"*/
+) -> Option<String> {
+    unimplemented!()
+}
+
+pub fn get_regular_expressions_for_wildcards<TSpec: AsRef<str>>(
+    specs: Option<&[TSpec]>,
+    base_path: &str,
+    usage: &str, /*"files" | "directories" | "exclude"*/
+) -> Option<Vec<String>> {
+    unimplemented!()
+}
+
 pub struct FileMatcherPatterns {
     pub include_file_patterns: Option<Vec<String>>,
     pub include_file_pattern: Option<String>,
@@ -737,6 +754,20 @@ lazy_static! {
 }
 lazy_static! {
     pub static ref supported_js_extensions_flat: Vec<Extension> = flatten(&supported_js_extensions);
+}
+
+pub fn get_supported_extensions(
+    options: Option<&CompilerOptions>,
+    extra_file_extensions: Option<&[FileExtensionInfo]>,
+) -> Vec<Vec<String>> {
+    unimplemented!()
+}
+
+pub fn get_supported_extensions_with_json_if_resolve_json_module(
+    options: Option<&CompilerOptions>,
+    supported_extensions: &[Vec<String>],
+) -> Vec<Vec<String>> {
+    unimplemented!()
 }
 
 pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
