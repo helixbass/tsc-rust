@@ -11,7 +11,7 @@ use super::{
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol,
     SymbolTable, TypeChecker,
 };
-use crate::{ModeAwareCache, PragmaContext, __String};
+use crate::{ConfigFileSpecs, ModeAwareCache, PragmaContext, __String};
 use local_macros::ast_type;
 
 pub type SourceTextAsChars = Vec<char>;
@@ -75,8 +75,11 @@ pub struct SourceFile {
     path: RefCell<Option<Path>>,
     text: RefCell<String>,
     text_as_chars: RefCell<SourceTextAsChars>,
+    resolved_path: RefCell<Option<Path>>,
+    original_file_name: RefCell<Option<String>>,
 
     amd_dependencies: RefCell<Option<Vec<AmdDependency>>>,
+    module_name: RefCell<Option<String>>,
     referenced_files: RefCell<Option<Vec<FileReference>>>,
     type_reference_directives: RefCell<Option<Vec<FileReference>>>,
     lib_reference_directives: RefCell<Option<Vec<FileReference>>>,
@@ -115,6 +118,10 @@ pub struct SourceFile {
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
 
     end_flow_node: RefCell<Option<Rc<FlowNode>>>,
+
+    // TsConfigSourceFile
+    extended_source_files: RefCell<Option<Vec<String>>>,
+    config_file_specs: RefCell<Option<Rc<ConfigFileSpecs>>>,
 }
 
 impl SourceFile {
@@ -140,7 +147,10 @@ impl SourceFile {
             path: RefCell::new(None),
             text: RefCell::new(text),
             text_as_chars: RefCell::new(text_as_chars),
+            resolved_path: RefCell::new(None),
+            original_file_name: RefCell::new(None),
             amd_dependencies: RefCell::new(None),
+            module_name: RefCell::new(None),
             referenced_files: RefCell::new(None),
             type_reference_directives: RefCell::new(None),
             lib_reference_directives: RefCell::new(None),
@@ -168,6 +178,8 @@ impl SourceFile {
             pattern_ambient_modules: RefCell::new(None),
             pragmas: RefCell::new(None),
             end_flow_node: RefCell::new(None),
+            extended_source_files: RefCell::new(None),
+            config_file_specs: RefCell::new(None),
         }
     }
 
@@ -194,6 +206,22 @@ impl SourceFile {
     pub fn set_text(&self, text: String) {
         *self.text_as_chars.borrow_mut() = text.chars().collect();
         *self.text.borrow_mut() = text;
+    }
+
+    pub fn maybe_resolved_path(&self) -> Ref<Option<Path>> {
+        self.resolved_path.borrow()
+    }
+
+    pub fn set_resolved_path(&self, resolved_path: Option<Path>) {
+        *self.resolved_path.borrow_mut() = resolved_path;
+    }
+
+    pub fn maybe_original_file_name(&self) -> Ref<Option<String>> {
+        self.original_file_name.borrow()
+    }
+
+    pub fn set_original_file_name(&self, original_file_name: Option<String>) {
+        *self.original_file_name.borrow_mut() = original_file_name;
     }
 
     pub fn has_no_default_lib(&self) -> bool {
@@ -228,6 +256,10 @@ impl SourceFile {
 
     pub fn set_amd_dependencies(&self, amd_dependencies: Vec<AmdDependency>) {
         *self.amd_dependencies.borrow_mut() = Some(amd_dependencies);
+    }
+
+    pub fn maybe_module_name(&self) -> RefMut<Option<String>> {
+        self.module_name.borrow_mut()
     }
 
     pub fn referenced_files(&self) -> Ref<Vec<FileReference>> {
@@ -416,6 +448,18 @@ impl SourceFile {
 
     pub fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>) {
         *self.end_flow_node.borrow_mut() = end_flow_node;
+    }
+
+    pub fn maybe_extended_source_files(&self) -> RefMut<Option<Vec<String>>> {
+        self.extended_source_files.borrow_mut()
+    }
+
+    pub fn maybe_config_file_specs(&self) -> Ref<Option<Rc<ConfigFileSpecs>>> {
+        self.config_file_specs.borrow()
+    }
+
+    pub fn set_config_file_specs(&self, config_file_specs: Option<Rc<ConfigFileSpecs>>) {
+        *self.config_file_specs.borrow_mut() = config_file_specs;
     }
 
     pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
@@ -665,7 +709,34 @@ pub trait ScriptReferenceHost {
     fn get_current_directory(&self) -> String;
 }
 
-pub type WriteFileCallback = ();
+pub trait ParseConfigHost {
+    fn use_case_sensitive_file_names(&self) -> bool;
+
+    fn read_directory(
+        &self,
+        root_dir: &str,
+        extensions: &[&str],
+        excludes: Option<&[String]>,
+        includes: &[String],
+        depth: Option<usize>,
+    ) -> Vec<String>;
+
+    fn file_exists(&self, path: &str) -> bool;
+
+    fn read_file(&self, path: &str) -> Option<String>;
+    fn trace(&self, s: &str) {}
+}
+
+pub trait WriteFileCallback {
+    fn call(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+        on_error: Option<&dyn FnMut(String)>,
+        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+    );
+}
 
 pub trait CancellationToken {
     fn is_cancellation_requested(&self) -> bool;

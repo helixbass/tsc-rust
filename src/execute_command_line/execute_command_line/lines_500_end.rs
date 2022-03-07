@@ -72,7 +72,7 @@ pub fn execute_command_line<
                     system.clone(),
                     &mut cb,
                     build_options.clone(),
-                    watch_options.as_ref(),
+                    watch_options.as_deref(),
                     &projects,
                     errors.clone(),
                 )
@@ -83,7 +83,7 @@ pub fn execute_command_line<
                 system,
                 &mut cb,
                 build_options.clone(),
-                watch_options.as_ref(),
+                watch_options.as_deref(),
                 &projects,
                 errors,
             );

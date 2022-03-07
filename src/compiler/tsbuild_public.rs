@@ -7,15 +7,31 @@ use crate::{
     WriteFileCallback,
 };
 
+#[derive(Debug, Default)]
 pub struct BuildOptions {
+    pub dry: Option<bool>,
+    pub force: Option<bool>,
+    pub verbose: Option<bool>,
+
     pub(crate) clean: Option<bool>,
     pub(crate) watch: Option<bool>,
     pub(crate) help: Option<bool>,
 
+    pub(crate) preserve_watch_output: Option<bool>,
+    pub(crate) list_emitted_files: Option<bool>,
+    pub(crate) list_files: Option<bool>,
+    pub(crate) explain_files: Option<bool>,
     pub(crate) pretty: Option<bool>,
+    pub incremental: Option<bool>,
+    pub assume_changes_only_affect_direct_dependencies: Option<bool>,
 
+    pub trace_resolution: Option<bool>,
+    pub(crate) diagnostics: Option<bool>,
+    pub(crate) extended_diagnostics: Option<bool>,
     pub(crate) locale: Option<String>,
     pub(crate) generate_cpu_profile: Option<String>,
+    pub(crate) generate_trace: Option<String>,
+    // [option: string]: CompilerOptionsValue | undefined;
 }
 
 pub trait ReportEmitErrorSummary {
@@ -47,7 +63,7 @@ impl<TBuilderProgram: BuilderProgram> SolutionBuilder<TBuilderProgram> {
         &self,
         project: Option<&str>,
         cancellation_token: Option<Rc<dyn CancellationToken>>,
-        write_file: Option<WriteFileCallback>,
+        write_file: Option<&dyn WriteFileCallback>,
         get_custom_transformers: Option<TGetCustomTransformers>,
     ) -> ExitStatus {
         unimplemented!()

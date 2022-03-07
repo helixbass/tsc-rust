@@ -97,11 +97,11 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.transform_flags()
                     }
 
-                    fn set_transform_flags(&mut self, flags: crate::TransformFlags) {
+                    fn set_transform_flags(&self, flags: crate::TransformFlags) {
                         self.#first_field_name.set_transform_flags(flags)
                     }
 
-                    fn add_transform_flags(&mut self, flags: crate::TransformFlags) {
+                    fn add_transform_flags(&self, flags: crate::TransformFlags) {
                         self.#first_field_name.add_transform_flags(flags)
                     }
 
@@ -512,13 +512,13 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_transform_flags(&mut self, flags: crate::TransformFlags) {
+                    fn set_transform_flags(&self, flags: crate::TransformFlags) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_transform_flags(flags)),*
                         }
                     }
 
-                    fn add_transform_flags(&mut self, flags: crate::TransformFlags) {
+                    fn add_transform_flags(&self, flags: crate::TransformFlags) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.add_transform_flags(flags)),*
                         }
@@ -2287,8 +2287,24 @@ fn get_command_line_option_struct_interface_impl(
                         self.#first_field_name.affects_program_structure()
                     }
 
-                    fn transpile_option_value(&self) -> bool {
+                    fn transpile_option_value(&self) -> ::std::option::Option<::std::option::Option<bool>> {
                         self.#first_field_name.transpile_option_value()
+                    }
+
+                    fn maybe_extra_validation(
+                        &self,
+                    ) -> ::std::option::Option<
+                        fn(::std::option::Option<&serde_json::Value>) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                    > {
+                        self.#first_field_name.maybe_extra_validation()
+                    }
+
+                    fn maybe_extra_validation_compiler_options_value(
+                        &self,
+                    ) -> ::std::option::Option<
+                        fn(&crate::CompilerOptionsValue) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                    > {
+                        self.#first_field_name.maybe_extra_validation_compiler_options_value()
                     }
                 }
             }
@@ -2426,9 +2442,29 @@ fn get_command_line_option_enum_interface_impl(
                         }
                     }
 
-                    fn transpile_option_value(&self) -> bool {
+                    fn transpile_option_value(&self) -> ::std::option::Option<::std::option::Option<bool>> {
                         match self {
                             #(#command_line_option_type_name::#variant_names(nested) => nested.transpile_option_value()),*
+                        }
+                    }
+
+                    fn maybe_extra_validation(
+                        &self,
+                    ) -> ::std::option::Option<
+                        fn(::std::option::Option<&serde_json::Value>) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                    > {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_extra_validation()),*
+                        }
+                    }
+
+                    fn maybe_extra_validation_compiler_options_value(
+                        &self,
+                    ) -> ::std::option::Option<
+                        fn(&crate::CompilerOptionsValue) -> ::std::option::Option<(&'static crate::DiagnosticMessage, ::std::option::Option<Vec<String>>)>,
+                    > {
+                        match self {
+                            #(#command_line_option_type_name::#variant_names(nested) => nested.maybe_extra_validation_compiler_options_value()),*
                         }
                     }
                 }

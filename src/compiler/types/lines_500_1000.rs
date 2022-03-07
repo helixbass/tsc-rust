@@ -9,8 +9,8 @@ use super::{
     AssertClause, AssertEntry, AwaitExpression, BaseJSDocTag, BaseJSDocTypeLikeTag,
     BaseJSDocUnaryType, BigIntLiteral, BinaryExpression, BindingElement, Block, BreakStatement,
     Bundle, CallExpression, CallSignatureDeclaration, CaseBlock, CaseClause, CatchClause,
-    ClassDeclaration, ClassExpression, ClassStaticBlockDeclaration, CommaListExpression,
-    ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
+    ClassDeclaration, ClassExpression, ClassLikeDeclarationInterface, ClassStaticBlockDeclaration,
+    CommaListExpression, ComputedPropertyName, ConditionalExpression, ConditionalTypeNode,
     ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, ContinueStatement,
     DebuggerStatement, Decorator, DefaultClause, DeleteExpression, DoStatement,
     ElementAccessExpression, EmitNode, EmptyStatement, EnumDeclaration, EnumMember,
@@ -151,8 +151,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn flags(&self) -> NodeFlags;
     fn set_flags(&self, flags: NodeFlags);
     fn transform_flags(&self) -> TransformFlags;
-    fn set_transform_flags(&mut self, flags: TransformFlags);
-    fn add_transform_flags(&mut self, flags: TransformFlags);
+    fn set_transform_flags(&self, flags: TransformFlags);
+    fn add_transform_flags(&self, flags: TransformFlags);
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>>;
     fn set_decorators(&self, decorators: Option<NodeArray>);
     fn maybe_modifiers(&self) -> Ref<Option<NodeArray>>;
@@ -492,6 +492,7 @@ impl Node {
     pub fn as_signature_declaration(&self) -> &dyn SignatureDeclarationInterface {
         match self {
             Node::FunctionDeclaration(node) => node,
+            Node::JSDocSignature(node) => node,
             _ => panic!("Expected signature declaration"),
         }
     }
@@ -654,6 +655,14 @@ impl Node {
             Node::PropertySignature(node) => node,
             Node::PropertyDeclaration(node) => node,
             _ => panic!("Expected has question token"),
+        }
+    }
+
+    pub fn as_class_like_declaration(&self) -> &dyn ClassLikeDeclarationInterface {
+        match self {
+            Node::ClassExpression(node) => node,
+            Node::ClassDeclaration(node) => node,
+            _ => panic!("Expected class like declaration"),
         }
     }
 
@@ -1124,6 +1133,14 @@ impl Node {
     pub fn as_conditional_type_node(&self) -> &ConditionalTypeNode {
         enum_unwrapped!(self, [Node, ConditionalTypeNode])
     }
+
+    pub fn as_constructor_declaration(&self) -> &ConstructorDeclaration {
+        enum_unwrapped!(self, [Node, ConstructorDeclaration])
+    }
+
+    pub fn as_set_accessor_declaration(&self) -> &SetAccessorDeclaration {
+        enum_unwrapped!(self, [Node, SetAccessorDeclaration])
+    }
 }
 
 #[derive(Debug)]
@@ -1132,7 +1149,7 @@ pub struct BaseNode {
     pub kind: SyntaxKind,
     flags: Cell<NodeFlags>,
     modifier_flags_cache: Cell<ModifierFlags>,
-    transform_flags: TransformFlags,
+    transform_flags: Cell<TransformFlags>,
     pub decorators: RefCell<Option<NodeArray /*<Decorator>*/>>,
     pub modifiers: RefCell<Option<ModifiersArray>>,
     pub id: Cell<Option<NodeId>>,
@@ -1164,7 +1181,7 @@ impl BaseNode {
             kind,
             flags: Cell::new(flags),
             modifier_flags_cache: Cell::new(ModifierFlags::None),
-            transform_flags,
+            transform_flags: Cell::new(transform_flags),
             decorators: RefCell::new(None),
             modifiers: RefCell::new(None),
             id: Cell::new(None),
@@ -1220,15 +1237,15 @@ impl NodeInterface for BaseNode {
     }
 
     fn transform_flags(&self) -> TransformFlags {
-        self.transform_flags
+        self.transform_flags.get()
     }
 
-    fn set_transform_flags(&mut self, flags: TransformFlags) {
-        self.transform_flags = flags;
+    fn set_transform_flags(&self, flags: TransformFlags) {
+        self.transform_flags.set(flags);
     }
 
-    fn add_transform_flags(&mut self, flags: TransformFlags) {
-        self.transform_flags |= flags;
+    fn add_transform_flags(&self, flags: TransformFlags) {
+        self.transform_flags.set(self.transform_flags.get() | flags);
     }
 
     fn maybe_decorators(&self) -> Ref<Option<NodeArray>> {

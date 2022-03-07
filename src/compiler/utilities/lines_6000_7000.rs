@@ -1,17 +1,22 @@
 #![allow(non_upper_case_globals)]
 
+use regex::Regex;
 use std::borrow::Cow;
 use std::cmp;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::rc::Rc;
 
 use crate::{
-    compare_strings_case_sensitive, compare_strings_case_sensitive_maybe, compare_values, flatten,
-    for_each, format_string_from_args, get_locale_specific_message, index_of, CommandLineOption,
-    CommandLineOptionInterface, Comparison, CompilerOptions, CompilerOptionsValue, Debug_,
-    Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    Extension, JsxEmit, LanguageVariant, ModuleKind, Pattern, ScriptKind, ScriptTarget,
+    combine_paths, compare_strings_case_sensitive, compare_strings_case_sensitive_maybe,
+    compare_values, flatten, for_each, format_string_from_args, get_locale_specific_message,
+    index_of, normalize_path, CommandLineOption, CommandLineOptionInterface,
+    CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison, CompilerOptions,
+    CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, JsxEmit, LanguageVariant,
+    MapLike, ModuleKind, Pattern, PluginImport, ScriptKind, ScriptTarget, TypeAcquisition,
+    WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -217,6 +222,174 @@ pub fn unused_label_is_error(options: &CompilerOptions) -> bool {
     matches!(options.allow_unused_labels, Some(false))
 }
 
+fn json_value_to_bool(value: Option<serde_json::Value>) -> Option<bool> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::Bool(value) => Some(value),
+        _ => panic!("Expected bool"),
+    })
+}
+
+fn json_value_to_string(value: Option<serde_json::Value>) -> Option<String> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::String(value) => Some(value),
+        _ => panic!("Expected string"),
+    })
+}
+
+fn json_value_to_map_value<TReturn, TCallback: Fn(&CommandLineOptionMapTypeValue) -> TReturn>(
+    value: Option<serde_json::Value>,
+    option: &CommandLineOption,
+    callback: TCallback,
+) -> Option<TReturn> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::String(value) => match option.type_() {
+            CommandLineOptionType::Map(map) => map.get(&&*value).map(callback),
+            _ => panic!("Expected map"),
+        },
+        _ => panic!("Expected string"),
+    })
+}
+
+fn json_value_to_vec_string(value: Option<serde_json::Value>) -> Option<Vec<String>> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::Array(value) => Some(
+            value
+                .into_iter()
+                .map(|item| match item {
+                    serde_json::Value::String(item) => item,
+                    _ => panic!("Expected string"),
+                })
+                .collect::<Vec<_>>(),
+        ),
+        _ => panic!("Expected array"),
+    })
+}
+
+fn json_value_to_usize(value: Option<serde_json::Value>) -> Option<usize> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::Number(value) => Some(
+            value
+                .as_u64()
+                .expect("Couldn't convert JSON number to u64")
+                .try_into()
+                .expect("Couldn't convert u64 to usize"),
+        ),
+        _ => panic!("Expected number"),
+    })
+}
+
+fn json_value_to_map_like_vec_string(
+    value: Option<serde_json::Value>,
+) -> Option<MapLike<Vec<String>>> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::Object(value) => Some({
+            let mut map: HashMap<String, Vec<String>> = HashMap::new();
+            for (key, map_value) in value {
+                map.insert(
+                    key,
+                    match map_value {
+                        serde_json::Value::Array(map_value) => map_value
+                            .into_iter()
+                            .map(|item| match item {
+                                serde_json::Value::String(item) => item,
+                                _ => panic!("Expected string"),
+                            })
+                            .collect::<Vec<_>>(),
+                        _ => panic!("Expected array"),
+                    },
+                );
+            }
+            map
+        }),
+        _ => panic!("Expected object"),
+    })
+}
+
+fn json_value_to_vec_plugin_import(value: Option<serde_json::Value>) -> Option<Vec<PluginImport>> {
+    value.and_then(|value| match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::Array(value) => Some(
+            value
+                .into_iter()
+                .map(|item| match item {
+                    serde_json::Value::Object(item) => PluginImport {
+                        name: match item.get("name").expect("Expected name") {
+                            serde_json::Value::String(name) => name.clone(),
+                            _ => panic!("Expected string"),
+                        },
+                    },
+                    _ => panic!("Expected object"),
+                })
+                .collect::<Vec<_>>(),
+        ),
+        _ => panic!("Expected array"),
+    })
+}
+
+pub(crate) fn set_type_acquisition_value(
+    options: &mut TypeAcquisition,
+    option: &CommandLineOption,
+    value: CompilerOptionsValue,
+) {
+    match option.name() {
+        "enableAutoDiscovery" => {
+            options.enable_auto_discovery = value.into_option_bool();
+        }
+        "enable" => {
+            options.enable = value.into_option_bool();
+        }
+        "include" => {
+            options.include = value.into_option_vec_string();
+        }
+        "exclude" => {
+            options.exclude = value.into_option_vec_string();
+        }
+        "disableFilenameBasedTypeAcquisition" => {
+            options.disable_filename_based_type_acquisition = value.into_option_bool();
+        }
+        _ => panic!("Unknown type acquisition field: {:?}", option.name()),
+    }
+}
+
+// json_value_to_map_value(value, option, |map_value| match map_value {
+//     CommandLineOptionMapTypeValue::WatchDirectoryKind(map_value) => *map_value,
+//     _ => panic!("Expected WatchDirectoryKind"),
+// });
+
+pub(crate) fn set_watch_option_value(
+    options: &mut WatchOptions,
+    option: &CommandLineOption,
+    value: CompilerOptionsValue,
+) {
+    match option.name() {
+        "watchFile" => {
+            options.watch_file = value.into_option_watch_file_kind();
+        }
+        "watchDirectory" => {
+            options.watch_directory = value.into_option_watch_directory_kind();
+        }
+        "fallbackPolling" => {
+            options.fallback_polling = value.into_option_polling_watch_kind();
+        }
+        "synchronousWatchDirectory" => {
+            options.synchronous_watch_directory = value.into_option_bool();
+        }
+        "excludeDirectories" => {
+            options.exclude_directories = value.into_option_vec_string();
+        }
+        "excludeFiles" => {
+            options.exclude_files = value.into_option_vec_string();
+        }
+        _ => panic!("Unknown watch option: {:?}", option.name()),
+    }
+}
+
 fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> CompilerOptionsValue {
     match name {
         "all" => CompilerOptionsValue::Bool(options.all.clone()),
@@ -279,11 +452,11 @@ fn lookup_compiler_option_value(options: &CompilerOptions, name: &str) -> Compil
             CompilerOptionsValue::ImportsNotUsedAsValues(options.imports_not_used_as_values.clone())
         }
         "init" => CompilerOptionsValue::Bool(options.init.clone()),
-        "inlineSource_map" => CompilerOptionsValue::Bool(options.inline_source_map.clone()),
+        "inlineSourceMap" => CompilerOptionsValue::Bool(options.inline_source_map.clone()),
         "inlineSources" => CompilerOptionsValue::Bool(options.inline_sources.clone()),
         "isolatedModules" => CompilerOptionsValue::Bool(options.isolated_modules.clone()),
         "jsx" => CompilerOptionsValue::JsxEmit(options.jsx.clone()),
-        "keyofStrings_only" => CompilerOptionsValue::Bool(options.keyof_strings_only.clone()),
+        "keyofStringsOnly" => CompilerOptionsValue::Bool(options.keyof_strings_only.clone()),
         "lib" => CompilerOptionsValue::VecString(options.lib.clone()),
         "listEmittedFiles" => CompilerOptionsValue::Bool(options.list_emitted_files.clone()),
         "listFiles" => CompilerOptionsValue::Bool(options.list_files.clone()),
@@ -466,6 +639,60 @@ pub fn get_jsx_transform_enabled(options: &CompilerOptions) -> bool {
 
 pub struct SymlinkCache {}
 
+pub fn get_regular_expression_for_wildcard(
+    specs: Option<&[String]>,
+    base_path: &str,
+    usage: &str, /*"files" | "directories" | "exclude"*/
+) -> Option<String> {
+    unimplemented!()
+}
+
+pub fn get_regular_expressions_for_wildcards<TSpec: AsRef<str>>(
+    specs: Option<&[TSpec]>,
+    base_path: &str,
+    usage: &str, /*"files" | "directories" | "exclude"*/
+) -> Option<Vec<String>> {
+    unimplemented!()
+}
+
+pub fn is_implicit_glob(last_path_component: &str) -> bool {
+    unimplemented!()
+}
+
+pub struct FileMatcherPatterns {
+    pub include_file_patterns: Option<Vec<String>>,
+    pub include_file_pattern: Option<String>,
+    pub include_directory_pattern: Option<String>,
+    pub exclude_pattern: Option<String>,
+    pub base_paths: Vec<String>,
+}
+
+pub fn get_file_matcher_patterns(
+    path: &str,
+    excludes: Option<&[String]>,
+    includes: Option<&[String]>,
+    use_case_sensitive_file_names: bool,
+    current_directory: &str,
+) -> FileMatcherPatterns {
+    let path = normalize_path(path);
+    let current_directory = normalize_path(current_directory);
+    let absolute_path = combine_paths(&current_directory, &*vec![Some(&*path)]);
+
+    unimplemented!()
+    // FileMatcherPatterns {
+
+    // }
+}
+
+pub fn get_regex_from_pattern(pattern: &str, use_case_sensitive_file_names: bool) -> Regex {
+    Regex::new(&if use_case_sensitive_file_names {
+        pattern.to_owned()
+    } else {
+        format!("(?i){}", pattern)
+    })
+    .unwrap()
+}
+
 pub fn ensure_script_kind(file_name: &str, script_kind: Option<ScriptKind>) -> ScriptKind {
     script_kind.unwrap_or_else(|| {
         let script_kind = get_script_kind_from_file_name(file_name);
@@ -503,6 +730,26 @@ lazy_static! {
     pub static ref supported_ts_extensions_flat: Vec<Extension> = flatten(&supported_ts_extensions);
 }
 lazy_static! {
+    pub static ref supported_ts_extensions_with_json: Vec<Vec<Extension>> = {
+        let mut ret = supported_ts_extensions.clone();
+        ret.append(&mut vec![vec![Extension::Json]]);
+        ret
+    };
+}
+lazy_static! {
+    pub(super) static ref supported_ts_extensions_for_extract_extension: Vec<Extension> = vec![
+        Extension::Dts,
+        Extension::Dcts,
+        Extension::Dmts,
+        Extension::Cts,
+        Extension::Mts,
+        Extension::Ts,
+        Extension::Tsx,
+        Extension::Cts,
+        Extension::Mts,
+    ];
+}
+lazy_static! {
     pub static ref supported_js_extensions: Vec<Vec<Extension>> = vec![
         vec![Extension::Js, Extension::Jsx],
         vec![Extension::Mjs],
@@ -513,10 +760,29 @@ lazy_static! {
     pub static ref supported_js_extensions_flat: Vec<Extension> = flatten(&supported_js_extensions);
 }
 
+pub fn get_supported_extensions(
+    options: Option<&CompilerOptions>,
+    extra_file_extensions: Option<&[FileExtensionInfo]>,
+) -> Vec<Vec<String>> {
+    unimplemented!()
+}
+
+pub fn get_supported_extensions_with_json_if_resolve_json_module(
+    options: Option<&CompilerOptions>,
+    supported_extensions: &[Vec<String>],
+) -> Vec<Vec<String>> {
+    unimplemented!()
+}
+
 pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
     unimplemented!()
 }
 
+pub fn change_extension(path: &str, new_extension: &str) -> String {
+    unimplemented!()
+}
+
+#[derive(Debug)]
 pub enum StringOrPattern {
     String(String),
     Pattern(Pattern),

@@ -347,7 +347,7 @@ impl ParserType {
             || self.parse_initializer(),
         );
         self.parse_semicolon_after_property_name(&*name, type_.clone(), initializer.clone());
-        let node = self.factory.create_property_declaration(
+        let node: Rc<Node> = self.factory.create_property_declaration(
             self,
             decorators,
             modifiers,
@@ -356,7 +356,8 @@ impl ParserType {
             type_,
             initializer,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).into(), has_jsdoc)
+        self.finish_node_ref(&*node, pos, None);
+        self.with_jsdoc(node, has_jsdoc)
     }
 
     pub(super) fn parse_property_or_method_declaration(

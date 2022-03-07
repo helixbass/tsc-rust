@@ -8,7 +8,7 @@ use std::convert::{TryFrom, TryInto};
 use crate::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, compare_values, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, get_string_comparer,
-    identity_str_to_cow, last_or_undefined, some, starts_with, string_contains, CharacterCodes,
+    identity_str_to_owned, last_or_undefined, some, starts_with, string_contains, CharacterCodes,
     Comparison, Debug_, GetCanonicalFileName, Path,
 };
 
@@ -64,8 +64,12 @@ pub fn file_extension_is(path: &str, extension: &str) -> bool {
     path.len() > extension.len() && ends_with(path, extension)
 }
 
-pub fn file_extension_is_one_of(path: &str, extensions: &[&str]) -> bool {
+pub fn file_extension_is_one_of<TExtension: AsRef<str>>(
+    path: &str,
+    extensions: &[TExtension],
+) -> bool {
     for extension in extensions {
+        let extension = extension.as_ref();
         if file_extension_is(path, extension) {
             return true;
         }
@@ -473,7 +477,7 @@ pub fn get_normalized_absolute_path_without_root(
     ))
 }
 
-pub fn to_path<TGetCanonicalFileName: FnMut(&str) -> Cow<'_, str>>(
+pub fn to_path<TGetCanonicalFileName: FnMut(&str) -> String>(
     file_name: &str,
     base_path: Option<&str>,
     mut get_canonical_file_name: TGetCanonicalFileName,
@@ -483,7 +487,7 @@ pub fn to_path<TGetCanonicalFileName: FnMut(&str) -> Cow<'_, str>>(
     } else {
         get_normalized_absolute_path(file_name, base_path)
     };
-    Path::new(get_canonical_file_name(&non_canonicalized_path).into_owned())
+    Path::new(get_canonical_file_name(&non_canonicalized_path))
 }
 
 pub struct PathAndParts {
@@ -698,11 +702,11 @@ pub fn starts_with_directory(
     )
 }
 
-pub fn get_path_components_relative_to(
+pub fn get_path_components_relative_to<TGetCanonicalFileName: Fn(&str) -> String>(
     from: &str,
     to: &str,
     string_equality_comparer: fn(&str, &str) -> bool,
-    get_canonical_file_name: GetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
 ) -> Vec<String> {
     let from_components = reduce_path_components(&get_path_components(from, None));
     let to_components = reduce_path_components(&get_path_components(to, None));
@@ -774,7 +778,7 @@ pub fn get_relative_path_from_directory<
         _ =>
         /*identity*/
         {
-            identity_str_to_cow
+            identity_str_to_owned
         }
     };
     let ignore_case = match get_canonical_file_name_or_ignore_case {
@@ -826,11 +830,11 @@ pub fn get_relative_path_from_file(
     ))
 }
 
-pub fn get_relative_path_to_directory_or_url(
+pub fn get_relative_path_to_directory_or_url<TGetCanonicalFileName: Fn(&str) -> String>(
     directory_path_or_url: &str,
     relative_or_absolute_path: &str,
     current_directory: &str,
-    get_canonical_file_name: GetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
     is_absolute_path_an_url: bool,
 ) -> String {
     let mut path_components = get_path_components_relative_to(

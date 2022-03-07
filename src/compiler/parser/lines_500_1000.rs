@@ -10,10 +10,10 @@ use crate::{
     attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
     ensure_script_kind, get_language_variant, normalize_path, object_allocator, BaseNode, Debug_,
     Diagnostic, DiagnosticMessage, Diagnostics, Identifier, IncrementalParser,
-    IncrementalParserSyntaxCursor, LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags,
-    NodeFlags, NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression,
-    ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
-    TemplateLiteralLikeNode, TextChangeRange,
+    IncrementalParserSyntaxCursor, JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray,
+    NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, ParsedIsolatedJSDocComment,
+    ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget,
+    SourceTextAsChars, SyntaxKind, TemplateLiteralLikeNode, TextChangeRange,
 };
 use local_macros::ast_type;
 
@@ -524,10 +524,10 @@ impl ParserType {
                     .statements
                     .get(0)
                     .map(|statement| statement.as_expression_statement().expression.clone()),
-                &mut *result_as_source_file.parse_diagnostics(),
+                &RefCell::new(&mut *result_as_source_file.parse_diagnostics()),
                 false,
                 None,
-                None,
+                Option::<&JsonConversionNotifierDummy>::None,
             );
             result_as_source_file.set_referenced_files(vec![]);
             result_as_source_file.set_type_reference_directives(vec![]);

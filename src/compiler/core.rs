@@ -2,7 +2,11 @@ use regex::{Captures, Regex};
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
+use std::hash;
+use std::hash::Hash;
 use std::mem;
 use std::ops::Add;
 use std::ptr;
@@ -125,6 +129,24 @@ pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
             .map(Clone::clone)
             .collect()
     })
+}
+
+pub fn filter_owning<TItem, TCallback: FnMut(&TItem) -> bool>(
+    array: Vec<TItem>,
+    mut predicate: TCallback,
+) -> Vec<TItem> {
+    array.into_iter().filter(|item| predicate(item)).collect()
+}
+
+pub fn filter_mutate<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
+    array: &mut Vec<TItem>,
+    mut predicate: TCallback,
+) {
+    *array = array
+        .into_iter()
+        .filter(|item| predicate(item))
+        .map(|item| item.clone())
+        .collect();
 }
 
 pub fn map<
@@ -628,6 +650,61 @@ fn binary_search_key_copy_key<
     !low
 }
 
+pub fn array_to_map<
+    TItem,
+    TKey: hash::Hash + Eq,
+    TValue,
+    TMakeKey: FnMut(&TItem) -> Option<TKey>,
+    TMakeValue: FnMut(&TItem) -> TValue,
+>(
+    array: &[TItem],
+    mut make_key: TMakeKey,
+    mut make_value: TMakeValue,
+) -> HashMap<TKey, TValue> {
+    let mut result = HashMap::new();
+    for value in array {
+        let key = make_key(value);
+        if let Some(key) = key {
+            result.insert(key, make_value(value));
+        }
+    }
+    result
+}
+
+// TODO: make the nested hash map private and implement iteration on the wrapper
+pub struct MultiMap<TKey, TValue>(pub HashMap<TKey, Vec<TValue>>);
+
+impl<TKey: Hash + Eq, TValue: Clone> MultiMap<TKey, TValue> {
+    pub fn add(&mut self, key: TKey, value: TValue) {
+        let values = self.0.entry(key).or_insert(vec![]);
+        values.push(value);
+    }
+
+    pub fn remove<TComparer: Fn(&TValue, &TValue) -> bool>(
+        &mut self,
+        key: TKey,
+        value: &TValue,
+        comparer: TComparer,
+    ) {
+        {
+            let mut values = self.0.entry(key);
+            match values {
+                Entry::Occupied(mut values) => {
+                    unordered_remove_item(values.get_mut(), value, comparer);
+                    if values.get().is_empty() {
+                        values.remove_entry();
+                    }
+                }
+                _ => (),
+            }
+        }
+    }
+}
+
+pub fn create_multi_map<TKey, TValue>() -> MultiMap<TKey, TValue> {
+    MultiMap(HashMap::new())
+}
+
 pub fn try_cast<TIn, TTest: FnOnce(&TIn) -> bool>(value: TIn, test: TTest) -> Option<TIn> {
     if
     /*value !== undefined &&*/
@@ -660,12 +737,13 @@ lazy_static! {
     static ref file_name_lower_case_reg_exp: Regex = Regex::new(r#"[^\u0130\u0131\u00DFa-z0-9\\/:\-_\. ]+"#/*/g*/).unwrap();
 }
 
-pub fn to_file_name_lower_case(x: &str) -> Cow<'_, str> {
+pub fn to_file_name_lower_case(x: &str) -> String {
     if file_name_lower_case_reg_exp.is_match(x) {
         file_name_lower_case_reg_exp
             .replace_all(x, |captures: &Captures| to_lower_case(&captures[0]))
+            .into_owned()
     } else {
-        x.into()
+        x.to_owned()
     }
 }
 
@@ -902,10 +980,36 @@ pub fn string_contains(str_: &str, substring: &str) -> bool {
     str_.find(substring).is_some()
 }
 
-pub type GetCanonicalFileName = fn(&str) -> Cow<'_, str>;
+pub fn unordered_remove_item_at<TItem: Clone>(array: &mut Vec<TItem>, index: usize) {
+    array[index] = array[array.len() - 1].clone();
+    array.pop();
+}
+
+pub fn unordered_remove_item<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> bool>(
+    array: &mut Vec<TItem>,
+    item: &TItem,
+    comparer: TComparer,
+) -> bool {
+    unordered_remove_first_item_where(array, |element| comparer(element, item))
+}
+
+pub fn unordered_remove_first_item_where<TItem: Clone, TPredicate: Fn(&TItem) -> bool>(
+    array: &mut Vec<TItem>,
+    predicate: TPredicate,
+) -> bool {
+    for i in 0..array.len() {
+        if predicate(&array[i]) {
+            unordered_remove_item_at(array, i);
+            return true;
+        }
+    }
+    false
+}
+
+pub type GetCanonicalFileName = fn(&str) -> String;
 pub fn create_get_canonical_file_name(use_case_sensitive_file_names: bool) -> GetCanonicalFileName {
     if use_case_sensitive_file_names {
-        identity_str_to_cow
+        identity_str_to_owned
     } else {
         to_file_name_lower_case
     }
@@ -913,6 +1017,10 @@ pub fn create_get_canonical_file_name(use_case_sensitive_file_names: bool) -> Ge
 
 pub fn identity_str_to_cow(str_: &str) -> Cow<'_, str> {
     str_.into()
+}
+
+pub fn identity_str_to_owned(str_: &str) -> String {
+    str_.to_owned()
 }
 
 #[derive(Clone, Debug)]
