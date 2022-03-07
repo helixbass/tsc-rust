@@ -13,12 +13,12 @@ use super::{
     ParsedTsconfig,
 };
 use crate::{
-    combine_paths, create_compiler_diagnostic, create_diagnostic_for_node_in_source_file,
-    create_get_canonical_file_name, ends_with, ensure_trailing_directory_separator,
-    file_extension_is, filter, find_index, flatten, get_base_file_name, get_directory_path,
-    get_normalized_absolute_path, get_regex_from_pattern, get_regular_expression_for_wildcard,
-    get_regular_expressions_for_wildcards, get_supported_extensions,
-    get_supported_extensions_with_json_if_resolve_json_module,
+    combine_paths, contains_path, create_compiler_diagnostic,
+    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, ends_with,
+    ensure_trailing_directory_separator, file_extension_is, filter, find_index, flatten,
+    get_base_file_name, get_directory_path, get_normalized_absolute_path, get_regex_from_pattern,
+    get_regular_expression_for_wildcard, get_regular_expressions_for_wildcards,
+    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module,
     get_ts_config_prop_array_element_value, has_extension, length, map, normalize_path,
     normalize_slashes, set_type_acquisition_value, set_watch_option_value, starts_with,
     to_file_name_lower_case, CommandLineOption, CommandLineOptionInterface, CommandLineOptionType,
@@ -940,7 +940,76 @@ pub(super) fn get_wildcard_directories(
     path: &str,
     use_case_sensitive_file_names: bool,
 ) -> HashMap<String, WatchDirectoryFlags> {
+    let include = config_file_specs.validated_include_specs.as_deref();
+    let exclude = config_file_specs.validated_exclude_specs.as_deref();
+    let raw_exclude_regex = get_regular_expression_for_wildcard(exclude, path, "exclude");
+    let exclude_regex = raw_exclude_regex.map(|raw_exclude_regex| {
+        Regex::new(&if use_case_sensitive_file_names {
+            raw_exclude_regex
+        } else {
+            format!("(?i){}", &raw_exclude_regex)
+        })
+        .unwrap()
+    });
+    let mut wildcard_directories: HashMap<String, WatchDirectoryFlags> = HashMap::new();
+    if let Some(include) = include {
+        let mut recursive_keys: Vec<String> = vec![];
+        for file in include {
+            let spec = normalize_path(&combine_paths(path, &vec![Some(&**file)]));
+            if matches!(exclude_regex.as_ref(), Some(exclude_regex) if exclude_regex.is_match(&spec))
+            {
+                continue;
+            }
+
+            let match_ = get_wildcard_directory_from_spec(&spec, use_case_sensitive_file_names);
+            if let Some(match_) = match_ {
+                let GetWildcardDirectoryFromSpecReturn { key, flags } = match_;
+                let existing_flags = wildcard_directories.get(&key).copied();
+                if match existing_flags {
+                    None => true,
+                    Some(existing_flags) => existing_flags < flags,
+                } {
+                    wildcard_directories.insert(key.clone(), flags);
+                    if flags == WatchDirectoryFlags::Recursive {
+                        recursive_keys.push(key);
+                    }
+                }
+            }
+        }
+
+        for key in wildcard_directories
+            .keys()
+            .map(Clone::clone)
+            .collect::<Vec<_>>()
+        {
+            for recursive_key in &recursive_keys {
+                if &key != recursive_key
+                    && contains_path(
+                        &recursive_key,
+                        &key,
+                        Some(path.to_owned()),
+                        Some(!use_case_sensitive_file_names),
+                    )
+                {
+                    wildcard_directories.remove(&key);
+                }
+            }
+        }
+    }
+
+    wildcard_directories
+}
+
+pub(super) fn get_wildcard_directory_from_spec(
+    spec: &str,
+    use_case_sensitive_file_names: bool,
+) -> Option<GetWildcardDirectoryFromSpecReturn> {
     unimplemented!()
+}
+
+pub(super) struct GetWildcardDirectoryFromSpecReturn {
+    pub key: String,
+    pub flags: WatchDirectoryFlags,
 }
 
 pub(super) fn has_file_with_higher_priority_extension(
