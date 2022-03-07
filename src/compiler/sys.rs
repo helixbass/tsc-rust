@@ -39,6 +39,8 @@ pub trait System: ConvertToTSConfigHost {
     fn disable_cpu_profiler(&self /*, continuation: &dyn FnMut()*/) {}
     fn get_environment_variable(&self, name: &str) -> String;
     fn try_enable_source_maps_for_host(&self) {}
+    fn is_clear_screen_implemented(&self) -> bool;
+    fn clear_screen(&self) {}
     fn set_blocking(&self) {}
     fn as_convert_to_tsconfig_host(&self) -> &dyn ConvertToTSConfigHost;
 }
@@ -156,6 +158,10 @@ impl System for SystemConcrete {
         env::var_os(name)
             .map(|os_string| os_string.to_str().unwrap().to_owned())
             .unwrap_or_else(|| "".to_owned())
+    }
+
+    fn is_clear_screen_implemented(&self) -> bool {
+        unimplemented!()
     }
 
     fn as_convert_to_tsconfig_host(&self) -> &dyn ConvertToTSConfigHost {

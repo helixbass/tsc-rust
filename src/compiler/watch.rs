@@ -4,13 +4,14 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::{
-    add_range, create_get_canonical_file_name, format_diagnostic,
+    add_range, contains, create_get_canonical_file_name, format_diagnostic,
     format_diagnostics_with_color_and_context, get_sys, sort_and_deduplicate_diagnostics,
     BuilderProgram, CancellationToken, CompilerHost, CompilerOptions,
     ConfigFileDiagnosticsReporter, CreateProgram, CustomTransformers, Diagnostic,
-    DiagnosticReporter, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
-    ExtendedConfigCacheEntry, FileExtensionInfo, FormatDiagnosticsHost, ParsedCommandLine, Program,
-    ProgramHost, ProjectReference, ReportEmitErrorSummary, SortedArray, System, WatchCompilerHost,
+    DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
+    EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, ExtendedConfigCacheEntry,
+    FileExtensionInfo, FormatDiagnosticsHost, ParsedCommandLine, Program, ProgramHost,
+    ProjectReference, ReportEmitErrorSummary, SortedArray, System, WatchCompilerHost,
     WatchCompilerHostOfConfigFile, WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback,
 };
 
@@ -105,6 +106,31 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
         ));
         diagnostics.pop();
     }
+}
+
+fn clear_screen_if_not_watching_for_file_changes(
+    system: &dyn System,
+    diagnostic: &Diagnostic,
+    options: &CompilerOptions,
+) -> bool {
+    if system.is_clear_screen_implemented()
+        && !matches!(options.preserve_watch_output, Some(true))
+        && !matches!(options.extended_diagnostics, Some(true))
+        && !matches!(options.diagnostics, Some(true))
+        && contains(Some(&**screen_starting_message_codes), &diagnostic.code())
+    {
+        system.clear_screen();
+        return true;
+    }
+
+    false
+}
+
+lazy_static! {
+    pub static ref screen_starting_message_codes: Vec<u32> = vec![
+        Diagnostics::Starting_compilation_in_watch_mode.code,
+        Diagnostics::File_change_detected_Starting_incremental_compilation.code
+    ];
 }
 
 pub fn create_watch_status_reporter(
