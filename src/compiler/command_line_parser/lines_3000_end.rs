@@ -3,17 +3,21 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
+    compile_on_save_command_line_option, compiler_options_did_you_mean_diagnostics,
     convert_enable_auto_discovery_to_enable, create_compiler_diagnostic_for_invalid_custom_type,
-    create_unknown_option_error, get_command_line_watch_options_map,
-    get_compiler_option_value_type_string, is_compiler_options_value, parse_config,
-    read_json_config_file, type_acquisition_did_you_mean_diagnostics, ParsedTsconfig,
+    create_unknown_option_error, get_command_line_compiler_options_map,
+    get_command_line_watch_options_map, get_compiler_option_value_type_string,
+    is_compiler_options_value, parse_config, read_json_config_file,
+    type_acquisition_did_you_mean_diagnostics, watch_options_did_you_mean_diagnostics,
+    ParsedTsconfig,
 };
 use crate::{
     create_compiler_diagnostic, filter, get_base_file_name, get_directory_path,
-    get_normalized_absolute_path, map, set_type_acquisition_value, to_file_name_lower_case,
-    CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
-    CompilerOptionsValue, ConfigFileSpecs, Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics,
-    FileExtensionInfo, Node, ParseConfigHost, TypeAcquisition, WatchDirectoryFlags, WatchOptions,
+    get_normalized_absolute_path, map, normalize_slashes, set_type_acquisition_value,
+    set_watch_option_value, to_file_name_lower_case, CommandLineOption, CommandLineOptionInterface,
+    CommandLineOptionType, CompilerOptions, CompilerOptionsValue, ConfigFileSpecs, Diagnostic,
+    Diagnostics, DidYouMeanOptionsDiagnostics, FileExtensionInfo, Node, ParseConfigHost,
+    TypeAcquisition, WatchDirectoryFlags, WatchOptions,
 };
 
 pub struct ExtendedConfigCacheEntry {
@@ -107,11 +111,73 @@ pub(super) fn convert_compile_on_save_option_from_json(
     base_path: &str,
     errors: &mut Vec<Rc<Diagnostic>>,
 ) -> bool {
-    unimplemented!()
+    let compile_on_save_command_line_option = compile_on_save_command_line_option();
+    if !json_option.contains_key(compile_on_save_command_line_option.name()) {
+        return false;
+    }
+    let result = convert_json_option(
+        &compile_on_save_command_line_option,
+        json_option.get(compile_on_save_command_line_option.name()),
+        base_path,
+        errors,
+    );
+    match result {
+        CompilerOptionsValue::Bool(Some(true)) => true,
+        _ => false,
+    }
+}
+
+pub fn convert_compiler_options_from_json(
+    json_options: Option<&serde_json::Value>,
+    base_path: &str,
+    config_file_name: Option<&str>,
+) -> CompilerOptionsAndErrors {
+    let mut errors: Vec<Rc<Diagnostic>> = vec![];
+    let options = convert_compiler_options_from_json_worker(
+        json_options,
+        base_path,
+        &mut errors,
+        config_file_name,
+    );
+    CompilerOptionsAndErrors { options, errors }
+}
+
+pub struct CompilerOptionsAndErrors {
+    pub options: CompilerOptions,
+    pub errors: Vec<Rc<Diagnostic>>,
+}
+
+pub fn convert_type_acquisition_from_json(
+    json_options: Option<&serde_json::Value>,
+    base_path: &str,
+    config_file_name: Option<&str>,
+) -> TypeAcquisitionAndErrors {
+    let mut errors: Vec<Rc<Diagnostic>> = vec![];
+    let options = convert_type_acquisition_from_json_worker(
+        json_options,
+        base_path,
+        &mut errors,
+        config_file_name,
+    );
+    TypeAcquisitionAndErrors { options, errors }
+}
+
+pub struct TypeAcquisitionAndErrors {
+    pub options: TypeAcquisition,
+    pub errors: Vec<Rc<Diagnostic>>,
 }
 
 pub(super) fn get_default_compiler_options(config_file_name: Option<&str>) -> CompilerOptions {
-    unimplemented!()
+    let mut options: CompilerOptions = Default::default();
+    if matches!(config_file_name, Some(config_file_name) if get_base_file_name(config_file_name, None, None) == "jsconfig.json")
+    {
+        options.allow_js = Some(true);
+        options.max_node_module_js_depth = Some(2);
+        options.allow_synthetic_default_imports = Some(true);
+        options.skip_lib_check = Some(true);
+        options.no_emit = Some(true);
+    }
+    options
 }
 
 pub(crate) fn convert_compiler_options_from_json_worker(
@@ -120,11 +186,31 @@ pub(crate) fn convert_compiler_options_from_json_worker(
     errors: &mut Vec<Rc<Diagnostic>>,
     config_file_name: Option<&str>,
 ) -> CompilerOptions {
-    unimplemented!()
+    let mut options = get_default_compiler_options(config_file_name);
+    convert_options_from_json_compiler_options(
+        &get_command_line_compiler_options_map(),
+        json_options,
+        base_path,
+        &mut options,
+        compiler_options_did_you_mean_diagnostics().as_did_you_mean_options_diagnostics(),
+        errors,
+    );
+    if let Some(config_file_name) = config_file_name {
+        options.config_file_path = Some(normalize_slashes(config_file_name));
+    }
+    options
 }
 
 pub(super) fn get_default_type_acquisition(config_file_name: Option<&str>) -> TypeAcquisition {
-    unimplemented!()
+    TypeAcquisition {
+        enable_auto_discovery: None,
+        enable: Some(
+            matches!(config_file_name, Some(config_file_name) if get_base_file_name(config_file_name, None, None) == "jsconfig.json"),
+        ),
+        include: Some(vec![]),
+        exclude: Some(vec![]),
+        disable_filename_based_type_acquisition: None,
+    }
 }
 
 pub(crate) fn convert_type_acquisition_from_json_worker(
@@ -138,7 +224,7 @@ pub(crate) fn convert_type_acquisition_from_json_worker(
 
     convert_options_from_json_type_acquisition(
         &get_command_line_watch_options_map(),
-        json_options,
+        type_acquisition.as_ref(),
         base_path,
         &mut options,
         &*type_acquisition_did_you_mean_diagnostics(),
@@ -148,11 +234,54 @@ pub(crate) fn convert_type_acquisition_from_json_worker(
 }
 
 pub(crate) fn convert_watch_options_from_json_worker(
-    json_option: Option<&serde_json::Value>,
+    json_options: Option<&serde_json::Value>,
     base_path: &str,
     errors: &mut Vec<Rc<Diagnostic>>,
 ) -> Option<WatchOptions> {
-    unimplemented!()
+    convert_options_from_json_watch_options(
+        &get_command_line_watch_options_map(),
+        json_options,
+        base_path,
+        watch_options_did_you_mean_diagnostics().as_did_you_mean_options_diagnostics(),
+        errors,
+    )
+}
+
+pub(super) fn convert_options_from_json_compiler_options(
+    options_name_map: &HashMap<String, Rc<CommandLineOption>>,
+    json_options: Option<&serde_json::Value>,
+    base_path: &str,
+    default_options: &mut CompilerOptions,
+    diagnostics: &dyn DidYouMeanOptionsDiagnostics,
+    errors: &mut Vec<Rc<Diagnostic>>,
+) {
+    if json_options.is_none() {
+        return;
+    }
+    let json_options = json_options.unwrap();
+
+    match json_options {
+        serde_json::Value::Object(json_options) => {
+            for (id, map_value) in json_options {
+                let opt = options_name_map.get(id);
+                if let Some(opt) = opt {
+                    default_options.set_value_from_command_line_option(
+                        opt,
+                        convert_json_option(opt, Some(map_value), base_path, errors),
+                    );
+                } else {
+                    errors.push(create_unknown_option_error(
+                        id,
+                        diagnostics,
+                        |message, args| Rc::new(create_compiler_diagnostic(message, args).into()),
+                        None,
+                    ));
+                }
+            }
+        }
+        _ => (),
+    }
+    // return defaultOptions;
 }
 
 pub(super) fn convert_options_from_json_type_acquisition(
@@ -191,6 +320,51 @@ pub(super) fn convert_options_from_json_type_acquisition(
         _ => (),
     }
     // return defaultOptions;
+}
+
+pub(super) fn convert_options_from_json_watch_options(
+    options_name_map: &HashMap<String, Rc<CommandLineOption>>,
+    json_options: Option<&serde_json::Value>,
+    base_path: &str,
+    // default_options: &mut WatchOptions,
+    diagnostics: &dyn DidYouMeanOptionsDiagnostics,
+    errors: &mut Vec<Rc<Diagnostic>>,
+) -> Option<WatchOptions> {
+    if json_options.is_none() {
+        return None;
+    }
+    let json_options = json_options.unwrap();
+
+    let mut default_options: WatchOptions = Default::default();
+    let mut did_set_any_options = false;
+    match json_options {
+        serde_json::Value::Object(json_options) => {
+            for (id, map_value) in json_options {
+                let opt = options_name_map.get(id);
+                if let Some(opt) = opt {
+                    did_set_any_options = true;
+                    set_watch_option_value(
+                        &mut default_options,
+                        opt,
+                        convert_json_option(opt, Some(map_value), base_path, errors),
+                    );
+                } else {
+                    errors.push(create_unknown_option_error(
+                        id,
+                        diagnostics,
+                        |message, args| Rc::new(create_compiler_diagnostic(message, args).into()),
+                        None,
+                    ));
+                }
+            }
+        }
+        _ => (),
+    }
+    if did_set_any_options {
+        Some(default_options)
+    } else {
+        None
+    }
 }
 
 pub(crate) fn convert_json_option(
