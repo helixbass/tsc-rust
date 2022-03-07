@@ -655,6 +655,10 @@ pub fn get_regular_expressions_for_wildcards<TSpec: AsRef<str>>(
     unimplemented!()
 }
 
+pub fn is_implicit_glob(last_path_component: &str) -> bool {
+    unimplemented!()
+}
+
 pub struct FileMatcherPatterns {
     pub include_file_patterns: Option<Vec<String>>,
     pub include_file_pattern: Option<String>,

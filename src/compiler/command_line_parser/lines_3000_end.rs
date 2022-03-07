@@ -14,17 +14,17 @@ use super::{
 };
 use crate::{
     combine_paths, contains_path, create_compiler_diagnostic,
-    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, ends_with,
-    ensure_trailing_directory_separator, file_extension_is, filter, find_index, flatten,
+    create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, directory_separator,
+    ends_with, ensure_trailing_directory_separator, file_extension_is, filter, find_index, flatten,
     get_base_file_name, get_directory_path, get_normalized_absolute_path, get_regex_from_pattern,
     get_regular_expression_for_wildcard, get_regular_expressions_for_wildcards,
     get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module,
-    get_ts_config_prop_array_element_value, has_extension, length, map, normalize_path,
-    normalize_slashes, set_type_acquisition_value, set_watch_option_value, starts_with,
-    to_file_name_lower_case, CommandLineOption, CommandLineOptionInterface, CommandLineOptionType,
-    CompilerOptions, CompilerOptionsValue, ConfigFileSpecs, Diagnostic, DiagnosticMessage,
-    Diagnostics, DidYouMeanOptionsDiagnostics, Extension, FileExtensionInfo, Node, ParseConfigHost,
-    TypeAcquisition, WatchDirectoryFlags, WatchOptions,
+    get_ts_config_prop_array_element_value, has_extension, is_implicit_glob, length, map,
+    normalize_path, normalize_slashes, set_type_acquisition_value, set_watch_option_value,
+    starts_with, to_file_name_lower_case, CommandLineOption, CommandLineOptionInterface,
+    CommandLineOptionType, CompilerOptions, CompilerOptionsValue, ConfigFileSpecs, Diagnostic,
+    DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, Extension, FileExtensionInfo,
+    Node, ParseConfigHost, TypeAcquisition, WatchDirectoryFlags, WatchOptions,
 };
 
 pub struct ExtendedConfigCacheEntry {
@@ -1004,7 +1004,37 @@ pub(super) fn get_wildcard_directory_from_spec(
     spec: &str,
     use_case_sensitive_file_names: bool,
 ) -> Option<GetWildcardDirectoryFromSpecReturn> {
-    unimplemented!()
+    let match_ = wildcard_directory_pattern.captures(spec);
+    if let Some(match_) = match_ {
+        let question_wildcard_index = spec.find("?");
+        let star_wildcard_index = spec.find("*");
+        let last_directory_separator_index = spec.rfind(directory_separator);
+        return Some(GetWildcardDirectoryFromSpecReturn {
+            key: if use_case_sensitive_file_names {
+                match_[1].to_owned()
+            } else {
+                to_file_name_lower_case(&match_[1])
+            },
+            flags: if matches!(question_wildcard_index, Some(question_wildcard_index) if matches!(last_directory_separator_index, Some(last_directory_separator_index) if question_wildcard_index < last_directory_separator_index))
+                || matches!(star_wildcard_index, Some(star_wildcard_index) if matches!(last_directory_separator_index, Some(last_directory_separator_index) if star_wildcard_index < last_directory_separator_index))
+            {
+                WatchDirectoryFlags::Recursive
+            } else {
+                WatchDirectoryFlags::None
+            },
+        });
+    }
+    if is_implicit_glob(spec) {
+        return Some(GetWildcardDirectoryFromSpecReturn {
+            key: if use_case_sensitive_file_names {
+                spec.to_owned()
+            } else {
+                to_file_name_lower_case(spec)
+            },
+            flags: WatchDirectoryFlags::Recursive,
+        });
+    }
+    None
 }
 
 pub(super) struct GetWildcardDirectoryFromSpecReturn {
