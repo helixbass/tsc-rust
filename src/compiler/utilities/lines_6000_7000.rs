@@ -778,6 +778,10 @@ pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
     unimplemented!()
 }
 
+pub fn change_extension(path: &str, new_extension: &str) -> String {
+    unimplemented!()
+}
+
 #[derive(Debug)]
 pub enum StringOrPattern {
     String(String),

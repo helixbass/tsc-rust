@@ -13,12 +13,13 @@ use super::{
     ParsedTsconfig,
 };
 use crate::{
-    combine_paths, contains_path, create_compiler_diagnostic,
+    change_extension, combine_paths, contains_path, create_compiler_diagnostic,
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, directory_separator,
-    ends_with, ensure_trailing_directory_separator, file_extension_is, filter, find_index, flatten,
-    get_base_file_name, get_directory_path, get_normalized_absolute_path, get_regex_from_pattern,
-    get_regular_expression_for_wildcard, get_regular_expressions_for_wildcards,
-    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module,
+    ends_with, ensure_trailing_directory_separator, file_extension_is, file_extension_is_one_of,
+    filter, find_index, flatten, for_each, get_base_file_name, get_directory_path,
+    get_normalized_absolute_path, get_regex_from_pattern, get_regular_expression_for_wildcard,
+    get_regular_expressions_for_wildcards, get_supported_extensions,
+    get_supported_extensions_with_json_if_resolve_json_module,
     get_ts_config_prop_array_element_value, has_extension, is_implicit_glob, length, map,
     normalize_path, normalize_slashes, set_type_acquisition_value, set_watch_option_value,
     starts_with, to_file_name_lower_case, CommandLineOption, CommandLineOptionInterface,
@@ -1049,7 +1050,36 @@ pub(super) fn has_file_with_higher_priority_extension(
     extensions: &[Vec<String>],
     key_mapper: fn(&str) -> String,
 ) -> bool {
-    unimplemented!()
+    let extension_group = for_each(extensions, |group, _| {
+        if file_extension_is_one_of(file, group) {
+            Some(group)
+        } else {
+            None
+        }
+    });
+    if extension_group.is_none() {
+        return false;
+    }
+    let extension_group = extension_group.unwrap();
+    for ext in extension_group {
+        if file_extension_is(file, ext) {
+            return false;
+        }
+        let higher_priority_path = key_mapper(&change_extension(file, ext));
+        if literal_files.contains_key(&higher_priority_path)
+            || wildcard_files.contains_key(&higher_priority_path)
+        {
+            if ext == Extension::Dts.to_str()
+                && (file_extension_is(file, Extension::Js.to_str())
+                    || file_extension_is(file, Extension::Jsx.to_str()))
+            {
+                continue;
+            }
+            return true;
+        }
+    }
+
+    false
 }
 
 pub(super) fn remove_wildcard_files_with_lower_priority_extension(
