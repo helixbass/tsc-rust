@@ -96,11 +96,11 @@ pub(super) fn get_count_key(program: &Program, file: &Node /*SourceFile*/) -> &'
 }
 
 pub(super) fn update_report_diagnostic(
-    sys: &dyn System,
+    sys: Rc<dyn System>,
     existing: Rc<dyn DiagnosticReporter>,
     options: CompilerOptionsOrBuildOptions,
 ) -> Rc<dyn DiagnosticReporter> {
-    if should_be_pretty(sys, options) {
+    if should_be_pretty(&*sys, options) {
         create_diagnostic_reporter(sys, Some(true))
     } else {
         existing
@@ -841,7 +841,7 @@ pub(super) fn execute_command_line_worker<
     cb: &mut TCallback,
     command_line: &mut ParsedCommandLine,
 ) {
-    let mut report_diagnostic = create_diagnostic_reporter(&*sys, None);
+    let mut report_diagnostic = create_diagnostic_reporter(sys.clone(), None);
     if matches!(command_line.options.build, Some(true)) {
         report_diagnostic.call(Rc::new(
             create_compiler_diagnostic(
@@ -992,7 +992,7 @@ pub(super) fn execute_command_line_worker<
         if matches!(command_line.options.show_config, Some(true)) {
             if !config_parse_result.errors.is_empty() {
                 report_diagnostic = update_report_diagnostic(
-                    &*sys,
+                    sys.clone(),
                     report_diagnostic,
                     config_parse_result.options.clone().into(),
                 );
@@ -1015,7 +1015,7 @@ pub(super) fn execute_command_line_worker<
             sys.exit(Some(ExitStatus::Success));
         }
         report_diagnostic = update_report_diagnostic(
-            &*sys,
+            sys.clone(),
             report_diagnostic,
             config_parse_result.options.clone().into(),
         );
@@ -1057,7 +1057,7 @@ pub(super) fn execute_command_line_worker<
             sys.exit(Some(ExitStatus::Success));
         }
         report_diagnostic = update_report_diagnostic(
-            &*sys,
+            sys.clone(),
             report_diagnostic,
             command_line_options.clone().into(),
         );

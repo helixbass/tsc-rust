@@ -152,8 +152,8 @@ pub(super) fn perform_build<
     mut errors: Vec<Rc<Diagnostic>>,
 ) {
     let report_diagnostic = update_report_diagnostic(
-        &*sys,
-        create_diagnostic_reporter(&*sys, None),
+        sys.clone(),
+        create_diagnostic_reporter(sys.clone(), None),
         build_options.clone().into(),
     );
 

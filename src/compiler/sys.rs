@@ -76,7 +76,8 @@ impl SystemConcrete {
 
 impl ConvertToTSConfigHost for SystemConcrete {
     fn use_case_sensitive_file_names(&self) -> bool {
-        unimplemented!()
+        // TODO: this isn't right
+        false
     }
 
     fn get_current_directory(&self) -> String {

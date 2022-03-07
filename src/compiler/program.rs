@@ -204,6 +204,20 @@ pub trait FormatDiagnosticsHost {
     fn get_canonical_file_name(&self, file_name: &str) -> String;
 }
 
+pub fn format_diagnostic<THost: FormatDiagnosticsHost>(
+    diagnostic: &Diagnostic,
+    host: &THost,
+) -> String {
+    unimplemented!()
+}
+
+pub fn format_diagnostics_with_color_and_context<THost: FormatDiagnosticsHost>(
+    diagnostics: &[Rc<Diagnostic>],
+    host: &THost,
+) -> String {
+    unimplemented!()
+}
+
 pub(crate) trait SourceFileImportsList {}
 
 impl SourceFileImportsList for SourceFile {}
