@@ -198,6 +198,12 @@ pub(crate) fn change_compiler_host_like_to_use_cache<
     // unimplemented!()
 }
 
+pub trait FormatDiagnosticsHost {
+    fn get_current_directory(&self) -> String;
+    fn get_new_line(&self) -> &str;
+    fn get_canonical_file_name(&self, file_name: &str) -> String;
+}
+
 pub(crate) trait SourceFileImportsList {}
 
 impl SourceFileImportsList for SourceFile {}

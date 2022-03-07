@@ -3,13 +3,49 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::{
-    add_range, sort_and_deduplicate_diagnostics, BuilderProgram, CancellationToken, CompilerHost,
-    CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgram, CustomTransformers, Diagnostic,
+    add_range, create_get_canonical_file_name, get_sys, sort_and_deduplicate_diagnostics,
+    BuilderProgram, CancellationToken, CompilerHost, CompilerOptions,
+    ConfigFileDiagnosticsReporter, CreateProgram, CustomTransformers, Diagnostic,
     DiagnosticReporter, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
-    ExtendedConfigCacheEntry, FileExtensionInfo, ParsedCommandLine, Program, ProgramHost,
-    ProjectReference, ReportEmitErrorSummary, SortedArray, System, WatchCompilerHost,
+    ExtendedConfigCacheEntry, FileExtensionInfo, FormatDiagnosticsHost, ParsedCommandLine, Program,
+    ProgramHost, ProjectReference, ReportEmitErrorSummary, SortedArray, System, WatchCompilerHost,
     WatchCompilerHostOfConfigFile, WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback,
 };
+
+thread_local! {
+    static sys_format_diagnostics_host: Option<SysFormatDiagnosticsHost> = /*sys ?*/ Some(SysFormatDiagnosticsHost::new(get_sys()));
+}
+
+struct SysFormatDiagnosticsHost {
+    sys: Rc<dyn System>,
+    get_canonical_file_name: fn(&str) -> String,
+}
+
+impl SysFormatDiagnosticsHost {
+    pub fn new(sys: Rc<dyn System>) -> Self {
+        let sys_use_case_sensitive_file_names = sys.use_case_sensitive_file_names();
+        Self {
+            sys,
+            get_canonical_file_name: create_get_canonical_file_name(
+                sys_use_case_sensitive_file_names,
+            ),
+        }
+    }
+}
+
+impl FormatDiagnosticsHost for SysFormatDiagnosticsHost {
+    fn get_current_directory(&self) -> String {
+        self.sys.get_current_directory()
+    }
+
+    fn get_new_line(&self) -> &str {
+        self.sys.new_line()
+    }
+
+    fn get_canonical_file_name(&self, file_name: &str) -> String {
+        (self.get_canonical_file_name)(file_name)
+    }
+}
 
 pub fn create_diagnostic_reporter(
     sys: &dyn System,
