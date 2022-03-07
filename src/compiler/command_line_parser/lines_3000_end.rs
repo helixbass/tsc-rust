@@ -13,14 +13,17 @@ use super::{
     ParsedTsconfig,
 };
 use crate::{
-    create_compiler_diagnostic, create_get_canonical_file_name, ends_with, file_extension_is,
-    filter, find_index, flatten, get_base_file_name, get_directory_path,
-    get_normalized_absolute_path, get_regex_from_pattern, get_regular_expressions_for_wildcards,
-    get_supported_extensions, get_supported_extensions_with_json_if_resolve_json_module, map,
-    normalize_path, normalize_slashes, set_type_acquisition_value, set_watch_option_value,
+    combine_paths, create_compiler_diagnostic, create_diagnostic_for_node_in_source_file,
+    create_get_canonical_file_name, ends_with, ensure_trailing_directory_separator,
+    file_extension_is, filter, find_index, flatten, get_base_file_name, get_directory_path,
+    get_normalized_absolute_path, get_regex_from_pattern, get_regular_expression_for_wildcard,
+    get_regular_expressions_for_wildcards, get_supported_extensions,
+    get_supported_extensions_with_json_if_resolve_json_module,
+    get_ts_config_prop_array_element_value, has_extension, length, map, normalize_path,
+    normalize_slashes, set_type_acquisition_value, set_watch_option_value, starts_with,
     to_file_name_lower_case, CommandLineOption, CommandLineOptionInterface, CommandLineOptionType,
-    CompilerOptions, CompilerOptionsValue, ConfigFileSpecs, Diagnostic, Diagnostics,
-    DidYouMeanOptionsDiagnostics, Extension, FileExtensionInfo, Node, ParseConfigHost,
+    CompilerOptions, CompilerOptionsValue, ConfigFileSpecs, Diagnostic, DiagnosticMessage,
+    Diagnostics, DidYouMeanOptionsDiagnostics, Extension, FileExtensionInfo, Node, ParseConfigHost,
     TypeAcquisition, WatchDirectoryFlags, WatchOptions,
 };
 
@@ -768,14 +771,168 @@ pub(crate) fn get_file_names_from_config_specs<THost: ParseConfigHost>(
     literal_files
 }
 
-pub(super) fn validate_specs<TJsonSourceFile: Borrow<Node>>(
+pub(crate) fn is_excluded_file(
+    path_to_check: &str,
+    spec: &ConfigFileSpecs,
+    base_path: &str,
+    use_case_sensitive_file_names: bool,
+    current_directory: &str,
+) -> bool {
+    let validated_files_spec = spec.validated_files_spec.as_deref();
+    let validated_include_specs = spec.validated_include_specs.as_deref();
+    let validated_exclude_specs = spec.validated_exclude_specs.as_deref();
+    if length(validated_include_specs) == 0 || length(validated_exclude_specs) == 0 {
+        return false;
+    }
+
+    let base_path = normalize_path(base_path);
+
+    let key_mapper = create_get_canonical_file_name(use_case_sensitive_file_names);
+    if let Some(validated_files_spec) = validated_files_spec {
+        for file_name in validated_files_spec {
+            if key_mapper(&get_normalized_absolute_path(file_name, Some(&base_path)))
+                == path_to_check
+            {
+                return false;
+            }
+        }
+    }
+
+    matches_exclude_worker(
+        path_to_check,
+        validated_exclude_specs,
+        use_case_sensitive_file_names,
+        current_directory,
+        Some(&base_path),
+    )
+}
+
+pub(super) fn invalid_dot_dot_after_recursive_wildcard(s: &str) -> bool {
+    let wildcard_index = if starts_with(s, "**/") {
+        Some(0)
+    } else {
+        s.find("/**/")
+    };
+    if wildcard_index.is_none() {
+        return false;
+    }
+    let wildcard_index = wildcard_index.unwrap();
+    let last_dot_index = if ends_with(s, "/..") {
+        Some(s.len())
+    } else {
+        s.rfind("/../")
+    };
+    if last_dot_index.is_none() {
+        return false;
+    }
+    let last_dot_index = last_dot_index.unwrap();
+    last_dot_index > wildcard_index
+}
+
+pub(crate) fn matches_exclude(
+    path_to_check: &str,
+    exclude_specs: Option<&[String]>,
+    use_case_sensitive_file_names: bool,
+    current_directory: &str,
+) -> bool {
+    matches_exclude_worker(
+        path_to_check,
+        filter(exclude_specs, |spec| {
+            !invalid_dot_dot_after_recursive_wildcard(spec)
+        })
+        .as_deref(),
+        use_case_sensitive_file_names,
+        current_directory,
+        None,
+    )
+}
+
+pub(super) fn matches_exclude_worker(
+    path_to_check: &str,
+    exclude_specs: Option<&[String]>,
+    use_case_sensitive_file_names: bool,
+    current_directory: &str,
+    base_path: Option<&str>,
+) -> bool {
+    let exclude_pattern = get_regular_expression_for_wildcard(
+        exclude_specs,
+        &combine_paths(&normalize_path(current_directory), &vec![base_path]),
+        "exclude",
+    );
+    let exclude_regex = exclude_pattern.map(|exclude_pattern| {
+        get_regex_from_pattern(&exclude_pattern, use_case_sensitive_file_names)
+    });
+    if exclude_regex.is_none() {
+        return false;
+    }
+    let exclude_regex = exclude_regex.unwrap();
+    if exclude_regex.is_match(path_to_check) {
+        return true;
+    }
+    !has_extension(path_to_check)
+        && exclude_regex.is_match(&ensure_trailing_directory_separator(path_to_check))
+}
+
+pub(super) fn validate_specs<TJsonSourceFile: Borrow<Node> + Clone>(
     specs: &[String],
     errors: &mut Vec<Rc<Diagnostic>>,
     disallow_trailing_recursion: bool,
     json_source_file: Option<TJsonSourceFile /*TsConfigSourceFile*/>,
     spec_key: &str,
 ) -> Vec<String> {
-    unimplemented!()
+    specs
+        .into_iter()
+        .filter(|spec| {
+            // if (!isString(spec)) return false;
+            let diag = spec_to_diagnostic(spec, Some(disallow_trailing_recursion));
+            let diag_is_none = diag.is_none();
+            if let Some((message, spec)) = diag {
+                errors.push(create_diagnostic(
+                    json_source_file.clone(),
+                    spec_key,
+                    message,
+                    spec,
+                ));
+            }
+            diag_is_none
+        })
+        .map(Clone::clone)
+        .collect()
+}
+
+fn create_diagnostic<TJsonSourceFile: Borrow<Node> + Clone>(
+    json_source_file: Option<TJsonSourceFile /*TsConfigSourceFile*/>,
+    spec_key: &str,
+    message: &DiagnosticMessage,
+    spec: String,
+) -> Rc<Diagnostic> {
+    let element = get_ts_config_prop_array_element_value(json_source_file.clone(), spec_key, &spec);
+    Rc::new(if let Some(element) = element {
+        create_diagnostic_for_node_in_source_file(
+            json_source_file.unwrap().borrow(),
+            &element,
+            message,
+            Some(vec![spec]),
+        )
+        .into()
+    } else {
+        create_compiler_diagnostic(message, Some(vec![spec])).into()
+    })
+}
+
+pub(super) fn spec_to_diagnostic(
+    spec: &str,
+    disallow_trailing_recursion: Option<bool>,
+) -> Option<(&'static DiagnosticMessage, String)> {
+    if matches!(disallow_trailing_recursion, Some(true))
+        && invalid_trailing_recursion_pattern.is_match(spec)
+    {
+        Some((&Diagnostics::File_specification_cannot_end_in_a_recursive_directory_wildcard_Asterisk_Asterisk_Colon_0, spec.to_owned()))
+    } else if invalid_dot_dot_after_recursive_wildcard(spec) {
+        Some((&Diagnostics::File_specification_cannot_contain_a_parent_directory_that_appears_after_a_recursive_directory_wildcard_Asterisk_Asterisk_Colon_0, spec.to_owned()))
+    } else {
+        None
+    }
 }
 
 pub(super) fn get_wildcard_directories(
