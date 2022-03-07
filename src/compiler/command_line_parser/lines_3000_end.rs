@@ -8,7 +8,7 @@ use super::{
     convert_enable_auto_discovery_to_enable, create_compiler_diagnostic_for_invalid_custom_type,
     create_unknown_option_error, get_command_line_compiler_options_map,
     get_command_line_watch_options_map, get_compiler_option_value_type_string,
-    is_compiler_options_value, parse_config, read_json_config_file,
+    get_option_from_name, is_compiler_options_value, parse_config, read_json_config_file,
     type_acquisition_did_you_mean_diagnostics, watch_options_did_you_mean_diagnostics,
     ParsedTsconfig,
 };
@@ -16,7 +16,7 @@ use crate::{
     change_extension, combine_paths, contains_path, create_compiler_diagnostic,
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, directory_separator,
     ends_with, ensure_trailing_directory_separator, file_extension_is, file_extension_is_one_of,
-    filter, find_index, flatten, for_each, get_base_file_name, get_directory_path,
+    filter, find_index, flatten, for_each, for_each_entry, get_base_file_name, get_directory_path,
     get_normalized_absolute_path, get_regex_from_pattern, get_regular_expression_for_wildcard,
     get_regular_expressions_for_wildcards, get_supported_extensions,
     get_supported_extensions_with_json_if_resolve_json_module,
@@ -25,7 +25,8 @@ use crate::{
     starts_with, to_file_name_lower_case, CommandLineOption, CommandLineOptionInterface,
     CommandLineOptionType, CompilerOptions, CompilerOptionsValue, ConfigFileSpecs, Diagnostic,
     DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, Extension, FileExtensionInfo,
-    Node, ParseConfigHost, TypeAcquisition, WatchDirectoryFlags, WatchOptions,
+    Node, ParseConfigHost, ToHashMapOfCompilerOptionsValues, TypeAcquisition, WatchDirectoryFlags,
+    WatchOptions,
 };
 
 pub struct ExtendedConfigCacheEntry {
@@ -1088,7 +1089,91 @@ pub(super) fn remove_wildcard_files_with_lower_priority_extension(
     extensions: &[Vec<String>],
     key_mapper: fn(&str) -> String,
 ) {
-    unimplemented!()
+    let extension_group = for_each(extensions, |group, _| {
+        if file_extension_is_one_of(file, group) {
+            Some(group)
+        } else {
+            None
+        }
+    });
+    if extension_group.is_none() {
+        return;
+    }
+    let extension_group = extension_group.unwrap();
+    for ext in extension_group.iter().rev() {
+        if file_extension_is(file, ext) {
+            return;
+        }
+        let lower_priority_path = key_mapper(&change_extension(file, ext));
+        wildcard_files.remove(&lower_priority_path);
+    }
+}
+
+pub(crate) fn convert_compiler_options_for_telemetry(
+    opts: &CompilerOptions,
+) -> HashMap<String, CompilerOptionsValue> {
+    // didn't return CompilerOptions because get_option_value_with_empty_strings() seems to violate the expected per-field types
+    let mut out: HashMap<String, CompilerOptionsValue> = HashMap::new();
+    for (key, value) in opts.to_hash_map_of_compiler_options_values() {
+        let type_ = get_option_from_name(key, None);
+        if let Some(type_) = type_ {
+            out.insert(
+                key.to_owned(),
+                get_option_value_with_empty_strings(&value, &type_),
+            );
+        }
+    }
+    out
+}
+
+pub(super) fn get_option_value_with_empty_strings(
+    value: &CompilerOptionsValue,
+    option: &CommandLineOption,
+) -> CompilerOptionsValue {
+    match option.type_() {
+        CommandLineOptionType::Object => CompilerOptionsValue::String(Some("".to_owned())),
+        CommandLineOptionType::String => CompilerOptionsValue::String(Some("".to_owned())),
+        CommandLineOptionType::Number => match value {
+            CompilerOptionsValue::Usize(Some(value)) => CompilerOptionsValue::Usize(Some(*value)),
+            _ => CompilerOptionsValue::String(Some("".to_owned())),
+        },
+        CommandLineOptionType::Boolean => match value {
+            CompilerOptionsValue::Bool(Some(value)) => CompilerOptionsValue::Bool(Some(*value)),
+            _ => CompilerOptionsValue::String(Some("".to_owned())),
+        },
+        CommandLineOptionType::List => {
+            let element_type = &option.as_command_line_option_of_list_type().element;
+            match value {
+                CompilerOptionsValue::VecString(Some(value)) => {
+                    CompilerOptionsValue::VecString(Some(
+                        value
+                            .iter()
+                            .map(|v| {
+                                match get_option_value_with_empty_strings(
+                                    &CompilerOptionsValue::String(Some(v.clone())),
+                                    element_type,
+                                ) {
+                                    CompilerOptionsValue::String(Some(string)) => string,
+                                    _ => panic!("Expected string"),
+                                }
+                            })
+                            .collect::<Vec<String>>(),
+                    ))
+                }
+                _ => CompilerOptionsValue::String(Some("".to_owned())),
+            }
+        }
+        CommandLineOptionType::Map(map) => CompilerOptionsValue::String(for_each_entry(
+            map,
+            |option_enum_value, option_string_value| {
+                if &option_enum_value.as_compiler_options_value() == value {
+                    Some(option_string_value.to_string())
+                } else {
+                    None
+                }
+            },
+        )),
+    }
 }
 
 pub(super) fn get_default_value_for_option(option: &CommandLineOption) -> CompilerOptionsValue {
