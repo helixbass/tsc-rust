@@ -4,15 +4,16 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::{
-    add_range, contains, create_get_canonical_file_name, format_diagnostic,
-    format_diagnostics_with_color_and_context, get_sys, sort_and_deduplicate_diagnostics,
-    BuilderProgram, CancellationToken, CompilerHost, CompilerOptions,
-    ConfigFileDiagnosticsReporter, CreateProgram, CustomTransformers, Diagnostic,
+    add_range, contains, create_get_canonical_file_name, flatten_diagnostic_message_text,
+    format_color_and_reset, format_diagnostic, format_diagnostics_with_color_and_context, get_sys,
+    sort_and_deduplicate_diagnostics, BuilderProgram, CancellationToken, CompilerHost,
+    CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgram, CustomTransformers, Diagnostic,
     DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
     EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, ExtendedConfigCacheEntry,
-    FileExtensionInfo, FormatDiagnosticsHost, ParsedCommandLine, Program, ProgramHost,
-    ProjectReference, ReportEmitErrorSummary, SortedArray, System, WatchCompilerHost,
-    WatchCompilerHostOfConfigFile, WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback,
+    FileExtensionInfo, ForegroundColorEscapeSequences, FormatDiagnosticsHost, ParsedCommandLine,
+    Program, ProgramHost, ProjectReference, ReportEmitErrorSummary, SortedArray, System,
+    WatchCompilerHost, WatchCompilerHostOfConfigFile, WatchHost, WatchOptions, WatchStatusReporter,
+    WriteFileCallback,
 };
 
 thread_local! {
@@ -133,11 +134,90 @@ lazy_static! {
     ];
 }
 
-pub fn create_watch_status_reporter(
-    system: &dyn System,
-    pretty: Option<bool>,
-) -> WatchStatusReporter {
+fn get_plain_diagnostic_following_new_lines(diagnostic: &Diagnostic, new_line: &str) -> String {
+    if contains(Some(&**screen_starting_message_codes), &diagnostic.code()) {
+        format!("{}{}", new_line, new_line)
+    } else {
+        new_line.to_owned()
+    }
+}
+
+pub fn get_locale_time_string(system: &dyn System) -> String {
+    // TODO: how to mimic .toLocaleTimeString()?
     unimplemented!()
+}
+
+pub fn create_watch_status_reporter(
+    system: Rc<dyn System>,
+    pretty: Option<bool>,
+) -> WatchStatusReporterConcrete {
+    WatchStatusReporterConcrete::new(system, pretty)
+}
+
+pub struct WatchStatusReporterConcrete {
+    system: Rc<dyn System>,
+    pretty: bool,
+}
+
+impl WatchStatusReporterConcrete {
+    pub fn new(system: Rc<dyn System>, pretty: Option<bool>) -> Self {
+        Self {
+            system,
+            pretty: pretty.unwrap_or(false),
+        }
+    }
+}
+
+impl WatchStatusReporter for WatchStatusReporterConcrete {
+    fn call(
+        &self,
+        diagnostic: Rc<Diagnostic>,
+        new_line: &str,
+        options: Rc<CompilerOptions>,
+        _error_count: Option<usize>,
+    ) {
+        if self.pretty {
+            clear_screen_if_not_watching_for_file_changes(&*self.system, &diagnostic, &options);
+            let mut output = format!(
+                "[{}] ",
+                format_color_and_reset(
+                    &get_locale_time_string(&*self.system),
+                    ForegroundColorEscapeSequences::Grey
+                )
+            );
+            output.push_str(&format!(
+                "{}{}{}",
+                flatten_diagnostic_message_text(
+                    Some(diagnostic.message_text()),
+                    self.system.new_line(),
+                    None
+                ),
+                new_line,
+                new_line
+            ));
+            self.system.write(&output);
+        } else {
+            let mut output = "".to_owned();
+
+            if !clear_screen_if_not_watching_for_file_changes(&*self.system, &diagnostic, &options)
+            {
+                output.push_str(new_line);
+            }
+
+            output.push_str(&format!("{} - ", get_locale_time_string(&*self.system)));
+            output.push_str(&format!(
+                "{}{}",
+                flatten_diagnostic_message_text(
+                    Some(diagnostic.message_text()),
+                    self.system.new_line(),
+                    None
+                ),
+                get_plain_diagnostic_following_new_lines(&diagnostic, new_line)
+            ));
+
+            self.system.write(&output);
+        }
+    }
 }
 
 pub fn parse_config_file_with_system(
@@ -211,7 +291,7 @@ pub struct CreateWatchCompilerHostOfConfigFileInput<
     pub system: &'a dyn System,
     pub create_program: Option<&'a dyn CreateProgram<TBuilderProgram>>,
     pub report_diagnostic: Option<&'a dyn DiagnosticReporter>,
-    pub report_watch_status: Option<WatchStatusReporter>,
+    pub report_watch_status: Option<Rc<dyn WatchStatusReporter>>,
     pub config_file_name: &'a str,
     pub options_to_extend: Option<&'a CompilerOptions>,
     pub watch_options_to_extend: Option<Rc<WatchOptions>>,

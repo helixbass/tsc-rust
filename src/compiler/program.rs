@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp;
 use std::rc::Rc;
@@ -9,9 +8,10 @@ use crate::{
     for_each_ancestor_directory_str, get_directory_path, get_emit_script_target,
     get_normalized_path_components, get_path_from_path_components, get_sys, is_rooted_disk_path,
     normalize_path, to_path as to_path_helper, CompilerHost, CompilerOptions, CreateProgramOptions,
-    Diagnostic, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, Node,
-    ParsedCommandLine, Path, Program, ScriptReferenceHost, ScriptTarget, SourceFile,
-    StructureIsReused, System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
+    Diagnostic, DiagnosticMessageText, ModuleKind, ModuleResolutionHost,
+    ModuleSpecifierResolutionHost, Node, ParsedCommandLine, Path, Program, ScriptReferenceHost,
+    ScriptTarget, SourceFile, StructureIsReused, System, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -211,10 +211,32 @@ pub fn format_diagnostic<THost: FormatDiagnosticsHost>(
     unimplemented!()
 }
 
+pub(crate) struct ForegroundColorEscapeSequences;
+impl ForegroundColorEscapeSequences {
+    pub const Grey: &'static str = "\u{001b}[90m";
+    pub const Red: &'static str = "\u{001b}[91m";
+    pub const Yellow: &'static str = "\u{001b}[93m";
+    pub const Blue: &'static str = "\u{001b}[94m";
+    pub const Cyan: &'static str = "\u{001b}[96m";
+}
+
+pub(crate) fn format_color_and_reset(text: &str, format_style: &str) -> String {
+    unimplemented!()
+}
+
 pub fn format_diagnostics_with_color_and_context<THost: FormatDiagnosticsHost>(
     diagnostics: &[Rc<Diagnostic>],
     host: &THost,
 ) -> String {
+    unimplemented!()
+}
+
+pub fn flatten_diagnostic_message_text(
+    diag: Option<&DiagnosticMessageText>,
+    new_line: &str,
+    indent: Option<usize>,
+) -> String {
+    let indent = indent.unwrap_or(0);
     unimplemented!()
 }
 

@@ -1024,7 +1024,7 @@ pub(super) fn execute_command_line_worker<
                 return;
             }
             create_watch_of_config_file(
-                &*sys,
+                sys.clone(),
                 cb,
                 report_diagnostic,
                 config_parse_result,

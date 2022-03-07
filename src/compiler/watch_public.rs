@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{
     create_compiler_host_worker, get_sys, BuilderProgram, CompilerHost, CompilerOptions,
-    ConfigFileDiagnosticsReporter, System,
+    ConfigFileDiagnosticsReporter, Diagnostic, System,
 };
 
 pub fn create_incremental_compiler_host(
@@ -14,7 +14,15 @@ pub fn create_incremental_compiler_host(
     host
 }
 
-pub type WatchStatusReporter = ();
+pub trait WatchStatusReporter {
+    fn call(
+        &self,
+        diagnostic: Rc<Diagnostic>,
+        new_line: &str,
+        options: Rc<CompilerOptions>,
+        error_count: Option<usize>,
+    );
+}
 
 pub trait CreateProgram<TBuilderProgram: BuilderProgram> {}
 

@@ -157,12 +157,13 @@ pub use compiler::path::{
     starts_with_directory, to_path,
 };
 use compiler::program::{
-    change_compiler_host_like_to_use_cache, create_compiler_host_worker,
-    get_mode_for_resolution_at_index,
+    change_compiler_host_like_to_use_cache, create_compiler_host_worker, format_color_and_reset,
+    get_mode_for_resolution_at_index, ForegroundColorEscapeSequences,
 };
 pub use compiler::program::{
-    create_program, find_config_file, format_diagnostic, format_diagnostics_with_color_and_context,
-    get_config_file_parsing_diagnostics, FormatDiagnosticsHost,
+    create_program, find_config_file, flatten_diagnostic_message_text, format_diagnostic,
+    format_diagnostics_with_color_and_context, get_config_file_parsing_diagnostics,
+    FormatDiagnosticsHost,
 };
 use compiler::scanner::{
     compute_line_and_character_of_position, compute_line_of_position, compute_line_starts,

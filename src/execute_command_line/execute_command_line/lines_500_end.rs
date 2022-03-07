@@ -213,7 +213,7 @@ pub(super) fn perform_build<
                 Some(should_be_pretty(&*sys, build_options.clone().into())),
             )),
             Some(create_watch_status_reporter(
-                &*sys,
+                sys.clone(),
                 build_options.clone().into(),
             )),
         );
@@ -440,16 +440,19 @@ pub(super) fn update_watch_compilation_host<
 }
 
 pub(super) fn create_watch_status_reporter(
-    sys: &dyn System,
+    sys: Rc<dyn System>,
     options: CompilerOptionsOrBuildOptions,
-) -> WatchStatusReporter {
-    create_watch_status_reporter_(sys, Some(should_be_pretty(sys, options)))
+) -> Rc<dyn WatchStatusReporter> {
+    Rc::new(create_watch_status_reporter_(
+        sys.clone(),
+        Some(should_be_pretty(&*sys, options)),
+    ))
 }
 
 pub(super) fn create_watch_of_config_file<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    system: &dyn System,
+    system: Rc<dyn System>,
     mut cb: TCallback,
     report_diagnostic: Rc<dyn DiagnosticReporter>,
     config_parse_result: Rc<ParsedCommandLine>,
@@ -466,16 +469,16 @@ pub(super) fn create_watch_of_config_file<
                 .unwrap(),
             options_to_extend: Some(&options_to_extend),
             watch_options_to_extend,
-            system,
+            system: &*system,
             report_diagnostic: Some(&*report_diagnostic),
             report_watch_status: Some(create_watch_status_reporter(
-                system,
+                system.clone(),
                 config_parse_result.options.clone().into(),
             )),
             create_program: Option::<&dyn CreateProgram<BuilderProgramDummy>>::None,
             extra_file_extensions: None,
         });
-    update_watch_compilation_host(system, cb, &mut watch_compiler_host);
+    update_watch_compilation_host(&*system, cb, &mut watch_compiler_host);
     // TODO: how to model this?
     // watchCompilerHost.configFileParsingResult = configParseResult;
     // watchCompilerHost.extendedConfigCache = extendedConfigCache;
