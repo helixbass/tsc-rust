@@ -800,10 +800,10 @@ pub fn get_relative_path_from_directory<
     get_path_from_path_components(&path_components)
 }
 
-pub fn convert_to_relative_path(
+pub fn convert_to_relative_path<TGetCanonicalFileName: Fn(&str) -> String>(
     absolute_or_relative_path: &str,
     base_path: &str,
-    get_canonical_file_name: GetCanonicalFileName,
+    get_canonical_file_name: TGetCanonicalFileName,
 ) -> String {
     if !is_rooted_disk_path(absolute_or_relative_path) {
         absolute_or_relative_path.to_string()

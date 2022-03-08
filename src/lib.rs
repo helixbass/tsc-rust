@@ -199,6 +199,11 @@ pub use compiler::tsbuild_public::{
     create_solution_builder_with_watch, create_solution_builder_with_watch_host, BuildOptions,
     ReportEmitErrorSummary, SolutionBuilderHostBase,
 };
+use compiler::types::{
+    diagnostic_category_name, CommandLineOptionType, CommentDirectivesMap, EmitNode,
+    ExternalEmitHelpers, FileIncludeKind, FileIncludeReason, ReadonlyPragmaMap, ReferencedFile,
+    StringOrDiagnosticMessage,
+};
 pub use compiler::types::{
     extend_compiler_options, extend_watch_options, maybe_extend_compiler_options,
     maybe_text_char_at_index, str_to_source_text_as_chars, text_char_at_index, text_len,
@@ -300,10 +305,6 @@ pub use compiler::types::{
     VariableStatement, VarianceFlags, VoidExpression, WatchDirectoryFlags, WatchDirectoryKind,
     WatchFileKind, WatchOptions, WhileStatement, WithStatement, WriteFileCallback, YieldExpression,
     __String,
-};
-use compiler::types::{
-    CommandLineOptionType, CommentDirectivesMap, EmitNode, ExternalEmitHelpers, FileIncludeKind,
-    FileIncludeReason, ReadonlyPragmaMap, ReferencedFile, StringOrDiagnosticMessage,
 };
 pub use compiler::utilities::{
     add_related_info, attach_file_to_diagnostics, chain_diagnostic_messages, change_extension,

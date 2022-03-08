@@ -1,16 +1,19 @@
 use std::cell::RefCell;
 use std::cmp;
+use std::convert::TryInto;
 use std::rc::Rc;
 use std::time::SystemTime;
 
 use crate::{
-    combine_paths, concatenate, create_source_file, create_type_checker, for_each,
-    for_each_ancestor_directory_str, get_directory_path, get_emit_script_target,
-    get_normalized_path_components, get_path_from_path_components, get_sys, is_rooted_disk_path,
-    normalize_path, to_path as to_path_helper, CancellationToken, CompilerHost, CompilerOptions,
-    CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticMessageText, EmitResult,
-    FileIncludeReason, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap,
-    Node, PackageId, ParsedCommandLine, Path, Program, ReferencedFile, ResolvedProjectReference,
+    combine_paths, concatenate, convert_to_relative_path, create_source_file, create_type_checker,
+    diagnostic_category_name, for_each, for_each_ancestor_directory_str, get_directory_path,
+    get_emit_script_target, get_line_and_character_of_position, get_normalized_path_components,
+    get_path_from_path_components, get_sys, is_rooted_disk_path, normalize_path,
+    to_path as to_path_helper, CancellationToken, CompilerHost, CompilerOptions,
+    CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticMessageText,
+    DiagnosticRelatedInformationInterface, EmitResult, FileIncludeReason, LineAndCharacter,
+    ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap, Node, PackageId,
+    ParsedCommandLine, Path, Program, ReferencedFile, ResolvedProjectReference,
     ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, System,
     TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
 };
@@ -209,7 +212,34 @@ pub fn format_diagnostic<THost: FormatDiagnosticsHost>(
     diagnostic: &Diagnostic,
     host: &THost,
 ) -> String {
-    unimplemented!()
+    let error_message = format!(
+        "{} TS{}: {}{}",
+        diagnostic_category_name(diagnostic.category(), None),
+        diagnostic.code(),
+        flatten_diagnostic_message_text(Some(diagnostic.message_text()), host.get_new_line(), None),
+        host.get_new_line()
+    );
+
+    if let Some(diagnostic_file) = diagnostic.maybe_file() {
+        let LineAndCharacter { line, character } = get_line_and_character_of_position(
+            diagnostic_file.as_source_file(),
+            diagnostic.maybe_start().unwrap().try_into().unwrap(),
+        );
+        let file_name = diagnostic_file.as_source_file().file_name();
+        let relative_file_name =
+            convert_to_relative_path(&file_name, &host.get_current_directory(), |file_name| {
+                host.get_canonical_file_name(file_name)
+            });
+        return format!(
+            "{}({},{}): {}",
+            relative_file_name,
+            line + 1,
+            character + 1,
+            error_message
+        );
+    }
+
+    error_message
 }
 
 pub(crate) struct ForegroundColorEscapeSequences;
@@ -237,8 +267,34 @@ pub fn flatten_diagnostic_message_text(
     new_line: &str,
     indent: Option<usize>,
 ) -> String {
-    let indent = indent.unwrap_or(0);
-    unimplemented!()
+    let mut indent = indent.unwrap_or(0);
+    match diag {
+        Some(DiagnosticMessageText::String(diag)) => diag.clone(),
+        None => "".to_owned(),
+        Some(DiagnosticMessageText::DiagnosticMessageChain(diag)) => {
+            let mut result = "".to_owned();
+            if indent != 0 {
+                result.push_str(new_line);
+
+                for _i in 0..indent {
+                    result.push_str("  ");
+                }
+            }
+            result.push_str(&diag.message_text);
+            indent += 1;
+            if let Some(diag_next) = diag.next.as_ref() {
+                for kid in diag_next {
+                    result.push_str(&flatten_diagnostic_message_text(
+                        // TODO: this .clone() seems non-ideal because we're cloning the entire vec (recursively)
+                        Some(&DiagnosticMessageText::DiagnosticMessageChain(kid.clone())),
+                        new_line,
+                        Some(indent),
+                    ));
+                }
+            }
+            result
+        }
+    }
 }
 
 pub(crate) trait SourceFileImportsList {}
@@ -384,7 +440,13 @@ impl Program {
         custom_transformers: Option<CustomTransformers>,
         force_dts_emit: Option<bool>,
     ) -> EmitResult {
-        unimplemented!()
+        EmitResult {
+            emit_skipped: true,
+            diagnostics: vec![],
+            emitted_files: None,
+            source_maps: None,
+            exported_modules_from_declaration_emit: None,
+        }
     }
 
     pub fn get_current_directory(&self) -> String {
@@ -491,18 +553,18 @@ impl Program {
         &self,
         _cancellation_token: Option<&dyn CancellationToken>,
     ) -> SortedArray<Rc<Diagnostic>> {
-        unimplemented!()
+        SortedArray::new(vec![])
     }
 
     pub fn get_global_diagnostics(
         &self,
         _cancellation_token: Option<&dyn CancellationToken>,
     ) -> SortedArray<Rc<Diagnostic>> {
-        unimplemented!()
+        SortedArray::new(vec![])
     }
 
     pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
-        unimplemented!()
+        vec![]
     }
 }
 
