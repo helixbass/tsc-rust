@@ -8,12 +8,13 @@ use std::rc::{Rc, Weak};
 
 use super::{
     BaseType, CancellationTokenDebuggable, CompilerOptions, DiagnosticCollection,
-    ExternalEmitHelpers, ModuleKind, ModuleSpecifierResolutionHost, Node, NodeCheckFlags, NodeId,
-    NodeLinks, ObjectFlags, ParsedCommandLine, Path, RelationComparisonResult, ScriptTarget,
-    Signature, SignatureFlags, SymbolTable, SymbolTracker, TransformationContext,
-    TransformerFactory, Type, TypeFlags, TypeMapper, __String,
+    ExportedModulesFromDeclarationEmit, ExternalEmitHelpers, ModuleKind,
+    ModuleSpecifierResolutionHost, Node, NodeCheckFlags, NodeId, NodeLinks, ObjectFlags,
+    ParsedCommandLine, Path, RawSourceMap, RelationComparisonResult, ScriptTarget, Signature,
+    SignatureFlags, SymbolTable, SymbolTracker, TransformationContext, TransformerFactory, Type,
+    TypeFlags, TypeMapper, __String,
 };
-use crate::{NodeBuilder, Number, StringOrNumber};
+use crate::{Diagnostic, NodeBuilder, Number, StringOrNumber};
 use local_macros::symbol_type;
 
 pub type RedirectTargetsMap = HashMap<Path, Vec<String>>;
@@ -78,6 +79,11 @@ impl EmitTransformers {
     }
 }
 
+pub(crate) struct SourceMapEmitResult {
+    pub input_source_file_names: Vec<String>,
+    pub source_map: RawSourceMap,
+}
+
 #[allow(non_camel_case_types)]
 pub enum ExitStatus {
     Success = 0,
@@ -94,6 +100,14 @@ pub enum ExitStatus {
 impl ExitStatus {
     pub const ProjectReferenceCycle_OutputsSkupped: ExitStatus =
         ExitStatus::ProjectReferenceCycle_OutputsSkipped;
+}
+
+pub struct EmitResult {
+    pub emit_skipped: bool,
+    pub diagnostics: Vec<Rc<Diagnostic>>,
+    pub emitted_files: Option<Vec<String>>,
+    pub(crate) source_maps: Option<Vec<SourceMapEmitResult>>,
+    pub(crate) exported_modules_from_declaration_emit: Option<ExportedModulesFromDeclarationEmit>,
 }
 
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {

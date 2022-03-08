@@ -265,6 +265,14 @@ impl BuilderProgram for BuilderProgramDummy {
     fn get_program(&self) -> Rc<Program> {
         unimplemented!()
     }
+
+    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+        unimplemented!()
+    }
+
+    fn get_source_files(&self) -> &[Rc<Node /*SourceFile*/>] {
+        unimplemented!()
+    }
 }
 
 impl SemanticDiagnosticsBuilderProgram for BuilderProgramDummy {}

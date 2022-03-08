@@ -118,6 +118,21 @@ pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {
     a.len() == b.len() && every(a, |item_a, i| *item_a == b[i])
 }
 
+pub fn count_where<TItem, TPredicate: FnMut(&TItem, usize) -> bool>(
+    array: Option<&[TItem]>,
+    mut predicate: TPredicate,
+) -> usize {
+    let mut count = 0;
+    if let Some(array) = array {
+        for (i, v) in array.iter().enumerate() {
+            if predicate(v, i) {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
 pub fn filter<TItem: Clone, TCallback: FnMut(&TItem) -> bool>(
     array: Option<&[TItem]>,
     mut predicate: TCallback,
@@ -698,6 +713,10 @@ impl<TKey: Hash + Eq, TValue: Clone> MultiMap<TKey, TValue> {
                 _ => (),
             }
         }
+    }
+
+    pub fn get(&self, key: &TKey) -> Option<&Vec<TValue>> {
+        self.0.get(key)
     }
 }
 

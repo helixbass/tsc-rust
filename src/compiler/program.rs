@@ -7,11 +7,12 @@ use crate::{
     combine_paths, concatenate, create_source_file, create_type_checker, for_each,
     for_each_ancestor_directory_str, get_directory_path, get_emit_script_target,
     get_normalized_path_components, get_path_from_path_components, get_sys, is_rooted_disk_path,
-    normalize_path, to_path as to_path_helper, CompilerHost, CompilerOptions, CreateProgramOptions,
-    Diagnostic, DiagnosticMessageText, ModuleKind, ModuleResolutionHost,
-    ModuleSpecifierResolutionHost, Node, ParsedCommandLine, Path, Program, ScriptReferenceHost,
-    ScriptTarget, SourceFile, StructureIsReused, System, TypeChecker, TypeCheckerHost,
-    TypeCheckerHostDebuggable,
+    normalize_path, to_path as to_path_helper, CancellationToken, CompilerHost, CompilerOptions,
+    CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticMessageText, EmitResult,
+    FileIncludeReason, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap,
+    Node, PackageId, ParsedCommandLine, Path, Program, ReferencedFile, ResolvedProjectReference,
+    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, System,
+    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -251,6 +252,65 @@ pub(crate) fn get_mode_for_resolution_at_index<TFile: SourceFileImportsList>(
     unimplemented!()
 }
 
+pub(crate) fn is_referenced_file(reason: Option<&FileIncludeReason>) -> bool {
+    matches!(reason, Some(FileIncludeReason::ReferencedFile(_)))
+}
+
+#[derive(Debug)]
+pub(crate) struct ReferenceFileLocation {
+    pub file: Rc<Node /*SourceFile*/>,
+    pub pos: usize,
+    pub end: usize,
+    pub package_id: Option<PackageId>,
+}
+
+#[derive(Debug)]
+pub(crate) struct SyntheticReferenceFileLocation {
+    pub file: Rc<Node /*SourceFile*/>,
+    pub package_id: Option<PackageId>,
+    pub text: String,
+}
+
+pub(crate) fn is_reference_file_location(
+    location: &ReferenceFileLocationOrSyntheticReferenceFileLocation,
+) -> bool {
+    matches!(
+        location,
+        ReferenceFileLocationOrSyntheticReferenceFileLocation::ReferenceFileLocation(_)
+    )
+}
+
+#[derive(Debug)]
+pub(crate) enum ReferenceFileLocationOrSyntheticReferenceFileLocation {
+    ReferenceFileLocation(ReferenceFileLocation),
+    SyntheticReferenceFileLocation(SyntheticReferenceFileLocation),
+}
+
+impl ReferenceFileLocationOrSyntheticReferenceFileLocation {
+    pub fn maybe_package_id(&self) -> Option<&PackageId> {
+        match self {
+            Self::ReferenceFileLocation(location) => location.package_id.as_ref(),
+            Self::SyntheticReferenceFileLocation(location) => location.package_id.as_ref(),
+        }
+    }
+
+    pub fn file(&self) -> Rc<Node> {
+        match self {
+            Self::ReferenceFileLocation(location) => location.file.clone(),
+            Self::SyntheticReferenceFileLocation(location) => location.file.clone(),
+        }
+    }
+}
+
+pub(crate) fn get_referenced_file_location<
+    TGetSourceFileByPath: FnMut(&Path) -> Option<Rc<Node /*SourceFile*/>>,
+>(
+    get_source_file_by_path: TGetSourceFileByPath,
+    ref_: &ReferencedFile,
+) -> ReferenceFileLocationOrSyntheticReferenceFileLocation {
+    unimplemented!()
+}
+
 pub fn get_config_file_parsing_diagnostics(
     config_file_parse_result: &ParsedCommandLine,
 ) -> Vec<Rc<Diagnostic>> {
@@ -259,11 +319,16 @@ pub fn get_config_file_parsing_diagnostics(
 }
 
 impl Program {
-    pub fn new(options: Rc<CompilerOptions>, files: Vec<Rc<Node>>) -> Rc<Self> {
+    pub fn new(
+        options: Rc<CompilerOptions>,
+        files: Vec<Rc<Node>>,
+        current_directory: String,
+    ) -> Rc<Self> {
         let rc = Rc::new(Program {
             _rc_wrapper: RefCell::new(None),
             options,
             files,
+            current_directory,
             diagnostics_producing_type_checker: RefCell::new(None),
         });
         rc.set_rc_wrapper(Some(rc.clone()));
@@ -278,12 +343,56 @@ impl Program {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    pub fn get_syntactic_diagnostics(&self) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+    pub fn get_root_file_names(&self) -> &[String] {
+        unimplemented!()
+    }
+
+    pub fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+        self.options.clone()
+    }
+
+    pub fn use_case_sensitive_file_names(&self) -> bool {
+        unimplemented!()
+    }
+
+    pub fn get_file_include_reasons(&self) -> MultiMap<Path, FileIncludeReason> {
+        unimplemented!()
+    }
+
+    pub fn get_syntactic_diagnostics(
+        &self,
+        source_file: Option<&Node /*SourceFile*/>,
+        cancellation_token: Option<&dyn CancellationToken>,
+    ) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
         self.get_diagnostics_helper(Program::get_syntactic_diagnostics_for_file)
     }
 
-    pub fn get_semantic_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
+    pub fn get_semantic_diagnostics(
+        &self,
+        source_file: Option<&Node /*SourceFile*/>,
+        cancellation_token: Option<&dyn CancellationToken>,
+    ) -> Vec<Rc<Diagnostic>> {
         self.get_diagnostics_helper(Program::get_semantic_diagnostics_for_file)
+    }
+
+    pub fn emit(
+        &self,
+        target_source_file: Option<&Node /*SourceFile*/>,
+        write_file: Option<&dyn WriteFileCallback>,
+        cancellation_token: Option<Rc<dyn CancellationToken>>,
+        emit_only_dts_files: Option<bool>,
+        custom_transformers: Option<CustomTransformers>,
+        force_dts_emit: Option<bool>,
+    ) -> EmitResult {
+        unimplemented!()
+    }
+
+    pub fn get_current_directory(&self) -> String {
+        self.current_directory.clone()
+    }
+
+    pub fn get_resolved_project_references(&self) -> Option<&[Option<ResolvedProjectReference>]> {
+        unimplemented!()
     }
 
     pub fn is_source_file_default_library(&self, file: &Node /*SourceFile*/) -> bool {
@@ -377,6 +486,24 @@ impl Program {
         let result = get_diagnostics(self, source_file);
         result
     }
+
+    pub fn get_options_diagnostics(
+        &self,
+        _cancellation_token: Option<&dyn CancellationToken>,
+    ) -> SortedArray<Rc<Diagnostic>> {
+        unimplemented!()
+    }
+
+    pub fn get_global_diagnostics(
+        &self,
+        _cancellation_token: Option<&dyn CancellationToken>,
+    ) -> SortedArray<Rc<Diagnostic>> {
+        unimplemented!()
+    }
+
+    pub fn get_config_file_parsing_diagnostics(&self) -> Vec<Rc<Diagnostic>> {
+        unimplemented!()
+    }
 }
 
 impl ScriptReferenceHost for Program {
@@ -452,7 +579,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
         processing_other_files = None;
     }
 
-    Program::new(options, files)
+    Program::new(options, files, current_directory)
 }
 
 fn filter_semantic_diagnostics(diagnostic: Vec<Rc<Diagnostic>>) -> Vec<Rc<Diagnostic>> {

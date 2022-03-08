@@ -29,6 +29,14 @@ pub trait System: ConvertToTSConfigHost {
     fn file_exists(&self, path: &str) -> bool;
     fn directory_exists(&self, path: &str) -> bool;
     fn get_executing_file_path(&self) -> Cow<'static, str>;
+    fn read_directory(
+        &self,
+        path: &str,
+        extensions: Option<&[&str]>,
+        excludes: Option<&[String]>,
+        includes: Option<&[String]>,
+        depth: Option<usize>,
+    ) -> Vec<String>;
     fn is_get_modified_time_supported(&self) -> bool;
     fn is_set_modified_time_supported(&self) -> bool;
     fn is_delete_file_supported(&self) -> bool;
@@ -127,6 +135,17 @@ impl System for SystemConcrete {
 
     fn get_executing_file_path(&self) -> Cow<'static, str> {
         Cow::Borrowed(file!())
+    }
+
+    fn read_directory(
+        &self,
+        path: &str,
+        extensions: Option<&[&str]>,
+        excludes: Option<&[String]>,
+        includes: Option<&[String]>,
+        depth: Option<usize>,
+    ) -> Vec<String> {
+        unimplemented!()
     }
 
     fn is_get_modified_time_supported(&self) -> bool {

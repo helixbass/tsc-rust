@@ -977,15 +977,15 @@ pub(super) fn execute_command_line_worker<
         });
 
     if let Some(config_file_name) = config_file_name {
-        let extended_config_cache: HashMap<String, ExtendedConfigCacheEntry> = HashMap::new();
+        let mut extended_config_cache: HashMap<String, ExtendedConfigCacheEntry> = HashMap::new();
         let config_parse_result = Rc::new(
             parse_config_file_with_system(
                 &config_file_name,
-                &command_line_options,
-                Some(&extended_config_cache),
+                command_line_options.clone(),
+                Some(&mut extended_config_cache),
                 command_line.watch_options.clone(),
-                &*sys,
-                &*report_diagnostic,
+                sys.clone(),
+                report_diagnostic.clone(),
             )
             .unwrap(),
         );

@@ -659,6 +659,14 @@ pub fn is_implicit_glob(last_path_component: &str) -> bool {
     unimplemented!()
 }
 
+pub fn get_pattern_from_spec(
+    spec: &str,
+    base_path: &str,
+    usage: &str, /*"files" | "directories" | "exclude"*/
+) -> Option<String> {
+    unimplemented!()
+}
+
 pub struct FileMatcherPatterns {
     pub include_file_patterns: Option<Vec<String>>,
     pub include_file_pattern: Option<String>,

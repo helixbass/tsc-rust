@@ -63,7 +63,7 @@ pub struct ResolvedModuleFull {
     pub package_id: Option<PackageId>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PackageId {
     pub name: String,
     pub sub_module_name: String,

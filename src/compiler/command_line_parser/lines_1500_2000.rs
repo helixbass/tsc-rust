@@ -481,7 +481,7 @@ pub trait ConfigFileDiagnosticsReporter {
 }
 
 pub trait ParseConfigFileHost: ParseConfigHost + ConfigFileDiagnosticsReporter {
-    fn get_current_directory(&self) -> &str;
+    fn get_current_directory(&self) -> String;
 }
 
 pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
@@ -504,7 +504,7 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     let result_as_source_file = result.as_source_file();
     result_as_source_file.set_path(to_path(
         config_file_name,
-        Some(cwd),
+        Some(&cwd),
         create_get_canonical_file_name(host.use_case_sensitive_file_names()),
     ));
     result_as_source_file.set_resolved_path(Some(result_as_source_file.path().clone()));
@@ -512,9 +512,9 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     Some(parse_json_source_file_config_file_content(
         &result,
         host,
-        &get_normalized_absolute_path(&get_directory_path(config_file_name), Some(cwd)),
+        &get_normalized_absolute_path(&get_directory_path(config_file_name), Some(&cwd)),
         options_to_extend,
-        Some(&get_normalized_absolute_path(config_file_name, Some(cwd))),
+        Some(&get_normalized_absolute_path(config_file_name, Some(&cwd))),
         None,
         extra_file_extensions,
         extended_config_cache,

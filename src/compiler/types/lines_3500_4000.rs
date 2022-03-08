@@ -11,7 +11,7 @@ use super::{
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol,
     SymbolTable, TypeChecker,
 };
-use crate::{ConfigFileSpecs, ModeAwareCache, PragmaContext, __String};
+use crate::{ConfigFileSpecs, ModeAwareCache, PackageId, PragmaContext, __String};
 use local_macros::ast_type;
 
 pub type SourceTextAsChars = Vec<char>;
@@ -59,6 +59,12 @@ pub trait SourceFileLike {
     ) -> Option<usize>;
 }
 
+#[derive(Debug)]
+pub struct RedirectInfo {
+    pub redirect_target: Rc<Node /*SourceFile*/>,
+    pub undirected: Rc<Node /*SourceFile*/>,
+}
+
 pub trait HasStatementsInterface {
     fn statements(&self) -> &[Rc<Node>];
 }
@@ -77,6 +83,8 @@ pub struct SourceFile {
     text_as_chars: RefCell<SourceTextAsChars>,
     resolved_path: RefCell<Option<Path>>,
     original_file_name: RefCell<Option<String>>,
+
+    redirect_info: RefCell<Option<RedirectInfo>>,
 
     amd_dependencies: RefCell<Option<Vec<AmdDependency>>>,
     module_name: RefCell<Option<String>>,
@@ -149,6 +157,7 @@ impl SourceFile {
             text_as_chars: RefCell::new(text_as_chars),
             resolved_path: RefCell::new(None),
             original_file_name: RefCell::new(None),
+            redirect_info: RefCell::new(None),
             amd_dependencies: RefCell::new(None),
             module_name: RefCell::new(None),
             referenced_files: RefCell::new(None),
@@ -220,8 +229,18 @@ impl SourceFile {
         self.original_file_name.borrow()
     }
 
+    pub fn original_file_name(&self) -> Ref<String> {
+        Ref::map(self.original_file_name.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
     pub fn set_original_file_name(&self, original_file_name: Option<String>) {
         *self.original_file_name.borrow_mut() = original_file_name;
+    }
+
+    pub fn maybe_redirect_info(&self) -> RefMut<Option<RedirectInfo>> {
+        self.redirect_info.borrow_mut()
     }
 
     pub fn has_no_default_lib(&self) -> bool {
@@ -518,6 +537,8 @@ pub enum CommentDirectiveType {
     Ignore,
 }
 
+pub(crate) type ExportedModulesFromDeclarationEmit = Vec<Rc<Symbol>>;
+
 #[derive(Debug)]
 #[ast_type]
 pub struct Bundle {
@@ -746,10 +767,65 @@ pub trait CancellationToken {
 
 pub trait CancellationTokenDebuggable: CancellationToken + fmt::Debug {}
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum FileIncludeKind {
+    RootFile,
+    SourceFromProjectReference,
+    OutputFromProjectReference,
+    Import,
+    ReferenceFile,
+    TypeReferenceDirective,
+    LibFile,
+    LibReferenceDirective,
+    AutomaticTypeDirectiveFile,
+}
+
+#[derive(Clone, Debug)]
+pub struct RootFile {
+    pub kind: FileIncludeKind, /*FileIncludeKind.RootFile*/
+    pub index: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct LibFile {
+    pub kind: FileIncludeKind, /*FileIncludeKind.LibFile*/
+    pub index: Option<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ProjectReferenceFile {
+    pub kind: FileIncludeKind, /*ProjectReferenceFileKind*/
+    pub index: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct ReferencedFile {
+    pub kind: FileIncludeKind, /*ReferencedFileKind*/
+    pub file: Path,
+    pub index: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct AutomaticTypeDirectiveFile {
+    pub kind: FileIncludeKind, /*FileIncludeKind.AutomaticTypeDirectiveFile*/
+    pub type_reference: String,
+    pub package_id: Option<PackageId>,
+}
+
+#[derive(Clone, Debug)]
+pub enum FileIncludeReason {
+    RootFile(RootFile),
+    LibFile(LibFile),
+    ProjectReferenceFile(ProjectReferenceFile),
+    ReferencedFile(ReferencedFile),
+    AutomaticTypeDirectiveFile(AutomaticTypeDirectiveFile),
+}
+
 #[derive(Debug)]
 pub struct Program {
     pub(crate) _rc_wrapper: RefCell<Option<Rc<Program>>>,
     pub(crate) options: Rc<CompilerOptions>,
     pub(crate) files: Vec<Rc</*SourceFile*/ Node>>,
+    pub(crate) current_directory: String,
     pub(crate) diagnostics_producing_type_checker: RefCell<Option<Rc<TypeChecker>>>,
 }
