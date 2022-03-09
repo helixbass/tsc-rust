@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::io;
 use std::rc::Rc;
 
 use super::{
@@ -17,7 +18,7 @@ use crate::{
 
 pub trait ModuleResolutionHost {
     fn file_exists(&self, file_name: &str) -> bool;
-    fn read_file(&self, file_name: &str) -> Option<String>;
+    fn read_file(&self, file_name: &str) -> io::Result<String>;
     fn trace(&self, s: &str) {}
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
         None
@@ -41,7 +42,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
         ParseConfigHost::file_exists(self, file_name)
     }
 
-    fn read_file(&self, file_name: &str) -> Option<String> {
+    fn read_file(&self, file_name: &str) -> io::Result<String> {
         ParseConfigHost::read_file(self, file_name)
     }
 
@@ -183,8 +184,8 @@ pub trait CompilerHost: ModuleResolutionHost {
         &self,
         root_dir: &str,
         extensions: &[&str],
-        excludes: Option<&[&str]>,
-        includes: &[&str],
+        excludes: Option<&[String]>,
+        includes: &[String],
         depth: Option<usize>,
     ) -> Option<Vec<String>> {
         None

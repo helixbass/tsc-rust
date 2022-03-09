@@ -1,19 +1,24 @@
 use std::cell::RefCell;
 use std::cmp;
+use std::collections::HashMap;
 use std::convert::TryInto;
+use std::io;
 use std::rc::Rc;
+use std::time;
 use std::time::SystemTime;
 
 use crate::{
-    combine_paths, concatenate, convert_to_relative_path, create_source_file, create_type_checker,
-    diagnostic_category_name, for_each, for_each_ancestor_directory_str, get_directory_path,
-    get_emit_script_target, get_line_and_character_of_position, get_normalized_path_components,
-    get_path_from_path_components, get_sys, is_rooted_disk_path, normalize_path,
-    to_path as to_path_helper, CancellationToken, CompilerHost, CompilerOptions,
-    CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticMessageText,
-    DiagnosticRelatedInformationInterface, EmitResult, FileIncludeReason, LineAndCharacter,
-    ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap, Node, PackageId,
-    ParsedCommandLine, Path, Program, ReferencedFile, ResolvedProjectReference,
+    combine_paths, concatenate, convert_to_relative_path, create_get_canonical_file_name,
+    create_source_file, create_type_checker, diagnostic_category_name, for_each,
+    for_each_ancestor_directory_str, generate_djb2_hash, get_default_lib_file_name,
+    get_directory_path, get_emit_script_target, get_line_and_character_of_position,
+    get_new_line_character, get_normalized_path_components, get_path_from_path_components, get_sys,
+    is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path,
+    to_path as to_path_helper, write_file_ensuring_directories, CancellationToken, CompilerHost,
+    CompilerOptions, CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticMessageText,
+    DiagnosticRelatedInformationInterface, EmitResult, FileIncludeReason, GetCanonicalFileName,
+    LineAndCharacter, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap,
+    Node, PackageId, ParsedCommandLine, Path, Program, ReferencedFile, ResolvedProjectReference,
     ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, System,
     TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
 };
@@ -104,36 +109,145 @@ struct OutputFingerprint {
 }
 
 fn create_compiler_host(
-    options: &CompilerOptions,
+    options: Rc<CompilerOptions>,
     set_parent_nodes: Option<bool>,
 ) -> impl CompilerHost {
     create_compiler_host_worker(options, set_parent_nodes, None)
 }
 
 pub(crate) fn create_compiler_host_worker(
-    options: &CompilerOptions,
+    options: Rc<CompilerOptions>,
     set_parent_nodes: Option<bool>,
     system: Option<Rc<dyn System>>,
 ) -> impl CompilerHost {
     let system = system.unwrap_or_else(|| get_sys());
+    let existing_directories: HashMap<String, bool> = HashMap::new();
+    let get_canonical_file_name =
+        create_get_canonical_file_name(system.use_case_sensitive_file_names());
+    let new_line = get_new_line_character(options.new_line, Some(|| system.new_line().to_owned()));
+
     CompilerHostConcrete {
         set_parent_nodes,
         system,
+        existing_directories: RefCell::new(existing_directories),
+        output_fingerprints: RefCell::new(None),
+        options,
+        new_line,
+        current_directory: RefCell::new(None),
+        get_canonical_file_name,
     }
 }
 
 struct CompilerHostConcrete {
     set_parent_nodes: Option<bool>,
     system: Rc<dyn System>,
+    existing_directories: RefCell<HashMap<String, bool>>,
+    output_fingerprints: RefCell<Option<HashMap<String, OutputFingerprint>>>,
+    options: Rc<CompilerOptions>,
+    new_line: String,
+    current_directory: RefCell<Option<String>>,
+    get_canonical_file_name: GetCanonicalFileName,
+}
+
+impl CompilerHostConcrete {
+    fn compute_hash(&self, data: &str) -> String {
+        if self.system.is_create_hash_supported() {
+            self.system.create_hash(data)
+        } else {
+            generate_djb2_hash(data)
+        }
+    }
+
+    fn directory_exists_(&self, directory_path: &str) -> bool {
+        let mut existing_directories = self.existing_directories.borrow_mut();
+        if existing_directories.contains_key(directory_path) {
+            return true;
+        }
+        if matches!(self.directory_exists(directory_path), Some(true)) {
+            existing_directories.insert(directory_path.to_owned(), true);
+            return true;
+        }
+        false
+    }
+
+    fn write_file_worker(
+        &self,
+        file_name: &str,
+        data: &str,
+        write_byte_order_mark: bool,
+    ) -> io::Result<()> {
+        if !is_watch_set(&self.options) || !self.system.is_get_modified_time_supported() {
+            return self
+                .system
+                .write_file(file_name, data, Some(write_byte_order_mark));
+        }
+
+        let mut output_fingerprints = self.output_fingerprints.borrow_mut();
+        if output_fingerprints.is_none() {
+            *output_fingerprints = Some(HashMap::new());
+        }
+        let output_fingerprints = output_fingerprints.as_mut().unwrap();
+
+        let hash = self.compute_hash(data);
+        let mtime_before = self.system.get_modified_time(file_name);
+
+        if let Some(mtime_before) = mtime_before {
+            let fingerprint = output_fingerprints.get(file_name);
+            if matches!(
+            fingerprint,
+            Some(fingerprint) if fingerprint.byte_order_mark == write_byte_order_mark &&
+            fingerprint.hash == hash &&
+            fingerprint.mtime.duration_since(time::UNIX_EPOCH).unwrap().as_millis() ==
+                mtime_before.duration_since(time::UNIX_EPOCH).unwrap().as_millis()
+            ) {
+                return Ok(());
+            }
+        }
+
+        self.system
+            .write_file(file_name, data, Some(write_byte_order_mark))?;
+
+        let mtime_after = self
+            .system
+            .get_modified_time(file_name)
+            .unwrap_or_else(|| missing_file_modified_time());
+
+        output_fingerprints.insert(
+            file_name.to_owned(),
+            OutputFingerprint {
+                hash,
+                byte_order_mark: write_byte_order_mark,
+                mtime: mtime_after,
+            },
+        );
+
+        Ok(())
+    }
 }
 
 impl ModuleResolutionHost for CompilerHostConcrete {
-    fn read_file(&self, file_name: &str) -> Option<String> {
+    fn read_file(&self, file_name: &str) -> io::Result<String> {
         self.system.read_file(file_name)
     }
 
+    fn realpath(&self, path: &str) -> Option<String> {
+        self.system.realpath(path)
+    }
+
     fn file_exists(&self, file_name: &str) -> bool {
-        unimplemented!()
+        self.system.file_exists(file_name)
+    }
+
+    fn trace(&self, s: &str) {
+        self.system.write(&format!("{}{}", s, self.new_line));
+    }
+
+    fn directory_exists(&self, directory_name: &str) -> Option<bool> {
+        Some(self.system.directory_exists(directory_name))
+    }
+
+    fn get_directories(&self, path: &str) -> Option<Vec<String>> {
+        Some(self.system.get_directories(path))
     }
 }
 
@@ -145,7 +259,21 @@ impl CompilerHost for CompilerHostConcrete {
         on_error: Option<&mut dyn FnMut(&str)>,
         should_create_new_source_file: Option<bool>,
     ) -> Option<Rc<Node /*SourceFile*/>> {
-        let text = self.read_file(file_name);
+        let mut text: Option<String> = None;
+        // performance.mark("beforeIORead");
+        match self.read_file(file_name) {
+            Ok(value) => {
+                text = Some(value);
+                // performance.mark("afterIORead");
+                // performance.measure("I/O Read", "beforeIORead", "afterIORead");
+            }
+            Err(e) => {
+                if let Some(on_error) = on_error {
+                    on_error(&format!("{}", e));
+                }
+                text = Some("".to_owned());
+            }
+        }
         text.map(|text| {
             create_source_file(
                 file_name,
@@ -157,16 +285,37 @@ impl CompilerHost for CompilerHostConcrete {
         })
     }
 
-    fn get_canonical_file_name<'file_name>(&self, file_name: &'file_name str) -> String {
-        file_name.into()
-    }
-
-    fn get_current_directory(&self) -> String {
-        self.system.get_current_directory()
+    fn get_default_lib_location(&self) -> Option<String> {
+        Some(get_directory_path(&normalize_path(
+            &self.system.get_executing_file_path(),
+        )))
     }
 
     fn get_default_lib_file_name(&self, options: &CompilerOptions) -> String {
-        unimplemented!()
+        combine_paths(
+            &self.get_default_lib_location().unwrap(),
+            &vec![Some(get_default_lib_file_name(options))],
+        )
+    }
+
+    fn get_current_directory(&self) -> String {
+        let mut current_directory = self.current_directory.borrow_mut();
+        if current_directory.is_none() {
+            *current_directory = Some(self.system.get_current_directory());
+        }
+        current_directory.clone().unwrap()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.system.use_case_sensitive_file_names()
+    }
+
+    fn get_canonical_file_name(&self, file_name: &str) -> String {
+        (self.get_canonical_file_name)(file_name)
+    }
+
+    fn get_new_line(&self) -> String {
+        self.new_line.clone()
     }
 
     fn write_file(
@@ -175,17 +324,59 @@ impl CompilerHost for CompilerHostConcrete {
         data: &str,
         write_byte_order_mark: bool,
         on_error: Option<&mut dyn FnMut(&str)>,
-        source_files: Option<&[Rc<Node /*SourceFile*/>]>,
+        _source_files: Option<&[Rc<Node /*SourceFile*/>]>,
     ) {
-        unimplemented!()
+        // performance.mark("beforeIOWrite");
+        match write_file_ensuring_directories(
+            file_name,
+            data,
+            write_byte_order_mark,
+            |path, data, write_byte_order_mark| {
+                self.write_file_worker(path, data, write_byte_order_mark)
+            },
+            |path| self.create_directory(path),
+            |path| self.directory_exists_(path),
+        ) {
+            Ok(_) => {
+                // performance.mark("afterIOWrite");
+                // performance.measure("I/O Write", "beforeIOWrite", "afterIOWrite");
+            }
+            Err(e) => {
+                if let Some(on_error) = on_error {
+                    on_error(&format!("{}", e));
+                }
+            }
+        }
     }
 
-    fn use_case_sensitive_file_names(&self) -> bool {
-        true
+    fn get_environment_variable(&self, name: &str) -> Option<String> {
+        Some(self.system.get_environment_variable(name))
     }
 
-    fn get_new_line(&self) -> String {
-        unimplemented!()
+    fn read_directory(
+        &self,
+        path: &str,
+        extensions: &[&str],
+        excludes: Option<&[String]>,
+        includes: &[String],
+        depth: Option<usize>,
+    ) -> Option<Vec<String>> {
+        Some(
+            self.system
+                .read_directory(path, Some(extensions), excludes, Some(includes), depth),
+        )
+    }
+
+    fn create_directory(&self, d: &str) {
+        self.system.create_directory(d)
+    }
+
+    fn create_hash(&self, data: &str) -> Option<String> {
+        if self.system.is_create_hash_supported() {
+            Some(self.system.create_hash(data))
+        } else {
+            None
+        }
     }
 }
 
@@ -617,7 +808,7 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
     let mut processing_other_files: Option<Vec<Rc<Node>>> = None;
     let mut files: Vec<Rc<Node>> = vec![];
 
-    let host = create_compiler_host(&options, None);
+    let host = create_compiler_host(options.clone(), None);
 
     let current_directory = CompilerHost::get_current_directory(&host);
 

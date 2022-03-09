@@ -365,21 +365,21 @@ fn try_set_language_and_territory(
         return false;
     }
 
-    let mut file_contents: Option<String> = Some("".to_owned());
-    file_contents = sys.read_file(&file_path);
-    if file_contents.is_none() {
-        if let Some(errors) = errors {
-            errors.push(Rc::new(
-                create_compiler_diagnostic(
-                    &Diagnostics::Unable_to_open_file_0,
-                    Some(vec![file_path]),
-                )
-                .into(),
-            ));
+    let file_contents = match sys.read_file(&file_path) {
+        Err(_) => {
+            if let Some(errors) = errors {
+                errors.push(Rc::new(
+                    create_compiler_diagnostic(
+                        &Diagnostics::Unable_to_open_file_0,
+                        Some(vec![file_path]),
+                    )
+                    .into(),
+                ));
+            }
+            return false;
         }
-        return false;
-    }
-    let file_contents = file_contents.unwrap();
+        Ok(file_contents) => file_contents,
+    };
     let parsed_file_contents: serde_json::Result<HashMap<String, String>> =
         serde_json::from_str(&file_contents);
     if parsed_file_contents.is_err() {

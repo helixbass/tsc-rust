@@ -3,6 +3,7 @@
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::io;
 use std::rc::Rc;
 
 use super::{
@@ -744,7 +745,7 @@ pub trait ParseConfigHost {
 
     fn file_exists(&self, path: &str) -> bool;
 
-    fn read_file(&self, path: &str) -> Option<String>;
+    fn read_file(&self, path: &str) -> io::Result<String>;
     fn trace(&self, s: &str) {}
 }
 

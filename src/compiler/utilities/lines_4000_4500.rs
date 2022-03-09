@@ -778,7 +778,7 @@ fn ensure_directories_exist<TCreateDirectory: Fn(&str), TDirectoryExists: Fn(&st
     }
 }
 
-fn write_file_ensuring_directories<
+pub fn write_file_ensuring_directories<
     TWriteFile: Fn(&str, &str, bool) -> io::Result<()>,
     TCreateDirectory: Fn(&str),
     TDirectoryExists: Fn(&str) -> bool,
@@ -789,14 +789,17 @@ fn write_file_ensuring_directories<
     write_file: TWriteFile,
     create_directory: TCreateDirectory,
     directory_exists: TDirectoryExists,
-) {
-    if write_file(path, data, write_byte_order_mark).is_err() {
-        ensure_directories_exist(
-            &get_directory_path(&normalize_path(path)),
-            &create_directory,
-            directory_exists,
-        );
-        write_file(path, data, write_byte_order_mark).expect("Expected write to succeed");
+) -> io::Result<()> {
+    match write_file(path, data, write_byte_order_mark) {
+        Err(_) => {
+            ensure_directories_exist(
+                &get_directory_path(&normalize_path(path)),
+                &create_directory,
+                directory_exists,
+            );
+            write_file(path, data, write_byte_order_mark)
+        }
+        Ok(_) => Ok(()),
     }
 }
 

@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::io;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
@@ -126,7 +127,7 @@ fn clear_screen_if_not_watching_for_file_changes(
     diagnostic: &Diagnostic,
     options: &CompilerOptions,
 ) -> bool {
-    if system.is_clear_screen_implemented()
+    if system.is_clear_screen_supported()
         && !matches!(options.preserve_watch_output, Some(true))
         && !matches!(options.extended_diagnostics, Some(true))
         && !matches!(options.diagnostics, Some(true))
@@ -292,7 +293,7 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
         self.system.file_exists(path)
     }
 
-    fn read_file(&self, path: &str) -> Option<String> {
+    fn read_file(&self, path: &str) -> io::Result<String> {
         self.system.read_file(path)
     }
 }
