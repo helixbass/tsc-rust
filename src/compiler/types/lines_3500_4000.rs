@@ -822,6 +822,8 @@ pub enum FileIncludeReason {
     AutomaticTypeDirectiveFile(AutomaticTypeDirectiveFile),
 }
 
+pub(crate) type FilePreprocessingDiagnostics = ();
+
 #[derive(Debug)]
 pub struct Program {
     pub(crate) _rc_wrapper: RefCell<Option<Rc<Program>>>,

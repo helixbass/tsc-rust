@@ -202,8 +202,8 @@ pub use compiler::tsbuild_public::{
 };
 use compiler::types::{
     diagnostic_category_name, CommandLineOptionType, CommentDirectivesMap, EmitNode,
-    ExternalEmitHelpers, FileIncludeKind, FileIncludeReason, ReadonlyPragmaMap, ReferencedFile,
-    StringOrDiagnosticMessage,
+    ExternalEmitHelpers, FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
+    ReadonlyPragmaMap, ReferencedFile, StringOrDiagnosticMessage,
 };
 pub use compiler::types::{
     extend_compiler_options, extend_watch_options, maybe_extend_compiler_options,

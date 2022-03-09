@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::cmp;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::io;
 use std::rc::Rc;
@@ -8,7 +8,8 @@ use std::time;
 use std::time::SystemTime;
 
 use crate::{
-    combine_paths, concatenate, convert_to_relative_path, create_get_canonical_file_name,
+    FilePreprocessingDiagnostics, ResolvedTypeReferenceDirective, __String, combine_paths,
+    concatenate, convert_to_relative_path, create_get_canonical_file_name, create_multi_map,
     create_source_file, create_type_checker, diagnostic_category_name, for_each,
     for_each_ancestor_directory_str, generate_djb2_hash, get_default_lib_file_name,
     get_directory_path, get_emit_script_target, get_line_and_character_of_position,
@@ -19,8 +20,8 @@ use crate::{
     DiagnosticRelatedInformationInterface, EmitResult, FileIncludeReason, GetCanonicalFileName,
     LineAndCharacter, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap,
     Node, PackageId, ParsedCommandLine, Path, Program, ReferencedFile, ResolvedProjectReference,
-    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, System,
-    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
+    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, SymlinkCache,
+    System, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -499,6 +500,12 @@ pub(crate) fn get_mode_for_resolution_at_index<TFile: SourceFileImportsList>(
     unimplemented!()
 }
 
+#[derive(Debug, Default)]
+struct DiagnosticCache {
+    pub per_file: Option<HashMap<Path, Vec<Rc<Diagnostic>>>>,
+    pub all_diagnostics: Option<Vec<Rc<Diagnostic>>>,
+}
+
 pub(crate) fn is_referenced_file(reason: Option<&FileIncludeReason>) -> bool {
     matches!(reason, Some(FileIncludeReason::ReferencedFile(_)))
 }
@@ -799,16 +806,49 @@ struct CreateProgramHelperContext<'a> {
 }
 
 pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program> {
-    let CreateProgramOptions {
-        root_names,
-        options,
-        ..
-    } = root_names_or_options;
+    let create_program_options = root_names_or_options;
+    let root_names = &create_program_options.root_names;
+    let options = &create_program_options.options;
+    let config_file_parsing_diagnostics = create_program_options
+        .config_file_parsing_diagnostics
+        .as_ref();
+    let project_references = create_program_options.project_references.as_ref();
+    let old_program = create_program_options.old_program.as_ref();
 
-    let mut processing_other_files: Option<Vec<Rc<Node>>> = None;
-    let mut files: Vec<Rc<Node>> = vec![];
+    let mut processing_default_lib_files: Option<Vec<Rc<Node /*SourceFile*/>>> = None;
+    let mut processing_other_files: Option<Vec<Rc<Node /*SourceFile*/>>> = None;
+    let mut files: Option<Vec<Rc<Node /*SourceFile*/>>> = None;
+    let mut symlinks: Option<SymlinkCache> = None;
+    let mut common_source_directory: Option<String> = None;
+    let mut diagnostics_producing_type_checker: Option<Rc<TypeChecker>> = None;
+    let mut no_diagnostics_type_checker: Option<Rc<TypeChecker>> = None;
+    let mut classifiable_names: Option<HashSet<__String>> = None;
+    let mut ambient_module_name_to_unmodified_file_name: HashMap<String, String> = HashMap::new();
+    let mut file_reasons: MultiMap<Path, FileIncludeReason> = create_multi_map();
+    let mut cached_bind_and_check_diagnostics_for_file: DiagnosticCache/*<Diagnostic>*/ = Default::default();
+    let mut cached_declaration_diagnostics_for_file: DiagnosticCache/*<DiagnosticWithLocation>*/ = Default::default();
 
-    let host = create_compiler_host(options.clone(), None);
+    let mut resolved_type_reference_directives: HashMap<
+        String,
+        Option<ResolvedTypeReferenceDirective>,
+    > = HashMap::new();
+    let mut file_processing_diagnostics: Option<Vec<FilePreprocessingDiagnostics>> = None;
+
+    let max_node_module_js_depth = options.max_node_module_js_depth.unwrap_or(0);
+    let mut current_node_modules_depth = 0;
+
+    let mut modules_with_elided_imports: HashMap<String, bool> = HashMap::new();
+
+    let mut source_files_found_searching_node_modules: HashMap<String, bool> = HashMap::new();
+
+    // tracing?.push(tracing.Phase.Program, "createProgram", { configFilePath: options.configFilePath, rootDir: options.rootDir }, true);
+    // performance.mark("beforeProgram");
+
+    let host: Rc<dyn CompilerHost> = create_program_options.host.map_or_else(
+        || Rc::new(create_compiler_host(options.clone(), None)),
+        |host| host.clone(),
+    );
+    let config_parsing_host = parse_config_host_from_compiler_host_like(&host);
 
     let current_directory = CompilerHost::get_current_directory(&host);
 
