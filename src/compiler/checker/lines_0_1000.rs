@@ -12,19 +12,19 @@ use std::rc::Rc;
 
 use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
+    BaseInterfaceType, CheckFlags, ContextFlags, Debug_, DiagnosticCollection, DiagnosticMessage,
+    EmitTextWriter, Extension, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo,
+    IndexKind, ModuleInstanceState, Node, NodeArray, NodeBuilderFlags, NodeId, NodeInterface,
+    Number, ObjectFlags, RelationComparisonResult, Signature, SignatureKind, StringOrNumber,
+    Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags,
+    TypePredicate, VarianceFlags, __String, create_diagnostic_collection, create_symbol_table,
     escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
     get_emit_module_kind, get_emit_script_target, get_module_instance_state, get_parse_tree_node,
     get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
     is_call_like_expression, is_export_specifier, is_expression, is_identifier,
-    is_jsx_attribute_like, is_object_literal_element_like, is_parameter, is_type_node, sum,
-    BaseInterfaceType, CheckFlags, ContextFlags, Debug_, EmitTextWriter, Extension,
-    GenericableTypeInterface, IndexInfo, IndexKind, ModuleInstanceState, NodeArray,
-    NodeBuilderFlags, RelationComparisonResult, Signature, SignatureKind, SymbolFormatFlags,
-    SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable, TypeFormatFlags, TypePredicate,
-    VarianceFlags, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
-    DiagnosticCollection, DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface,
-    Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type,
-    TypeChecker, TypeFlags,
+    is_jsx_attribute_like, is_object_literal_element_like, is_parameter, is_type_node,
+    object_allocator, sum,
 };
 
 lazy_static! {
@@ -1382,6 +1382,55 @@ impl TypeChecker {
             Some(|node: &Node| is_jsx_attribute_like(node)),
         )?;
         self.get_contextual_type_for_jsx_attribute_(&node)
+    }
+
+    pub fn get_resolved_signature(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        candidates_out_array: Option<&[Rc<Signature>]>,
+        argument_count: Option<usize>,
+    ) -> Option<Rc<Signature>> {
+        self.get_resolved_signature_worker(
+            node,
+            candidates_out_array,
+            argument_count,
+            CheckMode::Normal,
+        )
+    }
+
+    pub fn get_resolved_signature_for_signature_help(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        candidates_out_array: Option<&[Rc<Signature>]>,
+        argument_count: Option<usize>,
+    ) -> Option<Rc<Signature>> {
+        self.get_resolved_signature_worker(
+            node,
+            candidates_out_array,
+            argument_count,
+            CheckMode::IsForSignatureHelp,
+        )
+    }
+
+    pub fn get_constant_value(
+        &self,
+        node_in: &Node, /*EnumMember | PropertyAccessExpression | ElementAccessExpression*/
+    ) -> Option<StringOrNumber> {
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| self.can_have_constant_value(node)),
+        )?;
+        self.get_constant_value_(&node)
+    }
+
+    pub(super) fn get_resolved_signature_worker(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        candidates_out_array: Option<&[Rc<Signature>]>,
+        argument_count: Option<usize>,
+        check_mode: CheckMode,
+    ) -> Option<Rc<Signature>> {
+        unimplemented!()
     }
 
     pub(super) fn string_literal_types(

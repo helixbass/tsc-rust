@@ -118,6 +118,17 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn can_have_constant_value(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_constant_value_(
+        &self,
+        node: &Node, /*EnumMember | AccessExpression*/
+    ) -> Option<StringOrNumber> {
+        unimplemented!()
+    }
+
     pub(super) fn create_resolver(&self) -> Rc<dyn EmitResolverDebuggable> {
         Rc::new(EmitResolverCreateResolver::new())
     }
