@@ -300,7 +300,7 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                                     &Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
                                     Some(
                                         vec![
-                                            self.type_checker.symbol_to_string(&prop, None, None, None, None),
+                                            self.type_checker.symbol_to_string_(&prop, Option::<&Node>::None, None, None, None),
                                             self.type_checker.type_to_string_(&error_target, Option::<&Node>::None, None, None)
                                         ]
                                     )
@@ -534,9 +534,9 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
             if report_errors {
                 self.report_incompatible_error(
                     Diagnostics::Types_of_property_0_are_incompatible,
-                    Some(vec![self.type_checker.symbol_to_string(
+                    Some(vec![self.type_checker.symbol_to_string_(
                         target_prop,
-                        None,
+                        Option::<&Node>::None,
                         None,
                         None,
                         None,

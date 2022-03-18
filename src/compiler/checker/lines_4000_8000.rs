@@ -11,7 +11,7 @@ use crate::{
     NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions,
     ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureKind, SourceFile, Symbol,
     SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter, __String,
+    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter, TypePredicate, __String,
     create_printer, create_text_writer, factory, get_object_flags, get_source_file_of_node,
     synthetic_factory,
 };
@@ -156,10 +156,10 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn symbol_to_string(
+    pub(super) fn symbol_to_string_<TEnclosingDeclaration: Borrow<Node>>(
         &self,
         symbol: &Symbol,
-        enclosing_declaration: Option<&Node>,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
         meaning: Option<SymbolFlags>,
         flags: Option<SymbolFormatFlags>,
         writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
@@ -202,7 +202,7 @@ impl TypeChecker {
                 create_printer(PrinterOptions {/*remove_comments: true*/})
             };
             let source_file = if let Some(enclosing_declaration) = enclosing_declaration {
-                Some(get_source_file_of_node(Some(enclosing_declaration)).unwrap())
+                Some(get_source_file_of_node(Some(enclosing_declaration.borrow())).unwrap())
             } else {
                 None
             };
@@ -329,6 +329,17 @@ impl TypeChecker {
     pub(super) fn to_node_builder_flags(&self, flags: Option<TypeFormatFlags>) -> NodeBuilderFlags {
         let flags = flags.unwrap_or(TypeFormatFlags::None);
         NodeBuilderFlags::from_bits((flags & TypeFormatFlags::NodeBuilderFlagsMask).bits()).unwrap()
+    }
+
+    pub fn type_predicate_to_string_<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        type_predicate: &TypePredicate,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<TypeFormatFlags>,
+        writer: Option<&dyn EmitTextWriter>,
+    ) -> String {
+        let flags = flags.unwrap_or(TypeFormatFlags::UseAliasDefinedOutsideCurrentScope);
+        unimplemented!()
     }
 }
 

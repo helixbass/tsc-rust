@@ -16,13 +16,13 @@ use crate::{
     get_emit_script_target, get_module_instance_state, get_parse_tree_node,
     get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
     is_export_specifier, is_identifier, is_parameter, is_type_node, sum, BaseInterfaceType,
-    CheckFlags, Debug_, Extension, GenericableTypeInterface, IndexInfo, IndexKind,
+    CheckFlags, Debug_, EmitTextWriter, Extension, GenericableTypeInterface, IndexInfo, IndexKind,
     ModuleInstanceState, NodeArray, NodeBuilderFlags, RelationComparisonResult, Signature,
-    SignatureKind, SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable, TypeFormatFlags,
-    VarianceFlags, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
-    DiagnosticCollection, DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface,
-    Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type,
-    TypeChecker, TypeFlags,
+    SignatureKind, SymbolFormatFlags, SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable,
+    TypeFormatFlags, TypePredicate, VarianceFlags, __String, create_diagnostic_collection,
+    create_symbol_table, object_allocator, DiagnosticCollection, DiagnosticMessage,
+    FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags,
+    SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
 };
 
 lazy_static! {
@@ -1199,6 +1199,53 @@ impl TypeChecker {
             get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
             flags,
             None,
+        )
+    }
+
+    pub fn symbol_to_string<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        meaning: Option<SymbolFlags>,
+        flags: Option<SymbolFormatFlags>,
+    ) -> String {
+        self.symbol_to_string_(
+            symbol,
+            get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
+            meaning,
+            flags,
+            None,
+        )
+    }
+
+    pub fn type_predicate_to_string<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        predicate: &TypePredicate,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<TypeFormatFlags>,
+    ) -> String {
+        self.type_predicate_to_string_(
+            predicate,
+            get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
+            flags,
+            None,
+        )
+    }
+
+    pub fn write_signature<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        signature: &Signature,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<TypeFormatFlags>,
+        kind: Option<SignatureKind>,
+        writer: Option<&dyn EmitTextWriter>,
+    ) -> String {
+        self.signature_to_string_(
+            signature,
+            get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
+            flags,
+            kind,
+            writer,
         )
     }
 
