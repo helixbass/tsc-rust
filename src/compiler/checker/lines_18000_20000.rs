@@ -298,7 +298,12 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                             } else {
                                 self.report_error(
                                     &Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
-                                    Some(vec![self.type_checker.symbol_to_string(&prop, None, None, None, None), self.type_checker.type_to_string(&error_target, Option::<&Node>::None, None)])
+                                    Some(
+                                        vec![
+                                            self.type_checker.symbol_to_string(&prop, None, None, None, None),
+                                            self.type_checker.type_to_string_(&error_target, Option::<&Node>::None, None, None)
+                                        ]
+                                    )
                                 );
                             }
                         }

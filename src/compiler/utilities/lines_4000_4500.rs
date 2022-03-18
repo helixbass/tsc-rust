@@ -260,6 +260,10 @@ impl SymbolWriter for TextWriter {
     fn clear(&mut self) {
         self.reset();
     }
+
+    fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
+        self
+    }
 }
 
 impl SymbolTracker for TextWriter {
@@ -419,6 +423,10 @@ impl<TWriter: EmitTextWriter> SymbolWriter for TrailingSemicolonDeferringWriter<
 
     fn clear(&mut self) {
         self.writer.clear()
+    }
+
+    fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
+        self
     }
 }
 

@@ -1188,6 +1188,20 @@ impl TypeChecker {
         )
     }
 
+    pub fn type_to_string<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<TypeFormatFlags>,
+    ) -> String {
+        self.type_to_string_(
+            type_,
+            get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
+            flags,
+            None,
+        )
+    }
+
     pub(super) fn string_literal_types(
         &self,
     ) -> RefMut<HashMap<String, Rc</*NumberLiteralType*/ Type>>> {

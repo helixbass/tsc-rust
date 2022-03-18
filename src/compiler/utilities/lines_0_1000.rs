@@ -211,6 +211,10 @@ impl SymbolWriter for SingleLineStringWriter {
     fn clear(&mut self) {
         self.str = "".to_string();
     }
+
+    fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
+        self
+    }
 }
 
 impl SymbolTracker for SingleLineStringWriter {

@@ -228,17 +228,18 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn type_to_string<TNodeRef: Borrow<Node>>(
+    pub(super) fn type_to_string_<TNodeRef: Borrow<Node>>(
         &self,
         type_: &Type,
         enclosing_declaration: Option<TNodeRef>,
         flags: Option<TypeFormatFlags>,
+        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
     ) -> String {
         let flags = flags.unwrap_or(
             TypeFormatFlags::AllowUniqueESSymbolType
                 | TypeFormatFlags::UseAliasDefinedOutsideCurrentScope,
         );
-        let writer = Rc::new(RefCell::new(create_text_writer("")));
+        let writer = writer.unwrap_or_else(|| Rc::new(RefCell::new(create_text_writer(""))));
         let no_truncation = false || flags.intersects(TypeFormatFlags::NoTruncation);
         let type_node = self.node_builder.type_to_type_node(
             self,
@@ -253,7 +254,7 @@ impl TypeChecker {
                         NodeBuilderFlags::None
                     },
             ),
-            Some(&*(*writer).borrow()),
+            Some((*writer).borrow().as_symbol_tracker()),
         );
         let type_node: Rc<Node> = match type_node {
             None => Debug_.fail(Some("should always get typenode")),
@@ -287,31 +288,32 @@ impl TypeChecker {
         let left_str = if let Some(symbol) = left.maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(&symbol) {
                 let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
-                self.type_to_string(left, enclosing_declaration, None)
+                self.type_to_string_(left, enclosing_declaration, None, None)
             } else {
-                self.type_to_string(left, Option::<&Node>::None, None)
+                self.type_to_string_(left, Option::<&Node>::None, None, None)
             }
         } else {
-            self.type_to_string(left, Option::<&Node>::None, None)
+            self.type_to_string_(left, Option::<&Node>::None, None, None)
         };
         let right_str = if let Some(symbol) = right.maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(&symbol) {
                 let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
-                self.type_to_string(right, enclosing_declaration, None)
+                self.type_to_string_(right, enclosing_declaration, None, None)
             } else {
-                self.type_to_string(right, Option::<&Node>::None, None)
+                self.type_to_string_(right, Option::<&Node>::None, None, None)
             }
         } else {
-            self.type_to_string(right, Option::<&Node>::None, None)
+            self.type_to_string_(right, Option::<&Node>::None, None, None)
         };
         (left_str, right_str)
     }
 
     pub(super) fn get_type_name_for_error_display(&self, type_: &Type) -> String {
-        self.type_to_string(
+        self.type_to_string_(
             type_,
             Option::<&Node>::None,
             Some(TypeFormatFlags::UseFullyQualifiedType),
+            None,
         )
     }
 

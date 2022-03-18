@@ -303,6 +303,7 @@ pub trait SymbolWriter: SymbolTracker {
     fn increase_indent(&mut self);
     fn decrease_indent(&mut self);
     fn clear(&mut self);
+    fn as_symbol_tracker(&self) -> &dyn SymbolTracker;
 }
 
 pub enum SymbolAccessibility {
