@@ -966,6 +966,14 @@ impl TypeChecker {
         }
     }
 
+    pub fn get_parameter_type(&self, signature: &Signature, parameter_index: usize) -> Rc<Type> {
+        self.get_type_at_position(signature, parameter_index)
+    }
+
+    pub fn get_awaited_type(&self, type_: &Type) -> Option<Rc<Type>> {
+        self.get_awaited_type_(type_, Option::<&Node>::None, None, None)
+    }
+
     pub(super) fn string_literal_types(
         &self,
     ) -> RefMut<HashMap<String, Rc</*NumberLiteralType*/ Type>>> {

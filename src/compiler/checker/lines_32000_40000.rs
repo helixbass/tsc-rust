@@ -398,6 +398,16 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_awaited_type_<TErrorNode: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        error_node: Option<TErrorNode>,
+        diagnostic_message: Option<&DiagnosticMessage>,
+        args: Option<Vec<String>>,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_awaited_type_no_alias<TErrorNode: Borrow<Node>>(
         &self,
         type_: &Type,
