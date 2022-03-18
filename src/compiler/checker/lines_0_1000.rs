@@ -12,17 +12,18 @@ use std::rc::Rc;
 
 use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
-    escape_leading_underscores, get_allow_synthetic_default_imports, get_emit_module_kind,
-    get_emit_script_target, get_module_instance_state, get_parse_tree_node,
+    escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
+    get_emit_module_kind, get_emit_script_target, get_module_instance_state, get_parse_tree_node,
     get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
-    is_export_specifier, is_identifier, is_parameter, is_type_node, sum, BaseInterfaceType,
-    CheckFlags, Debug_, EmitTextWriter, Extension, GenericableTypeInterface, IndexInfo, IndexKind,
-    ModuleInstanceState, NodeArray, NodeBuilderFlags, RelationComparisonResult, Signature,
-    SignatureKind, SymbolFormatFlags, SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable,
-    TypeFormatFlags, TypePredicate, VarianceFlags, __String, create_diagnostic_collection,
-    create_symbol_table, object_allocator, DiagnosticCollection, DiagnosticMessage,
-    FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags, Symbol, SymbolFlags,
-    SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
+    is_call_like_expression, is_export_specifier, is_expression, is_identifier, is_parameter,
+    is_type_node, sum, BaseInterfaceType, CheckFlags, ContextFlags, Debug_, EmitTextWriter,
+    Extension, GenericableTypeInterface, IndexInfo, IndexKind, ModuleInstanceState, NodeArray,
+    NodeBuilderFlags, RelationComparisonResult, Signature, SignatureKind, SymbolFormatFlags,
+    SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable, TypeFormatFlags, TypePredicate,
+    VarianceFlags, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
+    DiagnosticCollection, DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface,
+    Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type,
+    TypeChecker, TypeFlags,
 };
 
 lazy_static! {
@@ -1247,6 +1248,105 @@ impl TypeChecker {
             kind,
             writer,
         )
+    }
+
+    pub fn write_type<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<TypeFormatFlags>,
+        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+    ) -> String {
+        self.type_to_string_(
+            type_,
+            get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
+            flags,
+            writer,
+        )
+    }
+
+    pub fn write_symbol<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        meaning: Option<SymbolFlags>,
+        flags: Option<SymbolFormatFlags>,
+        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+    ) -> String {
+        self.symbol_to_string_(
+            symbol,
+            get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
+            meaning,
+            flags,
+            writer,
+        )
+    }
+
+    pub fn write_type_predicate<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        predicate: &TypePredicate,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<TypeFormatFlags>,
+        writer: Option<&dyn EmitTextWriter>,
+    ) -> String {
+        self.type_predicate_to_string_(
+            predicate,
+            get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
+            flags,
+            writer,
+        )
+    }
+
+    pub fn get_contextual_type(
+        &self,
+        node_in: &Node, /*Expression*/
+        context_flags: Option<ContextFlags>,
+    ) -> Option<Rc<Type>> {
+        let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_expression(node)))?;
+        let containing_call =
+            find_ancestor(Some(&*node), |node: &Node| is_call_like_expression(node));
+        let containing_call_resolved_signature: Option<Rc<Signature>> =
+            containing_call.as_ref().and_then(|containing_call| {
+                RefCell::borrow(&self.get_node_links(&containing_call))
+                    .resolved_signature
+                    .clone()
+            });
+        if matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::Completions))
+        {
+            if let Some(containing_call) = containing_call.as_ref() {
+                let mut to_mark_skip: Option<Rc<Node>> = Some(node.node_wrapper());
+                while {
+                    let to_mark_skip_present = to_mark_skip.as_ref().unwrap();
+                    self.get_node_links(to_mark_skip_present)
+                        .borrow_mut()
+                        .skip_direct_inference = Some(true);
+                    to_mark_skip = to_mark_skip_present.maybe_parent();
+                    matches!(to_mark_skip.as_ref(), Some(to_mark_skip) if !Rc::ptr_eq(to_mark_skip, containing_call))
+                } {}
+                self.get_node_links(containing_call)
+                    .borrow_mut()
+                    .resolved_signature = None;
+            }
+        }
+        let result = self.get_contextual_type_(&node, context_flags);
+        if matches!(context_flags, Some(context_flags) if context_flags.intersects(ContextFlags::Completions))
+        {
+            if let Some(containing_call) = containing_call.as_ref() {
+                let mut to_mark_skip: Option<Rc<Node>> = Some(node.node_wrapper());
+                while {
+                    let to_mark_skip_present = to_mark_skip.as_ref().unwrap();
+                    self.get_node_links(to_mark_skip_present)
+                        .borrow_mut()
+                        .skip_direct_inference = None;
+                    to_mark_skip = to_mark_skip_present.maybe_parent();
+                    matches!(to_mark_skip.as_ref(), Some(to_mark_skip) if !Rc::ptr_eq(to_mark_skip, containing_call))
+                } {}
+                self.get_node_links(containing_call)
+                    .borrow_mut()
+                    .resolved_signature = containing_call_resolved_signature;
+            }
+        }
+        result
     }
 
     pub(super) fn string_literal_types(

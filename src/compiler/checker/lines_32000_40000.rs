@@ -207,7 +207,7 @@ impl TypeChecker {
                 &type_,
                 self.instantiate_contextual_type(
                     if contextual_type.is_none() {
-                        self.get_contextual_type(node, None)
+                        self.get_contextual_type_(node, None)
                     } else {
                         Some(contextual_type.unwrap().borrow().type_wrapper())
                     },

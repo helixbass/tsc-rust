@@ -434,11 +434,11 @@ impl From<bool> for FindAncestorCallbackReturn {
 }
 
 pub fn find_ancestor<
-    TNodeRef: Borrow<Node>,
+    TNode: Borrow<Node>,
     TCallbackReturn: Into<FindAncestorCallbackReturn>,
     TCallback: FnMut(&Node) -> TCallbackReturn,
 >(
-    node: Option<TNodeRef>,
+    node: Option<TNode>,
     mut callback: TCallback,
 ) -> Option<Rc<Node>> {
     let mut node = node.map(|node| node.borrow().node_wrapper());

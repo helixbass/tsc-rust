@@ -141,7 +141,7 @@ impl TypeChecker {
         let contextual_type = if false {
             unimplemented!()
         } else {
-            self.get_contextual_type(node, context_flags)
+            self.get_contextual_type_(node, context_flags)
         };
         let instantiated_type =
             self.instantiate_contextual_type(contextual_type, node, context_flags);
@@ -184,7 +184,7 @@ impl TypeChecker {
         contextual_type.map(|contextual_type| contextual_type.borrow().type_wrapper())
     }
 
-    pub(super) fn get_contextual_type(
+    pub(super) fn get_contextual_type_(
         &self,
         node: &Node, /*Expression*/
         context_flags: Option<ContextFlags>,
