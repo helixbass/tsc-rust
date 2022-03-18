@@ -914,6 +914,21 @@ impl TypeChecker {
         self.get_property_of_type_(type_, &escape_leading_underscores(name))
     }
 
+    pub fn get_private_identifier_property_of_type(
+        &self,
+        left_type: &Type,
+        name: &str,
+        location: &Node,
+    ) -> Option<Rc<Symbol>> {
+        let node = get_parse_tree_node(Some(location), Option::<fn(&Node) -> bool>::None)?;
+        let prop_name = escape_leading_underscores(name);
+        let lexically_scoped_identifier =
+            self.lookup_symbol_for_private_identifier_declaration(&prop_name, &node);
+        lexically_scoped_identifier.and_then(|lexically_scoped_identifier| {
+            self.get_private_identifier_property_of_type_(left_type, &lexically_scoped_identifier)
+        })
+    }
+
     pub(super) fn string_literal_types(
         &self,
     ) -> RefMut<HashMap<String, Rc</*NumberLiteralType*/ Type>>> {

@@ -376,6 +376,22 @@ impl TypeChecker {
             || (type_.flags().intersects(TypeFlags::Intersection) && unimplemented!())
     }
 
+    pub(super) fn lookup_symbol_for_private_identifier_declaration(
+        &self,
+        prop_name: &__String,
+        location: &Node,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_private_identifier_property_of_type_(
+        &self,
+        left_type: &Type,
+        lexically_scoped_identifier: &Symbol,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn accepts_void(&self, t: &Type) -> bool {
         t.flags().intersects(TypeFlags::Void)
     }
