@@ -1,3 +1,4 @@
+#![allow(non_upper_case_globals)]
 use std::cell::RefCell;
 use std::cmp;
 use std::collections::{HashMap, HashSet};
@@ -8,9 +9,10 @@ use std::time;
 use std::time::SystemTime;
 
 use crate::{
-    FilePreprocessingDiagnostics, ResolvedTypeReferenceDirective, __String, combine_paths,
-    concatenate, convert_to_relative_path, create_get_canonical_file_name, create_multi_map,
-    create_source_file, create_type_checker, diagnostic_category_name, for_each,
+    create_diagnostic_collection, create_module_resolution_cache, get_supported_extensions,
+    FilePreprocessingDiagnostics, ModuleResolutionCache, ResolvedTypeReferenceDirective, __String,
+    combine_paths, concatenate, convert_to_relative_path, create_get_canonical_file_name,
+    create_multi_map, create_source_file, create_type_checker, diagnostic_category_name, for_each,
     for_each_ancestor_directory_str, generate_djb2_hash, get_default_lib_file_name,
     get_directory_path, get_emit_script_target, get_line_and_character_of_position,
     get_new_line_character, get_normalized_path_components, get_path_from_path_components, get_sys,
@@ -850,7 +852,89 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
     );
     let config_parsing_host = parse_config_host_from_compiler_host_like(&host);
 
+    let skip_default_lib = options.no_lib;
+    let default_library_file_name: RefCell<Option<String>> = RefCell::new(None);
+    let get_default_library_file_name = || -> String {
+        let mut default_library_file_name = default_library_file_name.borrow_mut();
+        if default_library_file_name.is_none() {
+            *default_library_file_name = Some(host.get_default_lib_file_name(options));
+        }
+        default_library_file_name.clone().unwrap()
+    };
+    let default_library_path = host
+        .get_default_lib_location()
+        .unwrap_or_else(|| get_directory_path(&get_default_library_file_name()));
+    let mut program_diagnostics = create_diagnostic_collection();
     let current_directory = CompilerHost::get_current_directory(&host);
+    let supported_extensions = get_supported_extensions(options);
+    let supported_extensions_with_json_if_resolve_json_module =
+        get_supported_extensions_with_json_if_resolve_json_module(options, &supported_extensions);
+
+    let has_emit_blocking_diagnostics: HashMap<String, bool> = HashMap::new();
+    let _compiler_options_object_literal_syntax: Option<Option<Rc<Node>>> = None;
+
+    let mut module_resolution_cache: Option<Rc<dyn ModuleResolutionCache>> = None;
+    let mut type_reference_directive_resolution_cache: Option<
+        Rc<dyn TypeReferenceDirectiveResolutionCache>,
+    > = None;
+    if host.is_resolve_module_names_supported() {
+        module_resolution_cache = host.get_module_resolution_cache();
+    } else {
+        module_resolution_cache = Some(create_module_resolution_cache(
+            &current_directory,
+            get_canonical_file_name,
+            options.clone(),
+        ));
+    }
+    if host.is_resolve_type_reference_directives_supported() {
+    } else {
+        type_reference_directive_resolution_cache =
+            create_type_reference_directive_resolution_cache(
+                &current_directory,
+                get_canonical_file_name,
+                None,
+                module_resolution_cache.map(|module_resolution_cache| {
+                    module_resolution_cache.get_package_json_info_cache()
+                }),
+            );
+    }
+
+    let package_id_to_source_file: HashMap<String, Rc<Node /*SourceFile*/>> = HashMap::new();
+    let source_file_to_package_name: HashMap<Path, String> = HashMap::new();
+    let redirect_targets_map: MultiMap<Path, String> = create_multi_map();
+    let uses_uri_style_node_core_modules = false;
+
+    let files_by_name: HashMap<String, Option<Option<Rc<Node>>>> = HashMap::new();
+    let missing_file_paths: Option<Vec<Path>> = None;
+    let files_by_name_ignore_case: Option<HashMap<String, Rc<Node /*SourceFile*/>>> =
+        if host.use_case_sensitive_file_names() {
+            Some(HashMap::new())
+        } else {
+            None
+        };
+
+    let resolved_project_references: Option<Vec<Option<ResolvedProjectReference>>> = None;
+    let project_reference_redirects: Option<HashMap<Path, Option<ResolvedProjectReference>>> = None;
+    let map_from_file_to_project_reference_redirects: Option<HashMap<Path, Path>> = None;
+    let map_from_to_project_reference_redirect_source: Option<
+        HashMap<Path, SourceOfProjectReferenceRedirect>,
+    > = None;
+
+    let use_source_of_project_reference_redirect =
+        matches!(host.use_source_of_project_reference_redirect(), Some(true))
+            && !matches!(
+                options.disable_source_of_project_reference_redirect,
+                Some(true)
+            );
+    // let UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
+    //     on_program_create_complete,
+    //     file_exists,
+    //     directory_exists,
+    // } = update_host_for_use_source_of_project_reference_redirect(
+    //     HostForUseSourceOfProjectReferenceRedirect {
+    //         compiler_host: &*host,
+    //     },
+    // );
 
     let structure_is_reused = StructureIsReused::Not;
     if structure_is_reused != StructureIsReused::Completely {
@@ -874,6 +958,11 @@ pub fn create_program(root_names_or_options: CreateProgramOptions) -> Rc<Program
 
     Program::new(options, files, current_directory)
 }
+
+// struct HostForUseSourceOfProjectReferenceRedirect {
+//     pub compiler_host: &dyn CompilerHost,
+//     pub
+// }
 
 fn filter_semantic_diagnostics(diagnostic: Vec<Rc<Diagnostic>>) -> Vec<Rc<Diagnostic>> {
     diagnostic

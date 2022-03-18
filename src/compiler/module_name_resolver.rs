@@ -71,6 +71,9 @@ pub(crate) fn create_mode_aware_cache<TValue>() -> ModeAwareCache<TValue> {
     unimplemented!()
 }
 
+pub fn create_module_resolution_cache(current_directory: &str,
+    get_canonical_file_name: 
+
 pub fn node_module_name_resolver<THost: ModuleResolutionHost>(
     module_name: &str,
     containing_file: &str,
