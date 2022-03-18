@@ -946,6 +946,17 @@ impl TypeChecker {
         )
     }
 
+    pub fn get_index_type_of_type(&self, type_: &Type, kind: IndexKind) -> Option<Rc<Type>> {
+        self.get_index_type_of_type_(
+            type_,
+            &*if kind == IndexKind::String {
+                self.string_type()
+            } else {
+                self.number_type()
+            },
+        )
+    }
+
     pub(super) fn string_literal_types(
         &self,
     ) -> RefMut<HashMap<String, Rc</*NumberLiteralType*/ Type>>> {

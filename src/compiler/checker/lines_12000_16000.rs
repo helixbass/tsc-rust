@@ -97,6 +97,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_index_type_of_type_(
+        &self,
+        type_: &Type,
+        key_type: &Type,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_parameters_from_declaration(
         &self,
         declaration: &Node, /*DeclarationWithTypeParameters*/
