@@ -7,13 +7,13 @@ use std::rc::Rc;
 
 use super::{signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, WideningKind};
 use crate::{
-    filter, is_function_expression_or_arrow_function, is_import_call, is_object_literal_method,
-    ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature, SignatureFlags, SignatureKind,
-    SymbolFlags, Ternary, UnionReduction, __String, create_symbol_table,
-    get_effective_type_annotation_node, get_function_flags, get_object_flags, has_initializer,
-    is_object_literal_expression, HasInitializerInterface, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    filter, get_this_container, is_function_expression_or_arrow_function, is_import_call,
+    is_object_literal_method, ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature,
+    SignatureFlags, SignatureKind, SymbolFlags, Ternary, UnionReduction, __String,
+    create_symbol_table, get_effective_type_annotation_node, get_function_flags, get_object_flags,
+    has_initializer, is_object_literal_expression, HasInitializerInterface, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -42,6 +42,20 @@ impl TypeChecker {
         let type_ = self.get_type_of_symbol(&*local_or_export_symbol);
 
         type_
+    }
+
+    pub(super) fn try_get_this_type_at_<TContainer: Borrow<Node>>(
+        &self,
+        node: &Node,
+        include_global_this: Option<bool>,
+        container: Option<TContainer>,
+    ) -> Option<Rc<Type>> {
+        let include_global_this = include_global_this.unwrap_or(false);
+        let container = container.map_or_else(
+            || get_this_container(node, false),
+            |container| container.borrow().node_wrapper(),
+        );
+        unimplemented!()
     }
 
     pub(super) fn get_contextual_type_for_variable_like_declaration(

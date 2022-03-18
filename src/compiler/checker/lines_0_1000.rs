@@ -12,16 +12,16 @@ use std::rc::Rc;
 
 use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
-    is_function_like, is_property_access_expression,
-    is_property_access_or_qualified_name_or_import_type_node, BaseInterfaceType, CheckFlags,
-    ContextFlags, Debug_, DiagnosticCollection, DiagnosticMessage, EmitTextWriter, Extension,
-    FreshableIntrinsicType, GenericableTypeInterface, IndexInfo, IndexKind, ModuleInstanceState,
-    Node, NodeArray, NodeBuilderFlags, NodeId, NodeInterface, Number, ObjectFlags,
-    RelationComparisonResult, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
-    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
-    SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate, VarianceFlags, __String, create_diagnostic_collection,
-    create_symbol_table, escape_leading_underscores, find_ancestor,
+    get_first_identifier, is_function_like, is_property_access_expression,
+    is_property_access_or_qualified_name_or_import_type_node, unescape_leading_underscores,
+    BaseInterfaceType, CheckFlags, ContextFlags, Debug_, DiagnosticCollection, DiagnosticMessage,
+    EmitTextWriter, Extension, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo,
+    IndexKind, ModuleInstanceState, Node, NodeArray, NodeBuilderFlags, NodeId, NodeInterface,
+    Number, ObjectFlags, RelationComparisonResult, Signature, SignatureKind, StringOrNumber,
+    Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags,
+    TypeFormatFlags, TypeInterface, TypePredicate, VarianceFlags, __String,
+    create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
     get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
     get_module_instance_state, get_parse_tree_node, get_strict_option_value,
     get_use_define_for_class_fields, is_assignment_pattern, is_call_like_expression,
@@ -1660,6 +1660,42 @@ impl TypeChecker {
             false,
             Some(exclude_globals),
         )
+    }
+
+    pub fn get_jsx_namespace<TLocation: Borrow<Node>>(
+        &self,
+        location: Option<TLocation>,
+    ) -> String {
+        unescape_leading_underscores(&self.get_jsx_namespace_(location))
+    }
+
+    pub fn get_jsx_fragment_factory(&self, n: &Node) -> Option<String> {
+        let jsx_fragment_factory = self.get_jsx_fragment_factory_entity(n)?;
+        Some(unescape_leading_underscores(
+            &get_first_identifier(&jsx_fragment_factory)
+                .as_identifier()
+                .escaped_text,
+        ))
+    }
+
+    pub fn resolve_external_module_name(
+        &self,
+        module_specifier_in: &Node, /*Expression*/
+    ) -> Option<Rc<Symbol>> {
+        let module_specifier = get_parse_tree_node(
+            Some(module_specifier_in),
+            Some(|node: &Node| is_expression(node)),
+        )?;
+        self.resolve_external_module_name_(&module_specifier, &module_specifier, Some(true))
+    }
+
+    pub fn try_get_this_type_at(
+        &self,
+        node_in: &Node,
+        include_global_this: Option<bool>,
+    ) -> Option<Rc<Type>> {
+        let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None)?;
+        self.try_get_this_type_at_(&node, include_global_this, Option::<&Node>::None)
     }
 
     pub(super) fn get_resolved_signature_worker(

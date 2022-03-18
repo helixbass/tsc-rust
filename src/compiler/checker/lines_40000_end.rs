@@ -136,6 +136,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_jsx_fragment_factory_entity(
+        &self,
+        location: &Node,
+    ) -> Option<Rc<Node /*EntityName*/>> {
+        unimplemented!()
+    }
+
     pub(super) fn create_resolver(&self) -> Rc<dyn EmitResolverDebuggable> {
         Rc::new(EmitResolverCreateResolver::new())
     }

@@ -12,9 +12,16 @@ use crate::{
 };
 
 impl TypeChecker {
-    pub(super) fn create_error<TNodeRef: Borrow<Node>>(
+    pub(super) fn get_jsx_namespace_<TLocation: Borrow<Node>>(
         &self,
-        location: Option<TNodeRef>,
+        location: Option<TLocation>,
+    ) -> __String {
+        unimplemented!()
+    }
+
+    pub(super) fn create_error<TLocation: Borrow<Node>>(
+        &self,
+        location: Option<TLocation>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Rc<Diagnostic> {
@@ -25,9 +32,9 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn error<TNodeRef: Borrow<Node>>(
+    pub(super) fn error<TLocation: Borrow<Node>>(
         &self,
-        location: Option<TNodeRef>,
+        location: Option<TLocation>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Rc<Diagnostic> {

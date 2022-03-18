@@ -77,6 +77,15 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn resolve_external_module_name_(
+        &self,
+        location: &Node,
+        module_reference_expression: &Node, /*Expression*/
+        ignore_errors: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_exports_of_module_as_array(&self, module_symbol: &Symbol) -> Vec<Rc<Symbol>> {
         unimplemented!()
     }
