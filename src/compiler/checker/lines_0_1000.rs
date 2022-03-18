@@ -12,16 +12,19 @@ use std::rc::Rc;
 
 use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
-    get_first_identifier, is_function_like, is_property_access_expression,
-    is_property_access_or_qualified_name_or_import_type_node, unescape_leading_underscores,
-    BaseInterfaceType, CheckFlags, ContextFlags, Debug_, DiagnosticCollection, DiagnosticMessage,
-    EmitTextWriter, Extension, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo,
-    IndexKind, ModuleInstanceState, Node, NodeArray, NodeBuilderFlags, NodeId, NodeInterface,
-    Number, ObjectFlags, RelationComparisonResult, Signature, SignatureKind, StringOrNumber,
-    Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypePredicate, VarianceFlags, __String,
-    create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
+    add_range, contains_parse_error, get_first_identifier, is_function_like,
+    is_property_access_expression, is_property_access_or_qualified_name_or_import_type_node,
+    is_source_file, skip_type_checking, unescape_leading_underscores, BaseInterfaceType,
+    CancellationToken, CancellationTokenDebuggable, CheckFlags, ContextFlags, Debug_, Diagnostic,
+    DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
+    DiagnosticRelatedInformationInterface, EmitTextWriter, Extension, FreshableIntrinsicType,
+    GenericableTypeInterface, IndexInfo, IndexKind, ModuleInstanceState, Node, NodeArray,
+    NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
+    RelationComparisonResult, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
+    SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypePredicate, VarianceFlags, __String, create_diagnostic_collection,
+    create_symbol_table, escape_leading_underscores, find_ancestor,
     get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
     get_module_instance_state, get_parse_tree_node, get_strict_option_value,
     get_use_define_for_class_fields, is_assignment_pattern, is_call_like_expression,
@@ -541,6 +544,7 @@ pub fn create_type_checker(
         node_links: RefCell::new(HashMap::new()),
 
         diagnostics: RefCell::new(create_diagnostic_collection()),
+        suggestion_diagnostics: RefCell::new(create_diagnostic_collection()),
 
         subtype_relation: RefCell::new(HashMap::new()),
         strict_subtype_relation: RefCell::new(HashMap::new()),
@@ -813,6 +817,13 @@ impl TypeChecker {
         Ref::map(self._packages_map.borrow(), |option| {
             option.as_ref().unwrap()
         })
+    }
+
+    pub(super) fn set_cancellation_token(
+        &self,
+        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+    ) {
+        *self.cancellation_token.borrow_mut() = cancellation_token;
     }
 
     pub(super) fn type_count(&self) -> u32 {
@@ -1698,6 +1709,69 @@ impl TypeChecker {
         self.try_get_this_type_at_(&node, include_global_this, Option::<&Node>::None)
     }
 
+    pub fn get_type_argument_constraint(
+        &self,
+        node_in: &Node, /*TypeNode*/
+    ) -> Option<Rc<Type>> {
+        let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_type_node(node)))?;
+        self.get_type_argument_constraint_(&node)
+    }
+
+    pub fn get_suggestion_diagnostics(
+        &self,
+        file_in: &Node, /*SourceFile*/
+        ct: Option<Rc<dyn CancellationTokenDebuggable>>,
+    ) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
+        let file = get_parse_tree_node(Some(file_in), Some(|node: &Node| is_source_file(node)))
+            .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
+        if skip_type_checking(&file, &self.compiler_options, |file_name| {
+            self.host.is_source_of_project_reference_redirect(file_name)
+        }) {
+            return vec![];
+        }
+
+        let mut diagnostics: Option<Vec<Rc<Diagnostic>>> = None;
+        self.set_cancellation_token(ct);
+
+        self.check_source_file(&file);
+        Debug_.assert(
+            RefCell::borrow(&self.get_node_links(&file))
+                .flags
+                .intersects(NodeCheckFlags::TypeChecked),
+            None,
+        );
+
+        diagnostics = Some(vec![]);
+        add_range(
+            diagnostics.as_mut().unwrap(),
+            Some(
+                &self
+                    .suggestion_diagnostics()
+                    .get_diagnostics(Some(&file.as_source_file().file_name())),
+            ),
+            None,
+            None,
+        );
+        self.check_unused_identifiers(
+            &self.get_potentially_unused_identifiers(&file),
+            |containing_node, kind, diag| {
+                if !contains_parse_error(containing_node)
+                    && !self.unused_is_error(
+                        kind,
+                        containing_node.flags().intersects(NodeFlags::Ambient),
+                    )
+                {
+                    diag.set_category(DiagnosticCategory::Suggestion); // TODO: is it a problem that this is being mutated?
+                    diagnostics.as_mut().unwrap().push(diag);
+                }
+            },
+        );
+
+        self.set_cancellation_token(None);
+
+        diagnostics.unwrap_or_else(|| vec![])
+    }
+
     pub(super) fn get_resolved_signature_worker(
         &self,
         node: &Node, /*CallLikeExpression*/
@@ -1828,6 +1902,10 @@ impl TypeChecker {
 
     pub(super) fn diagnostics(&self) -> RefMut<DiagnosticCollection> {
         self.diagnostics.borrow_mut()
+    }
+
+    pub(super) fn suggestion_diagnostics(&self) -> RefMut<DiagnosticCollection> {
+        self.suggestion_diagnostics.borrow_mut()
     }
 
     pub(super) fn subtype_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {

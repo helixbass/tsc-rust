@@ -3,6 +3,7 @@
 use std::borrow::Borrow;
 use std::rc::Rc;
 
+use super::UnusedKind;
 use crate::{
     bind_source_file, for_each, is_accessor, is_external_or_common_js_module,
     AllAccessorDeclarations, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
@@ -39,29 +40,43 @@ impl TypeChecker {
         };
     }
 
-    pub(super) fn check_source_file(&self, source_file: &SourceFile) {
+    pub(super) fn check_source_file(&self, source_file: &Node /*SourceFile*/) {
         self.check_source_file_worker(source_file)
     }
 
-    pub(super) fn check_source_file_worker(&self, node: &SourceFile) {
+    pub(super) fn unused_is_error(&self, kind: UnusedKind, is_ambient: bool) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_potentially_unused_identifiers(
+        &self,
+        source_file: &Node, /*SourceFile*/
+    ) -> Vec<Rc<Node /*PotentiallyUnusedIdentifier*/>> {
+        unimplemented!()
+    }
+
+    pub(super) fn check_source_file_worker(&self, node: &Node /*SourceFile*/) {
         if true {
-            for_each(&node.statements, |statement, _index| {
+            for_each(&node.as_source_file().statements, |statement, _index| {
                 self.check_source_element(Some(&**statement));
                 Option::<()>::None
             });
         }
     }
 
-    pub fn get_diagnostics(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
+    pub fn get_diagnostics(&self, source_file: &Node /*SourceFile*/) -> Vec<Rc<Diagnostic>> {
         self.get_diagnostics_worker(source_file)
     }
 
-    pub(super) fn get_diagnostics_worker(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
+    pub(super) fn get_diagnostics_worker(
+        &self,
+        source_file: &Node, /*SourceFile*/
+    ) -> Vec<Rc<Diagnostic>> {
         self.check_source_file(source_file);
 
         let semantic_diagnostics = self
             .diagnostics()
-            .get_diagnostics(Some(&source_file.file_name()));
+            .get_diagnostics(Some(&source_file.as_source_file().file_name()));
 
         semantic_diagnostics
     }

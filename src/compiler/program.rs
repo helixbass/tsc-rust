@@ -673,15 +673,18 @@ impl Program {
 
     fn get_diagnostics_helper(
         &self,
-        get_diagnostics: fn(&Program, &SourceFile) -> Vec<Rc<Diagnostic>>,
+        get_diagnostics: fn(&Program, &Node /*SourceFile*/) -> Vec<Rc<Diagnostic>>,
     ) -> Vec<Rc<Diagnostic>> {
         self.get_source_files()
             .iter()
-            .flat_map(|source_file| get_diagnostics(self, source_file.as_source_file()))
+            .flat_map(|source_file| get_diagnostics(self, source_file))
             .collect()
     }
 
-    fn get_program_diagnostics(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
+    fn get_program_diagnostics(
+        &self,
+        source_file: &Node, /*SourceFile*/
+    ) -> Vec<Rc<Diagnostic>> {
         vec![]
     }
 
@@ -692,11 +695,17 @@ impl Program {
         func()
     }
 
-    fn get_syntactic_diagnostics_for_file(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
-        source_file.parse_diagnostics().clone()
+    fn get_syntactic_diagnostics_for_file(
+        &self,
+        source_file: &Node, /*SourceFile*/
+    ) -> Vec<Rc<Diagnostic>> {
+        source_file.as_source_file().parse_diagnostics().clone()
     }
 
-    fn get_semantic_diagnostics_for_file(&self, source_file: &SourceFile) -> Vec<Rc<Diagnostic>> {
+    fn get_semantic_diagnostics_for_file(
+        &self,
+        source_file: &Node, /*SourceFile*/
+    ) -> Vec<Rc<Diagnostic>> {
         concatenate(
             filter_semantic_diagnostics(self.get_bind_and_check_diagnostics_for_file(source_file)),
             self.get_program_diagnostics(source_file),
@@ -705,7 +714,7 @@ impl Program {
 
     fn get_bind_and_check_diagnostics_for_file(
         &self,
-        source_file: &SourceFile,
+        source_file: &Node, /*SourceFile*/
     ) -> Vec<Rc<Diagnostic>> {
         self.get_and_cache_diagnostics(
             source_file,
@@ -715,7 +724,7 @@ impl Program {
 
     fn get_bind_and_check_diagnostics_for_file_no_cache(
         &self,
-        source_file: &SourceFile,
+        source_file: &Node, /*SourceFile*/
     ) -> Vec<Rc<Diagnostic>> {
         // self.run_with_cancellation_token(|| {
         let type_checker = self.get_diagnostics_producing_type_checker();
@@ -733,8 +742,8 @@ impl Program {
 
     fn get_and_cache_diagnostics(
         &self,
-        source_file: &SourceFile,
-        get_diagnostics: fn(&Program, &SourceFile) -> Vec<Rc<Diagnostic>>,
+        source_file: &Node, /*SourceFile*/
+        get_diagnostics: fn(&Program, &Node /*SourceFile*/) -> Vec<Rc<Diagnostic>>,
     ) -> Vec<Rc<Diagnostic>> {
         let result = get_diagnostics(self, source_file);
         result
@@ -786,6 +795,10 @@ impl TypeCheckerHost for Program {
 
     fn get_source_files(&self) -> &[Rc<Node>] {
         &self.files
+    }
+
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
+        unimplemented!()
     }
 }
 

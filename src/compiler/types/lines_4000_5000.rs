@@ -112,7 +112,9 @@ pub struct EmitResult {
 
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     fn get_compiler_options(&self) -> Rc<CompilerOptions>;
+
     fn get_source_files(&self) -> &[Rc<Node>];
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
 }
 
 pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug {}
@@ -194,6 +196,7 @@ pub struct TypeChecker {
     pub symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
     pub node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
     pub diagnostics: RefCell<DiagnosticCollection>,
+    pub suggestion_diagnostics: RefCell<DiagnosticCollection>,
     pub(crate) subtype_relation: RefCell<HashMap<String, RelationComparisonResult>>,
     pub(crate) strict_subtype_relation: RefCell<HashMap<String, RelationComparisonResult>>,
     pub(crate) assignable_relation: RefCell<HashMap<String, RelationComparisonResult>>,

@@ -4,18 +4,19 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::CheckMode;
+use super::{CheckMode, UnusedKind};
 use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
     is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, ArrayTypeNode, Block,
-    DiagnosticMessage, Diagnostics, ExpressionStatement, FunctionDeclaration, FunctionFlags,
-    HasTypeParametersInterface, IfStatement, InterfaceDeclaration, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PrefixUnaryExpression,
-    PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement, SymbolInterface,
-    SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration, TypeChecker, TypeFlags,
-    TypeInterface, TypeParameterDeclaration, TypeReferenceNode, UnionOrIntersectionTypeInterface,
-    VariableDeclaration, VariableLikeDeclarationInterface, VariableStatement,
+    Diagnostic, DiagnosticMessage, Diagnostics, ExpressionStatement, FunctionDeclaration,
+    FunctionFlags, HasTypeParametersInterface, IfStatement, InterfaceDeclaration,
+    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement,
+    SymbolInterface, SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration, TypeChecker,
+    TypeFlags, TypeInterface, TypeParameterDeclaration, TypeReferenceNode,
+    UnionOrIntersectionTypeInterface, VariableDeclaration, VariableLikeDeclarationInterface,
+    VariableStatement,
 };
 
 impl TypeChecker {
@@ -347,6 +348,13 @@ impl TypeChecker {
         let type_ = self.get_type_from_type_reference(node);
     }
 
+    pub(super) fn get_type_argument_constraint_(
+        &self,
+        node: &Node, /*TypeNode*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn check_array_type(&self, node: &Node /*ArrayTypeNode*/) {
         self.check_source_element(Some(&*node.as_array_type_node().element_type));
     }
@@ -438,6 +446,16 @@ impl TypeChecker {
     ) {
         // self.check_decorators(node);
         // self.check_signature_declaration(node);
+    }
+
+    pub(super) fn check_unused_identifiers<
+        TAddDiagnostic: FnMut(&Node, UnusedKind, Rc<Diagnostic>),
+    >(
+        &self,
+        potentially_unused_identifiers: &[Rc<Node /*PotentiallyUnusedIdentifier*/>],
+        add_diagnostic: TAddDiagnostic, /*AddUnusedDiagnostic*/
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn check_block(&self, node: &Node /*Block*/) {

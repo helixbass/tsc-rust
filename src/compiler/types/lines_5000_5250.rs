@@ -133,6 +133,30 @@ impl PatternAmbientModule {
 bitflags! {
     pub struct NodeCheckFlags: u32 {
         const None = 0;
+        const TypeChecked = 0x00000001;
+        const LexicalThis = 0x00000002;
+        const CaptureThis = 0x00000004;
+        const CaptureNewTarget = 0x00000008;
+        const SuperInstance = 0x00000100;
+        const SuperStatic = 0x00000200;
+        const ContextChecked = 0x00000400;
+        const AsyncMethodWithSuper = 0x00000800;
+        const AsyncMethodWithSuperBinding = 0x00001000;
+        const CaptureArguments = 0x00002000;
+        const EnumValuesComputed = 0x00004000;
+        const LexicalModuleMergesWithClass = 0x00008000;
+        const LoopWithCapturedBlockScopedBinding = 0x00010000;
+        const ContainsCapturedBlockScopedBinding = 0x00020000;
+        const CapturedBlockScopedBinding = 0x00040000;
+        const BlockScopedBindingInLoop = 0x00080000;
+        const ClassWithBodyScopedClassBinding = 0x00100000;
+        const BodyScopedClassBinding = 0x00200000;
+        const NeedsLoopOutParameter = 0x00400000;
+        const AssignmentsMarked = 0x00800000;
+        const ClassWithConstructorReference = 0x01000000;
+        const ConstructorReferenceInClass = 0x02000000;
+        const ContainsClassWithPrivateIdentifiers = 0x04000000;
+        const ContainsSuperPropertyInStaticInitializer = 0x08000000;
     }
 }
 

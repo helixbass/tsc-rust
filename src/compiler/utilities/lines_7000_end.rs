@@ -3,7 +3,15 @@
 use std::borrow::Borrow;
 use std::rc::Rc;
 
-use crate::{Node, NodeInterface, PseudoBigInt, ReadonlyTextRange, SyntaxKind};
+use crate::{CompilerOptions, Node, NodeInterface, PseudoBigInt, ReadonlyTextRange, SyntaxKind};
+
+pub fn skip_type_checking<TIsSourceOfProjectReferenceRedirect: Fn(&str) -> bool>(
+    source_file: &Node, /*SourceFile*/
+    options: &CompilerOptions,
+    is_source_of_project_reference_redirect: TIsSourceOfProjectReferenceRedirect,
+) -> bool {
+    unimplemented!()
+}
 
 pub fn parse_pseudo_big_int(string_value: &str) -> String {
     string_value.to_string()
