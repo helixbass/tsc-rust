@@ -16,8 +16,8 @@ use crate::{
     get_emit_script_target, get_module_instance_state, get_parse_tree_node,
     get_strict_option_value, get_use_define_for_class_fields, is_parameter, is_type_node, sum,
     BaseInterfaceType, CheckFlags, Debug_, Extension, GenericableTypeInterface, IndexInfo,
-    IndexKind, ModuleInstanceState, NodeBuilderFlags, RelationComparisonResult, Signature,
-    SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable, VarianceFlags, __String,
+    IndexKind, ModuleInstanceState, NodeArray, NodeBuilderFlags, RelationComparisonResult,
+    Signature, SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable, VarianceFlags, __String,
     create_diagnostic_collection, create_symbol_table, object_allocator, DiagnosticCollection,
     DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags,
     Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
@@ -1047,6 +1047,60 @@ impl TypeChecker {
             enclosing_declaration,
             flags,
             None,
+        )
+    }
+
+    pub fn symbol_to_type_parameter_declarations<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+    ) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
+        self.node_builder.symbol_to_type_parameter_declarations(
+            symbol,
+            enclosing_declaration,
+            flags,
+            None,
+        )
+    }
+
+    pub fn symbol_to_parameter_declaration<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+    ) -> Option<Node /*ParameterDeclaration*/> {
+        self.node_builder.symbol_to_parameter_declaration(
+            symbol,
+            enclosing_declaration,
+            flags,
+            None,
+        )
+    }
+
+    pub fn type_parameter_to_declaration<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        parameter: &Node, /*TypeParameter*/
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+    ) -> Option<Node /*TypeParameterDeclaration*/> {
+        self.node_builder.type_parameter_to_declaration(
+            parameter,
+            enclosing_declaration,
+            flags,
+            None,
+        )
+    }
+
+    pub fn get_symbols_in_scope(
+        &self,
+        location_in: &Node,
+        meaning: SymbolFlags,
+    ) -> Vec<Rc<Symbol>> {
+        let location = get_parse_tree_node(Some(location_in), Option::<fn(&Node) -> bool>::None);
+        location.map_or_else(
+            || vec![],
+            |location| self.get_symbols_in_scope_(&location, meaning),
         )
     }
 

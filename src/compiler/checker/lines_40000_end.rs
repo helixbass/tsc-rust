@@ -66,6 +66,14 @@ impl TypeChecker {
         semantic_diagnostics
     }
 
+    pub(super) fn get_symbols_in_scope_(
+        &self,
+        location_in: &Node,
+        meaning: SymbolFlags,
+    ) -> Vec<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn create_resolver(&self) -> Rc<dyn EmitResolverDebuggable> {
         Rc::new(EmitResolverCreateResolver::new())
     }

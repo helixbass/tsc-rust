@@ -388,6 +388,36 @@ impl NodeBuilder {
         })
     }
 
+    pub fn symbol_to_type_parameter_declarations<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
+        unimplemented!()
+    }
+
+    pub fn symbol_to_parameter_declaration<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<Node /*ParameterDeclaration*/> {
+        unimplemented!()
+    }
+
+    pub fn type_parameter_to_declaration<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        parameter: &Node, /*TypeParameter*/
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<Node /*TypeParameterDeclaration*/> {
+        unimplemented!()
+    }
+
     fn with_context<TReturn, TCallback: FnOnce(&NodeBuilderContext) -> TReturn>(
         &self,
         flags: Option<NodeBuilderFlags>,
