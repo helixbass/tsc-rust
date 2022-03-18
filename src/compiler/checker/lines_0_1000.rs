@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use regex::Regex;
 use std::array::IntoIter;
+use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -15,11 +16,11 @@ use crate::{
     get_emit_script_target, get_module_instance_state, get_parse_tree_node,
     get_strict_option_value, get_use_define_for_class_fields, is_parameter, is_type_node, sum,
     BaseInterfaceType, CheckFlags, Debug_, Extension, GenericableTypeInterface, IndexInfo,
-    IndexKind, ModuleInstanceState, RelationComparisonResult, Signature, TypeCheckerHostDebuggable,
-    VarianceFlags, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
-    DiagnosticCollection, DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface,
-    Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type,
-    TypeChecker, TypeFlags,
+    IndexKind, ModuleInstanceState, NodeBuilderFlags, RelationComparisonResult, Signature,
+    SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable, VarianceFlags, __String,
+    create_diagnostic_collection, create_symbol_table, object_allocator, DiagnosticCollection,
+    DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags,
+    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
 };
 
 lazy_static! {
@@ -972,6 +973,81 @@ impl TypeChecker {
 
     pub fn get_awaited_type(&self, type_: &Type) -> Option<Rc<Type>> {
         self.get_awaited_type_(type_, Option::<&Node>::None, None, None)
+    }
+
+    pub fn get_non_optional_type(&self, type_: &Type) -> Rc<Type> {
+        self.remove_optional_type_marker(type_)
+    }
+
+    pub fn type_to_type_node<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        type_: &Type,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<Node /*TypeNode*/> {
+        self.node_builder
+            .type_to_type_node(self, type_, enclosing_declaration, flags, tracker)
+    }
+
+    pub fn index_info_to_index_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        index_info: &IndexInfo,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<Node /*IndexSignatureDeclaration*/> {
+        self.node_builder.index_info_to_index_signature_declaration(
+            index_info,
+            enclosing_declaration,
+            flags,
+            tracker,
+        )
+    }
+
+    pub fn signature_to_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        signature: &Signature,
+        kind: SyntaxKind,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/> {
+        self.node_builder.signature_to_signature_declaration(
+            signature,
+            kind,
+            enclosing_declaration,
+            flags,
+            tracker,
+        )
+    }
+
+    pub fn symbol_to_entity_name<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        meaning: SymbolFlags,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+    ) -> Option<Node /*EntityName*/> {
+        self.node_builder
+            .symbol_to_entity_name(symbol, meaning, enclosing_declaration, flags, None)
+    }
+
+    pub fn symbol_to_expression<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        meaning: SymbolFlags,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+    ) -> Option<Node /*Expression*/> {
+        self.node_builder.symbol_to_expression(
+            self,
+            symbol,
+            Some(meaning),
+            enclosing_declaration,
+            flags,
+            None,
+        )
     }
 
     pub(super) fn string_literal_types(

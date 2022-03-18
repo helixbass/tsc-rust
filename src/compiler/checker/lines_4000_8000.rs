@@ -7,12 +7,12 @@ use std::rc::Rc;
 use crate::{
     get_emit_script_target, is_expression, is_identifier_text, unescape_leading_underscores,
     using_single_line_string_writer, BaseIntrinsicType, BaseNodeFactorySynthetic, BaseObjectType,
-    BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter, KeywordTypeNode, Node, NodeArray,
-    NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions, ResolvableTypeInterface,
-    ResolvedTypeInterface, Signature, SourceFile, Symbol, SymbolFlags, SymbolFormatFlags,
-    SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypeParameter, __String, create_printer, create_text_writer,
-    factory, get_object_flags, get_source_file_of_node, synthetic_factory,
+    BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode, Node,
+    NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions,
+    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SourceFile, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter, __String, create_printer,
+    create_text_writer, factory, get_object_flags, get_source_file_of_node, synthetic_factory,
 };
 
 impl TypeChecker {
@@ -189,6 +189,7 @@ impl TypeChecker {
                 symbol,
                 // meaning.unwrap() TODO: this is ! in the Typescript code but would be undefined at runtime when called from propertyRelatedTo()?
                 meaning,
+                Option::<&Node>::None, // TODO: this is wrong
                 Some(node_flags),
                 None,
             )
@@ -229,6 +230,7 @@ impl TypeChecker {
         let type_node = self.node_builder.type_to_type_node(
             self,
             type_,
+            Option::<&Node>::None, // TODO: this is wrong
             Some(
                 self.to_node_builder_flags(Some(flags))
                     | NodeBuilderFlags::IgnoreErrors
@@ -327,10 +329,11 @@ impl NodeBuilder {
         Self {}
     }
 
-    pub fn type_to_type_node(
+    pub fn type_to_type_node<TEnclosingDeclaration: Borrow<Node>>(
         &self,
         type_checker: &TypeChecker,
         type_: &Type,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Node> {
@@ -339,11 +342,44 @@ impl NodeBuilder {
         })
     }
 
-    pub fn symbol_to_expression(
+    pub fn index_info_to_index_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        index_info: &IndexInfo,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<Node> {
+        unimplemented!()
+    }
+
+    pub fn signature_to_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        signature: &Signature,
+        kind: SyntaxKind,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/> {
+        unimplemented!()
+    }
+
+    pub fn symbol_to_entity_name<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        meaning: SymbolFlags,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+        tracker: Option<&dyn SymbolTracker>,
+    ) -> Option<Node /*EntityName*/> {
+        unimplemented!()
+    }
+
+    pub fn symbol_to_expression<TEnclosingDeclaration: Borrow<Node>>(
         &self,
         type_checker: &TypeChecker,
         symbol: &Symbol,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Node> {

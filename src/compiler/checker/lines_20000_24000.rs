@@ -290,6 +290,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn remove_optional_type_marker(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn remove_missing_type(&self, type_: &Type, is_optional: bool) -> Rc<Type> {
         if matches!(self.exact_optional_property_types, Some(true)) && is_optional {
             unimplemented!()
