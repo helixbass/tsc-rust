@@ -407,6 +407,23 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_valid_property_access_(
+        &self,
+        node: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
+        property_name: &__String,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub fn is_valid_property_access_for_completions_(
+        &self,
+        node_in: &Node, /*PropertyAccessExpression | ImportTypeNode | QualifiedName*/
+        type_: &Type,
+        property: &Symbol,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn accepts_void(&self, t: &Type) -> bool {
         t.flags().intersects(TypeFlags::Void)
     }

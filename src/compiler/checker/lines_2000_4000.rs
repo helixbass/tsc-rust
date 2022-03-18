@@ -77,6 +77,10 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_exports_of_module_as_array(&self, module_symbol: &Symbol) -> Vec<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_merged_symbol<TSymbol: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbol>,

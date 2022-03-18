@@ -290,6 +290,8 @@ bitflags! {
     }
 }
 
+pub struct SymbolWalker {}
+
 pub trait SymbolWriter: SymbolTracker {
     fn write_keyword(&mut self, text: &str);
     fn write_operator(&mut self, text: &str);

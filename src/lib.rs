@@ -288,7 +288,7 @@ pub use compiler::types::{
     SourceTextAsChars, SpreadAssignment, SpreadElement, StringLiteral, StringLiteralType,
     StringOrNodeArray, StructureIsReused, SwitchStatement, Symbol, SymbolAccessibilityResult,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolLinks, SymbolTable,
-    SymbolTracker, SymbolVisibilityResult, SymbolWriter, SyntaxKind, SyntaxList,
+    SymbolTracker, SymbolVisibilityResult, SymbolWalker, SymbolWriter, SyntaxKind, SyntaxList,
     SynthesizedComment, TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
     TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode, TemplateLiteralTypeSpan,
     TemplateSpan, Ternary, TextChangeRange, TextRange, TextSpan, ThisTypeNode, ThrowStatement,

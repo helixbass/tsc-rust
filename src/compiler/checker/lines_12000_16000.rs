@@ -119,6 +119,13 @@ impl TypeChecker {
         result
     }
 
+    pub(super) fn is_optional_parameter_(
+        &self,
+        node: &Node, /*ParameterDeclaration | JSDocParameterTag | JSDocPropertyTag*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn fill_missing_type_arguments(
         &self,
         type_arguments: Option<Vec<Rc<Type>>>,
@@ -127,7 +134,7 @@ impl TypeChecker {
         type_arguments.map(|vec| vec.clone())
     }
 
-    pub(super) fn get_signature_from_declaration(
+    pub(super) fn get_signature_from_declaration_(
         &self,
         declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
     ) -> Rc<Signature> {

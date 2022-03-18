@@ -12,11 +12,13 @@ use std::rc::Rc;
 
 use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
-    BaseInterfaceType, CheckFlags, ContextFlags, Debug_, DiagnosticCollection, DiagnosticMessage,
-    EmitTextWriter, Extension, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo,
-    IndexKind, ModuleInstanceState, Node, NodeArray, NodeBuilderFlags, NodeId, NodeInterface,
-    Number, ObjectFlags, RelationComparisonResult, Signature, SignatureKind, StringOrNumber,
-    Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    is_function_like, is_property_access_expression,
+    is_property_access_or_qualified_name_or_import_type_node, BaseInterfaceType, CheckFlags,
+    ContextFlags, Debug_, DiagnosticCollection, DiagnosticMessage, EmitTextWriter, Extension,
+    FreshableIntrinsicType, GenericableTypeInterface, IndexInfo, IndexKind, ModuleInstanceState,
+    Node, NodeArray, NodeBuilderFlags, NodeId, NodeInterface, Number, ObjectFlags,
+    RelationComparisonResult, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
     SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags,
     TypePredicate, VarianceFlags, __String, create_diagnostic_collection, create_symbol_table,
     escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
@@ -1421,6 +1423,84 @@ impl TypeChecker {
             Some(|node: &Node| self.can_have_constant_value(node)),
         )?;
         self.get_constant_value_(&node)
+    }
+
+    pub fn is_valid_property_access(
+        &self,
+        node_in: &Node, /*QualifiedName | PropertyAccessExpression | ImportTypeNode*/
+        property_name: &str,
+    ) -> bool {
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_property_access_or_qualified_name_or_import_type_node(node)),
+        );
+        match node {
+            None => false,
+            Some(node) => {
+                self.is_valid_property_access_(&node, &escape_leading_underscores(property_name))
+            }
+        }
+    }
+
+    pub fn is_valid_property_access_for_completions(
+        &self,
+        node_in: &Node, /*PropertyAccessExpression | QualifiedName | ImportTypeNode*/
+        type_: &Type,
+        property: &Symbol,
+    ) -> bool {
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_property_access_expression(node)),
+        );
+        match node {
+            None => false,
+            Some(node) => self.is_valid_property_access_for_completions_(&node, type_, property),
+        }
+    }
+
+    pub fn get_signature_from_declaration(
+        &self,
+        declaration_in: &Node, /*SignatureDeclaration*/
+    ) -> Option<Rc<Signature>> {
+        let declaration = get_parse_tree_node(
+            Some(declaration_in),
+            Some(|node: &Node| is_function_like(Some(node))),
+        )?;
+        Some(self.get_signature_from_declaration_(&declaration))
+    }
+
+    pub fn is_implementation_of_overload(
+        &self,
+        node_in: &Node, /*SignatureDeclaration*/
+    ) -> Option<bool> {
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_function_like(Some(node))),
+        )?;
+        Some(self.is_implementation_of_overload_(&node))
+    }
+
+    pub fn get_aliased_symbol(&self, symbol: &Symbol) -> Rc<Symbol> {
+        self.resolve_alias(symbol)
+    }
+
+    pub fn get_exports_of_module(&self, module_symbol: &Symbol) -> Vec<Rc<Symbol>> {
+        self.get_exports_of_module_as_array(module_symbol)
+    }
+
+    pub fn get_symbol_walker<TAccept: FnMut(&Symbol) -> bool>(
+        &self,
+        accept: Option<TAccept>,
+    ) -> SymbolWalker {
+        unimplemented!() // TODO: figure out how to implement this
+    }
+
+    pub fn is_optional_parameter(&self, node_in: &Node /*ParameterDeclaration*/) -> bool {
+        let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_parameter(node)));
+        match node {
+            None => false,
+            Some(node) => self.is_optional_parameter_(&node),
+        }
     }
 
     pub(super) fn get_resolved_signature_worker(

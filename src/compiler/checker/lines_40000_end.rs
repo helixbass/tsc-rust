@@ -118,6 +118,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_implementation_of_overload_(
+        &self,
+        node: &Node, /*SignatureDeclaration*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn can_have_constant_value(&self, node: &Node) -> bool {
         unimplemented!()
     }
