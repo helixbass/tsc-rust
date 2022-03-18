@@ -14,10 +14,11 @@ use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
     escape_leading_underscores, get_allow_synthetic_default_imports, get_emit_module_kind,
     get_emit_script_target, get_module_instance_state, get_parse_tree_node,
-    get_strict_option_value, get_use_define_for_class_fields, is_export_specifier, is_parameter,
-    is_type_node, sum, BaseInterfaceType, CheckFlags, Debug_, Extension, GenericableTypeInterface,
-    IndexInfo, IndexKind, ModuleInstanceState, NodeArray, NodeBuilderFlags,
-    RelationComparisonResult, Signature, SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable,
+    get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
+    is_export_specifier, is_identifier, is_parameter, is_type_node, sum, BaseInterfaceType,
+    CheckFlags, Debug_, Extension, GenericableTypeInterface, IndexInfo, IndexKind,
+    ModuleInstanceState, NodeArray, NodeBuilderFlags, RelationComparisonResult, Signature,
+    SignatureKind, SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable, TypeFormatFlags,
     VarianceFlags, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
     DiagnosticCollection, DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface,
     Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type,
@@ -1148,6 +1149,43 @@ impl TypeChecker {
         } else {
             self.error_type()
         }
+    }
+
+    pub fn get_type_of_assignment_pattern(
+        &self,
+        node_in: &Node, /*AssignmentPattern*/
+    ) -> Rc<Type> {
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_assignment_pattern(node)),
+        );
+        node.and_then(|node| self.get_type_of_assignment_pattern_(&node))
+            .unwrap_or_else(|| self.error_type())
+    }
+
+    pub fn get_property_symbol_of_destructuring_assignment(
+        &self,
+        location_in: &Node, /*Identifier*/
+    ) -> Option<Rc<Symbol>> {
+        let location =
+            get_parse_tree_node(Some(location_in), Some(|node: &Node| is_identifier(node)))?;
+        self.get_property_symbol_of_destructuring_assignment_(&location)
+    }
+
+    pub fn signature_to_string<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        signature: &Signature,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<TypeFormatFlags>,
+        kind: Option<SignatureKind>,
+    ) -> String {
+        self.signature_to_string_(
+            signature,
+            get_parse_tree_node(enclosing_declaration, Option::<fn(&Node) -> bool>::None),
+            flags,
+            kind,
+            None,
+        )
     }
 
     pub(super) fn string_literal_types(

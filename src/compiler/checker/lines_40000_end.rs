@@ -104,6 +104,20 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_type_of_assignment_pattern_(
+        &self,
+        expr: &Node, /*AssignmentPattern*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_property_symbol_of_destructuring_assignment_(
+        &self,
+        location: &Node, /*Identifier*/
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn create_resolver(&self) -> Rc<dyn EmitResolverDebuggable> {
         Rc::new(EmitResolverCreateResolver::new())
     }

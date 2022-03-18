@@ -9,10 +9,11 @@ use crate::{
     using_single_line_string_writer, BaseIntrinsicType, BaseNodeFactorySynthetic, BaseObjectType,
     BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode, Node,
     NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions,
-    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SourceFile, Symbol, SymbolFlags,
-    SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter, __String, create_printer,
-    create_text_writer, factory, get_object_flags, get_source_file_of_node, synthetic_factory,
+    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureKind, SourceFile, Symbol,
+    SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter, __String,
+    create_printer, create_text_writer, factory, get_object_flags, get_source_file_of_node,
+    synthetic_factory,
 };
 
 impl TypeChecker {
@@ -213,6 +214,18 @@ impl TypeChecker {
         } else {
             using_single_line_string_writer(symbol_to_string_worker)
         }
+    }
+
+    pub(super) fn signature_to_string_<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        signature: &Signature,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<TypeFormatFlags>,
+        kind: Option<SignatureKind>,
+        writer: Option<&dyn EmitTextWriter>,
+    ) -> String {
+        let flags = flags.unwrap_or(TypeFormatFlags::None);
+        unimplemented!()
     }
 
     pub(super) fn type_to_string<TNodeRef: Borrow<Node>>(
