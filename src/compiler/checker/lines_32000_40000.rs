@@ -329,7 +329,7 @@ impl TypeChecker {
         self.fill_missing_type_arguments(
             map(
                 Some(node.as_has_type_arguments().maybe_type_arguments().unwrap()),
-                |type_argument, _| self.get_type_from_type_node(type_argument),
+                |type_argument, _| self.get_type_from_type_node_(type_argument),
             ),
             Some(type_parameters),
         )
@@ -362,7 +362,7 @@ impl TypeChecker {
                 Option::<()>::None
             },
         );
-        self.get_type_from_type_node(node);
+        self.get_type_from_type_node_(node);
     }
 
     pub(super) fn check_awaited_type(

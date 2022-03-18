@@ -179,7 +179,7 @@ impl TypeChecker {
         Some(node.as_array_type_node().element_type.clone())
     }
 
-    pub(super) fn get_type_from_type_node(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
+    pub(super) fn get_type_from_type_node_(&self, node: &Node /*TypeNode*/) -> Rc<Type> {
         self.get_conditional_flow_type_of_type(&self.get_type_from_type_node_worker(node), node)
     }
 

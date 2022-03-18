@@ -270,7 +270,7 @@ impl TypeChecker {
     ) -> Option<Rc<Type>> {
         let type_node = get_effective_return_type_node(declaration);
         if let Some(type_node) = type_node {
-            return Some(self.get_type_from_type_node(&type_node));
+            return Some(self.get_type_from_type_node_(&type_node));
         }
         self.get_return_type_of_type_tag(declaration)
     }
@@ -331,7 +331,7 @@ impl TypeChecker {
                         );
                     }
                     Some(constraint_declaration) => {
-                        let mut type_ = self.get_type_from_type_node(&constraint_declaration);
+                        let mut type_ = self.get_type_from_type_node_(&constraint_declaration);
                         if type_.flags().intersects(TypeFlags::Any) && !self.is_error_type(&type_) {
                             type_ = if constraint_declaration.parent().parent().kind()
                                 == SyntaxKind::MappedType
@@ -556,7 +556,7 @@ impl TypeChecker {
     ) -> Option<Vec<Rc<Type>>> {
         map(
             node.as_has_type_arguments().maybe_type_arguments(),
-            |type_argument, _| self.get_type_from_type_node(&**type_argument),
+            |type_argument, _| self.get_type_from_type_node_(&**type_argument),
         )
     }
 
@@ -686,7 +686,7 @@ impl TypeChecker {
             unimplemented!()
         } else {
             let element_types =
-                vec![self.get_type_from_type_node(&*node_as_array_type_node.element_type)];
+                vec![self.get_type_from_type_node_(&*node_as_array_type_node.element_type)];
             return self.create_normalized_type_reference(&target, Some(element_types));
         }
     }
@@ -846,7 +846,7 @@ impl TypeChecker {
             links_ref.resolved_type = Some(
                 self.get_union_type(
                     map(Some(&node_as_union_type_node.types), |type_, _| {
-                        self.get_type_from_type_node(type_)
+                        self.get_type_from_type_node_(type_)
                     })
                     .unwrap(),
                     Some(UnionReduction::Literal),

@@ -49,7 +49,7 @@ impl TypeChecker {
     ) -> Option<Rc<Type>> {
         let type_node = get_effective_type_annotation_node(declaration);
         if let Some(type_node) = type_node {
-            return Some(self.get_type_from_type_node(&*type_node));
+            return Some(self.get_type_from_type_node_(&*type_node));
         }
         match declaration.kind() {
             _ => None,

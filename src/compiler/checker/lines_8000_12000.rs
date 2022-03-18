@@ -184,7 +184,7 @@ impl TypeChecker {
         declaration: &Node, /*Declaration*/
     ) -> Option<Rc<Type>> {
         let type_node = get_effective_type_annotation_node(declaration);
-        type_node.map(|type_node| self.get_type_from_type_node(&*type_node))
+        type_node.map(|type_node| self.get_type_from_type_node_(&*type_node))
     }
 
     pub(super) fn get_type_of_variable_or_parameter_or_property(
@@ -415,7 +415,7 @@ impl TypeChecker {
             };
             let type_ = type_node.map_or_else(
                 || self.error_type(),
-                |type_node| self.get_type_from_type_node(&type_node),
+                |type_node| self.get_type_from_type_node_(&type_node),
             );
             if true {
                 let type_parameters =

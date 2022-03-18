@@ -13,9 +13,9 @@ use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
     escape_leading_underscores, get_allow_synthetic_default_imports, get_emit_module_kind,
     get_emit_script_target, get_module_instance_state, get_parse_tree_node,
-    get_strict_option_value, get_use_define_for_class_fields, is_parameter, sum, BaseInterfaceType,
-    CheckFlags, Debug_, Extension, GenericableTypeInterface, IndexInfo, IndexKind,
-    ModuleInstanceState, RelationComparisonResult, Signature, TypeCheckerHostDebuggable,
+    get_strict_option_value, get_use_define_for_class_fields, is_parameter, is_type_node, sum,
+    BaseInterfaceType, CheckFlags, Debug_, Extension, GenericableTypeInterface, IndexInfo,
+    IndexKind, ModuleInstanceState, RelationComparisonResult, Signature, TypeCheckerHostDebuggable,
     VarianceFlags, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
     DiagnosticCollection, DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface,
     Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type,
@@ -955,6 +955,15 @@ impl TypeChecker {
                 self.number_type()
             },
         )
+    }
+
+    pub fn get_type_from_type_node(&self, node_in: &Node /*TypeNode*/) -> Rc<Type> {
+        let node = get_parse_tree_node(Some(node_in), Some(|node: &Node| is_type_node(node)));
+        if let Some(node) = node {
+            self.get_type_from_type_node_(&node)
+        } else {
+            self.error_type()
+        }
     }
 
     pub(super) fn string_literal_types(
