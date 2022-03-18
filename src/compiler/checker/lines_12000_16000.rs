@@ -8,13 +8,13 @@ use std::rc::Rc;
 use crate::{
     append_if_unique, filter, get_effective_constraint_of_type_parameter,
     get_effective_return_type_node, get_effective_type_parameter_declarations, is_binding_pattern,
-    is_type_parameter_declaration, map_defined, node_is_missing, Signature, SignatureFlags,
-    SignatureKind, TypePredicate, UnionType, __String, binary_search_copy_key, compare_values,
-    concatenate, get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
-    ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, TypeReference,
-    TypeReferenceNode, UnionReduction, UnionTypeNode,
+    is_type_parameter_declaration, map_defined, node_is_missing, IndexInfo, Signature,
+    SignatureFlags, SignatureKind, TypePredicate, UnionType, __String, binary_search_copy_key,
+    compare_values, concatenate, get_name_of_declaration, get_object_flags, map,
+    unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
+    Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    TypeReference, TypeReferenceNode, UnionReduction, UnionTypeNode,
 };
 
 impl TypeChecker {
@@ -87,6 +87,14 @@ impl TypeChecker {
         kind: SignatureKind,
     ) -> Vec<Rc<Signature>> {
         self.get_signatures_of_structured_type(&self.get_reduced_apparent_type(type_), kind)
+    }
+
+    pub(super) fn get_index_info_of_type_(
+        &self,
+        type_: &Type,
+        key_type: &Type,
+    ) -> Option<Rc<IndexInfo>> {
+        unimplemented!()
     }
 
     pub(super) fn get_type_parameters_from_declaration(

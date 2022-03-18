@@ -14,11 +14,12 @@ use crate::{
     escape_leading_underscores, get_allow_synthetic_default_imports, get_emit_module_kind,
     get_emit_script_target, get_module_instance_state, get_parse_tree_node,
     get_strict_option_value, get_use_define_for_class_fields, is_parameter, sum, BaseInterfaceType,
-    CheckFlags, Debug_, Extension, GenericableTypeInterface, ModuleInstanceState,
-    RelationComparisonResult, Signature, TypeCheckerHostDebuggable, VarianceFlags, __String,
-    create_diagnostic_collection, create_symbol_table, object_allocator, DiagnosticCollection,
-    DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags,
-    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
+    CheckFlags, Debug_, Extension, GenericableTypeInterface, IndexInfo, IndexKind,
+    ModuleInstanceState, RelationComparisonResult, Signature, TypeCheckerHostDebuggable,
+    VarianceFlags, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
+    DiagnosticCollection, DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface,
+    Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type,
+    TypeChecker, TypeFlags,
 };
 
 lazy_static! {
@@ -932,6 +933,17 @@ impl TypeChecker {
 
     pub fn get_type_of_property_of_type(&self, type_: &Type, name: &str) -> Option<Rc<Type>> {
         self.get_type_of_property_of_type_(type_, &escape_leading_underscores(name))
+    }
+
+    pub fn get_index_info_of_type(&self, type_: &Type, kind: IndexKind) -> Option<Rc<IndexInfo>> {
+        self.get_index_info_of_type_(
+            type_,
+            &*if kind == IndexKind::String {
+                self.string_type()
+            } else {
+                self.number_type()
+            },
+        )
     }
 
     pub(super) fn string_literal_types(

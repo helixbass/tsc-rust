@@ -147,6 +147,12 @@ impl Signature {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum IndexKind {
+    String,
+    Number,
+}
+
 pub struct IndexInfo {
     pub key_type: Rc<Type>,
     pub type_: Rc<Type>,
