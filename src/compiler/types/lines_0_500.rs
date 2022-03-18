@@ -3,7 +3,7 @@
 use std::cell::Cell;
 use std::ops::Deref;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Path(String);
 
 impl Path {

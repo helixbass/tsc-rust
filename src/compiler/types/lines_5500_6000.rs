@@ -869,6 +869,24 @@ pub enum DiagnosticCategory {
     Message,
 }
 
+pub(crate) fn diagnostic_category_name(
+    category: DiagnosticCategory,
+    lower_case: Option<bool>,
+) -> String {
+    let lower_case = lower_case.unwrap_or(true);
+    let name = match category {
+        DiagnosticCategory::Warning => "Warning",
+        DiagnosticCategory::Error => "Error",
+        DiagnosticCategory::Suggestion => "Suggestion",
+        DiagnosticCategory::Message => "Message",
+    };
+    if lower_case {
+        name.to_lowercase()
+    } else {
+        name.to_owned()
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum ModuleResolutionKind {
     Classic = 1,

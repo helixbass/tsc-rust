@@ -96,11 +96,11 @@ pub(super) fn get_count_key(program: &Program, file: &Node /*SourceFile*/) -> &'
 }
 
 pub(super) fn update_report_diagnostic(
-    sys: &dyn System,
+    sys: Rc<dyn System>,
     existing: Rc<dyn DiagnosticReporter>,
     options: CompilerOptionsOrBuildOptions,
 ) -> Rc<dyn DiagnosticReporter> {
-    if should_be_pretty(sys, options) {
+    if should_be_pretty(&*sys, options) {
         create_diagnostic_reporter(sys, Some(true))
     } else {
         existing
@@ -841,7 +841,7 @@ pub(super) fn execute_command_line_worker<
     cb: &mut TCallback,
     command_line: &mut ParsedCommandLine,
 ) {
-    let mut report_diagnostic = create_diagnostic_reporter(&*sys, None);
+    let mut report_diagnostic = create_diagnostic_reporter(sys.clone(), None);
     if matches!(command_line.options.build, Some(true)) {
         report_diagnostic.call(Rc::new(
             create_compiler_diagnostic(
@@ -977,22 +977,22 @@ pub(super) fn execute_command_line_worker<
         });
 
     if let Some(config_file_name) = config_file_name {
-        let extended_config_cache: HashMap<String, ExtendedConfigCacheEntry> = HashMap::new();
+        let mut extended_config_cache: HashMap<String, ExtendedConfigCacheEntry> = HashMap::new();
         let config_parse_result = Rc::new(
             parse_config_file_with_system(
                 &config_file_name,
-                &command_line_options,
-                Some(&extended_config_cache),
+                command_line_options.clone(),
+                Some(&mut extended_config_cache),
                 command_line.watch_options.clone(),
-                &*sys,
-                &*report_diagnostic,
+                sys.clone(),
+                report_diagnostic.clone(),
             )
             .unwrap(),
         );
         if matches!(command_line.options.show_config, Some(true)) {
             if !config_parse_result.errors.is_empty() {
                 report_diagnostic = update_report_diagnostic(
-                    &*sys,
+                    sys.clone(),
                     report_diagnostic,
                     config_parse_result.options.clone().into(),
                 );
@@ -1015,7 +1015,7 @@ pub(super) fn execute_command_line_worker<
             sys.exit(Some(ExitStatus::Success));
         }
         report_diagnostic = update_report_diagnostic(
-            &*sys,
+            sys.clone(),
             report_diagnostic,
             config_parse_result.options.clone().into(),
         );
@@ -1024,7 +1024,7 @@ pub(super) fn execute_command_line_worker<
                 return;
             }
             create_watch_of_config_file(
-                &*sys,
+                sys.clone(),
                 cb,
                 report_diagnostic,
                 config_parse_result,
@@ -1057,7 +1057,7 @@ pub(super) fn execute_command_line_worker<
             sys.exit(Some(ExitStatus::Success));
         }
         report_diagnostic = update_report_diagnostic(
-            &*sys,
+            sys.clone(),
             report_diagnostic,
             command_line_options.clone().into(),
         );

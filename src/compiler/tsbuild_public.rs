@@ -124,7 +124,7 @@ pub fn create_solution_builder_with_watch_host<
     create_program: Option<TCreateProgram>,
     report_diagnostic: Option<Rc<dyn DiagnosticReporter>>,
     report_solution_builder_status: Option<Rc<dyn DiagnosticReporter>>,
-    report_watch_status: Option<WatchStatusReporter>,
+    report_watch_status: Option<Rc<dyn WatchStatusReporter>>,
 ) -> SolutionBuilderWithWatchHostConcrete<TBuilderProgram> {
     unimplemented!()
 }

@@ -1801,6 +1801,8 @@ pub struct ConfigFileSpecs {
     pub path_patterns: Option<Vec<StringOrPattern>>,
 }
 
+pub type RequireResult = ();
+
 pub struct CreateProgramOptions {
     pub root_names: Vec<String>,
     pub options: Rc<CompilerOptions>,

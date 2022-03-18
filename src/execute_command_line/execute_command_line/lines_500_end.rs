@@ -21,9 +21,8 @@ use crate::{
     CreateWatchCompilerHostOfConfigFileInput, CustomTransformers, Diagnostic, DiagnosticReporter,
     Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, ExtendedConfigCacheEntry,
     IncrementalCompilationOptions, Node, ParsedBuildCommand, ParsedCommandLine, Program,
-    ProgramHost, ReportEmitErrorSummary, ScriptReferenceHost, ScriptTarget,
-    SemanticDiagnosticsBuilderProgram, SolutionBuilderHostBase, System, WatchCompilerHost,
-    WatchOptions, WatchStatusReporter,
+    ProgramHost, ReportEmitErrorSummary, ScriptTarget, SemanticDiagnosticsBuilderProgram,
+    SolutionBuilderHostBase, System, WatchCompilerHost, WatchOptions, WatchStatusReporter,
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
@@ -152,8 +151,8 @@ pub(super) fn perform_build<
     mut errors: Vec<Rc<Diagnostic>>,
 ) {
     let report_diagnostic = update_report_diagnostic(
-        &*sys,
-        create_diagnostic_reporter(&*sys, None),
+        sys.clone(),
+        create_diagnostic_reporter(sys.clone(), None),
         build_options.clone().into(),
     );
 
@@ -213,7 +212,7 @@ pub(super) fn perform_build<
                 Some(should_be_pretty(&*sys, build_options.clone().into())),
             )),
             Some(create_watch_status_reporter(
-                &*sys,
+                sys.clone(),
                 build_options.clone().into(),
             )),
         );
@@ -265,6 +264,14 @@ impl BuilderProgram for BuilderProgramDummy {
     fn get_program(&self) -> Rc<Program> {
         unimplemented!()
     }
+
+    fn get_compiler_options(&self) -> Rc<CompilerOptions> {
+        unimplemented!()
+    }
+
+    fn get_source_files(&self) -> &[Rc<Node /*SourceFile*/>] {
+        unimplemented!()
+    }
 }
 
 impl SemanticDiagnosticsBuilderProgram for BuilderProgramDummy {}
@@ -314,7 +321,7 @@ pub(super) fn perform_compilation<
     let file_names = &config.file_names;
     let options = config.options.clone();
     let project_references = &config.project_references;
-    let host = create_compiler_host_worker(&options, None, Some(sys.clone()));
+    let host = create_compiler_host_worker(options.clone(), None, Some(sys.clone()));
     let current_directory = host.get_current_directory();
     let get_canonical_file_name =
         create_get_canonical_file_name(host.use_case_sensitive_file_names());
@@ -365,7 +372,7 @@ pub(super) fn perform_incremental_compilation<
     let project_references = &config.project_references;
     enable_statistics_and_tracing(&*sys, &options, false);
     let host = Rc::new(create_incremental_compiler_host(
-        &options,
+        options.clone(),
         Some(sys.clone()),
     ));
     let exit_status = perform_incremental_compilation_(IncrementalCompilationOptions {
@@ -440,16 +447,19 @@ pub(super) fn update_watch_compilation_host<
 }
 
 pub(super) fn create_watch_status_reporter(
-    sys: &dyn System,
+    sys: Rc<dyn System>,
     options: CompilerOptionsOrBuildOptions,
-) -> WatchStatusReporter {
-    create_watch_status_reporter_(sys, Some(should_be_pretty(sys, options)))
+) -> Rc<dyn WatchStatusReporter> {
+    Rc::new(create_watch_status_reporter_(
+        sys.clone(),
+        Some(should_be_pretty(&*sys, options)),
+    ))
 }
 
 pub(super) fn create_watch_of_config_file<
     TCallback: FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
 >(
-    system: &dyn System,
+    system: Rc<dyn System>,
     mut cb: TCallback,
     report_diagnostic: Rc<dyn DiagnosticReporter>,
     config_parse_result: Rc<ParsedCommandLine>,
@@ -466,16 +476,16 @@ pub(super) fn create_watch_of_config_file<
                 .unwrap(),
             options_to_extend: Some(&options_to_extend),
             watch_options_to_extend,
-            system,
+            system: &*system,
             report_diagnostic: Some(&*report_diagnostic),
             report_watch_status: Some(create_watch_status_reporter(
-                system,
+                system.clone(),
                 config_parse_result.options.clone().into(),
             )),
             create_program: Option::<&dyn CreateProgram<BuilderProgramDummy>>::None,
             extra_file_extensions: None,
         });
-    update_watch_compilation_host(system, cb, &mut watch_compiler_host);
+    update_watch_compilation_host(&*system, cb, &mut watch_compiler_host);
     // TODO: how to model this?
     // watchCompilerHost.configFileParsingResult = configParseResult;
     // watchCompilerHost.extendedConfigCache = extendedConfigCache;

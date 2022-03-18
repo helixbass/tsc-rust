@@ -9,7 +9,7 @@ use std::rc::Rc;
 use super::supported_ts_extensions_for_extract_extension;
 use crate::{
     entity_name_to_string, file_extension_is, find, get_element_or_property_access_name,
-    get_property_name_for_property_name_node, has_syntactic_modifier,
+    get_property_name_for_property_name_node, get_sys, has_syntactic_modifier,
     is_bindable_static_access_expression, is_element_access_expression, is_entity_name_expression,
     is_identifier, is_jsdoc_member_name, is_property_access_expression, is_property_name,
     is_qualified_name, unescape_leading_underscores, walk_up_parenthesized_expressions,
@@ -17,9 +17,9 @@ use crate::{
     CompilerOptions, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     DiagnosticWithDetachedLocation, DiagnosticWithLocation, Extension, MapLike, ModifierFlags,
-    Node, NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, Signature, SignatureFlags,
-    SourceFileLike, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransformFlags,
-    TransientSymbolInterface, Type, TypeFlags, TypeInterface, __String,
+    NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags, PrefixUnaryExpression, Signature,
+    SignatureFlags, SourceFileLike, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransformFlags, TransientSymbolInterface, Type, TypeFlags, TypeInterface, __String,
 };
 
 pub fn get_first_identifier(node: &Node) -> Rc<Node /*Identifier*/> {
@@ -171,12 +171,34 @@ fn is_export_default_symbol(symbol: &Symbol) -> bool {
     }
 }
 
-pub fn try_extract_extension(file_name: &str) -> Option<Extension> {
+pub fn try_extract_ts_extension(file_name: &str) -> Option<Extension> {
     find(
         &supported_ts_extensions_for_extract_extension,
         |extension, _| file_extension_is(file_name, extension.to_str()),
     )
     .copied()
+}
+
+const carriage_return_line_feed: &str = "\r\n";
+const line_feed: &str = "\n";
+pub fn get_new_line_character<TGetNewLine: Fn() -> String>(
+    new_line: Option<NewLineKind>,
+    get_new_line: Option<TGetNewLine>,
+) -> String {
+    match new_line {
+        Some(NewLineKind::CarriageReturnLineFeed) => {
+            return carriage_return_line_feed.to_owned();
+        }
+        Some(NewLineKind::LineFeed) => {
+            return line_feed.to_owned();
+        }
+        _ => (),
+    }
+    if let Some(get_new_line) = get_new_line {
+        get_new_line()
+    } else {
+        get_sys().new_line().to_owned()
+    }
 }
 
 pub fn is_watch_set(options: &CompilerOptions) -> bool {

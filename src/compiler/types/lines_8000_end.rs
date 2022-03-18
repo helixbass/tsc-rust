@@ -23,6 +23,16 @@ pub trait PrintHandlers {
 
 pub struct PrinterOptions {}
 
+pub(crate) struct RawSourceMap {
+    pub version: u32, /*3*/
+    pub file: String,
+    pub source_root: Option<String>,
+    pub sources: Vec<String>,
+    pub sources_content: Option<Vec<Option<String>>>,
+    pub mappings: String,
+    pub names: Option<Vec<String>>,
+}
+
 pub trait EmitTextWriter: SymbolWriter {
     fn write(&mut self, s: &str);
     fn write_trailing_semicolon(&mut self, text: &str);

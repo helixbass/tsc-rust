@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::io;
 use std::rc::Rc;
 
 use super::{
@@ -28,7 +29,7 @@ use crate::{
 };
 use local_macros::enum_unwrapped;
 
-pub(super) fn parse_response_file<TReadFile: Fn(&str) -> Option<String>>(
+pub(super) fn parse_response_file<TReadFile: Fn(&str) -> io::Result<String>>(
     read_file: Option<&TReadFile>,
     errors: &mut Vec<Rc<Diagnostic>>,
     file_names: &mut Vec<String>,
@@ -276,7 +277,7 @@ impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics 
     }
 }
 
-pub fn parse_command_line<TReadFile: Fn(&str) -> Option<String>>(
+pub fn parse_command_line<TReadFile: Fn(&str) -> io::Result<String>>(
     command_line: &[String],
     read_file: Option<TReadFile>,
 ) -> ParsedCommandLine {
@@ -411,7 +412,7 @@ pub(crate) fn parse_build_command(args: &[String]) -> ParsedBuildCommand {
     } = parse_command_line_worker(
         &*build_options_did_you_mean_diagnostics(),
         args,
-        Option::<fn(&str) -> Option<String>>::None,
+        Option::<fn(&str) -> io::Result<String>>::None,
     );
     let build_options: BuildOptions = hash_map_to_build_options(&options);
 
@@ -481,7 +482,7 @@ pub trait ConfigFileDiagnosticsReporter {
 }
 
 pub trait ParseConfigFileHost: ParseConfigHost + ConfigFileDiagnosticsReporter {
-    fn get_current_directory(&self) -> &str;
+    fn get_current_directory(&self) -> String;
 }
 
 pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
@@ -504,7 +505,7 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     let result_as_source_file = result.as_source_file();
     result_as_source_file.set_path(to_path(
         config_file_name,
-        Some(cwd),
+        Some(&cwd),
         create_get_canonical_file_name(host.use_case_sensitive_file_names()),
     ));
     result_as_source_file.set_resolved_path(Some(result_as_source_file.path().clone()));
@@ -512,9 +513,9 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     Some(parse_json_source_file_config_file_content(
         &result,
         host,
-        &get_normalized_absolute_path(&get_directory_path(config_file_name), Some(cwd)),
+        &get_normalized_absolute_path(&get_directory_path(config_file_name), Some(&cwd)),
         options_to_extend,
-        Some(&get_normalized_absolute_path(config_file_name, Some(cwd))),
+        Some(&get_normalized_absolute_path(config_file_name, Some(&cwd))),
         None,
         extra_file_extensions,
         extended_config_cache,
@@ -522,7 +523,7 @@ pub fn get_parsed_command_line_of_config_file<THost: ParseConfigFileHost>(
     ))
 }
 
-pub fn read_config_file<TReadFile: FnMut(&str) -> Option<String>>(
+pub fn read_config_file<TReadFile: FnMut(&str) -> io::Result<String>>(
     file_name: &str,
     read_file: TReadFile,
 ) -> ReadConfigFileReturn {
@@ -563,7 +564,7 @@ pub fn parse_config_file_text_to_json(file_name: &str, json_text: String) -> Rea
     }
 }
 
-pub fn read_json_config_file<TReadFile: FnMut(&str) -> Option<String>>(
+pub fn read_json_config_file<TReadFile: FnMut(&str) -> io::Result<String>>(
     file_name: &str,
     read_file: TReadFile,
 ) -> Rc<Node /*TsConfigSourceFile*/> {
@@ -626,20 +627,19 @@ impl From<Rc<Diagnostic>> for StringOrRcDiagnostic {
     }
 }
 
-pub(crate) fn try_read_file<TReadFile: FnMut(&str) -> Option<String>>(
+pub(crate) fn try_read_file<TReadFile: FnMut(&str) -> io::Result<String>>(
     file_name: &str,
     mut read_file: TReadFile,
 ) -> StringOrRcDiagnostic {
-    let text = read_file(file_name); // TODO: should read_file (eg System::read_file()) return a Result? And then could mimic the error including message here?
-    match text {
-        None => Into::<StringOrRcDiagnostic>::into(Rc::new(
+    match read_file(file_name) {
+        Err(e) => Into::<StringOrRcDiagnostic>::into(Rc::new(
             create_compiler_diagnostic(
-                &Diagnostics::Cannot_read_file_0,
-                Some(vec![file_name.to_owned()]),
+                &Diagnostics::Cannot_read_file_0_Colon_1,
+                Some(vec![file_name.to_owned(), e.to_string()]),
             )
             .into(),
         )),
-        Some(text) => text.into(),
+        Ok(text) => text.into(),
     }
 }
 
