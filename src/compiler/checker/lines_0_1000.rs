@@ -1772,6 +1772,17 @@ impl TypeChecker {
         diagnostics.unwrap_or_else(|| vec![])
     }
 
+    pub fn run_with_cancellation_token<TReturn, TCallback: FnMut(&TypeChecker) -> TReturn>(
+        &self,
+        token: Rc<dyn CancellationTokenDebuggable>,
+        mut callback: TCallback,
+    ) -> TReturn {
+        self.set_cancellation_token(Some(token));
+        let ret = callback(self);
+        self.set_cancellation_token(None);
+        ret
+    }
+
     pub(super) fn get_resolved_signature_worker(
         &self,
         node: &Node, /*CallLikeExpression*/
