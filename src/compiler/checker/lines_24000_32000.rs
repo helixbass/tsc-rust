@@ -76,6 +76,14 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn get_contextual_type_for_argument_at_index_(
+        &self,
+        call_target: &Node, /*CallLikeExpression*/
+        arg_index: usize,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_of_property_of_contextual_type(
         &self,
         type_: &Type,
@@ -107,7 +115,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_contextual_type_for_object_literal_element(
+    pub(super) fn get_contextual_type_for_object_literal_element_(
         &self,
         element: &Node, /*PropertyAssignment*/
         context_flags: Option<ContextFlags>,
@@ -131,6 +139,13 @@ impl TypeChecker {
             unimplemented!()
         }
         None
+    }
+
+    pub(super) fn get_contextual_type_for_jsx_attribute_(
+        &self,
+        attribute: &Node, /*JsxAttribute | JsxSpreadAttribute*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 
     pub(super) fn get_apparent_type_of_contextual_type(
@@ -195,7 +210,7 @@ impl TypeChecker {
                 self.get_contextual_type_for_initializer_expression(node)
             }
             Node::PropertyAssignment(_) => {
-                self.get_contextual_type_for_object_literal_element(node, context_flags)
+                self.get_contextual_type_for_object_literal_element_(node, context_flags)
             }
             _ => unimplemented!(),
         }

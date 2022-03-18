@@ -15,9 +15,10 @@ use crate::{
     escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
     get_emit_module_kind, get_emit_script_target, get_module_instance_state, get_parse_tree_node,
     get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
-    is_call_like_expression, is_export_specifier, is_expression, is_identifier, is_parameter,
-    is_type_node, sum, BaseInterfaceType, CheckFlags, ContextFlags, Debug_, EmitTextWriter,
-    Extension, GenericableTypeInterface, IndexInfo, IndexKind, ModuleInstanceState, NodeArray,
+    is_call_like_expression, is_export_specifier, is_expression, is_identifier,
+    is_jsx_attribute_like, is_object_literal_element_like, is_parameter, is_type_node, sum,
+    BaseInterfaceType, CheckFlags, ContextFlags, Debug_, EmitTextWriter, Extension,
+    GenericableTypeInterface, IndexInfo, IndexKind, ModuleInstanceState, NodeArray,
     NodeBuilderFlags, RelationComparisonResult, Signature, SignatureKind, SymbolFormatFlags,
     SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable, TypeFormatFlags, TypePredicate,
     VarianceFlags, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
@@ -1347,6 +1348,40 @@ impl TypeChecker {
             }
         }
         result
+    }
+
+    pub fn get_contextual_type_for_object_literal_element(
+        &self,
+        node_in: &Node, /*ObjectLiteralElementLike*/
+    ) -> Option<Rc<Type>> {
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_object_literal_element_like(node)),
+        )?;
+        self.get_contextual_type_for_object_literal_element_(&node, None)
+    }
+
+    pub fn get_contextual_type_for_argument_at_index(
+        &self,
+        node_in: &Node, /*CallLikeExpression*/
+        arg_index: usize,
+    ) -> Option<Rc<Type>> {
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_call_like_expression(node)),
+        )?;
+        Some(self.get_contextual_type_for_argument_at_index_(&node, arg_index))
+    }
+
+    pub fn get_contextual_type_for_jsx_attribute(
+        &self,
+        node_in: &Node, /*ObjectLiteralElementLike*/
+    ) -> Option<Rc<Type>> {
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_jsx_attribute_like(node)),
+        )?;
+        self.get_contextual_type_for_jsx_attribute_(&node)
     }
 
     pub(super) fn string_literal_types(
