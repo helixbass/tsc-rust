@@ -5,10 +5,10 @@ use std::rc::Rc;
 
 use crate::{
     bind_source_file, for_each, is_accessor, is_external_or_common_js_module,
-    AllAccessorDeclarations, Diagnostic, EmitResolver, EmitResolverDebuggable, Node,
+    AllAccessorDeclarations, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
     NodeBuilderFlags, NodeCheckFlags, NodeInterface, Signature, SignatureFlags, SourceFile,
     StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolTracker,
-    SymbolVisibilityResult, SyntaxKind, TypeChecker, TypeReferenceSerializationKind,
+    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -71,6 +71,36 @@ impl TypeChecker {
         location_in: &Node,
         meaning: SymbolFlags,
     ) -> Vec<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_symbol_at_location_(
+        &self,
+        node: &Node,
+        ignore_errors: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_index_infos_at_location_(&self, node: &Node) -> Option<Vec<Rc<IndexInfo>>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_shorthand_assignment_value_symbol_<TNode: Borrow<Node>>(
+        &self,
+        location: Option<TNode>,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_export_specifier_local_target_symbol_(
+        &self,
+        node: &Node, /*Identifier | ExportSpecifier*/
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_of_node(&self, node: &Node) -> Rc<Type> {
         unimplemented!()
     }
 

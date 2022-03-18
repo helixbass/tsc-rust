@@ -14,13 +14,14 @@ use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
     escape_leading_underscores, get_allow_synthetic_default_imports, get_emit_module_kind,
     get_emit_script_target, get_module_instance_state, get_parse_tree_node,
-    get_strict_option_value, get_use_define_for_class_fields, is_parameter, is_type_node, sum,
-    BaseInterfaceType, CheckFlags, Debug_, Extension, GenericableTypeInterface, IndexInfo,
-    IndexKind, ModuleInstanceState, NodeArray, NodeBuilderFlags, RelationComparisonResult,
-    Signature, SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable, VarianceFlags, __String,
-    create_diagnostic_collection, create_symbol_table, object_allocator, DiagnosticCollection,
-    DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface, Number, ObjectFlags,
-    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type, TypeChecker, TypeFlags,
+    get_strict_option_value, get_use_define_for_class_fields, is_export_specifier, is_parameter,
+    is_type_node, sum, BaseInterfaceType, CheckFlags, Debug_, Extension, GenericableTypeInterface,
+    IndexInfo, IndexKind, ModuleInstanceState, NodeArray, NodeBuilderFlags,
+    RelationComparisonResult, Signature, SymbolTracker, SyntaxKind, TypeCheckerHostDebuggable,
+    VarianceFlags, __String, create_diagnostic_collection, create_symbol_table, object_allocator,
+    DiagnosticCollection, DiagnosticMessage, FreshableIntrinsicType, Node, NodeId, NodeInterface,
+    Number, ObjectFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, Type,
+    TypeChecker, TypeFlags,
 };
 
 lazy_static! {
@@ -1102,6 +1103,51 @@ impl TypeChecker {
             || vec![],
             |location| self.get_symbols_in_scope_(&location, meaning),
         )
+    }
+
+    pub fn get_symbol_at_location(&self, node_in: &Node) -> Option<Rc<Symbol>> {
+        let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None)?;
+        self.get_symbol_at_location_(&node, Some(true))
+    }
+
+    pub fn get_index_infos_at_location(&self, node_in: &Node) -> Option<Vec<Rc<IndexInfo>>> {
+        let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None)?;
+        self.get_index_infos_at_location_(&node)
+    }
+
+    pub fn get_shorthand_assignment_value_symbol<TNode: Borrow<Node>>(
+        &self,
+        node_in: Option<TNode>,
+    ) -> Option<Rc<Symbol>> {
+        let node = get_parse_tree_node(node_in, Option::<fn(&Node) -> bool>::None)?;
+        self.get_shorthand_assignment_value_symbol_(Some(node))
+    }
+
+    pub fn get_export_specifier_local_target_symbol(
+        &self,
+        node_in: &Node, /*Identifier | ExportSpecifier*/
+    ) -> Option<Rc<Symbol>> {
+        let node =
+            get_parse_tree_node(Some(node_in), Some(|node: &Node| is_export_specifier(node)))?;
+        self.get_export_specifier_local_target_symbol_(&node)
+    }
+
+    pub fn get_export_symbol_of_symbol(&self, symbol: &Symbol) -> Rc<Symbol> {
+        self.get_merged_symbol(Some(
+            symbol
+                .maybe_export_symbol()
+                .unwrap_or_else(|| symbol.symbol_wrapper()),
+        ))
+        .unwrap()
+    }
+
+    pub fn get_type_at_location(&self, node_in: &Node) -> Rc<Type> {
+        let node = get_parse_tree_node(Some(node_in), Option::<fn(&Node) -> bool>::None);
+        if let Some(node) = node {
+            self.get_type_of_node(&node)
+        } else {
+            self.error_type()
+        }
     }
 
     pub(super) fn string_literal_types(

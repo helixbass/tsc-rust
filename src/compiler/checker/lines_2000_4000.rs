@@ -77,9 +77,9 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_merged_symbol<TSymbolRef: Borrow<Symbol>>(
+    pub(super) fn get_merged_symbol<TSymbol: Borrow<Symbol>>(
         &self,
-        symbol: Option<TSymbolRef>,
+        symbol: Option<TSymbol>,
     ) -> Option<Rc<Symbol>> {
         symbol.map(|symbol| symbol.borrow().symbol_wrapper())
     }
