@@ -89,6 +89,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_type_of_property_of_type_(
+        &self,
+        type_: &Type,
+        name: &__String,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn is_type_any<TTypeRef: Borrow<Type>>(&self, type_: Option<TTypeRef>) -> bool {
         match type_ {
             Some(type_) => {

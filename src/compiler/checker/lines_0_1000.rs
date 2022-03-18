@@ -328,6 +328,7 @@ bitflags! {
     }
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(super) enum MembersOrExportsResolutionKind {
     resolved_exports, // = "resolvedExports"
@@ -927,6 +928,10 @@ impl TypeChecker {
         lexically_scoped_identifier.and_then(|lexically_scoped_identifier| {
             self.get_private_identifier_property_of_type_(left_type, &lexically_scoped_identifier)
         })
+    }
+
+    pub fn get_type_of_property_of_type(&self, type_: &Type, name: &str) -> Option<Rc<Type>> {
+        self.get_type_of_property_of_type_(type_, &escape_leading_underscores(name))
     }
 
     pub(super) fn string_literal_types(
