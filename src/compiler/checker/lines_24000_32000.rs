@@ -433,7 +433,7 @@ impl TypeChecker {
         if self.strict_null_checks {
             let declaration = symbol.maybe_value_declaration();
             if matches!(declaration.as_ref(), Some(declaration) if has_initializer(&declaration)) {
-                return self.get_optional_type(&type_, None);
+                return self.get_optional_type_(&type_, None);
             }
         }
         type_

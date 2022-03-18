@@ -511,6 +511,7 @@ pub fn create_type_checker(
         error_type: None,
         unknown_type: None,
         undefined_type: None,
+        optional_type: None,
         null_type: None,
         string_type: None,
         number_type: None,
@@ -520,6 +521,7 @@ pub fn create_type_checker(
         false_type: None,
         regular_false_type: None,
         boolean_type: None,
+        es_symbol_type: None,
         void_type: None,
         never_type: None,
         number_or_big_int_type: None,
@@ -628,6 +630,11 @@ pub fn create_type_checker(
             .create_intrinsic_type(TypeFlags::Undefined, "undefined")
             .into(),
     );
+    type_checker.optional_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Undefined, "undefined")
+            .into(),
+    );
     type_checker.null_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Null, "null")
@@ -705,6 +712,11 @@ pub fn create_type_checker(
         ],
         None,
     ));
+    type_checker.es_symbol_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::ESSymbol, "symbol")
+            .into(),
+    );
     type_checker.void_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Void, "void")
@@ -1503,6 +1515,100 @@ impl TypeChecker {
         }
     }
 
+    pub fn try_get_member_in_module_exports(
+        &self,
+        name: &str,
+        symbol: &Symbol,
+    ) -> Option<Rc<Symbol>> {
+        self.try_get_member_in_module_exports_(&escape_leading_underscores(name), symbol)
+    }
+
+    pub fn try_get_member_in_module_exports_and_properties(
+        &self,
+        name: &str,
+        symbol: &Symbol,
+    ) -> Option<Rc<Symbol>> {
+        self.try_get_member_in_module_exports_and_properties_(
+            &escape_leading_underscores(name),
+            symbol,
+        )
+    }
+
+    pub fn try_find_ambient_module(&self, module_name: &str) -> Option<Rc<Symbol>> {
+        self.try_find_ambient_module_(module_name, true)
+    }
+
+    pub fn try_find_ambient_module_without_augmentations(
+        &self,
+        module_name: &str,
+    ) -> Option<Rc<Symbol>> {
+        self.try_find_ambient_module_(module_name, false)
+    }
+
+    pub fn get_any_type(&self) -> Rc<Type> {
+        self.any_type()
+    }
+
+    pub fn get_string_type(&self) -> Rc<Type> {
+        self.string_type()
+    }
+
+    pub fn get_number_type(&self) -> Rc<Type> {
+        self.number_type()
+    }
+
+    pub fn get_boolean_type(&self) -> Rc<Type> {
+        self.boolean_type()
+    }
+
+    pub fn get_false_type(&self, fresh: Option<bool>) -> Rc<Type> {
+        if matches!(fresh, Some(true)) {
+            self.false_type()
+        } else {
+            self.regular_false_type()
+        }
+    }
+
+    pub fn get_true_type(&self, fresh: Option<bool>) -> Rc<Type> {
+        if matches!(fresh, Some(true)) {
+            self.true_type()
+        } else {
+            self.regular_true_type()
+        }
+    }
+
+    pub fn get_void_type(&self) -> Rc<Type> {
+        self.void_type()
+    }
+
+    pub fn get_undefined_type(&self) -> Rc<Type> {
+        self.undefined_type()
+    }
+
+    pub fn get_null_type(&self) -> Rc<Type> {
+        self.null_type()
+    }
+
+    pub fn get_es_symbol_type(&self) -> Rc<Type> {
+        self.es_symbol_type()
+    }
+
+    pub fn get_never_type(&self) -> Rc<Type> {
+        self.never_type()
+    }
+
+    pub fn get_optional_type(&self) -> Rc<Type> {
+        self.optional_type()
+    }
+
+    pub fn get_promise_type(&self) -> Rc<Type> {
+        self.get_global_promise_type(false)
+    }
+
+    pub fn get_promise_like_type(&self) -> Rc<Type> {
+        self.get_global_promise_like_type(false)
+    }
+
     pub(super) fn get_resolved_signature_worker(
         &self,
         node: &Node, /*CallLikeExpression*/
@@ -1551,6 +1657,10 @@ impl TypeChecker {
         self.undefined_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn optional_type(&self) -> Rc<Type> {
+        self.optional_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn null_type(&self) -> Rc<Type> {
         self.null_type.as_ref().unwrap().clone()
     }
@@ -1585,6 +1695,10 @@ impl TypeChecker {
 
     pub(super) fn boolean_type(&self) -> Rc<Type> {
         self.boolean_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn es_symbol_type(&self) -> Rc<Type> {
+        self.es_symbol_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn void_type(&self) -> Rc<Type> {

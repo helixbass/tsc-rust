@@ -119,6 +119,14 @@ impl TypeChecker {
         result
     }
 
+    pub(super) fn try_find_ambient_module_(
+        &self,
+        module_name: &str,
+        with_augmentations: bool,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn is_optional_parameter_(
         &self,
         node: &Node, /*ParameterDeclaration | JSDocParameterTag | JSDocPropertyTag*/
@@ -264,7 +272,7 @@ impl TypeChecker {
             if signature.flags.intersects(SignatureFlags::IsInnerCallChain) {
                 type_ = self.add_optional_type_marker(&type_);
             } else if signature.flags.intersects(SignatureFlags::IsOuterCallChain) {
-                type_ = self.get_optional_type(&type_, None);
+                type_ = self.get_optional_type_(&type_, None);
             }
             *signature.resolved_return_type.borrow_mut() = Some(type_);
         }
@@ -648,6 +656,13 @@ impl TypeChecker {
             || self.empty_generic_type(),
             |deferred_global_promise_type| deferred_global_promise_type.clone(),
         )
+    }
+
+    pub(super) fn get_global_promise_like_type(
+        &self,
+        report_errors: bool,
+    ) -> Rc<Type /*GenericType*/> {
+        unimplemented!()
     }
 
     pub(super) fn get_global_promise_constructor_symbol(

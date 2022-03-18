@@ -121,7 +121,7 @@ impl TypeChecker {
         let is_property = is_property.unwrap_or(false);
         let is_optional = is_optional.unwrap_or(true);
         if self.strict_null_checks && is_optional {
-            self.get_optional_type(type_, Some(is_property))
+            self.get_optional_type_(type_, Some(is_property))
         } else {
             type_.type_wrapper()
         }

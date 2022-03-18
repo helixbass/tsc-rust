@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use super::ResolveNameNameArg;
 use crate::{
-    declaration_name_to_string, get_first_identifier, node_is_missing,
+    __String, declaration_name_to_string, get_first_identifier, node_is_missing,
     unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
     SymbolInterface, TypeChecker,
 };
@@ -78,6 +78,22 @@ impl TypeChecker {
     }
 
     pub(super) fn get_exports_of_module_as_array(&self, module_symbol: &Symbol) -> Vec<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn try_get_member_in_module_exports_(
+        &self,
+        member_name: &__String,
+        module_symbol: &Symbol,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn try_get_member_in_module_exports_and_properties_(
+        &self,
+        member_name: &__String,
+        module_symbol: &Symbol,
+    ) -> Option<Rc<Symbol>> {
         unimplemented!()
     }
 
