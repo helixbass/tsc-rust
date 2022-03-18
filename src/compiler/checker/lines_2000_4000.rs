@@ -47,7 +47,7 @@ impl TypeChecker {
                 };
                 let symbol_from_js_prototype: Option<Rc<Symbol>> =
                     if false { unimplemented!() } else { None };
-                symbol = self.get_merged_symbol(self.resolve_name(
+                symbol = self.get_merged_symbol(self.resolve_name_(
                     Some(name),
                     &name_as_identifier.escaped_text,
                     meaning,

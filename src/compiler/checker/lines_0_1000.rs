@@ -20,13 +20,13 @@ use crate::{
     RelationComparisonResult, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
     SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
     SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags,
-    TypePredicate, VarianceFlags, __String, create_diagnostic_collection, create_symbol_table,
-    escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
-    get_emit_module_kind, get_emit_script_target, get_module_instance_state, get_parse_tree_node,
-    get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
-    is_call_like_expression, is_export_specifier, is_expression, is_identifier,
-    is_jsx_attribute_like, is_object_literal_element_like, is_parameter, is_type_node,
-    object_allocator, sum,
+    TypeInterface, TypePredicate, VarianceFlags, __String, create_diagnostic_collection,
+    create_symbol_table, escape_leading_underscores, find_ancestor,
+    get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
+    get_module_instance_state, get_parse_tree_node, get_strict_option_value,
+    get_use_define_for_class_fields, is_assignment_pattern, is_call_like_expression,
+    is_export_specifier, is_expression, is_identifier, is_jsx_attribute_like,
+    is_object_literal_element_like, is_parameter, is_type_node, object_allocator, sum,
 };
 
 lazy_static! {
@@ -1607,6 +1607,59 @@ impl TypeChecker {
 
     pub fn get_promise_like_type(&self) -> Rc<Type> {
         self.get_global_promise_like_type(false)
+    }
+
+    pub fn get_suggested_symbol_for_nonexistent_symbol(
+        &self,
+        location: &Node,
+        name: &str,
+        meaning: SymbolFlags,
+    ) -> Option<Rc<Symbol>> {
+        self.get_suggested_symbol_for_nonexistent_symbol_(
+            Some(location),
+            &escape_leading_underscores(name),
+            meaning,
+        )
+    }
+
+    pub fn get_suggestion_for_nonexistent_symbol(
+        &self,
+        location: &Node,
+        name: &str,
+        meaning: SymbolFlags,
+    ) -> Option<String> {
+        self.get_suggestion_for_nonexistent_symbol_(
+            Some(location),
+            &escape_leading_underscores(name),
+            meaning,
+        )
+    }
+
+    pub fn get_default_from_type_parameter(&self, type_: &Type) -> Option<Rc<Type>> {
+        /*type &&*/
+        if type_.flags().intersects(TypeFlags::TypeParameter) {
+            self.get_default_from_type_parameter_(type_)
+        } else {
+            None
+        }
+    }
+
+    pub fn resolve_name<TLocation: Borrow<Node>>(
+        &self,
+        name: &str,
+        location: Option<TLocation>,
+        meaning: SymbolFlags,
+        exclude_globals: bool,
+    ) -> Option<Rc<Symbol>> {
+        self.resolve_name_(
+            location,
+            &escape_leading_underscores(name),
+            meaning,
+            None,
+            Option::<Rc<Node>>::None,
+            false,
+            Some(exclude_globals),
+        )
     }
 
     pub(super) fn get_resolved_signature_worker(

@@ -757,7 +757,7 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn get_default_from_type_parameter(
+    pub(super) fn get_default_from_type_parameter_(
         &self,
         type_: &Type, /*TypeParameter*/
     ) -> Option<Rc<Type>> {

@@ -171,7 +171,7 @@ impl TypeChecker {
                 param_symbol.flags().intersects(SymbolFlags::Property)
                     && !is_binding_pattern(param.as_named_declaration().maybe_name())
                 {
-                    let resolved_symbol = self.resolve_name(
+                    let resolved_symbol = self.resolve_name_(
                         Some(&**param),
                         param_symbol.escaped_name(),
                         SymbolFlags::Value,
@@ -620,7 +620,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         diagnostic: Option<DiagnosticMessage>,
     ) -> Option<Rc<Symbol>> {
-        self.resolve_name(
+        self.resolve_name_(
             Option::<&Node>::None,
             name,
             meaning,

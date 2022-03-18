@@ -129,9 +129,9 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn resolve_name<TLocation: NodeInterface, TNameArg: Into<ResolveNameNameArg>>(
+    pub(super) fn resolve_name_<TLocation: Borrow<Node>, TNameArg: Into<ResolveNameNameArg>>(
         &self,
-        location: Option<&TLocation>,
+        location: Option<TLocation>,
         name: &__String,
         meaning: SymbolFlags,
         name_not_found_message: Option<DiagnosticMessage>,
@@ -153,11 +153,11 @@ impl TypeChecker {
     }
 
     pub(super) fn resolve_name_helper<
-        TLocation: NodeInterface,
+        TLocation: Borrow<Node>,
         TNameArg: Into<ResolveNameNameArg>,
     >(
         &self,
-        location: Option<&TLocation>,
+        location: Option<TLocation>,
         name: &__String,
         meaning: SymbolFlags,
         name_not_found_message: Option<DiagnosticMessage>,
@@ -166,7 +166,7 @@ impl TypeChecker {
         exclude_globals: bool,
         lookup: fn(&TypeChecker, &SymbolTable, &__String, SymbolFlags) -> Option<Rc<Symbol>>,
     ) -> Option<Rc<Symbol>> {
-        let mut location: Option<Rc<Node>> = location.map(|node| node.node_wrapper());
+        let mut location: Option<Rc<Node>> = location.map(|node| node.borrow().node_wrapper());
         let mut result: Option<Rc<Symbol>> = None;
         let mut last_location: Option<Rc<Node>> = None;
         let error_location = location.clone();

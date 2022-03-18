@@ -9,10 +9,11 @@ use super::{signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, Wide
 use crate::{
     filter, is_function_expression_or_arrow_function, is_import_call, is_object_literal_method,
     ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature, SignatureFlags, SignatureKind,
-    Ternary, UnionReduction, __String, create_symbol_table, get_effective_type_annotation_node,
-    get_function_flags, get_object_flags, has_initializer, is_object_literal_expression,
-    HasInitializerInterface, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    SymbolFlags, Ternary, UnionReduction, __String, create_symbol_table,
+    get_effective_type_annotation_node, get_function_flags, get_object_flags, has_initializer,
+    is_object_literal_expression, HasInitializerInterface, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -404,6 +405,24 @@ impl TypeChecker {
         left_type: &Type,
         lexically_scoped_identifier: &Symbol,
     ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_suggested_symbol_for_nonexistent_symbol_<TLocation: Borrow<Node>>(
+        &self,
+        location: Option<TLocation>,
+        outer_name: &__String,
+        meaning: SymbolFlags,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_suggestion_for_nonexistent_symbol_<TLocation: Borrow<Node>>(
+        &self,
+        location: Option<TLocation>,
+        outer_name: &__String,
+        meaning: SymbolFlags,
+    ) -> Option<String> {
         unimplemented!()
     }
 

@@ -104,12 +104,12 @@ impl TypeChecker {
                         && compare_types(
                             &self
                                 .instantiate_type(
-                                    self.get_default_from_type_parameter(s),
+                                    self.get_default_from_type_parameter_(s),
                                     Some(&mapper),
                                 )
                                 .unwrap_or_else(|| self.unknown_type()),
                             &self
-                                .get_default_from_type_parameter(t)
+                                .get_default_from_type_parameter_(t)
                                 .unwrap_or_else(|| self.unknown_type()),
                         ) != Ternary::False)
                 {
@@ -392,7 +392,7 @@ impl TypeChecker {
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_symbol.is_none() {
             links_ref.resolved_symbol = Some(if !node_is_missing(Some(node)) {
-                self.resolve_name(
+                self.resolve_name_(
                     Some(node),
                     &node.as_identifier().escaped_text,
                     SymbolFlags::Value | SymbolFlags::ExportValue,
