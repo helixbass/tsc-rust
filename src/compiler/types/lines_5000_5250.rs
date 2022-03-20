@@ -12,7 +12,7 @@ use super::{
     ResolvedTypeInterface, Signature, StringLiteralType, Symbol, TypeParameter, TypeReference,
     UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
 };
-use crate::{Pattern, WeakSelf};
+use crate::{ObjectFlags, Pattern, WeakSelf};
 use local_macros::{enum_unwrapped, type_type};
 
 pub struct InternalSymbolName;
@@ -430,13 +430,15 @@ pub enum IntrinsicType {
 pub struct BaseIntrinsicType {
     _type: BaseType,
     intrinsic_name: String,
+    object_flags: ObjectFlags,
 }
 
 impl BaseIntrinsicType {
-    pub fn new(type_: BaseType, intrinsic_name: String) -> Self {
+    pub fn new(type_: BaseType, intrinsic_name: String, object_flags: ObjectFlags) -> Self {
         Self {
             _type: type_,
             intrinsic_name,
+            object_flags,
         }
     }
 }

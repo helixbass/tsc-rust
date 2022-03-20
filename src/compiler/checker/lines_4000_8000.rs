@@ -48,9 +48,11 @@ impl TypeChecker {
         &self,
         kind: TypeFlags,
         intrinsic_name: &str,
+        object_flags: Option<ObjectFlags>,
     ) -> BaseIntrinsicType {
+        let object_flags = object_flags.unwrap_or(ObjectFlags::None);
         let type_ = self.create_type(kind);
-        let type_ = BaseIntrinsicType::new(type_, intrinsic_name.to_string());
+        let type_ = BaseIntrinsicType::new(type_, intrinsic_name.to_string(), object_flags);
         type_
     }
 

@@ -18,13 +18,13 @@ use crate::{
     CancellationToken, CancellationTokenDebuggable, CheckFlags, ContextFlags, Debug_, Diagnostic,
     DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, EmitTextWriter, Extension, FreshableIntrinsicType,
-    GenericableTypeInterface, IndexInfo, IndexKind, ModuleInstanceState, Node, NodeArray,
-    NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
-    RelationComparisonResult, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
-    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
-    SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate, VarianceFlags, __String, create_diagnostic_collection,
-    create_symbol_table, escape_leading_underscores, find_ancestor,
+    GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, ModuleInstanceState, Node,
+    NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number,
+    ObjectFlags, RelationComparisonResult, Signature, SignatureKind, StringOrNumber, Symbol,
+    SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags,
+    TypeFormatFlags, TypeInterface, TypePredicate, VarianceFlags, __String,
+    create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
     get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
     get_module_instance_state, get_parse_tree_node, get_strict_option_value,
     get_use_define_for_class_fields, is_assignment_pattern, is_call_like_expression,
@@ -645,57 +645,79 @@ pub fn create_type_checker(
             )
             .into(),
     );
+    type_checker.resolving_symbol = Some(
+        type_checker
+            .create_symbol(SymbolFlags::None, InternalSymbolName::Resolving(), None)
+            .into(),
+    );
     type_checker.any_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::Any, "any")
+            .create_intrinsic_type(TypeFlags::Any, "any", None)
+            .into(),
+    );
+    type_checker.auto_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Any, "any", None)
+            .into(),
+    );
+    type_checker.wildcard_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Any, "any", None)
             .into(),
     );
     type_checker.error_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::Any, "error")
+            .create_intrinsic_type(TypeFlags::Any, "error", None)
+            .into(),
+    );
+    type_checker.unresolved_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Any, "unresolved", None)
             .into(),
     );
     type_checker.unknown_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::Unknown, "unknown")
+            .create_intrinsic_type(TypeFlags::Unknown, "unknown", None)
             .into(),
     );
     type_checker.undefined_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::Undefined, "undefined")
+            .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
             .into(),
     );
     type_checker.optional_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::Undefined, "undefined")
+            .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
             .into(),
     );
     type_checker.null_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::Null, "null")
+            .create_intrinsic_type(TypeFlags::Null, "null", None)
             .into(),
     );
     type_checker.string_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::String, "string")
+            .create_intrinsic_type(TypeFlags::String, "string", None)
             .into(),
     );
     type_checker.number_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::Number, "number")
+            .create_intrinsic_type(TypeFlags::Number, "number", None)
             .into(),
     );
     type_checker.bigint_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::BigInt, "bigint")
+            .create_intrinsic_type(TypeFlags::BigInt, "bigint", None)
             .into(),
     );
-    let true_type: Rc<Type> = FreshableIntrinsicType::new(
-        type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "true"),
-    )
+    let true_type: Rc<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
+        TypeFlags::BooleanLiteral,
+        "true",
+        None,
+    ))
     .into();
     let regular_true_type: Rc<Type> = FreshableIntrinsicType::new(
-        type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "true"),
+        type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "true", None),
     )
     .into();
     let true_type_as_freshable_intrinsic_type = true_type.as_freshable_intrinsic_type();
@@ -715,12 +737,14 @@ pub fn create_type_checker(
         .fresh_type
         .init(type_checker.true_type.as_ref().unwrap(), false);
     type_checker.regular_true_type = Some(regular_true_type);
-    let false_type: Rc<Type> = FreshableIntrinsicType::new(
-        type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "false"),
-    )
+    let false_type: Rc<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
+        TypeFlags::BooleanLiteral,
+        "false",
+        None,
+    ))
     .into();
     let regular_false_type: Rc<Type> = FreshableIntrinsicType::new(
-        type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "false"),
+        type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "false", None),
     )
     .into();
     let false_type_as_freshable_intrinsic_type = false_type.as_freshable_intrinsic_type();
@@ -749,17 +773,17 @@ pub fn create_type_checker(
     ));
     type_checker.es_symbol_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::ESSymbol, "symbol")
+            .create_intrinsic_type(TypeFlags::ESSymbol, "symbol", None)
             .into(),
     );
     type_checker.void_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::Void, "void")
+            .create_intrinsic_type(TypeFlags::Void, "void", None)
             .into(),
     );
     type_checker.never_type = Some(
         type_checker
-            .create_intrinsic_type(TypeFlags::Never, "never")
+            .create_intrinsic_type(TypeFlags::Never, "never", None)
             .into(),
     );
     type_checker.number_or_big_int_type = Some(type_checker.get_union_type(
