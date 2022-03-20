@@ -15,20 +15,20 @@ use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
     add_range, contains_parse_error, get_first_identifier, is_function_like,
     is_property_access_expression, is_property_access_or_qualified_name_or_import_type_node,
-    is_source_file, skip_type_checking, unescape_leading_underscores, BaseInterfaceType,
-    CancellationToken, CancellationTokenDebuggable, CheckFlags, ContextFlags, Debug_, Diagnostic,
-    DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
+    is_source_file, parse_pseudo_big_int, skip_type_checking, unescape_leading_underscores,
+    BaseInterfaceType, CancellationToken, CancellationTokenDebuggable, CheckFlags, ContextFlags,
+    Debug_, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitTextWriter, Extension,
     FreshableIntrinsicType, GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName,
     IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray, NodeBuilderFlags,
     NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
-    ObjectFlagsTypeInterface, RelationComparisonResult, Signature, SignatureFlags, SignatureKind,
-    StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
-    TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, VarianceFlags,
-    __String, create_diagnostic_collection, create_symbol_table, escape_leading_underscores,
-    find_ancestor, get_allow_synthetic_default_imports, get_emit_module_kind,
-    get_emit_script_target, get_module_instance_state, get_parse_tree_node,
+    ObjectFlagsTypeInterface, PseudoBigInt, RelationComparisonResult, Signature, SignatureFlags,
+    SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
+    SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker,
+    TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
+    TypePredicateKind, VarianceFlags, __String, create_diagnostic_collection, create_symbol_table,
+    escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
+    get_emit_module_kind, get_emit_script_target, get_module_instance_state, get_parse_tree_node,
     get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
     is_call_like_expression, is_export_specifier, is_expression, is_identifier,
     is_jsx_attribute_like, is_object_literal_element_like, is_parameter, is_type_node,
@@ -1261,6 +1261,12 @@ pub fn create_type_checker(
         Some(type_checker.any_type()),
         Some(type_checker.undefined_type()),
     )));
+
+    type_checker.empty_string_type = Some(type_checker.get_string_literal_type(""));
+    type_checker.zero_type = Some(type_checker.get_number_literal_type(Number::new(0.0)));
+    type_checker.zero_big_int_type = Some(
+        type_checker.get_big_int_literal_type(PseudoBigInt::new(false, parse_pseudo_big_int("0"))),
+    );
 
     type_checker.initialize_type_checker();
 
