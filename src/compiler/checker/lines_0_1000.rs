@@ -1268,6 +1268,23 @@ pub fn create_type_checker(
         type_checker.get_big_int_literal_type(PseudoBigInt::new(false, parse_pseudo_big_int("0"))),
     );
 
+    type_checker.typeof_types_by_name = Some(HashMap::from_iter(IntoIter::new([
+        ("string", type_checker.string_type()),
+        ("number", type_checker.number_type()),
+        ("bigint", type_checker.bigint_type()),
+        ("boolean", type_checker.boolean_type()),
+        ("symbol", type_checker.es_symbol_type()),
+        ("undefined", type_checker.undefined_type()),
+    ])));
+    type_checker.typeof_type = Some(type_checker.create_typeof_type());
+
+    let mut builtin_globals: HashMap<__String, Rc<Symbol>> = HashMap::new();
+    builtin_globals.insert(
+        type_checker.undefined_symbol().escaped_name().clone(),
+        type_checker.undefined_symbol(),
+    );
+    *type_checker.builtin_globals.borrow_mut() = Some(builtin_globals);
+
     type_checker.initialize_type_checker();
 
     type_checker

@@ -67,6 +67,10 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn create_typeof_type(&self) -> Rc<Type> {
+        self.get_union_type(vec![], None)
+    }
+
     pub(super) fn create_type_parameter<TSymbolRef: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbolRef>,
