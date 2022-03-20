@@ -650,6 +650,7 @@ pub fn create_type_checker(
             .create_symbol(SymbolFlags::None, InternalSymbolName::Resolving(), None)
             .into(),
     );
+
     type_checker.any_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Any, "any", None)
@@ -675,7 +676,26 @@ pub fn create_type_checker(
             .create_intrinsic_type(TypeFlags::Any, "unresolved", None)
             .into(),
     );
+    type_checker.non_inferrable_any_type = Some(
+        type_checker
+            .create_intrinsic_type(
+                TypeFlags::Any,
+                "any",
+                Some(ObjectFlags::ContainsWideningType),
+            )
+            .into(),
+    );
+    type_checker.intrinsic_marker_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Any, "intrinsic", None)
+            .into(),
+    );
     type_checker.unknown_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Unknown, "unknown", None)
+            .into(),
+    );
+    type_checker.non_null_unknown_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Unknown, "unknown", None)
             .into(),
@@ -685,16 +705,47 @@ pub fn create_type_checker(
             .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
             .into(),
     );
+    type_checker.undefined_widening_type = Some(if type_checker.strict_null_checks {
+        type_checker.undefined_type()
+    } else {
+        type_checker
+            .create_intrinsic_type(
+                TypeFlags::Undefined,
+                "undefined",
+                Some(ObjectFlags::ContainsWideningType),
+            )
+            .into()
+    });
     type_checker.optional_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
             .into(),
+    );
+    type_checker.missing_type = Some(
+        if matches!(type_checker.exact_optional_property_types, Some(true)) {
+            type_checker
+                .create_intrinsic_type(TypeFlags::Undefined, "undefined", None)
+                .into()
+        } else {
+            type_checker.undefined_type()
+        },
     );
     type_checker.null_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::Null, "null", None)
             .into(),
     );
+    type_checker.null_widening_type = Some(if type_checker.strict_null_checks {
+        type_checker.null_type()
+    } else {
+        type_checker
+            .create_intrinsic_type(
+                TypeFlags::Null,
+                "null",
+                Some(ObjectFlags::ContainsWideningType),
+            )
+            .into()
+    });
     type_checker.string_type = Some(
         type_checker
             .create_intrinsic_type(TypeFlags::String, "string", None)
@@ -710,33 +761,6 @@ pub fn create_type_checker(
             .create_intrinsic_type(TypeFlags::BigInt, "bigint", None)
             .into(),
     );
-    let true_type: Rc<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
-        TypeFlags::BooleanLiteral,
-        "true",
-        None,
-    ))
-    .into();
-    let regular_true_type: Rc<Type> = FreshableIntrinsicType::new(
-        type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "true", None),
-    )
-    .into();
-    let true_type_as_freshable_intrinsic_type = true_type.as_freshable_intrinsic_type();
-    true_type_as_freshable_intrinsic_type
-        .regular_type
-        .init(&regular_true_type, false);
-    true_type_as_freshable_intrinsic_type
-        .fresh_type
-        .init(&true_type, false);
-    type_checker.true_type = Some(true_type);
-    let regular_true_type_as_freshable_intrinsic_type =
-        regular_true_type.as_freshable_intrinsic_type();
-    regular_true_type_as_freshable_intrinsic_type
-        .regular_type
-        .init(&regular_true_type, false);
-    regular_true_type_as_freshable_intrinsic_type
-        .fresh_type
-        .init(type_checker.true_type.as_ref().unwrap(), false);
-    type_checker.regular_true_type = Some(regular_true_type);
     let false_type: Rc<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
         TypeFlags::BooleanLiteral,
         "false",
@@ -764,6 +788,33 @@ pub fn create_type_checker(
         .fresh_type
         .init(type_checker.false_type.as_ref().unwrap(), false);
     type_checker.regular_false_type = Some(regular_false_type);
+    let true_type: Rc<Type> = FreshableIntrinsicType::new(type_checker.create_intrinsic_type(
+        TypeFlags::BooleanLiteral,
+        "true",
+        None,
+    ))
+    .into();
+    let regular_true_type: Rc<Type> = FreshableIntrinsicType::new(
+        type_checker.create_intrinsic_type(TypeFlags::BooleanLiteral, "true", None),
+    )
+    .into();
+    let true_type_as_freshable_intrinsic_type = true_type.as_freshable_intrinsic_type();
+    true_type_as_freshable_intrinsic_type
+        .regular_type
+        .init(&regular_true_type, false);
+    true_type_as_freshable_intrinsic_type
+        .fresh_type
+        .init(&true_type, false);
+    type_checker.true_type = Some(true_type);
+    let regular_true_type_as_freshable_intrinsic_type =
+        regular_true_type.as_freshable_intrinsic_type();
+    regular_true_type_as_freshable_intrinsic_type
+        .regular_type
+        .init(&regular_true_type, false);
+    regular_true_type_as_freshable_intrinsic_type
+        .fresh_type
+        .init(type_checker.true_type.as_ref().unwrap(), false);
+    type_checker.regular_true_type = Some(regular_true_type);
     type_checker.boolean_type = Some(type_checker.get_union_type(
         vec![
             type_checker.regular_false_type(),
@@ -786,6 +837,52 @@ pub fn create_type_checker(
             .create_intrinsic_type(TypeFlags::Never, "never", None)
             .into(),
     );
+    type_checker.silent_never_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Never, "never", None)
+            .into(),
+    );
+    type_checker.non_inferrable_type = Some(
+        type_checker
+            .create_intrinsic_type(
+                TypeFlags::Never,
+                "never",
+                Some(ObjectFlags::NonInferrableType),
+            )
+            .into(),
+    );
+    type_checker.implicit_never_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Never, "never", None)
+            .into(),
+    );
+    type_checker.unreachable_never_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::Never, "never", None)
+            .into(),
+    );
+    type_checker.non_primitive_type = Some(
+        type_checker
+            .create_intrinsic_type(TypeFlags::NonPrimitive, "object", None)
+            .into(),
+    );
+    type_checker.string_or_number_type = Some(type_checker.get_union_type(
+        vec![type_checker.string_type(), type_checker.number_type()],
+        None,
+    ));
+    type_checker.string_number_symbol_type = Some(type_checker.get_union_type(
+        vec![
+            type_checker.string_type(),
+            type_checker.number_type(),
+            type_checker.es_symbol_type(),
+        ],
+        None,
+    ));
+    type_checker.keyof_constraint_type = Some(if type_checker.keyof_strings_only {
+        type_checker.string_type()
+    } else {
+        type_checker.string_number_symbol_type()
+    });
     type_checker.number_or_big_int_type = Some(type_checker.get_union_type(
         vec![type_checker.number_type(), type_checker.bigint_type()],
         None,
@@ -801,6 +898,7 @@ pub fn create_type_checker(
         ],
         None,
     ));
+
     let empty_generic_type = type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
         type_checker.empty_symbols(),
@@ -1953,6 +2051,10 @@ impl TypeChecker {
 
     pub(super) fn never_type(&self) -> Rc<Type> {
         self.never_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn string_number_symbol_type(&self) -> Rc<Type> {
+        self.string_number_symbol_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn keyof_constraint_type(&self) -> Rc<Type> {
