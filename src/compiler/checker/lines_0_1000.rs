@@ -6,32 +6,33 @@ use std::array::IntoIter;
 use std::borrow::Borrow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
+use std::fmt;
 use std::iter::FromIterator;
 use std::ptr;
 use std::rc::Rc;
-use std::fmt;
 
 use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
-Diagnostics,    add_range, contains_parse_error, get_first_identifier, is_function_like,
+    add_range, contains_parse_error, get_first_identifier, is_function_like,
     is_property_access_expression, is_property_access_or_qualified_name_or_import_type_node,
     is_source_file, skip_type_checking, unescape_leading_underscores, BaseInterfaceType,
     CancellationToken, CancellationTokenDebuggable, CheckFlags, ContextFlags, Debug_, Diagnostic,
     DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, EmitTextWriter, Extension, FreshableIntrinsicType,
-    GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, IterationTypes,
-    ModuleInstanceState, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId,
-    NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult,
-    Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
-    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
-    SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate, TypePredicateKind, VarianceFlags, __String,
-    create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
-    get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
-    get_module_instance_state, get_parse_tree_node, get_strict_option_value,
-    get_use_define_for_class_fields, is_assignment_pattern, is_call_like_expression,
-    is_export_specifier, is_expression, is_identifier, is_jsx_attribute_like,
-    is_object_literal_element_like, is_parameter, is_type_node, object_allocator, sum,
+    DiagnosticRelatedInformationInterface, Diagnostics, EmitTextWriter, Extension,
+    FreshableIntrinsicType, GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName,
+    IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray, NodeBuilderFlags,
+    NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
+    ObjectFlagsTypeInterface, RelationComparisonResult, Signature, SignatureFlags, SignatureKind,
+    StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable,
+    SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
+    TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind, VarianceFlags,
+    __String, create_diagnostic_collection, create_symbol_table, escape_leading_underscores,
+    find_ancestor, get_allow_synthetic_default_imports, get_emit_module_kind,
+    get_emit_script_target, get_module_instance_state, get_parse_tree_node,
+    get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
+    is_call_like_expression, is_export_specifier, is_expression, is_identifier,
+    is_jsx_attribute_like, is_object_literal_element_like, is_parameter, is_type_node,
+    object_allocator, sum,
 };
 
 lazy_static! {
@@ -266,7 +267,7 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub(super) enum TypeSystemEntity {
+pub(crate) enum TypeSystemEntity {
     Node(Rc<Node>),
     Symbol(Rc<Symbol>),
     Type(Rc<Type>),
@@ -274,7 +275,7 @@ pub(super) enum TypeSystemEntity {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub(super) enum TypeSystemPropertyName {
+pub(crate) enum TypeSystemPropertyName {
     Type,
     ResolvedBaseConstructorType,
     DeclaredType,
@@ -604,7 +605,7 @@ pub fn create_type_checker(
         any_iteration_types_except_next: None,
         default_iteration_types: None,
 
-        async_iteration_types_resolver: 
+        async_iteration_types_resolver:
             IterationTypesResolver {
                 iterable_cache_key: "iterationTypesOfAsyncIterable",
                 iterator_cache_key: "iterationTypesOfAsyncIterator",
@@ -619,7 +620,7 @@ pub fn create_type_checker(
                 must_have_a_value_diagnostic: &Diagnostics::The_type_returned_by_the_0_method_of_an_async_iterator_must_be_a_promise_for_a_type_with_a_value_property,
             },
 
-        sync_iteration_types_resolver: 
+        sync_iteration_types_resolver:
             IterationTypesResolver {
                 iterable_cache_key: "iterationTypesOfIterable",
                 iterator_cache_key: "iterationTypesOfIterator",
@@ -642,16 +643,96 @@ pub fn create_type_checker(
         pattern_ambient_modules: RefCell::new(None),
         pattern_ambient_module_augmentations: RefCell::new(None),
 
+        global_object_type: None,
+        global_function_type: None,
+        global_callable_function_type: None,
+        global_newable_function_type: None,
         global_array_type: None,
+        global_readonly_array_type: None,
+        global_string_type: None,
+        global_number_type: None,
+        global_boolean_type: None,
+        global_reg_exp_type: None,
+        global_this_type: None,
+        any_array_type: None,
+        auto_array_type: None,
+        any_readonly_array_type: None,
+        deferred_global_non_nullable_type_alias: RefCell::new(None),
 
+        deferred_global_es_symbol_constructor_symbol: RefCell::new(None),
+        deferred_global_es_symbol_constructor_type_symbol: RefCell::new(None),
+        deferred_global_es_symbol_type: RefCell::new(None),
+        deferred_global_typed_property_descriptor_type: RefCell::new(None),
         deferred_global_promise_type: RefCell::new(None),
+        deferred_global_promise_like_type: RefCell::new(None),
         deferred_global_promise_constructor_symbol: RefCell::new(None),
+        deferred_global_promise_constructor_like_type: RefCell::new(None),
+        deferred_global_iterable_type: RefCell::new(None),
+        deferred_global_iterator_type: RefCell::new(None),
+        deferred_global_iterable_iterator_type: RefCell::new(None),
+        deferred_global_generator_type: RefCell::new(None),
+        deferred_global_iterator_yield_result_type: RefCell::new(None),
+        deferred_global_iterator_return_result_type: RefCell::new(None),
+        deferred_global_async_iterable_type: RefCell::new(None),
+        deferred_global_async_iterator_type: RefCell::new(None),
+        deferred_global_async_iterable_iterator_type: RefCell::new(None),
+        deferred_global_async_generator_type: RefCell::new(None),
+        deferred_global_template_strings_array_type: RefCell::new(None),
+        deferred_global_import_meta_type: RefCell::new(None),
+        deferred_global_import_meta_expression_type: RefCell::new(None),
+        deferred_global_import_call_options_type: RefCell::new(None),
+        deferred_global_extract_symbol: RefCell::new(None),
+        deferred_global_omit_symbol: RefCell::new(None),
+        deferred_global_awaited_symbol: RefCell::new(None),
+        deferred_global_big_int_type: RefCell::new(None),
 
+        all_potentially_unused_identifiers: RefCell::new(HashMap::new()),
+
+        flow_loop_start: Cell::new(0),
+        flow_loop_count: Cell::new(0),
+        shared_flow_count: Cell::new(0),
+        flow_analysis_disabled: Cell::new(false),
+        flow_invocation_count: Cell::new(0),
+        last_flow_node: RefCell::new(None),
+        last_flow_node_reachable: Cell::new(false),
+        flow_type_cache: RefCell::new(None),
+
+        empty_string_type: None,
+        zero_type: None,
+        zero_big_int_type: None,
+
+        resolution_targets: RefCell::new(vec![]),
+        resolution_results: RefCell::new(vec![]),
+        resolution_property_names: RefCell::new(vec![]),
+
+        suggestion_count: Cell::new(0),
+        max_suggestion_count: 10,
+        merged_symbols: RefCell::new(HashMap::new()),
         symbol_links: RefCell::new(HashMap::new()),
         node_links: RefCell::new(HashMap::new()),
+        flow_loop_caches: RefCell::new(vec![]),
+        flow_loop_nodes: RefCell::new(vec![]),
+        flow_loop_keys: RefCell::new(vec![]),
+        flow_loop_types: RefCell::new(vec![]),
+        shared_flow_nodes: RefCell::new(vec![]),
+        shared_flow_types: RefCell::new(vec![]),
+        flow_node_reachable: RefCell::new(HashMap::new()),
+        flow_node_post_super: RefCell::new(HashMap::new()),
+        potential_this_collisions: RefCell::new(vec![]),
+        potential_new_target_collisions: RefCell::new(vec![]),
+        potential_weak_map_set_collisions: RefCell::new(vec![]),
+        potential_reflect_collisions: RefCell::new(vec![]),
+        awaited_type_stack: RefCell::new(vec![]),
 
         diagnostics: RefCell::new(create_diagnostic_collection()),
         suggestion_diagnostics: RefCell::new(create_diagnostic_collection()),
+
+        typeof_types_by_name: None,
+        typeof_type: None,
+
+        _jsx_namespace: RefCell::new(None),
+        _jsx_factory_entity: RefCell::new(None),
+        // TODO: how to implement outofbandVarianceMarkerHandler?
 
         subtype_relation: RefCell::new(HashMap::new()),
         strict_subtype_relation: RefCell::new(HashMap::new()),
@@ -659,6 +740,24 @@ pub fn create_type_checker(
         comparable_relation: RefCell::new(HashMap::new()),
         identity_relation: RefCell::new(HashMap::new()),
         enum_relation: RefCell::new(HashMap::new()),
+
+        builtin_globals: RefCell::new(None),
+
+        suggested_extensions: vec![
+            (".mts", ".mjs"),
+            (".ts", ".js"),
+            (".cts", ".cjs"),
+            (".mjs", ".mjs"),
+            (".js", ".js"),
+            (".cjs", ".cjs"),
+            (".tsx", if matches!(compiler_options.jsx, Some(JsxEmit::Preserve)) {
+                ".jsx"
+            } else {
+                ".js"
+            }),
+            (".jsx", ".jsx"),
+            (".json", ".json"),
+        ],
     };
     type_checker.emit_resolver = Some(type_checker.create_resolver());
     type_checker.undefined_symbol = Some(
@@ -1184,25 +1283,33 @@ fn permissive_mapper_func(type_checker: &TypeChecker, t: &Type) -> Rc<Type> {
     }
 }
 
-fn async_iteration_types_resolver_resolve_iteration_type(type_checker: &TypeChecker, type_: &Type, error_node: Option<Rc<Node>>) -> Option<Rc<Type>> {
+fn async_iteration_types_resolver_resolve_iteration_type(
+    type_checker: &TypeChecker,
+    type_: &Type,
+    error_node: Option<Rc<Node>>,
+) -> Option<Rc<Type>> {
     type_checker.get_awaited_type_(type_, error_node, None, None)
 }
 
-fn sync_iteration_types_resolver_resolve_iteration_type(_type_checker: &TypeChecker, type_: &Type, _error_node: Option<Rc<Node>>) -> Option<Rc<Type>> {
+fn sync_iteration_types_resolver_resolve_iteration_type(
+    _type_checker: &TypeChecker,
+    type_: &Type,
+    _error_node: Option<Rc<Node>>,
+) -> Option<Rc<Type>> {
     Some(type_.type_wrapper())
 }
 
 #[derive(Debug)]
 pub(crate) struct DuplicateInfoForSymbol {
-    pub first_file_locations: Vec<Rc<Node/*Declaration*/>>,
-    pub second_file_locations: Vec<Rc<Node/*Declaration*/>>,
+    pub first_file_locations: Vec<Rc<Node /*Declaration*/>>,
+    pub second_file_locations: Vec<Rc<Node /*Declaration*/>>,
     pub is_block_scoped: bool,
 }
 
 #[derive(Debug)]
 pub(crate) struct DuplicateInfoForFiles {
-    pub first_file: Rc<Node/*SourceFile*/>,
-    pub second_file: Rc<Node/*SourceFile*/>,
+    pub first_file: Rc<Node /*SourceFile*/>,
+    pub second_file: Rc<Node /*SourceFile*/>,
     pub conflicting_symbols: HashMap<String, DuplicateInfoForSymbol>,
 }
 

@@ -12,8 +12,20 @@ use super::{
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol,
     SymbolTable, TypeChecker,
 };
-use crate::{ConfigFileSpecs, ModeAwareCache, PackageId, PragmaContext, __String};
+use crate::{ConfigFileSpecs, ModeAwareCache, PackageId, PragmaContext, Type, TypeFlags, __String};
 use local_macros::ast_type;
+
+#[derive(Debug)]
+pub enum FlowType {
+    Type(Rc<Type>),
+    IncompleteType(IncompleteType),
+}
+
+#[derive(Debug)]
+pub struct IncompleteType {
+    flags: TypeFlags,
+    type_: Rc<Type>,
+}
 
 pub type SourceTextAsChars = Vec<char>;
 

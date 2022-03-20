@@ -11,7 +11,9 @@ pub use compiler::builder_public::{
     BuilderProgram, EmitAndSemanticDiagnosticsBuilderProgram, SemanticDiagnosticsBuilderProgram,
 };
 pub use compiler::checker::{create_type_checker, get_node_id, get_symbol_id, NodeBuilder};
-use compiler::checker::{DuplicateInfoForFiles, IterationTypesResolver};
+use compiler::checker::{
+    DuplicateInfoForFiles, IterationTypesResolver, TypeSystemEntity, TypeSystemPropertyName,
+};
 use compiler::command_line_parser::{
     build_opts, convert_to_object_worker, convert_to_options_with_absolute_paths,
     convert_to_tsconfig, get_diagnostic_text, module_resolution_option_declarations,
@@ -240,8 +242,8 @@ pub use compiler::types::{
     ExportAssignment, ExportDeclaration, ExportSpecifier, ExpressionStatement,
     ExpressionWithTypeArguments, Extension, ExternalModuleReference, FileExtensionInfo,
     FileReference, FlowAssignment, FlowCall, FlowCondition, FlowFlags, FlowLabel, FlowNode,
-    FlowNodeBase, FlowReduceLabel, FlowStart, FlowSwitchClause, ForInStatement, ForOfStatement,
-    ForStatement, FreshableIntrinsicType, FunctionDeclaration, FunctionExpression,
+    FlowNodeBase, FlowReduceLabel, FlowStart, FlowSwitchClause, FlowType, ForInStatement,
+    ForOfStatement, ForStatement, FreshableIntrinsicType, FunctionDeclaration, FunctionExpression,
     FunctionLikeDeclarationBase, FunctionLikeDeclarationInterface, FunctionTypeNode,
     GeneratedIdentifierFlags, GenericNamedDeclarationInterface, GenericTypeInterface,
     GenericableTypeInterface, GetAccessorDeclaration, HasConditionInterface, HasElementsInterface,

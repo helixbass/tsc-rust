@@ -15,8 +15,9 @@ use super::{
     TypeFlags, TypeMapper, __String,
 };
 use crate::{
-    Diagnostic, DuplicateInfoForFiles, IndexInfo, IterationTypes, IterationTypesResolver,
-    NodeBuilder, Number, PatternAmbientModule, StringOrNumber,
+    Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo, IterationTypes,
+    IterationTypesResolver, NodeBuilder, Number, PatternAmbientModule, StringOrNumber, TypeId,
+    TypeSystemEntity, TypeSystemPropertyName,
 };
 use local_macros::symbol_type;
 
@@ -273,19 +274,114 @@ pub struct TypeChecker {
     pub(crate) pattern_ambient_modules: RefCell<Option<Vec<PatternAmbientModule>>>,
     pub(crate) pattern_ambient_module_augmentations: RefCell<Option<HashMap<String, Rc<Symbol>>>>,
 
+    pub(crate) global_object_type: Option<Rc<Type /*ObjectType*/>>,
+    pub(crate) global_function_type: Option<Rc<Type /*ObjectType*/>>,
+    pub(crate) global_callable_function_type: Option<Rc<Type /*ObjectType*/>>,
+    pub(crate) global_newable_function_type: Option<Rc<Type /*ObjectType*/>>,
     pub(crate) global_array_type: Option<Rc<Type /*GenericType*/>>,
+    pub(crate) global_readonly_array_type: Option<Rc<Type /*GenericType*/>>,
+    pub(crate) global_string_type: Option<Rc<Type /*ObjectType*/>>,
+    pub(crate) global_number_type: Option<Rc<Type /*ObjectType*/>>,
+    pub(crate) global_boolean_type: Option<Rc<Type /*ObjectType*/>>,
+    pub(crate) global_reg_exp_type: Option<Rc<Type /*ObjectType*/>>,
+    pub(crate) global_this_type: Option<Rc<Type /*GenericType*/>>,
+    pub(crate) any_array_type: Option<Rc<Type>>,
+    pub(crate) auto_array_type: Option<Rc<Type>>,
+    pub(crate) any_readonly_array_type: Option<Rc<Type>>,
+    pub(crate) deferred_global_non_nullable_type_alias: RefCell<Option<Rc<Symbol>>>,
+
+    pub(crate) deferred_global_es_symbol_constructor_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_es_symbol_constructor_type_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_es_symbol_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_typed_property_descriptor_type:
+        RefCell<Option<Rc<Type /*GenericType*/>>>,
     pub(crate) deferred_global_promise_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_promise_like_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
     pub(crate) deferred_global_promise_constructor_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_promise_constructor_like_type:
+        RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_iterable_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterable_iterator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_generator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterator_yield_result_type:
+        RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterator_return_result_type:
+        RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_iterable_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_iterator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_iterable_iterator_type:
+        RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_generator_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_template_strings_array_type:
+        RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_meta_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_meta_expression_type:
+        RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_call_options_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_extract_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_omit_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_awaited_symbol: RefCell<Option<Rc<Symbol>>>,
+    pub(crate) deferred_global_big_int_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
+
+    pub(crate) all_potentially_unused_identifiers:
+        RefCell<HashMap<Path, Vec<Rc<Node /*PotentiallyUnusedIdentifier*/>>>>,
+
+    pub(crate) flow_loop_start: Cell<usize>,
+    pub(crate) flow_loop_count: Cell<usize>,
+    pub(crate) shared_flow_count: Cell<usize>,
+    pub(crate) flow_analysis_disabled: Cell<bool>,
+    pub(crate) flow_invocation_count: Cell<usize>,
+    pub(crate) last_flow_node: RefCell<Option<Rc<FlowNode>>>,
+    pub(crate) last_flow_node_reachable: Cell<bool>,
+    pub(crate) flow_type_cache: RefCell<Option<HashMap<NodeId, Rc<Type>>>>,
+
+    pub(crate) empty_string_type: Option<Rc<Type>>,
+    pub(crate) zero_type: Option<Rc<Type>>,
+    pub(crate) zero_big_int_type: Option<Rc<Type>>,
+
+    pub(crate) resolution_targets: RefCell<Vec<TypeSystemEntity>>,
+    pub(crate) resolution_results: RefCell<Vec<bool>>,
+    pub(crate) resolution_property_names: RefCell<Vec<TypeSystemPropertyName>>,
+
+    pub(crate) suggestion_count: Cell<usize>,
+    pub(crate) max_suggestion_count: usize,
+    pub(crate) merged_symbols: RefCell<HashMap<u32, Rc<Symbol>>>,
     pub(crate) symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
     pub(crate) node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
+    pub(crate) flow_loop_caches: RefCell<Vec<HashMap<String, Rc<Type>>>>,
+    pub(crate) flow_loop_nodes: RefCell<Vec<Rc<FlowNode>>>,
+    pub(crate) flow_loop_keys: RefCell<Vec<String>>,
+    pub(crate) flow_loop_types: RefCell<Vec<Vec<Rc<Type>>>>,
+    pub(crate) shared_flow_nodes: RefCell<Vec<Rc<FlowNode>>>,
+    pub(crate) shared_flow_types: RefCell<Vec<Rc<FlowType>>>,
+    pub(crate) flow_node_reachable: RefCell<HashMap<u32, Option<bool>>>,
+    pub(crate) flow_node_post_super: RefCell<HashMap<u32, Option<bool>>>,
+    pub(crate) potential_this_collisions: RefCell<Vec<Rc<Node>>>,
+    pub(crate) potential_new_target_collisions: RefCell<Vec<Rc<Node>>>,
+    pub(crate) potential_weak_map_set_collisions: RefCell<Vec<Rc<Node>>>,
+    pub(crate) potential_reflect_collisions: RefCell<Vec<Rc<Node>>>,
+    pub(crate) awaited_type_stack: RefCell<Vec<TypeId>>,
+
     pub(crate) diagnostics: RefCell<DiagnosticCollection>,
     pub(crate) suggestion_diagnostics: RefCell<DiagnosticCollection>,
+
+    pub(crate) typeof_types_by_name: Option<HashMap<&'static str, Rc<Type>>>,
+    pub(crate) typeof_type: Option<Rc<Type>>,
+
+    pub(crate) _jsx_namespace: RefCell<Option<__String>>,
+    pub(crate) _jsx_factory_entity: RefCell<Option<Rc<Node /*EntityName*/>>>,
+
     pub(crate) subtype_relation: RefCell<HashMap<String, RelationComparisonResult>>,
     pub(crate) strict_subtype_relation: RefCell<HashMap<String, RelationComparisonResult>>,
     pub(crate) assignable_relation: RefCell<HashMap<String, RelationComparisonResult>>,
     pub(crate) comparable_relation: RefCell<HashMap<String, RelationComparisonResult>>,
     pub(crate) identity_relation: RefCell<HashMap<String, RelationComparisonResult>>,
     pub(crate) enum_relation: RefCell<HashMap<String, RelationComparisonResult>>,
+
+    pub(crate) builtin_globals: RefCell<Option<SymbolTable>>,
+
+    pub(crate) suggested_extensions: Vec<(&'static str, &'static str)>,
 }
 
 #[derive(PartialEq, Eq)]
