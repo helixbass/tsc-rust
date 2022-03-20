@@ -2508,6 +2508,12 @@ impl TypeChecker {
         self.marker_super_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn maybe_amalgamated_duplicates(
+        &self,
+    ) -> RefMut<Option<HashMap<String, DuplicateInfoForFiles>>> {
+        self.amalgamated_duplicates.borrow_mut()
+    }
+
     pub(super) fn global_array_type(&self) -> Rc<Type> {
         self.global_array_type.as_ref().unwrap().clone()
     }

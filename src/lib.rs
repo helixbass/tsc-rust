@@ -12,7 +12,8 @@ pub use compiler::builder_public::{
 };
 pub use compiler::checker::{create_type_checker, get_node_id, get_symbol_id, NodeBuilder};
 use compiler::checker::{
-    DuplicateInfoForFiles, IterationTypesResolver, TypeSystemEntity, TypeSystemPropertyName,
+    DuplicateInfoForFiles, DuplicateInfoForSymbol, IterationTypesResolver, TypeSystemEntity,
+    TypeSystemPropertyName,
 };
 use compiler::command_line_parser::{
     build_opts, convert_to_object_worker, convert_to_options_with_absolute_paths,
@@ -28,19 +29,19 @@ pub use compiler::command_line_parser::{
     ParseConfigFileHost,
 };
 pub use compiler::core::{
-    add_range, append, append_if_unique, array_to_map, arrays_equal, binary_search,
+    add_range, append, append_if_unique_rc, array_to_map, arrays_equal, binary_search,
     binary_search_copy_key, cast, compare_strings_case_insensitive, compare_strings_case_sensitive,
     compare_strings_case_sensitive_maybe, compare_values, concatenate, contains, contains_rc,
     count_where, create_get_canonical_file_name, create_multi_map, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, filter,
     filter_mutate, filter_owning, find, find_index, first_defined, first_or_undefined, flat_map,
-    flat_map_to_mutable, flatten, for_each, for_each_bool, get_ranges_where,
+    flat_map_to_mutable, flatten, for_each, for_each_bool, get_or_update, get_ranges_where,
     get_spelling_suggestion, get_string_comparer, identity_str_to_cow, identity_str_to_owned,
-    insert_sorted, last, last_or_undefined, length, map, map_defined, maybe_for_each,
-    not_implemented, pad_left, pad_right, range_equals, same_map, set_ui_locale,
-    single_element_array, single_or_undefined, some, sort, sort_and_deduplicate, starts_with,
-    string_contains, sum, to_file_name_lower_case, trim_string, trim_string_start, try_cast,
-    AssertionLevel, GetCanonicalFileName, MultiMap, Pattern,
+    insert_sorted, last, last_or_undefined, length, map, map_defined, maybe_append_if_unique_rc,
+    maybe_for_each, not_implemented, pad_left, pad_right, push_if_unique_rc, range_equals,
+    same_map, set_ui_locale, single_element_array, single_or_undefined, some, sort,
+    sort_and_deduplicate, starts_with, string_contains, sum, to_file_name_lower_case, trim_string,
+    trim_string_start, try_cast, AssertionLevel, GetCanonicalFileName, MultiMap, Pattern,
 };
 pub use compiler::core_public::{
     version, Comparer, Comparison, MapLike, Push, ReadonlyCollection, SortedArray,

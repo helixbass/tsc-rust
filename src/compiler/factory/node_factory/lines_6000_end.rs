@@ -8,10 +8,10 @@ use std::rc::Rc;
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
-    add_range, append_if_unique, create_base_node_factory, create_scanner, is_named_declaration,
-    is_property_name, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, Debug_,
-    EmitFlags, EmitNode, LanguageVariant, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
-    NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SourceMapRange,
+    add_range, create_base_node_factory, create_scanner, is_named_declaration, is_property_name,
+    maybe_append_if_unique_rc, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    Debug_, EmitFlags, EmitNode, LanguageVariant, Node, NodeArray, NodeArrayOrVec, NodeFactory,
+    NodeFlags, NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SourceMapRange,
     StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKind, TransformFlags,
 };
 
@@ -468,7 +468,10 @@ pub(super) fn merge_emit_node(
     if let Some(helpers) = helpers {
         let mut dest_emit_node_helpers = dest_emit_node.helpers.clone();
         for helper in helpers {
-            dest_emit_node_helpers = Some(append_if_unique(dest_emit_node_helpers, helper.clone()));
+            dest_emit_node_helpers = Some(maybe_append_if_unique_rc(
+                dest_emit_node_helpers,
+                helper.clone(),
+            ));
         }
         dest_emit_node.helpers = dest_emit_node_helpers;
     }

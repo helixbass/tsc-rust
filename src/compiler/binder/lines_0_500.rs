@@ -19,7 +19,7 @@ use crate::{
     token_to_string, unescape_leading_underscores, AssignmentDeclarationKind, CompilerOptions,
     Debug_, Diagnostic, DiagnosticRelatedInformation, Diagnostics, FlowFlags, FlowNode, FlowStart,
     ModifierFlags, NodeFlags, NodeId, ScriptTarget, SignatureDeclarationInterface, Symbol,
-    SymbolTable, SyntaxKind, __String, append_if_unique, create_symbol_table,
+    SymbolTable, SyntaxKind, __String, append_if_unique_rc, create_symbol_table,
     get_escaped_text_of_identifier_or_literal, get_name_of_declaration, is_property_name_literal,
     object_allocator, set_parent, set_value_declaration, BaseSymbol, InternalSymbolName,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
@@ -752,11 +752,11 @@ impl BinderType {
         symbol.set_flags(symbol.flags() | symbol_flags);
 
         node.set_symbol(symbol.symbol_wrapper());
-        let declarations = append_if_unique(
-            symbol.maybe_declarations().as_ref().map(Clone::clone),
-            node.node_wrapper(),
-        );
-        symbol.set_declarations(declarations);
+        let mut symbol_declarations = symbol.maybe_declarations_mut();
+        if symbol_declarations.is_none() {
+            *symbol_declarations = Some(vec![]);
+        }
+        append_if_unique_rc(symbol_declarations.as_mut().unwrap(), node.node_wrapper());
 
         if symbol_flags.intersects(
             SymbolFlags::Class | SymbolFlags::Enum | SymbolFlags::Module | SymbolFlags::Variable,

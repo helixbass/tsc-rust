@@ -7,16 +7,16 @@ use std::rc::Rc;
 
 use super::NodeBuilderContext;
 use crate::{
-    Signature, SignatureFlags, TypePredicate, __String, append_if_unique, concatenate,
-    create_symbol_table, declaration_name_to_string, escape_leading_underscores, first_defined,
-    get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
+    concatenate, create_symbol_table, declaration_name_to_string, escape_leading_underscores,
+    first_defined, get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
     get_effective_type_parameter_declarations, get_name_of_declaration, has_dynamic_name,
     has_only_expression_initializer, is_property_assignment, is_property_declaration,
     is_property_signature, is_type_alias, is_variable_declaration, range_equals, BaseInterfaceType,
     CheckFlags, Debug_, InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
+    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeMapper, TypePredicate, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -267,7 +267,7 @@ impl TypeChecker {
         declarations: &[Rc<Node>],
     ) -> Option<Vec<Rc<Type>>> {
         for declaration in declarations {
-            type_parameters = Some(append_if_unique(
+            type_parameters = Some(maybe_append_if_unique_rc(
                 type_parameters,
                 self.get_declared_type_of_type_parameter(
                     &self.get_symbol_of_node(&**declaration).unwrap(),

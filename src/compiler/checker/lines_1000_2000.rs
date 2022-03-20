@@ -2,22 +2,27 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{get_next_merge_id, get_node_id, get_symbol_id, increment_next_merge_id};
 use crate::{
-    add_related_info, create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
-    create_diagnostic_for_node_from_message_chain, create_file_diagnostic, for_each,
-    get_jsdoc_deprecated_tag, null_transformation_context, set_text_range_pos_end,
-    synthetic_factory, visit_each_child, CancellationTokenDebuggable, DiagnosticCategory,
+    add_range, add_related_info, compare_paths, create_compiler_diagnostic,
+    create_diagnostic_for_file_from_message_chain, create_diagnostic_for_node_from_message_chain,
+    create_file_diagnostic, create_symbol_table, for_each, get_jsdoc_deprecated_tag,
+    get_name_of_declaration, get_or_update, maybe_for_each, null_transformation_context,
+    push_if_unique_rc, set_text_range_pos_end, set_value_declaration, synthetic_factory,
+    visit_each_child, CancellationTokenDebuggable, Comparison, DiagnosticCategory,
     DiagnosticInterface, DiagnosticMessageChain, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, EmitResolverDebuggable, NodeArray,
-    ReadonlyTextRange, VisitResult, __String, create_diagnostic_for_node,
-    escape_leading_underscores, factory, get_first_identifier, get_source_file_of_node,
-    is_jsx_opening_fragment, parse_isolated_entity_name, unescape_leading_underscores, visit_node,
-    BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
-    NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
-    TransientSymbol, TransientSymbolInterface, TypeChecker,
+    DiagnosticRelatedInformationInterface, Diagnostics, DuplicateInfoForFiles,
+    DuplicateInfoForSymbol, EmitResolverDebuggable, NodeArray, ReadonlyTextRange, VisitResult,
+    __String, create_diagnostic_for_node, escape_leading_underscores, factory,
+    get_first_identifier, get_source_file_of_node, is_jsx_opening_fragment,
+    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
+    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
+    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
+    TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -527,6 +532,232 @@ impl TypeChecker {
         }
         self.record_merged_symbol(&result, symbol);
         result
+    }
+
+    pub(super) fn merge_symbol(
+        &self,
+        target: &Symbol,
+        source: &Symbol,
+        unidirectional: Option<bool>,
+    ) -> Rc<Symbol> {
+        let unidirectional = unidirectional.unwrap_or(false);
+        let mut target = target.symbol_wrapper();
+        if !target
+            .flags()
+            .intersects(self.get_excluded_symbol_flags(source.flags()))
+            || (source.flags() | target.flags()).intersects(SymbolFlags::Assignment)
+        {
+            if ptr::eq(source, &*target) {
+                return target;
+            }
+            if !target.flags().intersects(SymbolFlags::Transient) {
+                let resolved_target = self.resolve_symbol(Some(&*target), None).unwrap();
+                if Rc::ptr_eq(&resolved_target, &self.unknown_symbol()) {
+                    return source.symbol_wrapper();
+                }
+                target = Rc::new(self.clone_symbol(&resolved_target));
+            }
+            if source.flags().intersects(SymbolFlags::ValueModule)
+                && target.flags().intersects(SymbolFlags::ValueModule)
+                && matches!(target.maybe_const_enum_only_module(), Some(true))
+                && !matches!(source.maybe_const_enum_only_module(), Some(true))
+            {
+                target.set_const_enum_only_module(Some(true));
+            }
+            target.set_flags(target.flags() | source.flags());
+            if let Some(source_value_declaration) = source.maybe_value_declaration().as_ref() {
+                set_value_declaration(&target, source_value_declaration);
+            }
+            if let Some(source_declarations) = source.maybe_declarations().as_deref() {
+                let mut target_declarations = target.maybe_declarations_mut();
+                if target_declarations.is_none() {
+                    *target_declarations = Some(vec![]);
+                }
+                add_range(
+                    target_declarations.as_mut().unwrap(),
+                    Some(source_declarations),
+                    None,
+                    None,
+                );
+            }
+            if let Some(source_members) = source.maybe_members().as_ref() {
+                let mut target_members = target.maybe_members();
+                if target_members.is_none() {
+                    *target_members = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                }
+                self.merge_symbol_table(
+                    &mut *target_members.as_ref().unwrap().borrow_mut(),
+                    &RefCell::borrow(source_members),
+                    Some(unidirectional),
+                );
+            }
+            if let Some(source_exports) = source.maybe_exports().as_ref() {
+                let mut target_exports = target.maybe_exports();
+                if target_exports.is_none() {
+                    *target_exports = Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                }
+                self.merge_symbol_table(
+                    &mut *target_exports.as_ref().unwrap().borrow_mut(),
+                    &RefCell::borrow(source_exports),
+                    Some(unidirectional),
+                );
+            }
+            if !unidirectional {
+                self.record_merged_symbol(&target, source);
+            }
+        } else if target.flags().intersects(SymbolFlags::NamespaceModule) {
+            if !Rc::ptr_eq(&target, &self.global_this_symbol()) {
+                self.error(
+                    source.maybe_declarations().as_ref().and_then(|source_declarations| get_name_of_declaration(source_declarations.get(0).map(Clone::clone))),
+                    &Diagnostics::Cannot_augment_module_0_with_value_exports_because_it_resolves_to_a_non_module_entity,
+                    Some(vec![self.symbol_to_string_(&target, Option::<&Node>::None, None, None, None)])
+                );
+            }
+        } else {
+            let is_either_enum = target.flags().intersects(SymbolFlags::Enum)
+                || source.flags().intersects(SymbolFlags::Enum);
+            let is_either_block_scoped =
+                target.flags().intersects(SymbolFlags::BlockScopedVariable)
+                    || source.flags().intersects(SymbolFlags::BlockScopedVariable);
+            let message = if is_either_enum {
+                &Diagnostics::Enum_declarations_can_only_merge_with_namespace_or_other_enum_declarations
+            } else if is_either_block_scoped {
+                &Diagnostics::Cannot_redeclare_block_scoped_variable_0
+            } else {
+                &Diagnostics::Duplicate_identifier_0
+            };
+            let source_symbol_file =
+                source
+                    .maybe_declarations()
+                    .as_ref()
+                    .and_then(|source_declarations| {
+                        get_source_file_of_node(source_declarations.get(0).map(Clone::clone))
+                    });
+            let target_symbol_file =
+                target
+                    .maybe_declarations()
+                    .as_ref()
+                    .and_then(|target_declarations| {
+                        get_source_file_of_node(target_declarations.get(0).map(Clone::clone))
+                    });
+            let symbol_name =
+                self.symbol_to_string_(source, Option::<&Node>::None, None, None, None);
+
+            if source_symbol_file.is_some()
+                && target_symbol_file.is_some()
+                && self.maybe_amalgamated_duplicates().is_some()
+                && !is_either_enum
+                && !Rc::ptr_eq(
+                    source_symbol_file.as_ref().unwrap(),
+                    target_symbol_file.as_ref().unwrap(),
+                )
+            {
+                let source_symbol_file = source_symbol_file.unwrap();
+                let target_symbol_file = target_symbol_file.unwrap();
+                let first_file = if compare_paths(
+                    &source_symbol_file.as_source_file().path(),
+                    &target_symbol_file.as_source_file().path(),
+                    Option::<String>::None,
+                    None,
+                ) == Comparison::LessThan
+                {
+                    source_symbol_file.clone()
+                } else {
+                    target_symbol_file.clone()
+                };
+                let second_file = if Rc::ptr_eq(&first_file, &source_symbol_file) {
+                    target_symbol_file.clone()
+                } else {
+                    source_symbol_file.clone()
+                };
+                let mut amalgamated_duplicates = self.maybe_amalgamated_duplicates();
+                let amalgamated_duplicates = amalgamated_duplicates.as_mut().unwrap();
+                let files_duplicates = get_or_update(
+                    amalgamated_duplicates,
+                    format!(
+                        "{}|{}",
+                        &**first_file.as_source_file().path(),
+                        &**second_file.as_source_file().path()
+                    ),
+                    || DuplicateInfoForFiles {
+                        first_file,
+                        second_file,
+                        conflicting_symbols: HashMap::new(),
+                    },
+                );
+                let conflicting_symbol_info = get_or_update(
+                    &mut files_duplicates.conflicting_symbols,
+                    symbol_name,
+                    || DuplicateInfoForSymbol {
+                        first_file_locations: vec![],
+                        second_file_locations: vec![],
+                        is_block_scoped: is_either_block_scoped,
+                    },
+                );
+                self.add_duplicate_locations(
+                    &mut conflicting_symbol_info.first_file_locations,
+                    source,
+                );
+                self.add_duplicate_locations(
+                    &mut conflicting_symbol_info.second_file_locations,
+                    &target,
+                );
+            } else {
+                self.add_duplicate_declaration_errors_for_symbols(
+                    source,
+                    message,
+                    &symbol_name,
+                    &target,
+                );
+                self.add_duplicate_declaration_errors_for_symbols(
+                    &target,
+                    message,
+                    &symbol_name,
+                    source,
+                );
+            }
+        }
+        target
+    }
+
+    pub(super) fn add_duplicate_locations(
+        &self,
+        locs: &mut Vec<Rc<Node /*Declaration*/>>,
+        symbol: &Symbol,
+    ) {
+        if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
+            for decl in symbol_declarations {
+                push_if_unique_rc(locs, decl.clone());
+            }
+        }
+    }
+
+    pub(super) fn add_duplicate_declaration_errors_for_symbols(
+        &self,
+        target: &Symbol,
+        message: &DiagnosticMessage,
+        symbol_name: &str,
+        source: &Symbol,
+    ) {
+        maybe_for_each(target.maybe_declarations().as_deref(), |node, _| {
+            self.add_duplicate_declaration_error(
+                node,
+                message,
+                symbol_name,
+                source.maybe_declarations().as_deref(),
+            );
+            Option::<()>::None
+        });
+    }
+
+    pub(super) fn add_duplicate_declaration_error(
+        &self,
+        node: &Node, /*Declaration*/
+        message: &DiagnosticMessage,
+        symbol_name: &str,
+        related_nodes: Option<&[Rc<Node /*Declaration*/>]>,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn merge_symbol_table(

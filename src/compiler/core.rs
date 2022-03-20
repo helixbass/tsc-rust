@@ -113,6 +113,16 @@ pub fn contains_rc<TItem>(array: Option<&[Rc<TItem>]>, value: &Rc<TItem>) -> boo
     })
 }
 
+pub fn contains_comparer<TItem, TEqualityComparer: Fn(&TItem, &TItem) -> bool>(
+    array: Option<&[TItem]>,
+    value: &TItem,
+    equality_comparer: TEqualityComparer,
+) -> bool {
+    array.map_or(false, |array| {
+        array.iter().any(|item| equality_comparer(item, value))
+    })
+}
+
 pub fn arrays_equal<TItem: Eq>(a: &[TItem], b: &[TItem]) -> bool {
     // TODO: separate eg arrays_equal_by() helper taking equality_comparer callback and not imposing `Eq` bound?
     a.len() == b.len() && every(a, |item_a, i| *item_a == b[i])
@@ -262,6 +272,14 @@ pub fn map_defined<
         }
     }
     result
+}
+
+pub fn get_or_update<TKey: Eq + Hash, TValue, TCallback: FnOnce() -> TValue>(
+    map: &mut HashMap<TKey, TValue>,
+    key: TKey,
+    callback: TCallback,
+) -> &mut TValue {
+    map.entry(key).or_insert_with(callback)
 }
 
 pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(
@@ -450,18 +468,25 @@ pub fn add_range<TItem: Clone>(
     // to
 }
 
-fn push_if_unique<TItem>(array: &mut Vec<TItem>, to_add: TItem) -> bool {
-    if false {
-        unimplemented!()
+pub fn push_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: Rc<TItem>) -> bool {
+    if contains_rc(Some(array), &to_add) {
+        false
     } else {
         array.push(to_add);
         true
     }
 }
 
-pub fn append_if_unique<TItem>(array: Option<Vec<TItem>>, to_add: TItem) -> Vec<TItem> {
+pub fn append_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: Rc<TItem>) {
+    push_if_unique_rc(array, to_add);
+}
+
+pub fn maybe_append_if_unique_rc<TItem>(
+    array: Option<Vec<Rc<TItem>>>,
+    to_add: Rc<TItem>,
+) -> Vec<Rc<TItem>> {
     if let Some(mut array) = array {
-        push_if_unique(&mut array, to_add);
+        push_if_unique_rc(&mut array, to_add);
         array
     } else {
         vec![to_add]

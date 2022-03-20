@@ -799,6 +799,7 @@ pub trait SymbolInterface {
     fn set_flags(&self, flags: SymbolFlags);
     fn escaped_name(&self) -> &__String;
     fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>>;
+    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>>;
     fn set_declarations(&self, declarations: Vec<Rc<Node>>);
     fn maybe_value_declaration(&self) -> Option<Rc<Node>>;
     fn set_value_declaration(&self, node: Rc<Node>);
@@ -909,6 +910,10 @@ impl SymbolInterface for BaseSymbol {
 
     fn maybe_declarations(&self) -> Ref<Option<Vec<Rc<Node>>>> {
         self.declarations.borrow()
+    }
+
+    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+        self.declarations.borrow_mut()
     }
 
     fn set_declarations(&self, declarations: Vec<Rc<Node>>) {

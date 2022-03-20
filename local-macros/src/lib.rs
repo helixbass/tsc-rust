@@ -1748,6 +1748,10 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.maybe_declarations()
                     }
 
+                    fn maybe_declarations_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>>> {
+                        self.#first_field_name.maybe_declarations_mut()
+                    }
+
                     fn set_declarations(&self, declarations: ::std::vec::Vec<::std::rc::Rc<crate::Node>>) {
                         self.#first_field_name.set_declarations(declarations)
                     }
@@ -1897,6 +1901,12 @@ fn get_symbol_enum_interface_impl(
                     fn maybe_declarations(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_declarations()),*
+                        }
+                    }
+
+                    fn maybe_declarations_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Node>>>> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_declarations_mut()),*
                         }
                     }
 

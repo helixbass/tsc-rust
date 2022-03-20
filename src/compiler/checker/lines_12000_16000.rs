@@ -6,15 +6,15 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    append_if_unique, filter, get_effective_constraint_of_type_parameter,
-    get_effective_return_type_node, get_effective_type_parameter_declarations, is_binding_pattern,
-    is_type_parameter_declaration, map_defined, node_is_missing, IndexInfo, Signature,
-    SignatureFlags, SignatureKind, TypePredicate, TypePredicateKind, UnionType, __String,
-    binary_search_copy_key, compare_values, concatenate, get_name_of_declaration, get_object_flags,
-    map, unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType,
-    DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
-    TypeInterface, TypeReference, TypeReferenceNode, UnionReduction, UnionTypeNode,
+    filter, get_effective_constraint_of_type_parameter, get_effective_return_type_node,
+    get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
+    map_defined, maybe_append_if_unique_rc, node_is_missing, IndexInfo, Signature, SignatureFlags,
+    SignatureKind, TypePredicate, TypePredicateKind, UnionType, __String, binary_search_copy_key,
+    compare_values, concatenate, get_name_of_declaration, get_object_flags, map,
+    unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
+    Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    TypeReference, TypeReferenceNode, UnionReduction, UnionTypeNode,
 };
 
 impl TypeChecker {
@@ -111,7 +111,7 @@ impl TypeChecker {
     ) -> Option<Vec<Rc<Type /*<TypeParameter>*/>>> {
         let mut result: Option<Vec<Rc<Type>>> = None;
         for node in get_effective_type_parameter_declarations(declaration) {
-            result = Some(append_if_unique(
+            result = Some(maybe_append_if_unique_rc(
                 result,
                 self.get_declared_type_of_type_parameter(&node.symbol()),
             ));

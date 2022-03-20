@@ -20,6 +20,14 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn resolve_symbol<TSymbol: Borrow<Symbol>>(
+        &self,
+        symbol: Option<TSymbol>,
+        dont_resolve_alias: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn resolve_alias(&self, symbol: &Symbol) -> Rc<Symbol> {
         unimplemented!()
     }
