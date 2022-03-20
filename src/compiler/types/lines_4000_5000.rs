@@ -231,8 +231,17 @@ pub struct TypeChecker {
     pub(crate) empty_type_literal_type: Option<Rc<Type>>,
 
     pub(crate) empty_generic_type: Option<Rc<Type /*GenericType*/>>,
+
+    pub(crate) any_function_type: Option<Rc<Type>>,
+
     pub(crate) no_constraint_type: Option<Rc<Type /*ResolvedType*/>>,
     pub(crate) circular_constraint_type: Option<Rc<Type /*ResolvedType*/>>,
+    pub(crate) resolving_default_type: Option<Rc<Type>>,
+
+    pub(crate) marker_super_type: Option<Rc<Type>>,
+    pub(crate) marker_sub_type: Option<Rc<Type>>,
+    pub(crate) marker_other_type: Option<Rc<Type>>,
+
     pub(crate) global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub(crate) deferred_global_promise_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
     pub(crate) deferred_global_promise_constructor_symbol: RefCell<Option<Rc<Symbol>>>,

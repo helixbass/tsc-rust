@@ -571,8 +571,15 @@ pub fn create_type_checker(
 
         empty_generic_type: None,
 
+        any_function_type: None,
+
         no_constraint_type: None,
         circular_constraint_type: None,
+        resolving_default_type: None,
+
+        marker_super_type: None,
+        marker_sub_type: None,
+        marker_other_type: None,
 
         global_array_type: None,
 
@@ -964,6 +971,17 @@ pub fn create_type_checker(
     empty_generic_type.genericize(HashMap::new());
     type_checker.empty_generic_type = Some(empty_generic_type.into());
 
+    let any_function_type = type_checker.create_anonymous_type(
+        Option::<&Symbol>::None,
+        type_checker.empty_symbols(),
+        vec![],
+        vec![],
+        vec![],
+    );
+    any_function_type
+        .set_object_flags(any_function_type.object_flags() | ObjectFlags::NonInferrableType);
+    type_checker.any_function_type = Some(any_function_type.into());
+
     type_checker.no_constraint_type = Some(
         type_checker
             .create_anonymous_type(
@@ -986,6 +1004,32 @@ pub fn create_type_checker(
             )
             .into(),
     );
+    type_checker.resolving_default_type = Some(
+        type_checker
+            .create_anonymous_type(
+                Option::<&Symbol>::None,
+                type_checker.empty_symbols(),
+                vec![],
+                vec![],
+                vec![],
+            )
+            .into(),
+    );
+
+    type_checker.marker_super_type = Some(
+        type_checker
+            .create_type_parameter(Option::<&Symbol>::None)
+            .into(),
+    );
+    let marker_sub_type = type_checker.create_type_parameter(Option::<&Symbol>::None);
+    marker_sub_type.set_constraint(type_checker.marker_super_type());
+    type_checker.marker_sub_type = Some(marker_sub_type.into());
+    type_checker.marker_other_type = Some(
+        type_checker
+            .create_type_parameter(Option::<&Symbol>::None)
+            .into(),
+    );
+
     type_checker.initialize_type_checker();
     type_checker
 }
@@ -2160,6 +2204,10 @@ impl TypeChecker {
 
     pub(super) fn circular_constraint_type(&self) -> Rc<Type> {
         self.circular_constraint_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn marker_super_type(&self) -> Rc<Type> {
+        self.marker_super_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn global_array_type(&self) -> Rc<Type> {
