@@ -10,7 +10,7 @@ use crate::{
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
     is_private_identifier, map, maybe_for_each, parse_pseudo_big_int, ArrayTypeNode, Block,
     Diagnostic, DiagnosticMessage, Diagnostics, ExpressionStatement, FunctionDeclaration,
-    FunctionFlags, HasTypeParametersInterface, IfStatement, InterfaceDeclaration,
+    FunctionFlags, HasTypeParametersInterface, IfStatement, InterfaceDeclaration, IterationTypes,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement,
     SymbolInterface, SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration, TypeChecker,
@@ -560,6 +560,18 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         self.check_truthiness_of_type(&self.check_expression(node, check_mode), node)
+    }
+
+    pub(super) fn create_iteration_types(
+        &self,
+        yield_type: Option<Rc<Type>>,
+        return_type: Option<Rc<Type>>,
+        next_type: Option<Rc<Type>>,
+    ) -> IterationTypes {
+        let yield_type = yield_type.unwrap_or_else(|| self.never_type());
+        let return_type = return_type.unwrap_or_else(|| self.never_type());
+        let next_type = next_type.unwrap_or_else(|| self.unknown_type());
+        IterationTypes::new(yield_type, return_type, next_type)
     }
 
     pub(super) fn unwrap_return_type(

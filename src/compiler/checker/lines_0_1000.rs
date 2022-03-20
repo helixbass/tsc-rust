@@ -18,19 +18,19 @@ use crate::{
     CancellationToken, CancellationTokenDebuggable, CheckFlags, ContextFlags, Debug_, Diagnostic,
     DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, EmitTextWriter, Extension, FreshableIntrinsicType,
-    GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, ModuleInstanceState, Node,
-    NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number,
-    ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult, Signature, SignatureFlags,
-    SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
-    SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker,
-    TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
-    TypePredicateKind, VarianceFlags, __String, create_diagnostic_collection, create_symbol_table,
-    escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
-    get_emit_module_kind, get_emit_script_target, get_module_instance_state, get_parse_tree_node,
-    get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
-    is_call_like_expression, is_export_specifier, is_expression, is_identifier,
-    is_jsx_attribute_like, is_object_literal_element_like, is_parameter, is_type_node,
-    object_allocator, sum,
+    GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, IterationTypes,
+    ModuleInstanceState, Node, NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId,
+    NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult,
+    Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
+    SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypePredicate, TypePredicateKind, VarianceFlags, __String,
+    create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
+    get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
+    get_module_instance_state, get_parse_tree_node, get_strict_option_value,
+    get_use_define_for_class_fields, is_assignment_pattern, is_call_like_expression,
+    is_export_specifier, is_expression, is_identifier, is_jsx_attribute_like,
+    is_object_literal_element_like, is_parameter, is_type_node, object_allocator, sum,
 };
 
 lazy_static! {
@@ -592,6 +592,11 @@ pub fn create_type_checker(
         enum_number_index_info: None,
 
         iteration_types_cache: RefCell::new(HashMap::new()),
+        no_iteration_types: Rc::new(IterationTypes::new_no_iteration_types()),
+
+        any_iteration_types: None,
+        any_iteration_types_except_next: None,
+        default_iteration_types: None,
 
         global_array_type: None,
 
@@ -1095,6 +1100,23 @@ pub fn create_type_checker(
         type_checker.string_type(),
         true,
         None,
+    )));
+
+    type_checker.any_iteration_types = Some(Rc::new(type_checker.create_iteration_types(
+        Some(type_checker.any_type()),
+        Some(type_checker.any_type()),
+        Some(type_checker.any_type()),
+    )));
+    type_checker.any_iteration_types_except_next =
+        Some(Rc::new(type_checker.create_iteration_types(
+            Some(type_checker.any_type()),
+            Some(type_checker.any_type()),
+            Some(type_checker.unknown_type()),
+        )));
+    type_checker.default_iteration_types = Some(Rc::new(type_checker.create_iteration_types(
+        Some(type_checker.never_type()),
+        Some(type_checker.any_type()),
+        Some(type_checker.undefined_type()),
     )));
 
     type_checker.initialize_type_checker();

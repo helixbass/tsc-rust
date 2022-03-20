@@ -252,6 +252,11 @@ pub struct TypeChecker {
     pub(crate) enum_number_index_info: Option<Rc<IndexInfo>>,
 
     pub(crate) iteration_types_cache: RefCell<HashMap<String, IterationTypes>>,
+    pub(crate) no_iteration_types: Rc<IterationTypes>,
+
+    pub(crate) any_iteration_types: Option<Rc<IterationTypes>>,
+    pub(crate) any_iteration_types_except_next: Option<Rc<IterationTypes>>,
+    pub(crate) default_iteration_types: Option<Rc<IterationTypes>>,
 
     pub(crate) global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub(crate) deferred_global_promise_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
