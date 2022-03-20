@@ -6,9 +6,11 @@ use std::rc::Rc;
 
 use super::{get_node_id, get_symbol_id};
 use crate::{
-    create_compiler_diagnostic, null_transformation_context, set_text_range_pos_end,
-    synthetic_factory, visit_each_child, CancellationTokenDebuggable, DiagnosticCategory,
-    DiagnosticInterface, DiagnosticRelatedInformationInterface, EmitResolverDebuggable, NodeArray,
+    create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
+    create_diagnostic_for_node_from_message_chain, create_file_diagnostic,
+    null_transformation_context, set_text_range_pos_end, synthetic_factory, visit_each_child,
+    CancellationTokenDebuggable, DiagnosticCategory, DiagnosticInterface, DiagnosticMessageChain,
+    DiagnosticRelatedInformationInterface, EmitResolverDebuggable, NodeArray, ReadonlyTextRange,
     VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores, factory,
     get_first_identifier, get_source_file_of_node, is_jsx_opening_fragment,
     parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
@@ -289,6 +291,44 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn error_or_suggestion(
+        &self,
+        is_error: bool,
+        location: &Node,
+        message: DiagnosticMessageOrDiagnosticMessageChain,
+        args: Option<Vec<String>>,
+    ) {
+        if location.pos() < 0 || location.end() < 0 {
+            if !is_error {
+                return;
+            }
+            let file = get_source_file_of_node(Some(location)).unwrap();
+            self.add_error_or_suggestion(
+                is_error,
+                Rc::new(match message {
+                    DiagnosticMessageOrDiagnosticMessageChain::DiagnosticMessage(message) => {
+                        create_file_diagnostic(&file, 0, 0, &message, args).into()
+                    }
+                    DiagnosticMessageOrDiagnosticMessageChain::DiagnosticMessageChain(message) => {
+                        create_diagnostic_for_file_from_message_chain(&file, message, None).into()
+                    }
+                }),
+            );
+            return;
+        }
+        self.add_error_or_suggestion(
+            is_error,
+            Rc::new(match message {
+                DiagnosticMessageOrDiagnosticMessageChain::DiagnosticMessage(message) => {
+                    create_diagnostic_for_node(location, &message, args).into()
+                }
+                DiagnosticMessageOrDiagnosticMessageChain::DiagnosticMessageChain(message) => {
+                    create_diagnostic_for_node_from_message_chain(location, message, None).into()
+                }
+            }),
+        );
+    }
+
     pub(super) fn error_and_maybe_suggest_await(
         &self,
         location: &Node,
@@ -498,6 +538,11 @@ impl TypeChecker {
 
         result
     }
+}
+
+pub(super) enum DiagnosticMessageOrDiagnosticMessageChain {
+    DiagnosticMessage(DiagnosticMessage),
+    DiagnosticMessageChain(DiagnosticMessageChain),
 }
 
 pub(super) enum ResolveNameNameArg {

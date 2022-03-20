@@ -130,7 +130,7 @@ fn create_file_diagnostic_from_message_chain(
     ))
 }
 
-fn create_diagnostic_for_file_from_message_chain(
+pub fn create_diagnostic_for_file_from_message_chain(
     source_file: &Node, /*SourceFile*/
     message_chain: DiagnosticMessageChain,
     related_information: Option<Vec<Rc<DiagnosticRelatedInformation>>>,
