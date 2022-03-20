@@ -8,21 +8,21 @@ use std::rc::Rc;
 
 use super::{get_next_merge_id, get_node_id, get_symbol_id, increment_next_merge_id};
 use crate::{
-    add_range, add_related_info, compare_paths, create_compiler_diagnostic,
+    add_range, add_related_info, compare_diagnostics, compare_paths, create_compiler_diagnostic,
     create_diagnostic_for_file_from_message_chain, create_diagnostic_for_node_from_message_chain,
-    create_file_diagnostic, create_symbol_table, for_each, get_jsdoc_deprecated_tag,
-    get_name_of_declaration, get_or_update, maybe_for_each, null_transformation_context,
-    push_if_unique_rc, set_text_range_pos_end, set_value_declaration, synthetic_factory,
-    visit_each_child, CancellationTokenDebuggable, Comparison, DiagnosticCategory,
-    DiagnosticInterface, DiagnosticMessageChain, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, DuplicateInfoForFiles,
-    DuplicateInfoForSymbol, EmitResolverDebuggable, NodeArray, ReadonlyTextRange, VisitResult,
-    __String, create_diagnostic_for_node, escape_leading_underscores, factory,
-    get_first_identifier, get_source_file_of_node, is_jsx_opening_fragment,
-    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
-    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
-    TransientSymbolInterface, TypeChecker,
+    create_file_diagnostic, create_symbol_table, for_each, get_expando_initializer,
+    get_jsdoc_deprecated_tag, get_name_of_declaration, get_name_of_expando, get_or_update, length,
+    maybe_for_each, null_transformation_context, push_if_unique_rc, set_text_range_pos_end,
+    set_value_declaration, some, synthetic_factory, visit_each_child, CancellationTokenDebuggable,
+    Comparison, DiagnosticCategory, DiagnosticInterface, DiagnosticMessageChain,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics,
+    DuplicateInfoForFiles, DuplicateInfoForSymbol, EmitResolverDebuggable, NodeArray,
+    ReadonlyTextRange, VisitResult, __String, create_diagnostic_for_node,
+    escape_leading_underscores, factory, get_first_identifier, get_source_file_of_node,
+    is_jsx_opening_fragment, parse_isolated_entity_name, unescape_leading_underscores, visit_node,
+    BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
+    NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
+    TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -757,7 +757,67 @@ impl TypeChecker {
         symbol_name: &str,
         related_nodes: Option<&[Rc<Node /*Declaration*/>]>,
     ) {
-        unimplemented!()
+        let error_node = (if get_expando_initializer(node, false).is_some() {
+            get_name_of_expando(node)
+        } else {
+            get_name_of_declaration(Some(node))
+        })
+        .unwrap_or_else(|| node.node_wrapper());
+        let err = self.lookup_or_issue_error(
+            Some(&*error_node),
+            message,
+            Some(vec![symbol_name.to_owned()]),
+        );
+        if let Some(related_nodes) = related_nodes {
+            for related_node in related_nodes {
+                let adjusted_node = (if get_expando_initializer(related_node, false).is_some() {
+                    get_name_of_expando(related_node)
+                } else {
+                    get_name_of_declaration(Some(&**related_node))
+                })
+                .unwrap_or_else(|| related_node.node_wrapper());
+                if Rc::ptr_eq(&adjusted_node, &error_node) {
+                    continue;
+                }
+                {
+                    let mut err_related_information = err.related_information();
+                    if err_related_information.is_none() {
+                        *err_related_information = Some(vec![]);
+                    }
+                }
+                let leading_message: Rc<DiagnosticRelatedInformation> = Rc::new(
+                    create_diagnostic_for_node(
+                        &adjusted_node,
+                        &Diagnostics::_0_was_also_declared_here,
+                        Some(vec![symbol_name.to_owned()]),
+                    )
+                    .into(),
+                );
+                let follow_on_message: Rc<DiagnosticRelatedInformation> = Rc::new(
+                    create_diagnostic_for_node(&adjusted_node, &Diagnostics::and_here, None).into(),
+                );
+                if length(err.related_information().as_deref()) >= 5
+                    || some(
+                        err.related_information().as_deref(),
+                        Some(|r: &Rc<DiagnosticRelatedInformation>| {
+                            compare_diagnostics(&**r, &*follow_on_message) == Comparison::EqualTo
+                                || compare_diagnostics(&**r, &*leading_message)
+                                    == Comparison::EqualTo
+                        }),
+                    )
+                {
+                    continue;
+                }
+                add_related_info(
+                    &err,
+                    vec![if length(err.related_information().as_deref()) == 0 {
+                        leading_message
+                    } else {
+                        follow_on_message
+                    }],
+                );
+            }
+        }
     }
 
     pub(super) fn merge_symbol_table(
