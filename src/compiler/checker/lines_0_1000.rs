@@ -561,6 +561,9 @@ pub fn create_type_checker(
         number_or_big_int_type: None,
         template_constraint_type: None,
 
+        restrictive_mapper: None,
+        permissive_mapper: None,
+
         empty_generic_type: None,
 
         no_constraint_type: None,
@@ -899,6 +902,10 @@ pub fn create_type_checker(
         None,
     ));
 
+    type_checker.restrictive_mapper = Some(Rc::new(
+        type_checker.make_function_type_mapper(restrictive_mapper_func),
+    ));
+
     let empty_generic_type = type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
         type_checker.empty_symbols(),
@@ -931,6 +938,14 @@ pub fn create_type_checker(
     );
     type_checker.initialize_type_checker();
     type_checker
+}
+
+fn restrictive_mapper_func(type_checker: &TypeChecker, t: &Type) -> Rc<Type> {
+    if t.flags().intersects(TypeFlags::TypeParameter) {
+        type_checker.get_restrictive_type_parameter(t)
+    } else {
+        t.type_wrapper()
+    }
 }
 
 impl TypeChecker {

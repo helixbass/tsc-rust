@@ -310,6 +310,13 @@ impl TypeChecker {
         TypeMapper::new_array(sources, targets)
     }
 
+    pub(super) fn make_function_type_mapper(
+        &self,
+        func: fn(&TypeChecker, &Type) -> Rc<Type>,
+    ) -> TypeMapper {
+        TypeMapper::new_function(func)
+    }
+
     pub(super) fn make_composite_type_mapper(
         &self,
         mapper1: TypeMapper,
@@ -348,6 +355,13 @@ impl TypeChecker {
         } else {
             mapper2
         }
+    }
+
+    pub(super) fn get_restrictive_type_parameter(
+        &self,
+        tp: &Type, /*TypeParameter*/
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn clone_type_parameter(

@@ -222,6 +222,9 @@ pub struct TypeChecker {
     pub(crate) number_or_big_int_type: Option<Rc<Type>>,
     pub(crate) template_constraint_type: Option<Rc<Type>>,
 
+    pub(crate) restrictive_mapper: Option<Rc<TypeMapper>>,
+    pub(crate) permissive_mapper: Option<Rc<TypeMapper>>,
+
     pub(crate) empty_generic_type: Option<Rc<Type /*GenericType*/>>,
     pub(crate) no_constraint_type: Option<Rc<Type /*ResolvedType*/>>,
     pub(crate) circular_constraint_type: Option<Rc<Type /*ResolvedType*/>>,
