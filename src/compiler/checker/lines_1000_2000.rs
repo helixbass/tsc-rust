@@ -7,13 +7,14 @@ use std::rc::Rc;
 use super::{get_node_id, get_symbol_id};
 use crate::{
     create_compiler_diagnostic, null_transformation_context, set_text_range_pos_end,
-    synthetic_factory, visit_each_child, CancellationTokenDebuggable, DiagnosticInterface,
-    EmitResolverDebuggable, NodeArray, VisitResult, __String, create_diagnostic_for_node,
-    escape_leading_underscores, factory, get_first_identifier, get_source_file_of_node,
-    is_jsx_opening_fragment, parse_isolated_entity_name, unescape_leading_underscores, visit_node,
-    BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
-    NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
-    TransientSymbol, TransientSymbolInterface, TypeChecker,
+    synthetic_factory, visit_each_child, CancellationTokenDebuggable, DiagnosticCategory,
+    DiagnosticInterface, DiagnosticRelatedInformationInterface, EmitResolverDebuggable, NodeArray,
+    VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores, factory,
+    get_first_identifier, get_source_file_of_node, is_jsx_opening_fragment,
+    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
+    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
+    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
+    TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -260,11 +261,12 @@ impl TypeChecker {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Rc<Diagnostic> {
-        if let Some(location) = location {
-            Rc::new(create_diagnostic_for_node(location.borrow(), message, args).into())
+        Rc::new(if let Some(location) = location {
+            let location = location.borrow();
+            create_diagnostic_for_node(location, message, args).into()
         } else {
-            unimplemented!()
-        }
+            create_compiler_diagnostic(message, args).into()
+        })
     }
 
     pub(super) fn error<TLocation: Borrow<Node>>(
@@ -276,6 +278,15 @@ impl TypeChecker {
         let diagnostic = self.create_error(location, message, args);
         self.diagnostics().add(diagnostic.clone());
         diagnostic
+    }
+
+    pub(super) fn add_error_or_suggestion(&self, is_error: bool, diagnostic: Rc<Diagnostic>) {
+        if is_error {
+            self.diagnostics().add(diagnostic);
+        } else {
+            diagnostic.set_category(DiagnosticCategory::Suggestion); // TODO: (also commented on this elsewhere) is it ok that this mutates the diagnostic?
+            self.suggestion_diagnostics().add(diagnostic);
+        }
     }
 
     pub(super) fn error_and_maybe_suggest_await(
