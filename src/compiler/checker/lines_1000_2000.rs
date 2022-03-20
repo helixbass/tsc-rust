@@ -855,7 +855,7 @@ impl TypeChecker {
         for (id, source_symbol) in source {
             let target_symbol = target.get(id);
             let value = if let Some(target_symbol) = target_symbol {
-                unimplemented!()
+                self.merge_symbol(target_symbol, source_symbol, Some(unidirectional))
             } else {
                 source_symbol.clone()
             };
