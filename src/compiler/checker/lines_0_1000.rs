@@ -905,6 +905,9 @@ pub fn create_type_checker(
     type_checker.restrictive_mapper = Some(Rc::new(
         type_checker.make_function_type_mapper(restrictive_mapper_func),
     ));
+    type_checker.permissive_mapper = Some(Rc::new(
+        type_checker.make_function_type_mapper(permissive_mapper_func),
+    ));
 
     let empty_generic_type = type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
@@ -943,6 +946,14 @@ pub fn create_type_checker(
 fn restrictive_mapper_func(type_checker: &TypeChecker, t: &Type) -> Rc<Type> {
     if t.flags().intersects(TypeFlags::TypeParameter) {
         type_checker.get_restrictive_type_parameter(t)
+    } else {
+        t.type_wrapper()
+    }
+}
+
+fn permissive_mapper_func(type_checker: &TypeChecker, t: &Type) -> Rc<Type> {
+    if t.flags().intersects(TypeFlags::TypeParameter) {
+        type_checker.wildcard_type()
     } else {
         t.type_wrapper()
     }
@@ -2002,6 +2013,10 @@ impl TypeChecker {
 
     pub(super) fn any_type(&self) -> Rc<Type> {
         self.any_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn wildcard_type(&self) -> Rc<Type> {
+        self.wildcard_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn error_type(&self) -> Rc<Type> {
