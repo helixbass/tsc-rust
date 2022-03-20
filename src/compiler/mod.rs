@@ -22,5 +22,6 @@ pub mod tsbuild_public;
 pub mod types;
 pub mod utilities;
 pub mod utilities_public;
+pub mod visitor_public;
 pub mod watch;
 pub mod watch_public;

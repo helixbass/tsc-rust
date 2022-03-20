@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
-use crate::SortedArray;
-use local_macros::ast_type;
+use crate::{CommentRange, SortedArray};
+use local_macros::{ast_type, enum_unwrapped};
 
 pub struct Printer {
     pub current_source_file: Option<Rc<Node /*SourceFile*/>>,
@@ -144,7 +144,29 @@ bitflags! {
     }
 }
 
-pub(crate) type ReadonlyPragmaMap = HashMap<String, ()>;
+#[derive(Debug)]
+pub struct PragmaArgumentTypeFactory {
+    pub factory: String,
+}
+
+#[derive(Debug)]
+pub enum PragmaArgumentType {
+    PragmaArgumentTypeFactory(PragmaArgumentTypeFactory),
+}
+
+impl PragmaArgumentType {
+    pub fn as_pragma_argument_type_factory(&self) -> &PragmaArgumentTypeFactory {
+        enum_unwrapped!(self, [PragmaArgumentType, PragmaArgumentTypeFactory])
+    }
+}
+
+#[derive(Debug)]
+pub struct PragmaPseudoMapValue {
+    pub arguments: PragmaArgumentType,
+    pub range: CommentRange,
+}
+
+pub type ReadonlyPragmaMap = HashMap<String, Vec<PragmaPseudoMapValue>>;
 
 pub struct CommentDirectivesMap {
     pub directives_by_line: HashMap<String, Rc<CommentDirective>>,

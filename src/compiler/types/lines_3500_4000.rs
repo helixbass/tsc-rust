@@ -137,6 +137,10 @@ pub struct SourceFile {
         RefCell<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective /*| undefined*/>>>>,
     pattern_ambient_modules: RefCell<Option<Vec<PatternAmbientModule>>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
+    local_jsx_namespace: RefCell<Option<__String>>,
+    local_jsx_fragment_namespace: RefCell<Option<__String>>,
+    local_jsx_factory: RefCell<Option<Rc<Node>>>,
+    local_jsx_fragment_factory: RefCell<Option<Rc<Node>>>,
 
     end_flow_node: RefCell<Option<Rc<FlowNode>>>,
 
@@ -199,6 +203,10 @@ impl SourceFile {
             resolved_type_reference_directive_names: RefCell::new(None),
             pattern_ambient_modules: RefCell::new(None),
             pragmas: RefCell::new(None),
+            local_jsx_namespace: RefCell::new(None),
+            local_jsx_fragment_namespace: RefCell::new(None),
+            local_jsx_factory: RefCell::new(None),
+            local_jsx_fragment_factory: RefCell::new(None),
             end_flow_node: RefCell::new(None),
             extended_source_files: RefCell::new(None),
             config_file_specs: RefCell::new(None),
@@ -476,6 +484,22 @@ impl SourceFile {
 
     pub fn set_pragmas(&self, pragmas: ReadonlyPragmaMap) {
         *self.pragmas.borrow_mut() = Some(pragmas);
+    }
+
+    pub fn maybe_local_jsx_namespace(&self) -> RefMut<Option<__String>> {
+        self.local_jsx_namespace.borrow_mut()
+    }
+
+    pub fn maybe_local_jsx_fragment_namespace(&self) -> RefMut<Option<__String>> {
+        self.local_jsx_fragment_namespace.borrow_mut()
+    }
+
+    pub fn maybe_local_jsx_factory(&self) -> RefMut<Option<Rc<Node>>> {
+        self.local_jsx_factory.borrow_mut()
+    }
+
+    pub fn maybe_local_jsx_fragment_factory(&self) -> RefMut<Option<Rc<Node>>> {
+        self.local_jsx_fragment_factory.borrow_mut()
     }
 
     pub fn set_end_flow_node(&self, end_flow_node: Option<Rc<FlowNode>>) {

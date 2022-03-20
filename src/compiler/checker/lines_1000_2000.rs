@@ -6,9 +6,12 @@ use std::rc::Rc;
 
 use super::{get_node_id, get_symbol_id};
 use crate::{
-    __String, create_diagnostic_for_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
-    DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface,
-    SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
+    synthetic_factory, NodeArray, VisitResult, __String, create_diagnostic_for_node,
+    escape_leading_underscores, factory, get_first_identifier, get_source_file_of_node,
+    is_jsx_opening_fragment, parse_isolated_entity_name, unescape_leading_underscores, visit_node,
+    BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
+    NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
+    TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -16,6 +19,137 @@ impl TypeChecker {
         &self,
         location: Option<TLocation>,
     ) -> __String {
+        if let Some(location) = location {
+            let location = location.borrow();
+            let file = get_source_file_of_node(Some(location));
+            if let Some(file) = file {
+                let file_as_source_file = file.as_source_file();
+                if is_jsx_opening_fragment(location) {
+                    if let Some(file_local_jsx_fragment_namespace) = file_as_source_file
+                        .maybe_local_jsx_fragment_namespace()
+                        .as_ref()
+                    {
+                        return file_local_jsx_fragment_namespace.clone();
+                    }
+                    let file_pragmas = file_as_source_file.pragmas();
+                    let jsx_fragment_pragma = file_pragmas.get("jsxfrag");
+                    if let Some(jsx_fragment_pragma) = jsx_fragment_pragma {
+                        let chosen_pragma = &jsx_fragment_pragma[0];
+                        let mut file_local_jsx_fragment_factory =
+                            file_as_source_file.maybe_local_jsx_fragment_factory();
+                        *file_local_jsx_fragment_factory = parse_isolated_entity_name(
+                            chosen_pragma
+                                .arguments
+                                .as_pragma_argument_type_factory()
+                                .factory
+                                .clone(),
+                            self.language_version,
+                        );
+                        visit_node(
+                            file_local_jsx_fragment_factory.as_deref(),
+                            Some(|node: &Node| self.mark_as_synthetic(node)),
+                            Option::<fn(&Node) -> bool>::None,
+                            Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                        );
+                        if let Some(file_local_jsx_fragment_factory) =
+                            file_local_jsx_fragment_factory.as_ref()
+                        {
+                            let ret = get_first_identifier(file_local_jsx_fragment_factory)
+                                .as_identifier()
+                                .escaped_text
+                                .clone();
+                            *file_as_source_file.maybe_local_jsx_fragment_namespace() =
+                                Some(ret.clone());
+                            return ret;
+                        }
+                    }
+                    let entity = self.get_jsx_fragment_factory_entity(location);
+                    if let Some(entity) = entity {
+                        *file_as_source_file.maybe_local_jsx_fragment_factory() =
+                            Some(entity.clone());
+                        let ret = get_first_identifier(&entity)
+                            .as_identifier()
+                            .escaped_text
+                            .clone();
+                        *file_as_source_file.maybe_local_jsx_fragment_namespace() =
+                            Some(ret.clone());
+                        return ret;
+                    }
+                } else {
+                    let local_jsx_namespace = self.get_local_jsx_namespace(&file);
+                    if let Some(local_jsx_namespace) = local_jsx_namespace {
+                        *file_as_source_file.maybe_local_jsx_namespace() =
+                            Some(local_jsx_namespace.clone());
+                        return local_jsx_namespace;
+                    }
+                }
+            }
+        }
+        let mut _jsx_namespace = self._jsx_namespace.borrow_mut();
+        if _jsx_namespace.is_none() {
+            *_jsx_namespace = Some(__String::new("React".to_owned()));
+            if let Some(compiler_options_jsx_factory) = self.compiler_options.jsx_factory.as_ref() {
+                let mut _jsx_factory_entity = self._jsx_factory_entity.borrow_mut();
+                *_jsx_factory_entity = parse_isolated_entity_name(
+                    compiler_options_jsx_factory.clone(),
+                    self.language_version,
+                );
+                visit_node(
+                    _jsx_factory_entity.as_deref(),
+                    Some(|node: &Node| self.mark_as_synthetic(node)),
+                    Option::<fn(&Node) -> bool>::None,
+                    Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+                );
+                if let Some(_jsx_factory_entity) = _jsx_factory_entity.as_ref() {
+                    *_jsx_namespace = Some(
+                        get_first_identifier(_jsx_factory_entity)
+                            .as_identifier()
+                            .escaped_text
+                            .clone(),
+                    );
+                }
+            } else if let Some(compiler_options_react_namespace) =
+                self.compiler_options.react_namespace.as_ref()
+            {
+                *_jsx_namespace =
+                    Some(escape_leading_underscores(compiler_options_react_namespace));
+            }
+        }
+        let _jsx_namespace = _jsx_namespace.clone().unwrap();
+        let mut _jsx_factory_entity = self._jsx_factory_entity.borrow_mut();
+        if _jsx_factory_entity.is_none() {
+            *_jsx_factory_entity = synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    Some(
+                        factory_
+                            .create_qualified_name(
+                                synthetic_factory_,
+                                factory_
+                                    .create_identifier(
+                                        synthetic_factory_,
+                                        &unescape_leading_underscores(&_jsx_namespace),
+                                        Option::<NodeArray>::None,
+                                        None,
+                                    )
+                                    .into(),
+                                "create_element".to_owned(),
+                            )
+                            .into(),
+                    )
+                })
+            });
+        }
+        _jsx_namespace
+    }
+
+    pub(super) fn get_local_jsx_namespace(
+        &self,
+        file: &Node, /*SourceFile*/
+    ) -> Option<__String> {
+        unimplemented!()
+    }
+
+    pub(super) fn mark_as_synthetic(&self, node: &Node) -> VisitResult {
         unimplemented!()
     }
 

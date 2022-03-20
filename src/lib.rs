@@ -136,9 +136,10 @@ pub use compiler::module_name_resolver::{
 };
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_returns,
-    is_external_module, parse_json_text, IncrementalParser, IncrementalParserSyntaxCursor,
-    IncrementalParserSyntaxCursorInterface, IncrementalParserSyntaxCursorReparseTopLevelAwait,
-    IncrementalParserType, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
+    is_external_module, parse_isolated_entity_name, parse_json_text, IncrementalParser,
+    IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface,
+    IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType,
+    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
 };
 use compiler::parser::{
     is_declaration_file_name, is_jsdoc_like_text, process_comment_pragmas,
@@ -205,8 +206,8 @@ pub use compiler::tsbuild_public::{
 };
 use compiler::types::{
     diagnostic_category_name, CommandLineOptionType, CommentDirectivesMap, EmitNode,
-    ExternalEmitHelpers, FileIncludeKind, FileIncludeReason, IterationTypes, ReadonlyPragmaMap,
-    ReferencedFile, StringOrDiagnosticMessage,
+    ExternalEmitHelpers, FileIncludeKind, FileIncludeReason, IterationTypes, PragmaArgumentType,
+    ReadonlyPragmaMap, ReferencedFile, StringOrDiagnosticMessage,
 };
 pub use compiler::types::{
     extend_compiler_options, extend_watch_options, maybe_extend_compiler_options,
@@ -307,9 +308,9 @@ pub use compiler::types::{
     UnionOrIntersectionTypeInterface, UnionReduction, UnionType, UnionTypeNode, UnparsedPrepend,
     UnparsedPrologue, UnparsedSectionInterface, UnparsedSource, UnparsedTextLike,
     VariableDeclaration, VariableDeclarationList, VariableLikeDeclarationInterface,
-    VariableStatement, VarianceFlags, VoidExpression, WatchDirectoryFlags, WatchDirectoryKind,
-    WatchFileKind, WatchOptions, WhileStatement, WithStatement, WriteFileCallback, YieldExpression,
-    __String,
+    VariableStatement, VarianceFlags, VisitResult, VoidExpression, WatchDirectoryFlags,
+    WatchDirectoryKind, WatchFileKind, WatchOptions, WhileStatement, WithStatement,
+    WriteFileCallback, YieldExpression, __String,
 };
 pub use compiler::utilities::{
     add_related_info, attach_file_to_diagnostics, chain_diagnostic_messages, change_extension,
@@ -453,6 +454,7 @@ use compiler::utilities_public::{
     is_unary_expression_with_write, needs_scope_marker, node_has_name,
     supported_locale_directories, text_range_contains_position_inclusive,
 };
+pub use compiler::visitor_public::visit_node;
 pub use compiler::watch::{
     create_diagnostic_reporter, create_watch_compiler_host_of_config_file,
     create_watch_status_reporter, emit_files_and_report_errors_and_get_exit_status,
