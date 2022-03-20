@@ -14,7 +14,10 @@ use super::{
     SignatureFlags, SymbolTable, SymbolTracker, TransformationContext, TransformerFactory, Type,
     TypeFlags, TypeMapper, __String,
 };
-use crate::{Diagnostic, IndexInfo, IterationTypes, NodeBuilder, Number, StringOrNumber};
+use crate::{
+    Diagnostic, IndexInfo, IterationTypes, IterationTypesResolver, NodeBuilder, Number,
+    StringOrNumber,
+};
 use local_macros::symbol_type;
 
 pub type RedirectTargetsMap = HashMap<Path, Vec<String>>;
@@ -257,6 +260,9 @@ pub struct TypeChecker {
     pub(crate) any_iteration_types: Option<Rc<IterationTypes>>,
     pub(crate) any_iteration_types_except_next: Option<Rc<IterationTypes>>,
     pub(crate) default_iteration_types: Option<Rc<IterationTypes>>,
+
+    pub(crate) async_iteration_types_resolver: IterationTypesResolver,
+    pub(crate) sync_iteration_types_resolver: IterationTypesResolver,
 
     pub(crate) global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub(crate) deferred_global_promise_type: RefCell<Option<Rc<Type /*GenericType*/>>>,

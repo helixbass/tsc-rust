@@ -715,6 +715,38 @@ impl TypeChecker {
         )
     }
 
+    pub(super) fn get_global_async_iterable_type(&self, report_errors: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_global_async_iterator_type(&self, report_errors: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_global_async_iterable_iterator_type(&self, report_errors: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_global_async_generator_type(&self, report_errors: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_global_iterable_type(&self, report_errors: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_global_iterator_type(&self, report_errors: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_global_iterable_iterator_type(&self, report_errors: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_global_generator_type(&self, report_errors: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_array_or_tuple_target_type(
         &self,
         node: &Node, /*ArrayTypeNode*/

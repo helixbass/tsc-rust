@@ -9,10 +9,11 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::ptr;
 use std::rc::Rc;
+use std::fmt;
 
 use super::{create_node_builder, is_not_accessor, is_not_overload};
 use crate::{
-    add_range, contains_parse_error, get_first_identifier, is_function_like,
+Diagnostics,    add_range, contains_parse_error, get_first_identifier, is_function_like,
     is_property_access_expression, is_property_access_or_qualified_name_or_import_type_node,
     is_source_file, skip_type_checking, unescape_leading_underscores, BaseInterfaceType,
     CancellationToken, CancellationTokenDebuggable, CheckFlags, ContextFlags, Debug_, Diagnostic,
@@ -131,22 +132,27 @@ pub(super) enum IterationTypeKind {
     Next,
 }
 
-pub(super) trait IterationTypesResolver {
-    fn iterable_cache_key(&self) -> &str /*"iterationTypesOfAsyncIterable" | "iterationTypesOfIterable"*/;
-    fn iterator_cache_key(&self) -> &str /*"iterationTypesOfAsyncIterator" | "iterationTypesOfIterator"*/;
-    fn iterator_symbol_name(&self) -> &str /*"asyncIterator" | "iterator"*/;
-    fn get_global_iterator_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/>;
-    fn get_global_iterable_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/>;
-    fn get_global_iterable_iterator_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/>;
-    fn get_global_generator_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/>;
-    fn resolve_iteration_type(
-        &self,
-        type_: &Type,
-        error_node: Option<Rc<Node>>,
-    ) -> Option<Rc<Type>>;
-    fn must_have_a_next_method_diagnostic(&self) -> &'static DiagnosticMessage;
-    fn must_be_a_method_diagnostic(&self) -> &'static DiagnosticMessage;
-    fn must_have_a_value_diagnostic(&self) -> &'static DiagnosticMessage;
+pub(crate) struct IterationTypesResolver {
+    pub iterable_cache_key: &'static str, /*"iterationTypesOfAsyncIterable" | "iterationTypesOfIterable"*/
+    pub iterator_cache_key: &'static str, /*"iterationTypesOfAsyncIterator" | "iterationTypesOfIterator"*/
+    pub iterator_symbol_name: &'static str, /*"asyncIterator" | "iterator"*/
+    pub get_global_iterator_type: fn(&TypeChecker, report_errors: bool) -> Rc<Type /*GenericType*/>,
+    pub get_global_iterable_type: fn(&TypeChecker, report_errors: bool) -> Rc<Type /*GenericType*/>,
+    pub get_global_iterable_iterator_type:
+        fn(&TypeChecker, report_errors: bool) -> Rc<Type /*GenericType*/>,
+    pub get_global_generator_type:
+        fn(&TypeChecker, report_errors: bool) -> Rc<Type /*GenericType*/>,
+    pub resolve_iteration_type:
+        fn(&TypeChecker, type_: &Type, error_node: Option<Rc<Node>>) -> Option<Rc<Type>>,
+    pub must_have_a_next_method_diagnostic: &'static DiagnosticMessage,
+    pub must_be_a_method_diagnostic: &'static DiagnosticMessage,
+    pub must_have_a_value_diagnostic: &'static DiagnosticMessage,
+}
+
+impl fmt::Debug for IterationTypesResolver {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        Ok(())
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -597,6 +603,36 @@ pub fn create_type_checker(
         any_iteration_types: None,
         any_iteration_types_except_next: None,
         default_iteration_types: None,
+
+        async_iteration_types_resolver: 
+            IterationTypesResolver {
+                iterable_cache_key: "iterationTypesOfAsyncIterable",
+                iterator_cache_key: "iterationTypesOfAsyncIterator",
+                iterator_symbol_name: "asyncIterator",
+                get_global_iterator_type: TypeChecker::get_global_async_iterator_type,
+                get_global_iterable_type: TypeChecker::get_global_async_iterable_type,
+                get_global_iterable_iterator_type: TypeChecker::get_global_async_iterable_iterator_type,
+                get_global_generator_type: TypeChecker::get_global_async_generator_type,
+                resolve_iteration_type: async_iteration_types_resolver_resolve_iteration_type,
+                must_have_a_next_method_diagnostic: &Diagnostics::An_async_iterator_must_have_a_next_method,
+                must_be_a_method_diagnostic: &Diagnostics::The_0_property_of_an_async_iterator_must_be_a_method,
+                must_have_a_value_diagnostic: &Diagnostics::The_type_returned_by_the_0_method_of_an_async_iterator_must_be_a_promise_for_a_type_with_a_value_property,
+            },
+
+        sync_iteration_types_resolver: 
+            IterationTypesResolver {
+                iterable_cache_key: "iterationTypesOfIterable",
+                iterator_cache_key: "iterationTypesOfIterator",
+                iterator_symbol_name: "iterator",
+                get_global_iterator_type: TypeChecker::get_global_iterator_type,
+                get_global_iterable_type: TypeChecker::get_global_iterable_type,
+                get_global_iterable_iterator_type: TypeChecker::get_global_iterable_iterator_type,
+                get_global_generator_type: TypeChecker::get_global_generator_type,
+                resolve_iteration_type: sync_iteration_types_resolver_resolve_iteration_type,
+                must_have_a_next_method_diagnostic: &Diagnostics::An_iterator_must_have_a_next_method,
+                must_be_a_method_diagnostic: &Diagnostics::The_0_property_of_an_iterator_must_be_a_method,
+                must_have_a_value_diagnostic: &Diagnostics::The_type_returned_by_the_0_method_of_an_iterator_must_have_a_value_property,
+            },
 
         global_array_type: None,
 
@@ -1138,6 +1174,14 @@ fn permissive_mapper_func(type_checker: &TypeChecker, t: &Type) -> Rc<Type> {
     } else {
         t.type_wrapper()
     }
+}
+
+fn async_iteration_types_resolver_resolve_iteration_type(type_checker: &TypeChecker, type_: &Type, error_node: Option<Rc<Node>>) -> Option<Rc<Type>> {
+    type_checker.get_awaited_type_(type_, error_node, None, None)
+}
+
+fn sync_iteration_types_resolver_resolve_iteration_type(_type_checker: &TypeChecker, type_: &Type, _error_node: Option<Rc<Node>>) -> Option<Rc<Type>> {
+    Some(type_.type_wrapper())
 }
 
 impl TypeChecker {
