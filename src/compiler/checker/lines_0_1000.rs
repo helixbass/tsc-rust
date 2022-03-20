@@ -20,16 +20,17 @@ use crate::{
     DiagnosticRelatedInformationInterface, EmitTextWriter, Extension, FreshableIntrinsicType,
     GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, ModuleInstanceState, Node,
     NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number,
-    ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult, Signature, SignatureKind,
-    StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable,
-    SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
-    TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate, VarianceFlags, __String,
-    create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
-    get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
-    get_module_instance_state, get_parse_tree_node, get_strict_option_value,
-    get_use_define_for_class_fields, is_assignment_pattern, is_call_like_expression,
-    is_export_specifier, is_expression, is_identifier, is_jsx_attribute_like,
-    is_object_literal_element_like, is_parameter, is_type_node, object_allocator, sum,
+    ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult, Signature, SignatureFlags,
+    SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
+    SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker,
+    TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
+    TypePredicateKind, VarianceFlags, __String, create_diagnostic_collection, create_symbol_table,
+    escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
+    get_emit_module_kind, get_emit_script_target, get_module_instance_state, get_parse_tree_node,
+    get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
+    is_call_like_expression, is_export_specifier, is_expression, is_identifier,
+    is_jsx_attribute_like, is_object_literal_element_like, is_parameter, is_type_node,
+    object_allocator, sum,
 };
 
 lazy_static! {
@@ -581,6 +582,17 @@ pub fn create_type_checker(
         marker_sub_type: None,
         marker_other_type: None,
 
+        no_type_predicate: None,
+
+        any_signature: None,
+        unknown_signature: None,
+        resolving_signature: None,
+        silent_never_signature: None,
+
+        enum_number_index_info: None,
+
+        iteration_types_cache: RefCell::new(HashMap::new()),
+
         global_array_type: None,
 
         deferred_global_promise_type: RefCell::new(None),
@@ -1030,7 +1042,63 @@ pub fn create_type_checker(
             .into(),
     );
 
+    type_checker.no_type_predicate = Some(Rc::new(type_checker.create_type_predicate(
+        TypePredicateKind::Identifier,
+        Some("<<unresolved>>".to_owned()),
+        Some(0),
+        Some(type_checker.any_type()),
+    )));
+
+    type_checker.any_signature = Some(Rc::new(type_checker.create_signature(
+        None,
+        None,
+        None,
+        vec![],
+        Some(type_checker.any_type()),
+        None,
+        0,
+        SignatureFlags::None,
+    )));
+    type_checker.unknown_signature = Some(Rc::new(type_checker.create_signature(
+        None,
+        None,
+        None,
+        vec![],
+        Some(type_checker.error_type()),
+        None,
+        0,
+        SignatureFlags::None,
+    )));
+    type_checker.resolving_signature = Some(Rc::new(type_checker.create_signature(
+        None,
+        None,
+        None,
+        vec![],
+        Some(type_checker.any_type()),
+        None,
+        0,
+        SignatureFlags::None,
+    )));
+    type_checker.silent_never_signature = Some(Rc::new(type_checker.create_signature(
+        None,
+        None,
+        None,
+        vec![],
+        Some(type_checker.silent_never_type()),
+        None,
+        0,
+        SignatureFlags::None,
+    )));
+
+    type_checker.enum_number_index_info = Some(Rc::new(type_checker.create_index_info(
+        type_checker.number_type(),
+        type_checker.string_type(),
+        true,
+        None,
+    )));
+
     type_checker.initialize_type_checker();
+
     type_checker
 }
 
@@ -2172,6 +2240,10 @@ impl TypeChecker {
 
     pub(super) fn never_type(&self) -> Rc<Type> {
         self.never_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn silent_never_type(&self) -> Rc<Type> {
+        self.silent_never_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn string_number_symbol_type(&self) -> Rc<Type> {

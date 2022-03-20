@@ -14,7 +14,7 @@ use super::{
     SignatureFlags, SymbolTable, SymbolTracker, TransformationContext, TransformerFactory, Type,
     TypeFlags, TypeMapper, __String,
 };
-use crate::{Diagnostic, NodeBuilder, Number, StringOrNumber};
+use crate::{Diagnostic, IndexInfo, IterationTypes, NodeBuilder, Number, StringOrNumber};
 use local_macros::symbol_type;
 
 pub type RedirectTargetsMap = HashMap<Path, Vec<String>>;
@@ -241,6 +241,17 @@ pub struct TypeChecker {
     pub(crate) marker_super_type: Option<Rc<Type>>,
     pub(crate) marker_sub_type: Option<Rc<Type>>,
     pub(crate) marker_other_type: Option<Rc<Type>>,
+
+    pub(crate) no_type_predicate: Option<Rc<TypePredicate>>,
+
+    pub(crate) any_signature: Option<Rc<Signature>>,
+    pub(crate) unknown_signature: Option<Rc<Signature>>,
+    pub(crate) resolving_signature: Option<Rc<Signature>>,
+    pub(crate) silent_never_signature: Option<Rc<Signature>>,
+
+    pub(crate) enum_number_index_info: Option<Rc<IndexInfo>>,
+
+    pub(crate) iteration_types_cache: RefCell<HashMap<String, IterationTypes>>,
 
     pub(crate) global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub(crate) deferred_global_promise_type: RefCell<Option<Rc<Type /*GenericType*/>>>,

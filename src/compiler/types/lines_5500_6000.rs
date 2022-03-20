@@ -9,7 +9,7 @@ use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
 use super::{BaseType, Node, Symbol, SymbolTable, Type, TypeChecker, TypePredicate};
-use crate::ScriptKind;
+use crate::{Debug_, ScriptKind};
 use local_macros::{enum_unwrapped, type_type};
 
 pub trait ResolvedTypeInterface {
@@ -18,6 +18,55 @@ pub trait ResolvedTypeInterface {
     fn set_properties(&self, properties: Vec<Rc<Symbol>>);
     fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
     fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
+}
+
+#[derive(Debug)]
+pub(crate) struct IterationTypes {
+    yield_type: Option<Rc<Type>>,
+    return_type: Option<Rc<Type>>,
+    next_type: Option<Rc<Type>>,
+}
+
+impl IterationTypes {
+    pub fn new(yield_type: Rc<Type>, return_type: Rc<Type>, next_type: Rc<Type>) -> Self {
+        Self {
+            yield_type: Some(yield_type),
+            return_type: Some(return_type),
+            next_type: Some(next_type),
+        }
+    }
+
+    pub fn new_no_iteration_types() -> Self {
+        Self {
+            yield_type: None,
+            return_type: None,
+            next_type: None,
+        }
+    }
+
+    pub fn yield_type(&self) -> Rc<Type> {
+        let cloned = self.yield_type.clone();
+        if cloned.is_none() {
+            Debug_.fail(Some("Not supported"));
+        }
+        cloned.unwrap()
+    }
+
+    pub fn return_type(&self) -> Rc<Type> {
+        let cloned = self.return_type.clone();
+        if cloned.is_none() {
+            Debug_.fail(Some("Not supported"));
+        }
+        cloned.unwrap()
+    }
+
+    pub fn next_type(&self) -> Rc<Type> {
+        let cloned = self.next_type.clone();
+        if cloned.is_none() {
+            Debug_.fail(Some("Not supported"));
+        }
+        cloned.unwrap()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -153,6 +202,7 @@ pub enum IndexKind {
     Number,
 }
 
+#[derive(Debug)]
 pub struct IndexInfo {
     pub key_type: Rc<Type>,
     pub type_: Rc<Type>,

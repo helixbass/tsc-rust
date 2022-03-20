@@ -9,12 +9,12 @@ use crate::{
     append_if_unique, filter, get_effective_constraint_of_type_parameter,
     get_effective_return_type_node, get_effective_type_parameter_declarations, is_binding_pattern,
     is_type_parameter_declaration, map_defined, node_is_missing, IndexInfo, Signature,
-    SignatureFlags, SignatureKind, TypePredicate, UnionType, __String, binary_search_copy_key,
-    compare_values, concatenate, get_name_of_declaration, get_object_flags, map,
-    unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
-    Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    TypeReference, TypeReferenceNode, UnionReduction, UnionTypeNode,
+    SignatureFlags, SignatureKind, TypePredicate, TypePredicateKind, UnionType, __String,
+    binary_search_copy_key, compare_values, concatenate, get_name_of_declaration, get_object_flags,
+    map, unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType,
+    DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
+    TypeInterface, TypeReference, TypeReferenceNode, UnionReduction, UnionTypeNode,
 };
 
 impl TypeChecker {
@@ -132,6 +132,21 @@ impl TypeChecker {
         node: &Node, /*ParameterDeclaration | JSDocParameterTag | JSDocPropertyTag*/
     ) -> bool {
         unimplemented!()
+    }
+
+    pub(super) fn create_type_predicate(
+        &self,
+        kind: TypePredicateKind,
+        parameter_name: Option<String>,
+        parameter_index: Option<usize>,
+        type_: Option<Rc<Type>>,
+    ) -> TypePredicate {
+        TypePredicate {
+            kind,
+            parameter_name,
+            parameter_index,
+            type_,
+        }
     }
 
     pub(super) fn fill_missing_type_arguments(
@@ -288,6 +303,21 @@ impl TypeChecker {
             return Some(self.get_type_from_type_node_(&type_node));
         }
         self.get_return_type_of_type_tag(declaration)
+    }
+
+    pub(super) fn create_index_info(
+        &self,
+        key_type: Rc<Type>,
+        type_: Rc<Type>,
+        is_readonly: bool,
+        declaration: Option<Rc<Node /*IndexSignatureDeclaration*/>>,
+    ) -> IndexInfo {
+        IndexInfo {
+            key_type,
+            type_,
+            is_readonly,
+            declaration,
+        }
     }
 
     pub(super) fn get_constraint_declaration(
