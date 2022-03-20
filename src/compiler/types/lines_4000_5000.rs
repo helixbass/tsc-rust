@@ -810,6 +810,8 @@ pub trait SymbolInterface {
     fn maybe_id(&self) -> Option<SymbolId>;
     fn id(&self) -> SymbolId;
     fn set_id(&self, id: SymbolId);
+    fn maybe_merge_id(&self) -> Option<u32>;
+    fn set_merge_id(&self, merge_id: u32);
     fn maybe_parent(&self) -> Option<Rc<Symbol>>;
     fn set_parent(&self, parent: Option<Rc<Symbol>>);
     fn maybe_export_symbol(&self) -> Option<Rc<Symbol>>;
@@ -849,6 +851,7 @@ pub struct BaseSymbol {
     exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     global_exports: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     id: Cell<Option<SymbolId>>,
+    merge_id: Cell<Option<u32>>,
     parent: RefCell<Option<Rc<Symbol>>>,
     export_symbol: RefCell<Option<Rc<Symbol>>>,
     const_enum_only_module: Cell<Option<bool>>,
@@ -868,6 +871,7 @@ impl BaseSymbol {
             exports: RefCell::new(None),
             global_exports: RefCell::new(None),
             id: Cell::new(None),
+            merge_id: Cell::new(None),
             parent: RefCell::new(None),
             export_symbol: RefCell::new(None),
             const_enum_only_module: Cell::new(None),
@@ -952,6 +956,14 @@ impl SymbolInterface for BaseSymbol {
 
     fn set_id(&self, id: SymbolId) {
         self.id.set(Some(id));
+    }
+
+    fn maybe_merge_id(&self) -> Option<u32> {
+        self.merge_id.get()
+    }
+
+    fn set_merge_id(&self, merge_id: u32) {
+        self.merge_id.set(Some(merge_id));
     }
 
     fn maybe_parent(&self) -> Option<Rc<Symbol>> {

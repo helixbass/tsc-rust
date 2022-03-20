@@ -1792,6 +1792,14 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.set_id(id)
                     }
 
+                    fn maybe_merge_id(&self) -> ::std::option::Option<u32> {
+                        self.#first_field_name.maybe_merge_id()
+                    }
+
+                    fn set_merge_id(&self, merge_id: u32) {
+                        self.#first_field_name.set_merge_id(merge_id)
+                    }
+
                     fn maybe_parent(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
                         self.#first_field_name.maybe_parent()
                     }
@@ -1955,6 +1963,18 @@ fn get_symbol_enum_interface_impl(
                     fn set_id(&self, id: crate::SymbolId) {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.set_id(id)),*
+                        }
+                    }
+
+                    fn maybe_merge_id(&self) -> ::std::option::Option<u32> {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_merge_id()),*
+                        }
+                    }
+
+                    fn set_merge_id(&self, merge_id: u32) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_merge_id(merge_id)),*
                         }
                     }
 

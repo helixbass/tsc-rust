@@ -2512,6 +2512,10 @@ impl TypeChecker {
         self.global_array_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn merged_symbols(&self) -> RefMut<HashMap<u32, Rc<Symbol>>> {
+        self.merged_symbols.borrow_mut()
+    }
+
     pub(super) fn diagnostics(&self) -> RefMut<DiagnosticCollection> {
         self.diagnostics.borrow_mut()
     }

@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{get_node_id, get_symbol_id};
+use super::{get_next_merge_id, get_node_id, get_symbol_id, increment_next_merge_id};
 use crate::{
     add_related_info, create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
     create_diagnostic_for_node_from_message_chain, create_file_diagnostic, for_each,
@@ -433,6 +433,68 @@ impl TypeChecker {
         let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
         let symbol = BaseTransientSymbol::new(symbol, check_flags.unwrap_or(CheckFlags::None));
         symbol.into()
+    }
+
+    pub(super) fn get_excluded_symbol_flags(&self, flags: SymbolFlags) -> SymbolFlags {
+        let mut result = SymbolFlags::None;
+        if flags.intersects(SymbolFlags::BlockScopedVariable) {
+            result |= SymbolFlags::BlockScopedVariableExcludes;
+        }
+        if flags.intersects(SymbolFlags::FunctionScopedVariable) {
+            result |= SymbolFlags::FunctionScopedVariableExcludes;
+        }
+        if flags.intersects(SymbolFlags::Property) {
+            result |= SymbolFlags::PropertyExcludes;
+        }
+        if flags.intersects(SymbolFlags::EnumMember) {
+            result |= SymbolFlags::EnumMemberExcludes;
+        }
+        if flags.intersects(SymbolFlags::Function) {
+            result |= SymbolFlags::FunctionExcludes;
+        }
+        if flags.intersects(SymbolFlags::Class) {
+            result |= SymbolFlags::ClassExcludes;
+        }
+        if flags.intersects(SymbolFlags::Interface) {
+            result |= SymbolFlags::InterfaceExcludes;
+        }
+        if flags.intersects(SymbolFlags::RegularEnum) {
+            result |= SymbolFlags::RegularEnumExcludes;
+        }
+        if flags.intersects(SymbolFlags::ConstEnum) {
+            result |= SymbolFlags::ConstEnumExcludes;
+        }
+        if flags.intersects(SymbolFlags::ValueModule) {
+            result |= SymbolFlags::ValueModuleExcludes;
+        }
+        if flags.intersects(SymbolFlags::Method) {
+            result |= SymbolFlags::MethodExcludes;
+        }
+        if flags.intersects(SymbolFlags::GetAccessor) {
+            result |= SymbolFlags::GetAccessorExcludes;
+        }
+        if flags.intersects(SymbolFlags::SetAccessor) {
+            result |= SymbolFlags::SetAccessorExcludes;
+        }
+        if flags.intersects(SymbolFlags::TypeParameter) {
+            result |= SymbolFlags::TypeParameterExcludes;
+        }
+        if flags.intersects(SymbolFlags::TypeAlias) {
+            result |= SymbolFlags::TypeAliasExcludes;
+        }
+        if flags.intersects(SymbolFlags::Alias) {
+            result |= SymbolFlags::AliasExcludes;
+        }
+        result
+    }
+
+    pub(super) fn record_merged_symbol(&self, target: &Symbol, source: &Symbol) {
+        if source.maybe_merge_id().is_none() {
+            source.set_merge_id(get_next_merge_id());
+            increment_next_merge_id();
+        }
+        self.merged_symbols()
+            .insert(source.maybe_merge_id().unwrap(), target.symbol_wrapper());
     }
 
     pub(super) fn merge_symbol_table(
