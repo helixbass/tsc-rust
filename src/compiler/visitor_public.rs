@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::rc::Rc;
 
-use crate::{Node, VisitResult};
+use crate::{Node, NodeArray, TransformationContext, VisitResult};
 
 pub fn visit_node<
     TNode: Borrow<Node>,
@@ -13,6 +13,41 @@ pub fn visit_node<
     visitor: Option<TVisitor>,
     test: Option<TTest>,
     lift: Option<TLift>,
+) -> Option<Rc<Node>> {
+    unimplemented!()
+}
+
+pub fn visit_each_child<
+    TNode: Borrow<Node>,
+    TVisitor: FnMut(&Node) -> VisitResult,
+    TContext: TransformationContext,
+    TNodesVisitorVisitor: FnMut(&Node) -> VisitResult,
+    TNodesVisitorTest: Fn(&Node) -> bool,
+    TNodesVisitor: FnMut(
+        Option<&NodeArray>,
+        Option<TNodesVisitorVisitor>,
+        Option<TNodesVisitorTest>,
+        Option<usize>,
+        Option<usize>,
+    ) -> NodeArray,
+    TTokenVisitor: FnMut(&Node) -> VisitResult,
+    TNodeVisitorNode: Borrow<Node>,
+    TNodeVisitorVisitor: FnMut(&Node) -> VisitResult,
+    TNodeVisitorTest: Fn(&Node) -> bool,
+    TNodeVisitorLift: Fn(&[Rc<Node>]) -> Rc<Node>,
+    TNodeVisitor: FnMut(
+        Option<TNodeVisitorNode>,
+        Option<TNodeVisitorVisitor>,
+        Option<TNodeVisitorTest>,
+        Option<TNodeVisitorLift>,
+    ) -> Option<Rc<Node>>,
+>(
+    node: Option<TNode>,
+    visitor: TVisitor,
+    context: &TContext,
+    nodes_visitor: Option<TNodesVisitor>,
+    token_visitor: Option<TTokenVisitor>,
+    node_visitor: Option<TNodeVisitor>,
 ) -> Option<Rc<Node>> {
     unimplemented!()
 }

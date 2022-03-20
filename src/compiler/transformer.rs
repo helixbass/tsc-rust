@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use bitflags::bitflags;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;

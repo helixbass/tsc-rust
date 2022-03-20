@@ -192,6 +192,7 @@ pub use compiler::scanner::{
 use compiler::sys::{generate_djb2_hash, missing_file_modified_time};
 pub use compiler::sys::{get_sys, System};
 pub use compiler::tracing::{dump_tracing_legend, start_tracing};
+pub use compiler::transformer::null_transformation_context;
 pub use compiler::transformers::{
     chain_bundle, transform_class_fields, transform_declarations, transform_ecmascript_module,
     transform_es2015, transform_es2016, transform_es2017, transform_es2018, transform_es2019,
@@ -454,7 +455,7 @@ use compiler::utilities_public::{
     is_unary_expression_with_write, needs_scope_marker, node_has_name,
     supported_locale_directories, text_range_contains_position_inclusive,
 };
-pub use compiler::visitor_public::visit_node;
+pub use compiler::visitor_public::{visit_each_child, visit_node};
 pub use compiler::watch::{
     create_diagnostic_reporter, create_watch_compiler_host_of_config_file,
     create_watch_status_reporter, emit_files_and_report_errors_and_get_exit_status,
