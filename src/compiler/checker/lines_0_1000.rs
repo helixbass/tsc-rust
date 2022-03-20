@@ -634,6 +634,8 @@ pub fn create_type_checker(
                 must_have_a_value_diagnostic: &Diagnostics::The_type_returned_by_the_0_method_of_an_iterator_must_have_a_value_property,
             },
 
+        amalgamated_duplicates: RefCell::new(None),
+
         global_array_type: None,
 
         deferred_global_promise_type: RefCell::new(None),
@@ -1182,6 +1184,20 @@ fn async_iteration_types_resolver_resolve_iteration_type(type_checker: &TypeChec
 
 fn sync_iteration_types_resolver_resolve_iteration_type(_type_checker: &TypeChecker, type_: &Type, _error_node: Option<Rc<Node>>) -> Option<Rc<Type>> {
     Some(type_.type_wrapper())
+}
+
+#[derive(Debug)]
+pub(crate) struct DuplicateInfoForSymbol {
+    pub first_file_locations: Vec<Rc<Node/*Declaration*/>>,
+    pub second_file_locations: Vec<Rc<Node/*Declaration*/>>,
+    pub is_block_scoped: bool,
+}
+
+#[derive(Debug)]
+pub(crate) struct DuplicateInfoForFiles {
+    pub first_file: Rc<Node/*SourceFile*/>,
+    pub second_file: Rc<Node/*SourceFile*/>,
+    pub conflicting_symbols: HashMap<String, DuplicateInfoForSymbol>,
 }
 
 impl TypeChecker {

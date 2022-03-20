@@ -10,8 +10,8 @@ pub use compiler::builder::ProgramBuildInfo;
 pub use compiler::builder_public::{
     BuilderProgram, EmitAndSemanticDiagnosticsBuilderProgram, SemanticDiagnosticsBuilderProgram,
 };
-use compiler::checker::IterationTypesResolver;
 pub use compiler::checker::{create_type_checker, get_node_id, get_symbol_id, NodeBuilder};
+use compiler::checker::{DuplicateInfoForFiles, IterationTypesResolver};
 use compiler::command_line_parser::{
     build_opts, convert_to_object_worker, convert_to_options_with_absolute_paths,
     convert_to_tsconfig, get_diagnostic_text, module_resolution_option_declarations,

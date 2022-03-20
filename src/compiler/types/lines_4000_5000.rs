@@ -15,8 +15,8 @@ use super::{
     TypeFlags, TypeMapper, __String,
 };
 use crate::{
-    Diagnostic, IndexInfo, IterationTypes, IterationTypesResolver, NodeBuilder, Number,
-    StringOrNumber,
+    Diagnostic, DuplicateInfoForFiles, IndexInfo, IterationTypes, IterationTypesResolver,
+    NodeBuilder, Number, StringOrNumber,
 };
 use local_macros::symbol_type;
 
@@ -263,6 +263,8 @@ pub struct TypeChecker {
 
     pub(crate) async_iteration_types_resolver: IterationTypesResolver,
     pub(crate) sync_iteration_types_resolver: IterationTypesResolver,
+
+    pub(crate) amalgamated_duplicates: RefCell<Option<HashMap<String, DuplicateInfoForFiles>>>,
 
     pub(crate) global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub(crate) deferred_global_promise_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
