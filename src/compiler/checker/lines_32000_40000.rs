@@ -27,7 +27,10 @@ impl TypeChecker {
         diagnostic: &DiagnosticMessage,
     ) -> bool {
         if !self.is_type_assignable_to(type_, &self.number_or_big_int_type()) {
-            self.error_and_maybe_suggest_await(operand, diagnostic, None);
+            self.error_and_maybe_suggest_await(
+                operand, false, // TODO: this is wrong
+                diagnostic, None,
+            );
             return false;
         }
         true

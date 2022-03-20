@@ -6,17 +6,17 @@ use std::rc::Rc;
 
 use super::{get_node_id, get_symbol_id};
 use crate::{
-    create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
+    add_related_info, create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
     create_diagnostic_for_node_from_message_chain, create_file_diagnostic,
     null_transformation_context, set_text_range_pos_end, synthetic_factory, visit_each_child,
     CancellationTokenDebuggable, DiagnosticCategory, DiagnosticInterface, DiagnosticMessageChain,
-    DiagnosticRelatedInformationInterface, EmitResolverDebuggable, NodeArray, ReadonlyTextRange,
-    VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores, factory,
-    get_first_identifier, get_source_file_of_node, is_jsx_opening_fragment,
-    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
-    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
-    TransientSymbolInterface, TypeChecker,
+    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics,
+    EmitResolverDebuggable, NodeArray, ReadonlyTextRange, VisitResult, __String,
+    create_diagnostic_for_node, escape_leading_underscores, factory, get_first_identifier,
+    get_source_file_of_node, is_jsx_opening_fragment, parse_isolated_entity_name,
+    unescape_leading_underscores, visit_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
+    DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface,
+    SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -332,10 +332,22 @@ impl TypeChecker {
     pub(super) fn error_and_maybe_suggest_await(
         &self,
         location: &Node,
+        maybe_missing_await: bool,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> Rc<Diagnostic> {
         let diagnostic = self.error(Some(location), message, args);
+        if maybe_missing_await {
+            let related: Rc<DiagnosticRelatedInformation> = Rc::new(
+                create_diagnostic_for_node(
+                    location,
+                    &Diagnostics::Did_you_forget_to_use_await,
+                    None,
+                )
+                .into(),
+            );
+            add_related_info(&diagnostic, vec![related]);
+        }
         diagnostic
     }
 
