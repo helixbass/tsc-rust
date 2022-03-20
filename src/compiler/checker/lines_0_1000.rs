@@ -1394,6 +1394,10 @@ impl TypeChecker {
         self.symbol_count.get()
     }
 
+    pub(super) fn increment_symbol_count(&self) {
+        self.symbol_count.set(self.symbol_count() + 1);
+    }
+
     pub(super) fn total_instantiation_count(&self) -> usize {
         self.total_instantiation_count.get()
     }

@@ -7,16 +7,17 @@ use std::rc::Rc;
 use super::{get_node_id, get_symbol_id};
 use crate::{
     add_related_info, create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
-    create_diagnostic_for_node_from_message_chain, create_file_diagnostic,
-    null_transformation_context, set_text_range_pos_end, synthetic_factory, visit_each_child,
-    CancellationTokenDebuggable, DiagnosticCategory, DiagnosticInterface, DiagnosticMessageChain,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics,
-    EmitResolverDebuggable, NodeArray, ReadonlyTextRange, VisitResult, __String,
-    create_diagnostic_for_node, escape_leading_underscores, factory, get_first_identifier,
-    get_source_file_of_node, is_jsx_opening_fragment, parse_isolated_entity_name,
-    unescape_leading_underscores, visit_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
-    DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface,
-    SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
+    create_diagnostic_for_node_from_message_chain, create_file_diagnostic, for_each,
+    get_jsdoc_deprecated_tag, null_transformation_context, set_text_range_pos_end,
+    synthetic_factory, visit_each_child, CancellationTokenDebuggable, DiagnosticCategory,
+    DiagnosticInterface, DiagnosticMessageChain, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Diagnostics, EmitResolverDebuggable, NodeArray,
+    ReadonlyTextRange, VisitResult, __String, create_diagnostic_for_node,
+    escape_leading_underscores, factory, get_first_identifier, get_source_file_of_node,
+    is_jsx_opening_fragment, parse_isolated_entity_name, unescape_leading_underscores, visit_node,
+    BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
+    NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
+    TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -351,12 +352,84 @@ impl TypeChecker {
         diagnostic
     }
 
+    pub(super) fn add_deprecated_suggestion_worker(
+        &self,
+        declarations: &[Rc<Node>],
+        diagnostic: Rc<Diagnostic /*DiagnosticWithLocation*/>,
+    ) -> Rc<Diagnostic> {
+        let deprecated_tag = for_each(declarations, |declaration, _| {
+            get_jsdoc_deprecated_tag(declaration)
+        });
+        if let Some(deprecated_tag) = deprecated_tag {
+            add_related_info(
+                &diagnostic,
+                vec![Rc::new(
+                    create_diagnostic_for_node(
+                        &deprecated_tag,
+                        &Diagnostics::The_declaration_was_marked_as_deprecated_here,
+                        None,
+                    )
+                    .into(),
+                )],
+            );
+        }
+        self.suggestion_diagnostics().add(diagnostic.clone());
+        diagnostic
+    }
+
+    pub(super) fn add_deprecated_suggestion(
+        &self,
+        location: &Node,
+        declarations: &[Rc<Node>],
+        deprecated_entity: &str,
+    ) -> Rc<Diagnostic> {
+        let diagnostic: Rc<Diagnostic> = Rc::new(
+            create_diagnostic_for_node(
+                location,
+                &Diagnostics::_0_is_deprecated,
+                Some(vec![deprecated_entity.to_owned()]),
+            )
+            .into(),
+        );
+        self.add_deprecated_suggestion_worker(declarations, diagnostic)
+    }
+
+    pub(super) fn add_deprecated_suggestion_with_signature(
+        &self,
+        location: &Node,
+        declaration: &Node,
+        deprecated_entity: Option<&str>,
+        signature_string: &str,
+    ) -> Rc<Diagnostic> {
+        let diagnostic: Rc<Diagnostic> =
+            Rc::new(if let Some(deprecated_entity) = deprecated_entity {
+                create_diagnostic_for_node(
+                    location,
+                    &Diagnostics::The_signature_0_of_1_is_deprecated,
+                    Some(vec![
+                        signature_string.to_owned(),
+                        deprecated_entity.to_owned(),
+                    ]),
+                )
+                .into()
+            } else {
+                create_diagnostic_for_node(
+                    location,
+                    &Diagnostics::_0_is_deprecated,
+                    Some(vec![signature_string.to_owned()]),
+                )
+                .into()
+            });
+        self.add_deprecated_suggestion_worker(&vec![declaration.node_wrapper()], diagnostic)
+    }
+
     pub(super) fn create_symbol(
         &self,
         flags: SymbolFlags,
         name: __String,
         check_flags: Option<CheckFlags>,
     ) -> TransientSymbol {
+        self.increment_symbol_count();
         let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
         let symbol = BaseTransientSymbol::new(symbol, check_flags.unwrap_or(CheckFlags::None));
         symbol.into()
