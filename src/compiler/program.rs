@@ -14,11 +14,12 @@ use crate::{
     get_directory_path, get_emit_script_target, get_line_and_character_of_position,
     get_new_line_character, get_normalized_path_components, get_path_from_path_components, get_sys,
     is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path,
-    to_path as to_path_helper, write_file_ensuring_directories, CancellationToken, CompilerHost,
-    CompilerOptions, CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticMessageText,
-    DiagnosticRelatedInformationInterface, EmitResult, FileIncludeReason, GetCanonicalFileName,
-    LineAndCharacter, ModuleKind, ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap,
-    Node, PackageId, ParsedCommandLine, Path, Program, ReferencedFile, ResolvedProjectReference,
+    to_path as to_path_helper, write_file_ensuring_directories, CancellationToken,
+    CancellationTokenDebuggable, CompilerHost, CompilerOptions, CreateProgramOptions,
+    CustomTransformers, Diagnostic, DiagnosticMessageText, DiagnosticRelatedInformationInterface,
+    EmitResult, FileIncludeReason, GetCanonicalFileName, LineAndCharacter, ModuleKind,
+    ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap, Node, PackageId,
+    ParsedCommandLine, Path, Program, ReferencedFile, ResolvedProjectReference,
     ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, System,
     TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
 };
@@ -609,24 +610,30 @@ impl Program {
     pub fn get_syntactic_diagnostics(
         &self,
         source_file: Option<&Node /*SourceFile*/>,
-        cancellation_token: Option<&dyn CancellationToken>,
+        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> Vec<Rc<Diagnostic /*DiagnosticWithLocation*/>> {
-        self.get_diagnostics_helper(Program::get_syntactic_diagnostics_for_file)
+        self.get_diagnostics_helper(
+            Program::get_syntactic_diagnostics_for_file,
+            cancellation_token,
+        )
     }
 
     pub fn get_semantic_diagnostics(
         &self,
         source_file: Option<&Node /*SourceFile*/>,
-        cancellation_token: Option<&dyn CancellationToken>,
+        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> Vec<Rc<Diagnostic>> {
-        self.get_diagnostics_helper(Program::get_semantic_diagnostics_for_file)
+        self.get_diagnostics_helper(
+            Program::get_semantic_diagnostics_for_file,
+            cancellation_token,
+        )
     }
 
     pub fn emit(
         &self,
         target_source_file: Option<&Node /*SourceFile*/>,
         write_file: Option<&dyn WriteFileCallback>,
-        cancellation_token: Option<Rc<dyn CancellationToken>>,
+        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
         emit_only_dts_files: Option<bool>,
         custom_transformers: Option<CustomTransformers>,
         force_dts_emit: Option<bool>,
@@ -673,11 +680,16 @@ impl Program {
 
     fn get_diagnostics_helper(
         &self,
-        get_diagnostics: fn(&Program, &Node /*SourceFile*/) -> Vec<Rc<Diagnostic>>,
+        get_diagnostics: fn(
+            &Program,
+            &Node, /*SourceFile*/
+            Option<Rc<dyn CancellationTokenDebuggable>>,
+        ) -> Vec<Rc<Diagnostic>>,
+        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> Vec<Rc<Diagnostic>> {
         self.get_source_files()
             .iter()
-            .flat_map(|source_file| get_diagnostics(self, source_file))
+            .flat_map(|source_file| get_diagnostics(self, source_file, cancellation_token.clone()))
             .collect()
     }
 
@@ -698,6 +710,9 @@ impl Program {
     fn get_syntactic_diagnostics_for_file(
         &self,
         source_file: &Node, /*SourceFile*/
+        // TODO: getSyntacticDiagnosticsForFile() doesn't actually take this argument, should
+        // refactor eg get_diagnostics_helper() to use closures instead?
+        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> Vec<Rc<Diagnostic>> {
         source_file.as_source_file().parse_diagnostics().clone()
     }
@@ -705,9 +720,12 @@ impl Program {
     fn get_semantic_diagnostics_for_file(
         &self,
         source_file: &Node, /*SourceFile*/
+        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> Vec<Rc<Diagnostic>> {
         concatenate(
-            filter_semantic_diagnostics(self.get_bind_and_check_diagnostics_for_file(source_file)),
+            filter_semantic_diagnostics(
+                self.get_bind_and_check_diagnostics_for_file(source_file, cancellation_token),
+            ),
             self.get_program_diagnostics(source_file),
         )
     }
@@ -715,9 +733,11 @@ impl Program {
     fn get_bind_and_check_diagnostics_for_file(
         &self,
         source_file: &Node, /*SourceFile*/
+        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> Vec<Rc<Diagnostic>> {
         self.get_and_cache_diagnostics(
             source_file,
+            cancellation_token,
             Program::get_bind_and_check_diagnostics_for_file_no_cache,
         )
     }
@@ -725,13 +745,14 @@ impl Program {
     fn get_bind_and_check_diagnostics_for_file_no_cache(
         &self,
         source_file: &Node, /*SourceFile*/
+        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> Vec<Rc<Diagnostic>> {
         // self.run_with_cancellation_token(|| {
         let type_checker = self.get_diagnostics_producing_type_checker();
 
         let include_bind_and_check_diagnostics = true;
         let check_diagnostics = if include_bind_and_check_diagnostics {
-            type_checker.get_diagnostics(source_file)
+            type_checker.get_diagnostics(source_file, cancellation_token)
         } else {
             vec![]
         };
@@ -743,22 +764,27 @@ impl Program {
     fn get_and_cache_diagnostics(
         &self,
         source_file: &Node, /*SourceFile*/
-        get_diagnostics: fn(&Program, &Node /*SourceFile*/) -> Vec<Rc<Diagnostic>>,
+        cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
+        get_diagnostics: fn(
+            &Program,
+            &Node, /*SourceFile*/
+            Option<Rc<dyn CancellationTokenDebuggable>>,
+        ) -> Vec<Rc<Diagnostic>>,
     ) -> Vec<Rc<Diagnostic>> {
-        let result = get_diagnostics(self, source_file);
+        let result = get_diagnostics(self, source_file, cancellation_token);
         result
     }
 
     pub fn get_options_diagnostics(
         &self,
-        _cancellation_token: Option<&dyn CancellationToken>,
+        _cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> SortedArray<Rc<Diagnostic>> {
         SortedArray::new(vec![])
     }
 
     pub fn get_global_diagnostics(
         &self,
-        _cancellation_token: Option<&dyn CancellationToken>,
+        _cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     ) -> SortedArray<Rc<Diagnostic>> {
         SortedArray::new(vec![])
     }

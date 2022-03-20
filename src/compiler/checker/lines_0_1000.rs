@@ -18,10 +18,10 @@ use crate::{
     is_source_file, parse_pseudo_big_int, skip_type_checking, unescape_leading_underscores,
     BaseInterfaceType, CancellationToken, CancellationTokenDebuggable, CheckFlags, ContextFlags,
     Debug_, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, EmitTextWriter, Extension,
-    FreshableIntrinsicType, GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName,
-    IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray, NodeBuilderFlags,
-    NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
+    DiagnosticRelatedInformationInterface, Diagnostics, EmitResolverDebuggable, EmitTextWriter,
+    Extension, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo, IndexKind,
+    InternalSymbolName, IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray,
+    NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
     ObjectFlagsTypeInterface, PseudoBigInt, RelationComparisonResult, Signature, SignatureFlags,
     SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
     SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker,
@@ -1404,6 +1404,10 @@ impl TypeChecker {
 
     pub(super) fn array_variances(&self) -> Vec<VarianceFlags> {
         vec![VarianceFlags::Covariant]
+    }
+
+    pub(super) fn emit_resolver(&self) -> Rc<dyn EmitResolverDebuggable> {
+        self.emit_resolver.clone().unwrap()
     }
 
     pub(super) fn globals(&self) -> RefMut<SymbolTable> {

@@ -6,10 +6,11 @@ use std::rc::Rc;
 use super::UnusedKind;
 use crate::{
     bind_source_file, for_each, is_accessor, is_external_or_common_js_module,
-    AllAccessorDeclarations, Diagnostic, EmitResolver, EmitResolverDebuggable, IndexInfo, Node,
-    NodeBuilderFlags, NodeCheckFlags, NodeInterface, Signature, SignatureFlags, SourceFile,
-    StringOrNumber, Symbol, SymbolAccessibilityResult, SymbolFlags, SymbolTracker,
-    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeReferenceSerializationKind,
+    AllAccessorDeclarations, CancellationTokenDebuggable, Diagnostic, EmitResolver,
+    EmitResolverDebuggable, IndexInfo, Node, NodeBuilderFlags, NodeCheckFlags, NodeInterface,
+    Signature, SignatureFlags, SourceFile, StringOrNumber, Symbol, SymbolAccessibilityResult,
+    SymbolFlags, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type, TypeChecker,
+    TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {
@@ -64,7 +65,11 @@ impl TypeChecker {
         }
     }
 
-    pub fn get_diagnostics(&self, source_file: &Node /*SourceFile*/) -> Vec<Rc<Diagnostic>> {
+    pub fn get_diagnostics(
+        &self,
+        source_file: &Node, /*SourceFile*/
+        ct: Option<Rc<dyn CancellationTokenDebuggable>>,
+    ) -> Vec<Rc<Diagnostic>> {
         self.get_diagnostics_worker(source_file)
     }
 

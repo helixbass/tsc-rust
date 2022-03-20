@@ -14,10 +14,10 @@ use crate::{
     get_referenced_file_location, get_regex_from_pattern, get_sys, is_reference_file_location,
     is_referenced_file, maybe_for_each, out_file, package_id_to_string,
     sort_and_deduplicate_diagnostics, target_option_declaration, text_substring, BuilderProgram,
-    CancellationToken, CommandLineOptionInterface, CommandLineOptionMapTypeValue, CompilerHost,
-    CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgram, CustomTransformers, Debug_,
-    Diagnostic, DiagnosticCategory, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
+    CancellationToken, CancellationTokenDebuggable, CommandLineOptionInterface,
+    CommandLineOptionMapTypeValue, CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter,
+    CreateProgram, CustomTransformers, Debug_, Diagnostic, DiagnosticCategory, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
     EmitAndSemanticDiagnosticsBuilderProgram, EmitResult, ExitStatus, ExtendedConfigCacheEntry,
     Extension, FileExtensionInfo, FileIncludeKind, FileIncludeReason,
     ForegroundColorEscapeSequences, FormatDiagnosticsHost, Node, ParseConfigFileHost,
@@ -805,7 +805,7 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<&dyn WriteFileCallback>,
-    cancellation_token: Option<Rc<dyn CancellationToken>>,
+    cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<CustomTransformers>,
 ) -> EmitFilesAndReportErrorsReturn {
@@ -816,7 +816,7 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
     let config_file_parsing_diagnostics_length = all_diagnostics.len();
     add_range(
         &mut all_diagnostics,
-        Some(&program.get_syntactic_diagnostics(None, cancellation_token.as_deref())),
+        Some(&program.get_syntactic_diagnostics(None, cancellation_token.clone())),
         None,
         None,
     );
@@ -824,7 +824,7 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
     if all_diagnostics.len() == config_file_parsing_diagnostics_length {
         add_range(
             &mut all_diagnostics,
-            Some(&program.get_options_diagnostics(cancellation_token.as_deref())),
+            Some(&program.get_options_diagnostics(cancellation_token.clone())),
             None,
             None,
         );
@@ -832,7 +832,7 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
         if !is_list_files_only {
             add_range(
                 &mut all_diagnostics,
-                Some(&program.get_global_diagnostics(cancellation_token.as_deref())),
+                Some(&program.get_global_diagnostics(cancellation_token.clone())),
                 None,
                 None,
             );
@@ -840,7 +840,7 @@ fn emit_files_and_report_errors<TWrite: FnMut(&str)>(
             if all_diagnostics.len() == config_file_parsing_diagnostics_length {
                 add_range(
                     &mut all_diagnostics,
-                    Some(&program.get_semantic_diagnostics(None, cancellation_token.as_deref())),
+                    Some(&program.get_semantic_diagnostics(None, cancellation_token.clone())),
                     None,
                     None,
                 );
@@ -900,7 +900,7 @@ pub fn emit_files_and_report_errors_and_get_exit_status<TWrite: FnMut(&str)>(
     write: Option<TWrite>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<&dyn WriteFileCallback>,
-    cancellation_token: Option<Rc<dyn CancellationToken>>,
+    cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<CustomTransformers>,
 ) -> ExitStatus {

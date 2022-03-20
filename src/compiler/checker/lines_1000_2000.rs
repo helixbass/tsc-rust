@@ -7,12 +7,12 @@ use std::rc::Rc;
 use super::{get_node_id, get_symbol_id};
 use crate::{
     null_transformation_context, set_text_range_pos_end, synthetic_factory, visit_each_child,
-    NodeArray, VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores,
-    factory, get_first_identifier, get_source_file_of_node, is_jsx_opening_fragment,
-    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
-    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
-    TransientSymbolInterface, TypeChecker,
+    CancellationTokenDebuggable, EmitResolverDebuggable, NodeArray, VisitResult, __String,
+    create_diagnostic_for_node, escape_leading_underscores, factory, get_first_identifier,
+    get_source_file_of_node, is_jsx_opening_fragment, parse_isolated_entity_name,
+    unescape_leading_underscores, visit_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
+    DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface,
+    SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -210,6 +210,15 @@ impl TypeChecker {
             >::None,
         )
         .map(|rc_node| vec![rc_node])
+    }
+
+    pub(super) fn get_emit_resolver(
+        &self,
+        source_file: &Node, /*SourceFile*/
+        cancellation_token: Rc<dyn CancellationTokenDebuggable>,
+    ) -> Rc<dyn EmitResolverDebuggable> {
+        self.get_diagnostics(source_file, Some(cancellation_token));
+        self.emit_resolver()
     }
 
     pub(super) fn create_error<TLocation: Borrow<Node>>(
