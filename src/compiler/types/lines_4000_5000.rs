@@ -225,6 +225,11 @@ pub struct TypeChecker {
     pub(crate) restrictive_mapper: Option<Rc<TypeMapper>>,
     pub(crate) permissive_mapper: Option<Rc<TypeMapper>>,
 
+    pub(crate) empty_object_type: Option<Rc<Type>>,
+    pub(crate) empty_jsx_object_type: Option<Rc<Type>>,
+    pub(crate) empty_type_literal_symbol: Option<Rc<Symbol>>,
+    pub(crate) empty_type_literal_type: Option<Rc<Type>>,
+
     pub(crate) empty_generic_type: Option<Rc<Type /*GenericType*/>>,
     pub(crate) no_constraint_type: Option<Rc<Type /*ResolvedType*/>>,
     pub(crate) circular_constraint_type: Option<Rc<Type /*ResolvedType*/>>,

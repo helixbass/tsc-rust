@@ -360,6 +360,7 @@ impl TypeChecker {
                 Rc::new(RefCell::new(properties_table)),
                 vec![],
                 vec![],
+                vec![], // TODO: this is wrong
             );
             result.set_object_flags(
                 result.object_flags()

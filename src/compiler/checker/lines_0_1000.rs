@@ -20,10 +20,10 @@ use crate::{
     DiagnosticRelatedInformationInterface, EmitTextWriter, Extension, FreshableIntrinsicType,
     GenericableTypeInterface, IndexInfo, IndexKind, InternalSymbolName, ModuleInstanceState, Node,
     NodeArray, NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number,
-    ObjectFlags, RelationComparisonResult, Signature, SignatureKind, StringOrNumber, Symbol,
-    SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypePredicate, VarianceFlags, __String,
+    ObjectFlags, ObjectFlagsTypeInterface, RelationComparisonResult, Signature, SignatureKind,
+    StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable,
+    SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
+    TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate, VarianceFlags, __String,
     create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
     get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
     get_module_instance_state, get_parse_tree_node, get_strict_option_value,
@@ -564,6 +564,11 @@ pub fn create_type_checker(
         restrictive_mapper: None,
         permissive_mapper: None,
 
+        empty_object_type: None,
+        empty_jsx_object_type: None,
+        empty_type_literal_symbol: None,
+        empty_type_literal_type: None,
+
         empty_generic_type: None,
 
         no_constraint_type: None,
@@ -909,9 +914,49 @@ pub fn create_type_checker(
         type_checker.make_function_type_mapper(permissive_mapper_func),
     ));
 
+    type_checker.empty_object_type = Some(
+        type_checker
+            .create_anonymous_type(
+                Option::<&Symbol>::None,
+                type_checker.empty_symbols(),
+                vec![],
+                vec![],
+                vec![],
+            )
+            .into(),
+    );
+    let empty_jsx_object_type = type_checker.create_anonymous_type(
+        Option::<&Symbol>::None,
+        type_checker.empty_symbols(),
+        vec![],
+        vec![],
+        vec![],
+    );
+    empty_jsx_object_type
+        .set_object_flags(empty_jsx_object_type.object_flags() | ObjectFlags::JsxAttributes);
+    type_checker.empty_jsx_object_type = Some(empty_jsx_object_type.into());
+
+    let empty_type_literal_symbol =
+        type_checker.create_symbol(SymbolFlags::TypeLiteral, InternalSymbolName::Type(), None);
+    *empty_type_literal_symbol.maybe_members() =
+        Some(Rc::new(RefCell::new(create_symbol_table(None))));
+    type_checker.empty_type_literal_symbol = Some(empty_type_literal_symbol.into());
+    type_checker.empty_type_literal_type = Some(
+        type_checker
+            .create_anonymous_type(
+                Some(type_checker.empty_type_literal_symbol()),
+                type_checker.empty_symbols(),
+                vec![],
+                vec![],
+                vec![],
+            )
+            .into(),
+    );
+
     let empty_generic_type = type_checker.create_anonymous_type(
         Option::<&Symbol>::None,
         type_checker.empty_symbols(),
+        vec![],
         vec![],
         vec![],
     );
@@ -926,6 +971,7 @@ pub fn create_type_checker(
                 type_checker.empty_symbols(),
                 vec![],
                 vec![],
+                vec![],
             )
             .into(),
     );
@@ -934,6 +980,7 @@ pub fn create_type_checker(
             .create_anonymous_type(
                 Option::<&Symbol>::None,
                 type_checker.empty_symbols(),
+                vec![],
                 vec![],
                 vec![],
             )
@@ -2097,6 +2144,10 @@ impl TypeChecker {
 
     pub(super) fn template_constraint_type(&self) -> Rc<Type> {
         self.template_constraint_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn empty_type_literal_symbol(&self) -> Rc<Symbol> {
+        self.empty_type_literal_symbol.as_ref().unwrap().clone()
     }
 
     pub(super) fn empty_generic_type(&self) -> Rc<Type> {

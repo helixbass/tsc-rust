@@ -242,19 +242,43 @@ bitflags! {
         const Tuple = 1 << 3;
         const Anonymous = 1 << 4;
         const Mapped = 1 << 5;
+        const Instantiated = 1 << 6;
         const ObjectLiteral = 1 << 7;
+        const EvolvingArray = 1 << 8;
         const ObjectLiteralPatternWithComputedProperties = 1 << 9;
+        const ReverseMapped = 1 << 10;
+        const JsxAttributes = 1 << 11;
+        const MarkerType = 1 << 12;
+        const JSLiteral = 1 << 13;
         const FreshLiteral = 1 << 14;
+        const ArrayLiteral = 1 << 15;
         const PrimitiveUnion = 1 << 16;
         const ContainsWideningType = 1 << 17;
         const ContainsObjectOrArrayLiteral = 1 << 18;
         const NonInferrableType = 1 << 19;
         const CouldContainTypeVariablesComputed = 1 << 20;
         const CouldContainTypeVariables = 1 << 21;
-        const ContainsIntersections = 1 << 25;
 
         const ClassOrInterface = Self::Class.bits | Self::Interface.bits;
+        const RequiresWidening = Self::ContainsWideningType.bits | Self::ContainsObjectOrArrayLiteral.bits;
         const PropagatingFlags = Self::ContainsWideningType.bits | Self::ContainsObjectOrArrayLiteral.bits | Self::NonInferrableType.bits;
+        const ObjectTypeKindMask = Self::ClassOrInterface.bits | Self::Reference.bits | Self::Tuple.bits | Self::Anonymous.bits | Self::Mapped.bits | Self::ReverseMapped.bits | Self::EvolvingArray.bits;
+
+        const ContainsSpread = 1 << 22;
+        const ObjectRestType = 1 << 23;
+        const IsClassInstanceClone = 1 << 24;
+        const IdenticalBaseTypeCalculated = 1 << 25;
+        const IdenticalBaseTypeExists = 1 << 26;
+
+        const IsGenericTypeComputed = 1 << 22;
+        const IsGenericObjectType = 1 << 23;
+        const IsGenericIndexType = 1 << 24;
+        const IsGenericType = Self::IsGenericObjectType.bits | Self::IsGenericIndexType.bits;
+
+        const ContainsIntersections = 1 << 25;
+
+        const IsNeverIntersectionComputed = 1 << 25;
+        const IsNeverIntersection = 1 << 26;
     }
 }
 
