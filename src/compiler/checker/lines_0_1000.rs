@@ -636,6 +636,12 @@ pub fn create_type_checker(
 
         amalgamated_duplicates: RefCell::new(None),
 
+        reverse_mapped_cache: RefCell::new(HashMap::new()),
+        in_infer_type_for_homomorphic_mapped_type: Cell::new(false),
+        ambient_modules_cache: RefCell::new(None),
+        pattern_ambient_modules: RefCell::new(None),
+        pattern_ambient_module_augmentations: RefCell::new(None),
+
         global_array_type: None,
 
         deferred_global_promise_type: RefCell::new(None),

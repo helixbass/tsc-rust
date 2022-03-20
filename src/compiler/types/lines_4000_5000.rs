@@ -16,7 +16,7 @@ use super::{
 };
 use crate::{
     Diagnostic, DuplicateInfoForFiles, IndexInfo, IterationTypes, IterationTypesResolver,
-    NodeBuilder, Number, StringOrNumber,
+    NodeBuilder, Number, PatternAmbientModule, StringOrNumber,
 };
 use local_macros::symbol_type;
 
@@ -265,6 +265,13 @@ pub struct TypeChecker {
     pub(crate) sync_iteration_types_resolver: IterationTypesResolver,
 
     pub(crate) amalgamated_duplicates: RefCell<Option<HashMap<String, DuplicateInfoForFiles>>>,
+
+    pub(crate) reverse_mapped_cache: RefCell<HashMap<String, Option<Rc<Type>>>>,
+    pub(crate) in_infer_type_for_homomorphic_mapped_type: Cell<bool>,
+    pub(crate) ambient_modules_cache: RefCell<Option<Vec<Rc<Symbol>>>>,
+
+    pub(crate) pattern_ambient_modules: RefCell<Option<Vec<PatternAmbientModule>>>,
+    pub(crate) pattern_ambient_module_augmentations: RefCell<Option<HashMap<String, Rc<Symbol>>>>,
 
     pub(crate) global_array_type: Option<Rc<Type /*GenericType*/>>,
     pub(crate) deferred_global_promise_type: RefCell<Option<Rc<Type /*GenericType*/>>>,
