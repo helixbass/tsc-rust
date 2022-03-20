@@ -497,6 +497,38 @@ impl TypeChecker {
             .insert(source.maybe_merge_id().unwrap(), target.symbol_wrapper());
     }
 
+    pub(super) fn clone_symbol(&self, symbol: &Symbol) -> Symbol {
+        let result: Symbol = self
+            .create_symbol(symbol.flags(), symbol.escaped_name().clone(), None)
+            .into();
+        result.set_declarations(
+            if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
+                symbol_declarations.clone()
+            } else {
+                vec![]
+            },
+        );
+        result.set_parent(symbol.maybe_parent().clone());
+        if let Some(symbol_value_declaration) = symbol.maybe_value_declaration().as_ref() {
+            result.set_value_declaration(symbol_value_declaration.clone());
+        }
+        if matches!(symbol.maybe_const_enum_only_module(), Some(true)) {
+            result.set_const_enum_only_module(Some(true));
+        }
+        if let Some(symbol_members) = symbol.maybe_members().as_ref() {
+            *result.maybe_members() = Some(Rc::new(RefCell::new(
+                RefCell::borrow(symbol_members).clone(),
+            )));
+        }
+        if let Some(symbol_exports) = symbol.maybe_exports().as_ref() {
+            *result.maybe_exports() = Some(Rc::new(RefCell::new(
+                RefCell::borrow(symbol_exports).clone(),
+            )));
+        }
+        self.record_merged_symbol(&result, symbol);
+        result
+    }
+
     pub(super) fn merge_symbol_table(
         &self,
         target: &mut SymbolTable,
