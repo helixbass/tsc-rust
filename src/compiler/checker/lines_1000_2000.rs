@@ -820,6 +820,31 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn combine_symbol_tables(
+        &self,
+        first: Option<Rc<RefCell<SymbolTable>>>,
+        second: Option<Rc<RefCell<SymbolTable>>>,
+    ) -> Option<Rc<RefCell<SymbolTable>>> {
+        if first.is_none() {
+            return second;
+        }
+        if second.is_none() {
+            return first;
+        }
+        let first = first.unwrap();
+        let second = second.unwrap();
+        if RefCell::borrow(&first).is_empty() {
+            return Some(second);
+        }
+        if RefCell::borrow(&second).is_empty() {
+            return Some(first);
+        }
+        let mut combined = create_symbol_table(None);
+        self.merge_symbol_table(&mut combined, &RefCell::borrow(&first), None);
+        self.merge_symbol_table(&mut combined, &RefCell::borrow(&second), None);
+        Some(Rc::new(RefCell::new(combined)))
+    }
+
     pub(super) fn merge_symbol_table(
         &self,
         target: &mut SymbolTable,
