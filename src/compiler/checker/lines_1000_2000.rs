@@ -146,7 +146,41 @@ impl TypeChecker {
         &self,
         file: &Node, /*SourceFile*/
     ) -> Option<__String> {
-        unimplemented!()
+        let file_as_source_file = file.as_source_file();
+        if let Some(file_local_jsx_namespace) =
+            file_as_source_file.maybe_local_jsx_namespace().as_ref()
+        {
+            return Some(file_local_jsx_namespace.clone());
+        }
+        let file_pragmas = file_as_source_file.pragmas();
+        let jsx_pragma = file_pragmas.get("jsx");
+        if let Some(jsx_pragma) = jsx_pragma {
+            let chosen_pragma = &jsx_pragma[0];
+            let mut file_local_jsx_factory = file_as_source_file.maybe_local_jsx_factory();
+            *file_local_jsx_factory = parse_isolated_entity_name(
+                chosen_pragma
+                    .arguments
+                    .as_pragma_argument_type_factory()
+                    .factory
+                    .clone(),
+                self.language_version,
+            );
+            visit_node(
+                file_local_jsx_factory.as_deref(),
+                Some(|node: &Node| self.mark_as_synthetic(node)),
+                Option::<fn(&Node) -> bool>::None,
+                Option::<fn(&[Rc<Node>]) -> Rc<Node>>::None,
+            );
+            if let Some(file_local_jsx_factory) = file_local_jsx_factory.as_ref() {
+                let ret = get_first_identifier(file_local_jsx_factory)
+                    .as_identifier()
+                    .escaped_text
+                    .clone();
+                *file_as_source_file.maybe_local_jsx_namespace() = Some(ret.clone());
+                return Some(ret);
+            }
+        }
+        None
     }
 
     pub(super) fn mark_as_synthetic(&self, node: &Node) -> VisitResult {
