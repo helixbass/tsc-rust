@@ -461,6 +461,15 @@ impl TypeChecker {
         t.flags().intersects(TypeFlags::Void)
     }
 
+    pub(super) fn get_resolved_signature_(
+        &self,
+        node: &Node, /*CallLikeExpression*/
+        candidates_out_array: Option<&[Rc<Signature>]>,
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Signature> {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_of_parameter(&self, symbol: &Symbol) -> Rc<Type> {
         let type_ = self.get_type_of_symbol(symbol);
         if self.strict_null_checks {

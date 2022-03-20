@@ -504,29 +504,60 @@ pub fn create_type_checker(
 
         apparent_argument_count: Cell::new(None),
 
+        tuple_types: RefCell::new(HashMap::new()),
+        union_types: RefCell::new(HashMap::new()),
+        intersection_types: RefCell::new(HashMap::new()),
         string_literal_types: RefCell::new(HashMap::new()),
         number_literal_types: RefCell::new(HashMap::new()),
         big_int_literal_types: RefCell::new(HashMap::new()),
+        enum_literal_types: RefCell::new(HashMap::new()),
+        indexed_access_types: RefCell::new(HashMap::new()),
+        template_literal_types: RefCell::new(HashMap::new()),
+        string_mapping_types: RefCell::new(HashMap::new()),
+        substitution_types: RefCell::new(HashMap::new()),
+        subtype_reduction_cache: RefCell::new(HashMap::new()),
+        evolving_array_types: RefCell::new(vec![]),
+        undefined_properties: RefCell::new(HashMap::new()),
 
         unknown_symbol: None,
+        resolving_symbol: None,
+        unresolved_symbols: RefCell::new(HashMap::new()),
+        error_types: RefCell::new(HashMap::new()),
 
         any_type: None,
+        auto_type: None,
+        wildcard_type: None,
         error_type: None,
+        unresolved_type: None,
+        non_inferrable_any_type: None,
+        intrinsic_marker_type: None,
         unknown_type: None,
+        non_null_unknown_type: None,
         undefined_type: None,
+        undefined_widening_type: None,
         optional_type: None,
+        missing_type: None,
         null_type: None,
+        null_widening_type: None,
         string_type: None,
         number_type: None,
         bigint_type: None,
-        true_type: None,
-        regular_true_type: None,
         false_type: None,
         regular_false_type: None,
+        true_type: None,
+        regular_true_type: None,
         boolean_type: None,
         es_symbol_type: None,
         void_type: None,
         never_type: None,
+        silent_never_type: None,
+        non_inferrable_type: None,
+        implicit_never_type: None,
+        unreachable_never_type: None,
+        non_primitive_type: None,
+        string_or_number_type: None,
+        string_number_symbol_type: None,
+        keyof_constraint_type: None,
         number_or_big_int_type: None,
         template_constraint_type: None,
 
@@ -868,6 +899,14 @@ impl TypeChecker {
 
     pub(super) fn arguments_symbol(&self) -> Rc<Symbol> {
         self.arguments_symbol.clone().unwrap()
+    }
+
+    pub(super) fn apparent_argument_count(&self) -> Option<usize> {
+        self.apparent_argument_count.get()
+    }
+
+    pub(super) fn set_apparent_argument_count(&self, apparent_argument_count: Option<usize>) {
+        self.apparent_argument_count.set(apparent_argument_count)
     }
 
     pub fn get_node_count(&self) -> usize {
@@ -1785,12 +1824,21 @@ impl TypeChecker {
 
     pub(super) fn get_resolved_signature_worker(
         &self,
-        node: &Node, /*CallLikeExpression*/
+        node_in: &Node, /*CallLikeExpression*/
         candidates_out_array: Option<&[Rc<Signature>]>,
         argument_count: Option<usize>,
         check_mode: CheckMode,
     ) -> Option<Rc<Signature>> {
-        unimplemented!()
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: &Node| is_call_like_expression(node)),
+        );
+        self.set_apparent_argument_count(argument_count);
+        let res = node.map(|node| {
+            self.get_resolved_signature_(&node, candidates_out_array, Some(check_mode))
+        });
+        self.set_apparent_argument_count(None);
+        res
     }
 
     pub(super) fn string_literal_types(
