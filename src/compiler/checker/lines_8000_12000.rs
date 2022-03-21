@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::NodeBuilderContext;
+use super::{MembersOrExportsResolutionKind, NodeBuilderContext};
 use crate::{
     concatenate, create_symbol_table, declaration_name_to_string, escape_leading_underscores,
     first_defined, get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
@@ -15,7 +15,7 @@ use crate::{
     CheckFlags, Debug_, InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType,
     Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
     SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, TypePredicate, UnionOrIntersectionType,
+    TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
 };
 
@@ -527,6 +527,14 @@ impl TypeChecker {
             };
         }
         Debug_.fail(None)
+    }
+
+    pub(super) fn get_resolved_members_or_exports_of_symbol(
+        &self,
+        symbol: &Symbol,
+        resolution_kind: MembersOrExportsResolutionKind,
+    ) -> UnderscoreEscapedMap<Rc<Symbol>> {
+        unimplemented!()
     }
 
     pub(super) fn get_members_of_symbol(&self, symbol: &Symbol) -> Rc<RefCell<SymbolTable>> {

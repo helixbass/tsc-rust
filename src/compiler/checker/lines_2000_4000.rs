@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use super::ResolveNameNameArg;
 use crate::{
-    __String, declaration_name_to_string, get_first_identifier, node_is_missing,
+    DiagnosticMessage, __String, declaration_name_to_string, get_first_identifier, node_is_missing,
     unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
     SymbolInterface, TypeChecker,
 };
@@ -90,6 +90,25 @@ impl TypeChecker {
         location: &Node,
         module_reference_expression: &Node, /*Expression*/
         ignore_errors: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn resolve_external_module_name_worker(
+        &self,
+        location: &Node,
+        module_reference_expression: &Node, /*Expression*/
+        module_not_found_error: Option<&DiagnosticMessage>,
+        is_for_augmentation: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        let is_for_augmentation = is_for_augmentation.unwrap_or(false);
+        unimplemented!()
+    }
+
+    pub(super) fn resolve_external_module_symbol<TModuleSymbol: Borrow<Symbol>>(
+        &self,
+        module_symbol: Option<TModuleSymbol>,
+        dont_resolve_alias: Option<bool>,
     ) -> Option<Rc<Symbol>> {
         unimplemented!()
     }

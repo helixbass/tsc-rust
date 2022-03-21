@@ -16,23 +16,23 @@ use crate::{
     add_range, contains_parse_error, get_first_identifier, is_function_like,
     is_property_access_expression, is_property_access_or_qualified_name_or_import_type_node,
     is_source_file, parse_pseudo_big_int, skip_type_checking, unescape_leading_underscores,
-    BaseInterfaceType, CancellationToken, CancellationTokenDebuggable, CheckFlags, ContextFlags,
-    Debug_, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
+    BaseInterfaceType, CancellationTokenDebuggable, CheckFlags, ContextFlags, Debug_, Diagnostic,
+    DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolverDebuggable, EmitTextWriter,
     Extension, FreshableIntrinsicType, GenericableTypeInterface, IndexInfo, IndexKind,
     InternalSymbolName, IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray,
     NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeId, NodeInterface, Number, ObjectFlags,
-    ObjectFlagsTypeInterface, PseudoBigInt, RelationComparisonResult, Signature, SignatureFlags,
-    SignatureKind, StringOrNumber, Symbol, SymbolFlags, SymbolFormatFlags, SymbolId,
-    SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker, SyntaxKind, Type, TypeChecker,
-    TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
-    TypePredicateKind, VarianceFlags, __String, create_diagnostic_collection, create_symbol_table,
-    escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
-    get_emit_module_kind, get_emit_script_target, get_module_instance_state, get_parse_tree_node,
-    get_strict_option_value, get_use_define_for_class_fields, is_assignment_pattern,
-    is_call_like_expression, is_export_specifier, is_expression, is_identifier,
-    is_jsx_attribute_like, is_object_literal_element_like, is_parameter, is_type_node,
-    object_allocator, sum,
+    ObjectFlagsTypeInterface, PatternAmbientModule, PseudoBigInt, RelationComparisonResult,
+    Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SymbolWalker,
+    SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypePredicate, TypePredicateKind, VarianceFlags, __String,
+    create_diagnostic_collection, create_symbol_table, escape_leading_underscores, find_ancestor,
+    get_allow_synthetic_default_imports, get_emit_module_kind, get_emit_script_target,
+    get_module_instance_state, get_parse_tree_node, get_strict_option_value,
+    get_use_define_for_class_fields, is_assignment_pattern, is_call_like_expression,
+    is_export_specifier, is_expression, is_identifier, is_jsx_attribute_like,
+    is_object_literal_element_like, is_parameter, is_type_node, object_allocator, sum,
 };
 
 lazy_static! {
@@ -2512,6 +2512,18 @@ impl TypeChecker {
         &self,
     ) -> RefMut<Option<HashMap<String, DuplicateInfoForFiles>>> {
         self.amalgamated_duplicates.borrow_mut()
+    }
+
+    pub(super) fn maybe_pattern_ambient_modules(
+        &self,
+    ) -> RefMut<Option<Vec<PatternAmbientModule>>> {
+        self.pattern_ambient_modules.borrow_mut()
+    }
+
+    pub(super) fn maybe_pattern_ambient_module_augmentations(
+        &self,
+    ) -> RefMut<Option<HashMap<String, Rc<Symbol>>>> {
+        self.pattern_ambient_module_augmentations.borrow_mut()
     }
 
     pub(super) fn global_array_type(&self) -> Rc<Type> {

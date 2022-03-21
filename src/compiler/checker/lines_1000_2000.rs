@@ -6,18 +6,22 @@ use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{get_next_merge_id, get_node_id, get_symbol_id, increment_next_merge_id};
+use super::{
+    get_next_merge_id, get_node_id, get_symbol_id, increment_next_merge_id,
+    MembersOrExportsResolutionKind,
+};
 use crate::{
     add_range, add_related_info, compare_diagnostics, compare_paths, create_compiler_diagnostic,
     create_diagnostic_for_file_from_message_chain, create_diagnostic_for_node_from_message_chain,
     create_file_diagnostic, create_symbol_table, for_each, get_expando_initializer,
-    get_jsdoc_deprecated_tag, get_name_of_declaration, get_name_of_expando, get_or_update, length,
-    maybe_for_each, null_transformation_context, push_if_unique_rc, set_text_range_pos_end,
-    set_value_declaration, some, synthetic_factory, visit_each_child, CancellationTokenDebuggable,
-    Comparison, DiagnosticCategory, DiagnosticInterface, DiagnosticMessageChain,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics,
-    DuplicateInfoForFiles, DuplicateInfoForSymbol, EmitResolverDebuggable, NodeArray,
-    ReadonlyTextRange, VisitResult, __String, create_diagnostic_for_node,
+    get_jsdoc_deprecated_tag, get_name_of_declaration, get_name_of_expando, get_or_update,
+    is_global_scope_augmentation, length, maybe_for_each, null_transformation_context,
+    push_if_unique_rc, set_text_range_pos_end, set_value_declaration, some, synthetic_factory,
+    visit_each_child, CancellationTokenDebuggable, Comparison, DiagnosticCategory,
+    DiagnosticInterface, DiagnosticMessageChain, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Diagnostics, DuplicateInfoForFiles,
+    DuplicateInfoForSymbol, EmitResolverDebuggable, InternalSymbolName, NodeArray, NodeFlags,
+    PatternAmbientModule, ReadonlyTextRange, VisitResult, __String, create_diagnostic_for_node,
     escape_leading_underscores, factory, get_first_identifier, get_source_file_of_node,
     is_jsx_opening_fragment, parse_isolated_entity_name, unescape_leading_underscores, visit_node,
     BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
@@ -860,6 +864,103 @@ impl TypeChecker {
                 source_symbol.clone()
             };
             target.insert(id.clone(), value);
+        }
+    }
+
+    pub(super) fn merge_module_augmentation(
+        &self,
+        module_name: &Node, /*StringLiteral | Identifier*/
+    ) {
+        let module_augmentation = module_name.parent();
+        if !matches!(module_augmentation.symbol().maybe_declarations().as_ref().and_then(|declarations| declarations.get(0)), Some(declaration) if Rc::ptr_eq(declaration, &module_augmentation))
+        {
+            Debug_.assert(matches!(module_augmentation.symbol().maybe_declarations().as_ref(), Some(declarations) if declarations.len() > 1), None);
+            return;
+        }
+
+        if is_global_scope_augmentation(&module_augmentation) {
+            self.merge_symbol_table(
+                &mut self.globals(),
+                &mut module_augmentation.symbol().exports().borrow_mut(),
+                None,
+            );
+        } else {
+            let module_not_found_error = if !module_name
+                .parent()
+                .parent()
+                .flags()
+                .intersects(NodeFlags::Ambient)
+            {
+                Some(&Diagnostics::Invalid_module_name_in_augmentation_module_0_cannot_be_found)
+            } else {
+                None
+            };
+            let main_module = self.resolve_external_module_name_worker(
+                &module_name,
+                &module_name,
+                module_not_found_error,
+                Some(true),
+            );
+            if main_module.is_none() {
+                return;
+            }
+            let main_module = main_module.unwrap();
+            let main_module = self
+                .resolve_external_module_symbol(Some(&*main_module), None)
+                .unwrap();
+            if main_module.flags().intersects(SymbolFlags::Namespace) {
+                if some(
+                    self.maybe_pattern_ambient_modules().as_deref(),
+                    Some(|module: &PatternAmbientModule| Rc::ptr_eq(&main_module, &module.symbol)),
+                ) {
+                    let merged =
+                        self.merge_symbol(&module_augmentation.symbol(), &main_module, Some(true));
+                    let mut pattern_ambient_module_augmentations =
+                        self.maybe_pattern_ambient_module_augmentations();
+                    if pattern_ambient_module_augmentations.is_none() {
+                        *pattern_ambient_module_augmentations = Some(HashMap::new());
+                    }
+                    pattern_ambient_module_augmentations
+                        .as_mut()
+                        .unwrap()
+                        .insert(module_name.as_literal_like_node().text().clone(), merged);
+                } else {
+                    if main_module
+                        .maybe_exports()
+                        .as_ref()
+                        .and_then(|exports| {
+                            RefCell::borrow(exports)
+                                .get(&InternalSymbolName::ExportStar())
+                                .map(Clone::clone)
+                        })
+                        .is_some()
+                        && matches!(module_augmentation.symbol().maybe_exports().as_ref(), Some(exports) if !RefCell::borrow(exports).is_empty())
+                    {
+                        let resolved_exports = self.get_resolved_members_or_exports_of_symbol(
+                            &main_module,
+                            MembersOrExportsResolutionKind::resolved_exports,
+                        );
+                        let main_module_exports = main_module.exports();
+                        let main_module_exports = RefCell::borrow(&main_module_exports);
+                        for (key, value) in
+                            &*RefCell::borrow(&module_augmentation.symbol().exports())
+                        {
+                            if resolved_exports.contains_key(key)
+                                && !main_module_exports.contains_key(key)
+                            {
+                                self.merge_symbol(resolved_exports.get(key).unwrap(), value, None);
+                            }
+                        }
+                    }
+                    self.merge_symbol(&main_module, &module_augmentation.symbol(), None);
+                }
+            } else {
+                self.error(
+                    Some(module_name),
+                    &Diagnostics::Cannot_augment_module_0_because_it_resolves_to_a_non_module_entity,
+                    Some(vec![module_name.as_literal_like_node().text().clone()])
+                );
+            }
         }
     }
 
