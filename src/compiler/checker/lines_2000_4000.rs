@@ -20,6 +20,15 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn is_same_scope_descendent_of<TParent: Borrow<Node>>(
+        &self,
+        initial: &Node,
+        parent: Option<TParent>,
+        stop_at: &Node,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn resolve_symbol<TSymbol: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbol>,

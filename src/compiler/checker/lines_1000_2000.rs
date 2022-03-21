@@ -11,22 +11,30 @@ use super::{
     MembersOrExportsResolutionKind,
 };
 use crate::{
-    add_range, add_related_info, compare_diagnostics, compare_paths, create_compiler_diagnostic,
-    create_diagnostic_for_file_from_message_chain, create_diagnostic_for_node_from_message_chain,
-    create_file_diagnostic, create_symbol_table, for_each, get_expando_initializer,
+    add_range, add_related_info, are_option_rcs_equal, compare_diagnostics, compare_paths,
+    create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
+    create_diagnostic_for_node_from_message_chain, create_file_diagnostic, create_symbol_table,
+    filter, find_ancestor, for_each, get_ancestor, get_check_flags, get_containing_class,
+    get_emit_script_target, get_enclosing_block_scope_container, get_expando_initializer,
     get_jsdoc_deprecated_tag, get_name_of_declaration, get_name_of_expando, get_or_update,
-    is_global_scope_augmentation, length, maybe_for_each, null_transformation_context,
-    push_if_unique_rc, set_text_range_pos_end, set_value_declaration, some, synthetic_factory,
-    visit_each_child, CancellationTokenDebuggable, Comparison, DiagnosticCategory,
-    DiagnosticInterface, DiagnosticMessageChain, DiagnosticRelatedInformation,
-    DiagnosticRelatedInformationInterface, Diagnostics, DuplicateInfoForFiles,
-    DuplicateInfoForSymbol, EmitResolverDebuggable, InternalSymbolName, NodeArray, NodeFlags,
-    PatternAmbientModule, ReadonlyTextRange, VisitResult, __String, create_diagnostic_for_node,
-    escape_leading_underscores, factory, get_first_identifier, get_source_file_of_node,
-    is_jsx_opening_fragment, parse_isolated_entity_name, unescape_leading_underscores, visit_node,
-    BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface,
-    NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind,
-    TransientSymbol, TransientSymbolInterface, TypeChecker,
+    index_of_rc, is_binding_element, is_class_declaration, is_class_static_block_declaration,
+    is_computed_property_name, is_external_or_common_js_module, is_for_in_or_of_statement,
+    is_function_like, is_global_scope_augmentation, is_identifier, is_interface_declaration,
+    is_parameter_property_declaration, is_private_identifier, is_property_declaration, is_static,
+    is_this_property, is_type_alias_declaration, length, maybe_for_each,
+    null_transformation_context, out_file, push_if_unique_rc, set_text_range_pos_end,
+    set_value_declaration, some, synthetic_factory, try_cast, visit_each_child,
+    CancellationTokenDebuggable, Comparison, DiagnosticCategory, DiagnosticInterface,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    Diagnostics, DuplicateInfoForFiles, DuplicateInfoForSymbol, EmitResolverDebuggable,
+    FindAncestorCallbackReturn, HasInitializerInterface, InternalSymbolName, ModuleKind,
+    NamedDeclarationInterface, NodeArray, NodeFlags, PatternAmbientModule, ReadonlyTextRange,
+    ScriptTarget, VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores,
+    factory, get_first_identifier, get_source_file_of_node, is_jsx_opening_fragment,
+    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
+    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
+    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
+    TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -964,6 +972,35 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn add_to_symbol_table(
+        &self,
+        target: &mut SymbolTable,
+        source: &SymbolTable,
+        message: &DiagnosticMessage,
+    ) {
+        for (id, source_symbol) in source {
+            let target_symbol = target.get(id);
+            if let Some(target_symbol) = target_symbol {
+                maybe_for_each(
+                    target_symbol.maybe_declarations().as_deref(),
+                    |declaration: &Rc<Node /*Declaration*/>, _| {
+                        self.diagnostics().add(Rc::new(
+                            create_diagnostic_for_node(
+                                declaration,
+                                message,
+                                Some(vec![unescape_leading_underscores(id)]),
+                            )
+                            .into(),
+                        ));
+                        Option::<()>::None
+                    },
+                );
+            } else {
+                target.insert(id.clone(), source_symbol.clone());
+            }
+        }
+    }
+
     pub(super) fn get_symbol_links(&self, symbol: &Symbol) -> Rc<RefCell<SymbolLinks>> {
         if let Symbol::TransientSymbol(symbol) = symbol {
             return symbol.symbol_links();
@@ -990,7 +1027,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_global_source_file(&self, node: &Node) -> bool {
-        node.kind() == SyntaxKind::SourceFile && true
+        node.kind() == SyntaxKind::SourceFile && !is_external_or_common_js_module(node)
     }
 
     pub(super) fn get_symbol(
@@ -1002,8 +1039,20 @@ impl TypeChecker {
         if meaning != SymbolFlags::None {
             let symbol = self.get_merged_symbol(symbols.get(name).map(Clone::clone));
             if let Some(symbol) = symbol {
+                Debug_.assert(
+                    !get_check_flags(&symbol).intersects(CheckFlags::Instantiated),
+                    Some("Should never get an instantiated symbol here."),
+                );
                 if symbol.flags().intersects(meaning) {
                     return Some(symbol);
+                }
+                if symbol.flags().intersects(SymbolFlags::Alias) {
+                    let target = self.resolve_alias(&symbol);
+                    if Rc::ptr_eq(&target, &self.unknown_symbol())
+                        || target.flags().intersects(meaning)
+                    {
+                        return Some(symbol);
+                    }
                 }
             }
         }
@@ -1015,7 +1064,278 @@ impl TypeChecker {
         parameter: &Node, /*ParameterDeclaration*/
         parameter_name: &__String,
     ) -> Vec<Rc<Symbol>> {
-        unimplemented!()
+        let constructor_declaration = parameter.parent();
+        let class_declaration = parameter.parent().parent();
+
+        let parameter_symbol = self.get_symbol(
+            &constructor_declaration.locals(),
+            parameter_name,
+            SymbolFlags::Value,
+        );
+        let property_symbol = self.get_symbol(
+            &RefCell::borrow(&self.get_members_of_symbol(&class_declaration.symbol())),
+            parameter_name,
+            SymbolFlags::Value,
+        );
+
+        match (parameter_symbol, property_symbol) {
+            (Some(parameter_symbol), Some(property_symbol)) => vec![parameter_symbol, property_symbol],
+            _ => Debug_.fail(Some("There should exist two symbols, one as property declaration and one as parameter declaration")),
+        }
+    }
+
+    pub(super) fn is_block_scoped_name_declared_before_use(
+        &self,
+        declaration: &Node, /*Declaration*/
+        usage: &Node,
+    ) -> bool {
+        let declaration_file = get_source_file_of_node(Some(declaration)).unwrap();
+        let use_file = get_source_file_of_node(Some(usage)).unwrap();
+        let decl_container = get_enclosing_block_scope_container(declaration).unwrap();
+        if !Rc::ptr_eq(&declaration_file, &use_file) {
+            if self.module_kind != ModuleKind::None
+                && (declaration_file
+                    .as_source_file()
+                    .maybe_external_module_indicator()
+                    .is_some()
+                    || use_file
+                        .as_source_file()
+                        .maybe_external_module_indicator()
+                        .is_some())
+                || !matches!(out_file(&self.compiler_options), Some(out_file) if !out_file.is_empty())
+                || self.is_in_type_query(usage)
+                || declaration.flags().intersects(NodeFlags::Ambient)
+            {
+                return true;
+            }
+            if self.is_used_in_function_or_instance_property(&decl_container, usage, declaration) {
+                return true;
+            }
+            let source_files = self.host.get_source_files();
+            return index_of_rc(source_files, &declaration_file)
+                <= index_of_rc(source_files, &use_file);
+        }
+
+        if declaration.pos() <= usage.pos()
+            && !(is_property_declaration(declaration) && is_this_property(&usage.parent()) && {
+                let declaration_as_property_declaration = declaration.as_property_declaration();
+                !declaration_as_property_declaration
+                    .maybe_initializer()
+                    .is_some()
+                    && !declaration_as_property_declaration
+                        .exclamation_token
+                        .is_some()
+            })
+        {
+            if declaration.kind() == SyntaxKind::BindingElement {
+                let error_binding_element = get_ancestor(Some(usage), SyntaxKind::BindingElement);
+                if let Some(error_binding_element) = error_binding_element {
+                    return !are_option_rcs_equal(
+                        find_ancestor(Some(&*error_binding_element), is_binding_element),
+                        find_ancestor(Some(declaration), is_binding_element),
+                    ) || declaration.pos() < error_binding_element.pos();
+                }
+                return self.is_block_scoped_name_declared_before_use(
+                    &get_ancestor(Some(declaration), SyntaxKind::VariableDeclaration).unwrap(),
+                    usage,
+                );
+            } else if declaration.kind() == SyntaxKind::VariableDeclaration {
+                return !self.is_immediately_used_in_initializer_of_block_scoped_variable(
+                    &decl_container,
+                    declaration,
+                    usage,
+                );
+            } else if is_class_declaration(declaration) {
+                return find_ancestor(Some(usage), |n| {
+                    is_computed_property_name(n) && ptr::eq(&*n.parent().parent(), declaration)
+                })
+                .is_none();
+            } else if is_property_declaration(declaration) {
+                return !self.is_property_immediately_referenced_within_declaration(
+                    declaration,
+                    usage,
+                    false,
+                );
+            } else if is_parameter_property_declaration(declaration, &declaration.parent()) {
+                return !(get_emit_script_target(&self.compiler_options) == ScriptTarget::ESNext
+                    && self.use_define_for_class_fields
+                    && are_option_rcs_equal(
+                        get_containing_class(declaration),
+                        get_containing_class(usage),
+                    )
+                    && self.is_used_in_function_or_instance_property(
+                        &decl_container,
+                        usage,
+                        declaration,
+                    ));
+            }
+            return true;
+        }
+
+        if usage.parent().kind() == SyntaxKind::ExportSpecifier
+            || usage.parent().kind() == SyntaxKind::ExportAssignment
+                && matches!(
+                    usage.parent().as_export_assignment().is_export_equals,
+                    Some(true)
+                )
+        {
+            return true;
+        }
+        if usage.kind() == SyntaxKind::ExportAssignment
+            && matches!(usage.as_export_assignment().is_export_equals, Some(true))
+        {
+            return true;
+        }
+
+        if usage.flags().intersects(NodeFlags::JSDoc)
+            || self.is_in_type_query(usage)
+            || self.usage_in_type_declaration(usage)
+        {
+            return true;
+        }
+        if self.is_used_in_function_or_instance_property(&decl_container, usage, declaration) {
+            if get_emit_script_target(&self.compiler_options) == ScriptTarget::ESNext
+                && self.use_define_for_class_fields
+                && get_containing_class(declaration).is_some()
+                && (is_property_declaration(declaration)
+                    || is_parameter_property_declaration(declaration, &declaration.parent()))
+            {
+                return !self.is_property_immediately_referenced_within_declaration(
+                    declaration,
+                    usage,
+                    true,
+                );
+            } else {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn usage_in_type_declaration(&self, usage: &Node) -> bool {
+        find_ancestor(Some(usage), |node| {
+            is_interface_declaration(node) || is_type_alias_declaration(node)
+        })
+        .is_some()
+    }
+
+    pub(super) fn is_immediately_used_in_initializer_of_block_scoped_variable(
+        &self,
+        decl_container: &Node,
+        declaration: &Node, /*VariableDeclaration*/
+        usage: &Node,
+    ) -> bool {
+        match declaration.parent().parent().kind() {
+            SyntaxKind::VariableStatement
+            | SyntaxKind::ForStatement
+            | SyntaxKind::ForOfStatement => {
+                if self.is_same_scope_descendent_of(usage, Some(declaration), decl_container) {
+                    return true;
+                }
+            }
+            _ => (),
+        }
+
+        let grandparent = declaration.parent().parent();
+        is_for_in_or_of_statement(&grandparent)
+            && self.is_same_scope_descendent_of(
+                usage,
+                Some(grandparent.as_has_expression().expression()),
+                decl_container,
+            )
+    }
+
+    pub(super) fn is_used_in_function_or_instance_property(
+        &self,
+        decl_container: &Node,
+        usage: &Node,
+        declaration: &Node,
+    ) -> bool {
+        find_ancestor(Some(usage), |current| {
+            if ptr::eq(current, decl_container) {
+                return FindAncestorCallbackReturn::Quit;
+            }
+            if is_function_like(Some(current)) {
+                return true.into();
+            }
+            if is_class_static_block_declaration(current) {
+                return (declaration.pos() < usage.pos()).into();
+            }
+
+            let property_declaration = current.maybe_parent().and_then(|parent| try_cast(parent, |node: &Rc<Node>| is_property_declaration(node)));
+            if let Some(property_declaration) = property_declaration {
+                let initializer_of_property = matches!(property_declaration.as_property_declaration().maybe_initializer(), Some(initializer) if ptr::eq(&*initializer, current));
+                if initializer_of_property {
+                    if is_static(&current.parent()) {
+                        if declaration.kind() == SyntaxKind::MethodDeclaration {
+                            return true.into();
+                        }
+                        if is_property_declaration(declaration) && are_option_rcs_equal(get_containing_class(usage), get_containing_class(declaration)) {
+                            let prop_name = declaration.as_property_declaration().name();
+                            if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
+                                let type_ = self.get_type_of_symbol(&self.get_symbol_of_node(declaration).unwrap());
+                                let static_blocks = filter(Some(declaration.parent().as_class_like_declaration().members()), |node: &Rc<Node>| is_class_static_block_declaration(node)).unwrap();
+                                if self.is_property_initialized_in_static_blocks(&prop_name, &type_, &static_blocks, declaration.parent().pos(), current.pos()) {
+                                    return true.into();
+                                }
+                            }
+                        }
+                    } else {
+                        let is_declaration_instance_property = declaration.kind() == SyntaxKind::PropertyDeclaration && !is_static(declaration);
+                        if !is_declaration_instance_property || !are_option_rcs_equal(get_containing_class(usage), get_containing_class(declaration)) {
+                            return true.into();
+                        }
+                    }
+                }
+            }
+            false.into()
+        })
+        .is_some()
+    }
+
+    pub(super) fn is_property_immediately_referenced_within_declaration(
+        &self,
+        declaration: &Node, /*PropertyDeclaration | ParameterPropertyDeclaration*/
+        usage: &Node,
+        stop_at_any_property_declaration: bool,
+    ) -> bool {
+        if usage.end() > declaration.end() {
+            return false;
+        }
+
+        let ancestor_changing_reference_scope = find_ancestor(Some(usage), |node| {
+            if ptr::eq(node, declaration) {
+                return FindAncestorCallbackReturn::Quit;
+            }
+
+            match node.kind() {
+                SyntaxKind::ArrowFunction => true.into(),
+                SyntaxKind::PropertyDeclaration => {
+                    if stop_at_any_property_declaration
+                        && (is_property_declaration(declaration)
+                            && Rc::ptr_eq(&node.parent(), &declaration.parent())
+                            || is_parameter_property_declaration(
+                                declaration,
+                                &declaration.parent(),
+                            ) && Rc::ptr_eq(&node.parent(), &declaration.parent().parent()))
+                    {
+                        FindAncestorCallbackReturn::Quit
+                    } else {
+                        true.into()
+                    }
+                }
+                SyntaxKind::Block => matches!(
+                    node.parent().kind(),
+                    SyntaxKind::GetAccessor
+                        | SyntaxKind::MethodDeclaration
+                        | SyntaxKind::SetAccessor
+                )
+                .into(),
+                _ => false.into(),
+            }
+        });
+
+        ancestor_changing_reference_scope.is_none()
     }
 
     pub(super) fn resolve_name_<TLocation: Borrow<Node>, TNameArg: Into<ResolveNameNameArg>>(

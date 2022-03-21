@@ -639,6 +639,17 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn is_property_initialized_in_static_blocks(
+        &self,
+        prop_name: &Node, /*Identifier | PrivateIdentifier*/
+        prop_type: &Type,
+        static_blocks: &[Rc<Node /*ClassStaticBlockDeclaration*/>],
+        start_pos: isize,
+        end_pos: isize,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_interface_declaration(&self, node: &Node /*InterfaceDeclaration*/) {
         let node_as_interface_declaration = node.as_interface_declaration();
         self.check_type_parameters(

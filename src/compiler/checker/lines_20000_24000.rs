@@ -409,6 +409,10 @@ impl TypeChecker {
         links_ref.resolved_symbol.clone().unwrap()
     }
 
+    pub(super) fn is_in_type_query(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn filter_type(&self, type_: &Type, f: fn(&TypeChecker, &Type) -> bool) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Union) {
             unimplemented!()

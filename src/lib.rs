@@ -325,7 +325,7 @@ pub use compiler::utilities::{
     escape_non_ascii_string, escape_string, export_assignment_is_alias,
     external_helpers_module_name_text, for_each_entry, format_message, format_string_from_args,
     full_triple_slash_amd_reference_path_reg_ex, full_triple_slash_reference_path_reg_ex,
-    get_allow_synthetic_default_imports, get_assigned_expando_initializer,
+    get_allow_synthetic_default_imports, get_ancestor, get_assigned_expando_initializer,
     get_assignment_declaration_kind, get_assignment_declaration_property_access_kind,
     get_binary_operator_precedence, get_check_flags, get_compiler_option_value,
     get_containing_class, get_containing_function_or_class_static_block, get_declaration_of_kind,
@@ -373,14 +373,14 @@ pub use compiler::utilities::{
     is_push_or_unshift_identifier, is_require_call, is_require_variable_declaration,
     is_signed_numeric_literal, is_source_file_js, is_special_property_declaration, is_static,
     is_string_double_quoted, is_string_or_numeric_literal_like, is_super_property,
-    is_this_identifier, is_this_initialized_declaration, is_type_alias, is_type_node_kind,
-    is_variable_like, is_watch_set, is_write_only_access, maybe_set_parent, modifier_to_flag,
-    modifiers_to_flags, node_is_missing, node_is_present, node_is_synthesized, object_allocator,
-    out_file, package_id_to_string, parse_pseudo_big_int, position_is_synthesized,
-    pseudo_big_int_to_string, remove_file_extension, set_parent, set_parent_recursive,
-    set_text_range_pos, set_text_range_pos_end, set_text_range_pos_width, set_value_declaration,
-    should_preserve_const_enums, skip_parentheses, skip_type_checking, slice_after,
-    supported_js_extensions_flat, supported_ts_extensions_flat,
+    is_this_identifier, is_this_initialized_declaration, is_this_property, is_type_alias,
+    is_type_node_kind, is_variable_like, is_watch_set, is_write_only_access, maybe_set_parent,
+    modifier_to_flag, modifiers_to_flags, node_is_missing, node_is_present, node_is_synthesized,
+    object_allocator, out_file, package_id_to_string, parse_pseudo_big_int,
+    position_is_synthesized, pseudo_big_int_to_string, remove_file_extension, set_parent,
+    set_parent_recursive, set_text_range_pos, set_text_range_pos_end, set_text_range_pos_width,
+    set_value_declaration, should_preserve_const_enums, skip_parentheses, skip_type_checking,
+    slice_after, supported_js_extensions_flat, supported_ts_extensions_flat,
     try_get_import_from_module_specifier, try_parse_pattern, unreachable_code_is_error,
     unused_label_is_error, using_single_line_string_writer, walk_up_parenthesized_expressions,
     write_file_ensuring_directories, Associativity, FileMatcherPatterns, FunctionFlags,
@@ -471,4 +471,6 @@ pub use compiler::watch_public::{
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::number::Number;
 pub use rust_helpers::weak_self::WeakSelf;
-pub use rust_helpers::{index_of, is_same_variant, last_index_of};
+pub use rust_helpers::{
+    are_option_rcs_equal, index_of, index_of_rc, is_same_variant, last_index_of,
+};
