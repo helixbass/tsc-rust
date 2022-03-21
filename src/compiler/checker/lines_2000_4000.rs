@@ -11,6 +11,27 @@ use crate::{
 };
 
 impl TypeChecker {
+    pub(super) fn check_symbol_usage_in_expression_context(
+        &self,
+        symbol: &Symbol,
+        name: &__String,
+        use_site: &Node,
+    ) {
+        unimplemented!()
+    }
+
+    pub(super) fn get_is_deferred_context<TLastLocation: Borrow<Node>>(
+        &self,
+        location: &Node,
+        last_location: Option<TLastLocation>,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_self_reference_location(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn diagnostic_name(&self, name_arg: ResolveNameNameArg) -> Cow<'static, str> {
         match name_arg {
             ResolveNameNameArg::__String(__string) => {
@@ -18,6 +39,82 @@ impl TypeChecker {
             }
             ResolveNameNameArg::Node(node) => declaration_name_to_string(Some(&*node)),
         }
+    }
+
+    pub(super) fn is_type_parameter_symbol_declared_in_container(
+        &self,
+        symbol: &Symbol,
+        container: &Node,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_and_report_error_for_missing_prefix(
+        &self,
+        error_location: &Node,
+        name: &__String,
+        name_arg: ResolveNameNameArg,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_and_report_error_for_extending_interface(
+        &self,
+        error_location: &Node,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_and_report_error_for_using_type_as_namespace(
+        &self,
+        error_location: &Node,
+        name: &__String,
+        meaning: SymbolFlags,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_and_report_error_for_using_value_as_type(
+        &self,
+        error_location: &Node,
+        name: &__String,
+        meaning: SymbolFlags,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_and_report_error_for_exporting_primitive_type(
+        &self,
+        error_location: &Node,
+        name: &__String,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_and_report_error_for_using_type_as_value(
+        &self,
+        error_location: &Node,
+        name: &__String,
+        meaning: SymbolFlags,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_and_report_error_for_using_namespace_module_as_value(
+        &self,
+        error_location: &Node,
+        name: &__String,
+        meaning: SymbolFlags,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn check_resolved_block_scoped_variable(
+        &self,
+        result: &Symbol,
+        error_location: &Node,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn is_same_scope_descendent_of<TParent: Borrow<Node>>(

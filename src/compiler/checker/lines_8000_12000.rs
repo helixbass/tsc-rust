@@ -548,6 +548,10 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_late_bound_symbol(&self, symbol: &Symbol) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
     pub(super) fn resolve_object_type_members(
         &self,
         type_: &Type,  /*ObjectType*/

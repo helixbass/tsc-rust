@@ -37,6 +37,13 @@ impl TypeChecker {
         symbol.flags().intersects(SymbolFlags::Value)
     }
 
+    pub(super) fn find_constructor_declaration(
+        &self,
+        node: &Node, /*ClassLikeDeclaration*/
+    ) -> Option<Rc<Node /*ConstructorDeclaration*/>> {
+        unimplemented!()
+    }
+
     pub(super) fn create_type(&self, flags: TypeFlags) -> BaseType {
         let mut result = (self.Type)(flags);
         self.increment_type_count();

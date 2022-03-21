@@ -1430,6 +1430,10 @@ impl TypeChecker {
         self.global_this_symbol.clone().unwrap()
     }
 
+    pub(super) fn require_symbol(&self) -> Rc<Symbol> {
+        self.require_symbol.clone().unwrap()
+    }
+
     pub(super) fn arguments_symbol(&self) -> Rc<Symbol> {
         self.arguments_symbol.clone().unwrap()
     }
@@ -2528,6 +2532,14 @@ impl TypeChecker {
 
     pub(super) fn global_array_type(&self) -> Rc<Type> {
         self.global_array_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn suggestion_count(&self) -> usize {
+        self.suggestion_count.get()
+    }
+
+    pub(super) fn increment_suggestion_count(&self) {
+        self.suggestion_count.set(self.suggestion_count.get() + 1)
     }
 
     pub(super) fn merged_symbols(&self) -> RefMut<HashMap<u32, Rc<Symbol>>> {

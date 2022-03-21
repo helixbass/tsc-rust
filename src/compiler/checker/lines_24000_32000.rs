@@ -5,7 +5,10 @@ use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, WideningKind};
+use super::{
+    signature_has_rest_parameter, CheckMode, MinArgumentCountFlags, ResolveNameNameArg,
+    WideningKind,
+};
 use crate::{
     filter, get_this_container, is_function_expression_or_arrow_function, is_import_call,
     is_object_literal_method, ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature,
@@ -420,6 +423,22 @@ impl TypeChecker {
         left_type: &Type,
         lexically_scoped_identifier: &Symbol,
     ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_unchecked_js_suggestion<TNode: Borrow<Node>, TSuggestion: Borrow<Symbol>>(
+        &self,
+        node: Option<TNode>,
+        suggestion: Option<TSuggestion>,
+        exclude_classes: bool,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_suggested_lib_for_nonexistent_name(
+        &self,
+        name: ResolveNameNameArg,
+    ) -> Option<String> {
         unimplemented!()
     }
 
