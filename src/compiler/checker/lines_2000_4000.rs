@@ -1,14 +1,20 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::{Borrow, Cow};
+use std::ptr;
 use std::rc::Rc;
 
 use super::ResolveNameNameArg;
 use crate::{
-    add_related_info, create_diagnostic_for_node, is_valid_type_only_alias_use_site, Diagnostic,
-    DiagnosticMessage, Diagnostics, SyntaxKind, __String, declaration_name_to_string,
-    get_first_identifier, node_is_missing, unescape_leading_underscores, Debug_, Node,
-    NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    add_related_info, create_diagnostic_for_node, find,
+    get_immediately_invoked_function_expression, get_jsdoc_host, get_text_of_node,
+    get_this_container, has_syntactic_modifier, is_class_like, is_entity_name_expression,
+    is_function_like_declaration, is_identifier, is_in_js_file, is_jsdoc_template_tag,
+    is_jsdoc_type_alias, is_qualified_name, is_static, is_type_query_node,
+    is_valid_type_only_alias_use_site, Diagnostic, DiagnosticMessage, Diagnostics, ModifierFlags,
+    SyntaxKind, __String, declaration_name_to_string, get_first_identifier, node_is_missing,
+    unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
+    SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -72,19 +78,51 @@ impl TypeChecker {
         location: &Node,
         last_location: Option<TLastLocation>,
     ) -> bool {
-        unimplemented!()
+        let last_location =
+            last_location.map(|last_location| last_location.borrow().node_wrapper());
+        if !matches!(
+            location.kind(),
+            SyntaxKind::ArrowFunction | SyntaxKind::FunctionExpression
+        ) {
+            return is_type_query_node(location)
+                || ((is_function_like_declaration(location)
+                    || location.kind() == SyntaxKind::PropertyDeclaration
+                        && !is_static(location))
+                    && !matches!(last_location.as_ref(), Some(last_location) if matches!(location.as_named_declaration().maybe_name(), Some(name) if Rc::ptr_eq(last_location, &name))));
+        }
+        if matches!(last_location.as_ref(), Some(last_location) if matches!(location.as_named_declaration().maybe_name(), Some(name) if Rc::ptr_eq(last_location, &name)))
+        {
+            return false;
+        }
+        if location
+            .as_function_like_declaration()
+            .maybe_asterisk_token()
+            .is_some()
+            || has_syntactic_modifier(location, ModifierFlags::Async)
+        {
+            return true;
+        }
+        get_immediately_invoked_function_expression(location).is_none()
     }
 
     pub(super) fn is_self_reference_location(&self, node: &Node) -> bool {
-        unimplemented!()
+        matches!(
+            node.kind(),
+            SyntaxKind::FunctionDeclaration
+                | SyntaxKind::ClassDeclaration
+                | SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::EnumDeclaration
+                | SyntaxKind::TypeAliasDeclaration
+                | SyntaxKind::ModuleDeclaration
+        )
     }
 
     pub(super) fn diagnostic_name(&self, name_arg: ResolveNameNameArg) -> Cow<'static, str> {
         match name_arg {
-            ResolveNameNameArg::__String(__string) => {
-                unescape_leading_underscores(&__string).into()
+            ResolveNameNameArg::__String(name_arg) => {
+                unescape_leading_underscores(&name_arg).into()
             }
-            ResolveNameNameArg::Node(node) => declaration_name_to_string(Some(&*node)),
+            ResolveNameNameArg::Node(name_arg) => declaration_name_to_string(Some(name_arg)),
         }
     }
 
@@ -93,7 +131,28 @@ impl TypeChecker {
         symbol: &Symbol,
         container: &Node,
     ) -> bool {
-        unimplemented!()
+        if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+            for decl in symbol_declarations {
+                if decl.kind() == SyntaxKind::TypeParameter {
+                    let decl_parent = decl.parent();
+                    let parent = if is_jsdoc_template_tag(&decl_parent) {
+                        get_jsdoc_host(&decl_parent)
+                    } else {
+                        decl.maybe_parent()
+                    };
+                    if matches!(parent, Some(parent) if ptr::eq(&*parent, container)) {
+                        return !(is_jsdoc_template_tag(&decl_parent)
+                            && find(
+                                decl_parent.parent().as_jsdoc().tags.as_deref().unwrap(),
+                                |tag: &Rc<Node>, _| is_jsdoc_type_alias(tag),
+                            )
+                            .is_some());
+                    }
+                }
+            }
+        }
+
+        false
     }
 
     pub(super) fn check_and_report_error_for_missing_prefix(
@@ -102,14 +161,102 @@ impl TypeChecker {
         name: &__String,
         name_arg: ResolveNameNameArg,
     ) -> bool {
-        unimplemented!()
+        if !is_identifier(error_location)
+            || &error_location.as_identifier().escaped_text != name
+            || self.is_type_reference_identifier(error_location)
+            || self.is_in_type_query(error_location)
+        {
+            return false;
+        }
+
+        let container = get_this_container(error_location, false);
+        let mut location: Option<Rc<Node>> = Some(container.clone());
+        while let Some(location_present) = location {
+            if is_class_like(&location_present.parent()) {
+                let class_symbol = self.get_symbol_of_node(&location_present.parent());
+                if class_symbol.is_none() {
+                    break;
+                }
+                let class_symbol = class_symbol.unwrap();
+
+                let constructor_type = self.get_type_of_symbol(&class_symbol);
+                if self.get_property_of_type(&constructor_type, name).is_some() {
+                    self.error(
+                        Some(error_location),
+                        &Diagnostics::Cannot_find_name_0_Did_you_mean_the_static_member_1_0,
+                        Some(vec![
+                            self.diagnostic_name(name_arg).into_owned(),
+                            self.symbol_to_string_(
+                                &class_symbol,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                                None,
+                            ),
+                        ]),
+                    );
+                    return true;
+                }
+
+                if Rc::ptr_eq(&location_present, &container) && !is_static(&location_present) {
+                    let declared_type = self.get_declared_type_of_symbol(&class_symbol);
+                    let instance_type = declared_type.as_base_interface_type().this_type.borrow();
+                    let instance_type = instance_type.as_ref().unwrap();
+                    if self.get_property_of_type(&instance_type, name).is_some() {
+                        self.error(
+                            Some(error_location),
+                            &Diagnostics::Cannot_find_name_0_Did_you_mean_the_instance_member_this_0,
+                            Some(vec![self.diagnostic_name(name_arg).into_owned()]),
+                        );
+                        return true;
+                    }
+                }
+            }
+
+            location = location_present.maybe_parent();
+        }
+        false
     }
 
     pub(super) fn check_and_report_error_for_extending_interface(
         &self,
         error_location: &Node,
     ) -> bool {
-        unimplemented!()
+        let expression = self.get_entity_name_for_extending_interface(error_location);
+        if let Some(expression) = expression {
+            if self
+                .resolve_entity_name(&expression, SymbolFlags::Interface, Some(true), None)
+                .is_some()
+            {
+                self.error(
+                    Some(error_location),
+                    &Diagnostics::Cannot_extend_an_interface_0_Did_you_mean_implements,
+                    Some(vec![get_text_of_node(&expression, None).into_owned()]),
+                );
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn get_entity_name_for_extending_interface(
+        &self,
+        node: &Node,
+    ) -> Option<Rc<Node /*EntityNameExpression*/>> {
+        match node.kind() {
+            SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression => node
+                .maybe_parent()
+                .and_then(|node_parent| self.get_entity_name_for_extending_interface(&node_parent)),
+            SyntaxKind::ExpressionWithTypeArguments => {
+                let node_as_expression_with_type_arguments =
+                    node.as_expression_with_type_arguments();
+                if is_entity_name_expression(&node_as_expression_with_type_arguments.expression) {
+                    return Some(node_as_expression_with_type_arguments.expression.clone());
+                }
+                None
+            }
+            _ => None,
+        }
     }
 
     pub(super) fn check_and_report_error_for_using_type_as_namespace(
@@ -118,7 +265,60 @@ impl TypeChecker {
         name: &__String,
         meaning: SymbolFlags,
     ) -> bool {
-        unimplemented!()
+        let namespace_meaning = SymbolFlags::Namespace
+            | if is_in_js_file(Some(error_location)) {
+                SymbolFlags::Value
+            } else {
+                SymbolFlags::None
+            };
+        if meaning == namespace_meaning {
+            let symbol = self.resolve_symbol(
+                self.resolve_name_(
+                    Some(error_location),
+                    name,
+                    SymbolFlags::Type & !namespace_meaning,
+                    None,
+                    Option::<Rc<Node>>::None,
+                    false,
+                    None,
+                ),
+                None,
+            );
+            let parent = error_location.parent();
+            if let Some(symbol) = symbol {
+                if is_qualified_name(&parent) {
+                    let parent_as_qualified_name = parent.as_qualified_name();
+                    Debug_.assert(
+                        ptr::eq(&*parent_as_qualified_name.left, error_location),
+                        Some("Should only be resolving left side of qualified name as a namespace"),
+                    );
+                    let prop_name = &parent_as_qualified_name.right.as_identifier().escaped_text;
+                    let prop_type = self.get_property_of_type(
+                        &self.get_declared_type_of_symbol(&symbol),
+                        prop_name,
+                    );
+                    if prop_type.is_some() {
+                        self.error(
+                            Some(&*parent),
+                            &Diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,
+                            Some(vec![
+                                unescape_leading_underscores(name),
+                                unescape_leading_underscores(prop_name),
+                            ])
+                        );
+                        return true;
+                    }
+                }
+                self.error(
+                    Some(error_location),
+                    &Diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here,
+                    Some(vec![unescape_leading_underscores(name)]),
+                );
+                return true;
+            }
+        }
+
+        false
     }
 
     pub(super) fn check_and_report_error_for_using_value_as_type(

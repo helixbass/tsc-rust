@@ -94,6 +94,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_type_reference_identifier(&self, node: &Node /*EntityName*/) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_symbol_at_location_(
         &self,
         node: &Node,
