@@ -6,17 +6,20 @@ use std::rc::Rc;
 
 use super::ResolveNameNameArg;
 use crate::{
-    add_related_info, create_diagnostic_for_node, find, find_ancestor,
-    get_immediately_invoked_function_expression, get_jsdoc_host, get_name_of_declaration,
-    get_text_of_node, get_this_container, has_syntactic_modifier, is_block_or_catch_scoped,
-    is_class_like, is_computed_property_name, is_entity_name_expression, is_function_like,
-    is_function_like_declaration, is_identifier, is_in_js_file, is_jsdoc_template_tag,
-    is_jsdoc_type_alias, is_property_signature, is_qualified_name, is_static, is_type_literal_node,
-    is_type_query_node, is_valid_type_only_alias_use_site, should_preserve_const_enums, Diagnostic,
-    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, ModifierFlags, NodeFlags,
-    SyntaxKind, TypeFlags, TypeInterface, __String, declaration_name_to_string,
-    get_first_identifier, node_is_missing, unescape_leading_underscores, Debug_, Node,
-    NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    add_related_info, create_diagnostic_for_node, export_assignment_is_alias, find, find_ancestor,
+    find_last, get_assignment_declaration_kind, get_immediately_invoked_function_expression,
+    get_jsdoc_host, get_name_of_declaration, get_text_of_node, get_this_container,
+    has_syntactic_modifier, is_access_expression, is_aliasable_expression, is_binary_expression,
+    is_block_or_catch_scoped, is_class_like, is_computed_property_name, is_entity_name_expression,
+    is_function_expression, is_function_like, is_function_like_declaration, is_identifier,
+    is_in_js_file, is_jsdoc_template_tag, is_jsdoc_type_alias, is_property_signature,
+    is_qualified_name, is_require_variable_declaration, is_static, is_type_literal_node,
+    is_type_query_node, is_valid_type_only_alias_use_site, should_preserve_const_enums,
+    AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics,
+    FindAncestorCallbackReturn, ModifierFlags, NodeFlags, SyntaxKind, TypeFlags, TypeInterface,
+    __String, declaration_name_to_string, get_first_identifier, node_is_missing,
+    unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
+    SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -642,6 +645,54 @@ impl TypeChecker {
             SyntaxKind::ImportSpecifier => node.parent().parent().maybe_parent(),
             _ => None,
         }
+    }
+
+    pub(super) fn get_declaration_of_alias_symbol(
+        &self,
+        symbol: &Symbol,
+    ) -> Option<Rc<Node /*Declaration*/>> {
+        symbol
+            .maybe_declarations()
+            .as_deref()
+            .and_then(|declarations| {
+                find_last(declarations, |declaration, _| {
+                    self.is_alias_symbol_declaration(declaration)
+                })
+            })
+            .map(Clone::clone)
+    }
+
+    pub(super) fn is_alias_symbol_declaration(&self, node: &Node) -> bool {
+        matches!(
+            node.kind(),
+            SyntaxKind::ImportEqualsDeclaration | SyntaxKind::NamespaceExportDeclaration
+        ) || node.kind() == SyntaxKind::ImportClause && node.as_import_clause().name.is_some()
+            || matches!(
+                node.kind(),
+                SyntaxKind::NamespaceImport
+                    | SyntaxKind::NamespaceExport
+                    | SyntaxKind::ImportSpecifier
+                    | SyntaxKind::ExportSpecifier
+            )
+            || node.kind() == SyntaxKind::ExportAssignment
+                && get_assignment_declaration_kind(node) == AssignmentDeclarationKind::ModuleExports
+                && export_assignment_is_alias(node)
+            || is_access_expression(node) && is_binary_expression(&node.parent()) && {
+                let node_parent = node.parent();
+                let node_parent_as_binary_expression = node_parent.as_binary_expression();
+                ptr::eq(&*node_parent_as_binary_expression.left, node)
+                    && node_parent_as_binary_expression.operator_token.kind()
+                        == SyntaxKind::EqualsToken
+                    && self.is_aliasable_or_js_expression(&node_parent_as_binary_expression.right)
+            }
+            || node.kind() == SyntaxKind::ShorthandPropertyAssignment
+            || node.kind() == SyntaxKind::PropertyAssignment
+                && self.is_aliasable_or_js_expression(&node.as_property_assignment().initializer)
+            || is_require_variable_declaration(node)
+    }
+
+    pub(super) fn is_aliasable_or_js_expression(&self, e: &Node /*Expression*/) -> bool {
+        is_aliasable_expression(e) || is_function_expression(e) && self.is_js_constructor(Some(e))
     }
 
     pub(super) fn resolve_symbol<TSymbol: Borrow<Symbol>>(

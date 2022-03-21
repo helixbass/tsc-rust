@@ -490,6 +490,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_js_constructor<TNode: Borrow<Node>>(&self, node: Option<TNode>) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_of_parameter(&self, symbol: &Symbol) -> Rc<Type> {
         let type_ = self.get_type_of_symbol(symbol);
         if self.strict_null_checks {

@@ -91,6 +91,18 @@ pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .map(|(_, value)| value)
 }
 
+pub fn find_last<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: &[TItem],
+    mut predicate: TCallback,
+) -> Option<&TItem> {
+    array
+        .into_iter()
+        .rev()
+        .enumerate()
+        .find(|(index, value)| predicate(value, *index))
+        .map(|(_, value)| value)
+}
+
 pub fn find_index<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     array: &[TItem],
     mut predicate: TCallback,
