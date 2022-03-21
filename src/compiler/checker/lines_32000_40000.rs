@@ -72,6 +72,15 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn all_types_assignable_to_kind(
+        &self,
+        source: &Type,
+        kind: TypeFlags,
+        strict: Option<bool>,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_template_expression(
         &self,
         node: &Node, /*TemplateExpression*/

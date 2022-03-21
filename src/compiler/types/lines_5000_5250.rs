@@ -104,6 +104,10 @@ impl __String {
     pub fn eq_str(&self, str: &str) -> bool {
         &self.0 == str
     }
+
+    pub fn into_string(self) -> String {
+        self.0
+    }
 }
 
 impl Deref for __String {
@@ -216,13 +220,24 @@ bitflags! {
         const TemplateLiteral = 1 << 27;
         const StringMapping = 1 << 28;
 
+        const AnyOrUnknown = Self::Any.bits | Self::Unknown.bits;
         const Nullable = Self::Undefined.bits | Self::Null.bits;
         const Literal = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::BigIntLiteral.bits | Self::BooleanLiteral.bits;
         const Unit = Self::Literal.bits | Self::UniqueESSymbol.bits | Self::Nullable.bits;
+        const StringOrNumberLiteral = Self::StringLiteral.bits | Self::NumberLiteral.bits;
         const StringOrNumberLiteralOrUnique = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::UniqueESSymbol.bits;
+        const DefinitelyFalsy = Self::StringLiteral.bits | Self::NumberLiteral.bits | Self::BigIntLiteral.bits | Self::BooleanLiteral.bits | Self::Void.bits | Self::Undefined.bits | Self::Null.bits;
+        const PossiblyFalsy = Self::DefinitelyFalsy.bits | Self::String.bits | Self::Number.bits | Self::BigInt.bits | Self::Boolean.bits;
+        const Intrinsic = Self::Any.bits | Self::Unknown.bits | Self::String.bits | Self::Number.bits | Self::BigInt.bits | Self::Boolean.bits | Self::BooleanLiteral.bits | Self::ESSymbol.bits | Self::Void.bits | Self::Undefined.bits | Self::Null.bits | Self::Never.bits | Self::NonPrimitive.bits;
         const Primitive = Self::String.bits | Self::Number.bits | Self::BigInt.bits | Self::Boolean.bits | Self::Enum.bits | Self::EnumLiteral.bits | Self::ESSymbol.bits | Self::Void.bits | Self::Undefined.bits | Self::Null.bits | Self::Literal.bits | Self::UniqueESSymbol.bits;
+        const StringLike = Self::String.bits | Self::StringLiteral.bits | Self::TemplateLiteral.bits | Self::StringMapping.bits;
         const NumberLike = Self::Number.bits | Self::NumberLiteral.bits | Self::Enum.bits;
         const BigIntLike = Self::BigInt.bits | Self::BigIntLiteral.bits;
+        const BooleanLike = Self::Boolean.bits | Self::BooleanLiteral.bits;
+        const EnumLike = Self::Enum.bits | Self::EnumLiteral.bits;
+        const ESSymbolLike = Self::ESSymbol.bits | Self::UniqueESSymbol.bits;
+        const VoidLike = Self::Void.bits | Self::Undefined.bits;
+        const DisjointDomains = Self::NonPrimitive.bits | Self::StringLike.bits | Self::NumberLike.bits | Self::BigIntLike.bits | Self::BooleanLike.bits | Self::ESSymbolLike.bits | Self::VoidLike.bits | Self::Null.bits;
         const UnionOrIntersection =  Self::Union.bits | Self::Intersection.bits;
         const StructuredType = Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
         const TypeVariable = Self::TypeParameter.bits | Self::IndexedAccess.bits;
@@ -231,7 +246,14 @@ bitflags! {
         const Instantiable = Self::InstantiableNonPrimitive.bits | Self::InstantiablePrimitive.bits;
         const StructuredOrInstantiable = Self::StructuredType.bits | Self::Instantiable.bits;
         const ObjectFlagsType = Self::Any.bits | Self::Nullable.bits | Self::Never.bits | Self::Object.bits | Self::Union.bits | Self::Intersection.bits;
+        const Simplifiable = Self::IndexedAccess.bits | Self::Conditional.bits;
+        const Singleton = Self::Any.bits | Self::Unknown.bits | Self::String.bits | Self::Number.bits | Self::Boolean.bits | Self::BigInt.bits | Self::ESSymbol.bits | Self::Void.bits | Self::Undefined.bits | Self::Null.bits | Self::Never.bits | Self::NonPrimitive.bits;
+        const Narrowable = Self::Any.bits | Self::Unknown.bits | Self::StructuredOrInstantiable.bits | Self::StringLike.bits | Self::NumberLike.bits | Self::BigIntLike.bits | Self::BooleanLike.bits | Self::ESSymbol.bits | Self::UniqueESSymbol.bits | Self::NonPrimitive.bits;
         const IncludesMask = Self::Any.bits | Self::Unknown.bits | Self::Primitive.bits | Self::Never.bits | Self::Object.bits | Self::Union.bits | Self::Intersection.bits | Self::NonPrimitive.bits | Self::TemplateLiteral.bits;
+        const IncludesMissingType = Self::TypeParameter.bits;
+        const IncludesNonWideningType = Self::Index.bits;
+        const IncludesWildcard = Self::IndexedAccess.bits;
+        const IncludesEmptyObject = Self::Conditional.bits;
         const IncludesInstantiable = Self::Substitution.bits;
         const NotPrimitiveUnion = Self::Any.bits | Self::Unknown.bits | Self::Enum.bits | Self::Void.bits | Self::Never.bits | Self::Object.bits | Self::Intersection.bits | Self::IncludesInstantiable.bits;
     }

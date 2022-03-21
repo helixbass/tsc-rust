@@ -6,15 +6,16 @@ use std::rc::Rc;
 
 use super::ResolveNameNameArg;
 use crate::{
-    add_related_info, create_diagnostic_for_node, find,
+    add_related_info, create_diagnostic_for_node, find, find_ancestor,
     get_immediately_invoked_function_expression, get_jsdoc_host, get_text_of_node,
-    get_this_container, has_syntactic_modifier, is_class_like, is_entity_name_expression,
-    is_function_like_declaration, is_identifier, is_in_js_file, is_jsdoc_template_tag,
-    is_jsdoc_type_alias, is_qualified_name, is_static, is_type_query_node,
-    is_valid_type_only_alias_use_site, Diagnostic, DiagnosticMessage, Diagnostics, ModifierFlags,
-    SyntaxKind, __String, declaration_name_to_string, get_first_identifier, node_is_missing,
-    unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
-    SymbolInterface, TypeChecker,
+    get_this_container, has_syntactic_modifier, is_class_like, is_computed_property_name,
+    is_entity_name_expression, is_function_like_declaration, is_identifier, is_in_js_file,
+    is_jsdoc_template_tag, is_jsdoc_type_alias, is_property_signature, is_qualified_name,
+    is_static, is_type_literal_node, is_type_query_node, is_valid_type_only_alias_use_site,
+    Diagnostic, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, ModifierFlags,
+    SyntaxKind, TypeFlags, TypeInterface, __String, declaration_name_to_string,
+    get_first_identifier, node_is_missing, unescape_leading_underscores, Debug_, Node,
+    NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -327,7 +328,37 @@ impl TypeChecker {
         name: &__String,
         meaning: SymbolFlags,
     ) -> bool {
-        unimplemented!()
+        if meaning.intersects(SymbolFlags::Type & !SymbolFlags::Namespace) {
+            let symbol = self.resolve_symbol(
+                self.resolve_name_(
+                    Some(error_location),
+                    name,
+                    !SymbolFlags::Type & SymbolFlags::Value,
+                    None,
+                    Option::<Rc<Node>>::None,
+                    false,
+                    None,
+                ),
+                None,
+            );
+            if matches!(symbol, Some(symbol) if !symbol.flags().intersects(SymbolFlags::Namespace))
+            {
+                self.error(
+                    Some(error_location),
+                    &Diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
+                    Some(vec![unescape_leading_underscores(name)])
+                );
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn is_primitive_type_name(&self, name: &__String) -> bool {
+        matches!(
+            &**name,
+            "any" | "string" | "number" | "boolean" | "never" | "unknown"
+        )
     }
 
     pub(super) fn check_and_report_error_for_exporting_primitive_type(
@@ -335,7 +366,17 @@ impl TypeChecker {
         error_location: &Node,
         name: &__String,
     ) -> bool {
-        unimplemented!()
+        if self.is_primitive_type_name(name)
+            && error_location.parent().kind() == SyntaxKind::ExportSpecifier
+        {
+            self.error(
+                Some(error_location),
+                &Diagnostics::Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module,
+                Some(vec![name.clone().into_string()]),
+            );
+            return true;
+        }
+        false
     }
 
     pub(super) fn check_and_report_error_for_using_type_as_value(
@@ -344,7 +385,87 @@ impl TypeChecker {
         name: &__String,
         meaning: SymbolFlags,
     ) -> bool {
-        unimplemented!()
+        if meaning.intersects(SymbolFlags::Value & !SymbolFlags::NamespaceModule) {
+            if self.is_primitive_type_name(name) {
+                self.error(
+                    Some(error_location),
+                    &Diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here,
+                    Some(vec![unescape_leading_underscores(name)]),
+                );
+                return true;
+            }
+            let symbol = self.resolve_symbol(
+                self.resolve_name_(
+                    Some(error_location),
+                    name,
+                    SymbolFlags::Type & !SymbolFlags::Value,
+                    None,
+                    Option::<Rc<Node>>::None,
+                    false,
+                    None,
+                ),
+                None,
+            );
+            if let Some(symbol) = symbol {
+                if !symbol.flags().intersects(SymbolFlags::NamespaceModule) {
+                    let raw_name = unescape_leading_underscores(name);
+                    if self.is_es2015_or_later_constructor_name(name) {
+                        self.error(
+                            Some(error_location),
+                            &Diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_es2015_or_later,
+                            Some(vec![raw_name])
+                        );
+                    } else if self.maybe_mapped_type(error_location, &symbol) {
+                        let second_arg = if raw_name == "K" { "P" } else { "K" };
+                        self.error(
+                            Some(error_location),
+                            &Diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Did_you_mean_to_use_1_in_0,
+                            Some(vec![raw_name, second_arg.to_owned()])
+                        );
+                    } else {
+                        self.error(
+                            Some(error_location),
+                            &Diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here,
+                            Some(vec![raw_name]),
+                        );
+                    }
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    pub(super) fn maybe_mapped_type(&self, node: &Node, symbol: &Symbol) -> bool {
+        let container = find_ancestor(node.maybe_parent(), |n| {
+            if is_computed_property_name(n) || is_property_signature(n) {
+                false.into()
+            } else {
+                if is_type_literal_node(n) {
+                    true.into()
+                } else {
+                    FindAncestorCallbackReturn::Quit
+                }
+            }
+        });
+        if matches!(container, Some(container) if container.as_type_literal_node().members.len() == 1)
+        {
+            let type_ = self.get_declared_type_of_symbol(symbol);
+            return type_.flags().intersects(TypeFlags::Union)
+                && self.all_types_assignable_to_kind(
+                    &type_,
+                    TypeFlags::StringOrNumberLiteral,
+                    Some(true),
+                );
+        }
+        false
+    }
+
+    pub(super) fn is_es2015_or_later_constructor_name(&self, n: &__String) -> bool {
+        matches!(
+            &**n,
+            "Promise" | "Symbol" | "Map" | "WeakMap" | "Set" | "WeakSet"
+        )
     }
 
     pub(super) fn check_and_report_error_for_using_namespace_module_as_value(
