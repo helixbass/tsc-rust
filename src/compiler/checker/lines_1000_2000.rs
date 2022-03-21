@@ -14,14 +14,16 @@ use crate::{
     add_range, add_related_info, are_option_rcs_equal, compare_diagnostics, compare_paths,
     create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
     create_diagnostic_for_node_from_message_chain, create_file_diagnostic, create_symbol_table,
-    filter, find_ancestor, for_each, get_ancestor, get_check_flags, get_containing_class,
-    get_emit_script_target, get_enclosing_block_scope_container, get_expando_initializer,
-    get_jsdoc_deprecated_tag, get_name_of_declaration, get_name_of_expando, get_or_update,
-    index_of_rc, is_binding_element, is_class_declaration, is_class_static_block_declaration,
+    filter, find_ancestor, for_each, for_each_bool, for_each_child_bool, get_ancestor,
+    get_check_flags, get_containing_class, get_emit_script_target,
+    get_enclosing_block_scope_container, get_expando_initializer, get_jsdoc_deprecated_tag,
+    get_name_of_declaration, get_name_of_expando, get_or_update, has_static_modifier, index_of_rc,
+    is_binding_element, is_class_declaration, is_class_static_block_declaration,
     is_computed_property_name, is_external_or_common_js_module, is_for_in_or_of_statement,
     is_function_like, is_global_scope_augmentation, is_identifier, is_interface_declaration,
+    is_nullish_coalesce, is_object_binding_pattern, is_optional_chain, is_parameter,
     is_parameter_property_declaration, is_private_identifier, is_property_declaration, is_static,
-    is_this_property, is_type_alias_declaration, length, maybe_for_each,
+    is_this_property, is_type_alias_declaration, is_type_node, length, maybe_for_each,
     null_transformation_context, out_file, push_if_unique_rc, set_text_range_pos_end,
     set_value_declaration, some, synthetic_factory, try_cast, visit_each_child,
     CancellationTokenDebuggable, Comparison, DiagnosticCategory, DiagnosticInterface,
@@ -1336,6 +1338,92 @@ impl TypeChecker {
         });
 
         ancestor_changing_reference_scope.is_none()
+    }
+
+    pub(super) fn use_outer_variable_scope_in_parameter(
+        &self,
+        result: &Symbol,
+        location: &Node,
+        last_location: &Node,
+    ) -> bool {
+        let target = get_emit_script_target(&self.compiler_options);
+        let function_location = location.as_function_like_declaration();
+        if is_parameter(last_location)
+            && match (
+                function_location.maybe_body(),
+                result.maybe_value_declaration().as_ref(),
+            ) {
+                (Some(function_location_body), Some(result_value_declaration)) => {
+                    result_value_declaration.pos() >= function_location_body.pos()
+                        && result_value_declaration.end() <= function_location_body.end()
+                }
+                _ => false,
+            }
+        {
+            if target >= ScriptTarget::ES2015 {
+                let links = self.get_node_links(location);
+                let mut links = links.borrow_mut();
+                if links.declaration_requires_scope_change.is_none() {
+                    links.declaration_requires_scope_change = Some(
+                        for_each_bool(function_location.parameters(), |node: &Rc<Node>, _| {
+                            self.requires_scope_change(target, node)
+                        }) || false,
+                    );
+                }
+                return !links.declaration_requires_scope_change.unwrap();
+            }
+        }
+
+        false
+    }
+
+    pub(super) fn requires_scope_change(
+        &self,
+        target: ScriptTarget,
+        node: &Node, /*ParameterDeclaration*/
+    ) -> bool {
+        self.requires_scope_change_worker(target, node)
+            || matches!(node.as_parameter_declaration().maybe_initializer(), Some(initializer) if self.requires_scope_change_worker(target, &initializer))
+    }
+
+    pub(super) fn requires_scope_change_worker(&self, target: ScriptTarget, node: &Node) -> bool {
+        match node.kind() {
+            SyntaxKind::ArrowFunction
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::Constructor => false,
+            SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::PropertyAssignment => {
+                self.requires_scope_change_worker(target, &node.as_named_declaration().name())
+            }
+            SyntaxKind::PropertyDeclaration => {
+                if has_static_modifier(node) {
+                    return target < ScriptTarget::ESNext || !self.use_define_for_class_fields;
+                }
+                self.requires_scope_change_worker(target, &node.as_property_declaration().name())
+            }
+            _ => {
+                if is_nullish_coalesce(node) || is_optional_chain(node) {
+                    return target < ScriptTarget::ES2020;
+                }
+                if is_binding_element(node)
+                    && node.as_binding_element().dot_dot_dot_token.is_some()
+                    && is_object_binding_pattern(&node.parent())
+                {
+                    return target < ScriptTarget::ES2017;
+                }
+                if is_type_node(node) {
+                    return false;
+                }
+                for_each_child_bool(
+                    node,
+                    |child| self.requires_scope_change_worker(target, child),
+                    Option::<fn(&NodeArray) -> bool>::None,
+                ) || false
+            }
+        }
     }
 
     pub(super) fn resolve_name_<TLocation: Borrow<Node>, TNameArg: Into<ResolveNameNameArg>>(

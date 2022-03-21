@@ -167,6 +167,7 @@ pub struct NodeLinks {
     pub resolved_signature: Option<Rc<Signature>>,
     pub resolved_symbol: Option<Rc<Symbol>>,
     pub skip_direct_inference: Option<bool /*true*/>,
+    pub declaration_requires_scope_change: Option<bool>,
 }
 
 impl NodeLinks {
@@ -177,6 +178,7 @@ impl NodeLinks {
             resolved_symbol: None,
             resolved_signature: None,
             skip_direct_inference: None,
+            declaration_requires_scope_change: None,
         }
     }
 }
