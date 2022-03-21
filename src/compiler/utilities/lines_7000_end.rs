@@ -31,6 +31,10 @@ pub fn pseudo_big_int_to_string(pseudo_big_int: &PseudoBigInt) -> String {
     )
 }
 
+pub fn is_valid_type_only_alias_use_site(use_site: &Node) -> bool {
+    unimplemented!()
+}
+
 pub fn set_text_range_pos<TRange: ReadonlyTextRange>(range: &TRange, pos: isize) -> &TRange {
     range.set_pos(pos);
     range

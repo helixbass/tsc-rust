@@ -5,9 +5,10 @@ use std::rc::Rc;
 
 use super::ResolveNameNameArg;
 use crate::{
-    DiagnosticMessage, __String, declaration_name_to_string, get_first_identifier, node_is_missing,
-    unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
-    SymbolInterface, TypeChecker,
+    add_related_info, create_diagnostic_for_node, is_valid_type_only_alias_use_site, Diagnostic,
+    DiagnosticMessage, Diagnostics, SyntaxKind, __String, declaration_name_to_string,
+    get_first_identifier, node_is_missing, unescape_leading_underscores, Debug_, Node,
+    NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -17,7 +18,53 @@ impl TypeChecker {
         name: &__String,
         use_site: &Node,
     ) {
-        unimplemented!()
+        if !is_valid_type_only_alias_use_site(use_site) {
+            let type_only_declaration = self.get_type_only_alias_declaration(symbol);
+            if let Some(type_only_declaration) = type_only_declaration {
+                let message = if type_only_declaration.kind() == SyntaxKind::ExportSpecifier {
+                    &Diagnostics::_0_cannot_be_used_as_a_value_because_it_was_exported_using_export_type
+                } else {
+                    &Diagnostics::_0_cannot_be_used_as_a_value_because_it_was_imported_using_import_type
+                };
+                let unescaped_name = unescape_leading_underscores(name);
+                self.add_type_only_declaration_related_info(
+                    self.error(Some(use_site), message, Some(vec![unescaped_name.clone()])),
+                    Some(type_only_declaration),
+                    &unescaped_name,
+                );
+            }
+        }
+    }
+
+    pub(super) fn add_type_only_declaration_related_info<
+        TTypeOnlyDeclaration: Borrow<Node /*TypeOnlyCompatibleAliasDeclaration*/>,
+    >(
+        &self,
+        diagnostic: Rc<Diagnostic>,
+        type_only_declaration: Option<TTypeOnlyDeclaration>,
+        unescaped_name: &str,
+    ) -> Rc<Diagnostic> {
+        if type_only_declaration.is_none() {
+            return diagnostic;
+        }
+        let type_only_declaration = type_only_declaration.unwrap();
+        let type_only_declaration = type_only_declaration.borrow();
+        add_related_info(
+            &diagnostic,
+            vec![Rc::new(
+                create_diagnostic_for_node(
+                    type_only_declaration,
+                    if type_only_declaration.kind() == SyntaxKind::ExportSpecifier {
+                        &Diagnostics::_0_was_exported_here
+                    } else {
+                        &Diagnostics::_0_was_imported_here
+                    },
+                    Some(vec![unescaped_name.to_owned()]),
+                )
+                .into(),
+            )],
+        );
+        diagnostic
     }
 
     pub(super) fn get_is_deferred_context<TLastLocation: Borrow<Node>>(
@@ -135,6 +182,13 @@ impl TypeChecker {
     }
 
     pub(super) fn resolve_alias(&self, symbol: &Symbol) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_only_alias_declaration(
+        &self,
+        symbol: &Symbol,
+    ) -> Option<Rc<Node /*TypeOnlyAliasDeclaration*/>> {
         unimplemented!()
     }
 
