@@ -474,7 +474,54 @@ impl TypeChecker {
         name: &__String,
         meaning: SymbolFlags,
     ) -> bool {
-        unimplemented!()
+        if meaning
+            .intersects(SymbolFlags::Value & !SymbolFlags::NamespaceModule & !SymbolFlags::Type)
+        {
+            let symbol = self.resolve_symbol(
+                self.resolve_name_(
+                    Some(error_location),
+                    name,
+                    SymbolFlags::NamespaceModule & !SymbolFlags::Value,
+                    None,
+                    Option::<Rc<Node>>::None,
+                    false,
+                    None,
+                ),
+                None,
+            );
+            if symbol.is_some() {
+                self.error(
+                    Some(error_location),
+                    &Diagnostics::Cannot_use_namespace_0_as_a_value,
+                    Some(vec![unescape_leading_underscores(name)]),
+                );
+                return true;
+            }
+        } else if meaning
+            .intersects(SymbolFlags::Type & !SymbolFlags::NamespaceModule & !SymbolFlags::Value)
+        {
+            let symbol = self.resolve_symbol(
+                self.resolve_name_(
+                    Some(error_location),
+                    name,
+                    (SymbolFlags::ValueModule | SymbolFlags::NamespaceModule) & !SymbolFlags::Type,
+                    None,
+                    Option::<Rc<Node>>::None,
+                    false,
+                    None,
+                ),
+                None,
+            );
+            if symbol.is_some() {
+                self.error(
+                    Some(error_location),
+                    &Diagnostics::Cannot_use_namespace_0_as_a_type,
+                    Some(vec![unescape_leading_underscores(name)]),
+                );
+                return true;
+            }
+        }
+        false
     }
 
     pub(super) fn check_resolved_block_scoped_variable(
