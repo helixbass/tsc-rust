@@ -14,29 +14,34 @@ use crate::{
     add_range, add_related_info, are_option_rcs_equal, compare_diagnostics, compare_paths,
     create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
     create_diagnostic_for_node_from_message_chain, create_file_diagnostic, create_symbol_table,
-    filter, find_ancestor, for_each, for_each_bool, for_each_child_bool, get_ancestor,
-    get_check_flags, get_containing_class, get_emit_script_target,
-    get_enclosing_block_scope_container, get_expando_initializer, get_jsdoc_deprecated_tag,
-    get_name_of_declaration, get_name_of_expando, get_or_update, has_static_modifier, index_of_rc,
-    is_binding_element, is_class_declaration, is_class_static_block_declaration,
+    declaration_name_to_string, every, filter, find_ancestor, for_each, for_each_bool,
+    for_each_child_bool, get_ancestor, get_check_flags, get_containing_class,
+    get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag,
+    get_emit_script_target, get_enclosing_block_scope_container, get_expando_initializer,
+    get_jsdoc_deprecated_tag, get_jsdoc_root, get_local_symbol_for_export_default,
+    get_name_of_declaration, get_name_of_expando, get_or_update, get_root_declaration,
+    has_static_modifier, index_of_rc, is_ambient_module, is_binding_element, is_binding_pattern,
+    is_class_declaration, is_class_element, is_class_like, is_class_static_block_declaration,
     is_computed_property_name, is_external_or_common_js_module, is_for_in_or_of_statement,
-    is_function_like, is_global_scope_augmentation, is_identifier, is_interface_declaration,
-    is_nullish_coalesce, is_object_binding_pattern, is_optional_chain, is_parameter,
-    is_parameter_property_declaration, is_private_identifier, is_property_declaration, is_static,
+    is_function_like, is_global_scope_augmentation, is_identifier, is_in_js_file,
+    is_interface_declaration, is_jsdoc_template_tag, is_jsdoc_type_alias, is_module_declaration,
+    is_namespace_export_declaration, is_nullish_coalesce, is_object_binding_pattern,
+    is_optional_chain, is_parameter, is_parameter_declaration, is_parameter_property_declaration,
+    is_private_identifier, is_property_declaration, is_require_call, is_source_file, is_static,
     is_this_property, is_type_alias_declaration, is_type_node, length, maybe_for_each,
-    null_transformation_context, out_file, push_if_unique_rc, set_text_range_pos_end,
-    set_value_declaration, some, synthetic_factory, try_cast, visit_each_child,
-    CancellationTokenDebuggable, Comparison, DiagnosticCategory, DiagnosticInterface,
-    DiagnosticMessageChain, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-    Diagnostics, DuplicateInfoForFiles, DuplicateInfoForSymbol, EmitResolverDebuggable,
-    FindAncestorCallbackReturn, HasInitializerInterface, InternalSymbolName, ModuleKind,
-    NamedDeclarationInterface, NodeArray, NodeFlags, PatternAmbientModule, ReadonlyTextRange,
-    ScriptTarget, VisitResult, __String, create_diagnostic_for_node, escape_leading_underscores,
-    factory, get_first_identifier, get_source_file_of_node, is_jsx_opening_fragment,
-    parse_isolated_entity_name, unescape_leading_underscores, visit_node, BaseTransientSymbol,
-    CheckFlags, Debug_, Diagnostic, DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
-    TransientSymbolInterface, TypeChecker,
+    node_is_synthesized, null_transformation_context, out_file, push_if_unique_rc,
+    set_text_range_pos_end, set_value_declaration, some, synthetic_factory, try_cast,
+    visit_each_child, CancellationTokenDebuggable, Comparison, DiagnosticCategory,
+    DiagnosticInterface, DiagnosticMessageChain, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Diagnostics, DuplicateInfoForFiles,
+    DuplicateInfoForSymbol, EmitResolverDebuggable, FindAncestorCallbackReturn,
+    HasInitializerInterface, InternalSymbolName, ModuleKind, NamedDeclarationInterface, NodeArray,
+    NodeFlags, PatternAmbientModule, ReadonlyTextRange, ScriptTarget, VisitResult, __String,
+    create_diagnostic_for_node, escape_leading_underscores, factory, get_first_identifier,
+    get_source_file_of_node, is_jsx_opening_fragment, parse_isolated_entity_name,
+    unescape_leading_underscores, visit_node, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
+    DiagnosticMessage, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface,
+    SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -1133,8 +1138,8 @@ impl TypeChecker {
                 let error_binding_element = get_ancestor(Some(usage), SyntaxKind::BindingElement);
                 if let Some(error_binding_element) = error_binding_element {
                     return !are_option_rcs_equal(
-                        find_ancestor(Some(&*error_binding_element), is_binding_element),
-                        find_ancestor(Some(declaration), is_binding_element),
+                        find_ancestor(Some(&*error_binding_element), is_binding_element).as_ref(),
+                        find_ancestor(Some(declaration), is_binding_element).as_ref(),
                     ) || declaration.pos() < error_binding_element.pos();
                 }
                 return self.is_block_scoped_name_declared_before_use(
@@ -1162,8 +1167,8 @@ impl TypeChecker {
                 return !(get_emit_script_target(&self.compiler_options) == ScriptTarget::ESNext
                     && self.use_define_for_class_fields
                     && are_option_rcs_equal(
-                        get_containing_class(declaration),
-                        get_containing_class(usage),
+                        get_containing_class(declaration).as_ref(),
+                        get_containing_class(usage).as_ref(),
                     )
                     && self.is_used_in_function_or_instance_property(
                         &decl_container,
@@ -1272,7 +1277,7 @@ impl TypeChecker {
                         if declaration.kind() == SyntaxKind::MethodDeclaration {
                             return true.into();
                         }
-                        if is_property_declaration(declaration) && are_option_rcs_equal(get_containing_class(usage), get_containing_class(declaration)) {
+                        if is_property_declaration(declaration) && are_option_rcs_equal(get_containing_class(usage).as_ref(), get_containing_class(declaration).as_ref()) {
                             let prop_name = declaration.as_property_declaration().name();
                             if is_identifier(&prop_name) || is_private_identifier(&prop_name) {
                                 let type_ = self.get_type_of_symbol(&self.get_symbol_of_node(declaration).unwrap());
@@ -1284,7 +1289,7 @@ impl TypeChecker {
                         }
                     } else {
                         let is_declaration_instance_property = declaration.kind() == SyntaxKind::PropertyDeclaration && !is_static(declaration);
-                        if !is_declaration_instance_property || !are_option_rcs_equal(get_containing_class(usage), get_containing_class(declaration)) {
+                        if !is_declaration_instance_property || !are_option_rcs_equal(get_containing_class(usage).as_ref(), get_containing_class(declaration).as_ref()) {
                             return true.into();
                         }
                     }
@@ -1464,17 +1469,93 @@ impl TypeChecker {
         lookup: fn(&TypeChecker, &SymbolTable, &__String, SymbolFlags) -> Option<Rc<Symbol>>,
     ) -> Option<Rc<Symbol>> {
         let mut location: Option<Rc<Node>> = location.map(|node| node.borrow().node_wrapper());
+        let original_location = location.clone();
         let mut result: Option<Rc<Symbol>> = None;
         let mut last_location: Option<Rc<Node>> = None;
+        let mut last_self_reference_location: Option<Rc<Node>> = None;
+        let mut property_with_invalid_initializer: Option<Rc<Node>> = None;
+        let mut associated_declaration_for_containing_initializer_or_binding_name: Option<
+            Rc<Node /*ParameterDeclaration | BindingElement*/>,
+        > = None;
+        let mut within_deferred_context = false;
         let error_location = location.clone();
+        let mut grandparent: Rc<Node>;
+        let mut is_in_external_module = false;
 
-        while let Some(location_unwrapped) = location {
+        while let Some(mut location_unwrapped) = location {
             let location_maybe_locals = location_unwrapped.maybe_locals();
             if let Some(location_locals) = &*location_maybe_locals {
                 if !self.is_global_source_file(&*location_unwrapped) {
                     result = lookup(self, location_locals, name, meaning);
                     if let Some(result_unwrapped) = result.as_ref() {
                         let mut use_result = true;
+                        if is_function_like(Some(&*location_unwrapped))
+                            && last_location.is_some()
+                            && !are_option_rcs_equal(
+                                last_location.as_ref(),
+                                location_unwrapped
+                                    .as_function_like_declaration()
+                                    .maybe_body()
+                                    .as_ref(),
+                            )
+                        {
+                            let last_location_unwrapped = last_location.as_ref().unwrap();
+                            if meaning & result_unwrapped.flags() & SymbolFlags::Type
+                                != SymbolFlags::None
+                                && last_location_unwrapped.kind() != SyntaxKind::JSDocComment
+                            {
+                                use_result = if result_unwrapped
+                                    .flags()
+                                    .intersects(SymbolFlags::TypeParameter)
+                                {
+                                    are_option_rcs_equal(
+                                        last_location.as_ref(),
+                                        location_unwrapped
+                                            .as_function_like_declaration()
+                                            .maybe_type()
+                                            .as_ref(),
+                                    ) || matches!(
+                                        last_location_unwrapped.kind(),
+                                        SyntaxKind::Parameter | SyntaxKind::TypeParameter
+                                    )
+                                } else {
+                                    false
+                                };
+                            }
+                            if meaning & result_unwrapped.flags() & SymbolFlags::Variable
+                                != SymbolFlags::None
+                            {
+                                if self.use_outer_variable_scope_in_parameter(
+                                    &result_unwrapped,
+                                    &location_unwrapped,
+                                    &last_location_unwrapped,
+                                ) {
+                                    use_result = false;
+                                } else if result_unwrapped
+                                    .flags()
+                                    .intersects(SymbolFlags::FunctionScopedVariable)
+                                {
+                                    use_result = last_location_unwrapped.kind()
+                                        == SyntaxKind::Parameter
+                                        || are_option_rcs_equal(
+                                            last_location.as_ref(),
+                                            location_unwrapped
+                                                .as_function_like_declaration()
+                                                .maybe_type()
+                                                .as_ref(),
+                                        ) && find_ancestor(
+                                            result_unwrapped.maybe_value_declaration(),
+                                            is_parameter,
+                                        )
+                                        .is_some()
+                                }
+                            }
+                        } else if location_unwrapped.kind() == SyntaxKind::ConditionalType {
+                            use_result = are_option_rcs_equal(
+                                last_location.as_ref(),
+                                Some(&location_unwrapped.as_conditional_type_node().true_type),
+                            );
+                        }
 
                         if use_result {
                             break;
@@ -1484,9 +1565,109 @@ impl TypeChecker {
                     }
                 }
             }
-
+            within_deferred_context = within_deferred_context
+                || self.get_is_deferred_context(&location_unwrapped, last_location.as_deref());
             match location_unwrapped.kind() {
-                SyntaxKind::InterfaceDeclaration => {
+                SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration => {
+                    if !(location_unwrapped.kind() == SyntaxKind::SourceFile
+                        && !is_external_or_common_js_module(&location_unwrapped))
+                    {
+                        if location_unwrapped.kind() == SyntaxKind::SourceFile {
+                            is_in_external_module = true;
+                        }
+                        let module_exports: Rc<RefCell<SymbolTable>> = self
+                            .get_symbol_of_node(&location_unwrapped)
+                            .and_then(|symbol| symbol.maybe_exports().clone())
+                            .unwrap_or_else(|| self.empty_symbols());
+                        let module_exports = RefCell::borrow(&module_exports);
+                        if location_unwrapped.kind() == SyntaxKind::SourceFile
+                            || (is_module_declaration(&location_unwrapped)
+                                && location_unwrapped.flags().intersects(NodeFlags::Ambient)
+                                && !is_global_scope_augmentation(&location_unwrapped))
+                        {
+                            result = module_exports
+                                .get(&InternalSymbolName::Default())
+                                .map(Clone::clone);
+                            if let Some(result_unwrapped) = result.as_ref() {
+                                let local_symbol =
+                                    get_local_symbol_for_export_default(result_unwrapped);
+                                if local_symbol.is_some()
+                                    && result_unwrapped.flags().intersects(meaning)
+                                    && local_symbol.unwrap().escaped_name() == name
+                                {
+                                    break;
+                                }
+                                result = None;
+                            }
+
+                            let module_export = module_exports.get(name);
+                            if matches!(
+                                module_export,
+                                Some(module_export) if module_export.flags() == SymbolFlags::Alias &&
+                                    (get_declaration_of_kind(module_export, SyntaxKind::ExportSpecifier).is_some() || get_declaration_of_kind(module_export, SyntaxKind::NamespaceExport).is_some())
+                            ) {
+                                break;
+                            }
+                        }
+
+                        if name != &InternalSymbolName::Default() {
+                            result = lookup(
+                                self,
+                                &module_exports,
+                                name,
+                                meaning & SymbolFlags::ModuleMember,
+                            );
+                            if let Some(result_unwrapped) = result.as_ref() {
+                                if is_source_file(&location_unwrapped)
+                                    && location_unwrapped
+                                        .as_source_file()
+                                        .maybe_common_js_module_indicator()
+                                        .is_some()
+                                    && !some(
+                                        result_unwrapped.maybe_declarations().as_deref(),
+                                        Some(|node: &Rc<Node>| is_jsdoc_type_alias(node)),
+                                    )
+                                {
+                                    result = None;
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                SyntaxKind::EnumDeclaration => {
+                    result = lookup(
+                        self,
+                        &RefCell::borrow(
+                            &self
+                                .get_symbol_of_node(&location_unwrapped)
+                                .and_then(|symbol| symbol.maybe_exports().clone())
+                                .unwrap_or_else(|| self.empty_symbols()),
+                        ),
+                        name,
+                        meaning & SymbolFlags::EnumMember,
+                    );
+                    if result.is_some() {
+                        break;
+                    }
+                }
+                SyntaxKind::PropertyDeclaration => {
+                    if !is_static(&location_unwrapped) {
+                        let ctor = self.find_constructor_declaration(&location_unwrapped.parent());
+                        if let Some(ctor_locals) = ctor.and_then(|ctor| ctor.maybe_locals()) {
+                            if lookup(self, ctor_locals, name, meaning & SymbolFlags::Value)
+                                .is_some()
+                            {
+                                property_with_invalid_initializer =
+                                    Some(location_unwrapped.clone());
+                            }
+                        }
+                    }
+                }
+                SyntaxKind::ClassDeclaration
+                | SyntaxKind::ClassExpression
+                | SyntaxKind::InterfaceDeclaration => {
                     result = lookup(
                         self,
                         &*(*self
@@ -1499,54 +1680,486 @@ impl TypeChecker {
                         name,
                         meaning & SymbolFlags::Type,
                     );
-                    if let Some(result) = &result {
+                    if let Some(result_unwrapped) = result.as_ref() {
+                        if !self.is_type_parameter_symbol_declared_in_container(
+                            &result_unwrapped,
+                            &location_unwrapped,
+                        ) {
+                            result = None;
+                        } else if matches!(last_location.as_ref(), Some(last_location) if is_static(last_location))
+                        {
+                            self.error(
+                                error_location.as_deref(),
+                                &Diagnostics::Static_members_cannot_reference_class_type_parameters,
+                                None,
+                            );
+                            return None;
+                        }
                         break;
+                    }
+                    if location_unwrapped.kind() == SyntaxKind::ClassExpression
+                        && meaning.intersects(SymbolFlags::Class)
+                    {
+                        let class_name = location_unwrapped.as_class_expression().maybe_name();
+                        if matches!(class_name, Some(class_name) if name == &class_name.as_identifier().escaped_text)
+                        {
+                            result = Some(location.symbol());
+                            break;
+                        }
+                    }
+                }
+                SyntaxKind::ExpressionWithTypeArguments => {
+                    if are_option_rcs_equal(
+                        last_location.as_ref(),
+                        Some(
+                            &location_unwrapped
+                                .as_expression_with_type_arguments()
+                                .expression,
+                        ),
+                    ) && location_unwrapped.parent().as_heritage_clause().token
+                        == SyntaxKind::ExtendsKeyword
+                    {
+                        let container = location_unwrapped.parent().parent();
+                        if is_class_like(&container) {
+                            result = lookup(
+                                self,
+                                &RefCell::borrow(
+                                    &self.get_symbol_of_node(&container).unwrap().members(),
+                                ),
+                                name,
+                                meaning & SymbolFlags::Type,
+                            );
+                            if result.is_some() {
+                                if name_not_found_message.is_some() {
+                                    self.error(error_location.as_deref(), &Diagnostics::Base_class_expressions_cannot_reference_class_type_parameters, None);
+                                }
+                                return None;
+                            }
+                        }
+                    }
+                }
+                SyntaxKind::ComputedPropertyName => {
+                    grandparent = location_unwrapped.parent().parent();
+                    if is_class_like(&grandparent)
+                        || grandparent.kind() == SyntaxKind::InterfaceDeclaration
+                    {
+                        result = lookup(
+                            self,
+                            &RefCell::borrow(
+                                &self.get_symbol_of_node(&grandparent).unwrap().members(),
+                            ),
+                            name,
+                            meaning & SymbolFlags::Type,
+                        );
+                        if result.is_some() {
+                            self.error(error_location.as_deref(), &Diagnostics::A_computed_property_name_cannot_reference_a_type_parameter_from_its_containing_type, None);
+                            return None;
+                        }
+                    }
+                }
+                SyntaxKind::ArrowFunction
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::Constructor
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::FunctionDeclaration => {
+                    if !(location_unwrapped.kind() == SyntaxKind::ArrowFunction
+                        && get_emit_script_target(&self.compiler_options) >= ScriptTarget::ES2015)
+                    {
+                        if meaning.intersects(SymbolFlags::Variable) && name.eq_str("arguments") {
+                            result = Some(self.arguments_symbol());
+                            break;
+                        }
+                    }
+                }
+                SyntaxKind::FunctionExpression => {
+                    if meaning.intersects(SymbolFlags::Variable) && name.eq_str("arguments") {
+                        result = Some(self.arguments_symbol());
+                        break;
+                    }
+
+                    if meaning.intersects(SymbolFlags::Function) {
+                        let function_name = location.as_function_expression().name.as_ref();
+                        if matches!(function_name, Some(function_name) if name == &function_name.as_identifier().escaped_text)
+                        {
+                            result = Some(location_unwrapped.symbol());
+                            break;
+                        }
+                    }
+                }
+                SyntaxKind::Decorator => {
+                    if matches!(location_unwrapped.maybe_parent(), Some(parent) if parent.kind() == SyntaxKind::Parameter)
+                    {
+                        location = location.maybe_parent();
+                    }
+                    location_unwrapped = location.unwrap();
+                    if matches!(location_unwrapped.maybe_parent(), Some(parent) if is_class_element(&parent) || parent.kind() == SyntaxKind::ClassDeclaration)
+                    {
+                        location = location.maybe_parent();
+                    }
+                    location_unwrapped = location.unwrap();
+                }
+                SyntaxKind::JSDocTypedefTag
+                | SyntaxKind::JSDocCallbackTag
+                | SyntaxKind::JSDocEnumTag => {
+                    let root = get_jsdoc_root(&location_unwrapped);
+                    if let Some(root) = root {
+                        location = root.parent();
+                        location_unwrapped = location.unwrap();
+                    }
+                }
+                SyntaxKind::Parameter => {
+                    if matches!(last_location.as_ref(), Some(last_location) if {
+                        let location_as_parameter_declaration = location_unwrapped.as_parameter_declaration();
+                        are_option_rcs_equal(Some(last_location), location_as_parameter_declaration.maybe_initializer().as_ref()) ||
+                        are_option_rcs_equal(Some(last_location), location_as_parameter_declaration.maybe_name().as_ref()) && is_binding_pattern(Some(&**last_location))
+                    }) {
+                        if associated_declaration_for_containing_initializer_or_binding_name
+                            .is_none()
+                        {
+                            associated_declaration_for_containing_initializer_or_binding_name =
+                                Some(location_unwrapped.clone());
+                        }
+                    }
+                }
+                SyntaxKind::BindingElement => {
+                    if matches!(last_location.as_ref(), Some(last_location) if {
+                        let location_as_binding_element = location_unwrapped.as_binding_element();
+                        are_option_rcs_equal(Some(last_location), location_as_binding_element.maybe_initializer().as_ref()) ||
+                        are_option_rcs_equal(Some(last_location), location_as_binding_element.maybe_name().as_ref()) && is_binding_pattern(Some(&**last_location))
+                    }) {
+                        if is_parameter_declaration(&location_unwrapped)
+                            && associated_declaration_for_containing_initializer_or_binding_name
+                                .is_none()
+                        {
+                            associated_declaration_for_containing_initializer_or_binding_name =
+                                Some(location_unwrapped.clone());
+                        }
+                    }
+                }
+                SyntaxKind::InferType => {
+                    if meaning.intersects(SymbolFlags::TypeParameter) {
+                        let location_type_parameter =
+                            &location_unwrapped.as_infer_type_node().type_parameter;
+                        let parameter_name = location_type_parameter
+                            .as_type_parameter_declaration()
+                            .maybe_name();
+                        if matches!(parameter_name, Some(parameter_name) if name == &parameter_name.as_identifier().escaped_text)
+                        {
+                            result = Some(location_type_parameter.symbol());
+                            break;
+                        }
                     }
                 }
                 _ => (),
             }
+            if self.is_self_reference_location(&location_unwrapped) {
+                last_self_reference_location = Some(location_unwrapped.clone());
+            }
             last_location = Some(location_unwrapped.clone());
-            location = location_unwrapped.maybe_parent();
+            location = if is_jsdoc_template_tag(&location_unwrapped) {
+                get_effective_container_for_jsdoc_template_tag(&location_unwrapped)
+                    .or_else(|| location_unwrapped.maybe_parent())
+            } else {
+                location_unwrapped.maybe_parent()
+            };
+        }
+
+        if is_use {
+            if let Some(result) = result.as_ref() {
+                if match last_self_reference_location.as_ref() {
+                    None => true,
+                    Some(last_self_reference_location) => {
+                        !Rc::ptr_eq(result, &last_self_reference_location.symbol())
+                    }
+                } {
+                    result.set_is_referenced(Some(
+                        result.maybe_is_referenced().unwrap_or(SymbolFlags::None) | meaning,
+                    ));
+                }
+            }
         }
 
         if result.is_none() {
             if let Some(last_location) = last_location {
                 Debug_.assert(last_location.kind() == SyntaxKind::SourceFile, None);
+                if last_location
+                    .as_source_file()
+                    .maybe_common_js_module_indicator()
+                    .is_some()
+                    && name.eq_str("exports")
+                    && meaning.intersects(last_location.symbol().flags())
+                {
+                    return Some(last_location.symbol());
+                }
             }
 
             if !exclude_globals {
                 result = lookup(self, &self.globals(), name, meaning);
             }
         }
-
         if result.is_none() {
-            if let Some(name_not_found_message) = name_not_found_message {
-                if true {
-                    let mut suggestion: Option<Rc<Symbol>> = None;
-                    if let Some(name_arg) = name_arg {
-                        let name_arg = name_arg.into();
-                        if false {
-                            unimplemented!()
-                        } else {
-                            self.error(
-                                error_location,
-                                &name_not_found_message,
-                                Some(vec![self.diagnostic_name(name_arg).into_owned()]),
-                            );
+            if let Some(original_location) = original_location.as_ref() {
+                if is_in_js_file(Some(&**original_location)) {
+                    if let Some(original_location_parent) = original_location.maybe_parent() {
+                        if is_require_call(&original_location_parent, false) {
+                            return Some(self.require_symbol());
                         }
                     }
                 }
             }
+        }
+        if result.is_none() {
+            if let Some(name_not_found_message) = name_not_found_message.as_ref() {
+                if error_location.is_none() || {
+                    let error_location = error_location.as_ref().unwrap();
+                    !self.check_and_report_error_for_missing_prefix(
+                        error_location,
+                        name,
+                        name_arg.unwrap(),
+                    ) && !self.check_and_report_error_for_extending_interface(error_location)
+                        && !self.check_and_report_error_for_using_type_as_namespace(
+                            error_location,
+                            name,
+                            meaning,
+                        )
+                        && !self.check_and_report_error_for_exporting_primitive_type(
+                            error_location,
+                            name,
+                        )
+                        && !self.check_and_report_error_for_using_type_as_value(
+                            error_location,
+                            name,
+                            meaning,
+                        )
+                        && !self.check_and_report_error_for_using_namespace_module_as_value(
+                            error_location,
+                            name,
+                            meaning,
+                        )
+                        && !self.check_and_report_error_for_using_value_as_type(
+                            error_location,
+                            name,
+                            meaning,
+                        )
+                } {
+                    let mut suggestion: Option<Rc<Symbol>> = None;
+                    if self.suggestion_count() < self.maximum_suggestion_count {
+                        suggestion = self.get_suggested_symbol_for_nonexistent_symbol_(
+                            original_location.as_deref(),
+                            name,
+                            meaning,
+                        );
+                        let is_global_scope_augmentation_declaration = matches!(
+                            suggestion.as_ref().and_then(|suggestion| suggestion.maybe_value_declaration()),
+                            Some(value_declaration) if is_ambient_module(&value_declaration) && is_global_scope_augmentation(&value_declaration)
+                        );
+                        if is_global_scope_augmentation_declaration {
+                            suggestion = None;
+                        }
+                        if let Some(suggestion) = suggestion.as_ref() {
+                            let suggestion_name =
+                                self.symbol_to_string_(suggestion, None, None, None, None);
+                            let is_unchecked_js = self.is_unchecked_js_suggestion(
+                                original_location.as_deref(),
+                                Some(&**suggestion),
+                                false,
+                            );
+                            let message = if meaning == SymbolFlags::Namespace
+                                || matches!(name_arg.as_ref(), Some(ResolveNameNameArg::Node(name_arg)) if node_is_synthesized(name_arg))
+                            {
+                                &Diagnostics::Cannot_find_namespace_0_Did_you_mean_1
+                            } else if is_unchecked_js {
+                                &Diagnostics::Could_not_find_name_0_Did_you_mean_1
+                            } else {
+                                &Diagnostics::Cannot_find_name_0_Did_you_mean_1
+                            };
+                            let diagnostic = self.create_error(
+                                error_location.as_deref(),
+                                message,
+                                self.diagnostic_name(name_arg.as_ref().unwrap()),
+                                Some(vec![suggestion_name.clone()]),
+                            );
+                            self.add_error_or_suggestion(!is_unchecked_js, diagnostic.clone());
+                            if let Some(suggestion_value_declaration) =
+                                suggestion.maybe_value_declaration()
+                            {
+                                add_related_info(
+                                    diagnostic,
+                                    create_diagnostic_for_node(
+                                        &suggestion_value_declaration,
+                                        &Diagnostics::_0_is_declared_here,
+                                        Some(vec![suggestion_name]),
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                    if suggestion.is_none() {
+                        if let Some(name_arg) = name_arg {
+                            let name_arg = name_arg.into();
+                            let lib = self.get_suggested_lib_for_nonexistent_name(&name_arg);
+                            if let Some(lib) = lib {
+                                self.error(
+                                    error_location,
+                                    &name_not_found_message,
+                                    Some(vec![self.diagnostic_name(name_arg).into_owned(), lib]),
+                                );
+                            } else {
+                                self.error(
+                                    error_location,
+                                    &name_not_found_message,
+                                    Some(vec![self.diagnostic_name(name_arg).into_owned()]),
+                                );
+                            }
+                        }
+                    }
+                    self.increment_suggestion_count();
+                }
+            }
             return None;
         }
+        let result = result.unwrap();
 
-        result
+        if let Some(name_not_found_message) = name_not_found_message {
+            if let Some(property_with_invalid_initializer) =
+                property_with_invalid_initializer.as_ref()
+            {
+                if !(get_emit_script_target(&self.compiler_options) == ScriptTarget::ESNext
+                    && self.use_define_for_class_fields)
+                {
+                    let property_name = property_with_invalid_initializer
+                        .as_named_declaration()
+                        .name();
+                    self.error(
+                        error_location.as_deref(),
+                        &Diagnostics::Initializer_of_instance_member_variable_0_cannot_reference_identifier_1_declared_in_the_constructor,
+                        Some(vec![declaration_name_to_string(&property_name), self.diagnostic_name(name_arg)])
+                    );
+                    return None;
+                }
+            }
+
+            if let Some(error_location) = error_location.as_ref() {
+                if meaning.intersects(SymbolFlags::BlockScopedVariable)
+                    || (meaning.intersects(SymbolFlags::Class)
+                        || meaning.intersects(SymbolFlags::Enum))
+                        && meaning & SymbolFlags::Value == SymbolFlags::Value
+                {
+                    let export_or_local_symbol = self
+                        .get_export_symbol_of_value_symbol_if_exported(Some(&*result))
+                        .unwrap();
+                    if export_or_local_symbol
+                        .flags()
+                        .intersects(SymbolFlags::BlockScopedVariable)
+                        || export_or_local_symbol
+                            .flags()
+                            .intersects(SymbolFlags::Class)
+                        || export_or_local_symbol.flags().intersects(SymbolFlags::Enum)
+                    {
+                        self.check_resolved_block_scoped_variable(
+                            &export_or_local_symbol,
+                            error_location,
+                        );
+                    }
+                }
+            }
+
+            if
+            /*result &&*/
+            is_in_external_module
+                && meaning & SymbolFlags::Value == SymbolFlags::Value
+                && !original_location
+                    .as_ref()
+                    .unwrap()
+                    .flags()
+                    .intersects(NodeFlags::JSDoc)
+            {
+                let merged = self.get_merged_symbol(Some(&*result)).unwrap();
+                if length(merged.maybe_declarations().as_deref()) > 0
+                    && every(merged.maybe_declarations().as_deref().unwrap(), |d, _| {
+                        is_namespace_export_declaration(d)
+                            || is_source_file(d) && d.symbol().maybe_global_exports().is_some()
+                    })
+                {
+                    self.error_or_suggestion(
+                        !matches!(self.compiler_options.allow_umd_global_access, Some(true)),
+                        error_location.as_deref().unwrap(),
+                        Diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead.clone().into(),
+                        Some(vec![unescape_leading_underscores(name)])
+                    );
+                }
+            }
+
+            if
+            /*result &&*/
+            let Some(associated_declaration_for_containing_initializer_or_binding_name) =
+                associated_declaration_for_containing_initializer_or_binding_name.as_ref()
+            {
+                if !within_deferred_context && meaning & SymbolFlags::Value == SymbolFlags::Value {
+                    let candidate = self.get_merged_symbol(&self.get_late_bound_symbol(&result));
+                    let root = get_root_declaration(
+                        associated_declaration_for_containing_initializer_or_binding_name,
+                    );
+                    if are_option_rcs_equal(
+                        Some(&candidate),
+                        self.get_symbol_of_node(
+                            &associated_declaration_for_containing_initializer_or_binding_name,
+                        ),
+                    ) {
+                        self.error(
+                            error_location.as_deref(),
+                            &Diagnostics::Parameter_0_cannot_reference_itself,
+                            Some(vec![declaration_name_to_string(
+                                &associated_declaration_for_containing_initializer_or_binding_name
+                                    .as_named_declaration()
+                                    .name(),
+                            )]),
+                        );
+                    } else if matches!(candidate.maybe_value_declaration(), Some(value_declaration) if value_declaration.pos() > associated_declaration_for_containing_initializer_or_binding_name.pos() &&
+                    matches!(root.parent().maybe_locals(), Some(locals) if are_option_rcs_equal(lookup(self, locals, candidate.escaped_name(), meaning).as_ref(), Some(&candidate)))
+                    ) {
+                        self.error(
+                            error_location.as_deref(),
+                            &Diagnostics::Parameter_0_cannot_reference_identifier_1_declared_after_it,
+                            Some(vec![declaration_name_to_string(
+                                &associated_declaration_for_containing_initializer_or_binding_name
+                                    .as_named_declaration()
+                                    .name(),
+                            ), declaration_name_to_string(error_location.as_ref().unwrap())]),
+                        );
+                    }
+                }
+            }
+            if
+            /*result &&*/
+            let Some(error_location) = error_location.as_ref() {
+                if meaning.intersects(SymbolFlags::Value)
+                    && result.flags().intersects(SymbolFlags::Alias)
+                {
+                    self.check_symbol_usage_in_expression_context(&result, name, error_location);
+                }
+            }
+        }
+        Some(result)
     }
 }
 
 pub(super) enum DiagnosticMessageOrDiagnosticMessageChain {
     DiagnosticMessage(DiagnosticMessage),
     DiagnosticMessageChain(DiagnosticMessageChain),
+}
+
+impl From<DiagnosticMessage> for DiagnosticMessageOrDiagnosticMessageChain {
+    fn from(value: DiagnosticMessage) -> Self {
+        Self::DiagnosticMessage(value)
+    }
+}
+
+impl From<DiagnosticMessageChain> for DiagnosticMessageOrDiagnosticMessageChain {
+    fn from(value: DiagnosticMessageChain) -> Self {
+        Self::DiagnosticMessageChain(value)
+    }
 }
 
 pub(super) enum ResolveNameNameArg {

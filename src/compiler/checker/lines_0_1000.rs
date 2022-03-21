@@ -706,7 +706,7 @@ pub fn create_type_checker(
         resolution_property_names: RefCell::new(vec![]),
 
         suggestion_count: Cell::new(0),
-        max_suggestion_count: 10,
+        maximum_suggestion_count: 10,
         merged_symbols: RefCell::new(HashMap::new()),
         symbol_links: RefCell::new(HashMap::new()),
         node_links: RefCell::new(HashMap::new()),

@@ -1141,6 +1141,10 @@ impl Node {
     pub fn as_set_accessor_declaration(&self) -> &SetAccessorDeclaration {
         enum_unwrapped!(self, [Node, SetAccessorDeclaration])
     }
+
+    pub fn as_infer_type_node(&self) -> &InferTypeNode {
+        enum_unwrapped!(self, [Node, InferTypeNode])
+    }
 }
 
 #[derive(Debug)]

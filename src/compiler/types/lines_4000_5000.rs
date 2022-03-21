@@ -345,7 +345,7 @@ pub struct TypeChecker {
     pub(crate) resolution_property_names: RefCell<Vec<TypeSystemPropertyName>>,
 
     pub(crate) suggestion_count: Cell<usize>,
-    pub(crate) max_suggestion_count: usize,
+    pub(crate) maximum_suggestion_count: usize,
     pub(crate) merged_symbols: RefCell<HashMap<u32, Rc<Symbol>>>,
     pub(crate) symbol_links: RefCell<HashMap<SymbolId, Rc<RefCell<SymbolLinks>>>>,
     pub(crate) node_links: RefCell<HashMap<NodeId, Rc<RefCell<NodeLinks>>>>,
@@ -819,6 +819,8 @@ pub trait SymbolInterface {
     fn set_export_symbol(&self, export_symbol: Option<Rc<Symbol>>);
     fn maybe_const_enum_only_module(&self) -> Option<bool>;
     fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>);
+    fn maybe_is_referenced(&self) -> Option<SymbolFlags>;
+    fn set_is_referenced(&self, is_referenced: Option<SymbolFlags>);
     fn maybe_is_replaceable_by_method(&self) -> Option<bool>;
     fn set_is_replaceable_by_method(&self, is_replaceable_by_method: Option<bool>);
     fn maybe_assignment_declaration_members(
@@ -856,6 +858,7 @@ pub struct BaseSymbol {
     parent: RefCell<Option<Rc<Symbol>>>,
     export_symbol: RefCell<Option<Rc<Symbol>>>,
     const_enum_only_module: Cell<Option<bool>>,
+    is_referenced: Cell<Option<SymbolFlags>>,
     is_replaceable_by_method: Cell<Option<bool>>,
     assignment_declaration_members: RefCell<Option<HashMap<NodeId, Rc<Node /*Declaration*/>>>>,
 }
@@ -876,6 +879,7 @@ impl BaseSymbol {
             parent: RefCell::new(None),
             export_symbol: RefCell::new(None),
             const_enum_only_module: Cell::new(None),
+            is_referenced: Cell::new(None),
             is_replaceable_by_method: Cell::new(None),
             assignment_declaration_members: RefCell::new(None),
         }
@@ -993,6 +997,14 @@ impl SymbolInterface for BaseSymbol {
 
     fn set_const_enum_only_module(&self, const_enum_only_module: Option<bool>) {
         self.const_enum_only_module.set(const_enum_only_module);
+    }
+
+    fn maybe_is_referenced(&self) -> Option<SymbolFlags> {
+        self.is_referenced.get()
+    }
+
+    fn set_is_referenced(&self, is_referenced: Option<SymbolFlags>) {
+        self.is_referenced.set(is_referenced);
     }
 
     fn maybe_is_replaceable_by_method(&self) -> Option<bool> {

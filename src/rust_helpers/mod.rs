@@ -44,10 +44,10 @@ pub fn index_of_rc<TItem>(slice: &[Rc<TItem>], item: &Rc<TItem>) -> isize {
     index_of(slice, item, |a: &Rc<TItem>, b: &Rc<TItem>| Rc::ptr_eq(a, b))
 }
 
-pub fn are_option_rcs_equal<TItem>(a: Option<Rc<TItem>>, b: Option<Rc<TItem>>) -> bool {
+pub fn are_option_rcs_equal<TItem>(a: Option<&Rc<TItem>>, b: Option<&Rc<TItem>>) -> bool {
     match (a, b) {
         (None, None) => true,
-        (Some(a), Some(b)) => Rc::ptr_eq(&a, &b),
+        (Some(a), Some(b)) => Rc::ptr_eq(a, b),
         _ => false,
     }
 }
