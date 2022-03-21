@@ -1461,12 +1461,12 @@ pub fn is_binding_name(node: &Node) -> bool {
     )
 }
 
-pub fn is_function_like<TNodeRef: Borrow<Node>>(node: Option<TNodeRef>) -> bool {
+pub fn is_function_like<TNode: Borrow<Node>>(node: Option<TNode>) -> bool {
     node.map_or(false, |node| is_function_like_kind(node.borrow().kind()))
 }
 
-pub(crate) fn is_function_like_or_class_static_block_declaration<TNodeRef: Borrow<Node>>(
-    node: Option<TNodeRef>,
+pub(crate) fn is_function_like_or_class_static_block_declaration<TNode: Borrow<Node>>(
+    node: Option<TNode>,
 ) -> bool {
     node.map_or(false, |node| {
         let node = node.borrow();

@@ -7,12 +7,13 @@ use std::rc::Rc;
 use super::ResolveNameNameArg;
 use crate::{
     add_related_info, create_diagnostic_for_node, find, find_ancestor,
-    get_immediately_invoked_function_expression, get_jsdoc_host, get_text_of_node,
-    get_this_container, has_syntactic_modifier, is_class_like, is_computed_property_name,
-    is_entity_name_expression, is_function_like_declaration, is_identifier, is_in_js_file,
-    is_jsdoc_template_tag, is_jsdoc_type_alias, is_property_signature, is_qualified_name,
-    is_static, is_type_literal_node, is_type_query_node, is_valid_type_only_alias_use_site,
-    Diagnostic, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, ModifierFlags,
+    get_immediately_invoked_function_expression, get_jsdoc_host, get_name_of_declaration,
+    get_text_of_node, get_this_container, has_syntactic_modifier, is_block_or_catch_scoped,
+    is_class_like, is_computed_property_name, is_entity_name_expression, is_function_like,
+    is_function_like_declaration, is_identifier, is_in_js_file, is_jsdoc_template_tag,
+    is_jsdoc_type_alias, is_property_signature, is_qualified_name, is_static, is_type_literal_node,
+    is_type_query_node, is_valid_type_only_alias_use_site, should_preserve_const_enums, Diagnostic,
+    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, ModifierFlags, NodeFlags,
     SyntaxKind, TypeFlags, TypeInterface, __String, declaration_name_to_string,
     get_first_identifier, node_is_missing, unescape_leading_underscores, Debug_, Node,
     NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
@@ -529,7 +530,84 @@ impl TypeChecker {
         result: &Symbol,
         error_location: &Node,
     ) {
-        unimplemented!()
+        Debug_.assert(
+            result.flags().intersects(SymbolFlags::BlockScopedVariable)
+                || result.flags().intersects(SymbolFlags::Class)
+                || result.flags().intersects(SymbolFlags::Enum),
+            None,
+        );
+        if result.flags().intersects(
+            SymbolFlags::Function | SymbolFlags::FunctionScopedVariable | SymbolFlags::Assignment,
+        ) && result.flags().intersects(SymbolFlags::Class)
+        {
+            return;
+        }
+        let result_declarations = result.maybe_declarations();
+        let declaration = result_declarations.as_ref().and_then(|declarations| {
+            declarations.iter().find(|d| {
+                is_block_or_catch_scoped(d)
+                    || is_class_like(d)
+                    || d.kind() == SyntaxKind::EnumDeclaration
+            })
+        });
+
+        if declaration.is_none() {
+            Debug_.fail(Some(
+                "checkResolvedBlockScopedVariable could not find block-scoped declaration",
+            ));
+        }
+        let declaration = declaration.unwrap();
+
+        if !declaration.flags().intersects(NodeFlags::Ambient)
+            && !self.is_block_scoped_name_declared_before_use(&declaration, error_location)
+        {
+            let mut diagnostic_message: Option<Rc<Diagnostic>> = None;
+            let declaration_name =
+                declaration_name_to_string(get_name_of_declaration(Some(&**declaration)))
+                    .into_owned();
+            if result.flags().intersects(SymbolFlags::BlockScopedVariable) {
+                diagnostic_message = Some(self.error(
+                    Some(error_location),
+                    &Diagnostics::Block_scoped_variable_0_used_before_its_declaration,
+                    Some(vec![declaration_name.clone()]),
+                ));
+            } else if result.flags().intersects(SymbolFlags::Class) {
+                diagnostic_message = Some(self.error(
+                    Some(error_location),
+                    &Diagnostics::Class_0_used_before_its_declaration,
+                    Some(vec![declaration_name.clone()]),
+                ));
+            } else if result.flags().intersects(SymbolFlags::RegularEnum) {
+                diagnostic_message = Some(self.error(
+                    Some(error_location),
+                    &Diagnostics::Enum_0_used_before_its_declaration,
+                    Some(vec![declaration_name.clone()]),
+                ));
+            } else {
+                Debug_.assert(result.flags().intersects(SymbolFlags::ConstEnum), None);
+                if should_preserve_const_enums(&self.compiler_options) {
+                    diagnostic_message = Some(self.error(
+                        Some(error_location),
+                        &Diagnostics::Enum_0_used_before_its_declaration,
+                        Some(vec![declaration_name.clone()]),
+                    ));
+                }
+            }
+
+            if let Some(diagnostic_message) = diagnostic_message {
+                add_related_info(
+                    &diagnostic_message,
+                    vec![Rc::new(
+                        create_diagnostic_for_node(
+                            &declaration,
+                            &Diagnostics::_0_is_declared_here,
+                            Some(vec![declaration_name]),
+                        )
+                        .into(),
+                    )],
+                );
+            }
+        }
     }
 
     pub(super) fn is_same_scope_descendent_of<TParent: Borrow<Node>>(
@@ -538,7 +616,32 @@ impl TypeChecker {
         parent: Option<TParent>,
         stop_at: &Node,
     ) -> bool {
-        unimplemented!()
+        if parent.is_none() {
+            return false;
+        }
+        let parent = parent.unwrap();
+        let parent = parent.borrow();
+        find_ancestor(Some(initial), |n| {
+            if ptr::eq(n, stop_at) || is_function_like(Some(n)) {
+                FindAncestorCallbackReturn::Quit
+            } else {
+                ptr::eq(n, parent).into()
+            }
+        })
+        .is_some()
+    }
+
+    pub(super) fn get_any_import_syntax(
+        &self,
+        node: &Node,
+    ) -> Option<Rc<Node /*AnyImportSyntax*/>> {
+        match node.kind() {
+            SyntaxKind::ImportEqualsDeclaration => Some(node.node_wrapper()),
+            SyntaxKind::ImportClause => node.maybe_parent(),
+            SyntaxKind::NamespaceImport => node.parent().maybe_parent(),
+            SyntaxKind::ImportSpecifier => node.parent().parent().maybe_parent(),
+            _ => None,
+        }
     }
 
     pub(super) fn resolve_symbol<TSymbol: Borrow<Symbol>>(
