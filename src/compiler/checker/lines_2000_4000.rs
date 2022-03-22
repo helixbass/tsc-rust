@@ -12,20 +12,21 @@ use crate::{
     get_assignment_declaration_kind, get_es_module_interop,
     get_external_module_import_equals_declaration_expression, get_external_module_require_argument,
     get_immediately_invoked_function_expression, get_jsdoc_host, get_leftmost_access_expression,
-    get_mode_for_usage_location, get_name_of_declaration, get_source_file_of_node,
-    get_text_of_node, get_this_container, has_syntactic_modifier, is_access_expression,
-    is_aliasable_expression, is_binary_expression, is_block_or_catch_scoped, is_class_like,
-    is_computed_property_name, is_entity_name_expression, is_export_assignment,
-    is_export_declaration, is_export_specifier, is_function_expression, is_function_like,
-    is_function_like_declaration, is_identifier, is_in_js_file, is_jsdoc_template_tag,
-    is_jsdoc_type_alias, is_property_access_expression, is_property_signature, is_qualified_name,
-    is_require_variable_declaration, is_shorthand_ambient_module_symbol, is_source_file,
-    is_source_file_js, is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
+    get_mode_for_usage_location, get_name_of_declaration, get_root_declaration,
+    get_source_file_of_node, get_text_of_node, get_this_container, has_syntactic_modifier,
+    is_access_expression, is_aliasable_expression, is_binary_expression, is_binding_element,
+    is_block_or_catch_scoped, is_class_like, is_computed_property_name, is_entity_name_expression,
+    is_export_assignment, is_export_declaration, is_export_specifier, is_function_expression,
+    is_function_like, is_function_like_declaration, is_identifier, is_in_js_file,
+    is_jsdoc_template_tag, is_jsdoc_type_alias, is_property_access_expression,
+    is_property_signature, is_qualified_name, is_require_variable_declaration,
+    is_shorthand_ambient_module_symbol, is_source_file, is_source_file_js, is_static,
+    is_string_literal_like, is_type_literal_node, is_type_query_node,
     is_valid_type_only_alias_use_site, is_variable_declaration, map, should_preserve_const_enums,
     some, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, Extension,
-    FindAncestorCallbackReturn, HasTypeInterface, InternalSymbolName, ModifierFlags, ModuleKind,
-    NodeFlags, SymbolTable, SyntaxKind, TypeFlags, TypeInterface, __String,
-    declaration_name_to_string, get_first_identifier, node_is_missing,
+    FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, InternalSymbolName,
+    ModifierFlags, ModuleKind, NodeFlags, SymbolTable, SyntaxKind, TypeFlags, TypeInterface,
+    __String, declaration_name_to_string, get_first_identifier, node_is_missing,
     unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
     SymbolInterface, TypeChecker,
 };
@@ -1614,11 +1615,114 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_target_of_import_specifier(
+        &self,
+        node: &Node, /*ImportSpecifier | BindingElement*/
+        dont_resolve_alias: bool,
+    ) -> Option<Rc<Symbol>> {
+        let root = if is_binding_element(node) {
+            get_root_declaration(node)
+        } else {
+            node.parent().parent().parent()
+        };
+        let common_js_property_access = self.get_common_js_property_access(&root);
+        let common_js_property_access_is_some = common_js_property_access.is_some();
+        let resolved = self.get_external_module_member(
+            &root,
+            &common_js_property_access.unwrap_or_else(|| node.node_wrapper()),
+            Some(dont_resolve_alias),
+        );
+        let name = node
+            .as_has_property_name()
+            .maybe_property_name()
+            .unwrap_or_else(|| node.as_named_declaration().name());
+        if common_js_property_access_is_some {
+            if let Some(resolved) = resolved.as_ref() {
+                if is_identifier(&name) {
+                    return self.resolve_symbol(
+                        self.get_property_of_type_(
+                            &self.get_type_of_symbol(resolved),
+                            &name.as_identifier().escaped_text,
+                            None,
+                        ),
+                        Some(dont_resolve_alias),
+                    );
+                }
+            }
+        }
+        self.mark_symbol_of_alias_declaration_if_type_only(
+            Some(node),
+            Option::<&Symbol>::None,
+            resolved.as_deref(),
+            false,
+        );
+        resolved
+    }
+
     pub(super) fn get_common_js_property_access(
         &self,
         node: &Node,
     ) -> Option<Rc<Node /*PropertyAccessExpression*/>> {
-        unimplemented!()
+        if is_variable_declaration(node) {
+            if let Some(node_initializer) = node.as_variable_declaration().maybe_initializer() {
+                if is_property_access_expression(&node_initializer) {
+                    return Some(node_initializer);
+                }
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_target_of_namespace_export_declaration(
+        &self,
+        node: &Node, /*NamespaceExportDeclaration*/
+        dont_resolve_alias: bool,
+    ) -> Rc<Symbol> {
+        let resolved = self
+            .resolve_external_module_symbol(Some(node.parent().symbol()), Some(dont_resolve_alias))
+            .unwrap();
+        self.mark_symbol_of_alias_declaration_if_type_only(
+            Some(node),
+            Option::<&Symbol>::None,
+            Some(&*resolved),
+            false,
+        );
+        resolved
+    }
+
+    pub(super) fn get_target_of_export_specifier(
+        &self,
+        node: &Node, /*ExportSpecifier*/
+        meaning: SymbolFlags,
+        dont_resolve_alias: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        let resolved = if node
+            .parent()
+            .parent()
+            .as_export_declaration()
+            .module_specifier
+            .is_some()
+        {
+            self.get_external_module_member(&node.parent().parent(), node, dont_resolve_alias)
+        } else {
+            let node_as_export_specifier = node.as_export_specifier();
+            self.resolve_entity_name(
+                &node_as_export_specifier
+                    .property_name
+                    .clone()
+                    .unwrap_or_else(|| node_as_export_specifier.name.clone()),
+                meaning,
+                Some(false),
+                dont_resolve_alias,
+            )
+        };
+        self.mark_symbol_of_alias_declaration_if_type_only(
+            Some(node),
+            Option::<&Symbol>::None,
+            resolved.as_deref(),
+            false,
+        );
+        resolved
     }
 
     pub(super) fn resolve_symbol<TSymbol: Borrow<Symbol>>(
