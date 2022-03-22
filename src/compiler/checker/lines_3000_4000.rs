@@ -9,7 +9,7 @@ use crate::{
     find, is_binary_expression, is_internal_module_import_equals_declaration,
     is_property_access_expression, is_right_side_of_qualified_name_or_property_access,
     is_type_only_import_or_export_declaration, DiagnosticMessage, Diagnostics, InternalSymbolName,
-    NamedDeclarationInterface, SymbolLinks, SymbolTable, SyntaxKind, __String,
+    NamedDeclarationInterface, SymbolFormatFlags, SymbolLinks, SymbolTable, SyntaxKind, __String,
     get_first_identifier, node_is_missing, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
     SymbolInterface, TypeChecker,
 };
@@ -370,7 +370,24 @@ impl TypeChecker {
         symbol: &Symbol,
         containing_location: Option<TContainingLocation>,
     ) -> String {
-        unimplemented!()
+        if let Some(symbol_parent) = symbol.maybe_parent() {
+            format!(
+                "{}.{}",
+                self.get_fully_qualified_name(&symbol_parent, containing_location),
+                self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+            )
+        } else {
+            self.symbol_to_string_(
+                symbol,
+                containing_location,
+                None,
+                Some(
+                    SymbolFormatFlags::DoNotIncludeSymbolChain
+                        | SymbolFormatFlags::AllowAnyNodeKind,
+                ),
+                None,
+            )
+        }
     }
 
     pub(super) fn resolve_entity_name(
