@@ -1578,7 +1578,40 @@ impl TypeChecker {
         declaration_name: String,
         module_name: String,
     ) {
-        unimplemented!()
+        if self.module_kind >= ModuleKind::ES2015 {
+            let message = if matches!(get_es_module_interop(&self.compiler_options), Some(true)) {
+                &Diagnostics::_0_can_only_be_imported_by_using_a_default_import
+            } else {
+                &Diagnostics::_0_can_only_be_imported_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
+            };
+            self.error(Some(name), message, Some(vec![declaration_name]));
+        } else {
+            if is_in_js_file(Some(node)) {
+                let message = if matches!(get_es_module_interop(&self.compiler_options), Some(true))
+                {
+                    &Diagnostics::_0_can_only_be_imported_by_using_a_require_call_or_by_using_a_default_import
+                } else {
+                    &Diagnostics::_0_can_only_be_imported_by_using_a_require_call_or_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
+                };
+                self.error(Some(name), message, Some(vec![declaration_name]));
+            } else {
+                let message = if matches!(get_es_module_interop(&self.compiler_options), Some(true))
+                {
+                    &Diagnostics::_0_can_only_be_imported_by_using_import_1_require_2_or_a_default_import
+                } else {
+                    &Diagnostics::_0_can_only_be_imported_by_using_import_1_require_2_or_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
+                };
+                self.error(
+                    Some(name),
+                    message,
+                    Some(vec![
+                        declaration_name.clone(),
+                        declaration_name,
+                        module_name,
+                    ]),
+                );
+            }
+        }
     }
 
     pub(super) fn get_common_js_property_access(
