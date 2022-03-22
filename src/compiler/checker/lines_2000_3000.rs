@@ -23,12 +23,11 @@ use crate::{
     is_require_variable_declaration, is_shorthand_ambient_module_symbol, is_source_file,
     is_source_file_js, is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
     is_valid_type_only_alias_use_site, is_variable_declaration, map, should_preserve_const_enums,
-    some, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, Extension,
+    some, AssignmentDeclarationKind, Diagnostic, Diagnostics, Extension,
     FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, InternalSymbolName,
-    ModifierFlags, ModuleKind, NodeFlags, SymbolTable, SyntaxKind, TypeFlags, TypeInterface,
-    __String, declaration_name_to_string, get_first_identifier, node_is_missing,
-    unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
-    SymbolInterface, TypeChecker,
+    ModifierFlags, ModuleKind, NodeFlags, SyntaxKind, TypeFlags, TypeInterface, __String,
+    declaration_name_to_string, unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol,
+    SymbolFlags, SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
