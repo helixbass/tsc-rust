@@ -15,10 +15,11 @@ use crate::{
     get_text_of_node, get_this_container, has_syntactic_modifier, is_access_expression,
     is_aliasable_expression, is_binary_expression, is_block_or_catch_scoped, is_class_like,
     is_computed_property_name, is_entity_name_expression, is_export_assignment,
-    is_export_specifier, is_function_expression, is_function_like, is_function_like_declaration,
-    is_identifier, is_in_js_file, is_jsdoc_template_tag, is_jsdoc_type_alias,
-    is_property_signature, is_qualified_name, is_require_variable_declaration, is_source_file_js,
-    is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
+    is_export_declaration, is_export_specifier, is_function_expression, is_function_like,
+    is_function_like_declaration, is_identifier, is_in_js_file, is_jsdoc_template_tag,
+    is_jsdoc_type_alias, is_property_signature, is_qualified_name, is_require_variable_declaration,
+    is_shorthand_ambient_module_symbol, is_source_file, is_source_file_js, is_static,
+    is_string_literal_like, is_type_literal_node, is_type_query_node,
     is_valid_type_only_alias_use_site, is_variable_declaration, should_preserve_const_enums, some,
     AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, Extension,
     FindAncestorCallbackReturn, InternalSymbolName, ModifierFlags, ModuleKind, NodeFlags,
@@ -953,6 +954,173 @@ impl TypeChecker {
                     dont_resolve_alias,
                 )
                 .is_none()
+    }
+
+    pub(super) fn get_target_of_import_clause(
+        &self,
+        node: &Node, /*ImportClause*/
+        dont_resolve_alias: bool,
+    ) -> Option<Rc<Symbol>> {
+        let node_parent = node.parent();
+        let node_parent_as_import_declaration = node_parent.as_import_declaration();
+        let module_symbol = self.resolve_external_module_name_(
+            node,
+            &node_parent_as_import_declaration.module_specifier,
+            None,
+        )?;
+        let export_default_symbol: Option<Rc<Symbol>>;
+        if is_shorthand_ambient_module_symbol(&module_symbol) {
+            export_default_symbol = Some(module_symbol.clone());
+        } else {
+            export_default_symbol = self.resolve_export_by_name(
+                &module_symbol,
+                &InternalSymbolName::Default(),
+                Some(node),
+                dont_resolve_alias,
+            );
+        }
+
+        let file = module_symbol
+            .maybe_declarations()
+            .as_ref()
+            .and_then(|declarations| {
+                declarations
+                    .iter()
+                    .find(|node| is_source_file(node))
+                    .map(Clone::clone)
+            });
+        let has_default_only =
+            self.is_only_imported_as_default(&node_parent_as_import_declaration.module_specifier);
+        let has_synthetic_default = self.can_have_synthetic_default(
+            file.as_deref(),
+            &module_symbol,
+            dont_resolve_alias,
+            &node_parent_as_import_declaration.module_specifier,
+        );
+        if export_default_symbol.is_none() && !has_synthetic_default && !has_default_only {
+            if self.has_export_assignment_symbol(&module_symbol) {
+                let compiler_option_name = if self.module_kind >= ModuleKind::ES2015 {
+                    "allowSyntheticDefaultImports"
+                } else {
+                    "esModuleInterop"
+                };
+                let module_symbol_exports = module_symbol.exports();
+                let module_symbol_exports = RefCell::borrow(&module_symbol_exports);
+                let export_equals_symbol = module_symbol_exports
+                    .get(&InternalSymbolName::ExportEquals())
+                    .unwrap();
+                let export_assignment = export_equals_symbol.maybe_value_declaration();
+                let err = self.error(
+                    node.as_import_clause().name.as_deref(),
+                    &Diagnostics::Module_0_can_only_be_default_imported_using_the_1_flag,
+                    Some(vec![
+                        self.symbol_to_string_(
+                            &module_symbol,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                            None,
+                        ),
+                        compiler_option_name.to_owned(),
+                    ]),
+                );
+
+                if let Some(export_assignment) = export_assignment {
+                    add_related_info(
+                        &err,
+                        vec![Rc::new(
+                            create_diagnostic_for_node(
+                                &export_assignment,
+                                &Diagnostics::This_module_is_declared_with_using_export_and_can_only_be_used_with_a_default_import_when_using_the_0_flag,
+                                Some(vec![compiler_option_name.to_owned()])
+                            ).into()
+                        )]
+                    );
+                }
+            } else {
+                self.report_non_default_export(&module_symbol, node);
+            }
+        } else if has_synthetic_default || has_default_only {
+            let resolved = self
+                .resolve_external_module_symbol(Some(&*module_symbol), Some(dont_resolve_alias))
+                .or_else(|| self.resolve_symbol(Some(&*module_symbol), Some(dont_resolve_alias)));
+            self.mark_symbol_of_alias_declaration_if_type_only(
+                Some(node),
+                Some(&*module_symbol),
+                resolved.as_deref(),
+                false,
+            );
+            return resolved;
+        }
+        self.mark_symbol_of_alias_declaration_if_type_only(
+            Some(node),
+            export_default_symbol.as_deref(),
+            Option::<&Symbol>::None,
+            false,
+        );
+        export_default_symbol
+    }
+
+    pub(super) fn report_non_default_export(
+        &self,
+        module_symbol: &Symbol,
+        node: &Node, /*ImportClause*/
+    ) {
+        let node_as_import_clause = node.as_import_clause();
+        if matches!(module_symbol.maybe_exports().as_ref(), Some(exports) if RefCell::borrow(exports).contains_key(node.symbol().escaped_name()))
+        {
+            self.error(
+                node_as_import_clause.name.as_deref(),
+                &Diagnostics::Module_0_has_no_default_export_Did_you_mean_to_use_import_1_from_0_instead,
+                Some(vec![
+                    self.symbol_to_string_(module_symbol, Option::<&Node>::None, None, None, None),
+                    self.symbol_to_string_(&node.symbol(), Option::<&Node>::None, None, None, None),
+                ])
+            );
+        } else {
+            let diagnostic = self.error(
+                node_as_import_clause.name.as_deref(),
+                &Diagnostics::Module_0_has_no_default_export,
+                Some(vec![self.symbol_to_string_(
+                    module_symbol,
+                    Option::<&Node>::None,
+                    None,
+                    None,
+                    None,
+                )]),
+            );
+            let export_star = module_symbol.maybe_exports().as_ref().and_then(|exports| {
+                RefCell::borrow(exports)
+                    .get(&InternalSymbolName::ExportStar())
+                    .map(Clone::clone)
+            });
+            if let Some(export_star) = export_star {
+                let default_export = export_star.maybe_declarations().as_deref().and_then(|declarations| {
+                    declarations.iter().find(|decl| {
+                        is_export_declaration(decl) && matches!(
+                            decl.as_export_declaration().module_specifier.as_ref(),
+                            Some(decl_module_specifier) if matches!(
+                                self.resolve_external_module_name_(decl, decl_module_specifier, None).and_then(|resolved| resolved.maybe_exports().as_ref().map(|exports| exports.clone())),
+                                Some(exports) if RefCell::borrow(&exports).contains_key(&InternalSymbolName::Default())
+                            )
+                        )
+                    }).map(Clone::clone)
+                });
+                if let Some(default_export) = default_export {
+                    add_related_info(
+                        &diagnostic,
+                        vec![Rc::new(
+                            create_diagnostic_for_node(
+                                &default_export,
+                                &Diagnostics::export_Asterisk_does_not_re_export_a_default,
+                                None,
+                            )
+                            .into(),
+                        )],
+                    );
+                }
+            }
+        }
     }
 
     pub(super) fn get_common_js_property_access(
