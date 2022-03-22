@@ -6,10 +6,11 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    is_binary_expression, is_property_access_expression, is_type_only_import_or_export_declaration,
-    DiagnosticMessage, Diagnostics, NamedDeclarationInterface, SymbolLinks, SymbolTable,
-    SyntaxKind, __String, get_first_identifier, node_is_missing, Debug_, Node, NodeInterface,
-    Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    find, is_binary_expression, is_property_access_expression,
+    is_type_only_import_or_export_declaration, DiagnosticMessage, Diagnostics, InternalSymbolName,
+    NamedDeclarationInterface, SymbolLinks, SymbolTable, SyntaxKind, __String,
+    get_first_identifier, node_is_missing, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
+    SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -223,7 +224,47 @@ impl TypeChecker {
         target: Option<TTarget>,
         overwrite_empty: bool,
     ) -> bool {
-        unimplemented!()
+        let mut alias_declaration_links = alias_declaration_links.borrow_mut();
+        if let Some(target) = target {
+            let target = target.borrow();
+            if alias_declaration_links.type_only_declaration.is_none()
+                || overwrite_empty
+                    && matches!(alias_declaration_links.type_only_declaration, Some(None))
+            {
+                let export_symbol = target
+                    .maybe_exports()
+                    .as_ref()
+                    .and_then(|exports| {
+                        RefCell::borrow(exports)
+                            .get(&InternalSymbolName::ExportEquals())
+                            .map(Clone::clone)
+                    })
+                    .unwrap_or_else(|| target.symbol_wrapper());
+                let type_only =
+                    export_symbol
+                        .maybe_declarations()
+                        .as_deref()
+                        .and_then(|declarations| {
+                            find(declarations, |declaration: &Rc<Node>, _| {
+                                is_type_only_import_or_export_declaration(declaration)
+                            })
+                            .map(Clone::clone)
+                        });
+                alias_declaration_links.type_only_declaration = Some(type_only.or_else(|| {
+                    match RefCell::borrow(&self.get_symbol_links(&export_symbol))
+                        .type_only_declaration
+                        .clone()
+                    {
+                        Some(type_only_declaration) => type_only_declaration,
+                        None => None,
+                    }
+                }));
+            }
+        }
+        matches!(
+            alias_declaration_links.type_only_declaration.as_ref(),
+            Some(Some(_))
+        )
     }
 
     pub(super) fn get_type_only_alias_declaration(
