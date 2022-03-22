@@ -2400,6 +2400,10 @@ impl TypeChecker {
         self.unknown_symbol.as_ref().unwrap().clone()
     }
 
+    pub(super) fn resolving_symbol(&self) -> Rc<Symbol> {
+        self.resolving_symbol.as_ref().unwrap().clone()
+    }
+
     pub(super) fn any_type(&self) -> Rc<Type> {
         self.any_type.as_ref().unwrap().clone()
     }

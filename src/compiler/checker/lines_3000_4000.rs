@@ -1,13 +1,14 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    is_binary_expression, DiagnosticMessage, NamedDeclarationInterface, SymbolTable, SyntaxKind,
-    __String, get_first_identifier, node_is_missing, Debug_, Node, NodeInterface, Symbol,
-    SymbolFlags, SymbolInterface, TypeChecker,
+    is_binary_expression, DiagnosticMessage, Diagnostics, NamedDeclarationInterface, SymbolTable,
+    SyntaxKind, __String, get_first_identifier, node_is_missing, Debug_, Node, NodeInterface,
+    Symbol, SymbolFlags, SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -91,16 +92,77 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn resolve_symbol<TSymbol: Borrow<Symbol>>(
+    pub(super) fn is_non_local_alias<TSymbol: Borrow<Symbol>>(
+        &self,
+        symbol: Option<TSymbol>,
+        excludes: Option<SymbolFlags>,
+    ) -> bool {
+        let excludes =
+            excludes.unwrap_or(SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace);
+        if symbol.is_none() {
+            return false;
+        }
+        let symbol = symbol.unwrap();
+        let symbol = symbol.borrow();
+        symbol.flags() & (SymbolFlags::Alias | excludes) == SymbolFlags::Alias
+            || symbol.flags().intersects(SymbolFlags::Alias)
+                && symbol.flags().intersects(SymbolFlags::Assignment)
+    }
+
+    pub(super) fn resolve_symbol<TSymbol: Borrow<Symbol> + Clone>(
         &self,
         symbol: Option<TSymbol>,
         dont_resolve_alias: Option<bool>,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if !matches!(dont_resolve_alias, Some(true))
+            && self.is_non_local_alias(symbol.clone(), None)
+        {
+            Some(self.resolve_alias(symbol.unwrap().borrow()))
+        } else {
+            symbol.map(|symbol| symbol.borrow().symbol_wrapper())
+        }
     }
 
     pub(super) fn resolve_alias(&self, symbol: &Symbol) -> Rc<Symbol> {
-        unimplemented!()
+        Debug_.assert(
+            symbol.flags().intersects(SymbolFlags::Alias),
+            Some("Should only get Alias here."),
+        );
+        let links = self.get_symbol_links(symbol);
+        if RefCell::borrow(&links).target.is_none() {
+            links.borrow_mut().target = Some(self.resolving_symbol());
+            let node = self.get_declaration_of_alias_symbol(symbol);
+            if node.is_none() {
+                Debug_.fail(None);
+            }
+            let node = node.unwrap();
+            let target = self.get_target_of_alias_declaration(&node, None);
+            if Rc::ptr_eq(
+                RefCell::borrow(&links).target.as_ref().unwrap(),
+                &self.resolving_symbol(),
+            ) {
+                links.borrow_mut().target = Some(target.unwrap_or_else(|| self.unknown_symbol()));
+            } else {
+                self.error(
+                    Some(&*node),
+                    &Diagnostics::Circular_definition_of_import_alias_0,
+                    Some(vec![self.symbol_to_string_(
+                        symbol,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                        None,
+                    )]),
+                );
+            }
+        } else if Rc::ptr_eq(
+            RefCell::borrow(&links).target.as_ref().unwrap(),
+            &self.resolving_symbol(),
+        ) {
+            links.borrow_mut().target = Some(self.unknown_symbol());
+        }
+        let ret = RefCell::borrow(&links).target.clone().unwrap();
+        ret
     }
 
     pub(super) fn mark_symbol_of_alias_declaration_if_type_only<
