@@ -17,6 +17,14 @@ use crate::{
 };
 
 impl TypeChecker {
+    pub(super) fn get_symbol_if_same_reference(
+        &self,
+        s1: &Symbol,
+        s2: &Symbol,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_export_symbol_of_value_symbol_if_exported<TSymbolRef: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbolRef>,

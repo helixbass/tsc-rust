@@ -9,12 +9,12 @@ use crate::{
     filter, get_effective_constraint_of_type_parameter, get_effective_return_type_node,
     get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
     map_defined, maybe_append_if_unique_rc, node_is_missing, IndexInfo, Signature, SignatureFlags,
-    SignatureKind, TypePredicate, TypePredicateKind, UnionType, __String, binary_search_copy_key,
-    compare_values, concatenate, get_name_of_declaration, get_object_flags, map,
-    unescape_leading_underscores, ArrayTypeNode, BaseUnionOrIntersectionType, DiagnosticMessage,
-    Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
+    SignatureKind, SymbolTable, TypePredicate, TypePredicateKind, UnionType, __String,
+    binary_search_copy_key, compare_values, concatenate, get_name_of_declaration, get_object_flags,
+    map, unescape_leading_underscores, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics,
+    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    TypeReference, TypeReferenceNode, UnionReduction, UnionTypeNode,
+    TypeReference, UnionReduction,
 };
 
 impl TypeChecker {
@@ -118,6 +118,10 @@ impl TypeChecker {
             ));
         }
         result
+    }
+
+    pub(super) fn symbols_to_array(&self, symbols: &SymbolTable) -> Vec<Rc<Symbol>> {
+        unimplemented!()
     }
 
     pub(super) fn try_find_ambient_module_(

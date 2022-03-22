@@ -21,8 +21,8 @@ use crate::{
     is_jsdoc_type_alias, is_property_access_expression, is_property_signature, is_qualified_name,
     is_require_variable_declaration, is_shorthand_ambient_module_symbol, is_source_file,
     is_source_file_js, is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
-    is_valid_type_only_alias_use_site, is_variable_declaration, should_preserve_const_enums, some,
-    AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, Extension,
+    is_valid_type_only_alias_use_site, is_variable_declaration, map, should_preserve_const_enums,
+    some, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, Extension,
     FindAncestorCallbackReturn, HasTypeInterface, InternalSymbolName, ModifierFlags, ModuleKind,
     NodeFlags, SymbolTable, SyntaxKind, TypeFlags, TypeInterface, __String,
     declaration_name_to_string, get_first_identifier, node_is_missing,
@@ -1466,6 +1466,116 @@ impl TypeChecker {
         name: &Node, /*Identifier*/
         declaration_name: String,
         module_symbol: &Symbol,
+        module_name: String,
+    ) {
+        let local_symbol = module_symbol
+            .maybe_value_declaration()
+            .and_then(|value_declaration| {
+                value_declaration
+                    .maybe_locals()
+                    .as_ref()
+                    .and_then(|locals| {
+                        locals
+                            .get(&name.as_identifier().escaped_text)
+                            .map(Clone::clone)
+                    })
+            });
+        let exports = module_symbol.maybe_exports();
+        if let Some(local_symbol) = local_symbol {
+            let exported_equals_symbol = exports.as_ref().and_then(|exports| {
+                RefCell::borrow(exports)
+                    .get(&InternalSymbolName::ExportEquals())
+                    .map(Clone::clone)
+            });
+            if let Some(exported_equals_symbol) = exported_equals_symbol {
+                if self
+                    .get_symbol_if_same_reference(&exported_equals_symbol, &local_symbol)
+                    .is_some()
+                {
+                    self.report_invalid_import_equals_export_member(
+                        node,
+                        name,
+                        declaration_name,
+                        module_name,
+                    );
+                } else {
+                    self.error(
+                        Some(name),
+                        &Diagnostics::Module_0_has_no_exported_member_1,
+                        Some(vec![module_name, declaration_name]),
+                    );
+                }
+            } else {
+                let exported_symbol = exports.as_ref().and_then(|exports| {
+                    find(
+                        &self.symbols_to_array(&RefCell::borrow(exports)),
+                        |symbol: &Rc<Symbol>, _| {
+                            self.get_symbol_if_same_reference(symbol, &local_symbol)
+                                .is_some()
+                        },
+                    )
+                    .map(Clone::clone)
+                });
+                let diagnostic = if let Some(exported_symbol) = exported_symbol {
+                    self.error(
+                        Some(name),
+                        &Diagnostics::Module_0_declares_1_locally_but_it_is_exported_as_2,
+                        Some(vec![
+                            module_name,
+                            declaration_name.clone(),
+                            self.symbol_to_string_(
+                                &exported_symbol,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                                None,
+                            ),
+                        ]),
+                    )
+                } else {
+                    self.error(
+                        Some(name),
+                        &Diagnostics::Module_0_declares_1_locally_but_it_is_not_exported,
+                        Some(vec![module_name, declaration_name.clone()]),
+                    )
+                };
+                if let Some(local_symbol_declarations) =
+                    local_symbol.maybe_declarations().as_deref()
+                {
+                    add_related_info(
+                        &diagnostic,
+                        map(Some(local_symbol_declarations), |decl: &Rc<Node>, index| {
+                            Rc::new(
+                                create_diagnostic_for_node(
+                                    decl,
+                                    if index == 0 {
+                                        &Diagnostics::_0_is_declared_here
+                                    } else {
+                                        &Diagnostics::and_here
+                                    },
+                                    Some(vec![declaration_name.clone()]),
+                                )
+                                .into(),
+                            )
+                        })
+                        .unwrap(),
+                    );
+                }
+            }
+        } else {
+            self.error(
+                Some(name),
+                &Diagnostics::Module_0_has_no_exported_member_1,
+                Some(vec![module_name, declaration_name]),
+            );
+        }
+    }
+
+    pub(super) fn report_invalid_import_equals_export_member(
+        &self,
+        node: &Node, /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
+        name: &Node, /*Identifier*/
+        declaration_name: String,
         module_name: String,
     ) {
         unimplemented!()
