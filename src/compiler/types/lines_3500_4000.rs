@@ -12,7 +12,10 @@ use super::{
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, Symbol,
     SymbolTable, TypeChecker,
 };
-use crate::{ConfigFileSpecs, ModeAwareCache, PackageId, PragmaContext, Type, TypeFlags, __String};
+use crate::{
+    ConfigFileSpecs, ModeAwareCache, ModuleKind, PackageId, PragmaContext, Type, TypeFlags,
+    __String,
+};
 use local_macros::ast_type;
 
 #[derive(Debug)]
@@ -111,6 +114,8 @@ pub struct SourceFile {
 
     language_version: Cell<ScriptTarget>,
 
+    implied_node_format: Cell<Option<ModuleKind>>,
+
     script_kind: Cell<ScriptKind>,
 
     external_module_indicator: RefCell<Option<Rc<Node>>>,
@@ -191,6 +196,7 @@ impl SourceFile {
             line_map: RefCell::new(None),
             classifiable_names: RefCell::new(None),
             language_version: Cell::new(language_version),
+            implied_node_format: Cell::new(None),
             language_variant: Cell::new(language_variant),
             script_kind: Cell::new(script_kind),
             external_module_indicator: RefCell::new(None),
@@ -346,6 +352,10 @@ impl SourceFile {
 
     pub fn set_is_declaration_file(&self, is_declaration_file: bool) {
         self.is_declaration_file.set(is_declaration_file);
+    }
+
+    pub(crate) fn maybe_implied_node_format(&self) -> Option<ModuleKind> {
+        self.implied_node_format.get()
     }
 
     pub(crate) fn maybe_external_module_indicator(&self) -> Option<Rc<Node>> {

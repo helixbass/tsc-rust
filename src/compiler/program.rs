@@ -500,6 +500,13 @@ pub(crate) fn get_mode_for_resolution_at_index<TFile: SourceFileImportsList>(
     unimplemented!()
 }
 
+pub(crate) fn get_mode_for_usage_location(
+    implied_node_format: Option<ModuleKind>,
+    usage: &Node, /*StringLiteralLike*/
+) -> Option<ModuleKind> {
+    unimplemented!()
+}
+
 pub(crate) fn is_referenced_file(reason: Option<&FileIncludeReason>) -> bool {
     matches!(reason, Some(FileIncludeReason::ReferencedFile(_)))
 }

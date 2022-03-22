@@ -1,27 +1,30 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::{Borrow, Cow};
+use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
 use super::ResolveNameNameArg;
 use crate::{
-    add_related_info, create_diagnostic_for_node, export_assignment_is_alias, find, find_ancestor,
-    find_last, get_assignment_declaration_kind,
+    add_related_info, create_diagnostic_for_node, ends_with, escape_leading_underscores,
+    export_assignment_is_alias, find, find_ancestor, find_last, get_assignment_declaration_kind,
     get_external_module_import_equals_declaration_expression, get_external_module_require_argument,
     get_immediately_invoked_function_expression, get_jsdoc_host, get_leftmost_access_expression,
-    get_name_of_declaration, get_text_of_node, get_this_container, has_syntactic_modifier,
-    is_access_expression, is_aliasable_expression, is_binary_expression, is_block_or_catch_scoped,
-    is_class_like, is_computed_property_name, is_entity_name_expression, is_function_expression,
-    is_function_like, is_function_like_declaration, is_identifier, is_in_js_file,
-    is_jsdoc_template_tag, is_jsdoc_type_alias, is_property_signature, is_qualified_name,
-    is_require_variable_declaration, is_static, is_type_literal_node, is_type_query_node,
-    is_valid_type_only_alias_use_site, is_variable_declaration, should_preserve_const_enums,
-    AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics,
-    FindAncestorCallbackReturn, ModifierFlags, NodeFlags, SyntaxKind, TypeFlags, TypeInterface,
-    __String, declaration_name_to_string, get_first_identifier, node_is_missing,
-    unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
-    SymbolInterface, TypeChecker,
+    get_mode_for_usage_location, get_name_of_declaration, get_source_file_of_node,
+    get_text_of_node, get_this_container, has_syntactic_modifier, is_access_expression,
+    is_aliasable_expression, is_binary_expression, is_block_or_catch_scoped, is_class_like,
+    is_computed_property_name, is_entity_name_expression, is_export_assignment,
+    is_export_specifier, is_function_expression, is_function_like, is_function_like_declaration,
+    is_identifier, is_in_js_file, is_jsdoc_template_tag, is_jsdoc_type_alias,
+    is_property_signature, is_qualified_name, is_require_variable_declaration, is_source_file_js,
+    is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
+    is_valid_type_only_alias_use_site, is_variable_declaration, should_preserve_const_enums, some,
+    AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, Extension,
+    FindAncestorCallbackReturn, InternalSymbolName, ModifierFlags, ModuleKind, NodeFlags,
+    SyntaxKind, TypeFlags, TypeInterface, __String, declaration_name_to_string,
+    get_first_identifier, node_is_missing, unescape_leading_underscores, Debug_, Node,
+    NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -811,6 +814,147 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn resolve_export_by_name<TSourceNode: Borrow<Node>>(
+        &self,
+        module_symbol: &Symbol,
+        name: &__String,
+        source_node: Option<TSourceNode /*TypeOnlyCompatibleAliasDeclaration*/>,
+        dont_resolve_alias: bool,
+    ) -> Option<Rc<Symbol>> {
+        let module_symbol_exports = module_symbol.exports();
+        let module_symbol_exports = RefCell::borrow(&module_symbol_exports);
+        let export_value = module_symbol_exports.get(&InternalSymbolName::ExportEquals());
+        let export_symbol = if let Some(export_value) = export_value {
+            self.get_property_of_type(&self.get_type_of_symbol(&export_value), name)
+        } else {
+            module_symbol_exports.get(name).map(Clone::clone)
+        };
+        let resolved = self.resolve_symbol(export_symbol.as_deref(), Some(dont_resolve_alias));
+        self.mark_symbol_of_alias_declaration_if_type_only(
+            source_node,
+            export_symbol,
+            resolved.as_deref(),
+            false,
+        );
+        resolved
+    }
+
+    pub(super) fn is_syntactic_default(&self, node: &Node) -> bool {
+        is_export_assignment(node)
+            && !matches!(node.as_export_assignment().is_export_equals, Some(true))
+            || has_syntactic_modifier(node, ModifierFlags::Default)
+            || is_export_specifier(node)
+    }
+
+    pub(super) fn get_usage_mode_for_expression(
+        &self,
+        usage: &Node, /*Expression*/
+    ) -> Option<ModuleKind> {
+        if is_string_literal_like(usage) {
+            get_mode_for_usage_location(
+                get_source_file_of_node(Some(usage))
+                    .unwrap()
+                    .as_source_file()
+                    .maybe_implied_node_format(),
+                usage,
+            )
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn is_esm_format_import_importing_commonjs_format_file(
+        &self,
+        usage_mode: Option<ModuleKind>,
+        target_mode: Option<ModuleKind>,
+    ) -> bool {
+        matches!(usage_mode, Some(ModuleKind::ESNext))
+            && matches!(target_mode, Some(ModuleKind::CommonJS))
+    }
+
+    pub(super) fn is_only_imported_as_default(&self, usage: &Node /*Expression*/) -> bool {
+        let usage_mode = self.get_usage_mode_for_expression(usage);
+        matches!(usage_mode, Some(ModuleKind::ESNext))
+            && ends_with(
+                &usage.as_literal_like_node().text(),
+                Extension::Json.to_str(),
+            )
+    }
+
+    pub(super) fn can_have_synthetic_default<TFile: Borrow<Node>>(
+        &self,
+        file: Option<TFile /*SourceFile*/>,
+        module_symbol: &Symbol,
+        dont_resolve_alias: bool,
+        usage: &Node, /*Expression*/
+    ) -> bool {
+        let file = file.map(|file| file.borrow().node_wrapper());
+        let usage_mode = file
+            .as_ref()
+            .and_then(|_| self.get_usage_mode_for_expression(usage));
+        if let Some(file) = file.as_ref() {
+            if let Some(usage_mode) = usage_mode {
+                let result = self.is_esm_format_import_importing_commonjs_format_file(
+                    Some(usage_mode),
+                    file.as_source_file().maybe_implied_node_format(),
+                );
+                if usage_mode == ModuleKind::ESNext || result {
+                    return result;
+                }
+            }
+        }
+        if !self.allow_synthetic_default_imports {
+            return false;
+        }
+        if match file.as_ref() {
+            None => true,
+            Some(file) => file.as_source_file().is_declaration_file(),
+        } {
+            let default_export_symbol = self.resolve_export_by_name(
+                module_symbol,
+                &InternalSymbolName::Default(),
+                Option::<&Node>::None,
+                true,
+            );
+            if matches!(
+                default_export_symbol,
+                Some(default_export_symbol) if some(
+                    default_export_symbol.maybe_declarations().as_deref(),
+                    Some(|declaration: &Rc<Node>| self.is_syntactic_default(declaration))
+                )
+            ) {
+                return false;
+            }
+            if self
+                .resolve_export_by_name(
+                    module_symbol,
+                    &escape_leading_underscores("__esModule"),
+                    Option::<&Node>::None,
+                    dont_resolve_alias,
+                )
+                .is_some()
+            {
+                return false;
+            }
+            return true;
+        }
+        let file = file.unwrap();
+        if !is_source_file_js(&file) {
+            return self.has_export_assignment_symbol(module_symbol);
+        }
+        file.as_source_file()
+            .maybe_external_module_indicator()
+            .is_none()
+            && self
+                .resolve_export_by_name(
+                    module_symbol,
+                    &escape_leading_underscores("__esModule"),
+                    Option::<&Node>::None,
+                    dont_resolve_alias,
+                )
+                .is_none()
+    }
+
     pub(super) fn get_common_js_property_access(
         &self,
         node: &Node,
@@ -937,6 +1081,10 @@ impl TypeChecker {
         module_symbol: Option<TModuleSymbol>,
         dont_resolve_alias: Option<bool>,
     ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn has_export_assignment_symbol(&self, module_symbol: &Symbol) -> bool {
         unimplemented!()
     }
 
