@@ -1033,6 +1033,7 @@ pub struct SymbolLinks {
     pub declared_type: Option<Rc<Type>>,
     pub mapper: Option<TypeMapper>,
     pub referenced: Option<bool>,
+    pub const_enum_referenced: Option<bool>,
     pub type_only_declaration: Option<Option<Rc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
 }
 
@@ -1044,6 +1045,7 @@ impl SymbolLinks {
             declared_type: None,
             mapper: None,
             referenced: None,
+            const_enum_referenced: None,
             type_only_declaration: None,
         }
     }

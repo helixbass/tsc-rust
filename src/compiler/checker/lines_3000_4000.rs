@@ -7,10 +7,11 @@ use std::rc::Rc;
 
 use crate::{
     find, is_binary_expression, is_internal_module_import_equals_declaration,
-    is_property_access_expression, is_type_only_import_or_export_declaration, DiagnosticMessage,
-    Diagnostics, InternalSymbolName, NamedDeclarationInterface, SymbolLinks, SymbolTable,
-    SyntaxKind, __String, get_first_identifier, node_is_missing, Debug_, Node, NodeInterface,
-    Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    is_property_access_expression, is_right_side_of_qualified_name_or_property_access,
+    is_type_only_import_or_export_declaration, DiagnosticMessage, Diagnostics, InternalSymbolName,
+    NamedDeclarationInterface, SymbolLinks, SymbolTable, SyntaxKind, __String,
+    get_first_identifier, node_is_missing, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
+    SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -323,12 +324,45 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn mark_const_enum_alias_as_referenced(&self, symbol: &Symbol) {
+        let links = self.get_symbol_links(symbol);
+        if !matches!(RefCell::borrow(&links).const_enum_referenced, Some(true)) {
+            links.borrow_mut().const_enum_referenced = Some(true);
+        }
+    }
+
     pub(super) fn get_symbol_of_part_of_right_hand_side_of_import_equals(
         &self,
         entity_name: &Node, /*EntityName*/
         dont_resolve_alias: Option<bool>,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let mut entity_name = entity_name.node_wrapper();
+        if entity_name.kind() == SyntaxKind::Identifier
+            && is_right_side_of_qualified_name_or_property_access(&entity_name)
+        {
+            entity_name = entity_name.parent();
+        }
+        if entity_name.kind() == SyntaxKind::Identifier
+            || entity_name.parent().kind() == SyntaxKind::QualifiedName
+        {
+            self.resolve_entity_name(
+                &entity_name,
+                SymbolFlags::Namespace,
+                Some(false),
+                dont_resolve_alias,
+            )
+        } else {
+            Debug_.assert(
+                entity_name.parent().kind() == SyntaxKind::ImportEqualsDeclaration,
+                None,
+            );
+            self.resolve_entity_name(
+                &entity_name,
+                SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
+                Some(false),
+                dont_resolve_alias,
+            )
+        }
     }
 
     pub(super) fn get_fully_qualified_name<TContainingLocation: Borrow<Node>>(
