@@ -9,15 +9,16 @@ use super::ResolveNameNameArg;
 use crate::{
     add_related_info, concatenate, create_diagnostic_for_node, deduplicate_rc, ends_with,
     escape_leading_underscores, export_assignment_is_alias, find, find_ancestor, find_last,
-    get_assignment_declaration_kind, get_external_module_import_equals_declaration_expression,
-    get_external_module_require_argument, get_immediately_invoked_function_expression,
-    get_jsdoc_host, get_leftmost_access_expression, get_mode_for_usage_location,
-    get_name_of_declaration, get_source_file_of_node, get_text_of_node, get_this_container,
-    has_syntactic_modifier, is_access_expression, is_aliasable_expression, is_binary_expression,
-    is_block_or_catch_scoped, is_class_like, is_computed_property_name, is_entity_name_expression,
-    is_export_assignment, is_export_declaration, is_export_specifier, is_function_expression,
-    is_function_like, is_function_like_declaration, is_identifier, is_in_js_file,
-    is_jsdoc_template_tag, is_jsdoc_type_alias, is_property_signature, is_qualified_name,
+    get_assignment_declaration_kind, get_es_module_interop,
+    get_external_module_import_equals_declaration_expression, get_external_module_require_argument,
+    get_immediately_invoked_function_expression, get_jsdoc_host, get_leftmost_access_expression,
+    get_mode_for_usage_location, get_name_of_declaration, get_source_file_of_node,
+    get_text_of_node, get_this_container, has_syntactic_modifier, is_access_expression,
+    is_aliasable_expression, is_binary_expression, is_block_or_catch_scoped, is_class_like,
+    is_computed_property_name, is_entity_name_expression, is_export_assignment,
+    is_export_declaration, is_export_specifier, is_function_expression, is_function_like,
+    is_function_like_declaration, is_identifier, is_in_js_file, is_jsdoc_template_tag,
+    is_jsdoc_type_alias, is_property_access_expression, is_property_signature, is_qualified_name,
     is_require_variable_declaration, is_shorthand_ambient_module_symbol, is_source_file,
     is_source_file_js, is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
     is_valid_type_only_alias_use_site, is_variable_declaration, should_preserve_const_enums, some,
@@ -1282,6 +1283,177 @@ impl TypeChecker {
             }
         }
         None
+    }
+
+    pub(super) fn get_external_module_member(
+        &self,
+        node: &Node,      /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
+        specifier: &Node, /*ImportOrExportSpecifier | BindingElement | PropertyAccessExpression*/
+        dont_resolve_alias: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        let dont_resolve_alias = dont_resolve_alias.unwrap_or(false);
+        let module_specifier =
+            get_external_module_require_argument(node).unwrap_or_else(|| match node {
+                Node::ImportDeclaration(node) => node.module_specifier.clone(),
+                Node::ExportDeclaration(node) => node.module_specifier.clone().unwrap(),
+                _ => panic!("Expected ImportDeclaration or ExportDeclaration"),
+            });
+        let module_symbol = self
+            .resolve_external_module_name_(node, &module_specifier, None)
+            .unwrap();
+        let name = if !is_property_access_expression(specifier) {
+            specifier.as_has_property_name().maybe_property_name()
+        } else {
+            None
+        }
+        .unwrap_or_else(|| specifier.as_named_declaration().name());
+        if !is_identifier(&name) {
+            return None;
+        }
+        let name_as_identifier = name.as_identifier();
+        let suppress_interop_error = name_as_identifier.escaped_text
+            == InternalSymbolName::Default()
+            && (matches!(
+                self.compiler_options.allow_synthetic_default_imports,
+                Some(true)
+            ) || matches!(get_es_module_interop(&self.compiler_options), Some(true)));
+        let target_symbol = self.resolve_es_module_symbol(
+            &module_symbol,
+            &module_specifier,
+            false,
+            suppress_interop_error,
+        )?;
+        if !(&*name_as_identifier.escaped_text).is_empty() {
+            if is_shorthand_ambient_module_symbol(&module_symbol) {
+                return Some(module_symbol);
+            }
+
+            let mut symbol_from_variable: Option<Rc<Symbol>>;
+            if
+            /*moduleSymbol &&*/
+            module_symbol
+                .maybe_exports()
+                .as_ref()
+                .and_then(|exports| exports.get(&InternalSymbolName::ExportEquals()))
+                .is_some()
+            {
+                symbol_from_variable = self.get_property_of_type(
+                    self.get_type_of_symbol(&target_symbol),
+                    &name_as_identifier.escaped_text,
+                    true,
+                );
+            } else {
+                symbol_from_variable =
+                    self.get_property_of_variable(&target_symbol, &name_as_identifier.escaped_text);
+            }
+            symbol_from_variable = self.resolve_symbol(symbol_from_variable, dont_resolve_alias);
+
+            let mut symbol_from_module =
+                self.get_export_of_module(&target_symbol, &name, specifier, dont_resolve_alias);
+            if symbol_from_module.is_none()
+                && name_as_identifier.escaped_text == InternalSymbolName::Default()
+            {
+                let file = module_symbol
+                    .maybe_declarations()
+                    .as_ref()
+                    .and_then(|declarations| {
+                        declarations
+                            .iter()
+                            .find(|declaration: &Rc<Node>| is_source_file(declaration))
+                            .map(Clone::clone)
+                    });
+                if self.is_only_imported_as_default(&module_specifier)
+                    || self.can_have_synthetic_default(
+                        file,
+                        &module_symbol,
+                        dont_resolve_alias,
+                        &module_specifier,
+                    )
+                {
+                    symbol_from_module = self
+                        .resolve_external_module_symbol(&module_symbol, dont_resolve_alias)
+                        .or_else(|| self.resolve_symbol(&module_symbol, dont_resolve_alias));
+                }
+            }
+            let symbol =
+                match (symbol_from_module.as_ref(), symbol_from_variable.as_ref()) {
+                    (Some(symbol_from_module), Some(symbol_from_variable))
+                        if !Rc::ptr_eq(symbol_from_module, symbol_from_variable) =>
+                    {
+                        Some(self.combine_value_and_type_symbols(
+                            symbol_from_variable,
+                            symbol_from_module,
+                        ))
+                    }
+                    _ => symbol_from_module.or(symbol_from_variable),
+                };
+            if symbol.is_none() {
+                let module_name = self.get_fully_qualified_name(&module_symbol, node);
+                let declaration_name = declaration_name_to_string(&name);
+                let suggestion =
+                    self.get_suggested_symbol_for_nonexistent_module(&name, &target_symbol);
+                if let Some(suggestion) = suggestion {
+                    let suggestion_name = self.symbol_to_string_(
+                        &suggestion,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                        None,
+                    );
+                    let diagnostic = self.error(
+                        Some(&*name),
+                        &Diagnostics::_0_has_no_exported_member_named_1_Did_you_mean_2,
+                        Some(vec![module_name, declaration_name, suggestion_name.clone()]),
+                    );
+                    if let Some(suggestion_value_declaration) = suggestion.maybe_value_declaration()
+                    {
+                        add_related_info(
+                            &diagnostic,
+                            vec![Rc::new(
+                                create_diagnostic_for_node(
+                                    &suggestion_value_declaration,
+                                    &Diagnostics::_0_is_declared_here,
+                                    Some(vec![suggestion_name]),
+                                )
+                                .into(),
+                            )],
+                        );
+                    }
+                } else {
+                    if matches!(module_symbol.maybe_exports().as_ref(), Some(exports) if RefCell::borrow(exports).contains_key(&InternalSymbolName::Default()))
+                    {
+                        self.error(
+                            Some(&*name),
+                            &Diagnostics::Module_0_has_no_exported_member_1_Did_you_mean_to_use_import_1_from_0_instead,
+                            Some(vec![
+                                module_name,
+                                declaration_name,
+                            ])
+                        );
+                    } else {
+                        self.report_non_exported_member(
+                            node,
+                            &name,
+                            &declaration_name,
+                            &module_symbol,
+                            &module_name,
+                        );
+                    }
+                }
+            }
+            return symbol;
+        }
+        None
+    }
+
+    pub(super) fn report_non_exported_member(
+        &self,
+        node: &Node, /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
+        name: &Node, /*Identifier*/
+        declaration_name: String,
+        module_name: String,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn get_common_js_property_access(
