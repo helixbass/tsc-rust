@@ -142,6 +142,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_const_enum_or_const_enum_only_module(&self, s: &Symbol) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_implementation_of_overload_(
         &self,
         node: &Node, /*SignatureDeclaration*/

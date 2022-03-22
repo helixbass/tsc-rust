@@ -6,11 +6,11 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    find, is_binary_expression, is_property_access_expression,
-    is_type_only_import_or_export_declaration, DiagnosticMessage, Diagnostics, InternalSymbolName,
-    NamedDeclarationInterface, SymbolLinks, SymbolTable, SyntaxKind, __String,
-    get_first_identifier, node_is_missing, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
-    SymbolInterface, TypeChecker,
+    find, is_binary_expression, is_internal_module_import_equals_declaration,
+    is_property_access_expression, is_type_only_import_or_export_declaration, DiagnosticMessage,
+    Diagnostics, InternalSymbolName, NamedDeclarationInterface, SymbolLinks, SymbolTable,
+    SyntaxKind, __String, get_first_identifier, node_is_missing, Debug_, Node, NodeInterface,
+    Symbol, SymbolFlags, SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -280,6 +280,47 @@ impl TypeChecker {
             _ => None,
         };
         ret
+    }
+
+    pub(super) fn mark_export_as_referenced(
+        &self,
+        node: &Node, /*ImportEqualsDeclaration | ExportSpecifier*/
+    ) {
+        let symbol = self.get_symbol_of_node(node).unwrap();
+        let target = self.resolve_alias(&symbol);
+        // if (target) {
+        let mark_alias = Rc::ptr_eq(&target, &self.unknown_symbol())
+            || target.flags().intersects(SymbolFlags::Value)
+                && !self.is_const_enum_or_const_enum_only_module(&target)
+                && self.get_type_only_alias_declaration(&symbol).is_none();
+
+        if mark_alias {
+            self.mark_alias_symbol_as_referenced(&symbol);
+        }
+        // }
+    }
+
+    pub(super) fn mark_alias_symbol_as_referenced(&self, symbol: &Symbol) {
+        let links = self.get_symbol_links(symbol);
+        if !matches!(RefCell::borrow(&links).referenced, Some(true)) {
+            links.borrow_mut().referenced = Some(true);
+            let node = self.get_declaration_of_alias_symbol(symbol);
+            if node.is_none() {
+                Debug_.fail(None);
+            }
+            let node = node.unwrap();
+            if is_internal_module_import_equals_declaration(&node) {
+                let target = self.resolve_symbol(Some(symbol), None).unwrap();
+                if Rc::ptr_eq(&target, &self.unknown_symbol())
+                    || target.flags().intersects(SymbolFlags::Value)
+                {
+                    self.check_expression_cached(
+                        &node.as_import_equals_declaration().module_reference,
+                        None,
+                    );
+                }
+            }
+        }
     }
 
     pub(super) fn get_symbol_of_part_of_right_hand_side_of_import_equals(
