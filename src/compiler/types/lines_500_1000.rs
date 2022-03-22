@@ -19,18 +19,18 @@ use super::{
     ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
     FunctionTypeNode, GetAccessorDeclaration, HasConditionInterface, HasElementsInterface,
     HasExpressionInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasLabelInterface,
-    HasQuestionDotTokenInterface, HasQuestionTokenInterface, HasStatementInterface,
-    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause,
-    Identifier, IfStatement, ImportClause, ImportDeclaration, ImportEqualsDeclaration,
-    ImportSpecifier, ImportTypeNode, IndexSignatureDeclaration, IndexedAccessTypeNode,
-    InferTypeNode, InputFiles, InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface,
-    IntersectionTypeNode, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType,
-    JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain,
-    JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration, JSDocPropertyLikeTag,
-    JSDocSeeTag, JSDocSignature, JSDocTagInterface, JSDocTemplateTag, JSDocText,
-    JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
-    JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute, JsxAttributes,
-    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
+    HasPropertyNameInterface, HasQuestionDotTokenInterface, HasQuestionTokenInterface,
+    HasStatementInterface, HasStatementsInterface, HasTypeArgumentsInterface,
+    HasTypeParametersInterface, HeritageClause, Identifier, IfStatement, ImportClause,
+    ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
+    IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InputFiles,
+    InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface, IntersectionTypeNode, JSDoc,
+    JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
+    JSDocLinkCode, JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
+    JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature,
+    JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
+    JSDocTypeLiteral, JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute,
+    JsxAttributes, JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
     JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
     KeywordTypeNode, LabeledStatement, LiteralLikeNodeInterface, LiteralTypeNode, MappedTypeNode,
     MemberNameInterface, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
@@ -663,6 +663,15 @@ impl Node {
             Node::ClassExpression(node) => node,
             Node::ClassDeclaration(node) => node,
             _ => panic!("Expected class like declaration"),
+        }
+    }
+
+    pub fn as_has_property_name(&self) -> &dyn HasPropertyNameInterface {
+        match self {
+            Node::ImportSpecifier(node) => node,
+            Node::ExportSpecifier(node) => node,
+            Node::BindingElement(node) => node,
+            _ => panic!("Expected has property name"),
         }
     }
 

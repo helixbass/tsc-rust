@@ -1301,7 +1301,7 @@ impl TypeChecker {
         let module_symbol = self
             .resolve_external_module_name_(node, &module_specifier, None)
             .unwrap();
-        let name = if !is_property_access_expression(specifier) {
+        let name: Rc<Node> = if !is_property_access_expression(specifier) {
             specifier.as_has_property_name().maybe_property_name()
         } else {
             None
@@ -1318,7 +1318,7 @@ impl TypeChecker {
                 Some(true)
             ) || matches!(get_es_module_interop(&self.compiler_options), Some(true)));
         let target_symbol = self.resolve_es_module_symbol(
-            &module_symbol,
+            Some(&*module_symbol),
             &module_specifier,
             false,
             suppress_interop_error,
@@ -1334,19 +1334,24 @@ impl TypeChecker {
             module_symbol
                 .maybe_exports()
                 .as_ref()
-                .and_then(|exports| exports.get(&InternalSymbolName::ExportEquals()))
+                .and_then(|exports| {
+                    RefCell::borrow(exports)
+                        .get(&InternalSymbolName::ExportEquals())
+                        .map(Clone::clone)
+                })
                 .is_some()
             {
-                symbol_from_variable = self.get_property_of_type(
-                    self.get_type_of_symbol(&target_symbol),
+                symbol_from_variable = self.get_property_of_type_(
+                    &self.get_type_of_symbol(&target_symbol),
                     &name_as_identifier.escaped_text,
-                    true,
+                    Some(true),
                 );
             } else {
                 symbol_from_variable =
                     self.get_property_of_variable(&target_symbol, &name_as_identifier.escaped_text);
             }
-            symbol_from_variable = self.resolve_symbol(symbol_from_variable, dont_resolve_alias);
+            symbol_from_variable =
+                self.resolve_symbol(symbol_from_variable, Some(dont_resolve_alias));
 
             let mut symbol_from_module =
                 self.get_export_of_module(&target_symbol, &name, specifier, dont_resolve_alias);
@@ -1359,7 +1364,7 @@ impl TypeChecker {
                     .and_then(|declarations| {
                         declarations
                             .iter()
-                            .find(|declaration: &Rc<Node>| is_source_file(declaration))
+                            .find(|declaration: &&Rc<Node>| is_source_file(declaration))
                             .map(Clone::clone)
                     });
                 if self.is_only_imported_as_default(&module_specifier)
@@ -1371,8 +1376,13 @@ impl TypeChecker {
                     )
                 {
                     symbol_from_module = self
-                        .resolve_external_module_symbol(&module_symbol, dont_resolve_alias)
-                        .or_else(|| self.resolve_symbol(&module_symbol, dont_resolve_alias));
+                        .resolve_external_module_symbol(
+                            Some(&*module_symbol),
+                            Some(dont_resolve_alias),
+                        )
+                        .or_else(|| {
+                            self.resolve_symbol(Some(&*module_symbol), Some(dont_resolve_alias))
+                        });
                 }
             }
             let symbol =
@@ -1388,8 +1398,8 @@ impl TypeChecker {
                     _ => symbol_from_module.or(symbol_from_variable),
                 };
             if symbol.is_none() {
-                let module_name = self.get_fully_qualified_name(&module_symbol, node);
-                let declaration_name = declaration_name_to_string(&name);
+                let module_name = self.get_fully_qualified_name(&module_symbol, Some(node));
+                let declaration_name = declaration_name_to_string(Some(&*name));
                 let suggestion =
                     self.get_suggested_symbol_for_nonexistent_module(&name, &target_symbol);
                 if let Some(suggestion) = suggestion {
@@ -1403,7 +1413,11 @@ impl TypeChecker {
                     let diagnostic = self.error(
                         Some(&*name),
                         &Diagnostics::_0_has_no_exported_member_named_1_Did_you_mean_2,
-                        Some(vec![module_name, declaration_name, suggestion_name.clone()]),
+                        Some(vec![
+                            module_name,
+                            declaration_name.into_owned(),
+                            suggestion_name.clone(),
+                        ]),
                     );
                     if let Some(suggestion_value_declaration) = suggestion.maybe_value_declaration()
                     {
@@ -1427,16 +1441,16 @@ impl TypeChecker {
                             &Diagnostics::Module_0_has_no_exported_member_1_Did_you_mean_to_use_import_1_from_0_instead,
                             Some(vec![
                                 module_name,
-                                declaration_name,
+                                declaration_name.into_owned(),
                             ])
                         );
                     } else {
                         self.report_non_exported_member(
                             node,
                             &name,
-                            &declaration_name,
+                            declaration_name.into_owned(),
                             &module_symbol,
-                            &module_name,
+                            module_name,
                         );
                     }
                 }
@@ -1451,6 +1465,7 @@ impl TypeChecker {
         node: &Node, /*ImportDeclaration | ExportDeclaration | VariableDeclaration*/
         name: &Node, /*Identifier*/
         declaration_name: String,
+        module_symbol: &Symbol,
         module_name: String,
     ) {
         unimplemented!()
@@ -1501,6 +1516,14 @@ impl TypeChecker {
         entity_name: &Node, /*EntityName*/
         dont_resolve_alias: Option<bool>,
     ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_fully_qualified_name<TContainingLocation: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        containing_location: Option<TContainingLocation>,
+    ) -> String {
         unimplemented!()
     }
 

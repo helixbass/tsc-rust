@@ -1519,7 +1519,7 @@ impl TypeChecker {
     }
 
     pub fn get_property_of_type(&self, type_: &Type, name: &str) -> Option<Rc<Symbol>> {
-        self.get_property_of_type_(type_, &escape_leading_underscores(name))
+        self.get_property_of_type_(type_, &escape_leading_underscores(name), None)
     }
 
     pub fn get_private_identifier_property_of_type(

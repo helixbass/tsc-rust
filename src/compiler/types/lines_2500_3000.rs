@@ -6,8 +6,9 @@ use std::rc::Rc;
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
     BindingLikeDeclarationInterface, FlowNode, HasExpressionInterface, HasInitializerInterface,
-    HasStatementsInterface, HasTypeInterface, LiteralLikeNodeInterface, NamedDeclarationInterface,
-    Node, NodeArray, NodeInterface, SyntaxKind, VariableLikeDeclarationInterface,
+    HasPropertyNameInterface, HasStatementsInterface, HasTypeInterface, LiteralLikeNodeInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SyntaxKind,
+    VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
 
@@ -898,6 +899,12 @@ impl BindingElement {
             property_name,
             dot_dot_dot_token,
         }
+    }
+}
+
+impl HasPropertyNameInterface for BindingElement {
+    fn maybe_property_name(&self) -> Option<Rc<Node>> {
+        self.property_name.clone()
     }
 }
 

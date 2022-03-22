@@ -113,7 +113,7 @@ impl TypeChecker {
                 if false {
                     unimplemented!()
                 } else if t.flags().intersects(TypeFlags::StructuredType) {
-                    let prop = self.get_property_of_type_(t, name);
+                    let prop = self.get_property_of_type_(t, name, None);
                     if let Some(prop) = prop {
                         return if false {
                             None
@@ -457,6 +457,14 @@ impl TypeChecker {
         outer_name: &__String,
         meaning: SymbolFlags,
     ) -> Option<String> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_suggested_symbol_for_nonexistent_module(
+        &self,
+        name: &Node, /*Identifier*/
+        target_module: &Symbol,
+    ) -> Option<Rc<Symbol>> {
         unimplemented!()
     }
 

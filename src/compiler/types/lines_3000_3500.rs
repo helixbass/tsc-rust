@@ -251,6 +251,10 @@ impl NamedExports {
     }
 }
 
+pub trait HasPropertyNameInterface {
+    fn maybe_property_name(&self) -> Option<Rc<Node>>;
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ImportSpecifier {
@@ -296,6 +300,12 @@ impl HasIsTypeOnlyInterface for ImportSpecifier {
     }
 }
 
+impl HasPropertyNameInterface for ImportSpecifier {
+    fn maybe_property_name(&self) -> Option<Rc<Node>> {
+        self.property_name.clone()
+    }
+}
+
 #[derive(Debug)]
 #[ast_type]
 pub struct ExportSpecifier {
@@ -338,6 +348,12 @@ impl NamedDeclarationInterface for ExportSpecifier {
 impl HasIsTypeOnlyInterface for ExportSpecifier {
     fn is_type_only(&self) -> bool {
         self.is_type_only
+    }
+}
+
+impl HasPropertyNameInterface for ExportSpecifier {
+    fn maybe_property_name(&self) -> Option<Rc<Node>> {
+        self.property_name.clone()
     }
 }
 

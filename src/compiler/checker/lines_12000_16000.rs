@@ -43,6 +43,7 @@ impl TypeChecker {
         &self,
         type_: &Type,
         name: &__String,
+        skip_object_function_property_augment: Option<bool>,
     ) -> Option<Rc<Symbol>> {
         let type_ = self.get_reduced_apparent_type(type_);
         if type_.flags().intersects(TypeFlags::Object) {
@@ -1011,7 +1012,7 @@ impl TypeChecker {
             self.get_property_name_from_index(index_type)
         };
         if let Some(prop_name) = prop_name {
-            let prop = self.get_property_of_type_(object_type, &prop_name);
+            let prop = self.get_property_of_type_(object_type, &prop_name, None);
             if let Some(prop) = prop {
                 let prop_type = self.get_type_of_symbol(&*prop);
                 return if false {
