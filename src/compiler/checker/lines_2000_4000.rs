@@ -15,13 +15,13 @@ use crate::{
     get_mode_for_usage_location, get_name_of_declaration, get_root_declaration,
     get_source_file_of_node, get_text_of_node, get_this_container, has_syntactic_modifier,
     is_access_expression, is_aliasable_expression, is_binary_expression, is_binding_element,
-    is_block_or_catch_scoped, is_class_like, is_computed_property_name, is_entity_name_expression,
-    is_export_assignment, is_export_declaration, is_export_specifier, is_function_expression,
-    is_function_like, is_function_like_declaration, is_identifier, is_in_js_file,
-    is_jsdoc_template_tag, is_jsdoc_type_alias, is_property_access_expression,
-    is_property_signature, is_qualified_name, is_require_variable_declaration,
-    is_shorthand_ambient_module_symbol, is_source_file, is_source_file_js, is_static,
-    is_string_literal_like, is_type_literal_node, is_type_query_node,
+    is_block_or_catch_scoped, is_class_expression, is_class_like, is_computed_property_name,
+    is_entity_name, is_entity_name_expression, is_export_assignment, is_export_declaration,
+    is_export_specifier, is_function_expression, is_function_like, is_function_like_declaration,
+    is_identifier, is_in_js_file, is_jsdoc_template_tag, is_jsdoc_type_alias,
+    is_property_access_expression, is_property_signature, is_qualified_name,
+    is_require_variable_declaration, is_shorthand_ambient_module_symbol, is_source_file,
+    is_source_file_js, is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
     is_valid_type_only_alias_use_site, is_variable_declaration, map, should_preserve_const_enums,
     some, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, Extension,
     FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, InternalSymbolName,
@@ -1723,6 +1723,54 @@ impl TypeChecker {
             false,
         );
         resolved
+    }
+
+    pub(super) fn get_target_of_export_assignment(
+        &self,
+        node: &Node, /*ExportAssignment | BinaryExpression*/
+        dont_resolve_alias: bool,
+    ) -> Option<Rc<Symbol>> {
+        let expression = if is_export_assignment(node) {
+            node.as_export_assignment().expression.clone()
+        } else {
+            node.as_binary_expression().right.clone()
+        };
+        let resolved = self.get_target_of_alias_like_expression(&expression, dont_resolve_alias);
+        self.mark_symbol_of_alias_declaration_if_type_only(
+            Some(node),
+            Option::<&Symbol>::None,
+            resolved.as_deref(),
+            false,
+        );
+        resolved
+    }
+
+    pub(super) fn get_target_of_alias_like_expression(
+        &self,
+        expression: &Node, /*Expression*/
+        dont_resolve_alias: bool,
+    ) -> Option<Rc<Symbol>> {
+        if is_class_expression(expression) {
+            return self
+                .check_expression_cached(expression, None)
+                .maybe_symbol();
+        }
+        if !is_entity_name(expression) && !is_entity_name_expression(expression) {
+            return None;
+        }
+        let alias_like = self.resolve_entity_name(
+            expression,
+            SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
+            Some(true),
+            Some(dont_resolve_alias),
+        );
+        if alias_like.is_some() {
+            return alias_like;
+        }
+        self.check_expression_cached(expression, None);
+        RefCell::borrow(&self.get_node_links(expression))
+            .resolved_symbol
+            .clone()
     }
 
     pub(super) fn resolve_symbol<TSymbol: Borrow<Symbol>>(
