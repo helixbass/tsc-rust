@@ -1,14 +1,96 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    DiagnosticMessage, SymbolTable, __String, get_first_identifier, node_is_missing, Debug_, Node,
-    NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    is_binary_expression, DiagnosticMessage, NamedDeclarationInterface, SymbolTable, SyntaxKind,
+    __String, get_first_identifier, node_is_missing, Debug_, Node, NodeInterface, Symbol,
+    SymbolFlags, SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
+    pub(super) fn get_target_of_property_assignment(
+        &self,
+        node: &Node, /*PropertyAssignment*/
+        dont_recursively_resolve: bool,
+    ) -> Option<Rc<Symbol>> {
+        let expression = &node.as_property_assignment().initializer;
+        self.get_target_of_alias_like_expression(expression, dont_recursively_resolve)
+    }
+
+    pub(super) fn get_target_of_access_expression(
+        &self,
+        node: &Node, /*AccessExpression*/
+        dont_recursively_resolve: bool,
+    ) -> Option<Rc<Symbol>> {
+        let node_parent = node.parent();
+        if !(is_binary_expression(&node_parent)) {
+            return None;
+        }
+        let node_parent_as_binary_expression = node_parent.as_binary_expression();
+        if !(ptr::eq(&*node_parent_as_binary_expression.left, node)
+            && node_parent_as_binary_expression.operator_token.kind() == SyntaxKind::EqualsToken)
+        {
+            return None;
+        }
+
+        self.get_target_of_alias_like_expression(
+            &node_parent_as_binary_expression.right,
+            dont_recursively_resolve,
+        )
+    }
+
+    pub(super) fn get_target_of_alias_declaration(
+        &self,
+        node: &Node, /*Declaration*/
+        dont_recursively_resolve: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        let dont_recursively_resolve = dont_recursively_resolve.unwrap_or(false);
+        match node.kind() {
+            SyntaxKind::ImportEqualsDeclaration | SyntaxKind::VariableDeclaration => {
+                self.get_target_of_import_equals_declaration(node, dont_recursively_resolve)
+            }
+            SyntaxKind::ImportClause => {
+                self.get_target_of_import_clause(node, dont_recursively_resolve)
+            }
+            SyntaxKind::NamespaceImport => {
+                self.get_target_of_namespace_import(node, dont_recursively_resolve)
+            }
+            SyntaxKind::NamespaceExport => {
+                self.get_target_of_namespace_export(node, dont_recursively_resolve)
+            }
+            SyntaxKind::ImportSpecifier | SyntaxKind::BindingElement => {
+                self.get_target_of_import_specifier(node, dont_recursively_resolve)
+            }
+            SyntaxKind::ExportSpecifier => self.get_target_of_export_specifier(
+                node,
+                SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
+                Some(dont_recursively_resolve),
+            ),
+            SyntaxKind::ExportAssignment | SyntaxKind::BinaryExpression => {
+                self.get_target_of_export_assignment(node, dont_recursively_resolve)
+            }
+            SyntaxKind::NamespaceExportDeclaration => Some(
+                self.get_target_of_namespace_export_declaration(node, dont_recursively_resolve),
+            ),
+            SyntaxKind::ShorthandPropertyAssignment => self.resolve_entity_name(
+                &node.as_shorthand_property_assignment().name(),
+                SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
+                Some(true),
+                Some(dont_recursively_resolve),
+            ),
+            SyntaxKind::PropertyAssignment => {
+                self.get_target_of_property_assignment(node, dont_recursively_resolve)
+            }
+            SyntaxKind::ElementAccessExpression | SyntaxKind::PropertyAccessExpression => {
+                self.get_target_of_access_expression(node, dont_recursively_resolve)
+            }
+            _ => Debug_.fail(None),
+        }
+    }
+
     pub(super) fn resolve_symbol<TSymbol: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbol>,
