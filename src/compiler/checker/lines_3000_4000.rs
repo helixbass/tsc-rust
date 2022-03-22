@@ -271,7 +271,15 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
     ) -> Option<Rc<Node /*TypeOnlyAliasDeclaration*/>> {
-        unimplemented!()
+        if !symbol.flags().intersects(SymbolFlags::Alias) {
+            return None;
+        }
+        let links = self.get_symbol_links(symbol);
+        let ret = match RefCell::borrow(&links).type_only_declaration.as_ref() {
+            Some(Some(type_only_declaration)) => Some(type_only_declaration.clone()),
+            _ => None,
+        };
+        ret
     }
 
     pub(super) fn get_symbol_of_part_of_right_hand_side_of_import_equals(
