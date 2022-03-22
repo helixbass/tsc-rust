@@ -6,7 +6,8 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    is_binary_expression, DiagnosticMessage, Diagnostics, NamedDeclarationInterface, SymbolTable,
+    is_binary_expression, is_property_access_expression, is_type_only_import_or_export_declaration,
+    DiagnosticMessage, Diagnostics, NamedDeclarationInterface, SymbolLinks, SymbolTable,
     SyntaxKind, __String, get_first_identifier, node_is_missing, Debug_, Node, NodeInterface,
     Symbol, SymbolFlags, SymbolInterface, TypeChecker,
 };
@@ -165,6 +166,18 @@ impl TypeChecker {
         ret
     }
 
+    pub(super) fn try_resolve_alias(&self, symbol: &Symbol) -> Option<Rc<Symbol>> {
+        let links = self.get_symbol_links(symbol);
+        if !matches!(
+            RefCell::borrow(&links).target.as_ref(),
+            Some(target) if Rc::ptr_eq(target, &self.resolving_symbol())
+        ) {
+            return Some(self.resolve_alias(symbol));
+        }
+
+        None
+    }
+
     pub(super) fn mark_symbol_of_alias_declaration_if_type_only<
         TAliasDeclaration: Borrow<Node>,
         TImmediateTarget: Borrow<Symbol>,
@@ -174,6 +187,40 @@ impl TypeChecker {
         alias_declaration: Option<TAliasDeclaration /*Declaration*/>,
         immediate_target: Option<TImmediateTarget>,
         final_target: Option<TFinalTarget>,
+        overwrite_empty: bool,
+    ) -> bool {
+        if alias_declaration.is_none() {
+            return false;
+        }
+        let alias_declaration = alias_declaration.unwrap();
+        let alias_declaration = alias_declaration.borrow();
+        if is_property_access_expression(alias_declaration) {
+            return false;
+        }
+
+        let source_symbol = self.get_symbol_of_node(alias_declaration).unwrap();
+        if is_type_only_import_or_export_declaration(alias_declaration) {
+            let links = self.get_symbol_links(&source_symbol);
+            links.borrow_mut().type_only_declaration = Some(Some(alias_declaration.node_wrapper()));
+            return true;
+        }
+
+        let links = self.get_symbol_links(&source_symbol);
+        self.mark_symbol_of_alias_declaration_if_type_only_worker(
+            &links,
+            immediate_target,
+            overwrite_empty,
+        ) || self.mark_symbol_of_alias_declaration_if_type_only_worker(
+            &links,
+            final_target,
+            overwrite_empty,
+        )
+    }
+
+    pub(super) fn mark_symbol_of_alias_declaration_if_type_only_worker<TTarget: Borrow<Symbol>>(
+        &self,
+        alias_declaration_links: &RefCell<SymbolLinks>,
+        target: Option<TTarget>,
         overwrite_empty: bool,
     ) -> bool {
         unimplemented!()

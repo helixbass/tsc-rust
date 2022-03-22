@@ -1032,6 +1032,7 @@ pub struct SymbolLinks {
     pub type_: Option<Rc<Type>>,
     pub declared_type: Option<Rc<Type>>,
     pub mapper: Option<TypeMapper>,
+    pub type_only_declaration: Option<Option<Rc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
 }
 
 impl SymbolLinks {
@@ -1041,6 +1042,7 @@ impl SymbolLinks {
             type_: None,
             declared_type: None,
             mapper: None,
+            type_only_declaration: None,
         }
     }
 }
