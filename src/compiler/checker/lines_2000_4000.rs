@@ -7,14 +7,16 @@ use std::rc::Rc;
 use super::ResolveNameNameArg;
 use crate::{
     add_related_info, create_diagnostic_for_node, export_assignment_is_alias, find, find_ancestor,
-    find_last, get_assignment_declaration_kind, get_immediately_invoked_function_expression,
-    get_jsdoc_host, get_name_of_declaration, get_text_of_node, get_this_container,
-    has_syntactic_modifier, is_access_expression, is_aliasable_expression, is_binary_expression,
-    is_block_or_catch_scoped, is_class_like, is_computed_property_name, is_entity_name_expression,
-    is_function_expression, is_function_like, is_function_like_declaration, is_identifier,
-    is_in_js_file, is_jsdoc_template_tag, is_jsdoc_type_alias, is_property_signature,
-    is_qualified_name, is_require_variable_declaration, is_static, is_type_literal_node,
-    is_type_query_node, is_valid_type_only_alias_use_site, should_preserve_const_enums,
+    find_last, get_assignment_declaration_kind,
+    get_external_module_import_equals_declaration_expression, get_external_module_require_argument,
+    get_immediately_invoked_function_expression, get_jsdoc_host, get_leftmost_access_expression,
+    get_name_of_declaration, get_text_of_node, get_this_container, has_syntactic_modifier,
+    is_access_expression, is_aliasable_expression, is_binary_expression, is_block_or_catch_scoped,
+    is_class_like, is_computed_property_name, is_entity_name_expression, is_function_expression,
+    is_function_like, is_function_like_declaration, is_identifier, is_in_js_file,
+    is_jsdoc_template_tag, is_jsdoc_type_alias, is_property_signature, is_qualified_name,
+    is_require_variable_declaration, is_static, is_type_literal_node, is_type_query_node,
+    is_valid_type_only_alias_use_site, is_variable_declaration, should_preserve_const_enums,
     AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics,
     FindAncestorCallbackReturn, ModifierFlags, NodeFlags, SyntaxKind, TypeFlags, TypeInterface,
     __String, declaration_name_to_string, get_first_identifier, node_is_missing,
@@ -695,6 +697,127 @@ impl TypeChecker {
         is_aliasable_expression(e) || is_function_expression(e) && self.is_js_constructor(Some(e))
     }
 
+    pub(super) fn get_target_of_import_equals_declaration(
+        &self,
+        node: &Node, /*ImportEqualsDeclaration | VariableDeclaration*/
+        dont_resolve_alias: bool,
+    ) -> Option<Rc<Symbol>> {
+        let common_js_property_access = self.get_common_js_property_access(node);
+        if let Some(common_js_property_access) = common_js_property_access {
+            let common_js_property_access_as_property_access_expression =
+                common_js_property_access.as_property_access_expression();
+            let leftmost = get_leftmost_access_expression(
+                &common_js_property_access_as_property_access_expression.expression,
+            );
+            let name = &leftmost.as_call_expression().arguments[0];
+            return if is_identifier(&common_js_property_access_as_property_access_expression.name) {
+                self.resolve_symbol(
+                    self.get_property_of_type(
+                        &self.resolve_external_module_type_by_literal(name),
+                        &common_js_property_access_as_property_access_expression
+                            .name
+                            .as_identifier()
+                            .escaped_text,
+                    ),
+                    None,
+                )
+            } else {
+                None
+            };
+        }
+        if is_variable_declaration(node)
+            || node.as_import_equals_declaration().module_reference.kind()
+                == SyntaxKind::ExternalModuleReference
+        {
+            let immediate = self.resolve_external_module_name_(
+                node,
+                &get_external_module_require_argument(node).unwrap_or_else(|| {
+                    get_external_module_import_equals_declaration_expression(node)
+                }),
+                None,
+            );
+            let resolved = self.resolve_external_module_symbol(immediate.as_deref(), None);
+            self.mark_symbol_of_alias_declaration_if_type_only(
+                Some(node),
+                immediate,
+                resolved.as_deref(),
+                false,
+            );
+            return resolved;
+        }
+        let resolved = self.get_symbol_of_part_of_right_hand_side_of_import_equals(
+            &node.as_import_equals_declaration().module_reference,
+            Some(dont_resolve_alias),
+        );
+        self.check_and_report_error_for_resolving_import_alias_to_type_only_symbol(
+            node,
+            resolved.as_deref(),
+        );
+        resolved
+    }
+
+    pub(super) fn check_and_report_error_for_resolving_import_alias_to_type_only_symbol<
+        TResolved: Borrow<Symbol>,
+    >(
+        &self,
+        node: &Node, /*ImportEqualsDeclaration*/
+        resolved: Option<TResolved>,
+    ) {
+        let node_as_import_equals_declaration = node.as_import_equals_declaration();
+        if self.mark_symbol_of_alias_declaration_if_type_only(
+            Some(node),
+            Option::<&Symbol>::None,
+            resolved,
+            false,
+        ) && !node_as_import_equals_declaration.is_type_only
+        {
+            let type_only_declaration = self
+                .get_type_only_alias_declaration(&self.get_symbol_of_node(node).unwrap())
+                .unwrap();
+            let is_export = type_only_declaration.kind() == SyntaxKind::ExportSpecifier;
+            let message = if is_export {
+                &Diagnostics::An_import_alias_cannot_reference_a_declaration_that_was_exported_using_export_type
+            } else {
+                &Diagnostics::An_import_alias_cannot_reference_a_declaration_that_was_imported_using_import_type
+            };
+            let related_message = if is_export {
+                &Diagnostics::_0_was_exported_here
+            } else {
+                &Diagnostics::_0_was_imported_here
+            };
+
+            let name = unescape_leading_underscores(
+                &type_only_declaration
+                    .as_named_declaration()
+                    .name()
+                    .as_identifier()
+                    .escaped_text,
+            );
+            add_related_info(
+                &self.error(
+                    Some(&*node_as_import_equals_declaration.module_reference),
+                    message,
+                    None,
+                ),
+                vec![Rc::new(
+                    create_diagnostic_for_node(
+                        &type_only_declaration,
+                        related_message,
+                        Some(vec![name]),
+                    )
+                    .into(),
+                )],
+            );
+        }
+    }
+
+    pub(super) fn get_common_js_property_access(
+        &self,
+        node: &Node,
+    ) -> Option<Rc<Node /*PropertyAccessExpression*/>> {
+        unimplemented!()
+    }
+
     pub(super) fn resolve_symbol<TSymbol: Borrow<Symbol>>(
         &self,
         symbol: Option<TSymbol>,
@@ -707,10 +830,32 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn mark_symbol_of_alias_declaration_if_type_only<
+        TAliasDeclaration: Borrow<Node>,
+        TImmediateTarget: Borrow<Symbol>,
+        TFinalTarget: Borrow<Symbol>,
+    >(
+        &self,
+        alias_declaration: Option<TAliasDeclaration /*Declaration*/>,
+        immediate_target: Option<TImmediateTarget>,
+        final_target: Option<TFinalTarget>,
+        overwrite_empty: bool,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_only_alias_declaration(
         &self,
         symbol: &Symbol,
     ) -> Option<Rc<Node /*TypeOnlyAliasDeclaration*/>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_symbol_of_part_of_right_hand_side_of_import_equals(
+        &self,
+        entity_name: &Node, /*EntityName*/
+        dont_resolve_alias: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
         unimplemented!()
     }
 

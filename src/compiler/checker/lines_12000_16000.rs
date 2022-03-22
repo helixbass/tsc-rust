@@ -252,6 +252,13 @@ impl TypeChecker {
         signature.map(|signature| self.get_return_type_of_signature(&signature))
     }
 
+    pub(super) fn resolve_external_module_type_by_literal(
+        &self,
+        name: &Node, /*StringLiteral*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_this_type_of_signature(&self, signature: &Signature) -> Option<Rc<Type>> {
         unimplemented!()
     }
