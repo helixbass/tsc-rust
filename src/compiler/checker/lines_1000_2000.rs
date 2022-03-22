@@ -746,7 +746,7 @@ impl TypeChecker {
     ) {
         if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
             for decl in symbol_declarations {
-                push_if_unique_rc(locs, decl.clone());
+                push_if_unique_rc(locs, &decl);
             }
         }
     }

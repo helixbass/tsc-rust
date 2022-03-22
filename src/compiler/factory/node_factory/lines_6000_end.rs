@@ -468,10 +468,8 @@ pub(super) fn merge_emit_node(
     if let Some(helpers) = helpers {
         let mut dest_emit_node_helpers = dest_emit_node.helpers.clone();
         for helper in helpers {
-            dest_emit_node_helpers = Some(maybe_append_if_unique_rc(
-                dest_emit_node_helpers,
-                helper.clone(),
-            ));
+            dest_emit_node_helpers =
+                Some(maybe_append_if_unique_rc(dest_emit_node_helpers, helper));
         }
         dest_emit_node.helpers = dest_emit_node_helpers;
     }

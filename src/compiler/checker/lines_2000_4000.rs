@@ -7,19 +7,19 @@ use std::rc::Rc;
 
 use super::ResolveNameNameArg;
 use crate::{
-    add_related_info, create_diagnostic_for_node, ends_with, escape_leading_underscores,
-    export_assignment_is_alias, find, find_ancestor, find_last, get_assignment_declaration_kind,
-    get_external_module_import_equals_declaration_expression, get_external_module_require_argument,
-    get_immediately_invoked_function_expression, get_jsdoc_host, get_leftmost_access_expression,
-    get_mode_for_usage_location, get_name_of_declaration, get_source_file_of_node,
-    get_text_of_node, get_this_container, has_syntactic_modifier, is_access_expression,
-    is_aliasable_expression, is_binary_expression, is_block_or_catch_scoped, is_class_like,
-    is_computed_property_name, is_entity_name_expression, is_export_assignment,
-    is_export_declaration, is_export_specifier, is_function_expression, is_function_like,
-    is_function_like_declaration, is_identifier, is_in_js_file, is_jsdoc_template_tag,
-    is_jsdoc_type_alias, is_property_signature, is_qualified_name, is_require_variable_declaration,
-    is_shorthand_ambient_module_symbol, is_source_file, is_source_file_js, is_static,
-    is_string_literal_like, is_type_literal_node, is_type_query_node,
+    add_related_info, concatenate, create_diagnostic_for_node, deduplicate_rc, ends_with,
+    escape_leading_underscores, export_assignment_is_alias, find, find_ancestor, find_last,
+    get_assignment_declaration_kind, get_external_module_import_equals_declaration_expression,
+    get_external_module_require_argument, get_immediately_invoked_function_expression,
+    get_jsdoc_host, get_leftmost_access_expression, get_mode_for_usage_location,
+    get_name_of_declaration, get_source_file_of_node, get_text_of_node, get_this_container,
+    has_syntactic_modifier, is_access_expression, is_aliasable_expression, is_binary_expression,
+    is_block_or_catch_scoped, is_class_like, is_computed_property_name, is_entity_name_expression,
+    is_export_assignment, is_export_declaration, is_export_specifier, is_function_expression,
+    is_function_like, is_function_like_declaration, is_identifier, is_in_js_file,
+    is_jsdoc_template_tag, is_jsdoc_type_alias, is_property_signature, is_qualified_name,
+    is_require_variable_declaration, is_shorthand_ambient_module_symbol, is_source_file,
+    is_source_file_js, is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
     is_valid_type_only_alias_use_site, is_variable_declaration, should_preserve_const_enums, some,
     AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, Extension,
     FindAncestorCallbackReturn, InternalSymbolName, ModifierFlags, ModuleKind, NodeFlags,
@@ -1178,6 +1178,60 @@ impl TypeChecker {
             false,
         );
         resolved
+    }
+
+    pub(super) fn combine_value_and_type_symbols(
+        &self,
+        value_symbol: &Symbol,
+        type_symbol: &Symbol,
+    ) -> Rc<Symbol> {
+        if ptr::eq(value_symbol, &*self.unknown_symbol())
+            && ptr::eq(type_symbol, &*self.unknown_symbol())
+        {
+            return self.unknown_symbol();
+        }
+        if value_symbol
+            .flags()
+            .intersects(SymbolFlags::Type | SymbolFlags::Namespace)
+        {
+            return value_symbol.symbol_wrapper();
+        }
+        let result: Rc<Symbol> = self
+            .create_symbol(
+                value_symbol.flags() | type_symbol.flags(),
+                value_symbol.escaped_name().clone(),
+                None,
+            )
+            .into();
+        result.set_declarations(deduplicate_rc(&concatenate(
+            value_symbol
+                .maybe_declarations()
+                .as_ref()
+                .map_or_else(|| vec![], Clone::clone),
+            type_symbol
+                .maybe_declarations()
+                .as_ref()
+                .map_or_else(|| vec![], Clone::clone),
+        )));
+        result.set_parent(
+            value_symbol
+                .maybe_parent()
+                .or_else(|| type_symbol.maybe_parent()),
+        );
+        if let Some(value_symbol_value_declaration) = value_symbol.maybe_value_declaration() {
+            result.set_value_declaration(value_symbol_value_declaration);
+        }
+        if let Some(type_symbol_members) = type_symbol.maybe_members().as_ref() {
+            *result.maybe_members() = Some(Rc::new(RefCell::new(
+                RefCell::borrow(type_symbol_members).clone(),
+            )));
+        }
+        if let Some(value_symbol_exports) = value_symbol.maybe_exports().as_ref() {
+            *result.maybe_exports() = Some(Rc::new(RefCell::new(
+                RefCell::borrow(value_symbol_exports).clone(),
+            )));
+        }
+        result
     }
 
     pub(super) fn get_common_js_property_access(

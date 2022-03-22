@@ -756,7 +756,7 @@ impl BinderType {
         if symbol_declarations.is_none() {
             *symbol_declarations = Some(vec![]);
         }
-        append_if_unique_rc(symbol_declarations.as_mut().unwrap(), node.node_wrapper());
+        append_if_unique_rc(symbol_declarations.as_mut().unwrap(), &node.node_wrapper());
 
         if symbol_flags.intersects(
             SymbolFlags::Class | SymbolFlags::Enum | SymbolFlags::Module | SymbolFlags::Variable,

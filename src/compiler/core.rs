@@ -343,6 +343,24 @@ enum ComparerOrEqualityComparer<'closure, TItem> {
     EqualityComparer(&'closure dyn Fn(&TItem, &TItem) -> bool),
 }
 
+fn deduplicate_equality_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {
+    let mut result = vec![];
+    for item in array {
+        push_if_unique_rc(&mut result, item);
+    }
+    result
+}
+
+pub fn deduplicate_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {
+    if array.is_empty() {
+        vec![]
+    } else if array.len() == 1 {
+        vec![array[0].clone()]
+    } else {
+        deduplicate_equality_rc(array)
+    }
+}
+
 fn deduplicate_sorted<TItem: Clone>(
     array: &SortedArray<TItem>,
     comparer: ComparerOrEqualityComparer<TItem>,
@@ -480,28 +498,28 @@ pub fn add_range<TItem: Clone>(
     // to
 }
 
-pub fn push_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: Rc<TItem>) -> bool {
-    if contains_rc(Some(array), &to_add) {
+pub fn push_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) -> bool {
+    if contains_rc(Some(array), to_add) {
         false
     } else {
-        array.push(to_add);
+        array.push(to_add.clone());
         true
     }
 }
 
-pub fn append_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: Rc<TItem>) {
+pub fn append_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) {
     push_if_unique_rc(array, to_add);
 }
 
 pub fn maybe_append_if_unique_rc<TItem>(
     array: Option<Vec<Rc<TItem>>>,
-    to_add: Rc<TItem>,
+    to_add: &Rc<TItem>,
 ) -> Vec<Rc<TItem>> {
     if let Some(mut array) = array {
         push_if_unique_rc(&mut array, to_add);
         array
     } else {
-        vec![to_add]
+        vec![to_add.clone()]
     }
 }
 

@@ -113,7 +113,7 @@ impl TypeChecker {
         for node in get_effective_type_parameter_declarations(declaration) {
             result = Some(maybe_append_if_unique_rc(
                 result,
-                self.get_declared_type_of_type_parameter(&node.symbol()),
+                &self.get_declared_type_of_type_parameter(&node.symbol()),
             ));
         }
         result
