@@ -1123,6 +1123,63 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_target_of_namespace_import(
+        &self,
+        node: &Node, /*NamespaceImport*/
+        dont_resolve_alias: bool,
+    ) -> Option<Rc<Symbol>> {
+        let module_specifier = node
+            .parent()
+            .parent()
+            .as_import_declaration()
+            .module_specifier
+            .clone();
+        let immediate = self.resolve_external_module_name_(node, &module_specifier, None);
+        let resolved = self.resolve_es_module_symbol(
+            immediate.as_deref(),
+            &module_specifier,
+            dont_resolve_alias,
+            false,
+        );
+        self.mark_symbol_of_alias_declaration_if_type_only(
+            Some(node),
+            immediate,
+            resolved.as_deref(),
+            false,
+        );
+        resolved
+    }
+
+    pub(super) fn get_target_of_namespace_export(
+        &self,
+        node: &Node, /*NamespaceExport*/
+        dont_resolve_alias: bool,
+    ) -> Option<Rc<Symbol>> {
+        let module_specifier = node
+            .parent()
+            .as_export_declaration()
+            .module_specifier
+            .clone();
+        let immediate = module_specifier.as_ref().and_then(|module_specifier| {
+            self.resolve_external_module_name_(node, module_specifier, None)
+        });
+        let resolved = module_specifier.as_ref().and_then(|module_specifier| {
+            self.resolve_es_module_symbol(
+                immediate.as_deref(),
+                &module_specifier,
+                dont_resolve_alias,
+                false,
+            )
+        });
+        self.mark_symbol_of_alias_declaration_if_type_only(
+            Some(node),
+            immediate,
+            resolved.as_deref(),
+            false,
+        );
+        resolved
+    }
+
     pub(super) fn get_common_js_property_access(
         &self,
         node: &Node,
@@ -1248,6 +1305,16 @@ impl TypeChecker {
         &self,
         module_symbol: Option<TModuleSymbol>,
         dont_resolve_alias: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn resolve_es_module_symbol<TModuleSymbol: Borrow<Symbol>>(
+        &self,
+        module_symbol: Option<TModuleSymbol>,
+        referencing_location: &Node,
+        dont_resolve_alias: bool,
+        suppress_interop_error: bool,
     ) -> Option<Rc<Symbol>> {
         unimplemented!()
     }
