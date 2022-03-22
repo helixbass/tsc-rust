@@ -22,10 +22,11 @@ use crate::{
     is_source_file_js, is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
     is_valid_type_only_alias_use_site, is_variable_declaration, should_preserve_const_enums, some,
     AssignmentDeclarationKind, Diagnostic, DiagnosticMessage, Diagnostics, Extension,
-    FindAncestorCallbackReturn, InternalSymbolName, ModifierFlags, ModuleKind, NodeFlags,
-    SyntaxKind, TypeFlags, TypeInterface, __String, declaration_name_to_string,
-    get_first_identifier, node_is_missing, unescape_leading_underscores, Debug_, Node,
-    NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    FindAncestorCallbackReturn, HasTypeInterface, InternalSymbolName, ModifierFlags, ModuleKind,
+    NodeFlags, SymbolTable, SyntaxKind, TypeFlags, TypeInterface, __String,
+    declaration_name_to_string, get_first_identifier, node_is_missing,
+    unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol, SymbolFlags,
+    SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -1234,6 +1235,55 @@ impl TypeChecker {
         result
     }
 
+    pub(super) fn get_export_of_module(
+        &self,
+        symbol: &Symbol,
+        name: &Node,      /*Identifier*/
+        specifier: &Node, /*Declaration*/
+        dont_resolve_alias: bool,
+    ) -> Option<Rc<Symbol>> {
+        if symbol.flags().intersects(SymbolFlags::Module) {
+            let export_symbol = self
+                .get_exports_of_symbol(symbol)
+                .get(&name.as_identifier().escaped_text)
+                .map(Clone::clone);
+            let resolved = self.resolve_symbol(export_symbol.as_deref(), Some(dont_resolve_alias));
+            self.mark_symbol_of_alias_declaration_if_type_only(
+                Some(specifier),
+                export_symbol,
+                resolved.as_deref(),
+                false,
+            );
+            return resolved;
+        }
+        None
+    }
+
+    pub(super) fn get_property_of_variable(
+        &self,
+        symbol: &Symbol,
+        name: &__String,
+    ) -> Option<Rc<Symbol>> {
+        if symbol.flags().intersects(SymbolFlags::Variable) {
+            let type_annotation = symbol
+                .maybe_value_declaration()
+                .unwrap()
+                .as_variable_declaration()
+                .maybe_type()
+                .clone();
+            if let Some(type_annotation) = type_annotation {
+                return self.resolve_symbol(
+                    self.get_property_of_type(
+                        &self.get_type_from_type_node_(&type_annotation),
+                        name,
+                    ),
+                    None,
+                );
+            }
+        }
+        None
+    }
+
     pub(super) fn get_common_js_property_access(
         &self,
         node: &Node,
@@ -1394,6 +1444,10 @@ impl TypeChecker {
         member_name: &__String,
         module_symbol: &Symbol,
     ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_exports_of_symbol(&self, symbol: &Symbol) -> &SymbolTable {
         unimplemented!()
     }
 
