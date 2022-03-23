@@ -510,6 +510,26 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_type_with_synthetic_default_only(
+        &self,
+        type_: &Type,
+        symbol: &Symbol,
+        original_symbol: &Symbol,
+        module_specifier: &Node, /*Expression*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_with_synthetic_default_import_type(
+        &self,
+        type_: &Type,
+        symbol: &Symbol,
+        original_symbol: &Symbol,
+        module_specifier: &Node, /*Expression*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn is_common_js_require(&self, node: &Node) -> bool {
         unimplemented!()
     }

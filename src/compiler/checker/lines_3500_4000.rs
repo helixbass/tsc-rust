@@ -6,10 +6,11 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    chain_diagnostic_messages, create_symbol_table, get_types_package_name,
-    is_external_module_name_relative, mangle_scoped_package_name, Diagnostics, InternalSymbolName,
-    Node, NodeInterface, ResolvedModuleFull, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    TypeChecker, __String,
+    chain_diagnostic_messages, create_symbol_table, get_declaration_of_kind, get_es_module_interop,
+    get_namespace_declaration_node, get_types_package_name, is_external_module_name_relative,
+    is_import_call, is_import_declaration, mangle_scoped_package_name, Diagnostics,
+    InternalSymbolName, ModuleKind, Node, NodeInterface, ResolvedModuleFull, SignatureKind, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, __String,
 };
 
 impl TypeChecker {
@@ -166,6 +167,98 @@ impl TypeChecker {
         dont_resolve_alias: bool,
         suppress_interop_error: bool,
     ) -> Option<Rc<Symbol>> {
+        let module_symbol =
+            module_symbol.map(|module_symbol| module_symbol.borrow().symbol_wrapper());
+        let symbol = self
+            .resolve_external_module_symbol(module_symbol.as_deref(), Some(dont_resolve_alias))?;
+
+        if !dont_resolve_alias {
+            if !suppress_interop_error
+                && !symbol
+                    .flags()
+                    .intersects(SymbolFlags::Module | SymbolFlags::Variable)
+                && get_declaration_of_kind(&symbol, SyntaxKind::SourceFile).is_none()
+            {
+                let compiler_option_name = if self.module_kind >= ModuleKind::ES2015 {
+                    "allowSyntheticDefaultImports"
+                } else {
+                    "esModuleInterop"
+                };
+
+                self.error(
+                    Some(referencing_location),
+                    &Diagnostics::This_module_can_only_be_referenced_with_ECMAScript_imports_Slashexports_by_turning_on_the_0_flag_and_referencing_its_default_export,
+                    Some(vec![compiler_option_name.to_owned()])
+                );
+
+                return Some(symbol);
+            }
+
+            let reference_parent = referencing_location.parent();
+            if is_import_declaration(&reference_parent)
+                && get_namespace_declaration_node(&reference_parent).is_some()
+                || is_import_call(&reference_parent)
+            {
+                let reference = if is_import_call(&reference_parent) {
+                    &reference_parent.as_call_expression().arguments[0]
+                } else {
+                    &reference_parent.as_import_declaration().module_specifier
+                };
+                let type_ = self.get_type_of_symbol(&symbol);
+                let default_only_type = self.get_type_with_synthetic_default_only(
+                    &type_,
+                    &symbol,
+                    module_symbol.as_ref().unwrap(),
+                    reference,
+                );
+                if let Some(default_only_type) = default_only_type {
+                    return Some(self.clone_type_as_module_type(
+                        &symbol,
+                        &default_only_type,
+                        &reference_parent,
+                    ));
+                }
+
+                if matches!(get_es_module_interop(&self.compiler_options), Some(true)) {
+                    let mut sigs =
+                        self.get_signatures_of_structured_type(&type_, SignatureKind::Call);
+                    if
+                    /* !sigs ||*/
+                    sigs.is_empty() {
+                        sigs = self
+                            .get_signatures_of_structured_type(&type_, SignatureKind::Construct);
+                    }
+                    if
+                    /*sigs &&*/
+                    !sigs.is_empty()
+                        || self
+                            .get_property_of_type_(&type_, &InternalSymbolName::Default(), None)
+                            .is_some()
+                    {
+                        let module_type = self.get_type_with_synthetic_default_import_type(
+                            &type_,
+                            &symbol,
+                            module_symbol.as_ref().unwrap(),
+                            reference,
+                        );
+                        return Some(self.clone_type_as_module_type(
+                            &symbol,
+                            &module_type,
+                            &reference_parent,
+                        ));
+                    }
+                }
+            }
+        }
+        Some(symbol)
+    }
+
+    pub(super) fn clone_type_as_module_type(
+        &self,
+        symbol: &Symbol,
+        module_type: &Type,
+        reference_parent: &Node, /*ImportDeclaration | ImportCall*/
+    ) -> Rc<Symbol> {
         unimplemented!()
     }
 
