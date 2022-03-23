@@ -27,8 +27,8 @@ use crate::{
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, DiagnosticMessage,
     Diagnostics, Extension, FindAncestorCallbackReturn, HasInitializerInterface,
     InternalSymbolName, ModuleKind, ModuleResolutionKind, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, ResolvedModuleFull, Symbol, SymbolFlags, SymbolFormatFlags,
-    SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TypeChecker, __String,
+    NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolLinks,
+    SyntaxKind, TypeChecker,
 };
 
 impl TypeChecker {
