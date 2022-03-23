@@ -502,6 +502,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn merge_js_symbols<TSource: Borrow<Symbol>>(
+        &self,
+        target: &Symbol,
+        source: Option<TSource>,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn is_common_js_require(&self, node: &Node) -> bool {
         unimplemented!()
     }

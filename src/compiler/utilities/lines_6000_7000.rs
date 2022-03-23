@@ -15,8 +15,8 @@ use crate::{
     CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, JsxEmit, LanguageVariant,
-    MapLike, ModuleKind, Pattern, PluginImport, ScriptKind, ScriptTarget, TypeAcquisition,
-    WatchOptions,
+    MapLike, ModuleKind, ModuleResolutionKind, Pattern, PluginImport, ScriptKind, ScriptTarget,
+    TypeAcquisition, WatchOptions,
 };
 use local_macros::enum_unwrapped;
 
@@ -212,6 +212,10 @@ pub fn get_emit_module_kind(compiler_options: &CompilerOptions) -> ModuleKind {
             ModuleKind::CommonJS
         }
     })
+}
+
+pub fn get_emit_module_resolution_kind(compiler_options: &CompilerOptions) -> ModuleResolutionKind {
+    unimplemented!()
 }
 
 pub fn unreachable_code_is_error(options: &CompilerOptions) -> bool {
