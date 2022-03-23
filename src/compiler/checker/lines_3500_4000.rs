@@ -6,12 +6,12 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    chain_diagnostic_messages, create_symbol_table, get_declaration_of_kind, get_es_module_interop,
-    get_namespace_declaration_node, get_types_package_name, is_external_module_name_relative,
-    is_import_call, is_import_declaration, mangle_scoped_package_name, Diagnostics,
-    InternalSymbolName, ModuleKind, Node, NodeInterface, ResolvedModuleFull, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, __String,
+    add_range, chain_diagnostic_messages, create_symbol_table, get_declaration_of_kind,
+    get_es_module_interop, get_namespace_declaration_node, get_types_package_name,
+    is_external_module_name_relative, is_import_call, is_import_declaration,
+    mangle_scoped_package_name, Diagnostics, InternalSymbolName, ModuleKind, Node, NodeInterface,
+    ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, __String,
 };
 
 impl TypeChecker {
@@ -307,11 +307,35 @@ impl TypeChecker {
     }
 
     pub(super) fn has_export_assignment_symbol(&self, module_symbol: &Symbol) -> bool {
-        unimplemented!()
+        RefCell::borrow(&module_symbol.exports())
+            .get(&InternalSymbolName::ExportEquals())
+            .is_some()
     }
 
     pub(super) fn get_exports_of_module_as_array(&self, module_symbol: &Symbol) -> Vec<Rc<Symbol>> {
-        unimplemented!()
+        self.symbols_to_array(self.get_exports_of_module_(module_symbol))
+    }
+
+    pub(super) fn get_exports_and_properties_of_module(
+        &self,
+        module_symbol: &Symbol,
+    ) -> Vec<Rc<Symbol>> {
+        let mut exports = self.get_exports_of_module_as_array(module_symbol);
+        let export_equals = self
+            .resolve_external_module_symbol(Some(module_symbol), None)
+            .unwrap();
+        if !ptr::eq(&*export_equals, module_symbol) {
+            let type_ = self.get_type_of_symbol(&export_equals);
+            if self.should_treat_properties_of_external_module_as_exports(&type_) {
+                add_range(
+                    &mut exports,
+                    Some(&*self.get_properties_of_type(&type_)),
+                    None,
+                    None,
+                );
+            }
+        }
+        exports
     }
 
     pub(super) fn try_get_member_in_module_exports_(
@@ -330,7 +354,18 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn should_treat_properties_of_external_module_as_exports(
+        &self,
+        resolved_external_module_type: &Type,
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_exports_of_symbol(&self, symbol: &Symbol) -> &SymbolTable {
+        unimplemented!()
+    }
+
+    pub(super) fn get_exports_of_module_(&self, module_symbol: &Symbol) -> &SymbolTable {
         unimplemented!()
     }
 
