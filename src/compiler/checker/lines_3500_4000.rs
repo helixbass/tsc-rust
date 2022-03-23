@@ -10,7 +10,8 @@ use crate::{
     get_namespace_declaration_node, get_types_package_name, is_external_module_name_relative,
     is_import_call, is_import_declaration, mangle_scoped_package_name, Diagnostics,
     InternalSymbolName, ModuleKind, Node, NodeInterface, ResolvedModuleFull, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, __String,
+    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
+    TypeChecker, __String,
 };
 
 impl TypeChecker {
@@ -259,7 +260,50 @@ impl TypeChecker {
         module_type: &Type,
         reference_parent: &Node, /*ImportDeclaration | ImportCall*/
     ) -> Rc<Symbol> {
-        unimplemented!()
+        let result: Rc<Symbol> = self
+            .create_symbol(symbol.flags(), symbol.escaped_name().clone(), None)
+            .into();
+        result.set_declarations(
+            if let Some(symbol_declarations) = symbol.maybe_declarations().as_ref() {
+                symbol_declarations.clone()
+            } else {
+                vec![]
+            },
+        );
+        result.set_parent(symbol.maybe_parent());
+        let result_links = result.as_transient_symbol().symbol_links();
+        let mut result_links = result_links.borrow_mut();
+        result_links.target = Some(symbol.symbol_wrapper());
+        result_links.originating_import = Some(reference_parent.node_wrapper());
+        if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
+            result.set_value_declaration(symbol_value_declaration);
+        }
+        if matches!(symbol.maybe_const_enum_only_module(), Some(true)) {
+            result.set_const_enum_only_module(Some(true));
+        }
+        if let Some(symbol_members) = symbol.maybe_members().as_ref() {
+            *result.maybe_members() = Some(Rc::new(RefCell::new(
+                RefCell::borrow(symbol_members).clone(),
+            )));
+        }
+        if let Some(symbol_exports) = symbol.maybe_exports().as_ref() {
+            *result.maybe_exports() = Some(Rc::new(RefCell::new(
+                RefCell::borrow(symbol_exports).clone(),
+            )));
+        }
+        let resolved_module_type = self.resolve_structured_type_members(module_type);
+        let resolved_module_type_as_resolved_type = resolved_module_type.as_resolved_type();
+        result_links.type_ = Some(
+            self.create_anonymous_type(
+                Some(result.clone()),
+                resolved_module_type_as_resolved_type.members(),
+                vec![],
+                vec![],
+                resolved_module_type_as_resolved_type.index_infos().clone(),
+            )
+            .into(),
+        );
+        result
     }
 
     pub(super) fn has_export_assignment_symbol(&self, module_symbol: &Symbol) -> bool {

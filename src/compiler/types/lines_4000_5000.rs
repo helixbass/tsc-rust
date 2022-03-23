@@ -19,7 +19,7 @@ use crate::{
     IterationTypesResolver, NodeBuilder, Number, PatternAmbientModule, StringOrNumber, TypeId,
     TypeSystemEntity, TypeSystemPropertyName,
 };
-use local_macros::symbol_type;
+use local_macros::{enum_unwrapped, symbol_type};
 
 pub type RedirectTargetsMap = HashMap<Path, Vec<String>>;
 
@@ -843,6 +843,10 @@ impl Symbol {
         rc.set_symbol_wrapper(rc.clone());
         rc
     }
+
+    pub fn as_transient_symbol(&self) -> &TransientSymbol {
+        enum_unwrapped!(self, [Symbol, TransientSymbol])
+    }
 }
 
 #[derive(Debug)]
@@ -1036,6 +1040,7 @@ pub struct SymbolLinks {
     pub mapper: Option<TypeMapper>,
     pub referenced: Option<bool>,
     pub const_enum_referenced: Option<bool>,
+    pub originating_import: Option<Rc<Node /*ImportDeclaration | ImportCall*/>>,
     pub cjs_export_merged: Option<Rc<Symbol>>,
     pub type_only_declaration: Option<Option<Rc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
 }
@@ -1049,6 +1054,7 @@ impl SymbolLinks {
             mapper: None,
             referenced: None,
             const_enum_referenced: None,
+            originating_import: None,
             cjs_export_merged: None,
             type_only_declaration: None,
         }

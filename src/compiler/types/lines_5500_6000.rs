@@ -18,6 +18,7 @@ pub trait ResolvedTypeInterface {
     fn set_properties(&self, properties: Vec<Rc<Symbol>>);
     fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
     fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
+    fn index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>>;
 }
 
 #[derive(Debug)]

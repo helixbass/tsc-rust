@@ -1272,6 +1272,10 @@ fn get_type_struct_interface_impl(
                     fn construct_signatures(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
                         self.#first_field_name.construct_signatures()
                     }
+
+                    fn index_infos(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::IndexInfo>>> {
+                        self.#first_field_name.index_infos()
+                    }
                 }
             }
         }
@@ -1494,6 +1498,12 @@ fn get_type_enum_interface_impl(
                     fn construct_signatures(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.construct_signatures()),*
+                        }
+                    }
+
+                    fn index_infos(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::IndexInfo>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.index_infos()),*
                         }
                     }
                 }

@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseType, Node, PseudoBigInt, ResolvedTypeInterface, Signature, Symbol, SymbolTable, Type,
-    TypeChecker, TypeInterface,
+    BaseType, IndexInfo, Node, PseudoBigInt, ResolvedTypeInterface, Signature, Symbol, SymbolTable,
+    Type, TypeChecker, TypeInterface,
 };
 use crate::{Number, WeakSelf};
 use local_macros::type_type;
@@ -312,6 +312,7 @@ pub struct BaseObjectType {
     properties: RefCell<Option<Vec<Rc<Symbol>>>>,
     call_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
     construct_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
+    index_infos: RefCell<Option<Vec<Rc<IndexInfo>>>>,
 }
 
 impl BaseObjectType {
@@ -323,6 +324,7 @@ impl BaseObjectType {
             properties: RefCell::new(None),
             call_signatures: RefCell::new(None),
             construct_signatures: RefCell::new(None),
+            index_infos: RefCell::new(None),
         }
     }
 }
@@ -394,6 +396,10 @@ impl ResolvedTypeInterface for BaseObjectType {
         Ref::map(self.construct_signatures.borrow(), |option| {
             option.as_ref().unwrap()
         })
+    }
+
+    fn index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>> {
+        Ref::map(self.index_infos.borrow(), |option| option.as_ref().unwrap())
     }
 }
 
