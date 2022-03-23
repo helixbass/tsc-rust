@@ -1036,6 +1036,7 @@ pub struct SymbolLinks {
     pub mapper: Option<TypeMapper>,
     pub referenced: Option<bool>,
     pub const_enum_referenced: Option<bool>,
+    pub cjs_export_merged: Option<Rc<Symbol>>,
     pub type_only_declaration: Option<Option<Rc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
 }
 
@@ -1048,6 +1049,7 @@ impl SymbolLinks {
             mapper: None,
             referenced: None,
             const_enum_referenced: None,
+            cjs_export_merged: None,
             type_only_declaration: None,
         }
     }

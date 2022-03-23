@@ -106,6 +106,10 @@ impl From<bool> for PackageJsonInfoOrBool {
     }
 }
 
+pub(crate) fn get_types_package_name(package_name: &str) -> String {
+    unimplemented!()
+}
+
 pub(crate) fn mangle_scoped_package_name(package_name: &str) -> String {
     unimplemented!()
 }

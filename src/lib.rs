@@ -132,7 +132,9 @@ pub use compiler::factory::utilities::{
     starts_with_use_strict,
 };
 pub use compiler::factory::utilities_public::set_text_range;
-use compiler::module_name_resolver::{create_mode_aware_cache, mangle_scoped_package_name};
+use compiler::module_name_resolver::{
+    create_mode_aware_cache, get_types_package_name, mangle_scoped_package_name,
+};
 pub use compiler::module_name_resolver::{
     node_module_name_resolver, ModeAwareCache, ModuleResolutionCache,
 };
