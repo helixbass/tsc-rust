@@ -2534,6 +2534,10 @@ impl TypeChecker {
         self.pattern_ambient_module_augmentations.borrow_mut()
     }
 
+    pub(super) fn maybe_global_object_type(&self) -> Option<Rc<Type>> {
+        self.global_object_type.clone()
+    }
+
     pub(super) fn global_array_type(&self) -> Rc<Type> {
         self.global_array_type.as_ref().unwrap().clone()
     }

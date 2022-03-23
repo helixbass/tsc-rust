@@ -1439,7 +1439,7 @@ impl TypeChecker {
         location: Option<TLocation>,
         name: &__String,
         meaning: SymbolFlags,
-        name_not_found_message: Option<DiagnosticMessage>,
+        name_not_found_message: Option<&DiagnosticMessage>,
         name_arg: Option<TNameArg>,
         is_use: bool,
         exclude_globals: Option<bool>,
@@ -1465,7 +1465,7 @@ impl TypeChecker {
         location: Option<TLocation>,
         name: &__String,
         meaning: SymbolFlags,
-        name_not_found_message: Option<DiagnosticMessage>,
+        name_not_found_message: Option<&DiagnosticMessage>,
         name_arg: Option<TNameArg>,
         is_use: bool,
         exclude_globals: bool,
@@ -1918,7 +1918,7 @@ impl TypeChecker {
             }
         }
         if result.is_none() {
-            if let Some(name_not_found_message) = name_not_found_message.as_ref() {
+            if let Some(name_not_found_message) = name_not_found_message {
                 if error_location.is_none() || {
                     let error_location = error_location.as_ref().unwrap();
                     !self.check_and_report_error_for_missing_prefix(
@@ -2021,13 +2021,13 @@ impl TypeChecker {
                             if let Some(lib) = lib {
                                 self.error(
                                     error_location,
-                                    &name_not_found_message,
+                                    name_not_found_message,
                                     Some(vec![self.diagnostic_name(name_arg).into_owned(), lib]),
                                 );
                             } else {
                                 self.error(
                                     error_location,
-                                    &name_not_found_message,
+                                    name_not_found_message,
                                     Some(vec![self.diagnostic_name(name_arg).into_owned()]),
                                 );
                             }

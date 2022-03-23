@@ -502,6 +502,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_common_js_require(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_of_parameter(&self, symbol: &Symbol) -> Rc<Type> {
         let type_ = self.get_type_of_symbol(symbol);
         if self.strict_null_checks {
@@ -604,6 +608,7 @@ impl TypeChecker {
         }
         signature.resolved_min_argument_count()
     }
+
     pub(super) fn has_effective_rest_parameter(&self, signature: &Signature) -> bool {
         if signature_has_rest_parameter(signature) {
             let rest_type =

@@ -546,7 +546,13 @@ impl TypeChecker {
                 return self.unknown_symbol();
             }
         };
-        let symbol = self.resolve_entity_name(&*name, meaning, Some(ignore_errors), None);
+        let symbol = self.resolve_entity_name(
+            &*name,
+            meaning,
+            Some(ignore_errors),
+            None,
+            Option::<&Node>::None,
+        );
         if symbol.is_some() && !Rc::ptr_eq(symbol.as_ref().unwrap(), &self.unknown_symbol()) {
             symbol.unwrap()
         } else if ignore_errors {
@@ -633,7 +639,7 @@ impl TypeChecker {
             name,
             SymbolFlags::Value,
             if report_errors {
-                Some(Diagnostics::Cannot_find_global_value_0)
+                Some(&Diagnostics::Cannot_find_global_value_0)
             } else {
                 None
             },
@@ -649,7 +655,7 @@ impl TypeChecker {
             name,
             SymbolFlags::Type,
             if report_errors {
-                Some(Diagnostics::Cannot_find_global_type_0)
+                Some(&Diagnostics::Cannot_find_global_type_0)
             } else {
                 None
             },
@@ -660,7 +666,7 @@ impl TypeChecker {
         &self,
         name: &__String,
         meaning: SymbolFlags,
-        diagnostic: Option<DiagnosticMessage>,
+        diagnostic: Option<&DiagnosticMessage>,
     ) -> Option<Rc<Symbol>> {
         self.resolve_name_(
             Option::<&Node>::None,

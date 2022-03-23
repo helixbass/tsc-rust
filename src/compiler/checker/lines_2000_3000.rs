@@ -238,7 +238,13 @@ impl TypeChecker {
         let expression = self.get_entity_name_for_extending_interface(error_location);
         if let Some(expression) = expression {
             if self
-                .resolve_entity_name(&expression, SymbolFlags::Interface, Some(true), None)
+                .resolve_entity_name(
+                    &expression,
+                    SymbolFlags::Interface,
+                    Some(true),
+                    None,
+                    Option::<&Node>::None,
+                )
                 .is_some()
             {
                 self.error(
@@ -1713,6 +1719,7 @@ impl TypeChecker {
                 meaning,
                 Some(false),
                 dont_resolve_alias,
+                Option::<&Node>::None,
             )
         };
         self.mark_symbol_of_alias_declaration_if_type_only(
@@ -1762,6 +1769,7 @@ impl TypeChecker {
             SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
             Some(true),
             Some(dont_resolve_alias),
+            Option::<&Node>::None,
         );
         if alias_like.is_some() {
             return alias_like;

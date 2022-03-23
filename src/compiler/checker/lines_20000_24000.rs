@@ -375,13 +375,13 @@ impl TypeChecker {
     pub(super) fn get_cannot_find_name_diagnostic_for_name(
         &self,
         node: &Node,
-    ) -> DiagnosticMessage {
+    ) -> &'static DiagnosticMessage {
         match node.as_identifier().escaped_text {
             _ => {
                 if false {
                     unimplemented!()
                 } else {
-                    Diagnostics::Cannot_find_name_0
+                    &Diagnostics::Cannot_find_name_0
                 }
             }
         }
