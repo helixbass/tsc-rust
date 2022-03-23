@@ -105,3 +105,7 @@ impl From<bool> for PackageJsonInfoOrBool {
         Self::Bool(value)
     }
 }
+
+pub(crate) fn mangle_scoped_package_name(package_name: &str) -> String {
+    unimplemented!()
+}
