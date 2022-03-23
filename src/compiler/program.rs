@@ -10,18 +10,19 @@ use std::time::SystemTime;
 use crate::{
     combine_paths, concatenate, convert_to_relative_path, create_get_canonical_file_name,
     create_source_file, create_type_checker, diagnostic_category_name, for_each,
-    for_each_ancestor_directory_str, generate_djb2_hash, get_default_lib_file_name,
-    get_directory_path, get_emit_script_target, get_line_and_character_of_position,
-    get_new_line_character, get_normalized_path_components, get_path_from_path_components, get_sys,
-    is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path,
-    to_path as to_path_helper, write_file_ensuring_directories, CancellationToken,
-    CancellationTokenDebuggable, CompilerHost, CompilerOptions, CreateProgramOptions,
-    CustomTransformers, Diagnostic, DiagnosticMessageText, DiagnosticRelatedInformationInterface,
-    EmitResult, FileIncludeReason, GetCanonicalFileName, LineAndCharacter, ModuleKind,
-    ModuleResolutionHost, ModuleSpecifierResolutionHost, MultiMap, Node, PackageId,
-    ParsedCommandLine, Path, Program, ReferencedFile, ResolvedProjectReference,
-    ScriptReferenceHost, ScriptTarget, SortedArray, SourceFile, StructureIsReused, System,
-    TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable, WriteFileCallback,
+    for_each_ancestor_directory_str, generate_djb2_hash, get_allow_js_compiler_option,
+    get_default_lib_file_name, get_directory_path, get_emit_script_target,
+    get_line_and_character_of_position, get_new_line_character, get_normalized_path_components,
+    get_path_from_path_components, get_strict_option_value, get_sys, is_rooted_disk_path,
+    is_watch_set, missing_file_modified_time, normalize_path, to_path as to_path_helper,
+    write_file_ensuring_directories, CancellationTokenDebuggable, CompilerHost, CompilerOptions,
+    CreateProgramOptions, CustomTransformers, Diagnostic, DiagnosticMessage, DiagnosticMessageText,
+    DiagnosticRelatedInformationInterface, Diagnostics, EmitResult, Extension, FileIncludeReason,
+    GetCanonicalFileName, LineAndCharacter, ModuleKind, ModuleResolutionHost,
+    ModuleSpecifierResolutionHost, MultiMap, Node, PackageId, ParsedCommandLine, Path, Program,
+    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ScriptReferenceHost,
+    ScriptTarget, SortedArray, SourceFile, StructureIsReused, System, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable, WriteFileCallback,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -819,7 +820,11 @@ impl ScriptReferenceHost for Program {
     }
 }
 
-impl ModuleSpecifierResolutionHost for Program {}
+impl ModuleSpecifierResolutionHost for Program {
+    fn file_exists(&self, path: &str) -> bool {
+        unimplemented!()
+    }
+}
 
 impl TypeCheckerHost for Program {
     fn get_compiler_options(&self) -> Rc<CompilerOptions> {
@@ -828,6 +833,14 @@ impl TypeCheckerHost for Program {
 
     fn get_source_files(&self) -> &[Rc<Node>] {
         &self.files
+    }
+
+    fn get_source_file(&self, file_name: &str) -> Option<Rc<Node /*SourceFile*/>> {
+        unimplemented!()
+    }
+
+    fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
+        unimplemented!()
     }
 
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
@@ -945,4 +958,43 @@ fn get_canonical_file_name<'file_name>(
     file_name: &'file_name str,
 ) -> String {
     helper_context.host.get_canonical_file_name(file_name)
+}
+
+pub fn get_resolution_diagnostic(
+    options: &CompilerOptions,
+    resolved_module: &ResolvedModuleFull,
+) -> Option<&'static DiagnosticMessage> {
+    let extension = resolved_module.extension();
+    match extension {
+        Extension::Ts | Extension::Dts => None,
+        Extension::Tsx => need_jsx(options),
+        Extension::Jsx => need_jsx(options).or_else(|| need_allow_js(options)),
+        Extension::Js => need_allow_js(options),
+        Extension::Json => need_resolve_json_module(options),
+        _ => None,
+    }
+}
+
+fn need_jsx(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
+    if options.jsx.is_some() {
+        None
+    } else {
+        Some(&Diagnostics::Module_0_was_resolved_to_1_but_jsx_is_not_set)
+    }
+}
+
+fn need_allow_js(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
+    if get_allow_js_compiler_option(options) || !get_strict_option_value(options, "noImplicitAny") {
+        None
+    } else {
+        Some(&Diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type)
+    }
+}
+
+fn need_resolve_json_module(options: &CompilerOptions) -> Option<&'static DiagnosticMessage> {
+    if matches!(options.resolve_json_module, Some(true)) {
+        None
+    } else {
+        Some(&Diagnostics::Module_0_was_resolved_to_1_but_resolveJsonModule_is_not_used)
+    }
 }

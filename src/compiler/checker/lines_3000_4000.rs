@@ -10,24 +10,25 @@ use crate::{
     find_best_pattern_match, get_alias_declaration_from_name, get_assigned_expando_initializer,
     get_assignment_declaration_kind, get_check_flags, get_declared_expando_initializer,
     get_directory_path, get_effective_jsdoc_host, get_emit_module_resolution_kind,
-    get_expando_initializer, get_jsdoc_host, get_mode_for_usage_location,
-    get_normalized_absolute_path, get_resolution_diagnostic, get_source_file_of_node,
-    has_extension, has_json_module_emit_enabled, has_only_expression_initializer,
-    is_assignment_declaration, is_binary_expression, is_entity_name, is_expression_statement,
+    get_expando_initializer, get_first_identifier, get_jsdoc_host, get_mode_for_usage_location,
+    get_normalized_absolute_path, get_resolution_diagnostic, get_resolved_module,
+    get_source_file_of_node, has_extension, has_json_module_emit_enabled,
+    has_only_expression_initializer, is_assignment_declaration, is_binary_expression,
+    is_entity_name, is_export_declaration, is_expression_statement,
     is_external_module_import_equals_declaration, is_function_like, is_import_call,
-    is_import_declaration, is_in_js_file, is_internal_module_import_equals_declaration,
-    is_jsdoc_node, is_jsdoc_type_alias, is_literal_import_type_node, is_module_declaration,
-    is_object_literal_method, is_property_access_expression, is_property_assignment,
-    is_qualified_name, is_right_side_of_qualified_name_or_property_access, is_string_literal_like,
+    is_import_declaration, is_import_equals_declaration, is_in_js_file,
+    is_internal_module_import_equals_declaration, is_jsdoc_node, is_jsdoc_type_alias,
+    is_literal_import_type_node, is_module_declaration, is_object_literal_method,
+    is_property_access_expression, is_property_assignment, is_qualified_name,
+    is_right_side_of_qualified_name_or_property_access, is_string_literal_like,
     is_type_of_expression, is_type_only_import_or_export_declaration, is_variable_declaration,
-    node_is_synthesized, path_is_relative, remove_extension, remove_prefix,
+    node_is_missing, node_is_synthesized, path_is_relative, remove_extension, remove_prefix,
     resolution_extension_is_ts_or_json, starts_with, try_extract_ts_extension,
-    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, DiagnosticMessage,
-    Diagnostics, FindAncestorCallbackReturn, HasInitializerInterface, InternalSymbolName,
-    ModuleKind, ModuleResolutionKind, ModuleResolutionKind, NamedDeclarationInterface, NodeFlags,
-    SymbolFormatFlags, SymbolLinks, SymbolTable, SyntaxKind, __String, get_first_identifier,
-    node_is_missing, Debug_, Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface,
-    TypeChecker,
+    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, DiagnosticMessage,
+    Diagnostics, Extension, FindAncestorCallbackReturn, HasInitializerInterface,
+    InternalSymbolName, ModuleKind, ModuleResolutionKind, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, ResolvedModuleFull, Symbol, SymbolFlags, SymbolFormatFlags,
+    SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TypeChecker, __String,
 };
 
 impl TypeChecker {
@@ -842,7 +843,10 @@ impl TypeChecker {
             self.error(
                 Some(error_node),
                 diag,
-                Some(vec![without_at_type_prefix, module_reference.to_owned()]),
+                Some(vec![
+                    without_at_type_prefix.to_owned(),
+                    module_reference.to_owned(),
+                ]),
             );
         }
 
@@ -850,16 +854,16 @@ impl TypeChecker {
         if ambient_module.is_some() {
             return ambient_module;
         }
-        let current_source_file = get_source_file_of_node(location);
+        let current_source_file = get_source_file_of_node(Some(location)).unwrap();
         let context_specifier = if is_string_literal_like(location) {
             Some(location.node_wrapper())
         } else {
-            find_ancestor(location, is_import_call).and_then(|ancestor| ancestor.as_call_expression().arguments.get(0).map(Clone::clone)).or_else(|| {
-                find_ancestor(location, is_import_declaration).and_then(|ancestor| ancestor.as_import_declaration().module_specifier.clone())
+            find_ancestor(Some(location), is_import_call).and_then(|ancestor| ancestor.as_call_expression().arguments.get(0).map(Clone::clone)).or_else(|| {
+                find_ancestor(Some(location), is_import_declaration).map(|ancestor| ancestor.as_import_declaration().module_specifier.clone())
             }).or_else(|| {
-                find_ancestor(location, is_external_module_import_equals_declaration).and_then(|ancestor| ancestor.as_import_equals_declaration().module_reference.as_external_module_reference().expression.clone())
+                find_ancestor(Some(location), is_external_module_import_equals_declaration).map(|ancestor| ancestor.as_import_equals_declaration().module_reference.as_external_module_reference().expression.clone())
             }).or_else(|| {
-                find_ancestor(location, is_export_declaration).and_then(|ancestor| ancestor.as_export_declaration().module_specifier.clone())
+                find_ancestor(Some(location), is_export_declaration).and_then(|ancestor| ancestor.as_export_declaration().module_specifier.clone())
             }).or_else(|| {
                 if is_module_declaration(location) {
                     Some(location.node_wrapper())
@@ -867,7 +871,7 @@ impl TypeChecker {
                     location.maybe_parent()
                 } else {
                     None
-                }.and_then(|node| node.as_module_declaration().name.clone())
+                }.map(|node| node.as_module_declaration().name.clone())
             }).or_else(|| {
                 if is_literal_import_type_node(location) {
                     Some(location.node_wrapper())
@@ -889,7 +893,8 @@ impl TypeChecker {
                 .as_source_file()
                 .maybe_implied_node_format()
         };
-        let resolved_module = get_resolved_module(&current_source_file, module_reference, mode);
+        let resolved_module =
+            get_resolved_module(Some(&*current_source_file), module_reference, mode);
         let resolution_diagnostic = resolved_module.as_ref().and_then(|resolved_module| {
             get_resolution_diagnostic(&self.compiler_options, resolved_module)
         });
@@ -905,7 +910,7 @@ impl TypeChecker {
             if let Some(source_file_symbol) = source_file.maybe_symbol() {
                 let resolved_module = resolved_module.as_ref().unwrap();
                 if matches!(resolved_module.is_external_library_import, Some(true))
-                    && !resolution_extension_is_ts_or_json(resolved_module.extension)
+                    && !resolution_extension_is_ts_or_json(resolved_module.extension())
                 {
                     self.error_on_implicit_any_module(
                         false,
@@ -923,8 +928,9 @@ impl TypeChecker {
                             .as_source_file()
                             .maybe_implied_node_format(),
                         Some(ModuleKind::CommonJS)
-                    ) && find_ancestor(location, is_import_call).is_none()
-                        || find_ancestor(location, is_import_equals_declaration).is_some();
+                    ) && find_ancestor(Some(location), is_import_call)
+                        .is_none()
+                        || find_ancestor(Some(location), is_import_equals_declaration).is_some();
                     if is_sync_import
                         && matches!(
                             source_file.as_source_file().maybe_implied_node_format(),
@@ -939,7 +945,7 @@ impl TypeChecker {
                     }
                     if matches!(mode, Some(ModuleKind::ESNext))
                         && matches!(self.compiler_options.resolve_json_module, Some(true))
-                        && resolved_module.extension == Extension::Json
+                        && resolved_module.extension() == Extension::Json
                     {
                         self.error(
                             Some(error_node),
@@ -948,7 +954,7 @@ impl TypeChecker {
                         );
                     }
                 }
-                return self.get_merged_symbol(&source_file_symbol);
+                return self.get_merged_symbol(Some(&*source_file_symbol));
             }
             if module_not_found_error.is_some() {
                 self.error(
@@ -960,26 +966,29 @@ impl TypeChecker {
             return None;
         }
 
-        if let Some(pattern_ambient_modules) = self.maybe_pattern_ambient_modules() {
+        if let Some(pattern_ambient_modules) = self.maybe_pattern_ambient_modules().as_ref() {
             let pattern = find_best_pattern_match(
                 pattern_ambient_modules,
-                |pattern| pattern.pattern,
+                |pattern| &pattern.pattern,
                 module_reference,
             );
             if let Some(pattern) = pattern {
-                let augmentation = self.maybe_pattern_ambient_module_augmentations().and_then(
-                    |pattern_ambient_module_augmentations| {
-                        pattern_ambient_module_augmentations.get(module_reference)
-                    },
-                );
+                let augmentation = self
+                    .maybe_pattern_ambient_module_augmentations()
+                    .as_ref()
+                    .and_then(|pattern_ambient_module_augmentations| {
+                        pattern_ambient_module_augmentations
+                            .get(module_reference)
+                            .map(Clone::clone)
+                    });
                 if let Some(augmentation) = augmentation {
-                    return self.get_merged_symbol(&augmentation);
+                    return self.get_merged_symbol(Some(augmentation));
                 }
-                return self.get_merged_symbol(&pattern.symbol);
+                return self.get_merged_symbol(Some(&*pattern.symbol));
             }
         }
 
-        if matches!(resolved_module.as_ref(), Some(resolved_module) if !resolution_extension_is_ts_or_json(resolved_module.extension))
+        if matches!(resolved_module.as_ref(), Some(resolved_module) if !resolution_extension_is_ts_or_json(resolved_module.extension()))
             && resolution_diagnostic.is_none()
             || matches!(resolution_diagnostic, Some(resolution_diagnostic) if ptr::eq(resolution_diagnostic, &Diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type))
         {
@@ -1041,8 +1050,8 @@ impl TypeChecker {
                 if let Some(ts_extension) = ts_extension {
                     let diag = &Diagnostics::An_import_path_cannot_end_with_a_0_extension_Consider_importing_1_instead;
                     let import_source_without_extension =
-                        remove_extension(module_reference, &ts_extension);
-                    let mut replaced_import_source = import_source_without_extension;
+                        remove_extension(module_reference, ts_extension.to_str());
+                    let mut replaced_import_source = import_source_without_extension.to_owned();
                     if self.module_kind >= ModuleKind::ES2015 {
                         replaced_import_source.push_str(if ts_extension == Extension::Mts {
                             ".mjs"
@@ -1055,10 +1064,13 @@ impl TypeChecker {
                     self.error(
                         Some(error_node),
                         diag,
-                        Some(vec![ts_extension, replaced_import_source]),
+                        Some(vec![
+                            ts_extension.to_str().to_owned(),
+                            replaced_import_source,
+                        ]),
                     );
                 } else if !matches!(self.compiler_options.resolve_json_module, Some(true))
-                    && file_extension_is(module_reference, Extension::Json)
+                    && file_extension_is(module_reference, Extension::Json.to_str())
                     && get_emit_module_resolution_kind(&self.compiler_options)
                         != ModuleResolutionKind::Classic
                     && has_json_module_emit_enabled(&self.compiler_options)
@@ -1076,7 +1088,9 @@ impl TypeChecker {
                 {
                     let absolute_ref = get_normalized_absolute_path(
                         module_reference,
-                        get_directory_path(&current_source_file.as_source_file().path()),
+                        Some(&get_directory_path(
+                            &current_source_file.as_source_file().path(),
+                        )),
                     );
                     let suggested_ext = self
                         .suggested_extensions
@@ -1085,7 +1099,7 @@ impl TypeChecker {
                             self.host
                                 .file_exists(&format!("{}{}", absolute_ref, actual_ext))
                         })
-                        .and_then(|(_, import_ext)| import_ext);
+                        .map(|(_, import_ext)| import_ext);
                     if let Some(suggested_ext) = suggested_ext {
                         self.error(
                             Some(error_node),
@@ -1111,6 +1125,18 @@ impl TypeChecker {
             }
         }
         None
+    }
+
+    pub(super) fn error_on_implicit_any_module(
+        &self,
+        is_error: bool,
+        error_node: &Node,
+        resolved_module: &ResolvedModuleFull,
+        module_reference: &str,
+    ) {
+        let package_id = &resolved_module.package_id;
+        let resolved_file_name = &resolved_module.resolved_file_name;
+        unimplemented!()
     }
 
     pub(super) fn resolve_external_module_symbol<TModuleSymbol: Borrow<Symbol>>(

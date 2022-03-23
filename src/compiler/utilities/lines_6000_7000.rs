@@ -218,6 +218,10 @@ pub fn get_emit_module_resolution_kind(compiler_options: &CompilerOptions) -> Mo
     unimplemented!()
 }
 
+pub fn has_json_module_emit_enabled(compiler_options: &CompilerOptions) -> bool {
+    unimplemented!()
+}
+
 pub fn unreachable_code_is_error(options: &CompilerOptions) -> bool {
     matches!(options.allow_unreachable_code, Some(false))
 }
@@ -614,6 +618,12 @@ pub fn get_strict_option_value(
     }
 }
 
+pub fn get_allow_js_compiler_option(compiler_options: &CompilerOptions) -> bool {
+    compiler_options
+        .allow_js
+        .unwrap_or_else(|| matches!(compiler_options.check_js, Some(true)))
+}
+
 pub fn get_use_define_for_class_fields(compiler_options: &CompilerOptions) -> bool {
     if compiler_options.use_define_for_class_fields.is_none() {
         get_emit_script_target(compiler_options) == ScriptTarget::ESNext
@@ -790,6 +800,10 @@ pub fn remove_file_extension<'path>(path: &'path str) -> Cow<'path, str> {
     unimplemented!()
 }
 
+pub fn remove_extension<'path>(path: &'path str, extension: &str) -> &'path str {
+    &path[0..path.len() - extension.len()]
+}
+
 pub fn change_extension(path: &str, new_extension: &str) -> String {
     unimplemented!()
 }
@@ -806,6 +820,23 @@ pub fn try_parse_pattern(pattern: &str) -> Option<StringOrPattern> {
 
 pub fn position_is_synthesized(pos: isize) -> bool {
     !(pos >= 0)
+}
+
+pub fn extension_is_ts(ext: Extension) -> bool {
+    matches!(
+        ext,
+        Extension::Ts
+            | Extension::Tsx
+            | Extension::Dts
+            | Extension::Cts
+            | Extension::Mts
+            | Extension::Dmts
+            | Extension::Dcts
+    )
+}
+
+pub fn resolution_extension_is_ts_or_json(ext: Extension) -> bool {
+    extension_is_ts(ext) || ext == Extension::Json
 }
 
 pub fn slice_after<'arr, TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(

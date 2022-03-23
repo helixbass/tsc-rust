@@ -53,7 +53,9 @@ pub trait EmitTextWriter: SymbolWriter {
     fn non_escaping_write(&mut self, text: &str) {}
 }
 
-pub trait ModuleSpecifierResolutionHost {}
+pub trait ModuleSpecifierResolutionHost {
+    fn file_exists(&self, path: &str) -> bool;
+}
 
 pub trait SymbolTracker {
     fn track_symbol(

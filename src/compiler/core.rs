@@ -1109,8 +1109,46 @@ impl Pattern {
     }
 }
 
+pub fn find_best_pattern_match<'array, TItem, TGetPattern: Fn(&TItem) -> &Pattern>(
+    values: &'array [TItem],
+    get_pattern: TGetPattern,
+    candidate: &str,
+) -> Option<&'array TItem> {
+    let mut matched_value: Option<&TItem> = None;
+    let mut longest_match_prefix_length: isize = -1;
+
+    for v in values {
+        let pattern = get_pattern(v);
+        let pattern_prefix_len_as_isize: isize = pattern.prefix.len().try_into().unwrap();
+        if is_pattern_match(pattern, candidate)
+            && pattern_prefix_len_as_isize > longest_match_prefix_length
+        {
+            longest_match_prefix_length = pattern_prefix_len_as_isize;
+            matched_value = Some(v);
+        }
+    }
+
+    matched_value
+}
+
 pub fn starts_with(str_: &str, prefix: &str) -> bool {
     str_.starts_with(prefix)
+}
+
+pub fn remove_prefix<'str>(str_: &'str str, prefix: &str) -> &'str str {
+    if starts_with(str_, prefix) {
+        &str_[prefix.len()..]
+    } else {
+        str_
+    }
+}
+
+fn is_pattern_match(pattern: &Pattern, candidate: &str) -> bool {
+    let prefix = &pattern.prefix;
+    let suffix = &pattern.suffix;
+    candidate.len() >= prefix.len() + suffix.len()
+        && starts_with(candidate, prefix)
+        && ends_with(candidate, suffix)
 }
 
 // pub fn and<TValue, TFirstCallback: FnMut(TValue) -> bool, TSecondCallback: FnMut(TValue) -> bool>()

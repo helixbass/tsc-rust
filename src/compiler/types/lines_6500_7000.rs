@@ -64,6 +64,12 @@ pub struct ResolvedModuleFull {
     pub package_id: Option<PackageId>,
 }
 
+impl ResolvedModuleFull {
+    pub fn extension(&self) -> Extension {
+        self.extension.unwrap()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct PackageId {
     pub name: String,
