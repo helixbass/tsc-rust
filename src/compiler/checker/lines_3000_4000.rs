@@ -6,15 +6,19 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    declaration_name_to_string, entity_name_to_string, find, get_alias_declaration_from_name,
-    get_check_flags, is_binary_expression, is_entity_name, is_in_js_file,
-    is_internal_module_import_equals_declaration, is_property_access_expression, is_qualified_name,
-    is_right_side_of_qualified_name_or_property_access, is_type_of_expression,
+    declaration_name_to_string, entity_name_to_string, find, find_ancestor,
+    get_alias_declaration_from_name, get_assignment_declaration_kind, get_check_flags,
+    get_effective_jsdoc_host, get_jsdoc_host, is_binary_expression, is_entity_name,
+    is_expression_statement, is_function_like, is_in_js_file,
+    is_internal_module_import_equals_declaration, is_jsdoc_node, is_jsdoc_type_alias,
+    is_object_literal_method, is_property_access_expression, is_property_assignment,
+    is_qualified_name, is_right_side_of_qualified_name_or_property_access, is_type_of_expression,
     is_type_only_import_or_export_declaration, is_variable_declaration, node_is_synthesized,
-    unescape_leading_underscores, CheckFlags, DiagnosticMessage, Diagnostics,
-    HasInitializerInterface, InternalSymbolName, NamedDeclarationInterface, SymbolFormatFlags,
-    SymbolLinks, SymbolTable, SyntaxKind, __String, get_first_identifier, node_is_missing, Debug_,
-    Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
+    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, DiagnosticMessage,
+    Diagnostics, FindAncestorCallbackReturn, HasInitializerInterface, InternalSymbolName,
+    NamedDeclarationInterface, NodeFlags, SymbolFormatFlags, SymbolLinks, SymbolTable, SyntaxKind,
+    __String, get_first_identifier, node_is_missing, Debug_, Node, NodeInterface, Symbol,
+    SymbolFlags, SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -657,6 +661,84 @@ impl TypeChecker {
         name: &Node, /*Identifier*/
         meaning: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
+        if self.is_jsdoc_type_reference(&name.parent()) {
+            let secondary_location = self.get_assignment_declaration_location(&name.parent());
+            if let Some(secondary_location) = secondary_location {
+                return self.resolve_name_(
+                    Some(secondary_location),
+                    &name.as_identifier().escaped_text,
+                    meaning,
+                    None,
+                    Some(name.node_wrapper()),
+                    true,
+                    None,
+                );
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_assignment_declaration_location(
+        &self,
+        node: &Node, /*TypeReferenceNode*/
+    ) -> Option<Rc<Node>> {
+        let type_alias = find_ancestor(Some(node), |node| {
+            if !(is_jsdoc_node(node) || node.flags().intersects(NodeFlags::JSDoc)) {
+                FindAncestorCallbackReturn::Quit
+            } else {
+                is_jsdoc_type_alias(node).into()
+            }
+        });
+        if type_alias.is_some() {
+            return None;
+        }
+        let host = get_jsdoc_host(node);
+        if let Some(host) = host.as_ref() {
+            if is_expression_statement(host) {
+                let host_as_expression_statement = host.as_expression_statement();
+                if is_binary_expression(&host_as_expression_statement.expression)
+                    && get_assignment_declaration_kind(&host_as_expression_statement.expression)
+                        == AssignmentDeclarationKind::PrototypeProperty
+                {
+                    let symbol = self.get_symbol_of_node(
+                        &host_as_expression_statement
+                            .expression
+                            .as_binary_expression()
+                            .left,
+                    );
+                    if let Some(symbol) = symbol {
+                        return self.get_declaration_of_js_prototype_container(&symbol);
+                    }
+                }
+            }
+        }
+        if let Some(host) = host.as_ref() {
+            if (is_object_literal_method(host) || is_property_assignment(host))
+                && is_binary_expression(&host.parent().parent())
+                && get_assignment_declaration_kind(&host.parent().parent())
+                    == AssignmentDeclarationKind::Prototype
+            {
+                let symbol =
+                    self.get_symbol_of_node(&host.parent().parent().as_binary_expression().left);
+                if let Some(symbol) = symbol {
+                    return self.get_declaration_of_js_prototype_container(&symbol);
+                }
+            }
+        }
+        let sig = get_effective_jsdoc_host(node);
+        if let Some(sig) = sig {
+            if is_function_like(Some(&*sig)) {
+                let symbol = self.get_symbol_of_node(&sig);
+                return symbol.and_then(|symbol| symbol.maybe_value_declaration());
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_declaration_of_js_prototype_container(
+        &self,
+        symbol: &Symbol,
+    ) -> Option<Rc<Node>> {
         unimplemented!()
     }
 

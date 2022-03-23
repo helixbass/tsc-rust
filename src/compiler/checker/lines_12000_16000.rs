@@ -587,6 +587,10 @@ impl TypeChecker {
         type_.type_wrapper()
     }
 
+    pub(super) fn is_jsdoc_type_reference(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_no_type_arguments(
         &self,
         node: &Node, /*NodeWithTypeArguments*/
