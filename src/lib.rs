@@ -34,7 +34,7 @@ pub use compiler::core::{
     compare_strings_case_sensitive_maybe, compare_values, concatenate, contains, contains_rc,
     count_where, create_get_canonical_file_name, create_multi_map, deduplicate_rc, ends_with,
     equate_strings_case_insensitive, equate_strings_case_sensitive, equate_values, every, filter,
-    filter_mutate, filter_owning, find, find_best_pattern_match, find_index, find_last,
+    filter_mutate, filter_owning, find, find_best_pattern_match, find_index, find_last, first,
     first_defined, first_or_undefined, flat_map, flat_map_to_mutable, flatten, for_each,
     for_each_bool, get_or_update, get_ranges_where, get_spelling_suggestion, get_string_comparer,
     identity_str_to_cow, identity_str_to_owned, insert_sorted, last, last_or_undefined, length,

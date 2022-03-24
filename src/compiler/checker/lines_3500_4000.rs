@@ -8,18 +8,19 @@ use std::rc::Rc;
 
 use super::{get_node_id, MembersOrExportsResolutionKind};
 use crate::{
-    add_range, chain_diagnostic_messages, create_diagnostic_for_node, create_symbol_table,
+    add_range, chain_diagnostic_messages, create_diagnostic_for_node, create_symbol_table, first,
     for_each_entry, get_declaration_of_kind, get_es_module_interop, get_namespace_declaration_node,
     get_object_flags, get_source_file_of_node, get_text_of_node, get_types_package_name,
     is_access_expression, is_ambient_module, is_binary_expression, is_class_expression,
     is_entity_name_expression, is_exports_identifier, is_external_module,
     is_external_module_name_relative, is_import_call, is_import_declaration,
-    is_module_exports_access_expression, length, mangle_scoped_package_name, map_defined,
-    node_is_synthesized, push_if_unique_rc, unescape_leading_underscores, Diagnostics,
-    InternalSymbolName, ModuleKind, Node, NodeInterface, ObjectFlags, ResolvedModuleFull,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, UnderscoreEscapedMap,
-    __String,
+    is_module_exports_access_expression, is_object_literal_expression, is_type_literal_node,
+    is_variable_declaration, length, mangle_scoped_package_name, map_defined, node_is_synthesized,
+    push_if_unique_rc, unescape_leading_underscores, Diagnostics, HasInitializerInterface,
+    HasTypeInterface, InternalSymbolName, ModuleKind, Node, NodeInterface, ObjectFlags,
+    ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnderscoreEscapedMap, __String,
 };
 
 impl TypeChecker {
@@ -870,7 +871,35 @@ impl TypeChecker {
         symbol: &Symbol,
         meaning: SymbolFlags,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let first_decl: Option<Rc<Node>> = if length(symbol.maybe_declarations().as_deref()) > 0 {
+            Some(first(symbol.maybe_declarations().as_deref().unwrap()).clone())
+        } else {
+            None
+        };
+        if meaning.intersects(SymbolFlags::Value) {
+            if let Some(first_decl) = first_decl {
+                if let Some(first_decl_parent) = first_decl.maybe_parent() {
+                    if is_variable_declaration(&first_decl_parent) {
+                        let first_decl_parent_as_variable_declaration =
+                            first_decl_parent.as_variable_declaration();
+                        if is_object_literal_expression(&first_decl)
+                            && matches!(
+                                first_decl_parent_as_variable_declaration.maybe_initializer(),
+                                Some(first_decl_parent_initializer) if Rc::ptr_eq(&first_decl, &first_decl_parent_initializer)
+                            )
+                            || is_type_literal_node(&first_decl)
+                                && matches!(
+                                    first_decl_parent_as_variable_declaration.maybe_type(),
+                                    Some(first_decl_parent_type) if Rc::ptr_eq(&first_decl, &first_decl_parent_type)
+                                )
+                        {
+                            return self.get_symbol_of_node(&first_decl_parent);
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
 
     pub(super) fn get_file_symbol_if_file_symbol_export_equals_container(

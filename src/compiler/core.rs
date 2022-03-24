@@ -564,6 +564,11 @@ pub fn range_equals<TItem>(array1: &[TItem], array2: &[TItem], mut pos: usize, e
     true
 }
 
+pub fn first<TItem>(array: &[TItem]) -> &TItem {
+    Debug_.assert(!array.is_empty(), None);
+    &array[0]
+}
+
 pub fn first_or_undefined<TItem>(array: &[TItem]) -> Option<&TItem> {
     array.first()
 }
