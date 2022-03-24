@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::{Borrow, Cow};
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
@@ -9,20 +9,15 @@ use std::rc::Rc;
 use super::{get_node_id, get_symbol_id, typeof_eq_facts};
 use crate::{
     concatenate, create_symbol_table, filter, find_ancestor, for_each_entry,
-    get_declaration_of_kind, get_emit_script_target, is_ambient_module, is_expression,
-    is_external_module, is_external_module_import_equals_declaration,
-    is_external_or_common_js_module, is_identifier_text, is_in_js_file,
-    is_module_with_string_literal_name, is_namespace_reexport_declaration, is_umd_export_symbol,
-    length, maybe_for_each, node_is_present, push_if_unique_rc, some, unescape_leading_underscores,
-    using_single_line_string_writer, BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes,
-    Debug_, EmitHint, EmitTextWriter, FunctionLikeDeclarationInterface, IndexInfo,
-    InternalSymbolName, KeywordTypeNode, Node, NodeArray, NodeBuilderFlags, NodeInterface,
-    ObjectFlags, PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolAccessibility, SymbolAccessibilityResult,
-    SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypeParameter, TypePredicate, __String, create_printer, create_text_writer,
-    factory, get_object_flags, get_source_file_of_node, synthetic_factory,
+    get_declaration_of_kind, is_ambient_module, is_external_module,
+    is_external_module_import_equals_declaration, is_external_or_common_js_module, is_in_js_file,
+    is_namespace_reexport_declaration, is_umd_export_symbol, length, maybe_for_each,
+    node_is_present, push_if_unique_rc, some, BaseIntrinsicType, BaseObjectType, BaseType,
+    CharacterCodes, FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName, Node,
+    NodeInterface, ObjectFlags, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
+    SignatureFlags, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeParameter, __String, get_source_file_of_node,
 };
 
 impl TypeChecker {
