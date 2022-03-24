@@ -8,9 +8,10 @@ use std::rc::Rc;
 
 use super::typeof_eq_facts;
 use crate::{
-    concatenate, filter, for_each_entry, get_emit_script_target, is_expression, is_identifier_text,
-    node_is_present, unescape_leading_underscores, using_single_line_string_writer,
-    BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter,
+    concatenate, create_symbol_table, filter, for_each_entry, get_emit_script_target,
+    is_expression, is_external_or_common_js_module, is_identifier_text, node_is_present,
+    unescape_leading_underscores, using_single_line_string_writer, BaseIntrinsicType,
+    BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter,
     FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName, KeywordTypeNode, Node,
     NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions,
     ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureFlags, SignatureKind,
@@ -321,9 +322,84 @@ impl TypeChecker {
     >(
         &self,
         enclosing_declaration: Option<TEnclosingDeclaration>,
-        callback: TCallback,
+        mut callback: TCallback,
     ) -> Option<TReturn> {
-        unimplemented!()
+        let mut result: Option<TReturn>;
+        let mut location: Option<Rc<Node>> = enclosing_declaration
+            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
+        while let Some(location_unwrapped) = location {
+            if let Some(location_locals) = location_unwrapped.maybe_locals().as_ref() {
+                if !self.is_global_source_file(&location_unwrapped) {
+                    result = callback(
+                        location_locals,
+                        None,
+                        Some(true),
+                        Some(&*location_unwrapped),
+                    );
+                    if result.is_some() {
+                        return result;
+                    }
+                }
+            }
+            match location_unwrapped.kind() {
+                SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration => {
+                    if !(location_unwrapped.kind() == SyntaxKind::SourceFile
+                        && !is_external_or_common_js_module(&location_unwrapped))
+                    {
+                        let sym = self.get_symbol_of_node(&location_unwrapped);
+                        result = callback(
+                            &RefCell::borrow(
+                                &sym.and_then(|sym| sym.maybe_exports().clone())
+                                    .unwrap_or_else(|| self.empty_symbols()),
+                            ),
+                            None,
+                            Some(true),
+                            Some(&*location_unwrapped),
+                        );
+                        if result.is_some() {
+                            return result;
+                        }
+                    }
+                }
+                SyntaxKind::ClassDeclaration
+                | SyntaxKind::ClassExpression
+                | SyntaxKind::InterfaceDeclaration => {
+                    let mut table: Option<SymbolTable> = None;
+                    for (key, member_symbol) in &*RefCell::borrow(
+                        &self
+                            .get_symbol_of_node(&location_unwrapped)
+                            .unwrap()
+                            .maybe_members()
+                            .clone()
+                            .unwrap_or_else(|| self.empty_symbols()),
+                    ) {
+                        if member_symbol
+                            .flags()
+                            .intersects(SymbolFlags::Type & !SymbolFlags::Assignment)
+                        {
+                            if table.is_none() {
+                                table = Some(create_symbol_table(None));
+                            }
+                            table
+                                .as_mut()
+                                .unwrap()
+                                .insert(key.clone(), member_symbol.clone());
+                        }
+                    }
+                    if let Some(table) = table {
+                        result = callback(&table, None, Some(false), Some(&*location_unwrapped));
+                        if result.is_some() {
+                            return result;
+                        }
+                    }
+                }
+                _ => (),
+            }
+
+            location = location_unwrapped.maybe_parent();
+        }
+
+        callback(&self.globals(), None, Some(true), None)
     }
 
     pub(super) fn get_qualified_left_meaning(&self, right_meaning: SymbolFlags) -> SymbolFlags {
