@@ -7,13 +7,14 @@ use std::rc::Rc;
 
 use super::MembersOrExportsResolutionKind;
 use crate::{
-    add_range, chain_diagnostic_messages, create_symbol_table, get_declaration_of_kind,
-    get_es_module_interop, get_namespace_declaration_node, get_object_flags, get_text_of_node,
-    get_types_package_name, is_external_module_name_relative, is_import_call,
-    is_import_declaration, mangle_scoped_package_name, Diagnostics, InternalSymbolName, ModuleKind,
-    Node, NodeInterface, ObjectFlags, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnderscoreEscapedMap, __String,
+    add_range, chain_diagnostic_messages, create_diagnostic_for_node, create_symbol_table,
+    get_declaration_of_kind, get_es_module_interop, get_namespace_declaration_node,
+    get_object_flags, get_text_of_node, get_types_package_name, is_external_module_name_relative,
+    is_import_call, is_import_declaration, mangle_scoped_package_name, push_if_unique_rc,
+    unescape_leading_underscores, Diagnostics, InternalSymbolName, ModuleKind, Node, NodeInterface,
+    ObjectFlags, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnderscoreEscapedMap, __String,
 };
 
 impl TypeChecker {
@@ -514,7 +515,85 @@ impl TypeChecker {
         &self,
         module_symbol: &Symbol,
     ) -> Rc<RefCell<SymbolTable>> {
-        unimplemented!()
+        let mut visited_symbols: Vec<Rc<Symbol>> = vec![];
+
+        let module_symbol = self
+            .resolve_external_module_symbol(Some(module_symbol), None)
+            .unwrap();
+
+        self.visit_get_exports_of_module_worker(&mut visited_symbols, Some(module_symbol))
+            .map_or_else(
+                || self.empty_symbols(),
+                |symbol_table| Rc::new(RefCell::new(symbol_table)),
+            )
+    }
+
+    pub(super) fn visit_get_exports_of_module_worker(
+        &self,
+        visited_symbols: &mut Vec<Rc<Symbol>>,
+        symbol: Option<Rc<Symbol>>,
+    ) -> Option<SymbolTable> {
+        let symbol = symbol?;
+        if !(symbol.maybe_exports().is_some() && push_if_unique_rc(visited_symbols, &symbol)) {
+            return None;
+        }
+        let symbol_exports = symbol.maybe_exports();
+        let symbol_exports = symbol_exports.as_ref().unwrap();
+        let symbol_exports = RefCell::borrow(&symbol_exports);
+        let mut symbols = symbol_exports.clone();
+        let export_stars = symbol_exports.get(&InternalSymbolName::ExportStar());
+        if let Some(export_stars) = export_stars {
+            let mut nested_symbols = create_symbol_table(None);
+            let mut lookup_table = ExportCollisionTrackerTable::new();
+            if let Some(export_stars_declarations) = export_stars.maybe_declarations().as_ref() {
+                for node in export_stars_declarations {
+                    let resolved_module = self.resolve_external_module_name_(
+                        node,
+                        node.as_export_declaration()
+                            .module_specifier
+                            .as_ref()
+                            .unwrap(),
+                        None,
+                    );
+                    let exported_symbols =
+                        self.visit_get_exports_of_module_worker(visited_symbols, resolved_module);
+                    self.extend_export_symbols(
+                        &mut nested_symbols,
+                        exported_symbols.as_ref(),
+                        Some(&mut lookup_table),
+                        Some(&**node),
+                    );
+                }
+            }
+            for (id, export_collision_tracker) in &lookup_table {
+                let exports_with_duplicate =
+                    export_collision_tracker.exports_with_duplicate.as_ref();
+                if id.eq_str("export=")
+                    || !matches!(exports_with_duplicate, Some(exports_with_duplicate) if !exports_with_duplicate.is_empty())
+                    || symbols.contains_key(id)
+                {
+                    continue;
+                }
+                let exports_with_duplicate = exports_with_duplicate.unwrap();
+                for node in exports_with_duplicate {
+                    self.diagnostics().add(Rc::new(create_diagnostic_for_node(
+                        node,
+                        &Diagnostics::Module_0_has_already_exported_a_member_named_1_Consider_explicitly_re_exporting_to_resolve_the_ambiguity,
+                        Some(vec![
+                            lookup_table.get(id).unwrap().specifier_text.clone(),
+                            unescape_leading_underscores(id)
+                        ])
+                    ).into()));
+                }
+            }
+            self.extend_export_symbols(
+                &mut symbols,
+                Some(&nested_symbols),
+                None,
+                Option::<&Node>::None,
+            );
+        }
+        Some(symbols)
     }
 
     pub(super) fn get_merged_symbol<TSymbol: Borrow<Symbol>>(
