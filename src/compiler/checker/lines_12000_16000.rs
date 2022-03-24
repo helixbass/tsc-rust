@@ -317,6 +317,13 @@ impl TypeChecker {
         self.get_return_type_of_type_tag(declaration)
     }
 
+    pub(super) fn get_index_symbol_from_symbol_table(
+        &self,
+        symbol_table: &SymbolTable,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn create_index_info(
         &self,
         key_type: Rc<Type>,

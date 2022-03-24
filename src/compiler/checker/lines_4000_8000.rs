@@ -3,18 +3,21 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ptr;
 use std::rc::Rc;
 
+use super::typeof_eq_facts;
 use crate::{
-    get_emit_script_target, is_expression, is_identifier_text, unescape_leading_underscores,
-    using_single_line_string_writer, BaseIntrinsicType, BaseNodeFactorySynthetic, BaseObjectType,
-    BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode, Node,
+    concatenate, for_each_entry, get_emit_script_target, is_expression, is_identifier_text,
+    node_is_present, unescape_leading_underscores, using_single_line_string_writer,
+    BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter,
+    FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName, KeywordTypeNode, Node,
     NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions,
-    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureKind, SourceFile, Symbol,
-    SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter,
-    TypePredicate, __String, create_printer, create_text_writer, factory, get_object_flags,
-    get_source_file_of_node, synthetic_factory,
+    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureKind, Symbol, SymbolFlags,
+    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter, TypePredicate, __String,
+    create_printer, create_text_writer, factory, get_object_flags, get_source_file_of_node,
+    synthetic_factory,
 };
 
 impl TypeChecker {
@@ -23,7 +26,36 @@ impl TypeChecker {
         container: &Symbol,
         symbol: &Symbol,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if matches!(self.get_parent_of_symbol(symbol), Some(parent) if ptr::eq(container, &*parent))
+        {
+            return Some(symbol.symbol_wrapper());
+        }
+        let export_equals = container.maybe_exports().as_ref().and_then(|exports| {
+            RefCell::borrow(exports)
+                .get(&InternalSymbolName::ExportEquals())
+                .map(Clone::clone)
+        });
+        if matches!(export_equals, Some(export_equals) if self.get_symbol_if_same_reference(&export_equals, symbol).is_some())
+        {
+            return Some(container.symbol_wrapper());
+        }
+        let exports = self.get_exports_of_symbol(container);
+        let exports = RefCell::borrow(&exports);
+        let quick = exports.get(symbol.escaped_name());
+        if let Some(quick) = quick {
+            if self.get_symbol_if_same_reference(quick, symbol).is_some() {
+                return Some(quick.clone());
+            }
+        }
+        for_each_entry(&exports, |exported: &Rc<Symbol>, _| {
+            if self
+                .get_symbol_if_same_reference(exported, symbol)
+                .is_some()
+            {
+                return Some(exported.clone());
+            }
+            None
+        })
     }
 
     pub(super) fn get_symbol_if_same_reference(
@@ -31,41 +63,70 @@ impl TypeChecker {
         s1: &Symbol,
         s2: &Symbol,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if Rc::ptr_eq(
+            &self
+                .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s1)), None))
+                .unwrap(),
+            &self
+                .get_merged_symbol(self.resolve_symbol(self.get_merged_symbol(Some(s2)), None))
+                .unwrap(),
+        ) {
+            return Some(s1.symbol_wrapper());
+        }
+        None
     }
 
-    pub(super) fn get_export_symbol_of_value_symbol_if_exported<TSymbolRef: Borrow<Symbol>>(
+    pub(super) fn get_export_symbol_of_value_symbol_if_exported<TSymbol: Borrow<Symbol>>(
         &self,
-        symbol: Option<TSymbolRef>,
+        symbol: Option<TSymbol>,
     ) -> Option<Rc<Symbol>> {
-        self.get_merged_symbol(if let Some(symbol) = symbol {
+        self.get_merged_symbol(symbol.and_then(|symbol| {
             let symbol = symbol.borrow();
             if symbol.flags().intersects(SymbolFlags::ExportValue) {
-                unimplemented!()
+                symbol.maybe_export_symbol()
             } else {
                 Some(symbol.symbol_wrapper())
             }
-        } else {
-            None
-        })
+        }))
     }
 
     pub(super) fn symbol_is_value(&self, symbol: &Symbol) -> bool {
         symbol.flags().intersects(SymbolFlags::Value)
+            || symbol.flags().intersects(SymbolFlags::Alias)
+                && self
+                    .resolve_alias(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::Value)
+                && self.get_type_only_alias_declaration(symbol).is_none()
     }
 
     pub(super) fn find_constructor_declaration(
         &self,
         node: &Node, /*ClassLikeDeclaration*/
     ) -> Option<Rc<Node /*ConstructorDeclaration*/>> {
-        unimplemented!()
+        let members = node.as_class_like_declaration().members();
+        for member in members {
+            if member.kind() == SyntaxKind::Constructor
+                && node_is_present(member.as_constructor_declaration().maybe_body())
+            {
+                return Some(member.clone());
+            }
+        }
+        None
     }
 
     pub(super) fn create_type(&self, flags: TypeFlags) -> BaseType {
         let mut result = (self.Type)(flags);
         self.increment_type_count();
         result.id = Some(self.type_count());
+        // if (produceDiagnostics) {
+        //     tracing?.recordType(result);
+        // }
         result
+    }
+
+    pub(super) fn create_origin_type(&self, flags: TypeFlags) -> BaseType {
+        (self.Type)(flags)
     }
 
     pub(super) fn create_intrinsic_type(
@@ -76,7 +137,7 @@ impl TypeChecker {
     ) -> BaseIntrinsicType {
         let object_flags = object_flags.unwrap_or(ObjectFlags::None);
         let type_ = self.create_type(kind);
-        let type_ = BaseIntrinsicType::new(type_, intrinsic_name.to_string(), object_flags);
+        let type_ = BaseIntrinsicType::new(type_, intrinsic_name.to_owned(), object_flags);
         type_
     }
 
@@ -92,12 +153,18 @@ impl TypeChecker {
     }
 
     pub(super) fn create_typeof_type(&self) -> Rc<Type> {
-        self.get_union_type(vec![], None)
+        self.get_union_type(
+            typeof_eq_facts
+                .keys()
+                .map(|key| -> Rc<Type> { self.get_string_literal_type(key).into() })
+                .collect::<Vec<_>>(),
+            None,
+        )
     }
 
-    pub(super) fn create_type_parameter<TSymbolRef: Borrow<Symbol>>(
+    pub(super) fn create_type_parameter<TSymbol: Borrow<Symbol>>(
         &self,
-        symbol: Option<TSymbolRef>,
+        symbol: Option<TSymbol>,
     ) -> TypeParameter {
         let mut type_ = self.create_type(TypeFlags::TypeParameter);
         if let Some(symbol) = symbol {
@@ -150,6 +217,19 @@ impl TypeChecker {
 
     pub(super) fn is_named_member(&self, member: &Symbol, escaped_name: &__String) -> bool {
         !self.is_reserved_member_name(escaped_name) && self.symbol_is_value(member)
+    }
+
+    pub(super) fn get_named_or_index_signature_members(
+        &self,
+        members: &SymbolTable,
+    ) -> Vec<Rc<Symbol>> {
+        let result = self.get_named_members(members);
+        let index = self.get_index_symbol_from_symbol_table(members);
+        if let Some(index) = index {
+            concatenate(result, vec![index])
+        } else {
+            result
+        }
     }
 
     pub(super) fn set_structured_type_members<
