@@ -8,12 +8,12 @@ use std::rc::Rc;
 use super::MembersOrExportsResolutionKind;
 use crate::{
     add_range, chain_diagnostic_messages, create_symbol_table, get_declaration_of_kind,
-    get_es_module_interop, get_namespace_declaration_node, get_object_flags,
+    get_es_module_interop, get_namespace_declaration_node, get_object_flags, get_text_of_node,
     get_types_package_name, is_external_module_name_relative, is_import_call,
     is_import_declaration, mangle_scoped_package_name, Diagnostics, InternalSymbolName, ModuleKind,
     Node, NodeInterface, ObjectFlags, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, __String,
+    TypeFlags, TypeInterface, UnderscoreEscapedMap, __String,
 };
 
 impl TypeChecker {
@@ -437,6 +437,83 @@ impl TypeChecker {
         &self,
         module_symbol: &Symbol,
     ) -> Rc<RefCell<SymbolTable>> {
+        let links = self.get_symbol_links(module_symbol);
+        let resolved_exports = RefCell::borrow(&links).resolved_exports.clone();
+        resolved_exports.unwrap_or_else(|| {
+            let resolved_exports = self.get_exports_of_module_worker(module_symbol);
+            links.borrow_mut().resolved_exports = Some(resolved_exports.clone());
+            resolved_exports
+        })
+    }
+
+    pub(super) fn extend_export_symbols<TSource: Borrow<SymbolTable>, TExportNode: Borrow<Node>>(
+        &self,
+        target: &mut SymbolTable,
+        source: Option<TSource>,
+        mut lookup_table: Option<&mut ExportCollisionTrackerTable>,
+        export_node: Option<TExportNode>,
+    ) {
+        if source.is_none() {
+            return;
+        }
+        let source = source.unwrap();
+        let source = source.borrow();
+        for (id, source_symbol) in source {
+            if id == &InternalSymbolName::Default() {
+                continue;
+            }
+
+            let target_symbol = target.get(id).map(Clone::clone);
+            if target_symbol.is_none() {
+                target.insert(id.clone(), source_symbol.clone());
+                if let Some(lookup_table) = lookup_table.as_mut() {
+                    if let Some(export_node) = export_node.as_ref() {
+                        let export_node = export_node.borrow();
+                        lookup_table.insert(
+                            id.clone(),
+                            ExportCollisionTracker {
+                                specifier_text: get_text_of_node(
+                                    export_node
+                                        .as_export_declaration()
+                                        .module_specifier
+                                        .as_ref()
+                                        .unwrap(),
+                                    None,
+                                )
+                                .into_owned(),
+                                exports_with_duplicate: None,
+                            },
+                        );
+                    }
+                }
+            } else if let Some(lookup_table) = lookup_table.as_mut() {
+                if let Some(export_node) = export_node.as_ref() {
+                    let export_node = export_node.borrow();
+                    if matches!(
+                        target_symbol.as_ref(),
+                        Some(target_symbol) if !Rc::ptr_eq(&self.resolve_symbol(Some(&**target_symbol), None).unwrap(), &self.resolve_symbol(Some(&**source_symbol), None).unwrap())
+                    ) {
+                        let collision_tracker = lookup_table.get_mut(id).unwrap();
+                        if collision_tracker.exports_with_duplicate.is_none() {
+                            collision_tracker.exports_with_duplicate =
+                                Some(vec![export_node.node_wrapper()]);
+                        } else {
+                            collision_tracker
+                                .exports_with_duplicate
+                                .as_mut()
+                                .unwrap()
+                                .push(export_node.node_wrapper());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn get_exports_of_module_worker(
+        &self,
+        module_symbol: &Symbol,
+    ) -> Rc<RefCell<SymbolTable>> {
         unimplemented!()
     }
 
@@ -451,3 +528,10 @@ impl TypeChecker {
         self.get_merged_symbol(node.maybe_symbol())
     }
 }
+
+pub(super) struct ExportCollisionTracker {
+    pub specifier_text: String,
+    pub exports_with_duplicate: Option<Vec<Rc<Node /*ExportDeclaration*/>>>,
+}
+
+pub(super) type ExportCollisionTrackerTable = UnderscoreEscapedMap<ExportCollisionTracker>;
