@@ -2,6 +2,7 @@
 
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::{
@@ -10,10 +11,10 @@ use crate::{
     BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode, Node,
     NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions,
     ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureKind, SourceFile, Symbol,
-    SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter, TypePredicate, __String,
-    create_printer, create_text_writer, factory, get_object_flags, get_source_file_of_node,
-    synthetic_factory,
+    SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter,
+    TypePredicate, __String, create_printer, create_text_writer, factory, get_object_flags,
+    get_source_file_of_node, synthetic_factory,
 };
 
 impl TypeChecker {
@@ -185,6 +186,43 @@ impl TypeChecker {
         // TODO: pass index_infos to set_structured_type_members()
         self.set_structured_type_members(&type_, members, call_signatures, construct_signatures);
         type_
+    }
+
+    pub(super) fn for_each_symbol_table_in_scope<
+        TEnclosingDeclaration: Borrow<Node>,
+        TReturn,
+        TCallback: FnMut(&SymbolTable, Option<bool>, Option<bool>, Option<&Node>) -> Option<TReturn>,
+    >(
+        &self,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        callback: TCallback,
+    ) -> Option<TReturn> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_qualified_left_meaning(&self, right_meaning: SymbolFlags) -> SymbolFlags {
+        unimplemented!()
+    }
+
+    pub(super) fn get_accessible_symbol_chain<
+        TSymbol: Borrow<Symbol>,
+        TEnclosingDeclaration: Borrow<Node>,
+    >(
+        &self,
+        symbol: Option<TSymbol>,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        meaning: SymbolFlags,
+        use_only_external_aliasing: bool,
+        visited_symbol_tables_map: Option<&mut HashMap<SymbolId, Vec<Rc<RefCell<SymbolTable>>>>>,
+    ) -> Option<Vec<Rc<Symbol>>> {
+        unimplemented!()
+    }
+
+    pub(super) fn has_non_global_augmentation_external_module_symbol(
+        &self,
+        declaration: &Node,
+    ) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn symbol_to_string_<TEnclosingDeclaration: Borrow<Node>>(

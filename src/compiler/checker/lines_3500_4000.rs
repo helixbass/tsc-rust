@@ -9,14 +9,17 @@ use std::rc::Rc;
 use super::{get_node_id, MembersOrExportsResolutionKind};
 use crate::{
     add_range, chain_diagnostic_messages, create_diagnostic_for_node, create_symbol_table,
-    get_declaration_of_kind, get_es_module_interop, get_namespace_declaration_node,
+    for_each_entry, get_declaration_of_kind, get_es_module_interop, get_namespace_declaration_node,
     get_object_flags, get_source_file_of_node, get_text_of_node, get_types_package_name,
-    is_external_module, is_external_module_name_relative, is_import_call, is_import_declaration,
-    length, mangle_scoped_package_name, node_is_synthesized, push_if_unique_rc,
-    unescape_leading_underscores, Diagnostics, InternalSymbolName, ModuleKind, Node, NodeInterface,
-    ObjectFlags, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    UnderscoreEscapedMap, __String,
+    is_access_expression, is_ambient_module, is_binary_expression, is_class_expression,
+    is_entity_name_expression, is_exports_identifier, is_external_module,
+    is_external_module_name_relative, is_import_call, is_import_declaration,
+    is_module_exports_access_expression, length, mangle_scoped_package_name, map_defined,
+    node_is_synthesized, push_if_unique_rc, unescape_leading_underscores, Diagnostics,
+    InternalSymbolName, ModuleKind, Node, NodeInterface, ObjectFlags, ResolvedModuleFull,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, UnderscoreEscapedMap,
+    __String,
 };
 
 impl TypeChecker {
@@ -710,6 +713,172 @@ impl TypeChecker {
         let ret = results.unwrap_or_else(|| vec![]);
         links.borrow_mut().extended_containers = Some(ret.clone());
         ret
+    }
+
+    pub(super) fn get_containers_of_symbol<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        meaning: SymbolFlags,
+    ) -> Option<Vec<Rc<Symbol>>> {
+        let container = self.get_parent_of_symbol(symbol);
+        let enclosing_declaration = enclosing_declaration
+            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
+        if let Some(container) = container {
+            if !symbol.flags().intersects(SymbolFlags::TypeParameter) {
+                let mut additional_containers: Vec<Rc<Symbol>> = map_defined(
+                    container.maybe_declarations().as_ref(),
+                    |d: &Rc<Node>, _| {
+                        self.get_file_symbol_if_file_symbol_export_equals_container(d, &container)
+                    },
+                );
+                let mut reexport_containers =
+                    enclosing_declaration.as_ref().map(|enclosing_declaration| {
+                        self.get_alternative_containing_modules(symbol, enclosing_declaration)
+                    });
+                let object_literal_container =
+                    self.get_variable_declaration_of_object_literal(&container, meaning);
+                if let Some(enclosing_declaration) = enclosing_declaration.as_ref() {
+                    if container
+                        .flags()
+                        .intersects(self.get_qualified_left_meaning(meaning))
+                        && self
+                            .get_accessible_symbol_chain(
+                                Some(&*container),
+                                Some(&**enclosing_declaration),
+                                SymbolFlags::Namespace,
+                                false,
+                                None,
+                            )
+                            .is_some()
+                    {
+                        let mut ret = vec![container];
+                        ret.append(&mut additional_containers);
+                        if let Some(reexport_containers) = reexport_containers.as_mut() {
+                            ret.append(reexport_containers);
+                        }
+                        if let Some(object_literal_container) = object_literal_container {
+                            ret.push(object_literal_container);
+                        }
+                        return Some(ret);
+                    }
+                }
+                let first_variable_match = if !(container
+                    .flags()
+                    .intersects(self.get_qualified_left_meaning(meaning)))
+                    && container.flags().intersects(SymbolFlags::Type)
+                    && self
+                        .get_declared_type_of_symbol(&container)
+                        .flags()
+                        .intersects(TypeFlags::Object)
+                    && meaning == SymbolFlags::Value
+                {
+                    self.for_each_symbol_table_in_scope(
+                        enclosing_declaration.as_deref(),
+                        |t, _, _, _| {
+                            for_each_entry(t, |s: &Rc<Symbol>, _| {
+                                if s.flags()
+                                    .intersects(self.get_qualified_left_meaning(meaning))
+                                    && Rc::ptr_eq(
+                                        &self.get_type_of_symbol(s),
+                                        &self.get_declared_type_of_symbol(&container),
+                                    )
+                                {
+                                    return Some(s.clone());
+                                }
+                                None
+                            })
+                        },
+                    )
+                } else {
+                    None
+                };
+                let mut res = if let Some(first_variable_match) = first_variable_match {
+                    vec![first_variable_match]
+                } else {
+                    vec![]
+                };
+                res.append(&mut additional_containers);
+                res.push(container);
+                if let Some(object_literal_container) = object_literal_container {
+                    res.push(object_literal_container);
+                }
+                if let Some(reexport_containers) = reexport_containers.as_mut() {
+                    res.append(reexport_containers);
+                }
+                return Some(res);
+            }
+        }
+        let candidates = map_defined(symbol.maybe_declarations().as_deref(), |d: &Rc<Node>, _| {
+            if !is_ambient_module(d) {
+                if let Some(d_parent) = d.maybe_parent() {
+                    if self.has_non_global_augmentation_external_module_symbol(&d_parent) {
+                        return self.get_symbol_of_node(&d_parent);
+                    }
+                }
+            }
+            if is_class_expression(d) {
+                let d_parent = d.parent();
+                if is_binary_expression(&d_parent) {
+                    let d_parent_as_binary_expression = d_parent.as_binary_expression();
+                    if d_parent_as_binary_expression.operator_token.kind()
+                        == SyntaxKind::EqualsToken
+                        && is_access_expression(&d_parent_as_binary_expression.left)
+                    {
+                        let d_parent_left_expression = d_parent_as_binary_expression
+                            .left
+                            .as_has_expression()
+                            .expression();
+                        if is_entity_name_expression(&d_parent_left_expression) {
+                            if is_module_exports_access_expression(
+                                &d_parent_as_binary_expression.left,
+                            ) || is_exports_identifier(&d_parent_left_expression)
+                            {
+                                return self.get_symbol_of_node(
+                                    &get_source_file_of_node(Some(&**d)).unwrap(),
+                                );
+                            }
+                            self.check_expression_cached(&d_parent_left_expression, None);
+                            return RefCell::borrow(
+                                &self.get_node_links(&d_parent_left_expression),
+                            )
+                            .resolved_symbol
+                            .clone();
+                        }
+                    }
+                }
+            }
+            None
+        });
+        if length(Some(&candidates)) == 0 {
+            return None;
+        }
+        Some(map_defined(Some(candidates), |candidate: Rc<Symbol>, _| {
+            if self
+                .get_alias_for_symbol_in_container(&candidate, symbol)
+                .is_some()
+            {
+                Some(candidate)
+            } else {
+                None
+            }
+        }))
+    }
+
+    pub(super) fn get_variable_declaration_of_object_literal(
+        &self,
+        symbol: &Symbol,
+        meaning: SymbolFlags,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_file_symbol_if_file_symbol_export_equals_container(
+        &self,
+        d: &Node, /*Declaration*/
+        container: &Symbol,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
     }
 }
 
