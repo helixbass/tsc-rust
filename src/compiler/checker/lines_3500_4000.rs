@@ -2,15 +2,17 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::MembersOrExportsResolutionKind;
+use super::{get_node_id, MembersOrExportsResolutionKind};
 use crate::{
     add_range, chain_diagnostic_messages, create_diagnostic_for_node, create_symbol_table,
     get_declaration_of_kind, get_es_module_interop, get_namespace_declaration_node,
-    get_object_flags, get_text_of_node, get_types_package_name, is_external_module_name_relative,
-    is_import_call, is_import_declaration, mangle_scoped_package_name, push_if_unique_rc,
+    get_object_flags, get_source_file_of_node, get_text_of_node, get_types_package_name,
+    is_external_module, is_external_module_name_relative, is_import_call, is_import_declaration,
+    length, mangle_scoped_package_name, node_is_synthesized, push_if_unique_rc,
     unescape_leading_underscores, Diagnostics, InternalSymbolName, ModuleKind, Node, NodeInterface,
     ObjectFlags, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
     SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -600,11 +602,114 @@ impl TypeChecker {
         &self,
         symbol: Option<TSymbol>,
     ) -> Option<Rc<Symbol>> {
-        symbol.map(|symbol| symbol.borrow().symbol_wrapper())
+        let symbol = symbol?;
+        let symbol = symbol.borrow();
+        if let Some(symbol_merge_id) = symbol.maybe_merge_id() {
+            let merged = self
+                .merged_symbols()
+                .get(&symbol_merge_id)
+                .map(Clone::clone);
+            Some(merged.unwrap_or_else(|| symbol.symbol_wrapper()))
+        } else {
+            Some(symbol.symbol_wrapper())
+        }
     }
 
     pub(super) fn get_symbol_of_node(&self, node: &Node) -> Option<Rc<Symbol>> {
-        self.get_merged_symbol(node.maybe_symbol())
+        self.get_merged_symbol(
+            node.maybe_symbol()
+                .map(|node_symbol| self.get_late_bound_symbol(&node_symbol)),
+        )
+    }
+
+    pub(super) fn get_parent_of_symbol(&self, symbol: &Symbol) -> Option<Rc<Symbol>> {
+        self.get_merged_symbol(
+            symbol
+                .maybe_parent()
+                .map(|symbol_parent| self.get_late_bound_symbol(&symbol_parent)),
+        )
+    }
+
+    pub(super) fn get_alternative_containing_modules(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: &Node,
+    ) -> Vec<Rc<Symbol>> {
+        let containing_file = get_source_file_of_node(Some(enclosing_declaration)).unwrap();
+        let id = get_node_id(&containing_file);
+        let links = self.get_symbol_links(symbol);
+        let mut results: Option<Vec<Rc<Symbol>>> = None;
+        if let Some(links_extended_containers_by_file) =
+            RefCell::borrow(&links).extended_containers_by_file.as_ref()
+        {
+            results = links_extended_containers_by_file.get(&id).map(Clone::clone);
+            if results.is_some() {
+                return results.unwrap();
+            }
+        }
+        if
+        /*containingFile &&*/
+        let Some(containing_file_imports) =
+            containing_file.as_source_file().maybe_imports().as_ref()
+        {
+            for import_ref in containing_file_imports {
+                if node_is_synthesized(&**import_ref) {
+                    continue;
+                }
+                let resolved_module = self.resolve_external_module_name_(
+                    enclosing_declaration,
+                    import_ref,
+                    Some(true),
+                );
+                if resolved_module.is_none() {
+                    continue;
+                }
+                let resolved_module = resolved_module.unwrap();
+                let ref_ = self.get_alias_for_symbol_in_container(&resolved_module, symbol);
+                if ref_.is_none() {
+                    continue;
+                }
+                if results.is_none() {
+                    results = Some(vec![]);
+                }
+                results.as_mut().unwrap().push(resolved_module);
+            }
+            if length(results.as_deref()) > 0 {
+                let mut links = links.borrow_mut();
+                if links.extended_containers_by_file.is_none() {
+                    links.extended_containers_by_file = Some(HashMap::new());
+                }
+                links
+                    .extended_containers_by_file
+                    .as_mut()
+                    .unwrap()
+                    .insert(id, results.clone().unwrap());
+                return results.unwrap();
+            }
+        }
+        if let Some(links_extended_containers) =
+            RefCell::borrow(&links).extended_containers.as_ref()
+        {
+            return links_extended_containers.clone();
+        }
+        let other_files = self.host.get_source_files();
+        for file in other_files {
+            if !is_external_module(file) {
+                continue;
+            }
+            let sym = self.get_symbol_of_node(file).unwrap();
+            let ref_ = self.get_alias_for_symbol_in_container(&sym, symbol);
+            if ref_.is_none() {
+                continue;
+            }
+            if results.is_none() {
+                results = Some(vec![]);
+            }
+            results.as_mut().unwrap().push(sym);
+        }
+        let ret = results.unwrap_or_else(|| vec![]);
+        links.borrow_mut().extended_containers = Some(ret.clone());
+        ret
     }
 }
 

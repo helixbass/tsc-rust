@@ -140,6 +140,7 @@ pub struct SourceFile {
     resolved_modules: RefCell<Option<ModeAwareCache<Rc<ResolvedModuleFull /*| undefined*/>>>>,
     resolved_type_reference_directive_names:
         RefCell<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective /*| undefined*/>>>>,
+    imports: RefCell<Option<Vec<Rc<Node /*StringLiteralLike*/>>>>,
     pattern_ambient_modules: RefCell<Option<Vec<PatternAmbientModule>>>,
     pragmas: RefCell<Option<ReadonlyPragmaMap>>,
     local_jsx_namespace: RefCell<Option<__String>>,
@@ -207,6 +208,7 @@ impl SourceFile {
             comment_directives: RefCell::new(None),
             resolved_modules: RefCell::new(None),
             resolved_type_reference_directive_names: RefCell::new(None),
+            imports: RefCell::new(None),
             pattern_ambient_modules: RefCell::new(None),
             pragmas: RefCell::new(None),
             local_jsx_namespace: RefCell::new(None),
@@ -482,6 +484,10 @@ impl SourceFile {
         &self,
     ) -> RefMut<Option<ModeAwareCache<Rc<ResolvedTypeReferenceDirective>>>> {
         self.resolved_type_reference_directive_names.borrow_mut()
+    }
+
+    pub fn maybe_imports(&self) -> RefMut<Option<Vec<Rc<Node>>>> {
+        self.imports.borrow_mut()
     }
 
     pub fn pattern_ambient_modules_mut(&self) -> RefMut<Option<Vec<PatternAmbientModule>>> {

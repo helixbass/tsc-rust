@@ -17,6 +17,14 @@ use crate::{
 };
 
 impl TypeChecker {
+    pub(super) fn get_alias_for_symbol_in_container(
+        &self,
+        container: &Symbol,
+        symbol: &Symbol,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_symbol_if_same_reference(
         &self,
         s1: &Symbol,

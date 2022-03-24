@@ -1042,6 +1042,8 @@ pub struct SymbolLinks {
     pub const_enum_referenced: Option<bool>,
     pub resolved_exports: Option<Rc<RefCell<SymbolTable>>>,
     pub originating_import: Option<Rc<Node /*ImportDeclaration | ImportCall*/>>,
+    pub extended_containers: Option<Vec<Rc<Symbol>>>,
+    pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Rc<Symbol>>>>,
     pub cjs_export_merged: Option<Rc<Symbol>>,
     pub type_only_declaration: Option<Option<Rc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
 }
@@ -1057,6 +1059,8 @@ impl SymbolLinks {
             const_enum_referenced: None,
             resolved_exports: None,
             originating_import: None,
+            extended_containers: None,
+            extended_containers_by_file: None,
             cjs_export_merged: None,
             type_only_declaration: None,
         }
