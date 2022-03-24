@@ -11,16 +11,17 @@ use crate::{
     concatenate, create_symbol_table, filter, for_each_entry, get_declaration_of_kind,
     get_emit_script_target, is_expression, is_external_module,
     is_external_module_import_equals_declaration, is_external_or_common_js_module,
-    is_identifier_text, is_namespace_reexport_declaration, is_umd_export_symbol, node_is_present,
-    push_if_unique_rc, some, unescape_leading_underscores, using_single_line_string_writer,
-    BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter,
-    FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName, KeywordTypeNode, Node,
-    NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions,
-    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureFlags, SignatureKind,
-    Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter,
-    TypePredicate, __String, create_printer, create_text_writer, factory, get_object_flags,
-    get_source_file_of_node, synthetic_factory,
+    is_identifier_text, is_namespace_reexport_declaration, is_umd_export_symbol, length,
+    node_is_present, push_if_unique_rc, some, unescape_leading_underscores,
+    using_single_line_string_writer, BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes,
+    Debug_, EmitHint, EmitTextWriter, FunctionLikeDeclarationInterface, IndexInfo,
+    InternalSymbolName, KeywordTypeNode, Node, NodeArray, NodeBuilderFlags, NodeInterface,
+    ObjectFlags, PrinterOptions, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolAccessibility, SymbolAccessibilityResult,
+    SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypeParameter, TypePredicate, __String, create_printer, create_text_writer,
+    factory, get_object_flags, get_source_file_of_node, synthetic_factory,
 };
 
 impl TypeChecker {
@@ -784,10 +785,232 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         meaning: SymbolFlags,
     ) -> bool {
-        unimplemented!()
+        let mut qualify = false;
+        self.for_each_symbol_table_in_scope(enclosing_declaration, |symbol_table, _, _, _| {
+            let mut symbol_from_symbol_table = self.get_merged_symbol(
+                RefCell::borrow(&symbol_table)
+                    .get(symbol.escaped_name())
+                    .map(Clone::clone),
+            )?;
+            if ptr::eq(&*symbol_from_symbol_table, symbol) {
+                return Some(());
+            }
+
+            symbol_from_symbol_table = if symbol_from_symbol_table
+                .flags()
+                .intersects(SymbolFlags::Alias)
+                && get_declaration_of_kind(&symbol_from_symbol_table, SyntaxKind::ExportSpecifier)
+                    .is_none()
+            {
+                self.resolve_alias(&symbol_from_symbol_table)
+            } else {
+                symbol_from_symbol_table
+            };
+            if symbol_from_symbol_table.flags().intersects(meaning) {
+                qualify = true;
+                return Some(());
+            }
+
+            None
+        });
+
+        qualify
     }
 
     pub(super) fn is_property_or_method_declaration_symbol(&self, symbol: &Symbol) -> bool {
+        if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+            if !symbol_declarations.is_empty() {
+                for declaration in symbol_declarations {
+                    match declaration.kind() {
+                        SyntaxKind::PropertyDeclaration
+                        | SyntaxKind::MethodDeclaration
+                        | SyntaxKind::GetAccessor
+                        | SyntaxKind::SetAccessor => {
+                            continue;
+                        }
+                        _ => {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn is_type_symbol_accessible<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        type_symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+    ) -> bool {
+        let access = self.is_symbol_accessible_worker(
+            Some(type_symbol),
+            enclosing_declaration,
+            SymbolFlags::Type,
+            false,
+            true,
+        );
+        access.accessibility == SymbolAccessibility::Accessible
+    }
+
+    pub(super) fn is_value_symbol_accessible<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        type_symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+    ) -> bool {
+        let access = self.is_symbol_accessible_worker(
+            Some(type_symbol),
+            enclosing_declaration,
+            SymbolFlags::Value,
+            false,
+            true,
+        );
+        access.accessibility == SymbolAccessibility::Accessible
+    }
+
+    pub(super) fn is_symbol_accessible_by_flags<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        type_symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: SymbolFlags,
+    ) -> bool {
+        let access = self.is_symbol_accessible_worker(
+            Some(type_symbol),
+            enclosing_declaration,
+            flags,
+            false,
+            false,
+        );
+        access.accessibility == SymbolAccessibility::Accessible
+    }
+
+    pub(super) fn is_any_symbol_accessible<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbols: Option<&[Rc<Symbol>]>,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        initial_symbol: &Symbol,
+        meaning: SymbolFlags,
+        should_compute_aliases_to_make_visible: bool,
+        allow_modules: bool,
+    ) -> Option<SymbolAccessibilityResult> {
+        if length(symbols) == 0 {
+            return None;
+        }
+        let symbols = symbols.unwrap();
+
+        let mut had_accessible_chain: Option<Rc<Symbol>> = None;
+        let mut early_module_bail = false;
+        let enclosing_declaration = enclosing_declaration
+            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
+        for symbol in symbols {
+            let accessible_symbol_chain = self.get_accessible_symbol_chain(
+                Some(&**symbol),
+                enclosing_declaration.as_deref(),
+                meaning,
+                false,
+                None,
+            );
+            if let Some(accessible_symbol_chain) = accessible_symbol_chain {
+                had_accessible_chain = Some(symbol.clone());
+                let has_accessible_declarations = self.has_visible_declarations(
+                    &accessible_symbol_chain[0],
+                    should_compute_aliases_to_make_visible,
+                );
+                if let Some(has_accessible_declarations) = has_accessible_declarations {
+                    return Some(has_accessible_declarations.into_symbol_accessibility_result());
+                }
+            }
+            if allow_modules {
+                if some(
+                    symbol.maybe_declarations().as_deref(),
+                    Some(|declaration: &Rc<Node>| {
+                        self.has_non_global_augmentation_external_module_symbol(declaration)
+                    }),
+                ) {
+                    if should_compute_aliases_to_make_visible {
+                        early_module_bail = true;
+                        continue;
+                    }
+                    return Some(SymbolAccessibilityResult {
+                        accessibility: SymbolAccessibility::Accessible,
+                        aliases_to_make_visible: None,
+                        error_symbol_name: None,
+                        error_node: None,
+                        error_module_name: None,
+                    });
+                }
+            }
+
+            let containers =
+                self.get_containers_of_symbol(symbol, enclosing_declaration.as_deref(), meaning);
+            let parent_result = self.is_any_symbol_accessible(
+                containers.as_deref(),
+                enclosing_declaration.as_deref(),
+                initial_symbol,
+                if ptr::eq(initial_symbol, &**symbol) {
+                    self.get_qualified_left_meaning(meaning)
+                } else {
+                    meaning
+                },
+                should_compute_aliases_to_make_visible,
+                allow_modules,
+            );
+            if parent_result.is_some() {
+                return parent_result;
+            }
+        }
+
+        if early_module_bail {
+            return Some(SymbolAccessibilityResult {
+                accessibility: SymbolAccessibility::Accessible,
+                aliases_to_make_visible: None,
+                error_symbol_name: None,
+                error_node: None,
+                error_module_name: None,
+            });
+        }
+
+        if let Some(had_accessible_chain) = had_accessible_chain {
+            return Some(SymbolAccessibilityResult {
+                accessibility: SymbolAccessibility::NotAccessible,
+                aliases_to_make_visible: None,
+                error_symbol_name: Some(self.symbol_to_string_(
+                    initial_symbol,
+                    enclosing_declaration.as_deref(),
+                    Some(meaning),
+                    None,
+                    None,
+                )),
+                error_node: None,
+                error_module_name: if !ptr::eq(&*had_accessible_chain, initial_symbol) {
+                    Some(self.symbol_to_string_(
+                        &had_accessible_chain,
+                        enclosing_declaration.as_deref(),
+                        Some(SymbolFlags::Namespace),
+                        None,
+                        None,
+                    ))
+                } else {
+                    None
+                },
+            });
+        }
+
+        None
+    }
+
+    pub(super) fn is_symbol_accessible_worker<
+        TSymbol: Borrow<Symbol>,
+        TEnclosingDeclaration: Borrow<Node>,
+    >(
+        &self,
+        symbol: Option<TSymbol>,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        meaning: SymbolFlags,
+        should_compute_aliases_to_make_visible: bool,
+        allow_modules: bool,
+    ) -> SymbolAccessibilityResult {
         unimplemented!()
     }
 
@@ -799,6 +1022,14 @@ impl TypeChecker {
         &self,
         declaration: &Node,
     ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn has_visible_declarations(
+        &self,
+        symbol: &Symbol,
+        should_compute_aliases_to_make_visible: bool,
+    ) -> Option<SymbolVisibilityResult> {
         unimplemented!()
     }
 

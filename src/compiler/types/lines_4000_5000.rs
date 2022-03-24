@@ -494,6 +494,7 @@ pub trait SymbolWriter: SymbolTracker {
     fn as_symbol_tracker(&self) -> &dyn SymbolTracker;
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SymbolAccessibility {
     Accessible,
     NotAccessible,
@@ -521,6 +522,24 @@ pub struct SymbolVisibilityResult {
     pub aliases_to_make_visible: Option<Vec<Rc<Node /*LateVisibilityPaintedStatement*/>>>,
     pub error_symbol_name: Option<String>,
     pub error_node: Option<Rc<Node>>,
+}
+
+impl SymbolVisibilityResult {
+    pub fn into_symbol_accessibility_result(self) -> SymbolAccessibilityResult {
+        let SymbolVisibilityResult {
+            accessibility,
+            aliases_to_make_visible,
+            error_symbol_name,
+            error_node,
+        } = self;
+        SymbolAccessibilityResult {
+            accessibility,
+            aliases_to_make_visible,
+            error_symbol_name,
+            error_node,
+            error_module_name: None,
+        }
+    }
 }
 
 pub struct SymbolAccessibilityResult {
