@@ -8,10 +8,11 @@ use std::rc::Rc;
 
 use super::{get_node_id, get_symbol_id, typeof_eq_facts};
 use crate::{
-    concatenate, create_symbol_table, filter, for_each_entry, get_declaration_of_kind,
-    get_emit_script_target, is_expression, is_external_module,
-    is_external_module_import_equals_declaration, is_external_or_common_js_module,
-    is_identifier_text, is_in_js_file, is_namespace_reexport_declaration, is_umd_export_symbol,
+    concatenate, create_symbol_table, filter, find_ancestor, for_each_entry,
+    get_declaration_of_kind, get_emit_script_target, is_ambient_module, is_expression,
+    is_external_module, is_external_module_import_equals_declaration,
+    is_external_or_common_js_module, is_identifier_text, is_in_js_file,
+    is_module_with_string_literal_name, is_namespace_reexport_declaration, is_umd_export_symbol,
     length, maybe_for_each, node_is_present, push_if_unique_rc, some, unescape_leading_underscores,
     using_single_line_string_writer, BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes,
     Debug_, EmitHint, EmitTextWriter, FunctionLikeDeclarationInterface, IndexInfo,
@@ -1107,14 +1108,25 @@ impl TypeChecker {
     }
 
     pub(super) fn get_external_module_container(&self, declaration: &Node) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let node = find_ancestor(Some(declaration), |node| {
+            self.has_external_module_symbol(node)
+        });
+        node.and_then(|node| self.get_symbol_of_node(&node))
+    }
+
+    pub(super) fn has_external_module_symbol(&self, declaration: &Node) -> bool {
+        is_ambient_module(declaration)
+            || declaration.kind() == SyntaxKind::SourceFile
+                && is_external_or_common_js_module(declaration)
     }
 
     pub(super) fn has_non_global_augmentation_external_module_symbol(
         &self,
         declaration: &Node,
     ) -> bool {
-        unimplemented!()
+        is_module_with_string_literal_name(declaration)
+            || declaration.kind() == SyntaxKind::SourceFile
+                && is_external_or_common_js_module(declaration)
     }
 
     pub(super) fn has_visible_declarations(
