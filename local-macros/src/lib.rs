@@ -1276,6 +1276,17 @@ fn get_type_struct_interface_impl(
                     fn index_infos(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::IndexInfo>>> {
                         self.#first_field_name.index_infos()
                     }
+
+                    fn maybe_object_type_without_abstract_construct_signatures(&self) -> ::std::option::Option<::std::rc::Rc<crate::Type>> {
+                        self.#first_field_name.maybe_object_type_without_abstract_construct_signatures()
+                    }
+
+                    fn set_object_type_without_abstract_construct_signatures(
+                        &self,
+                        object_type_without_abstract_construct_signatures: ::std::option::Option<::std::rc::Rc<crate::Type>>,
+                    ) {
+                        self.#first_field_name.set_object_type_without_abstract_construct_signatures(object_type_without_abstract_construct_signatures)
+                    }
                 }
             }
         }
@@ -1504,6 +1515,21 @@ fn get_type_enum_interface_impl(
                     fn index_infos(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::IndexInfo>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.index_infos()),*
+                        }
+                    }
+
+                    fn maybe_object_type_without_abstract_construct_signatures(&self) -> ::std::option::Option<::std::rc::Rc<crate::Type>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_object_type_without_abstract_construct_signatures()),*
+                        }
+                    }
+
+                    fn set_object_type_without_abstract_construct_signatures(
+                        &self,
+                        object_type_without_abstract_construct_signatures: ::std::option::Option<::std::rc::Rc<crate::Type>>,
+                    ) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_object_type_without_abstract_construct_signatures(object_type_without_abstract_construct_signatures)),*
                         }
                     }
                 }

@@ -8,16 +8,16 @@ use std::rc::Rc;
 
 use super::typeof_eq_facts;
 use crate::{
-    concatenate, for_each_entry, get_emit_script_target, is_expression, is_identifier_text,
+    concatenate, filter, for_each_entry, get_emit_script_target, is_expression, is_identifier_text,
     node_is_present, unescape_leading_underscores, using_single_line_string_writer,
     BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter,
     FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName, KeywordTypeNode, Node,
     NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions,
-    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureKind, Symbol, SymbolFlags,
-    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter, TypePredicate, __String,
-    create_printer, create_text_writer, factory, get_object_flags, get_source_file_of_node,
-    synthetic_factory,
+    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureFlags, SignatureKind,
+    Symbol, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeParameter,
+    TypePredicate, __String, create_printer, create_text_writer, factory, get_object_flags,
+    get_source_file_of_node, synthetic_factory,
 };
 
 impl TypeChecker {
@@ -273,6 +273,45 @@ impl TypeChecker {
             index_infos,
         );
         type_
+    }
+
+    pub(super) fn get_resolved_type_without_abstract_construct_signatures(
+        &self,
+        type_: &Type, /*ResolvedType*/
+    ) -> Rc<Type> {
+        let type_as_resolved_type = type_.as_resolved_type();
+        let type_construct_signatures = type_as_resolved_type.construct_signatures();
+        if type_construct_signatures.is_empty() {
+            return type_.type_wrapper();
+        }
+        if let Some(type_object_type_without_abstract_construct_signatures) =
+            type_as_resolved_type.maybe_object_type_without_abstract_construct_signatures()
+        {
+            return type_object_type_without_abstract_construct_signatures;
+        }
+        let construct_signatures = filter(
+            Some(&*type_construct_signatures),
+            |signature: &Rc<Signature>| !signature.flags.intersects(SignatureFlags::Abstract),
+        )
+        .unwrap();
+        if type_construct_signatures.len() == construct_signatures.len() {
+            return type_.type_wrapper();
+        }
+        let type_copy: Rc<Type> = self
+            .create_anonymous_type(
+                type_.maybe_symbol(),
+                type_as_resolved_type.members(),
+                type_as_resolved_type.call_signatures().clone(),
+                construct_signatures,
+                type_as_resolved_type.index_infos().clone(),
+            )
+            .into();
+        type_as_resolved_type
+            .set_object_type_without_abstract_construct_signatures(Some(type_copy.clone()));
+        type_copy
+            .as_resolved_type()
+            .set_object_type_without_abstract_construct_signatures(Some(type_copy.clone()));
+        type_copy
     }
 
     pub(super) fn for_each_symbol_table_in_scope<

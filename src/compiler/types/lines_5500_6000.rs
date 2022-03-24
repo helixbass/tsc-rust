@@ -19,6 +19,11 @@ pub trait ResolvedTypeInterface {
     fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
     fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
     fn index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>>;
+    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Rc<Type>>;
+    fn set_object_type_without_abstract_construct_signatures(
+        &self,
+        object_type_without_abstract_construct_signatures: Option<Rc<Type>>,
+    );
 }
 
 #[derive(Debug)]

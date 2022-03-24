@@ -313,6 +313,7 @@ pub struct BaseObjectType {
     call_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
     construct_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
     index_infos: RefCell<Option<Vec<Rc<IndexInfo>>>>,
+    object_type_without_abstract_construct_signatures: RefCell<Option<Rc<Type>>>,
 }
 
 impl BaseObjectType {
@@ -325,6 +326,7 @@ impl BaseObjectType {
             call_signatures: RefCell::new(None),
             construct_signatures: RefCell::new(None),
             index_infos: RefCell::new(None),
+            object_type_without_abstract_construct_signatures: RefCell::new(None),
         }
     }
 }
@@ -403,6 +405,21 @@ impl ResolvedTypeInterface for BaseObjectType {
 
     fn index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>> {
         Ref::map(self.index_infos.borrow(), |option| option.as_ref().unwrap())
+    }
+
+    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Rc<Type>> {
+        self.object_type_without_abstract_construct_signatures
+            .borrow()
+            .clone()
+    }
+
+    fn set_object_type_without_abstract_construct_signatures(
+        &self,
+        object_type_without_abstract_construct_signatures: Option<Rc<Type>>,
+    ) {
+        *self
+            .object_type_without_abstract_construct_signatures
+            .borrow_mut() = object_type_without_abstract_construct_signatures;
     }
 }
 
