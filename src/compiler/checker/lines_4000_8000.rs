@@ -218,6 +218,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_external_module_container(&self, declaration: &Node) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn has_non_global_augmentation_external_module_symbol(
         &self,
         declaration: &Node,

@@ -907,7 +907,23 @@ impl TypeChecker {
         d: &Node, /*Declaration*/
         container: &Symbol,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let file_symbol = self.get_external_module_container(d);
+        let exported = file_symbol
+            .as_ref()
+            .and_then(|file_symbol| file_symbol.maybe_exports().clone())
+            .and_then(|exports| {
+                RefCell::borrow(&exports)
+                    .get(&InternalSymbolName::ExportEquals())
+                    .map(Clone::clone)
+            })?;
+        if self
+            .get_symbol_if_same_reference(&exported, container)
+            .is_some()
+        {
+            file_symbol
+        } else {
+            None
+        }
     }
 }
 
