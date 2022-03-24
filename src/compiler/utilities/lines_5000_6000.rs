@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use regex::{Captures, Regex};
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::convert::TryInto;
 use std::ptr;
@@ -275,6 +276,10 @@ pub fn get_object_flags(type_: &Type) -> ObjectFlags {
     } else {
         ObjectFlags::None
     }
+}
+
+pub fn is_umd_export_symbol<TSymbol: Borrow<Symbol>>(symbol: Option<TSymbol>) -> bool {
+    unimplemented!()
 }
 
 pub fn is_type_node_kind(kind: SyntaxKind) -> bool {

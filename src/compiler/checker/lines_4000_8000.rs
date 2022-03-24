@@ -8,10 +8,12 @@ use std::rc::Rc;
 
 use super::{get_node_id, get_symbol_id, typeof_eq_facts};
 use crate::{
-    concatenate, create_symbol_table, filter, for_each_entry, get_emit_script_target,
-    is_expression, is_external_or_common_js_module, is_identifier_text, node_is_present,
-    unescape_leading_underscores, using_single_line_string_writer, BaseIntrinsicType,
-    BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter,
+    concatenate, create_symbol_table, filter, for_each_entry, get_declaration_of_kind,
+    get_emit_script_target, is_expression, is_external_module,
+    is_external_module_import_equals_declaration, is_external_or_common_js_module,
+    is_identifier_text, is_namespace_reexport_declaration, is_umd_export_symbol, node_is_present,
+    push_if_unique_rc, some, unescape_leading_underscores, using_single_line_string_writer,
+    BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, Debug_, EmitHint, EmitTextWriter,
     FunctionLikeDeclarationInterface, IndexInfo, InternalSymbolName, KeywordTypeNode, Node,
     NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions,
     ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureFlags, SignatureKind,
@@ -427,7 +429,9 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         meaning: SymbolFlags,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: Option<&mut HashMap<SymbolId, Vec<Rc<RefCell<SymbolTable>>>>>,
+        visited_symbol_tables_map: Option<
+            &mut HashMap<SymbolId, Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>>,
+        >,
     ) -> Option<Vec<Rc<Symbol>>> {
         let mut visited_symbol_tables_map_default = HashMap::new();
         let visited_symbol_tables_map =
@@ -464,13 +468,20 @@ impl TypeChecker {
         }
 
         let id = get_symbol_id(symbol);
-        let visited_symbol_tables = visited_symbol_tables_map
-            .entry(id)
-            .or_insert_with(|| vec![]);
+        if !visited_symbol_tables_map.contains_key(&id) {
+            visited_symbol_tables_map.insert(id, Rc::new(RefCell::new(vec![])));
+        }
+        let visited_symbol_tables = visited_symbol_tables_map.get(&id).unwrap().clone();
         let result = self.for_each_symbol_table_in_scope(
             enclosing_declaration.as_deref(),
             |symbols, ignore_qualification, is_local_name_lookup, _| {
                 self.get_accessible_symbol_chain_from_symbol_table(
+                    visited_symbol_tables.clone(),
+                    meaning,
+                    symbol,
+                    enclosing_declaration.as_deref(),
+                    use_only_external_aliasing,
+                    visited_symbol_tables_map,
                     symbols,
                     ignore_qualification,
                     is_local_name_lookup,
@@ -483,10 +494,296 @@ impl TypeChecker {
 
     pub(super) fn get_accessible_symbol_chain_from_symbol_table(
         &self,
+        visited_symbol_tables: Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
+        meaning: SymbolFlags,
+        symbol: &Symbol,
+        enclosing_declaration: Option<&Node>,
+        use_only_external_aliasing: bool,
+        visited_symbol_tables_map: &mut HashMap<
+            SymbolId,
+            Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
+        >,
         symbols: Rc<RefCell<SymbolTable>>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
     ) -> Option<Vec<Rc<Symbol>>> {
+        if !push_if_unique_rc(&mut visited_symbol_tables.borrow_mut(), &symbols) {
+            return None;
+        }
+
+        let result = self.try_symbol_table(
+            symbol,
+            meaning,
+            enclosing_declaration,
+            use_only_external_aliasing,
+            visited_symbol_tables_map,
+            visited_symbol_tables.clone(),
+            symbols,
+            ignore_qualification,
+            is_local_name_lookup,
+        );
+        visited_symbol_tables.borrow_mut().pop();
+        result
+    }
+
+    pub(super) fn can_qualify_symbol(
+        &self,
+        enclosing_declaration: Option<&Node>,
+        use_only_external_aliasing: bool,
+        visited_symbol_tables_map: &mut HashMap<
+            SymbolId,
+            Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
+        >,
+        symbol_from_symbol_table: &Symbol,
+        meaning: SymbolFlags,
+    ) -> bool {
+        !self.needs_qualification(symbol_from_symbol_table, enclosing_declaration, meaning)
+            || self
+                .get_accessible_symbol_chain(
+                    symbol_from_symbol_table.maybe_parent(),
+                    enclosing_declaration,
+                    self.get_qualified_left_meaning(meaning),
+                    use_only_external_aliasing,
+                    Some(visited_symbol_tables_map),
+                )
+                .is_some()
+    }
+
+    pub(super) fn is_accessible<TResolvedAliasSymbol: Borrow<Symbol>>(
+        &self,
+        symbol: &Symbol,
+        meaning: SymbolFlags,
+        enclosing_declaration: Option<&Node>,
+        use_only_external_aliasing: bool,
+        visited_symbol_tables_map: &mut HashMap<
+            SymbolId,
+            Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
+        >,
+        symbol_from_symbol_table: &Symbol,
+        resolved_alias_symbol: Option<TResolvedAliasSymbol>,
+        ignore_qualification: Option<bool>,
+    ) -> bool {
+        let resolved_alias_symbol = resolved_alias_symbol
+            .map(|resolved_alias_symbol| resolved_alias_symbol.borrow().symbol_wrapper());
+        (ptr::eq(
+            symbol,
+            resolved_alias_symbol
+                .as_deref()
+                .unwrap_or(symbol_from_symbol_table),
+        ) || Rc::ptr_eq(
+            &self.get_merged_symbol(Some(symbol)).unwrap(),
+            &self
+                .get_merged_symbol(Some(
+                    resolved_alias_symbol
+                        .as_deref()
+                        .unwrap_or(symbol_from_symbol_table),
+                ))
+                .unwrap(),
+        )) && !some(
+            symbol_from_symbol_table.maybe_declarations().as_deref(),
+            Some(|declaration: &Rc<Node>| {
+                self.has_non_global_augmentation_external_module_symbol(declaration)
+            }),
+        ) && (matches!(ignore_qualification, Some(true))
+            || self.can_qualify_symbol(
+                enclosing_declaration,
+                use_only_external_aliasing,
+                visited_symbol_tables_map,
+                &self
+                    .get_merged_symbol(Some(symbol_from_symbol_table))
+                    .unwrap(),
+                meaning,
+            ))
+    }
+
+    pub(super) fn try_symbol_table(
+        &self,
+        symbol: &Symbol,
+        meaning: SymbolFlags,
+        enclosing_declaration: Option<&Node>,
+        use_only_external_aliasing: bool,
+        visited_symbol_tables_map: &mut HashMap<
+            SymbolId,
+            Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
+        >,
+        visited_symbol_tables: Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
+        symbols: Rc<RefCell<SymbolTable>>,
+        ignore_qualification: Option<bool>,
+        is_local_name_lookup: Option<bool>,
+    ) -> Option<Vec<Rc<Symbol>>> {
+        if self.is_accessible(
+            symbol,
+            meaning,
+            enclosing_declaration,
+            use_only_external_aliasing,
+            visited_symbol_tables_map,
+            &RefCell::borrow(&symbols)
+                .get(symbol.escaped_name())
+                .unwrap()
+                .clone(),
+            Option::<&Symbol>::None,
+            ignore_qualification,
+        ) {
+            return Some(vec![symbol.symbol_wrapper()]);
+        }
+
+        let result: Option<Vec<Rc<Symbol>>> = for_each_entry(
+            &RefCell::borrow(&symbols),
+            |symbol_from_symbol_table, _| {
+                if symbol_from_symbol_table
+                    .flags()
+                    .intersects(SymbolFlags::Alias)
+                    && symbol_from_symbol_table.escaped_name()
+                        != &InternalSymbolName::ExportEquals()
+                    && symbol_from_symbol_table.escaped_name() != &InternalSymbolName::Default()
+                    && !(is_umd_export_symbol(Some(&**symbol_from_symbol_table))
+                        && matches!(enclosing_declaration, Some(enclosing_declaration) if is_external_module(&get_source_file_of_node(Some(enclosing_declaration)).unwrap())))
+                    && (!use_only_external_aliasing
+                        || some(
+                            symbol_from_symbol_table.maybe_declarations().as_deref(),
+                            Some(|declaration: &Rc<Node>| {
+                                is_external_module_import_equals_declaration(declaration)
+                            }),
+                        ))
+                    && if matches!(is_local_name_lookup, Some(true)) {
+                        !some(
+                            symbol_from_symbol_table.maybe_declarations().as_deref(),
+                            Some(|declaration: &Rc<Node>| {
+                                is_namespace_reexport_declaration(declaration)
+                            }),
+                        )
+                    } else {
+                        true
+                    }
+                    && (matches!(ignore_qualification, Some(true))
+                        || get_declaration_of_kind(
+                            symbol_from_symbol_table,
+                            SyntaxKind::ExportSpecifier,
+                        )
+                        .is_none())
+                {
+                    let resolved_import_symbol = self.resolve_alias(symbol_from_symbol_table);
+                    let candidate = self.get_candidate_list_for_symbol(
+                        symbol,
+                        meaning,
+                        enclosing_declaration,
+                        use_only_external_aliasing,
+                        visited_symbol_tables_map,
+                        visited_symbol_tables.clone(),
+                        symbol_from_symbol_table,
+                        &resolved_import_symbol,
+                        ignore_qualification,
+                    );
+                    if candidate.is_some() {
+                        return candidate;
+                    }
+                }
+                if symbol_from_symbol_table.escaped_name() == symbol.escaped_name() {
+                    if let Some(symbol_from_symbol_table_export_symbol) =
+                        symbol_from_symbol_table.maybe_export_symbol()
+                    {
+                        if self.is_accessible(
+                            symbol,
+                            meaning,
+                            enclosing_declaration,
+                            use_only_external_aliasing,
+                            visited_symbol_tables_map,
+                            &self
+                                .get_merged_symbol(Some(&*symbol_from_symbol_table_export_symbol))
+                                .unwrap(),
+                            Option::<&Symbol>::None,
+                            ignore_qualification,
+                        ) {
+                            return Some(vec![symbol.symbol_wrapper()]);
+                        }
+                    }
+                }
+                None
+            },
+        );
+
+        result.or_else(|| {
+            if Rc::ptr_eq(&symbols, &self.globals_rc()) {
+                self.get_candidate_list_for_symbol(
+                    symbol,
+                    meaning,
+                    enclosing_declaration,
+                    use_only_external_aliasing,
+                    visited_symbol_tables_map,
+                    visited_symbol_tables,
+                    &self.global_this_symbol(),
+                    &self.global_this_symbol(),
+                    ignore_qualification,
+                )
+            } else {
+                None
+            }
+        })
+    }
+
+    pub(super) fn get_candidate_list_for_symbol(
+        &self,
+        symbol: &Symbol,
+        meaning: SymbolFlags,
+        enclosing_declaration: Option<&Node>,
+        use_only_external_aliasing: bool,
+        visited_symbol_tables_map: &mut HashMap<
+            SymbolId,
+            Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
+        >,
+        visited_symbol_tables: Rc<RefCell<Vec<Rc<RefCell<SymbolTable>>>>>,
+        symbol_from_symbol_table: &Symbol,
+        resolved_import_symbol: &Symbol,
+        ignore_qualification: Option<bool>,
+    ) -> Option<Vec<Rc<Symbol>>> {
+        if self.is_accessible(
+            symbol,
+            meaning,
+            enclosing_declaration,
+            use_only_external_aliasing,
+            visited_symbol_tables_map,
+            symbol_from_symbol_table,
+            Some(resolved_import_symbol),
+            ignore_qualification,
+        ) {
+            return Some(vec![symbol_from_symbol_table.symbol_wrapper()]);
+        }
+
+        let candidate_table = self.get_exports_of_symbol(resolved_import_symbol);
+        let accessible_symbols_from_exports = /*candidateTable &&*/
+            self.get_accessible_symbol_chain_from_symbol_table(
+                visited_symbol_tables,
+                meaning,
+                symbol,
+                enclosing_declaration,
+                use_only_external_aliasing,
+                visited_symbol_tables_map,
+                candidate_table,
+                Some(true),
+                None,
+            );
+        if let Some(mut accessible_symbols_from_exports) = accessible_symbols_from_exports {
+            if self.can_qualify_symbol(
+                enclosing_declaration,
+                use_only_external_aliasing,
+                visited_symbol_tables_map,
+                symbol_from_symbol_table,
+                self.get_qualified_left_meaning(meaning),
+            ) {
+                let mut ret = vec![symbol_from_symbol_table.symbol_wrapper()];
+                ret.append(&mut accessible_symbols_from_exports);
+                return Some(ret);
+            }
+        }
+        None
+    }
+
+    pub(super) fn needs_qualification<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        symbol: &Symbol,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        meaning: SymbolFlags,
+    ) -> bool {
         unimplemented!()
     }
 
