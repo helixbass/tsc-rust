@@ -240,6 +240,7 @@ impl TypeChecker {
         members: Rc<RefCell<SymbolTable>>,
         call_signatures: Vec<Rc<Signature>>,
         construct_signatures: Vec<Rc<Signature>>,
+        index_infos: Vec<Rc<IndexInfo>>,
     ) /*-> BaseObjectType*/
     {
         type_.resolve(
@@ -247,9 +248,10 @@ impl TypeChecker {
             vec![],
             call_signatures,
             construct_signatures,
+            index_infos,
         );
-        if true {
-            type_.set_properties(self.get_named_members(&*(*members).borrow()));
+        if !Rc::ptr_eq(&members, &self.empty_symbols()) {
+            type_.set_properties(self.get_named_members(&(*members).borrow()));
         }
         // type_
     }
@@ -263,8 +265,13 @@ impl TypeChecker {
         index_infos: Vec<Rc<IndexInfo>>,
     ) -> BaseObjectType {
         let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);
-        // TODO: pass index_infos to set_structured_type_members()
-        self.set_structured_type_members(&type_, members, call_signatures, construct_signatures);
+        self.set_structured_type_members(
+            &type_,
+            members,
+            call_signatures,
+            construct_signatures,
+            index_infos,
+        );
         type_
     }
 

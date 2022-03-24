@@ -1240,8 +1240,8 @@ fn get_type_struct_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
-                        self.#first_field_name.resolve(members, properties, call_signatures, construct_signatures)
+                    fn resolve(&self, members: ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>, index_infos: ::std::vec::Vec<::std::rc::Rc<crate::IndexInfo>>) {
+                        self.#first_field_name.resolve(members, properties, call_signatures, construct_signatures, index_infos)
                     }
 
                     fn is_resolved(&self) -> bool {
@@ -1454,9 +1454,9 @@ fn get_type_enum_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
+                    fn resolve(&self, members: ::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>, properties: ::std::vec::Vec<::std::rc::Rc<crate::Symbol>>, call_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>, index_infos: ::std::vec::Vec<::std::rc::Rc<crate::IndexInfo>>) {
                         match self {
-                            #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties, call_signatures, construct_signatures)),*
+                            #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties, call_signatures, construct_signatures, index_infos)),*
                         }
                     }
 

@@ -605,6 +605,7 @@ impl TypeChecker {
             members,
             call_signatures,
             construct_signatures,
+            vec![], // TODO: this is wrong
         );
     }
 

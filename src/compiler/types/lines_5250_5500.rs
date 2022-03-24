@@ -348,6 +348,7 @@ pub trait ResolvableTypeInterface {
         properties: Vec<Rc<Symbol>>,
         call_signatures: Vec<Rc<Signature>>,
         construct_signatures: Vec<Rc<Signature>>,
+        index_infos: Vec<Rc<IndexInfo>>,
     );
     fn is_resolved(&self) -> bool;
 }
@@ -359,11 +360,13 @@ impl ResolvableTypeInterface for BaseObjectType {
         properties: Vec<Rc<Symbol>>,
         call_signatures: Vec<Rc<Signature>>,
         construct_signatures: Vec<Rc<Signature>>,
+        index_infos: Vec<Rc<IndexInfo>>,
     ) {
         *self.members.borrow_mut() = Some(members);
         *self.properties.borrow_mut() = Some(properties);
         *self.call_signatures.borrow_mut() = Some(call_signatures);
         *self.construct_signatures.borrow_mut() = Some(construct_signatures);
+        *self.index_infos.borrow_mut() = Some(index_infos);
     }
 
     fn is_resolved(&self) -> bool {
