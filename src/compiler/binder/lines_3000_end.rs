@@ -799,10 +799,10 @@ impl BinderType {
             if let Some(container) = container {
                 let mut container_locals = container.maybe_locals();
                 if container_locals.is_none() {
-                    *container_locals = Some(create_symbol_table(None));
+                    *container_locals = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }
                 self.declare_symbol(
-                    container_locals.as_mut().unwrap(),
+                    &mut container_locals.as_ref().unwrap().borrow_mut(),
                     Option::<&Symbol>::None,
                     node,
                     SymbolFlags::TypeParameter,
@@ -822,10 +822,10 @@ impl BinderType {
             if let Some(container) = container {
                 let mut container_locals = container.maybe_locals();
                 if container_locals.is_none() {
-                    *container_locals = Some(create_symbol_table(None));
+                    *container_locals = Some(Rc::new(RefCell::new(create_symbol_table(None))));
                 }
                 self.declare_symbol(
-                    container_locals.as_mut().unwrap(),
+                    &mut container_locals.as_ref().unwrap().borrow_mut(),
                     Option::<&Symbol>::None,
                     node,
                     SymbolFlags::TypeParameter,
@@ -997,7 +997,7 @@ pub(super) fn lookup_symbol_for_name(container: &Node, name: &__String) -> Optio
     let container_locals = container.maybe_locals();
     let local = container_locals
         .as_ref()
-        .and_then(|locals| locals.get(name));
+        .and_then(|locals| RefCell::borrow(locals).get(name).map(Clone::clone));
     if let Some(local) = local {
         return Some(local.maybe_export_symbol().unwrap_or_else(|| local.clone()));
     }

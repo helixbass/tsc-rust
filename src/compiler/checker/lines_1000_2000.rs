@@ -1076,7 +1076,7 @@ impl TypeChecker {
         let class_declaration = parameter.parent().parent();
 
         let parameter_symbol = self.get_symbol(
-            &constructor_declaration.locals(),
+            &RefCell::borrow(&constructor_declaration.locals()),
             parameter_name,
             SymbolFlags::Value,
         );
@@ -1489,9 +1489,9 @@ impl TypeChecker {
         while let Some(mut location_unwrapped) = location {
             {
                 let location_maybe_locals = location_unwrapped.maybe_locals();
-                if let Some(location_locals) = &*location_maybe_locals {
+                if let Some(location_locals) = location_maybe_locals.as_ref() {
                     if !self.is_global_source_file(&*location_unwrapped) {
-                        result = lookup(self, location_locals, name, meaning);
+                        result = lookup(self, &RefCell::borrow(location_locals), name, meaning);
                         if let Some(result_unwrapped) = result.as_ref() {
                             let mut use_result = true;
                             if is_function_like(Some(&*location_unwrapped))
@@ -1663,8 +1663,13 @@ impl TypeChecker {
                         let ctor = self.find_constructor_declaration(&location_unwrapped.parent());
                         if let Some(ctor) = ctor {
                             if let Some(ctor_locals) = ctor.maybe_locals().as_ref() {
-                                if lookup(self, ctor_locals, name, meaning & SymbolFlags::Value)
-                                    .is_some()
+                                if lookup(
+                                    self,
+                                    &RefCell::borrow(ctor_locals),
+                                    name,
+                                    meaning & SymbolFlags::Value,
+                                )
+                                .is_some()
                                 {
                                     property_with_invalid_initializer =
                                         Some(location_unwrapped.clone());
@@ -2145,7 +2150,7 @@ impl TypeChecker {
                         Some(value_declaration) if value_declaration.pos() > associated_declaration_for_containing_initializer_or_binding_name.pos() &&
                             matches!(
                                 root.parent().maybe_locals().as_ref(),
-                                Some(locals) if are_option_rcs_equal(lookup(self, locals, candidate.escaped_name(), meaning).as_ref(), Some(&candidate))
+                                Some(locals) if are_option_rcs_equal(lookup(self, &RefCell::borrow(locals), candidate.escaped_name(), meaning).as_ref(), Some(&candidate))
                             )
                     ) {
                         self.error(

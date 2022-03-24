@@ -105,7 +105,7 @@ impl BinderType {
                     .is_none()
                 {
                     self.declare_symbol(
-                        &mut self.file().locals(),
+                        &mut self.file().locals().borrow_mut(),
                         Option::<&Symbol>::None,
                         &expr.as_has_expression().expression(),
                         SymbolFlags::FunctionScopedVariable | SymbolFlags::ModuleExports,

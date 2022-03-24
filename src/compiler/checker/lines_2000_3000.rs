@@ -1480,7 +1480,7 @@ impl TypeChecker {
                     .maybe_locals()
                     .as_ref()
                     .and_then(|locals| {
-                        locals
+                        RefCell::borrow(locals)
                             .get(&name.as_identifier().escaped_text)
                             .map(Clone::clone)
                     })

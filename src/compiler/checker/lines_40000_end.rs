@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::UnusedKind;
@@ -183,7 +184,11 @@ impl TypeChecker {
 
         for file in self.host.get_source_files() {
             if !is_external_or_common_js_module(&file) {
-                self.merge_symbol_table(&mut *self.globals(), &*file.locals(), None);
+                self.merge_symbol_table(
+                    &mut *self.globals(),
+                    &RefCell::borrow(&file.locals()),
+                    None,
+                );
             }
         }
 

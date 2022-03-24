@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::typeof_eq_facts;
+use super::{get_node_id, get_symbol_id, typeof_eq_facts};
 use crate::{
     concatenate, create_symbol_table, filter, for_each_entry, get_emit_script_target,
     is_expression, is_external_or_common_js_module, is_identifier_text, node_is_present,
@@ -318,7 +318,12 @@ impl TypeChecker {
     pub(super) fn for_each_symbol_table_in_scope<
         TEnclosingDeclaration: Borrow<Node>,
         TReturn,
-        TCallback: FnMut(&SymbolTable, Option<bool>, Option<bool>, Option<&Node>) -> Option<TReturn>,
+        TCallback: FnMut(
+            Rc<RefCell<SymbolTable>>,
+            Option<bool>,
+            Option<bool>,
+            Option<&Node>,
+        ) -> Option<TReturn>,
     >(
         &self,
         enclosing_declaration: Option<TEnclosingDeclaration>,
@@ -331,7 +336,7 @@ impl TypeChecker {
             if let Some(location_locals) = location_unwrapped.maybe_locals().as_ref() {
                 if !self.is_global_source_file(&location_unwrapped) {
                     result = callback(
-                        location_locals,
+                        location_locals.clone(),
                         None,
                         Some(true),
                         Some(&*location_unwrapped),
@@ -348,10 +353,8 @@ impl TypeChecker {
                     {
                         let sym = self.get_symbol_of_node(&location_unwrapped);
                         result = callback(
-                            &RefCell::borrow(
-                                &sym.and_then(|sym| sym.maybe_exports().clone())
-                                    .unwrap_or_else(|| self.empty_symbols()),
-                            ),
+                            sym.and_then(|sym| sym.maybe_exports().clone())
+                                .unwrap_or_else(|| self.empty_symbols()),
                             None,
                             Some(true),
                             Some(&*location_unwrapped),
@@ -387,7 +390,12 @@ impl TypeChecker {
                         }
                     }
                     if let Some(table) = table {
-                        result = callback(&table, None, Some(false), Some(&*location_unwrapped));
+                        result = callback(
+                            Rc::new(RefCell::new(table)),
+                            None,
+                            Some(false),
+                            Some(&*location_unwrapped),
+                        );
                         if result.is_some() {
                             return result;
                         }
@@ -399,11 +407,15 @@ impl TypeChecker {
             location = location_unwrapped.maybe_parent();
         }
 
-        callback(&self.globals(), None, Some(true), None)
+        callback(self.globals_rc(), None, Some(true), None)
     }
 
     pub(super) fn get_qualified_left_meaning(&self, right_meaning: SymbolFlags) -> SymbolFlags {
-        unimplemented!()
+        if right_meaning == SymbolFlags::Value {
+            SymbolFlags::Value
+        } else {
+            SymbolFlags::Namespace
+        }
     }
 
     pub(super) fn get_accessible_symbol_chain<
@@ -417,6 +429,68 @@ impl TypeChecker {
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: Option<&mut HashMap<SymbolId, Vec<Rc<RefCell<SymbolTable>>>>>,
     ) -> Option<Vec<Rc<Symbol>>> {
+        let mut visited_symbol_tables_map_default = HashMap::new();
+        let visited_symbol_tables_map =
+            visited_symbol_tables_map.unwrap_or(&mut visited_symbol_tables_map_default);
+        let symbol = symbol?;
+        let symbol = symbol.borrow();
+        if !self.is_property_or_method_declaration_symbol(symbol) {
+            return None;
+        }
+        let links = self.get_symbol_links(symbol);
+        let mut links = links.borrow_mut();
+        if links.accessible_chain_cache.is_none() {
+            links.accessible_chain_cache = Some(HashMap::new());
+        }
+        let cache = links.accessible_chain_cache.as_mut().unwrap();
+        let enclosing_declaration = enclosing_declaration
+            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
+        let first_relevant_location = self
+            .for_each_symbol_table_in_scope(enclosing_declaration.as_deref(), |_, _, _, node| {
+                node.map(|node| node.node_wrapper())
+            });
+        let key = format!(
+            "{}|{}|{}",
+            if use_only_external_aliasing { 0 } else { 1 },
+            if let Some(first_relevant_location) = first_relevant_location.as_ref() {
+                get_node_id(first_relevant_location).to_string()
+            } else {
+                "undefined".to_owned()
+            },
+            meaning.bits()
+        );
+        if cache.contains_key(&key) {
+            return cache.get(&key).unwrap().clone();
+        }
+
+        let id = get_symbol_id(symbol);
+        let visited_symbol_tables = visited_symbol_tables_map
+            .entry(id)
+            .or_insert_with(|| vec![]);
+        let result = self.for_each_symbol_table_in_scope(
+            enclosing_declaration.as_deref(),
+            |symbols, ignore_qualification, is_local_name_lookup, _| {
+                self.get_accessible_symbol_chain_from_symbol_table(
+                    symbols,
+                    ignore_qualification,
+                    is_local_name_lookup,
+                )
+            },
+        );
+        cache.insert(key, result.clone());
+        result
+    }
+
+    pub(super) fn get_accessible_symbol_chain_from_symbol_table(
+        &self,
+        symbols: Rc<RefCell<SymbolTable>>,
+        ignore_qualification: Option<bool>,
+        is_local_name_lookup: Option<bool>,
+    ) -> Option<Vec<Rc<Symbol>>> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_property_or_method_declaration_symbol(&self, symbol: &Symbol) -> bool {
         unimplemented!()
     }
 

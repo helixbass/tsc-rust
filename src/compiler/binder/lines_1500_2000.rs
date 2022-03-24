@@ -473,7 +473,7 @@ impl BinderType {
             | SyntaxKind::ClassStaticBlockDeclaration
             | SyntaxKind::TypeAliasDeclaration
             | SyntaxKind::MappedType => Some(self.declare_symbol(
-                &mut *self.container().locals(),
+                &mut self.container().locals().borrow_mut(),
                 Option::<&Symbol>::None,
                 node,
                 symbol_flags,
@@ -524,7 +524,7 @@ impl BinderType {
             self.declare_module_member(node, symbol_flags, symbol_excludes)
         } else {
             self.declare_symbol(
-                &mut *self.file().locals(),
+                &mut *self.file().locals().borrow_mut(),
                 Option::<&Symbol>::None,
                 node,
                 symbol_flags,

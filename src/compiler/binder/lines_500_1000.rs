@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{init_flow_node, BinderType, ContainerFlags};
@@ -43,7 +44,7 @@ impl BinderType {
                 )
             } else {
                 self.declare_symbol(
-                    &mut self.container().locals(),
+                    &mut self.container().locals().borrow_mut(),
                     Option::<&Symbol>::None,
                     node,
                     symbol_flags,
@@ -83,7 +84,7 @@ impl BinderType {
                     SymbolFlags::None
                 };
                 let local = self.declare_symbol(
-                    &mut self.container().locals(),
+                    &mut self.container().locals().borrow_mut(),
                     Option::<&Symbol>::None,
                     node,
                     export_kind,
@@ -104,7 +105,7 @@ impl BinderType {
                 local
             } else {
                 self.declare_symbol(
-                    &mut self.container().locals(),
+                    &mut self.container().locals().borrow_mut(),
                     Option::<&Symbol>::None,
                     node,
                     symbol_flags,
@@ -163,7 +164,8 @@ impl BinderType {
             self.set_container(Some(node.node_wrapper()));
             self.set_block_scope_container(Some(node.node_wrapper()));
             if container_flags.intersects(ContainerFlags::HasLocals) {
-                self.container().set_locals(Some(create_symbol_table(None)));
+                self.container()
+                    .set_locals(Some(Rc::new(RefCell::new(create_symbol_table(None)))));
             }
             self.add_to_container_chain(&self.container());
         } else if container_flags.intersects(ContainerFlags::IsBlockScopedContainer) {

@@ -168,9 +168,9 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&self, symbol: Rc<Symbol>);
-    fn maybe_locals(&self) -> RefMut<Option<SymbolTable>>;
-    fn locals(&self) -> RefMut<SymbolTable>;
-    fn set_locals(&self, locals: Option<SymbolTable>);
+    fn maybe_locals(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>>;
+    fn locals(&self) -> RefMut<Rc<RefCell<SymbolTable>>>;
+    fn set_locals(&self, locals: Option<Rc<RefCell<SymbolTable>>>);
     fn maybe_next_container(&self) -> Option<Rc<Node>>;
     fn set_next_container(&self, next_container: Option<Rc<Node>>);
     fn maybe_local_symbol(&self) -> Option<Rc<Symbol>>;
@@ -1171,7 +1171,7 @@ pub struct BaseNode {
     pub pos: Cell<isize>,
     pub end: Cell<isize>,
     pub symbol: RefCell<Option<Weak<Symbol>>>,
-    pub locals: RefCell<Option<SymbolTable>>,
+    pub locals: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
     next_container: RefCell<Option<Rc<Node>>>,
     local_symbol: RefCell<Option<Rc<Symbol>>>,
     emit_node: RefCell<Option<EmitNode>>,
@@ -1330,15 +1330,15 @@ impl NodeInterface for BaseNode {
         *self.symbol.borrow_mut() = Some(Rc::downgrade(&symbol));
     }
 
-    fn maybe_locals(&self) -> RefMut<Option<SymbolTable>> {
+    fn maybe_locals(&self) -> RefMut<Option<Rc<RefCell<SymbolTable>>>> {
         self.locals.borrow_mut()
     }
 
-    fn locals(&self) -> RefMut<SymbolTable> {
+    fn locals(&self) -> RefMut<Rc<RefCell<SymbolTable>>> {
         RefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
     }
 
-    fn set_locals(&self, locals: Option<SymbolTable>) {
+    fn set_locals(&self, locals: Option<Rc<RefCell<SymbolTable>>>) {
         *self.locals.borrow_mut() = locals;
     }
 

@@ -193,12 +193,13 @@ impl BinderType {
                     {
                         let mut block_scope_container_locals = block_scope_container.maybe_locals();
                         if block_scope_container_locals.is_none() {
-                            *block_scope_container_locals = Some(create_symbol_table(None));
+                            *block_scope_container_locals =
+                                Some(Rc::new(RefCell::new(create_symbol_table(None))));
                             self.add_to_container_chain(&block_scope_container);
                         }
                     }
                     self.declare_symbol(
-                        &mut *block_scope_container.locals(),
+                        &mut *block_scope_container.locals().borrow_mut(),
                         Option::<&Symbol>::None,
                         node,
                         symbol_flags,
@@ -212,12 +213,13 @@ impl BinderType {
                 {
                     let mut block_scope_container_locals = block_scope_container.maybe_locals();
                     if block_scope_container_locals.is_none() {
-                        *block_scope_container_locals = Some(create_symbol_table(None));
+                        *block_scope_container_locals =
+                            Some(Rc::new(RefCell::new(create_symbol_table(None))));
                         self.add_to_container_chain(&block_scope_container);
                     }
                 }
                 self.declare_symbol(
-                    &mut *block_scope_container.locals(),
+                    &mut block_scope_container.locals().borrow_mut(),
                     Option::<&Symbol>::None,
                     node,
                     symbol_flags,
