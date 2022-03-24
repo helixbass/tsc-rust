@@ -182,6 +182,10 @@ impl TypeChecker {
         // }
     }
 
+    pub(super) fn is_array_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_unit_type(&self, type_: &Type) -> bool {
         type_.flags().intersects(TypeFlags::Unit)
     }

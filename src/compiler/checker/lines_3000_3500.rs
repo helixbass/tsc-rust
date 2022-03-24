@@ -558,7 +558,7 @@ impl TypeChecker {
                 }
             }
             symbol = self.get_merged_symbol(self.get_symbol(
-                self.get_exports_of_symbol(&namespace),
+                &RefCell::borrow(&self.get_exports_of_symbol(&namespace)),
                 &right.as_identifier().escaped_text,
                 meaning,
             ));
@@ -614,7 +614,7 @@ impl TypeChecker {
                         && is_qualified_name(&name.parent())
                     {
                         let exported_type_symbol = self.get_merged_symbol(self.get_symbol(
-                            self.get_exports_of_symbol(&namespace),
+                            &RefCell::borrow(&self.get_exports_of_symbol(&namespace)),
                             &right.as_identifier().escaped_text,
                             SymbolFlags::Type,
                         ));

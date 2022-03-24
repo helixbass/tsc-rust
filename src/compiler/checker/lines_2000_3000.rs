@@ -1250,8 +1250,7 @@ impl TypeChecker {
         dont_resolve_alias: bool,
     ) -> Option<Rc<Symbol>> {
         if symbol.flags().intersects(SymbolFlags::Module) {
-            let export_symbol = self
-                .get_exports_of_symbol(symbol)
+            let export_symbol = RefCell::borrow(&self.get_exports_of_symbol(symbol))
                 .get(&name.as_identifier().escaped_text)
                 .map(Clone::clone);
             let resolved = self.resolve_symbol(export_symbol.as_deref(), Some(dont_resolve_alias));

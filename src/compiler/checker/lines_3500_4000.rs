@@ -5,13 +5,15 @@ use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
+use super::MembersOrExportsResolutionKind;
 use crate::{
     add_range, chain_diagnostic_messages, create_symbol_table, get_declaration_of_kind,
-    get_es_module_interop, get_namespace_declaration_node, get_types_package_name,
-    is_external_module_name_relative, is_import_call, is_import_declaration,
-    mangle_scoped_package_name, Diagnostics, InternalSymbolName, ModuleKind, Node, NodeInterface,
-    ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, __String,
+    get_es_module_interop, get_namespace_declaration_node, get_object_flags,
+    get_types_package_name, is_external_module_name_relative, is_import_call,
+    is_import_declaration, mangle_scoped_package_name, Diagnostics, InternalSymbolName, ModuleKind,
+    Node, NodeInterface, ObjectFlags, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, __String,
 };
 
 impl TypeChecker {
@@ -313,7 +315,9 @@ impl TypeChecker {
     }
 
     pub(super) fn get_exports_of_module_as_array(&self, module_symbol: &Symbol) -> Vec<Rc<Symbol>> {
-        self.symbols_to_array(self.get_exports_of_module_(module_symbol))
+        self.symbols_to_array(&RefCell::borrow(
+            &self.get_exports_of_module_(module_symbol),
+        ))
     }
 
     pub(super) fn get_exports_and_properties_of_module(
@@ -338,12 +342,42 @@ impl TypeChecker {
         exports
     }
 
+    pub(super) fn for_each_export_and_property_of_module<TCallback: FnMut(&Symbol, &__String)>(
+        &self,
+        module_symbol: &Symbol,
+        mut cb: TCallback,
+    ) {
+        let exports = self.get_exports_of_module_(module_symbol);
+        for (key, symbol) in &*RefCell::borrow(&exports) {
+            if !self.is_reserved_member_name(key) {
+                cb(symbol, key);
+            }
+        }
+        let export_equals = self
+            .resolve_external_module_symbol(Some(module_symbol), None)
+            .unwrap();
+        if !ptr::eq(&*export_equals, module_symbol) {
+            let type_ = self.get_type_of_symbol(&export_equals);
+            if self.should_treat_properties_of_external_module_as_exports(&type_) {
+                self.for_each_property_of_type(&type_, |symbol, escaped_name| {
+                    cb(symbol, escaped_name)
+                });
+            }
+        }
+    }
+
     pub(super) fn try_get_member_in_module_exports_(
         &self,
         member_name: &__String,
         module_symbol: &Symbol,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let symbol_table = self.get_exports_of_module_(module_symbol);
+        // if (symbolTable) {
+        let ret = RefCell::borrow(&symbol_table)
+            .get(member_name)
+            .map(Clone::clone);
+        ret
+        // }
     }
 
     pub(super) fn try_get_member_in_module_exports_and_properties_(
@@ -351,21 +385,58 @@ impl TypeChecker {
         member_name: &__String,
         module_symbol: &Symbol,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let symbol = self.try_get_member_in_module_exports_(member_name, module_symbol);
+        if symbol.is_some() {
+            return symbol;
+        }
+
+        let export_equals = self
+            .resolve_external_module_symbol(Some(module_symbol), None)
+            .unwrap();
+        if ptr::eq(&*export_equals, module_symbol) {
+            return None;
+        }
+
+        let type_ = self.get_type_of_symbol(&export_equals);
+        if self.should_treat_properties_of_external_module_as_exports(&type_) {
+            self.get_property_of_type_(&type_, member_name, None)
+        } else {
+            None
+        }
     }
 
     pub(super) fn should_treat_properties_of_external_module_as_exports(
         &self,
         resolved_external_module_type: &Type,
     ) -> bool {
-        unimplemented!()
+        !(resolved_external_module_type
+            .flags()
+            .intersects(TypeFlags::Primitive)
+            || get_object_flags(resolved_external_module_type).intersects(ObjectFlags::Class)
+            || self.is_array_type(resolved_external_module_type)
+            || self.is_tuple_type(resolved_external_module_type))
     }
 
-    pub(super) fn get_exports_of_symbol(&self, symbol: &Symbol) -> &SymbolTable {
-        unimplemented!()
+    pub(super) fn get_exports_of_symbol(&self, symbol: &Symbol) -> Rc<RefCell<SymbolTable>> {
+        if symbol.flags().intersects(SymbolFlags::LateBindingContainer) {
+            self.get_resolved_members_or_exports_of_symbol(
+                symbol,
+                MembersOrExportsResolutionKind::resolved_exports,
+            )
+        } else if symbol.flags().intersects(SymbolFlags::Module) {
+            self.get_exports_of_module_(symbol)
+        } else {
+            symbol
+                .maybe_exports()
+                .as_ref()
+                .map_or_else(|| self.empty_symbols(), |exports| exports.clone())
+        }
     }
 
-    pub(super) fn get_exports_of_module_(&self, module_symbol: &Symbol) -> &SymbolTable {
+    pub(super) fn get_exports_of_module_(
+        &self,
+        module_symbol: &Symbol,
+    ) -> Rc<RefCell<SymbolTable>> {
         unimplemented!()
     }
 

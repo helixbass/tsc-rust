@@ -533,7 +533,7 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
         resolution_kind: MembersOrExportsResolutionKind,
-    ) -> UnderscoreEscapedMap<Rc<Symbol>> {
+    ) -> Rc<RefCell<UnderscoreEscapedMap<Rc<Symbol>>>> {
         unimplemented!()
     }
 
@@ -739,6 +739,14 @@ impl TypeChecker {
         } else {
             self.get_properties_of_object_type(&type_)
         }
+    }
+
+    pub(super) fn for_each_property_of_type<TAction: FnMut(&Symbol, &__String)>(
+        &self,
+        type_: &Type,
+        action: TAction,
+    ) {
+        unimplemented!()
     }
 
     pub(super) fn get_constraint_of_type_parameter(

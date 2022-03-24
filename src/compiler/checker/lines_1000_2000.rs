@@ -955,6 +955,7 @@ impl TypeChecker {
                             &main_module,
                             MembersOrExportsResolutionKind::resolved_exports,
                         );
+                        let resolved_exports = RefCell::borrow(&resolved_exports);
                         let main_module_exports = main_module.exports();
                         let main_module_exports = RefCell::borrow(&main_module_exports);
                         for (key, value) in
