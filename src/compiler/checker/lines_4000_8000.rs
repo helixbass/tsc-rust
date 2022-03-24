@@ -11,8 +11,8 @@ use crate::{
     concatenate, create_symbol_table, filter, for_each_entry, get_declaration_of_kind,
     get_emit_script_target, is_expression, is_external_module,
     is_external_module_import_equals_declaration, is_external_or_common_js_module,
-    is_identifier_text, is_namespace_reexport_declaration, is_umd_export_symbol, length,
-    node_is_present, push_if_unique_rc, some, unescape_leading_underscores,
+    is_identifier_text, is_in_js_file, is_namespace_reexport_declaration, is_umd_export_symbol,
+    length, maybe_for_each, node_is_present, push_if_unique_rc, some, unescape_leading_underscores,
     using_single_line_string_writer, BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes,
     Debug_, EmitHint, EmitTextWriter, FunctionLikeDeclarationInterface, IndexInfo,
     InternalSymbolName, KeywordTypeNode, Node, NodeArray, NodeBuilderFlags, NodeInterface,
@@ -1000,6 +1000,25 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn is_symbol_accessible<
+        TSymbol: Borrow<Symbol>,
+        TEnclosingDeclaration: Borrow<Node>,
+    >(
+        &self,
+        symbol: Option<TSymbol>,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        meaning: SymbolFlags,
+        should_compute_aliases_to_make_visible: bool,
+    ) -> SymbolAccessibilityResult {
+        self.is_symbol_accessible_worker(
+            symbol,
+            enclosing_declaration,
+            meaning,
+            should_compute_aliases_to_make_visible,
+            true,
+        )
+    }
+
     pub(super) fn is_symbol_accessible_worker<
         TSymbol: Borrow<Symbol>,
         TEnclosingDeclaration: Borrow<Node>,
@@ -1011,7 +1030,80 @@ impl TypeChecker {
         should_compute_aliases_to_make_visible: bool,
         allow_modules: bool,
     ) -> SymbolAccessibilityResult {
-        unimplemented!()
+        if let Some(symbol) = symbol {
+            let symbol = symbol.borrow();
+            if let Some(enclosing_declaration) = enclosing_declaration {
+                let enclosing_declaration = enclosing_declaration.borrow();
+                let result = self.is_any_symbol_accessible(
+                    Some(&vec![symbol.symbol_wrapper()]),
+                    Some(enclosing_declaration),
+                    symbol,
+                    meaning,
+                    should_compute_aliases_to_make_visible,
+                    allow_modules,
+                );
+                if let Some(result) = result {
+                    return result;
+                }
+
+                let symbol_external_module = maybe_for_each(
+                    symbol.maybe_declarations().as_deref(),
+                    |declaration: &Rc<Node>, _| self.get_external_module_container(declaration),
+                );
+                if let Some(symbol_external_module) = symbol_external_module {
+                    let enclosing_external_module =
+                        self.get_external_module_container(enclosing_declaration);
+                    if !matches!(enclosing_external_module, Some(enclosing_external_module) if Rc::ptr_eq(&symbol_external_module, &enclosing_external_module))
+                    {
+                        return SymbolAccessibilityResult {
+                            accessibility: SymbolAccessibility::CannotBeNamed,
+                            aliases_to_make_visible: None,
+                            error_symbol_name: Some(self.symbol_to_string_(
+                                symbol,
+                                Some(enclosing_declaration),
+                                Some(meaning),
+                                None,
+                                None,
+                            )),
+                            error_module_name: Some(self.symbol_to_string_(
+                                &symbol_external_module,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                                None,
+                            )),
+                            error_node: if is_in_js_file(Some(enclosing_declaration)) {
+                                Some(enclosing_declaration.node_wrapper())
+                            } else {
+                                None
+                            },
+                        };
+                    }
+                }
+
+                return SymbolAccessibilityResult {
+                    accessibility: SymbolAccessibility::NotAccessible,
+                    aliases_to_make_visible: None,
+                    error_symbol_name: Some(self.symbol_to_string_(
+                        symbol,
+                        Some(enclosing_declaration),
+                        Some(meaning),
+                        None,
+                        None,
+                    )),
+                    error_node: None,
+                    error_module_name: None,
+                };
+            }
+        }
+
+        SymbolAccessibilityResult {
+            accessibility: SymbolAccessibility::Accessible,
+            aliases_to_make_visible: None,
+            error_symbol_name: None,
+            error_node: None,
+            error_module_name: None,
+        }
     }
 
     pub(super) fn get_external_module_container(&self, declaration: &Node) -> Option<Rc<Symbol>> {
