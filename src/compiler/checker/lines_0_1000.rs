@@ -1634,8 +1634,14 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
     ) -> Option<Node /*EntityName*/> {
-        self.node_builder
-            .symbol_to_entity_name(symbol, meaning, enclosing_declaration, flags, None)
+        self.node_builder.symbol_to_entity_name(
+            self,
+            symbol,
+            Some(meaning),
+            enclosing_declaration,
+            flags,
+            None,
+        )
     }
 
     pub fn symbol_to_expression<TEnclosingDeclaration: Borrow<Node>>(

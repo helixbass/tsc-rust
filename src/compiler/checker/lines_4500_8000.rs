@@ -13,10 +13,10 @@ use crate::{
     is_module_with_string_literal_name, is_variable_declaration, is_variable_statement,
     synthetic_factory, unescape_leading_underscores, using_single_line_string_writer, Debug_,
     EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode, ModifierFlags, Node, NodeArray,
-    NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions, Signature, SignatureKind, Symbol,
-    SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTracker,
-    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate,
+    NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions, PrinterOptionsBuilder, Signature,
+    SignatureKind, Symbol, SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolInterface,
+    SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeFormatFlags, TypeInterface, TypePredicate,
 };
 
 impl TypeChecker {
@@ -245,8 +245,10 @@ impl TypeChecker {
         let builder = if flags.intersects(SymbolFormatFlags::AllowAnyNodeKind) {
             NodeBuilder::symbol_to_expression
         } else {
-            unimplemented!()
+            NodeBuilder::symbol_to_entity_name
         };
+        let enclosing_declaration = enclosing_declaration
+            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let symbol_to_string_worker = |writer: Rc<RefCell<dyn EmitTextWriter>>| {
             let entity = builder(
                 &self.node_builder,
@@ -254,27 +256,40 @@ impl TypeChecker {
                 symbol,
                 // meaning.unwrap() TODO: this is ! in the Typescript code but would be undefined at runtime when called from propertyRelatedTo()?
                 meaning,
-                Option::<&Node>::None, // TODO: this is wrong
+                enclosing_declaration.as_deref(),
                 Some(node_flags),
                 None,
             )
             .unwrap();
             let entity: Rc<Node> = entity.into();
-            let mut printer = if false {
-                unimplemented!()
+            let mut printer = if matches!(enclosing_declaration.as_ref(), Some(enclosing_declaration) if enclosing_declaration.kind() == SyntaxKind::SourceFile)
+            {
+                create_printer(
+                    PrinterOptionsBuilder::default()
+                        .remove_comments(Some(true))
+                        .never_ascii_escape(Some(true))
+                        .build()
+                        .unwrap(),
+                )
             } else {
-                create_printer(PrinterOptions {/*remove_comments: true*/})
+                create_printer(
+                    PrinterOptionsBuilder::default()
+                        .remove_comments(Some(true))
+                        .build()
+                        .unwrap(),
+                )
             };
-            let source_file = if let Some(enclosing_declaration) = enclosing_declaration {
-                Some(get_source_file_of_node(Some(enclosing_declaration.borrow())).unwrap())
-            } else {
-                None
-            };
-            printer.write_node(EmitHint::Unspecified, &*entity, source_file, writer);
+            let source_file = enclosing_declaration
+                .as_deref()
+                .and_then(|enclosing_declaration| {
+                    get_source_file_of_node(Some(enclosing_declaration))
+                });
+            printer.write_node(EmitHint::Unspecified, &entity, source_file, writer);
             // writer
         };
         if let Some(writer) = writer {
-            unimplemented!()
+            symbol_to_string_worker(writer.clone());
+            RefCell::borrow(&writer).get_text()
         } else {
             using_single_line_string_writer(symbol_to_string_worker)
         }
@@ -324,7 +339,7 @@ impl TypeChecker {
             None => Debug_.fail(Some("should always get typenode")),
             Some(type_node) => type_node.wrap(),
         };
-        let options = PrinterOptions {};
+        let options = Default::default();
         let mut printer = create_printer(options);
         let source_file: Option<Rc<Node /*SourceFile*/>> =
             if let Some(enclosing_declaration) = enclosing_declaration {
@@ -455,8 +470,9 @@ impl NodeBuilder {
 
     pub fn symbol_to_entity_name<TEnclosingDeclaration: Borrow<Node>>(
         &self,
+        type_checker: &TypeChecker,
         symbol: &Symbol,
-        meaning: SymbolFlags,
+        meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,

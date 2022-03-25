@@ -1,12 +1,13 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
+use derive_builder::Builder;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
-use crate::{CommentRange, SortedArray};
+use crate::{CommentRange, ModuleKind, NewLineKind, ScriptTarget, SortedArray};
 use local_macros::{ast_type, enum_unwrapped};
 
 pub struct Printer {
@@ -21,7 +22,27 @@ pub trait PrintHandlers {
     fn has_global_name(&self, name: &str) -> Option<bool>;
 }
 
-pub struct PrinterOptions {}
+#[derive(Builder, Default)]
+pub struct PrinterOptions {
+    pub remove_comments: Option<bool>,
+    pub new_line: Option<NewLineKind>,
+    pub omit_trailing_semicolon: Option<bool>,
+    pub no_emit_helpers: Option<bool>,
+    pub(crate) module: Option<ModuleKind>,
+    pub(crate) target: Option<ScriptTarget>,
+    pub(crate) source_map: Option<bool>,
+    pub(crate) inline_source_map: Option<bool>,
+    pub(crate) inline_sources: Option<bool>,
+    pub(crate) extended_diagnostics: Option<bool>,
+    pub(crate) only_print_js_doc_style: Option<bool>,
+    pub(crate) never_ascii_escape: Option<bool>,
+    pub(crate) write_bundle_info_file: Option<bool>,
+    pub(crate) record_internal_section: Option<bool>,
+    pub(crate) strip_internal: Option<bool>,
+    pub(crate) preserve_source_newlines: Option<bool>,
+    pub(crate) terminate_unterminated_literals: Option<bool>,
+    // pub(crate) relative_to_build_info: Option<fn(&str) -> String>,
+}
 
 pub(crate) struct RawSourceMap {
     pub version: u32, /*3*/
