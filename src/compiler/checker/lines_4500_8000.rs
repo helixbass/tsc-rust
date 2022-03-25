@@ -1,7 +1,8 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, HashSet};
 use std::ptr;
 use std::rc::Rc;
 
@@ -15,10 +16,11 @@ use crate::{
     is_module_with_string_literal_name, is_variable_declaration, is_variable_statement,
     no_truncation_maximum_truncation_length, synthetic_factory, unescape_leading_underscores,
     using_single_line_string_writer, Debug_, EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode,
-    ModifierFlags, Node, NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags,
+    ModifierFlags, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags,
     PrinterOptionsBuilder, Signature, SignatureKind, Symbol, SymbolAccessibility, SymbolFlags,
-    SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolVisibilityResult,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
+    SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
+    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId,
+    TypeInterface, TypePredicate,
 };
 
 impl TypeChecker {
@@ -670,11 +672,23 @@ impl NodeBuilder {
         tracker: Option<&dyn SymbolTracker>,
         cb: TCallback,
     ) -> Option<TReturn> {
+        let enclosing_declaration = enclosing_declaration
+            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
+        Debug_.assert(
+            match enclosing_declaration.as_ref() {
+                None => true,
+                Some(enclosing_declaration) => !enclosing_declaration
+                    .flags()
+                    .intersects(NodeFlags::Synthesized),
+            },
+            None,
+        );
         let default_tracker: Option<DefaultNodeBuilderContextSymbolTracker> = match tracker {
             Some(_) => None,
             None => Some(DefaultNodeBuilderContextSymbolTracker::new()),
         };
         let context = NodeBuilderContext::new(
+            enclosing_declaration,
             flags.unwrap_or(NodeBuilderFlags::None),
             tracker.unwrap_or_else(|| default_tracker.as_ref().unwrap()),
         );
@@ -1307,13 +1321,51 @@ impl DefaultNodeBuilderContextSymbolTracker {
 impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {}
 
 pub struct NodeBuilderContext<'symbol_tracker> {
-    flags: NodeBuilderFlags,
-    tracker: &'symbol_tracker dyn SymbolTracker,
+    pub enclosing_declaration: Option<Rc<Node>>,
+    pub flags: NodeBuilderFlags,
+    pub tracker: &'symbol_tracker dyn SymbolTracker,
+
+    pub encountered_error: Cell<bool>,
+    pub reported_diagnostic: Cell<bool>,
+    pub visited_types: RefCell<Option<HashSet<TypeId>>>,
+    pub symbol_depth: RefCell<Option<HashMap<String, usize>>>,
+    pub infer_type_parameters: RefCell<Option<Vec<Rc<Type /*TypeParameter*/>>>>,
+    pub approximate_length: Cell<usize>,
+    pub truncating: Cell<Option<bool>>,
+    pub type_parameter_symbol_list: RefCell<Option<HashSet<SymbolId>>>,
+    pub type_parameter_names: RefCell<Option<HashMap<TypeId, Rc<Node /*Identifier*/>>>>,
+    pub type_parameter_names_by_text: RefCell<Option<HashSet<String>>>,
+    pub type_parameter_names_by_text_next_name_count: RefCell<Option<HashMap<String, usize>>>,
+    pub used_symbol_names: RefCell<Option<HashSet<String>>>,
+    pub remapped_symbol_names: RefCell<Option<HashMap<SymbolId, String>>>,
+    pub reverse_mapped_stack: RefCell<Option<Vec<Rc<Symbol /*ReverseMappedSymbol*/>>>>,
 }
 
 impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
-    pub fn new(flags: NodeBuilderFlags, tracker: &'symbol_tracker dyn SymbolTracker) -> Self {
-        Self { flags, tracker }
+    pub fn new(
+        enclosing_declaration: Option<Rc<Node>>,
+        flags: NodeBuilderFlags,
+        tracker: &'symbol_tracker dyn SymbolTracker,
+    ) -> Self {
+        Self {
+            enclosing_declaration,
+            flags,
+            tracker,
+            encountered_error: Cell::new(false),
+            reported_diagnostic: Cell::new(false),
+            visited_types: RefCell::new(None),
+            symbol_depth: RefCell::new(None),
+            infer_type_parameters: RefCell::new(None),
+            approximate_length: Cell::new(0),
+            truncating: Cell::new(None),
+            type_parameter_symbol_list: RefCell::new(None),
+            type_parameter_names: RefCell::new(None),
+            type_parameter_names_by_text: RefCell::new(None),
+            type_parameter_names_by_text_next_name_count: RefCell::new(None),
+            used_symbol_names: RefCell::new(None),
+            remapped_symbol_names: RefCell::new(None),
+            reverse_mapped_stack: RefCell::new(None),
+        }
     }
 }
 
