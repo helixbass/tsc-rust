@@ -5,12 +5,15 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    create_printer, create_text_writer, factory, get_emit_script_target, get_object_flags,
-    get_source_file_of_node, is_expression, is_external_or_common_js_module, is_identifier_text,
-    is_module_with_string_literal_name, synthetic_factory, unescape_leading_underscores,
-    using_single_line_string_writer, Debug_, EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode,
-    Node, NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions, Signature,
-    SignatureKind, Symbol, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTracker,
+    append_if_unique_rc, create_printer, create_text_writer, every, factory, filter,
+    get_emit_script_target, get_object_flags, get_source_file_of_node, has_syntactic_modifier,
+    is_binding_element, is_expression, is_external_or_common_js_module, is_identifier_text,
+    is_in_js_file, is_late_visibility_painted_statement, is_module_with_string_literal_name,
+    is_variable_declaration, is_variable_statement, synthetic_factory,
+    unescape_leading_underscores, using_single_line_string_writer, Debug_, EmitHint,
+    EmitTextWriter, IndexInfo, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilderFlags,
+    NodeInterface, ObjectFlags, PrinterOptions, Signature, SignatureKind, Symbol,
+    SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTracker,
     SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
     TypeInterface, TypePredicate,
 };
@@ -30,7 +33,139 @@ impl TypeChecker {
         symbol: &Symbol,
         should_compute_aliases_to_make_visible: bool,
     ) -> Option<SymbolVisibilityResult> {
-        unimplemented!()
+        let aliases_to_make_visible: RefCell<
+            Option<Vec<Rc<Node /*LateVisibilityPaintedStatement*/>>>,
+        > = RefCell::new(None);
+        if !every(
+            &filter(symbol.maybe_declarations().as_deref(), |d: &Rc<Node>| {
+                d.kind() != SyntaxKind::Identifier
+            })
+            .unwrap_or_else(|| vec![]),
+            |d: &Rc<Node>, _| {
+                self.get_is_declaration_visible(
+                    symbol,
+                    should_compute_aliases_to_make_visible,
+                    &aliases_to_make_visible,
+                    d,
+                )
+            },
+        ) {
+            return None;
+        }
+        Some(SymbolVisibilityResult {
+            accessibility: SymbolAccessibility::Accessible,
+            aliases_to_make_visible: aliases_to_make_visible.into_inner(),
+            error_symbol_name: None,
+            error_node: None,
+        })
+    }
+
+    pub(super) fn get_is_declaration_visible(
+        &self,
+        symbol: &Symbol,
+        should_compute_aliases_to_make_visible: bool,
+        aliases_to_make_visible: &RefCell<Option<Vec<Rc<Node>>>>,
+        declaration: &Node, /*Declaration*/
+    ) -> bool {
+        if !self.is_declaration_visible(declaration) {
+            let any_import_syntax = self.get_any_import_syntax(declaration);
+            if matches!(
+                any_import_syntax.as_ref(),
+                Some(any_import_syntax) if !has_syntactic_modifier(any_import_syntax, ModifierFlags::Export) && self.is_declaration_visible(&any_import_syntax.parent())
+            ) {
+                return self.add_visible_alias(
+                    should_compute_aliases_to_make_visible,
+                    aliases_to_make_visible,
+                    declaration,
+                    any_import_syntax.as_ref().unwrap(),
+                );
+            } else if is_variable_declaration(declaration)
+                && is_variable_statement(&declaration.parent().parent())
+            {
+                return self.add_visible_alias(
+                    should_compute_aliases_to_make_visible,
+                    aliases_to_make_visible,
+                    declaration,
+                    &declaration.parent().parent(),
+                );
+            } else if is_late_visibility_painted_statement(declaration)
+                && !has_syntactic_modifier(declaration, ModifierFlags::Export)
+                && self.is_declaration_visible(&declaration.parent())
+            {
+                return self.add_visible_alias(
+                    should_compute_aliases_to_make_visible,
+                    aliases_to_make_visible,
+                    declaration,
+                    declaration,
+                );
+            } else if symbol.flags().intersects(SymbolFlags::Alias)
+                && is_binding_element(declaration)
+                && is_in_js_file(Some(declaration))
+            {
+                let declaration_parent_parent = declaration
+                    .maybe_parent()
+                    .and_then(|parent| parent.maybe_parent());
+                if let Some(declaration_parent_parent) = declaration_parent_parent {
+                    if is_variable_declaration(&declaration_parent_parent) {
+                        let declaration_parent_parent_parent_parent = declaration_parent_parent
+                            .maybe_parent()
+                            .and_then(|parent| parent.maybe_parent());
+                        if let Some(declaration_parent_parent_parent_parent) =
+                            declaration_parent_parent_parent_parent
+                        {
+                            if is_variable_statement(&declaration_parent_parent_parent_parent)
+                                && !has_syntactic_modifier(
+                                    &declaration_parent_parent_parent_parent,
+                                    ModifierFlags::Export,
+                                )
+                            {
+                                let declaration_parent_parent_parent_parent_parent =
+                                    declaration_parent_parent_parent_parent.maybe_parent();
+                                if let Some(declaration_parent_parent_parent_parent_parent) =
+                                    declaration_parent_parent_parent_parent_parent
+                                {
+                                    if self.is_declaration_visible(
+                                        &declaration_parent_parent_parent_parent_parent,
+                                    ) {
+                                        return self.add_visible_alias(
+                                            should_compute_aliases_to_make_visible,
+                                            aliases_to_make_visible,
+                                            declaration,
+                                            &declaration_parent_parent_parent_parent,
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        true
+    }
+
+    pub(super) fn add_visible_alias(
+        &self,
+        should_compute_aliases_to_make_visible: bool,
+        aliases_to_make_visible: &RefCell<Option<Vec<Rc<Node>>>>,
+        declaration: &Node,        /*Declaration*/
+        aliasing_statement: &Node, /*LateVisibilityPaintedStatement*/
+    ) -> bool {
+        if should_compute_aliases_to_make_visible {
+            self.get_node_links(declaration).borrow_mut().is_visible = Some(true);
+            let mut aliases_to_make_visible = aliases_to_make_visible.borrow_mut();
+            if aliases_to_make_visible.is_none() {
+                *aliases_to_make_visible = Some(vec![]);
+            }
+            append_if_unique_rc(
+                aliases_to_make_visible.as_mut().unwrap(),
+                &aliasing_statement.node_wrapper(),
+            );
+        }
+        true
     }
 
     pub(super) fn symbol_to_string_<TEnclosingDeclaration: Borrow<Node>>(

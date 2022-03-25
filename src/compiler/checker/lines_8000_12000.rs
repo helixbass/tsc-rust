@@ -89,6 +89,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_declaration_visible(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_of_property_of_type_(
         &self,
         type_: &Type,
