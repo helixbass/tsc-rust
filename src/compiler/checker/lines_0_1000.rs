@@ -2422,6 +2422,10 @@ impl TypeChecker {
         self.error_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn unresolved_type(&self) -> Rc<Type> {
+        self.unresolved_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn unknown_type(&self) -> Rc<Type> {
         self.unknown_type.as_ref().unwrap().clone()
     }

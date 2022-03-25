@@ -2,22 +2,23 @@
 
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    append_if_unique_rc, create_printer, create_text_writer, every, factory, filter,
-    get_emit_script_target, get_first_identifier, get_object_flags, get_source_file_of_node,
-    get_text_of_node, get_trailing_semicolon_deferring_writer, has_syntactic_modifier,
-    is_binding_element, is_expression, is_expression_with_type_arguments_in_class_extends_clause,
-    is_external_or_common_js_module, is_identifier_text, is_in_js_file,
-    is_late_visibility_painted_statement, is_module_with_string_literal_name,
-    is_variable_declaration, is_variable_statement, synthetic_factory,
-    unescape_leading_underscores, using_single_line_string_writer, Debug_, EmitHint,
-    EmitTextWriter, IndexInfo, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilderFlags,
-    NodeInterface, ObjectFlags, PrinterOptionsBuilder, Signature, SignatureKind, Symbol,
-    SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTracker,
-    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate,
+    append_if_unique_rc, create_printer, create_text_writer, default_maximum_truncation_length,
+    every, factory, filter, get_emit_script_target, get_first_identifier, get_object_flags,
+    get_source_file_of_node, get_text_of_node, get_trailing_semicolon_deferring_writer,
+    has_syntactic_modifier, is_binding_element, is_expression,
+    is_expression_with_type_arguments_in_class_extends_clause, is_external_or_common_js_module,
+    is_identifier_text, is_in_js_file, is_late_visibility_painted_statement,
+    is_module_with_string_literal_name, is_variable_declaration, is_variable_statement,
+    no_truncation_maximum_truncation_length, synthetic_factory, unescape_leading_underscores,
+    using_single_line_string_writer, Debug_, EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode,
+    ModifierFlags, Node, NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags,
+    PrinterOptionsBuilder, Signature, SignatureKind, Symbol, SymbolAccessibility, SymbolFlags,
+    SymbolFormatFlags, SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
 };
 
 impl TypeChecker {
@@ -383,10 +384,10 @@ impl TypeChecker {
         // writer
     }
 
-    pub(super) fn type_to_string_<TNodeRef: Borrow<Node>>(
+    pub(super) fn type_to_string_<TEnclosingDeclaration: Borrow<Node>>(
         &self,
         type_: &Type,
-        enclosing_declaration: Option<TNodeRef>,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
     ) -> String {
@@ -395,11 +396,14 @@ impl TypeChecker {
                 | TypeFormatFlags::UseAliasDefinedOutsideCurrentScope,
         );
         let writer = writer.unwrap_or_else(|| Rc::new(RefCell::new(create_text_writer(""))));
-        let no_truncation = false || flags.intersects(TypeFormatFlags::NoTruncation);
+        let no_truncation = matches!(self.compiler_options.no_error_truncation, Some(true))
+            || flags.intersects(TypeFormatFlags::NoTruncation);
+        let enclosing_declaration = enclosing_declaration
+            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
         let type_node = self.node_builder.type_to_type_node(
             self,
             type_,
-            Option::<&Node>::None, // TODO: this is wrong
+            enclosing_declaration.as_deref(),
             Some(
                 self.to_node_builder_flags(Some(flags))
                     | NodeBuilderFlags::IgnoreErrors
@@ -415,23 +419,29 @@ impl TypeChecker {
             None => Debug_.fail(Some("should always get typenode")),
             Some(type_node) => type_node.wrap(),
         };
-        let options = Default::default();
+        let options = PrinterOptionsBuilder::default()
+            .remove_comments(Some(!ptr::eq(type_, &*self.unresolved_type())))
+            .build()
+            .unwrap();
         let mut printer = create_printer(options);
-        let source_file: Option<Rc<Node /*SourceFile*/>> =
-            if let Some(enclosing_declaration) = enclosing_declaration {
-                let enclosing_declaration = enclosing_declaration.borrow();
-                Some(get_source_file_of_node(Some(enclosing_declaration)).unwrap())
-            } else {
-                None
-            };
+        let source_file = enclosing_declaration
+            .and_then(|enclosing_declaration| get_source_file_of_node(Some(enclosing_declaration)));
         printer.write_node(
             EmitHint::Unspecified,
-            &*type_node,
+            &type_node,
             source_file,
             writer.clone(),
         );
         let result = (*writer).borrow().get_text();
 
+        let max_length = if no_truncation {
+            no_truncation_maximum_truncation_length * 2
+        } else {
+            default_maximum_truncation_length * 2
+        };
+        if max_length != 0 && !result.is_empty() && result.len() >= max_length {
+            return format!("{}...", &result[0..max_length - "...".len()]);
+        }
         result
     }
 

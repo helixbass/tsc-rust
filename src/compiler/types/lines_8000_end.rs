@@ -23,6 +23,7 @@ pub trait PrintHandlers {
 }
 
 #[derive(Builder, Default)]
+#[builder(default)]
 pub struct PrinterOptions {
     pub remove_comments: Option<bool>,
     pub new_line: Option<NewLineKind>,
