@@ -6,13 +6,14 @@ use std::rc::Rc;
 
 use crate::{
     append_if_unique_rc, create_printer, create_text_writer, every, factory, filter,
-    get_emit_script_target, get_object_flags, get_source_file_of_node, has_syntactic_modifier,
-    is_binding_element, is_expression, is_external_or_common_js_module, is_identifier_text,
-    is_in_js_file, is_late_visibility_painted_statement, is_module_with_string_literal_name,
-    is_variable_declaration, is_variable_statement, synthetic_factory,
-    unescape_leading_underscores, using_single_line_string_writer, Debug_, EmitHint,
-    EmitTextWriter, IndexInfo, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilderFlags,
-    NodeInterface, ObjectFlags, PrinterOptions, Signature, SignatureKind, Symbol,
+    get_emit_script_target, get_first_identifier, get_object_flags, get_source_file_of_node,
+    get_text_of_node, has_syntactic_modifier, is_binding_element, is_expression,
+    is_expression_with_type_arguments_in_class_extends_clause, is_external_or_common_js_module,
+    is_identifier_text, is_in_js_file, is_late_visibility_painted_statement,
+    is_module_with_string_literal_name, is_variable_declaration, is_variable_statement,
+    synthetic_factory, unescape_leading_underscores, using_single_line_string_writer, Debug_,
+    EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode, ModifierFlags, Node, NodeArray,
+    NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions, Signature, SignatureKind, Symbol,
     SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTracker,
     SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
     TypeInterface, TypePredicate,
@@ -166,6 +167,57 @@ impl TypeChecker {
             );
         }
         true
+    }
+
+    pub(super) fn is_entity_name_visible(
+        &self,
+        entity_name: &Node, /*EntityNameOrEntityNameExpression*/
+        enclosing_declaration: &Node,
+    ) -> SymbolVisibilityResult {
+        let meaning: SymbolFlags;
+        if entity_name.parent().kind() == SyntaxKind::TypeQuery
+            || is_expression_with_type_arguments_in_class_extends_clause(&entity_name.parent())
+            || entity_name.parent().kind() == SyntaxKind::ComputedPropertyName
+        {
+            meaning = SymbolFlags::Value | SymbolFlags::ExportValue;
+        } else if matches!(
+            entity_name.kind(),
+            SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression
+        ) || entity_name.parent().kind() == SyntaxKind::ImportEqualsDeclaration
+        {
+            meaning = SymbolFlags::Namespace;
+        } else {
+            meaning = SymbolFlags::Type;
+        }
+
+        let first_identifier = get_first_identifier(entity_name);
+        let symbol = self.resolve_name_(
+            Some(enclosing_declaration),
+            &first_identifier.as_identifier().escaped_text,
+            meaning,
+            None,
+            Option::<Rc<Node>>::None,
+            false,
+            None,
+        );
+        if matches!(symbol.as_ref(), Some(symbol) if symbol.flags().intersects(SymbolFlags::TypeParameter) && meaning.intersects(SymbolFlags::Type))
+        {
+            return SymbolVisibilityResult {
+                accessibility: SymbolAccessibility::Accessible,
+                aliases_to_make_visible: None,
+                error_symbol_name: None,
+                error_node: None,
+            };
+        }
+
+        symbol
+            .and_then(|symbol| self.has_visible_declarations(&symbol, true))
+            .unwrap_or_else(|| SymbolVisibilityResult {
+                accessibility: SymbolAccessibility::NotAccessible,
+                aliases_to_make_visible: None,
+                error_symbol_name: Some(get_text_of_node(&first_identifier, None).into_owned()),
+                error_node: Some(first_identifier),
+            })
     }
 
     pub(super) fn symbol_to_string_<TEnclosingDeclaration: Borrow<Node>>(
