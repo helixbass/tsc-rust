@@ -459,7 +459,15 @@ bitflags! {
 
         const AllowUniqueESSymbolType = 1 << 20;
 
+        const AddUndefined = 1 << 17;
+        const WriteArrowStyleSignature = 1 << 18;
+
+        const InArrayType = 1 << 19;
+        const InElementType = 1 << 21;
+        const InFirstTypeArgument = 1 << 22;
         const InTypeAlias = 1 << 23;
+
+        // const WriteOwnNameForAnyLike = 0;
 
         const NodeBuilderFlagsMask = Self::NoTruncation.bits | Self::WriteArrayAsGenericType.bits | Self::UseStructuralFallback.bits | Self::WriteTypeArgumentsOfSignature.bits | Self::UseFullyQualifiedType.bits | Self::SuppressAnyReturnType.bits | Self::MultilineObjectLiterals.bits | Self::WriteClassExpressionAsTypeLiteral.bits | Self::UseTypeOfFunction.bits | Self::OmitParameterModifiers.bits | Self::UseAliasDefinedOutsideCurrentScope.bits | Self::AllowUniqueESSymbolType.bits | Self::InTypeAlias.bits | Self::UseSingleQuotesForStringLiteralType.bits | Self::NoTypeReduction.bits;
     }

@@ -282,19 +282,19 @@ pub fn create_text_writer(new_line: &str) -> TextWriter {
     // text_writer.reset()
 }
 
-pub fn get_trailing_semicolon_deferring_writer<TWriter: EmitTextWriter>(
-    writer: TWriter,
-) -> TrailingSemicolonDeferringWriter<TWriter> {
+pub fn get_trailing_semicolon_deferring_writer(
+    writer: Rc<RefCell<dyn EmitTextWriter>>,
+) -> TrailingSemicolonDeferringWriter {
     TrailingSemicolonDeferringWriter::new(writer)
 }
 
-pub struct TrailingSemicolonDeferringWriter<TWriter: EmitTextWriter> {
-    writer: TWriter,
+pub struct TrailingSemicolonDeferringWriter {
+    writer: Rc<RefCell<dyn EmitTextWriter>>,
     pending_trailing_semicolon: bool,
 }
 
-impl<TWriter: EmitTextWriter> TrailingSemicolonDeferringWriter<TWriter> {
-    pub fn new(writer: TWriter) -> Self {
+impl TrailingSemicolonDeferringWriter {
+    pub fn new(writer: Rc<RefCell<dyn EmitTextWriter>>) -> Self {
         Self {
             writer,
             pending_trailing_semicolon: false,
@@ -303,29 +303,29 @@ impl<TWriter: EmitTextWriter> TrailingSemicolonDeferringWriter<TWriter> {
 
     fn commit_pending_trailing_semicolon(&mut self) {
         if self.pending_trailing_semicolon {
-            self.writer.write_trailing_semicolon(";");
+            self.writer.borrow_mut().write_trailing_semicolon(";");
             self.pending_trailing_semicolon = false;
         }
     }
 }
 
-impl<TWriter: EmitTextWriter> EmitTextWriter for TrailingSemicolonDeferringWriter<TWriter> {
+impl EmitTextWriter for TrailingSemicolonDeferringWriter {
     fn write(&mut self, s: &str) {
-        self.writer.write(s)
+        self.writer.borrow_mut().write(s)
     }
 
     fn write_comment(&mut self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_comment(s)
+        self.writer.borrow_mut().write_comment(s)
     }
 
     fn raw_write(&mut self, s: &str) {
-        self.writer.raw_write(s)
+        self.writer.borrow_mut().raw_write(s)
     }
 
     fn write_literal(&mut self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_literal(s)
+        self.writer.borrow_mut().write_literal(s)
     }
 
     fn write_trailing_semicolon(&mut self, text: &str) {
@@ -333,96 +333,96 @@ impl<TWriter: EmitTextWriter> EmitTextWriter for TrailingSemicolonDeferringWrite
     }
 
     fn get_text(&self) -> String {
-        self.writer.get_text()
+        self.writer.borrow_mut().get_text()
     }
 
     fn get_text_pos(&self) -> usize {
-        self.writer.get_text_pos()
+        self.writer.borrow_mut().get_text_pos()
     }
 
     fn get_line(&self) -> usize {
-        self.writer.get_line()
+        self.writer.borrow_mut().get_line()
     }
 
     fn get_column(&self) -> usize {
-        self.writer.get_column()
+        self.writer.borrow_mut().get_column()
     }
 
     fn get_indent(&self) -> usize {
-        self.writer.get_indent()
+        self.writer.borrow_mut().get_indent()
     }
 
     fn is_at_start_of_line(&self) -> bool {
-        self.writer.is_at_start_of_line()
+        self.writer.borrow_mut().is_at_start_of_line()
     }
 
     fn has_trailing_comment(&self) -> bool {
-        self.writer.has_trailing_comment()
+        self.writer.borrow_mut().has_trailing_comment()
     }
 
     fn has_trailing_whitespace(&self) -> bool {
-        self.writer.has_trailing_whitespace()
+        self.writer.borrow_mut().has_trailing_whitespace()
     }
 }
 
-impl<TWriter: EmitTextWriter> SymbolWriter for TrailingSemicolonDeferringWriter<TWriter> {
+impl SymbolWriter for TrailingSemicolonDeferringWriter {
     fn write_line(&mut self, _force: Option<bool>) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_line(None)
+        self.writer.borrow_mut().write_line(None)
     }
 
     fn increase_indent(&mut self) {
         self.commit_pending_trailing_semicolon();
-        self.writer.increase_indent()
+        self.writer.borrow_mut().increase_indent()
     }
 
     fn decrease_indent(&mut self) {
         self.commit_pending_trailing_semicolon();
-        self.writer.decrease_indent()
+        self.writer.borrow_mut().decrease_indent()
     }
 
     fn write_keyword(&mut self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_keyword(s)
+        self.writer.borrow_mut().write_keyword(s)
     }
 
     fn write_operator(&mut self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_operator(s)
+        self.writer.borrow_mut().write_operator(s)
     }
 
     fn write_parameter(&mut self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_parameter(s)
+        self.writer.borrow_mut().write_parameter(s)
     }
 
     fn write_punctuation(&mut self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_punctuation(s)
+        self.writer.borrow_mut().write_punctuation(s)
     }
 
     fn write_space(&mut self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_space(s)
+        self.writer.borrow_mut().write_space(s)
     }
 
     fn write_string_literal(&mut self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_string_literal(s)
+        self.writer.borrow_mut().write_string_literal(s)
     }
 
     fn write_property(&mut self, s: &str) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_property(s)
+        self.writer.borrow_mut().write_property(s)
     }
 
     fn write_symbol(&mut self, s: &str, sym: &Symbol) {
         self.commit_pending_trailing_semicolon();
-        self.writer.write_symbol(s, sym)
+        self.writer.borrow_mut().write_symbol(s, sym)
     }
 
     fn clear(&mut self) {
-        self.writer.clear()
+        self.writer.borrow_mut().clear()
     }
 
     fn as_symbol_tracker(&self) -> &dyn SymbolTracker {
@@ -431,7 +431,7 @@ impl<TWriter: EmitTextWriter> SymbolWriter for TrailingSemicolonDeferringWriter<
 }
 
 // TODO: should explicitly forward all SymbolTracker methods to self.writer too?
-impl<TWriter: EmitTextWriter> SymbolTracker for TrailingSemicolonDeferringWriter<TWriter> {}
+impl SymbolTracker for TrailingSemicolonDeferringWriter {}
 
 pub fn host_uses_case_sensitive_file_names<TGetUseCaseSensitiveFileNames: Fn() -> Option<bool>>(
     get_use_case_sensitive_file_names: TGetUseCaseSensitiveFileNames,

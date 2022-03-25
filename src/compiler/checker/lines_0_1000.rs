@@ -1847,7 +1847,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
-        writer: Option<&dyn EmitTextWriter>,
+        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
     ) -> String {
         self.signature_to_string_(
             signature,

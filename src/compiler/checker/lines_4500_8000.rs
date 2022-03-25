@@ -7,16 +7,17 @@ use std::rc::Rc;
 use crate::{
     append_if_unique_rc, create_printer, create_text_writer, every, factory, filter,
     get_emit_script_target, get_first_identifier, get_object_flags, get_source_file_of_node,
-    get_text_of_node, has_syntactic_modifier, is_binding_element, is_expression,
-    is_expression_with_type_arguments_in_class_extends_clause, is_external_or_common_js_module,
-    is_identifier_text, is_in_js_file, is_late_visibility_painted_statement,
-    is_module_with_string_literal_name, is_variable_declaration, is_variable_statement,
-    synthetic_factory, unescape_leading_underscores, using_single_line_string_writer, Debug_,
-    EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode, ModifierFlags, Node, NodeArray,
-    NodeBuilderFlags, NodeInterface, ObjectFlags, PrinterOptions, PrinterOptionsBuilder, Signature,
-    SignatureKind, Symbol, SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolInterface,
-    SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypePredicate,
+    get_text_of_node, get_trailing_semicolon_deferring_writer, has_syntactic_modifier,
+    is_binding_element, is_expression, is_expression_with_type_arguments_in_class_extends_clause,
+    is_external_or_common_js_module, is_identifier_text, is_in_js_file,
+    is_late_visibility_painted_statement, is_module_with_string_literal_name,
+    is_variable_declaration, is_variable_statement, synthetic_factory,
+    unescape_leading_underscores, using_single_line_string_writer, Debug_, EmitHint,
+    EmitTextWriter, IndexInfo, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilderFlags,
+    NodeInterface, ObjectFlags, PrinterOptionsBuilder, Signature, SignatureKind, Symbol,
+    SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolInterface, SymbolTracker,
+    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags,
+    TypeInterface, TypePredicate,
 };
 
 impl TypeChecker {
@@ -301,10 +302,85 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
-        writer: Option<&dyn EmitTextWriter>,
+        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
     ) -> String {
         let flags = flags.unwrap_or(TypeFormatFlags::None);
-        unimplemented!()
+        if let Some(writer) = writer {
+            self.signature_to_string_worker(
+                signature,
+                enclosing_declaration,
+                flags,
+                kind,
+                writer.clone(),
+            );
+            RefCell::borrow(&writer).get_text()
+        } else {
+            using_single_line_string_writer(|writer: Rc<RefCell<dyn EmitTextWriter>>| {
+                self.signature_to_string_worker(
+                    signature,
+                    enclosing_declaration,
+                    flags,
+                    kind,
+                    writer,
+                )
+            })
+        }
+    }
+
+    pub(super) fn signature_to_string_worker<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        signature: &Signature,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: TypeFormatFlags,
+        kind: Option<SignatureKind>,
+        writer: Rc<RefCell<dyn EmitTextWriter>>,
+    ) {
+        let sig_output: SyntaxKind;
+        if flags.intersects(TypeFormatFlags::WriteArrowStyleSignature) {
+            sig_output = if matches!(kind, Some(SignatureKind::Construct)) {
+                SyntaxKind::ConstructorType
+            } else {
+                SyntaxKind::FunctionType
+            };
+        } else {
+            sig_output = if matches!(kind, Some(SignatureKind::Construct)) {
+                SyntaxKind::ConstructSignature
+            } else {
+                SyntaxKind::CallSignature
+            };
+        }
+        let enclosing_declaration = enclosing_declaration
+            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
+        let sig = self.node_builder.signature_to_signature_declaration(
+            signature,
+            sig_output,
+            enclosing_declaration.as_deref(),
+            Some(
+                self.to_node_builder_flags(Some(flags))
+                    | NodeBuilderFlags::IgnoreErrors
+                    | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
+            ),
+            None,
+        );
+        let mut printer = create_printer(
+            PrinterOptionsBuilder::default()
+                .remove_comments(Some(true))
+                .omit_trailing_semicolon(Some(true))
+                .build()
+                .unwrap(),
+        );
+        let source_file = enclosing_declaration
+            .as_deref()
+            .and_then(|enclosing_declaration| get_source_file_of_node(Some(enclosing_declaration)));
+        printer.write_node(
+            EmitHint::Unspecified,
+            &sig.unwrap(),
+            source_file,
+            Rc::new(RefCell::new(get_trailing_semicolon_deferring_writer(
+                writer,
+            ))),
+        );
+        // writer
     }
 
     pub(super) fn type_to_string_<TNodeRef: Borrow<Node>>(
