@@ -1375,6 +1375,10 @@ impl TypeChecker {
         })
     }
 
+    pub(super) fn maybe_cancellation_token(&self) -> Option<Rc<dyn CancellationTokenDebuggable>> {
+        self.cancellation_token.borrow().clone()
+    }
+
     pub(super) fn set_cancellation_token(
         &self,
         cancellation_token: Option<Rc<dyn CancellationTokenDebuggable>>,
@@ -2425,6 +2429,10 @@ impl TypeChecker {
 
     pub(super) fn unresolved_type(&self) -> Rc<Type> {
         self.unresolved_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn intrinsic_marker_type(&self) -> Rc<Type> {
+        self.intrinsic_marker_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn unknown_type(&self) -> Rc<Type> {

@@ -7,17 +7,19 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    append_if_unique_rc, create_printer, create_text_writer, default_maximum_truncation_length,
-    every, factory, filter, get_emit_script_target, get_first_identifier, get_object_flags,
-    get_source_file_of_node, get_text_of_node, get_trailing_semicolon_deferring_writer,
-    has_syntactic_modifier, is_binding_element, is_expression,
-    is_expression_with_type_arguments_in_class_extends_clause, is_external_or_common_js_module,
-    is_identifier_text, is_in_js_file, is_late_visibility_painted_statement,
-    is_module_with_string_literal_name, is_variable_declaration, is_variable_statement,
-    no_truncation_maximum_truncation_length, synthetic_factory, unescape_leading_underscores,
-    using_single_line_string_writer, Debug_, EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode,
-    ModifierFlags, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags,
-    PrinterOptionsBuilder, Signature, SignatureKind, Symbol, SymbolAccessibility, SymbolFlags,
+    add_synthetic_leading_comment, append_if_unique_rc, contains_rc, create_printer,
+    create_text_writer, default_maximum_truncation_length, every, factory, filter,
+    get_emit_script_target, get_first_identifier, get_object_flags, get_source_file_of_node,
+    get_text_of_node, get_trailing_semicolon_deferring_writer, has_syntactic_modifier, id_text,
+    is_binding_element, is_expression, is_expression_with_type_arguments_in_class_extends_clause,
+    is_external_or_common_js_module, is_identifier_text, is_import_type_node, is_in_js_file,
+    is_late_visibility_painted_statement, is_module_with_string_literal_name,
+    is_type_reference_node, is_variable_declaration, is_variable_statement, map,
+    no_truncation_maximum_truncation_length, pseudo_big_int_to_string, set_emit_flags, symbol_name,
+    synthetic_factory, unescape_leading_underscores, using_single_line_string_writer, Debug_,
+    EmitFlags, EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode, ModifierFlags, Node,
+    NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, PrinterOptionsBuilder,
+    ScriptTarget, Signature, SignatureKind, Symbol, SymbolAccessibility, SymbolFlags,
     SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId,
     TypeInterface, TypePredicate,
@@ -661,7 +663,7 @@ impl NodeBuilder {
         })
     }
 
-    fn with_context<
+    pub(super) fn with_context<
         TReturn,
         TEnclosingDeclaration: Borrow<Node>,
         TCallback: FnOnce(&NodeBuilderContext) -> Option<TReturn>,
@@ -683,6 +685,7 @@ impl NodeBuilder {
             },
             None,
         );
+        // TODO: finish this
         let default_tracker: Option<DefaultNodeBuilderContextSymbolTracker> = match tracker {
             Some(_) => None,
             None => Some(DefaultNodeBuilderContextSymbolTracker::new()),
@@ -696,68 +699,278 @@ impl NodeBuilder {
         resulting_node
     }
 
-    pub fn type_to_type_node_helper(
+    pub(super) fn check_truncation_length(&self, context: &NodeBuilderContext) -> bool {
+        if matches!(context.truncating.get(), Some(true)) {
+            return true;
+        }
+        context.truncating.set(Some(
+            context.approximate_length.get()
+                > if context.flags.intersects(NodeBuilderFlags::NoTruncation) {
+                    no_truncation_maximum_truncation_length
+                } else {
+                    default_maximum_truncation_length
+                },
+        ));
+        context.truncating.get().unwrap()
+    }
+
+    pub(super) fn type_to_type_node_helper<TType: Borrow<Type>>(
         &self,
         type_checker: &TypeChecker,
-        type_: &Type,
+        type_: Option<TType>,
         context: &NodeBuilderContext,
-    ) -> Node {
-        if type_.flags().intersects(TypeFlags::String) {
-            return Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_.create_keyword_type_node(synthetic_factory_, SyntaxKind::StringKeyword)
-                })
-            }))
-            .into();
+    ) -> Option<Node> {
+        if let Some(cancellation_token) = type_checker.maybe_cancellation_token()
+        /*&& cancellationToken.throwIfCancellationRequested*/
+        {
+            // cancellationToken.throwIfCancellationRequested();
         }
-        if type_.flags().intersects(TypeFlags::Number) {
-            return Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_.create_keyword_type_node(synthetic_factory_, SyntaxKind::NumberKeyword)
-                })
-            }))
-            .into();
-        }
-        if type_.flags().intersects(TypeFlags::BigInt) {
-            return Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_.create_keyword_type_node(synthetic_factory_, SyntaxKind::BigIntKeyword)
-                })
-            }))
-            .into();
-        }
-        if type_.flags().intersects(TypeFlags::Boolean) {
-            return Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
-                factory.with(|factory_| {
-                    factory_
-                        .create_keyword_type_node(synthetic_factory_, SyntaxKind::BooleanKeyword)
-                })
-            }))
-            .into();
-        }
-        if type_.flags().intersects(TypeFlags::StringLiteral) {
-            return synthetic_factory
-                .with(|synthetic_factory_| {
+        let in_type_alias = context.flags().intersects(NodeBuilderFlags::InTypeAlias);
+        context.set_flags(context.flags() & !NodeBuilderFlags::InTypeAlias);
+
+        if type_.is_none() {
+            if !context
+                .flags()
+                .intersects(NodeBuilderFlags::AllowEmptyUnionOrIntersection)
+            {
+                context.encountered_error.set(true);
+                return None;
+            }
+            context.increment_approximate_length_by(3);
+            return Some(
+                Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
                     factory.with(|factory_| {
-                        factory_.create_literal_type_node(
-                            synthetic_factory_,
-                            factory_
-                                .create_string_literal(
-                                    synthetic_factory_,
-                                    type_.as_string_literal_type().value.clone(),
-                                    Some(context.flags.intersects(
-                                        NodeBuilderFlags::UseSingleQuotesForStringLiteralType,
-                                    )),
+                        factory_
+                            .create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword)
+                    })
+                }))
+                .into(),
+            );
+        }
+        let type_ = type_.unwrap();
+        let mut type_ = type_.borrow().type_wrapper();
+
+        if !context
+            .flags()
+            .intersects(NodeBuilderFlags::NoTypeReduction)
+        {
+            type_ = type_checker.get_reduced_type(&type_);
+        }
+
+        if type_.flags().intersects(TypeFlags::Any) {
+            if let Some(type_alias_symbol) = type_.maybe_alias_symbol() {
+                return Some(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_type_reference_node(
+                                synthetic_factory_,
+                                self.symbol_to_entity_name_node(&type_alias_symbol),
+                                self.map_to_type_nodes(
+                                    type_checker,
+                                    type_.maybe_alias_type_arguments(),
+                                    context,
                                     None,
-                                )
-                                .into(),
+                                ),
+                            )
+                            .into()
+                    })
+                }));
+            }
+            if Rc::ptr_eq(&type_, &type_checker.unresolved_type()) {
+                return Some(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        add_synthetic_leading_comment(
+                            Into::<KeywordTypeNode>::into(factory_.create_keyword_type_node(
+                                synthetic_factory_,
+                                SyntaxKind::AnyKeyword,
+                            )),
+                            SyntaxKind::MultiLineCommentTrivia,
+                            "unresolved",
                         )
                     })
+                }));
+            }
+            context.increment_approximate_length_by(3);
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    Into::<KeywordTypeNode>::into(factory_.create_keyword_type_node(
+                        synthetic_factory_,
+                        if Rc::ptr_eq(&type_, &type_checker.intrinsic_marker_type()) {
+                            SyntaxKind::IntrinsicKeyword
+                        } else {
+                            SyntaxKind::AnyKeyword
+                        },
+                    ))
+                    .into()
                 })
-                .into();
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::Unknown) {
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    Into::<KeywordTypeNode>::into(
+                        factory_.create_keyword_type_node(
+                            synthetic_factory_,
+                            SyntaxKind::UnknownKeyword,
+                        ),
+                    )
+                    .into()
+                })
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::String) {
+            context.increment_approximate_length_by(6);
+            return Some(
+                Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_keyword_type_node(synthetic_factory_, SyntaxKind::StringKeyword)
+                    })
+                }))
+                .into(),
+            );
+        }
+        if type_.flags().intersects(TypeFlags::Number) {
+            context.increment_approximate_length_by(6);
+            return Some(
+                Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_keyword_type_node(synthetic_factory_, SyntaxKind::NumberKeyword)
+                    })
+                }))
+                .into(),
+            );
+        }
+        if type_.flags().intersects(TypeFlags::BigInt) {
+            context.increment_approximate_length_by(6);
+            return Some(
+                Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_keyword_type_node(synthetic_factory_, SyntaxKind::BigIntKeyword)
+                    })
+                }))
+                .into(),
+            );
+        }
+        if type_.flags().intersects(TypeFlags::Boolean) && type_.maybe_alias_symbol().is_none() {
+            context.increment_approximate_length_by(7);
+            return Some(
+                Into::<KeywordTypeNode>::into(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_.create_keyword_type_node(
+                            synthetic_factory_,
+                            SyntaxKind::BooleanKeyword,
+                        )
+                    })
+                }))
+                .into(),
+            );
+        }
+        if type_.flags().intersects(TypeFlags::EnumLiteral)
+            && !type_.flags().intersects(TypeFlags::Union)
+        {
+            let parent_symbol = type_checker.get_parent_of_symbol(&type_.symbol()).unwrap();
+            let parent_name =
+                self.symbol_to_type_node(type_checker, &parent_symbol, context, SymbolFlags::Type);
+            if Rc::ptr_eq(
+                &type_checker.get_declared_type_of_symbol(&parent_symbol),
+                &type_,
+            ) {
+                return Some(parent_name);
+            }
+            let member_name = symbol_name(&type_.symbol());
+            if is_identifier_text(&member_name, Some(ScriptTarget::ES3), None) {
+                return self.append_reference_to_type(
+                    &parent_name,
+                    synthetic_factory.with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_.create_type_reference_node(
+                                synthetic_factory_,
+                                member_name,
+                                None,
+                            )
+                        })
+                    }),
+                );
+            }
+            if is_import_type_node(&parent_name) {
+                parent_name.as_import_type_node().set_is_type_of(true);
+                return Some(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_.create_indexed_access_type_node(
+                            synthetic_factory_,
+                            parent_name,
+                            factory_.create_literal_type_node(
+                                synthetic_factory_,
+                                factory_.create_string_literal(synthetic_factory_, member_name),
+                            ),
+                        )
+                    })
+                }));
+            } else if is_type_reference_node() {
+                return Some(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_.create_indexed_access_type_node(
+                            synthetic_factory_,
+                            factory_.create_type_query_node(
+                                synthetic_factory_,
+                                parent_name.as_type_reference_node().type_name.clone(),
+                            ),
+                            factory_.create_literal_type_node(
+                                synthetic_factory_,
+                                factory_.create_string_literal(synthetic_factory_, member_name),
+                            ),
+                        )
+                    })
+                }));
+            } else {
+                Debug_.fail(Some(
+                    "Unhandled type node kind returned from `symbolToTypeNode`.",
+                ));
+            }
+        }
+        if type_.flags().intersects(TypeFlags::EnumLike) {
+            return Some(self.symbol_to_type_node(
+                type_checker,
+                &type_.symbol(),
+                context,
+                SymbolFlags::Type,
+                None,
+            ));
+        }
+        if type_.flags().intersects(TypeFlags::StringLiteral) {
+            let value = type_.as_string_literal_type().value.clone();
+            context.increment_approximate_length_by(value.len() + 2);
+            return Some(
+                synthetic_factory
+                    .with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_.create_literal_type_node(
+                            synthetic_factory_,
+                            set_emit_flags(
+                                factory_
+                                    .create_string_literal(
+                                        synthetic_factory_,
+                                        value,
+                                        Some(context.flags().intersects(
+                                            NodeBuilderFlags::UseSingleQuotesForStringLiteralType,
+                                        )),
+                                        None,
+                                    )
+                                    .into(),
+                                EmitFlags::NoAsciiEscaping,
+                            ),
+                        )
+                        })
+                    })
+                    .into(),
+            );
         }
         if type_.flags().intersects(TypeFlags::NumberLiteral) {
             let value = type_.as_number_literal_type().value.value();
+            context.increment_approximate_length_by(value.to_string().len());
             return synthetic_factory
                 .with(|synthetic_factory_| {
                     factory.with(|factory_| {
@@ -792,16 +1005,15 @@ impl NodeBuilder {
                 .into();
         }
         if type_.flags().intersects(TypeFlags::BigIntLiteral) {
+            let value = &type_.as_big_int_literal_type().value;
+            context.increment_approximate_length_by(pseudo_big_int_to_string(value).len() + 1);
             return synthetic_factory
                 .with(|synthetic_factory_| {
                     factory.with(|factory_| {
                         factory_.create_literal_type_node(
                             synthetic_factory_,
                             factory_
-                                .create_big_int_literal(
-                                    synthetic_factory_,
-                                    type_.as_big_int_literal_type().value.clone(),
-                                )
+                                .create_big_int_literal(synthetic_factory_, value.clone())
                                 .into(),
                         )
                     })
@@ -809,33 +1021,307 @@ impl NodeBuilder {
                 .into();
         }
         if type_.flags().intersects(TypeFlags::BooleanLiteral) {
-            return synthetic_factory
-                .with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        factory_.create_literal_type_node(
+            let type_intrinsic_name = type_.as_intrinsic_type().intrinsic_name();
+            context.increment_approximate_length_by(type_intrinsic_name.len());
+            return Some(
+                synthetic_factory
+                    .with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_.create_literal_type_node(
+                                synthetic_factory_,
+                                if type_intrinsic_name == "true" {
+                                    factory_.create_true(synthetic_factory_)
+                                } else {
+                                    factory_.create_false(synthetic_factory_)
+                                }
+                                .into(),
+                            )
+                        })
+                    })
+                    .into(),
+            );
+        }
+        if type_.flags().intersects(TypeFlags::UniqueESSymbol) {
+            if !context
+                .flags()
+                .intersects(NodeBuilderFlags::AllowUniqueESSymbolType)
+            {
+                if type_checker.is_value_symbol_accessible(
+                    &type_.symbol(),
+                    context.enclosing_declaration.as_deref(),
+                ) {
+                    context.increment_approximate_length_by(6);
+                    return Some(self.symbol_to_type_node(
+                        type_checker,
+                        &type_.symbol(),
+                        context,
+                        SymbolFlags::Value,
+                        None,
+                    ));
+                }
+                // if (context.tracker.reportInaccessibleUniqueSymbolError) {
+                context.tracker.report_inaccessible_unique_symbol_error();
+                // }
+            }
+            context.increment_approximate_length_by(13);
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_type_operator_node(
                             synthetic_factory_,
-                            if type_.as_intrinsic_type().intrinsic_name() == "true" {
-                                factory_.create_true(synthetic_factory_)
-                            } else {
-                                factory_.create_false(synthetic_factory_)
-                            }
+                            SyntaxKind::UniqueKeyword,
+                            Into::<KeywordTypeNode>::into(factory_.create_keyword_type_node(
+                                synthetic_factory_,
+                                SyntaxKind::SymbolKeyword,
+                            ))
                             .into(),
                         )
-                    })
+                        .into()
                 })
-                .into();
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::Void) {
+            context.increment_approximate_length_by(4);
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    Into::<KeywordTypeNode>::into(
+                        factory_
+                            .create_keyword_type_node(synthetic_factory_, SyntaxKind::VoidKeyword),
+                    )
+                    .into()
+                })
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::Undefined) {
+            context.increment_approximate_length_by(9);
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    Into::<KeywordTypeNode>::into(
+                        factory_.create_keyword_type_node(
+                            synthetic_factory_,
+                            SyntaxKind::UndefinedKeyword,
+                        ),
+                    )
+                    .into()
+                })
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::Null) {
+            context.increment_approximate_length_by(9);
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_literal_type_node(
+                            synthetic_factory_,
+                            factory_.create_null(synthetic_factory_).into(),
+                        )
+                        .into()
+                })
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::Never) {
+            context.increment_approximate_length_by(5);
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    Into::<KeywordTypeNode>::into(
+                        factory_
+                            .create_keyword_type_node(synthetic_factory_, SyntaxKind::NeverKeyword),
+                    )
+                    .into()
+                })
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::ESSymbol) {
+            context.increment_approximate_length_by(6);
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    Into::<KeywordTypeNode>::into(
+                        factory_.create_keyword_type_node(
+                            synthetic_factory_,
+                            SyntaxKind::SymbolKeyword,
+                        ),
+                    )
+                    .into()
+                })
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::NonPrimitive) {
+            context.increment_approximate_length_by(6);
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    Into::<KeywordTypeNode>::into(
+                        factory_.create_keyword_type_node(
+                            synthetic_factory_,
+                            SyntaxKind::ObjectKeyword,
+                        ),
+                    )
+                    .into()
+                })
+            }));
+        }
+        if type_checker.is_this_type_parameter(&type_) {
+            if context
+                .flags()
+                .intersects(NodeBuilderFlags::InObjectTypeLiteral)
+            {
+                if !context.encountered_error.get()
+                    && !context
+                        .flags()
+                        .intersects(NodeBuilderFlags::AllowThisInObjectLiteral)
+                {
+                    context.encountered_error.set(true);
+                }
+                // if (context.tracker.reportInaccessibleUniqueSymbolError) {
+                context.tracker.report_inaccessible_unique_symbol_error();
+                // }
+            }
+            context.increment_approximate_length_by(4);
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| factory_.create_this_type_node(synthetic_factory_).into())
+            }));
         }
 
-        let object_flags = get_object_flags(&*type_);
+        if !in_type_alias {
+            if let Some(type_alias_symbol) = type_.maybe_alias_symbol() {
+                if context
+                    .flags()
+                    .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
+                    || type_checker.is_type_symbol_accessible(
+                        &type_alias_symbol,
+                        context.enclosing_declaration.as_deref(),
+                    )
+                {
+                    let type_argument_nodes = self.map_to_type_nodes(
+                        type_checker,
+                        type_.maybe_alias_type_arguments(),
+                        context,
+                        None,
+                    );
+                    if type_checker.is_reserved_member_name(type_alias_symbol.escaped_name())
+                        && !type_alias_symbol.flags().intersects(SymbolFlags::Class)
+                    {
+                        return Some(synthetic_factory.with(|synthetic_factory_| {
+                            factory.with(|factory_| {
+                                factory_
+                                    .create_type_reference_node(
+                                        synthetic_factory_,
+                                        Into::<Rc<Node>>::into(factory_.create_identifier(
+                                            synthetic_factory_,
+                                            "",
+                                            Option::<NodeArray>::None,
+                                            None,
+                                        )),
+                                        type_argument_nodes,
+                                    )
+                                    .into()
+                            })
+                        }));
+                    }
+                    return self.symbol_to_type_node(
+                        type_checker,
+                        &type_alias_symbol,
+                        context,
+                        SymbolFlags::Type,
+                        type_argument_nodes.as_deref(),
+                    );
+                }
+            }
+        }
 
+        let object_flags = get_object_flags(&type_);
+
+        if object_flags.intersects(ObjectFlags::Reference) {
+            Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
+            return Some(if type_.as_type_reference().node.borrow().is_some() {
+                self.visit_and_transform_type(&type_, |type_| {
+                    self.type_reference_to_type_node(type_)
+                })
+            } else {
+                self.type_reference_to_type_node(&type_)
+            });
+        }
         if type_.flags().intersects(TypeFlags::TypeParameter)
             || object_flags.intersects(ObjectFlags::ClassOrInterface)
         {
-            return if let Some(symbol) = type_.maybe_symbol() {
-                self.symbol_to_type_node(type_checker, &symbol, context, SymbolFlags::Type)
+            if type_.flags().intersects(TypeFlags::TypeParameter)
+                && contains_rc(
+                    context.infer_type_parameters.borrow().as_deref(),
+                    &type_.type_wrapper(),
+                )
+            {
+                context.increment_approximate_length_by(symbol_name(&type_.symbol()).len() + 6);
+                return Some(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_infer_type_node(
+                                synthetic_factory_,
+                                self.type_parameter_to_declaration_with_constraint(
+                                    &type_, context, None,
+                                ),
+                            )
+                            .into()
+                    })
+                }));
+            }
+            if context
+                .flags()
+                .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
+                && type_.flags().intersects(TypeFlags::TypeParameter)
+                && !type_checker.is_type_symbol_accessible(
+                    &type_.symbol(),
+                    context.enclosing_declaration.as_deref(),
+                )
+            {
+                let name = self.type_parameter_to_name(&type_, context);
+                context.increment_approximate_length_by(id_text(&name).len());
+                return Some(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_type_reference_node(
+                                synthetic_factory_,
+                                Into::<Rc<Node>>::into(factory_.create_identifier(
+                                    synthetic_factory_,
+                                    &id_text(&name),
+                                    Option::<NodeArray>::None,
+                                    None,
+                                )),
+                                None,
+                            )
+                            .into()
+                    })
+                }));
+            }
+            return Some(if let Some(type_symbol) = type_.maybe_symbol() {
+                self.symbol_to_type_node(
+                    type_checker,
+                    &type_symbol,
+                    context,
+                    SymbolFlags::Type,
+                    None,
+                )
             } else {
-                unimplemented!()
-            };
+                synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_type_reference_node(
+                                synthetic_factory_,
+                                Into::<Rc<Node>>::into(factory_.create_identifier(
+                                    synthetic_factory_,
+                                    "?",
+                                    Option::<NodeArray>::None,
+                                    None,
+                                )),
+                                None,
+                            )
+                            .into()
+                    })
+                })
+            });
+        }
+        if type_.flags().intersects(TypeFlags::Union) {
+            if let Some(type_origin) = type_.as_union_type().origin.as_ref() {
+                type_ = type_origin.clone();
+            }
         }
         if type_
             .flags()
@@ -850,13 +1336,13 @@ impl NodeBuilder {
                 }
             };
             if types.len() == 1 {
-                return self.type_to_type_node_helper(type_checker, &types[0], context);
+                return self.type_to_type_node_helper(type_checker, Some(&*types[0]), context);
             }
             let type_nodes =
                 self.map_to_type_nodes(type_checker, Some(&types), context, Some(true));
             if let Some(type_nodes) = type_nodes {
                 if !type_nodes.is_empty() {
-                    return if type_.flags().intersects(TypeFlags::Union) {
+                    return Some(if type_.flags().intersects(TypeFlags::Union) {
                         synthetic_factory.with(|synthetic_factory_| {
                             factory.with(|factory_| {
                                 factory_.create_union_type_node(synthetic_factory_, type_nodes)
@@ -869,20 +1355,164 @@ impl NodeBuilder {
                                     .create_intersection_type_node(synthetic_factory_, type_nodes)
                             })
                         })
-                    };
+                    });
                 }
             }
-            unimplemented!()
+            if !context.encountered_error.get()
+                && !context
+                    .flags()
+                    .intersects(NodeBuilderFlags::AllowEmptyUnionOrIntersection)
+            {
+                context.encountered_error.set(true);
+            }
+            return None;
         }
         if object_flags.intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped) {
             Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
-            return self.create_anonymous_type_node(type_checker, context, type_);
+            return self.create_anonymous_type_node(type_checker, context, &type_);
+        }
+        if type_.flags().intersects(TypeFlags::Index) {
+            let indexed_type = &type_.as_index_type().type_;
+            context.increment_approximate_length_by(6);
+            let index_type_node = self
+                .type_to_type_node_helper(type_checker, indexed_type, context)
+                .unwrap();
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_type_operator_node(
+                            synthetic_factory_,
+                            SyntaxKind::KeyOfKeyword,
+                            index_type_node.wrap(),
+                        )
+                        .into()
+                })
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::TemplateLiteral) {
+            let type_as_template_literal_type = type_.as_template_literal_type();
+            let texts = &type_as_template_literal_type.texts;
+            let types = &type_as_template_literal_type.types;
+            let template_head: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_template_head(
+                            synthetic_factory_,
+                            Some(texts[0].clone()),
+                            None,
+                            None,
+                        )
+                        .into()
+                })
+            });
+            let template_spans = synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_.create_node_array(
+                        map(Some(types), |t: &Rc<Node>, i| -> Rc<Node> {
+                            factory_
+                                .create_template_literal_type_span(
+                                    synthetic_factory_,
+                                    self.type_to_type_node_helper(type_checker, Some(t), context)
+                                        .unwrap()
+                                        .wrap(),
+                                    if i < types.len() - 1 {
+                                        factory_
+                                            .create_template_middle(
+                                                synthetic_factory_,
+                                                Some(texts[i + 1].clone()),
+                                                None,
+                                                None,
+                                            )
+                                            .into()
+                                    } else {
+                                        factory_
+                                            .create_template_tail(
+                                                synthetic_factory_,
+                                                Some(texts[i + 1].clone()),
+                                                None,
+                                                None,
+                                            )
+                                            .into()
+                                    },
+                                )
+                                .into()
+                        }),
+                        None,
+                    )
+                })
+            });
+            context.increment_approximate_length_by(2);
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_template_literal_type(
+                            synthetic_factory_,
+                            template_head,
+                            template_spans,
+                        )
+                        .into()
+                })
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::StringMapping) {
+            let type_as_string_mapping_type = type_.as_string_mapping_type();
+            let type_node = self
+                .type_to_type_node_helper(type_checker, &type_as_string_mapping_type.type_, context)
+                .unwrap();
+            return Some(self.symbol_to_type_node(
+                type_checker,
+                &type_as_string_mapping_type.symbol,
+                context,
+                SymbolFlags::Type,
+                Some(&vec![type_node.wrap()]),
+            ));
+        }
+        if type_.flags().intersects(TypeFlags::IndexedAccess) {
+            let type_as_indexed_access_type = type_.as_indexed_access_type();
+            let object_type_node = self
+                .type_to_type_node_helper(
+                    type_checker,
+                    &type_as_indexed_access_type.object_type,
+                    context,
+                )
+                .unwrap();
+            let index_type_node = self
+                .type_to_type_node_helper(
+                    type_checker,
+                    &type_as_indexed_access_type.index_type,
+                    context,
+                )
+                .unwrap();
+            context.increment_approximate_length_by(2);
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_indexed_access_type_node(
+                            synthetic_factory_,
+                            object_type_node.wrap(),
+                            index_type_node.wrap(),
+                        )
+                        .into()
+                })
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::Conditional) {
+            return Some(self.visit_and_transform_type(&type_, |type_| {
+                self.conditional_type_to_type_node(type_)
+            }));
+        }
+        if type_.flags().intersects(TypeFlags::Substitution) {
+            return self.type_to_type_node_helper(
+                type_checker,
+                &type_.as_substitution_type().base_type,
+                context,
+            );
         }
 
-        unimplemented!()
+        Debug_.fail(Some("Should be unreachable."));
     }
 
-    fn create_anonymous_type_node(
+    pub(super) fn create_anonymous_type_node(
         &self,
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
@@ -905,18 +1535,16 @@ impl NodeBuilder {
         }
     }
 
-    fn visit_and_transform_type(
+    pub(super) fn visit_and_transform_type<TTransform: FnMut(&Type) -> Node>(
         &self,
-        type_checker: &TypeChecker,
-        context: &NodeBuilderContext,
         type_: &Type,
-        transform: fn(&NodeBuilder, &TypeChecker, &NodeBuilderContext, &Type) -> Node,
+        mut transform: TTransform,
     ) -> Node {
-        let result = transform(self, type_checker, context, type_);
+        let result = transform(type_);
         result
     }
 
-    fn create_type_node_from_object_type(
+    pub(super) fn create_type_node_from_object_type(
         &self,
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
@@ -931,7 +1559,7 @@ impl NodeBuilder {
         type_literal_node.into()
     }
 
-    fn create_type_nodes_from_resolved_type(
+    pub(super) fn create_type_nodes_from_resolved_type(
         &self,
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
@@ -956,7 +1584,7 @@ impl NodeBuilder {
         }
     }
 
-    fn add_property_to_element_list(
+    pub(super) fn add_property_to_element_list(
         &self,
         type_checker: &TypeChecker,
         property_symbol: &Symbol,
@@ -1019,7 +1647,7 @@ impl NodeBuilder {
         }
     }
 
-    fn map_to_type_nodes(
+    pub(super) fn map_to_type_nodes(
         &self,
         type_checker: &TypeChecker,
         types: Option<&[Rc<Type>]>,
@@ -1045,7 +1673,7 @@ impl NodeBuilder {
         None
     }
 
-    fn index_info_to_index_signature_declaration_helper<TTypeNode: Borrow<Node>>(
+    pub(super) fn index_info_to_index_signature_declaration_helper<TTypeNode: Borrow<Node>>(
         &self,
         index_info: &IndexInfo,
         context: &NodeBuilderContext,
@@ -1054,7 +1682,7 @@ impl NodeBuilder {
         unimplemented!()
     }
 
-    fn signature_to_signature_declaration_helper(
+    pub(super) fn signature_to_signature_declaration_helper(
         &self,
         signature: &Signature,
         kind: SyntaxKind,
@@ -1064,7 +1692,7 @@ impl NodeBuilder {
         unimplemented!()
     }
 
-    fn type_parameter_to_declaration_(
+    pub(super) fn type_parameter_to_declaration_(
         &self,
         type_checker: &TypeChecker,
         type_: &Type, /*TypeParameter*/
@@ -1076,7 +1704,7 @@ impl NodeBuilder {
         unimplemented!()
     }
 
-    fn symbol_to_parameter_declaration_<TPrivateSymbolVisitor: FnMut(&Symbol)>(
+    pub(super) fn symbol_to_parameter_declaration_<TPrivateSymbolVisitor: FnMut(&Symbol)>(
         &self,
         parameter_symbol: &Symbol,
         context: &NodeBuilderContext,
@@ -1087,7 +1715,7 @@ impl NodeBuilder {
         unimplemented!()
     }
 
-    fn lookup_symbol_chain(
+    pub(super) fn lookup_symbol_chain(
         &self,
         symbol: &Symbol,
         context: &NodeBuilderContext,
@@ -1096,7 +1724,7 @@ impl NodeBuilder {
         self.lookup_symbol_chain_worker(symbol, context, meaning)
     }
 
-    fn lookup_symbol_chain_worker(
+    pub(super) fn lookup_symbol_chain_worker(
         &self,
         symbol: &Symbol,
         context: &NodeBuilderContext,
@@ -1111,7 +1739,7 @@ impl NodeBuilder {
         chain
     }
 
-    fn type_parameters_to_type_parameter_declarations(
+    pub(super) fn type_parameters_to_type_parameter_declarations(
         &self,
         symbol: &Symbol,
         context: &NodeBuilderContext,
@@ -1119,12 +1747,13 @@ impl NodeBuilder {
         unimplemented!()
     }
 
-    fn symbol_to_type_node(
+    pub(super) fn symbol_to_type_node(
         &self,
         type_checker: &TypeChecker,
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: SymbolFlags,
+        override_type_arguments: Option<&[Rc<Node /*TypeNode*/>]>,
     ) -> Node {
         let chain = self.lookup_symbol_chain(symbol, context, Some(meaning));
 
@@ -1154,7 +1783,7 @@ impl NodeBuilder {
         }
     }
 
-    fn create_access_from_symbol_chain(
+    pub(super) fn create_access_from_symbol_chain(
         &self,
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
@@ -1191,7 +1820,7 @@ impl NodeBuilder {
         identifier.into()
     }
 
-    fn symbol_to_name(
+    pub(super) fn symbol_to_name(
         &self,
         type_checker: &TypeChecker,
         symbol: &Symbol,
@@ -1202,7 +1831,7 @@ impl NodeBuilder {
         unimplemented!()
     }
 
-    fn symbol_to_expression_(
+    pub(super) fn symbol_to_expression_(
         &self,
         type_checker: &TypeChecker,
         symbol: &Symbol,
@@ -1214,7 +1843,7 @@ impl NodeBuilder {
         self.create_expression_from_symbol_chain(type_checker, context, chain, index)
     }
 
-    fn get_property_name_node_for_symbol(
+    pub(super) fn get_property_name_node_for_symbol(
         &self,
         type_checker: &TypeChecker,
         symbol: &Symbol,
@@ -1231,7 +1860,7 @@ impl NodeBuilder {
         )
     }
 
-    fn create_property_name_node_for_identifier_or_literal(
+    pub(super) fn create_property_name_node_for_identifier_or_literal(
         &self,
         type_checker: &TypeChecker,
         name: String,
@@ -1259,7 +1888,7 @@ impl NodeBuilder {
         .into()
     }
 
-    fn create_expression_from_symbol_chain(
+    pub(super) fn create_expression_from_symbol_chain(
         &self,
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
@@ -1289,7 +1918,7 @@ impl NodeBuilder {
         }
     }
 
-    fn serialize_type_for_declaration(
+    pub(super) fn serialize_type_for_declaration(
         &self,
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
@@ -1300,7 +1929,7 @@ impl NodeBuilder {
         result
     }
 
-    fn symbol_table_to_declaration_statements_(
+    pub(super) fn symbol_table_to_declaration_statements_(
         &self,
         symbol_table: &SymbolTable,
         context: &NodeBuilderContext,
@@ -1322,7 +1951,7 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {}
 
 pub struct NodeBuilderContext<'symbol_tracker> {
     pub enclosing_declaration: Option<Rc<Node>>,
-    pub flags: NodeBuilderFlags,
+    pub flags: Cell<NodeBuilderFlags>,
     pub tracker: &'symbol_tracker dyn SymbolTracker,
 
     pub encountered_error: Cell<bool>,
@@ -1349,7 +1978,7 @@ impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
     ) -> Self {
         Self {
             enclosing_declaration,
-            flags,
+            flags: Cell::new(flags),
             tracker,
             encountered_error: Cell::new(false),
             reported_diagnostic: Cell::new(false),
@@ -1366,6 +1995,19 @@ impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
             remapped_symbol_names: RefCell::new(None),
             reverse_mapped_stack: RefCell::new(None),
         }
+    }
+
+    pub fn flags(&self) -> NodeBuilderFlags {
+        self.flags.get()
+    }
+
+    pub fn set_flags(&self, flags: NodeBuilderFlags) {
+        self.flags.set(flags);
+    }
+
+    pub fn increment_approximate_length_by(&self, amount: usize) {
+        self.approximate_length
+            .set(self.approximate_length.get() + amount);
     }
 }
 

@@ -408,7 +408,9 @@ bitflags! {
         const None = 0;
         const NoTruncation = 1 << 0;
         const WriteArrayAsGenericType = 1 << 1;
+        const GenerateNamesForShadowedTypeParams = 1 << 2;
         const UseStructuralFallback = 1 << 3;
+        const ForbidIndexedAccessSymbolReferences = 1 << 4;
         const WriteTypeArgumentsOfSignature = 1 << 5;
         const UseFullyQualifiedType = 1 << 6;
         const UseOnlyExternalAliasing = 1 << 7;
@@ -421,9 +423,11 @@ bitflags! {
         const UseAliasDefinedOutsideCurrentScope = 1 << 14;
         const UseSingleQuotesForStringLiteralType = 1 << 28;
         const NoTypeReduction = 1 << 29;
+        const NoUndefinedOptionalParameterType = 1 << 30;
 
         const AllowThisInObjectLiteral = 1 << 15;
         const AllowQualifiedNameInPlaceOfIdentifier = 1 << 16;
+        // const AllowQualifedNameInPlaceOfIdentifier = Self::AllowQualifiedNameInPlaceOfIdentifier.bits;
         const AllowAnonymousIdentifier = 1 << 17;
         const AllowEmptyUnionOrIntersection = 1 << 18;
         const AllowEmptyTuple = 1 << 19;
@@ -433,9 +437,11 @@ bitflags! {
         const AllowNodeModulesRelativePaths = 1 << 26;
         const DoNotIncludeSymbolChain = 1 << 27;
 
-        const InTypeAlias = 1 << 23;
-
         const IgnoreErrors = Self::AllowThisInObjectLiteral.bits | Self::AllowQualifiedNameInPlaceOfIdentifier.bits | Self::AllowAnonymousIdentifier.bits | Self::AllowEmptyUnionOrIntersection.bits | Self::AllowEmptyTuple.bits | Self::AllowEmptyIndexInfoType.bits | Self::AllowNodeModulesRelativePaths.bits;
+
+        const InObjectTypeLiteral = 1 << 22;
+        const InTypeAlias = 1 << 23;
+        const InInitialEntityName = 1 << 24;
     }
 }
 
