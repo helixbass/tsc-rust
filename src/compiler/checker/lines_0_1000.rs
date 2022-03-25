@@ -1691,11 +1691,12 @@ impl TypeChecker {
 
     pub fn type_parameter_to_declaration<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        parameter: &Node, /*TypeParameter*/
+        parameter: &Type, /*TypeParameter*/
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
     ) -> Option<Node /*TypeParameterDeclaration*/> {
         self.node_builder.type_parameter_to_declaration(
+            self,
             parameter,
             enclosing_declaration,
             flags,

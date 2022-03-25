@@ -17,8 +17,8 @@ use crate::{
     using_single_line_string_writer, Debug_, EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode,
     ModifierFlags, Node, NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags,
     PrinterOptionsBuilder, Signature, SignatureKind, Symbol, SymbolAccessibility, SymbolFlags,
-    SymbolFormatFlags, SymbolInterface, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
+    SymbolFormatFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolVisibilityResult,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate,
 };
 
 impl TypeChecker {
@@ -450,7 +450,7 @@ impl TypeChecker {
         left: &Type,
         right: &Type,
     ) -> (String, String) {
-        let left_str = if let Some(symbol) = left.maybe_symbol() {
+        let mut left_str = if let Some(symbol) = left.maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(&symbol) {
                 let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(left, enclosing_declaration, None, None)
@@ -460,7 +460,7 @@ impl TypeChecker {
         } else {
             self.type_to_string_(left, Option::<&Node>::None, None, None)
         };
-        let right_str = if let Some(symbol) = right.maybe_symbol() {
+        let mut right_str = if let Some(symbol) = right.maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(&symbol) {
                 let enclosing_declaration = (*symbol.maybe_value_declaration().borrow()).clone();
                 self.type_to_string_(right, enclosing_declaration, None, None)
@@ -470,6 +470,10 @@ impl TypeChecker {
         } else {
             self.type_to_string_(right, Option::<&Node>::None, None, None)
         };
+        if left_str == right_str {
+            left_str = self.get_type_name_for_error_display(left);
+            right_str = self.get_type_name_for_error_display(right);
+        }
         (left_str, right_str)
     }
 
@@ -483,17 +487,26 @@ impl TypeChecker {
     }
 
     pub(super) fn symbol_value_declaration_is_context_sensitive(&self, symbol: &Symbol) -> bool {
-        match symbol.maybe_value_declaration() {
-            Some(value_declaration) => {
-                is_expression(&value_declaration) && !self.is_context_sensitive(&value_declaration)
-            }
-            None => false,
-        }
+        /*symbol &&*/
+        matches!(
+            symbol.maybe_value_declaration(),
+            Some(value_declaration) if is_expression(&value_declaration) && !self.is_context_sensitive(&value_declaration)
+        )
     }
 
     pub(super) fn to_node_builder_flags(&self, flags: Option<TypeFormatFlags>) -> NodeBuilderFlags {
         let flags = flags.unwrap_or(TypeFormatFlags::None);
         NodeBuilderFlags::from_bits((flags & TypeFormatFlags::NodeBuilderFlagsMask).bits()).unwrap()
+    }
+
+    pub(super) fn is_class_instance_side(&self, type_: &Type) -> bool {
+        matches!(
+            type_.maybe_symbol(),
+            Some(type_symbol) if type_symbol.flags().intersects(SymbolFlags::Class) && (
+                ptr::eq(type_, &*self.get_declared_type_of_class_or_interface(&type_symbol)) ||
+                type_.flags().intersects(TypeFlags::Object) && get_object_flags(type_).intersects(ObjectFlags::IsClassInstanceClone)
+            )
+        )
     }
 
     pub fn type_predicate_to_string_<TEnclosingDeclaration: Borrow<Node>>(
@@ -528,8 +541,8 @@ impl NodeBuilder {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Node> {
-        self.with_context(flags, tracker, |context| {
-            self.type_to_type_node_helper(type_checker, type_, context)
+        self.with_context(enclosing_declaration, flags, tracker, |context| {
+            Some(self.type_to_type_node_helper(type_checker, type_, context))
         })
     }
 
@@ -540,7 +553,13 @@ impl NodeBuilder {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Node> {
-        unimplemented!()
+        self.with_context(enclosing_declaration, flags, tracker, |context| {
+            Some(self.index_info_to_index_signature_declaration_helper(
+                index_info,
+                context,
+                Option::<&Node>::None,
+            ))
+        })
     }
 
     pub fn signature_to_signature_declaration<TEnclosingDeclaration: Borrow<Node>>(
@@ -551,7 +570,9 @@ impl NodeBuilder {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/> {
-        unimplemented!()
+        self.with_context(enclosing_declaration, flags, tracker, |context| {
+            Some(self.signature_to_signature_declaration_helper(signature, kind, context, None))
+        })
     }
 
     pub fn symbol_to_entity_name<TEnclosingDeclaration: Borrow<Node>>(
@@ -563,7 +584,9 @@ impl NodeBuilder {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Node /*EntityName*/> {
-        unimplemented!()
+        self.with_context(enclosing_declaration, flags, tracker, |context| {
+            Some(self.symbol_to_name(type_checker, symbol, context, meaning, false))
+        })
     }
 
     pub fn symbol_to_expression<TEnclosingDeclaration: Borrow<Node>>(
@@ -575,8 +598,8 @@ impl NodeBuilder {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Node> {
-        self.with_context(flags, tracker, |context| {
-            self._symbol_to_expression(type_checker, symbol, context, meaning)
+        self.with_context(enclosing_declaration, flags, tracker, |context| {
+            Some(self.symbol_to_expression_(type_checker, symbol, context, meaning))
         })
     }
 
@@ -587,7 +610,9 @@ impl NodeBuilder {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
-        unimplemented!()
+        self.with_context(enclosing_declaration, flags, tracker, |context| {
+            self.type_parameters_to_type_parameter_declarations(symbol, context)
+        })
     }
 
     pub fn symbol_to_parameter_declaration<TEnclosingDeclaration: Borrow<Node>>(
@@ -597,21 +622,50 @@ impl NodeBuilder {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Node /*ParameterDeclaration*/> {
-        unimplemented!()
+        self.with_context(enclosing_declaration, flags, tracker, |context| {
+            Some(self.symbol_to_parameter_declaration_(
+                symbol,
+                context,
+                None,
+                Option::<fn(&Symbol)>::None,
+                None,
+            ))
+        })
     }
 
     pub fn type_parameter_to_declaration<TEnclosingDeclaration: Borrow<Node>>(
         &self,
-        parameter: &Node, /*TypeParameter*/
+        type_checker: &TypeChecker,
+        parameter: &Type, /*TypeParameter*/
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Node /*TypeParameterDeclaration*/> {
-        unimplemented!()
+        self.with_context(enclosing_declaration, flags, tracker, |context| {
+            Some(self.type_parameter_to_declaration_(type_checker, parameter, context, None))
+        })
     }
 
-    fn with_context<TReturn, TCallback: FnOnce(&NodeBuilderContext) -> TReturn>(
+    pub fn symbol_table_to_declaration_statements<TEnclosingDeclaration: Borrow<Node>>(
         &self,
+        symbol_table: &SymbolTable,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<NodeBuilderFlags>,
+        tracker: Option<&dyn SymbolTracker>,
+        bundled: Option<bool>,
+    ) -> Option<Vec<Rc<Node /*Statement*/>>> {
+        self.with_context(enclosing_declaration, flags, tracker, |context| {
+            self.symbol_table_to_declaration_statements_(symbol_table, context, bundled)
+        })
+    }
+
+    fn with_context<
+        TReturn,
+        TEnclosingDeclaration: Borrow<Node>,
+        TCallback: FnOnce(&NodeBuilderContext) -> Option<TReturn>,
+    >(
+        &self,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
         cb: TCallback,
@@ -625,7 +679,7 @@ impl NodeBuilder {
             tracker.unwrap_or_else(|| default_tracker.as_ref().unwrap()),
         );
         let resulting_node = cb(&context);
-        Some(resulting_node)
+        resulting_node
     }
 
     pub fn type_to_type_node_helper(
@@ -977,6 +1031,48 @@ impl NodeBuilder {
         None
     }
 
+    fn index_info_to_index_signature_declaration_helper<TTypeNode: Borrow<Node>>(
+        &self,
+        index_info: &IndexInfo,
+        context: &NodeBuilderContext,
+        type_node: Option<TTypeNode /*TypeNode*/>,
+    ) -> Node /*IndexSignatureDeclaration*/ {
+        unimplemented!()
+    }
+
+    fn signature_to_signature_declaration_helper(
+        &self,
+        signature: &Signature,
+        kind: SyntaxKind,
+        context: &NodeBuilderContext,
+        options: Option<SignatureToSignatureDeclarationOptions>,
+    ) -> Node /*SignatureDeclaration*/ {
+        unimplemented!()
+    }
+
+    fn type_parameter_to_declaration_(
+        &self,
+        type_checker: &TypeChecker,
+        type_: &Type, /*TypeParameter*/
+        context: &NodeBuilderContext,
+        constraint: Option<Rc<Type>>,
+    ) -> Node /*TypeParameterDeclaration*/ {
+        let constraint =
+            constraint.or_else(|| type_checker.get_constraint_of_type_parameter(type_));
+        unimplemented!()
+    }
+
+    fn symbol_to_parameter_declaration_<TPrivateSymbolVisitor: FnMut(&Symbol)>(
+        &self,
+        parameter_symbol: &Symbol,
+        context: &NodeBuilderContext,
+        preserve_modifier_flags: Option<bool>,
+        private_symbol_visitor: Option<TPrivateSymbolVisitor>,
+        bundled_imports: Option<bool>,
+    ) -> Node /*ParameterDeclaration*/ {
+        unimplemented!()
+    }
+
     fn lookup_symbol_chain(
         &self,
         symbol: &Symbol,
@@ -999,6 +1095,14 @@ impl NodeBuilder {
             chain = vec![symbol.symbol_wrapper()];
         }
         chain
+    }
+
+    fn type_parameters_to_type_parameter_declarations(
+        &self,
+        symbol: &Symbol,
+        context: &NodeBuilderContext,
+    ) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
+        unimplemented!()
     }
 
     fn symbol_to_type_node(
@@ -1073,7 +1177,18 @@ impl NodeBuilder {
         identifier.into()
     }
 
-    fn _symbol_to_expression(
+    fn symbol_to_name(
+        &self,
+        type_checker: &TypeChecker,
+        symbol: &Symbol,
+        context: &NodeBuilderContext,
+        meaning: /*SymbolFlags*/ Option<SymbolFlags>,
+        expects_identifier: bool,
+    ) -> Node /*EntityName*/ {
+        unimplemented!()
+    }
+
+    fn symbol_to_expression_(
         &self,
         type_checker: &TypeChecker,
         symbol: &Symbol,
@@ -1170,6 +1285,15 @@ impl NodeBuilder {
         let result = self.type_to_type_node_helper(type_checker, type_, context);
         result
     }
+
+    fn symbol_table_to_declaration_statements_(
+        &self,
+        symbol_table: &SymbolTable,
+        context: &NodeBuilderContext,
+        bundled: Option<bool>,
+    ) -> Option<Vec<Rc<Node /*Statement*/>>> {
+        unimplemented!()
+    }
 }
 
 struct DefaultNodeBuilderContextSymbolTracker {}
@@ -1192,3 +1316,5 @@ impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
         Self { flags, tracker }
     }
 }
+
+pub(super) struct SignatureToSignatureDeclarationOptions {}
