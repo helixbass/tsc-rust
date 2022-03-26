@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseType, IndexInfo, Node, PseudoBigInt, ResolvedTypeInterface, Signature, Symbol, SymbolTable,
-    Type, TypeChecker, TypeInterface,
+    BaseType, IndexInfo, MappedType, Node, PseudoBigInt, ResolvedTypeInterface, Signature, Symbol,
+    SymbolTable, Type, TypeChecker, TypeInterface,
 };
 use crate::{Number, WeakSelf};
 use local_macros::type_type;
@@ -301,6 +301,7 @@ pub enum ObjectType {
     BaseObjectType(BaseObjectType),
     InterfaceType(InterfaceType),
     TypeReference(TypeReference),
+    MappedType(MappedType),
 }
 
 #[derive(Clone, Debug)]

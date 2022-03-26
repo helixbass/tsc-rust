@@ -39,6 +39,11 @@ pub fn set_emit_flags(node: Rc<Node>, emit_flags: EmitFlags) -> Rc<Node> {
     node
 }
 
+pub fn set_emit_flags_unwrapped(node: Node, emit_flags: EmitFlags) -> Node {
+    get_or_create_emit_node(&node).flags = Some(emit_flags);
+    node
+}
+
 pub(crate) fn get_starts_on_new_line(node: &Node) -> bool {
     node.maybe_emit_node()
         .as_ref()

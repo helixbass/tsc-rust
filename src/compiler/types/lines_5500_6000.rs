@@ -8,9 +8,21 @@ use std::fmt;
 use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
-use super::{BaseType, Node, Symbol, SymbolTable, Type, TypeChecker, TypePredicate};
+use super::{
+    BaseObjectType, BaseType, Node, Symbol, SymbolTable, Type, TypeChecker, TypePredicate,
+};
 use crate::{Debug_, ScriptKind};
 use local_macros::{enum_unwrapped, type_type};
+
+#[derive(Clone, Debug)]
+#[type_type(
+    ancestors = "ObjectType",
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+)]
+pub struct MappedType {
+    _object_type: BaseObjectType,
+    pub declaration: Rc<Node /*MappedTypeNode*/>,
+}
 
 pub trait ResolvedTypeInterface {
     fn members(&self) -> Rc<RefCell<SymbolTable>>;

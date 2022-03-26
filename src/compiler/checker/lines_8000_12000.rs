@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{MembersOrExportsResolutionKind, NodeBuilderContext};
+use super::{MappedTypeModifiers, MembersOrExportsResolutionKind, NodeBuilderContext};
 use crate::{
     concatenate, create_symbol_table, declaration_name_to_string, escape_leading_underscores,
     first_defined, get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
@@ -673,6 +673,55 @@ impl TypeChecker {
         signature: Rc<Signature>,
         union_signatures: &[Rc<Signature>],
     ) -> Signature {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_parameter_from_mapped_type(
+        &self,
+        type_: &Type, /*MappedType*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_constraint_type_from_mapped_type(
+        &self,
+        type_: &Type, /*MappedType*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_name_type_from_mapped_type(
+        &self,
+        type_: &Type, /*MappedType*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_template_type_from_mapped_type(
+        &self,
+        type_: &Type, /*MappedType*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_mapped_type_with_keyof_constraint_declaration(
+        &self,
+        type_: &Type, /*MappedType*/
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_modifiers_type_from_mapped_type(
+        &self,
+        type_: &Type, /*MappedType*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_mapped_type_modifiers(
+        &self,
+        type_: &Type, /*MappedType*/
+    ) -> MappedTypeModifiers {
         unimplemented!()
     }
 

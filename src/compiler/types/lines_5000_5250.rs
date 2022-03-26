@@ -8,11 +8,11 @@ use std::rc::{Rc, Weak};
 
 use super::{
     BaseInterfaceType, BigIntLiteralType, ConditionalType, IndexType, IndexedAccessType,
-    InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType, NumberLiteralType,
-    ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface, ResolvedTypeInterface,
-    Signature, StringLiteralType, StringMappingType, SubstitutionType, Symbol, TemplateLiteralType,
-    TypeParameter, TypeReference, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
-    UnionType,
+    InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType, MappedType,
+    NumberLiteralType, ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface,
+    ResolvedTypeInterface, Signature, StringLiteralType, StringMappingType, SubstitutionType,
+    Symbol, TemplateLiteralType, TypeParameter, TypeReference, UnionOrIntersectionType,
+    UnionOrIntersectionTypeInterface, UnionType,
 };
 use crate::{ObjectFlags, Pattern, WeakSelf};
 use local_macros::{enum_unwrapped, type_type};
@@ -402,6 +402,10 @@ impl Type {
 
     pub fn as_conditional_type(&self) -> &ConditionalType {
         enum_unwrapped!(self, [Type, ConditionalType])
+    }
+
+    pub fn as_mapped_type(&self) -> &MappedType {
+        enum_unwrapped!(self, [Type, ObjectType, MappedType])
     }
 }
 

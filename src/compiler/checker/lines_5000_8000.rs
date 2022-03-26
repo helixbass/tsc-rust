@@ -3,12 +3,12 @@
 use std::borrow::{Borrow, Cow};
 use std::rc::Rc;
 
-use super::NodeBuilderContext;
+use super::{MappedTypeModifiers, NodeBuilderContext};
 use crate::{
-    factory, get_emit_script_target, is_identifier_text, synthetic_factory,
-    unescape_leading_underscores, IndexInfo, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
-    NodeInterface, Signature, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface,
+    factory, get_emit_script_target, is_identifier_text, set_emit_flags_unwrapped,
+    synthetic_factory, unescape_leading_underscores, Debug_, EmitFlags, IndexInfo, Node, NodeArray,
+    NodeBuilder, NodeBuilderFlags, NodeInterface, Signature, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl NodeBuilder {
@@ -88,6 +88,120 @@ impl NodeBuilder {
         }
         self.type_to_type_node_helper(type_checker, Some(type_), context)
             .unwrap()
+    }
+
+    pub(super) fn create_mapped_type_node_from_type(
+        &self,
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
+        type_: &Type, /*MappedType*/
+    ) -> Node {
+        Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
+        let type_as_mapped_type = type_.as_mapped_type();
+        let type_declaration_as_mapped_type_node =
+            type_as_mapped_type.declaration.as_mapped_type_node();
+        let readonly_token: Option<Rc<Node>> = type_declaration_as_mapped_type_node
+            .readonly_token
+            .as_ref()
+            .map(|readonly_token| {
+                synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_token(synthetic_factory_, readonly_token.kind())
+                            .into()
+                    })
+                })
+            });
+        let question_token: Option<Rc<Node>> = type_declaration_as_mapped_type_node
+            .question_token
+            .as_ref()
+            .map(|question_token| {
+                synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_token(synthetic_factory_, question_token.kind())
+                            .into()
+                    })
+                })
+            });
+        let appropriate_constraint_type_node: Rc<Node /*TypeNode*/>;
+        if type_checker.is_mapped_type_with_keyof_constraint_declaration(type_) {
+            appropriate_constraint_type_node = synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_type_operator_node(
+                            synthetic_factory_,
+                            SyntaxKind::KeyOfKeyword,
+                            self.type_to_type_node_helper(
+                                type_checker,
+                                Some(type_checker.get_modifiers_type_from_mapped_type(type_)),
+                                context,
+                            )
+                            .unwrap()
+                            .wrap(),
+                        )
+                        .into()
+                })
+            });
+        } else {
+            appropriate_constraint_type_node = self
+                .type_to_type_node_helper(
+                    type_checker,
+                    Some(type_checker.get_constraint_type_from_mapped_type(type_)),
+                    context,
+                )
+                .unwrap()
+                .wrap();
+        }
+        let type_parameter_node: Rc<Node> = self
+            .type_parameter_to_declaration_with_constraint(
+                &type_checker.get_type_parameter_from_mapped_type(type_),
+                context,
+                Some(appropriate_constraint_type_node),
+            )
+            .wrap();
+        let name_type_node: Option<Rc<Node>> =
+            if type_declaration_as_mapped_type_node.name_type.is_some() {
+                self.type_to_type_node_helper(
+                    type_checker,
+                    type_checker.get_name_type_from_mapped_type(type_),
+                    context,
+                )
+                .map(Node::wrap)
+            } else {
+                None
+            };
+        let template_type_node: Option<Rc<Node>> = self
+            .type_to_type_node_helper(
+                type_checker,
+                Some(
+                    type_checker.remove_missing_type(
+                        &type_checker.get_template_type_from_mapped_type(type_),
+                        type_checker
+                            .get_mapped_type_modifiers(type_)
+                            .intersects(MappedTypeModifiers::IncludeOptional),
+                    ),
+                ),
+                context,
+            )
+            .map(Node::wrap);
+        let mapped_type_node: Node = synthetic_factory.with(|synthetic_factory_| {
+            factory.with(|factory_| {
+                factory_
+                    .create_mapped_type_node(
+                        synthetic_factory_,
+                        readonly_token,
+                        type_parameter_node,
+                        name_type_node,
+                        question_token,
+                        template_type_node,
+                        Option::<NodeArray>::None,
+                    )
+                    .into()
+            })
+        });
+        context.increment_approximate_length_by(10);
+        set_emit_flags_unwrapped(mapped_type_node, EmitFlags::SingleLine)
     }
 
     pub(super) fn create_anonymous_type_node(

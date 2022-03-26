@@ -1154,6 +1154,10 @@ impl Node {
     pub fn as_infer_type_node(&self) -> &InferTypeNode {
         enum_unwrapped!(self, [Node, InferTypeNode])
     }
+
+    pub fn as_mapped_type_node(&self) -> &MappedTypeNode {
+        enum_unwrapped!(self, [Node, MappedTypeNode])
+    }
 }
 
 #[derive(Debug)]
