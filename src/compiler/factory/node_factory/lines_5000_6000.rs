@@ -266,6 +266,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         InputFiles::new(node, "".to_owned(), "".to_owned())
     }
 
+    pub fn clone_node(&self, base_factory: &TBaseNodeFactory, node: &Node) -> Node {
+        unimplemented!()
+    }
+
     fn is_ignorable_paren(&self, node: &Node /*Expression*/) -> bool {
         unimplemented!()
     }

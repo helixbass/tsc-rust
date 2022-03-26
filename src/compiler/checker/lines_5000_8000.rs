@@ -3,15 +3,18 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::ptr;
 use std::rc::Rc;
 
 use super::{get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext};
 use crate::{
-    factory, get_emit_script_target, get_object_flags, is_identifier_text, is_static,
-    maybe_for_each_bool, set_emit_flags, some, synthetic_factory, unescape_leading_underscores,
-    Debug_, EmitFlags, IndexInfo, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
-    NodeLinksSerializedType, ObjectFlags, Signature, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    factory, get_emit_script_target, get_object_flags, get_parse_tree_node, is_identifier_text,
+    is_static, maybe_for_each_bool, node_is_synthesized, null_transformation_context,
+    set_emit_flags, set_text_range, some, synthetic_factory, unescape_leading_underscores,
+    visit_each_child, Debug_, EmitFlags, IndexInfo, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
+    NodeInterface, NodeLinksSerializedType, ObjectFlags, Signature, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    VisitResult,
 };
 
 impl NodeBuilder {
@@ -438,7 +441,46 @@ impl NodeBuilder {
     }
 
     pub(super) fn deep_clone_or_reuse_node(&self, node: &Node) -> Rc<Node> {
-        unimplemented!()
+        if !node_is_synthesized(node)
+            && matches!(get_parse_tree_node(Some(node), Option::<fn(&Node) -> bool>::None), Some(parse_tree_node) if ptr::eq(&*parse_tree_node, node))
+        {
+            return node.node_wrapper();
+        }
+        let ret: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
+            factory.with(|factory_| {
+                factory_
+                    .clone_node(
+                        synthetic_factory_,
+                        &visit_each_child(
+                            Some(node),
+                            |node: &Node| Some(vec![self.deep_clone_or_reuse_node(node)]),
+                            &*null_transformation_context,
+                            Option::<
+                                fn(
+                                    Option<&NodeArray>,
+                                    Option<fn(&Node) -> VisitResult>,
+                                    Option<fn(&Node) -> bool>,
+                                    Option<usize>,
+                                    Option<usize>,
+                                ) -> NodeArray,
+                            >::None,
+                            Option::<fn(&Node) -> VisitResult>::None,
+                            Option::<
+                                fn(
+                                    Option<&Node>,
+                                    Option<fn(&Node) -> VisitResult>,
+                                    Option<fn(&Node) -> bool>,
+                                    Option<fn(&[Rc<Node>]) -> Rc<Node>>,
+                                ) -> Option<Rc<Node>>,
+                            >::None,
+                        )
+                        .unwrap(),
+                    )
+                    .wrap()
+            })
+        });
+        set_text_range(&*ret, Some(node));
+        ret
     }
 
     pub(super) fn create_type_node_from_object_type(
