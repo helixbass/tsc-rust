@@ -62,6 +62,10 @@ impl TypeChecker {
         result /*|| types*/
     }
 
+    pub(super) fn get_type_alias_for_type_literal(&self, type_: &Type) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_name_of_symbol_as_written(
         &self,
         symbol: &Symbol,
@@ -229,6 +233,10 @@ impl TypeChecker {
         }
 
         type_
+    }
+
+    pub(super) fn get_base_type_variable_of_class(&self, symbol: &Symbol) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 
     pub(super) fn get_type_of_instantiated_symbol(&self, symbol: &Symbol) -> Rc<Type> {

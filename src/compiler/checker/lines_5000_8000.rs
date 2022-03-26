@@ -210,18 +210,56 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: &Type, /*ObjectType*/
     ) -> Node {
+        let type_id = type_.id();
         let symbol = type_.maybe_symbol();
         if let Some(symbol) = symbol {
-            if false {
-                unimplemented!()
+            let is_instance_type = if type_checker.is_class_instance_side(type_) {
+                SymbolFlags::Type
             } else {
-                return self.visit_and_transform_type(type_, |type_| {
+                SymbolFlags::Value
+            };
+            if type_checker.is_js_constructor(symbol.maybe_value_declaration()) {
+                self.symbol_to_type_node(type_checker, &symbol, context, is_instance_type, None)
+            } else if symbol.flags().intersects(SymbolFlags::Class)
+                && type_checker
+                    .get_base_type_variable_of_class(&symbol)
+                    .is_none()
+                && !(matches!(symbol.maybe_value_declaration(), Some(value_declaration) if value_declaration.kind() == SyntaxKind::ClassExpression)
+                    && context
+                        .flags()
+                        .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral))
+                || symbol
+                    .flags()
+                    .intersects(SymbolFlags::Enum | SymbolFlags::ValueModule)
+                || self.should_write_type_of_function_symbol()
+            {
+                self.symbol_to_type_node(type_checker, &symbol, context, is_instance_type, None)
+            } else if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_id))
+            {
+                let type_alias = type_checker.get_type_alias_for_type_literal(type_);
+                if let Some(type_alias) = type_alias {
+                    self.symbol_to_type_node(
+                        type_checker,
+                        &type_alias,
+                        context,
+                        SymbolFlags::Type,
+                        None,
+                    )
+                } else {
+                    self.create_elided_information_placeholder(context)
+                }
+            } else {
+                self.visit_and_transform_type(type_, |type_| {
                     self.create_type_node_from_object_type(type_checker, context, type_)
-                });
+                })
             }
         } else {
-            unimplemented!()
+            self.create_type_node_from_object_type(type_checker, context, type_)
         }
+    }
+
+    pub(super) fn should_write_type_of_function_symbol(&self) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn visit_and_transform_type<TTransform: FnMut(&Type) -> Node>(
