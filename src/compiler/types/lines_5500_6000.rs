@@ -163,6 +163,20 @@ impl IndexType {
 }
 
 #[derive(Clone, Debug)]
+pub struct ConditionalRoot {
+    pub infer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct ConditionalType {
+    _type: BaseType,
+    pub root: ConditionalRoot,
+    pub check_type: Rc<Type>,
+    pub extends_type: Rc<Type>,
+}
+
+#[derive(Clone, Debug)]
 #[type_type]
 pub struct TemplateLiteralType {
     _type: BaseType,

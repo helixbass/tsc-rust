@@ -18,6 +18,51 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: &Type, /*ConditionalType*/
     ) -> Node {
+        let type_as_conditional_type = type_.as_conditional_type();
+        let check_type_node = self
+            .type_to_type_node_helper(
+                type_checker,
+                Some(&*type_as_conditional_type.check_type),
+                context,
+            )
+            .unwrap();
+        let save_infer_type_parameters = context.infer_type_parameters.borrow().clone();
+        *context.infer_type_parameters.borrow_mut() =
+            type_as_conditional_type.root.infer_type_parameters.clone();
+        let extends_type_node = self
+            .type_to_type_node_helper(
+                type_checker,
+                Some(&*type_as_conditional_type.extends_type),
+                context,
+            )
+            .unwrap();
+        *context.infer_type_parameters.borrow_mut() = save_infer_type_parameters;
+        let true_type_node = self.type_to_type_node_or_circularity_elision(
+            &type_checker.get_true_type_from_conditional_type(type_),
+        );
+        let false_type_node = self.type_to_type_node_or_circularity_elision(
+            &type_checker.get_false_type_from_conditional_type(type_),
+        );
+        context.increment_approximate_length_by(15);
+        synthetic_factory.with(|synthetic_factory_| {
+            factory.with(|factory_| {
+                factory_
+                    .create_conditional_type_node(
+                        synthetic_factory_,
+                        check_type_node.wrap(),
+                        extends_type_node.wrap(),
+                        true_type_node.wrap(),
+                        false_type_node.wrap(),
+                    )
+                    .into()
+            })
+        })
+    }
+
+    pub(super) fn type_to_type_node_or_circularity_elision(
+        &self,
+        type_: &Type, /*ObjectType*/
+    ) -> Node {
         unimplemented!()
     }
 

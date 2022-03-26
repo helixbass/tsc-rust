@@ -7,8 +7,8 @@ use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseInterfaceType, BigIntLiteralType, IndexType, IndexedAccessType, InterfaceType,
-    InterfaceTypeWithDeclaredMembersInterface, LiteralType, NumberLiteralType,
+    BaseInterfaceType, BigIntLiteralType, ConditionalType, IndexType, IndexedAccessType,
+    InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType, NumberLiteralType,
     ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface, ResolvedTypeInterface,
     Signature, StringLiteralType, StringMappingType, SubstitutionType, Symbol, TemplateLiteralType,
     TypeParameter, TypeReference, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
@@ -278,6 +278,7 @@ pub enum Type {
     StringMappingType(StringMappingType),
     TemplateLiteralType(TemplateLiteralType),
     IndexType(IndexType),
+    ConditionalType(ConditionalType),
 }
 
 impl Type {
@@ -397,6 +398,10 @@ impl Type {
 
     pub fn as_union_type(&self) -> &UnionType {
         enum_unwrapped!(self, [Type, UnionOrIntersectionType, UnionType])
+    }
+
+    pub fn as_conditional_type(&self) -> &ConditionalType {
+        enum_unwrapped!(self, [Type, ConditionalType])
     }
 }
 

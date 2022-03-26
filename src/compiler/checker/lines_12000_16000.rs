@@ -1063,4 +1063,18 @@ impl TypeChecker {
             index_type,
         )
     }
+
+    pub(super) fn get_true_type_from_conditional_type(
+        &self,
+        type_: &Type, /*ConditionalType*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_false_type_from_conditional_type(
+        &self,
+        type_: &Type, /*ConditionalType*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
 }
