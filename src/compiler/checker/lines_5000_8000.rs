@@ -1,29 +1,14 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::{Borrow, Cow};
-use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, HashSet};
-use std::ptr;
 use std::rc::Rc;
 
 use super::NodeBuilderContext;
 use crate::{
-    add_synthetic_leading_comment, append_if_unique_rc, contains_rc, create_printer,
-    create_text_writer, default_maximum_truncation_length, every, factory, filter,
-    get_emit_script_target, get_first_identifier, get_object_flags, get_source_file_of_node,
-    get_text_of_node, get_trailing_semicolon_deferring_writer, has_syntactic_modifier, id_text,
-    is_binding_element, is_expression, is_expression_with_type_arguments_in_class_extends_clause,
-    is_external_or_common_js_module, is_identifier_text, is_import_type_node, is_in_js_file,
-    is_late_visibility_painted_statement, is_module_with_string_literal_name,
-    is_type_reference_node, is_variable_declaration, is_variable_statement, map,
-    no_truncation_maximum_truncation_length, pseudo_big_int_to_string, set_emit_flags, symbol_name,
-    synthetic_factory, unescape_leading_underscores, using_single_line_string_writer, Debug_,
-    EmitFlags, EmitHint, EmitTextWriter, IndexInfo, KeywordTypeNode, ModifierFlags, Node,
-    NodeArray, NodeBuilder, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags,
-    PrinterOptionsBuilder, ScriptTarget, Signature, SignatureKind, Symbol, SymbolAccessibility,
-    SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SymbolVisibilityResult, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId,
-    TypeInterface, TypePredicate,
+    factory, get_emit_script_target, is_identifier_text, synthetic_factory,
+    unescape_leading_underscores, IndexInfo, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
+    NodeInterface, Signature, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
+    TypeChecker, TypeInterface,
 };
 
 impl NodeBuilder {
