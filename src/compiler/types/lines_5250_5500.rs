@@ -427,10 +427,11 @@ impl ResolvedTypeInterface for BaseObjectType {
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
-    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface"
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InterfaceTypeInterface"
 )]
 pub enum InterfaceType {
     BaseInterfaceType(BaseInterfaceType),
+    TupleType(TupleType),
 }
 
 #[derive(Clone, Debug)]
@@ -441,7 +442,7 @@ pub enum InterfaceType {
 pub struct BaseInterfaceType {
     _object_type: BaseObjectType,
     pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
-    pub outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub local_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     pub this_type: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
     declared_properties: RefCell<Option<Vec<Rc<Symbol>>>>,
@@ -471,6 +472,16 @@ impl BaseInterfaceType {
             instantiations: RefCell::new(None),
             variances: RefCell::new(None),
         }
+    }
+}
+
+pub trait InterfaceTypeInterface {
+    fn maybe_outer_type_parameters(&self) -> Option<&[Rc<Type>]>;
+}
+
+impl InterfaceTypeInterface for BaseInterfaceType {
+    fn maybe_outer_type_parameters(&self) -> Option<&[Rc<Type>]> {
+        self.outer_type_parameters.as_deref()
     }
 }
 
@@ -586,6 +597,37 @@ pub trait GenericTypeInterface: TypeInterface {
     fn instantiations(&self) -> RefMut<HashMap<String, Rc<Type /*TypeReference*/>>>;
     fn maybe_variances(&self) -> RefMut<Option<Vec<VarianceFlags>>>;
     fn set_variances(&self, variances: Vec<VarianceFlags>);
+}
+
+bitflags! {
+    pub struct ElementFlags: u32 {
+        const None = 0;
+        const Required = 1 << 0;
+        const Optional = 1 << 1;
+        const Rest = 1 << 2;
+        const Variadic = 1 << 3;
+        const Fixed = Self::Required.bits | Self::Optional.bits;
+        const Variable = Self::Rest.bits | Self::Variadic.bits;
+        const NonRequired = Self::Optional.bits | Self::Rest.bits | Self::Variadic.bits;
+        const NonRest = Self::Required.bits | Self::Optional.bits | Self::Variadic.bits;
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type(
+    ancestors = "InterfaceType, ObjectType",
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, GenericableTypeInterface, GenericTypeInterface, InterfaceTypeInterface"
+)]
+pub struct TupleType {
+    _interface_type: BaseInterfaceType,
+    pub element_flags: Vec<ElementFlags>,
+    pub min_length: usize,
+    pub fixed_length: usize,
+    pub has_rest_element: bool,
+    pub combined_flags: ElementFlags,
+    pub readonly: bool,
+    pub labeled_element_declarations:
+        Option<Vec<Rc<Node /*NamedTupleMember | ParameterDeclaration*/>>>,
 }
 
 pub trait UnionOrIntersectionTypeInterface: TypeInterface {

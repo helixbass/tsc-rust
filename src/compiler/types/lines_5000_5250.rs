@@ -11,7 +11,7 @@ use super::{
     InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType, MappedType,
     NumberLiteralType, ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface,
     ResolvedTypeInterface, Signature, StringLiteralType, StringMappingType, SubstitutionType,
-    Symbol, TemplateLiteralType, TypeParameter, TypeReference, UnionOrIntersectionType,
+    Symbol, TemplateLiteralType, TupleType, TypeParameter, TypeReference, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface, UnionType,
 };
 use crate::{Node, ObjectFlags, Pattern, WeakSelf};
@@ -429,6 +429,10 @@ impl Type {
 
     pub fn as_mapped_type(&self) -> &MappedType {
         enum_unwrapped!(self, [Type, ObjectType, MappedType])
+    }
+
+    pub fn as_tuple_type(&self) -> &TupleType {
+        enum_unwrapped!(self, [Type, ObjectType, InterfaceType, TupleType])
     }
 }
 

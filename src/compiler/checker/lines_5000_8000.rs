@@ -2,6 +2,7 @@
 
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::cmp;
 use std::collections::{HashMap, HashSet};
 use std::ptr;
 use std::rc::Rc;
@@ -9,10 +10,11 @@ use std::rc::Rc;
 use super::{get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext};
 use crate::{
     count_where, factory, filter, get_emit_script_target, get_object_flags, get_parse_tree_node,
-    is_identifier_text, is_static, length, map, maybe_for_each_bool, node_is_synthesized,
-    null_transformation_context, set_emit_flags, set_text_range, some, synthetic_factory,
-    unescape_leading_underscores, visit_each_child, Debug_, EmitFlags, IndexInfo, Node, NodeArray,
-    NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags, Signature,
+    is_class_like, is_identifier_text, is_static, length, map, maybe_for_each_bool,
+    node_is_synthesized, null_transformation_context, same_map, set_emit_flags, set_text_range,
+    some, synthetic_factory, unescape_leading_underscores, visit_each_child, Debug_, ElementFlags,
+    EmitFlags, IndexInfo, InterfaceTypeInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
+    NodeInterface, NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, Signature,
     SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeId, TypeInterface, VisitResult,
 };
@@ -627,9 +629,247 @@ impl NodeBuilder {
 
     pub(super) fn type_reference_to_type_node(
         &self,
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
         type_: &Type, /*TypeReference*/
-    ) -> Rc<Node> {
-        unimplemented!()
+    ) -> Option<Rc<Node>> {
+        let type_arguments = type_checker.get_type_arguments(type_);
+        let type_as_type_reference = type_.as_type_reference();
+        if Rc::ptr_eq(
+            &type_as_type_reference.target,
+            &type_checker.global_array_type(),
+        ) || Rc::ptr_eq(
+            &type_as_type_reference.target,
+            &type_checker.global_readonly_array_type(),
+        ) {
+            if context
+                .flags()
+                .intersects(NodeBuilderFlags::WriteArrayAsGenericType)
+            {
+                let type_argument_node = self
+                    .type_to_type_node_helper(type_checker, &type_arguments[0], context)
+                    .unwrap();
+                return Some(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_type_reference_node(
+                                synthetic_factory_,
+                                if Rc::ptr_eq(
+                                    &type_as_type_reference.target,
+                                    &type_checker.global_array_type(),
+                                ) {
+                                    "Array"
+                                } else {
+                                    "ReadonlyArray"
+                                }
+                                .to_owned(),
+                                Some(vec![type_argument_node]),
+                            )
+                            .into()
+                    })
+                }));
+            }
+            let element_type = self
+                .type_to_type_node_helper(type_checker, &type_arguments[0], context)
+                .unwrap();
+            let array_type: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_array_type_node(synthetic_factory_, element_type)
+                        .into()
+                })
+            });
+            Some(
+                if Rc::ptr_eq(
+                    &type_as_type_reference.target,
+                    &type_checker.global_array_type(),
+                ) {
+                    array_type
+                } else {
+                    synthetic_factory.with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_
+                                .create_type_operator_node(
+                                    synthetic_factory_,
+                                    SyntaxKind::ReadonlyKeyword,
+                                    array_type,
+                                )
+                                .into()
+                        })
+                    })
+                },
+            )
+        } else if type_as_type_reference
+            .target
+            .as_object_type()
+            .object_flags()
+            .intersects(ObjectFlags::Tuple)
+        {
+            let type_target_as_tuple_type = type_as_type_reference.target.as_tuple_type();
+            let type_arguments = same_map(Some(&*type_arguments), |t: &Rc<Type>, i| {
+                type_checker.remove_missing_type(
+                    t,
+                    type_target_as_tuple_type.element_flags[i].intersects(ElementFlags::Optional),
+                )
+            })
+            .unwrap();
+            if !type_arguments.is_empty() {
+                let arity = type_checker.get_type_reference_arity(type_);
+                let mut tuple_constituent_nodes =
+                    self.map_to_type_nodes(type_checker, Some(&type_arguments[0..arity]), context);
+                if let Some(tuple_constituent_nodes) = tuple_constituent_nodes.as_mut() {
+                    if let Some(type_target_labeled_element_declarations) =
+                        type_target_as_tuple_type
+                            .labeled_element_declarations
+                            .as_ref()
+                    {
+                        for i in 0..tuple_constituent_nodes.len() {
+                            let tuple_constituent_node = tuple_constituent_nodes[i].clone();
+                            let flags = type_target_as_tuple_type.element_flags[i];
+                            tuple_constituent_nodes[i] = synthetic_factory.with(|synthetic_factory_| {
+                                factory.with(|factory_| {
+                                    factory_
+                                        .create_named_tuple_member(
+                                            synthetic_factory_,
+                                            if flags.intersects(ElementFlags::Variable) {
+                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::DotDotDotToken))
+                                            } else {
+                                                None
+                                            },
+                                            factory_.create_identifier(synthetic_factory_, unescape_leading_underscores(&type_checker.get_tuple_element_label(&type_target_labeled_element_declarations[i]))),
+                                            if flags.intersects(ElementFlags::Optional) {
+                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::QuestionToken))
+                                            } else {
+                                                None
+                                            },
+                                            if flags.intersects(ElementFlags::Rest) {
+                                                Some(factory_.create_array_type_node(synthetic_factory_, tuple_constituent_node))
+                                            } else {
+                                                tuple_constituent_node
+                                            },
+                                        )
+                                        .into()
+                                })
+                            });
+                        }
+                    } else {
+                        for i in 0..cmp::min(arity, tuple_constituent_nodes.len()) {
+                            let tuple_constituent_node = tuple_constituent_nodes[i].clone();
+                            let flags = type_target_as_tuple_type.element_flags[i];
+                            tuple_constituent_nodes[i] = if flags.intersects(ElementFlags::Variable)
+                            {
+                                synthetic_factory.with(|synthetic_factory_| {
+                                    factory.with(|factory_| {
+                                        factory_
+                                            .create_rest_type_node(
+                                                synthetic_factory_,
+                                                if flags.intersects(ElementFlags::Rest) {
+                                                    factory_.create_array_type_node(
+                                                        synthetic_factory_,
+                                                        tuple_constituent_node,
+                                                    )
+                                                } else {
+                                                    tuple_constituent_node
+                                                },
+                                            )
+                                            .into()
+                                    })
+                                })
+                            } else if flags.intersects(ElementFlags::Optional) {
+                                synthetic_factory.with(|synthetic_factory_| {
+                                    factory.with(|factory_| {
+                                        factory_
+                                            .create_optional_type_node(
+                                                synthetic_factory_,
+                                                tuple_constituent_node,
+                                            )
+                                            .into()
+                                    })
+                                })
+                            } else {
+                                tuple_constituent_node
+                            };
+                        }
+                    }
+                    let tuple_type_node = set_emit_flags(
+                        synthetic_factory.with(|synthetic_factory_| {
+                            factory.with(|factory_| {
+                                factory_
+                                    .create_tuple_type_node(
+                                        synthetic_factory_,
+                                        Some(tuple_constituent_nodes),
+                                    )
+                                    .into()
+                            })
+                        }),
+                        EmitFlags::SingleLine,
+                    );
+                    return Some(if type_target_as_tuple_type.readonly {
+                        synthetic_factory.with(|synthetic_factory_| {
+                            factory.with(|factory_| {
+                                factory_
+                                    .create_type_operator_node(
+                                        synthetic_factory_,
+                                        SyntaxKind::ReadonlyKeyword,
+                                        tuple_type_node,
+                                    )
+                                    .into()
+                            })
+                        })
+                    } else {
+                        tuple_type_node
+                    });
+                }
+            }
+            if context.encountered_error.get()
+                || context
+                    .flags()
+                    .intersects(NodeBuilderFlags::AllowEmptyTuple)
+            {
+                let tuple_type_node = set_emit_flags(
+                    synthetic_factory.with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_
+                                .create_tuple_type_node(synthetic_factory_, Some(vec![]))
+                                .into()
+                        })
+                    }),
+                    EmitFlags::SingleLine,
+                );
+                return Some(if type_target_as_tuple_type.readonly {
+                    synthetic_factory.with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_
+                                .create_type_operator_node(
+                                    synthetic_factory_,
+                                    SyntaxKind::ReadonlyKeyword,
+                                    tuple_type_node,
+                                )
+                                .into()
+                        })
+                    })
+                } else {
+                    tuple_type_node
+                });
+            }
+            context.encountered_error.set(true);
+            return None;
+        } else if context
+            .flags()
+            .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
+            && matches!(type_.symbol().maybe_value_declaration(), Some(value_declaration) if is_class_like(&value_declaration))
+            && !type_checker.is_value_symbol_accessible(
+                &type_.symbol(),
+                context.enclosing_declaration.as_deref(),
+            )
+        {
+            Some(self.create_anonymous_type_node(type_checker, context, type_))
+        } else {
+            let outer_type_parameters = type_as_type_reference
+                .target
+                .as_interface_type()
+                .maybe_outer_type_parameters();
+        }
     }
 
     pub(super) fn append_reference_to_type(

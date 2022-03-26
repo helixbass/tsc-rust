@@ -460,15 +460,18 @@ impl TypeChecker {
         type_
     }
 
-    pub(super) fn get_type_arguments(&self, type_: &TypeReference) -> Vec<Rc<Type>> {
-        let mut resolved_type_arguments = type_.resolved_type_arguments.borrow_mut();
+    pub(super) fn get_type_arguments(&self, type_: &Type /*TypeReference*/) -> Vec<Rc<Type>> {
+        let type_as_type_reference = type_.as_type_reference();
+        let mut resolved_type_arguments =
+            type_as_type_reference.resolved_type_arguments.borrow_mut();
         if resolved_type_arguments.is_none() {
-            let node = type_.node.borrow();
+            let node = type_as_type_reference.node.borrow();
             let type_arguments = match &*node {
                 None => vec![],
                 Some(node) => match &**node {
                     Node::TypeReferenceNode(type_reference_node) => {
-                        let target_as_base_interface_type = type_.target.as_base_interface_type();
+                        let target_as_base_interface_type =
+                            type_as_type_reference.target.as_base_interface_type();
                         concatenate(
                             target_as_base_interface_type
                                 .outer_type_parameters

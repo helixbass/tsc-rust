@@ -1332,6 +1332,41 @@ fn get_type_struct_interface_impl(
                 }
             }
         }
+        "GenericableTypeInterface" => {
+            quote! {
+                impl crate::GenericableTypeInterface for #type_type_name {
+                    fn genericize(&self, instantiations: ::std::collections::HashMap<String, ::std::rc::Rc<crate::Type>>) {
+                        self.#first_field_name.genericize(instantiations)
+                    }
+                }
+            }
+        }
+        "GenericTypeInterface" => {
+            quote! {
+                impl crate::GenericTypeInterface for #type_type_name {
+                    fn instantiations(&self) -> ::std::cell::RefMut<::std::collections::HashMap<String, ::std::rc::Rc<crate::Type>>> {
+                        self.#first_field_name.instantiations()
+                    }
+
+                    fn maybe_variances(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<crate::VarianceFlags>>> {
+                        self.#first_field_name.maybe_variances()
+                    }
+
+                    fn set_variances(&self, variances: ::std::vec::Vec<crate::VarianceFlags>) {
+                        self.#first_field_name.set_variances(variances)
+                    }
+                }
+            }
+        }
+        "InterfaceTypeInterface" => {
+            quote! {
+                impl crate::InterfaceTypeInterface for #type_type_name {
+                    fn maybe_outer_type_parameters(&self) -> ::std::option::Option<&[::std::rc::Rc<crate::Type>]> {
+                        self.#first_field_name.maybe_outer_type_parameters()
+                    }
+                }
+            }
+        }
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
@@ -1592,6 +1627,51 @@ fn get_type_enum_interface_impl(
                     fn set_declared_construct_signatures(&self, declared_construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_declared_construct_signatures(declared_construct_signatures)),*
+                        }
+                    }
+                }
+            }
+        }
+        "GenericableTypeInterface" => {
+            quote! {
+                impl crate::GenericableTypeInterface for #type_type_name {
+                    fn genericize(&self, instantiations: ::std::collections::HashMap<String, ::std::rc::Rc<crate::Type>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.genericize(instantiations)),*
+                        }
+                    }
+                }
+            }
+        }
+        "GenericTypeInterface" => {
+            quote! {
+                impl crate::GenericTypeInterface for #type_type_name {
+                    fn instantiations(&self) -> ::std::cell::RefMut<::std::collections::HashMap<String, ::std::rc::Rc<crate::Type>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.instantiations()),*
+                        }
+                    }
+
+                    fn maybe_variances(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<crate::VarianceFlags>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_variances()),*
+                        }
+                    }
+
+                    fn set_variances(&self, variances: ::std::vec::Vec<crate::VarianceFlags>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_variances(variances)),*
+                        }
+                    }
+                }
+            }
+        }
+        "InterfaceTypeInterface" => {
+            quote! {
+                impl crate::InterfaceTypeInterface for #type_type_name {
+                    fn maybe_outer_type_parameters(&self) -> ::std::option::Option<&[::std::rc::Rc<crate::Type>]> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_outer_type_parameters()),*
                         }
                     }
                 }
