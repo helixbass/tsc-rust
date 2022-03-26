@@ -14,7 +14,7 @@ use super::{
     Symbol, TemplateLiteralType, TypeParameter, TypeReference, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface, UnionType,
 };
-use crate::{ObjectFlags, Pattern, WeakSelf};
+use crate::{Node, ObjectFlags, Pattern, WeakSelf};
 use local_macros::{enum_unwrapped, type_type};
 
 pub struct InternalSymbolName;
@@ -166,6 +166,13 @@ bitflags! {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct NodeLinksSerializedType {
+    pub truncating: Option<bool>,
+    pub added_length: usize,
+    pub node: Rc<Node /*TypeNode*/>,
+}
+
 #[derive(Debug)]
 pub struct NodeLinks {
     pub flags: NodeCheckFlags,
@@ -175,6 +182,7 @@ pub struct NodeLinks {
     pub is_visible: Option<bool>,
     pub skip_direct_inference: Option<bool /*true*/>,
     pub declaration_requires_scope_change: Option<bool>,
+    pub serialized_types: Option<HashMap<String, NodeLinksSerializedType>>,
 }
 
 impl NodeLinks {
@@ -187,6 +195,7 @@ impl NodeLinks {
             is_visible: None,
             skip_direct_inference: None,
             declaration_requires_scope_change: None,
+            serialized_types: None,
         }
     }
 }
@@ -346,6 +355,13 @@ impl Type {
 
     pub fn as_object_type(&self) -> &ObjectType {
         enum_unwrapped!(self, [Type, ObjectType])
+    }
+
+    pub fn maybe_as_type_reference(&self) -> Option<&TypeReference> {
+        match self {
+            Type::ObjectType(ObjectType::TypeReference(type_)) => Some(type_),
+            _ => None,
+        }
     }
 
     pub fn as_type_reference(&self) -> &TypeReference {

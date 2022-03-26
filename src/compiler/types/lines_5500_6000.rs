@@ -176,6 +176,7 @@ impl IndexType {
 
 #[derive(Clone, Debug)]
 pub struct ConditionalRoot {
+    pub node: Rc<Node /*ConditionalTypeNode*/>,
     pub infer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
 }
 

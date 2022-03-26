@@ -1,14 +1,17 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::{Borrow, Cow};
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use super::{MappedTypeModifiers, NodeBuilderContext};
+use super::{get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext};
 use crate::{
-    factory, get_emit_script_target, is_identifier_text, set_emit_flags_unwrapped,
-    synthetic_factory, unescape_leading_underscores, Debug_, EmitFlags, IndexInfo, Node, NodeArray,
-    NodeBuilder, NodeBuilderFlags, NodeInterface, Signature, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    factory, get_emit_script_target, get_object_flags, is_identifier_text, is_static,
+    maybe_for_each_bool, set_emit_flags, some, synthetic_factory, unescape_leading_underscores,
+    Debug_, EmitFlags, IndexInfo, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
+    NodeLinksSerializedType, ObjectFlags, Signature, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
 };
 
 impl NodeBuilder {
@@ -17,7 +20,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*ConditionalType*/
-    ) -> Node {
+    ) -> Rc<Node> {
         let type_as_conditional_type = type_.as_conditional_type();
         let check_type_node = self
             .type_to_type_node_helper(
@@ -53,10 +56,10 @@ impl NodeBuilder {
                 factory_
                     .create_conditional_type_node(
                         synthetic_factory_,
-                        check_type_node.wrap(),
-                        extends_type_node.wrap(),
-                        true_type_node.wrap(),
-                        false_type_node.wrap(),
+                        check_type_node,
+                        extends_type_node,
+                        true_type_node,
+                        false_type_node,
                     )
                     .into()
             })
@@ -68,7 +71,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type,
-    ) -> Node {
+    ) -> Rc<Node> {
         if type_.flags().intersects(TypeFlags::Union) {
             if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_checker.get_type_id(type_)))
             {
@@ -81,7 +84,7 @@ impl NodeBuilder {
                 }
                 return self.create_elided_information_placeholder(context);
             }
-            return self.visit_and_transform_type(type_, |type_| {
+            return self.visit_and_transform_type(type_checker, context, type_, |type_| {
                 self.type_to_type_node_helper(type_checker, Some(type_), context)
                     .unwrap()
             });
@@ -95,7 +98,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*MappedType*/
-    ) -> Node {
+    ) -> Rc<Node> {
         Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
         let type_as_mapped_type = type_.as_mapped_type();
         let type_declaration_as_mapped_type_node =
@@ -137,8 +140,7 @@ impl NodeBuilder {
                                 Some(type_checker.get_modifiers_type_from_mapped_type(type_)),
                                 context,
                             )
-                            .unwrap()
-                            .wrap(),
+                            .unwrap(),
                         )
                         .into()
                 })
@@ -150,16 +152,13 @@ impl NodeBuilder {
                     Some(type_checker.get_constraint_type_from_mapped_type(type_)),
                     context,
                 )
-                .unwrap()
-                .wrap();
+                .unwrap();
         }
-        let type_parameter_node: Rc<Node> = self
-            .type_parameter_to_declaration_with_constraint(
-                &type_checker.get_type_parameter_from_mapped_type(type_),
-                context,
-                Some(appropriate_constraint_type_node),
-            )
-            .wrap();
+        let type_parameter_node: Rc<Node> = self.type_parameter_to_declaration_with_constraint(
+            &type_checker.get_type_parameter_from_mapped_type(type_),
+            context,
+            Some(appropriate_constraint_type_node),
+        );
         let name_type_node: Option<Rc<Node>> =
             if type_declaration_as_mapped_type_node.name_type.is_some() {
                 self.type_to_type_node_helper(
@@ -167,25 +166,22 @@ impl NodeBuilder {
                     type_checker.get_name_type_from_mapped_type(type_),
                     context,
                 )
-                .map(Node::wrap)
             } else {
                 None
             };
-        let template_type_node: Option<Rc<Node>> = self
-            .type_to_type_node_helper(
-                type_checker,
-                Some(
-                    type_checker.remove_missing_type(
-                        &type_checker.get_template_type_from_mapped_type(type_),
-                        type_checker
-                            .get_mapped_type_modifiers(type_)
-                            .intersects(MappedTypeModifiers::IncludeOptional),
-                    ),
+        let template_type_node: Option<Rc<Node>> = self.type_to_type_node_helper(
+            type_checker,
+            Some(
+                type_checker.remove_missing_type(
+                    &type_checker.get_template_type_from_mapped_type(type_),
+                    type_checker
+                        .get_mapped_type_modifiers(type_)
+                        .intersects(MappedTypeModifiers::IncludeOptional),
                 ),
-                context,
-            )
-            .map(Node::wrap);
-        let mapped_type_node: Node = synthetic_factory.with(|synthetic_factory_| {
+            ),
+            context,
+        );
+        let mapped_type_node: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
             factory.with(|factory_| {
                 factory_
                     .create_mapped_type_node(
@@ -201,7 +197,7 @@ impl NodeBuilder {
             })
         });
         context.increment_approximate_length_by(10);
-        set_emit_flags_unwrapped(mapped_type_node, EmitFlags::SingleLine)
+        set_emit_flags(mapped_type_node, EmitFlags::SingleLine)
     }
 
     pub(super) fn create_anonymous_type_node(
@@ -209,7 +205,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*ObjectType*/
-    ) -> Node {
+    ) -> Rc<Node> {
         let type_id = type_.id();
         let symbol = type_.maybe_symbol();
         if let Some(symbol) = symbol {
@@ -231,7 +227,12 @@ impl NodeBuilder {
                 || symbol
                     .flags()
                     .intersects(SymbolFlags::Enum | SymbolFlags::ValueModule)
-                || self.should_write_type_of_function_symbol()
+                || self.should_write_type_of_function_symbol(
+                    type_checker,
+                    &symbol,
+                    context,
+                    type_id,
+                )
             {
                 self.symbol_to_type_node(type_checker, &symbol, context, is_instance_type, None)
             } else if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_id))
@@ -249,7 +250,7 @@ impl NodeBuilder {
                     self.create_elided_information_placeholder(context)
                 }
             } else {
-                self.visit_and_transform_type(type_, |type_| {
+                self.visit_and_transform_type(type_checker, context, type_, |type_| {
                     self.create_type_node_from_object_type(type_checker, context, type_)
                 })
             }
@@ -258,17 +259,186 @@ impl NodeBuilder {
         }
     }
 
-    pub(super) fn should_write_type_of_function_symbol(&self) -> bool {
-        unimplemented!()
+    pub(super) fn should_write_type_of_function_symbol(
+        &self,
+        type_checker: &TypeChecker,
+        symbol: &Symbol,
+        context: &NodeBuilderContext,
+        type_id: TypeId,
+    ) -> bool {
+        let is_static_method_symbol = symbol.flags().intersects(SymbolFlags::Method)
+            && some(
+                symbol.maybe_declarations().as_deref(),
+                Some(|declaration: &Rc<Node>| is_static(declaration)),
+            );
+        let is_non_local_function_symbol = symbol.flags().intersects(SymbolFlags::Function)
+            && (symbol.maybe_parent().is_some()
+                || maybe_for_each_bool(
+                    symbol.maybe_declarations().as_deref(),
+                    |declaration: &Rc<Node>, _| {
+                        matches!(
+                            declaration.parent().kind(),
+                            SyntaxKind::SourceFile | SyntaxKind::ModuleBlock
+                        )
+                    },
+                ));
+        if is_static_method_symbol || is_non_local_function_symbol {
+            return (context
+                .flags()
+                .intersects(NodeBuilderFlags::UseTypeOfFunction)
+                || matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_id)))
+                && (!context
+                    .flags()
+                    .intersects(NodeBuilderFlags::UseStructuralFallback)
+                    || type_checker.is_value_symbol_accessible(
+                        symbol,
+                        context.enclosing_declaration.as_deref(),
+                    ));
+        }
+        false
     }
 
-    pub(super) fn visit_and_transform_type<TTransform: FnMut(&Type) -> Node>(
+    pub(super) fn visit_and_transform_type<TTransform: FnMut(&Type) -> Rc<Node>>(
         &self,
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
         type_: &Type,
         mut transform: TTransform,
-    ) -> Node {
+    ) -> Rc<Node> {
+        let type_id = type_.id();
+        let is_constructor_object = get_object_flags(type_).intersects(ObjectFlags::Anonymous)
+            && matches!(type_.maybe_symbol(), Some(symbol) if symbol.flags().intersects(SymbolFlags::Class));
+        let id = if get_object_flags(type_).intersects(ObjectFlags::Reference)
+            && type_
+                .maybe_as_type_reference()
+                .and_then(|type_| type_.node.borrow().clone())
+                .is_some()
+        {
+            Some(format!(
+                "N{}",
+                get_node_id(type_.as_type_reference().node.borrow().as_ref().unwrap())
+            ))
+        } else if type_.flags().intersects(TypeFlags::Conditional) {
+            Some(format!(
+                "N{}",
+                get_node_id(&type_.as_conditional_type().root.node)
+            ))
+        } else if let Some(type_symbol) = type_.maybe_symbol() {
+            Some(format!(
+                "{}{}",
+                if is_constructor_object { "+" } else { "" },
+                get_symbol_id(&type_symbol)
+            ))
+        } else {
+            None
+        };
+        if context.visited_types.borrow().is_none() {
+            *context.visited_types.borrow_mut() = Some(HashSet::new());
+        }
+        if id.is_some() && context.symbol_depth.borrow().is_none() {
+            *context.symbol_depth.borrow_mut() = Some(HashMap::new());
+        }
+        let links = context
+            .enclosing_declaration
+            .as_ref()
+            .map(|enclosing_declaration| type_checker.get_node_links(enclosing_declaration));
+        let key = format!(
+            "{}|{}",
+            type_checker.get_type_id(type_),
+            context.flags().bits()
+        );
+        if let Some(links) = links.as_ref() {
+            let mut links = links.borrow_mut();
+            if links.serialized_types.is_none() {
+                links.serialized_types = Some(HashMap::new());
+            }
+        }
+        let cached_result = links.as_ref().and_then(|links| {
+            RefCell::borrow(links)
+                .serialized_types
+                .as_ref()
+                .unwrap()
+                .get(&key)
+                .map(Clone::clone)
+        });
+        if let Some(cached_result) = cached_result.as_ref() {
+            if matches!(cached_result.truncating, Some(true)) {
+                context.truncating.set(Some(true));
+            }
+            context.increment_approximate_length_by(cached_result.added_length);
+            return self.deep_clone_or_reuse_node(&cached_result.node);
+        }
+        let mut depth: Option<usize> = None;
+        if let Some(id) = id.as_ref() {
+            depth = Some(
+                context
+                    .symbol_depth
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .get(id)
+                    .copied()
+                    .unwrap_or(0),
+            );
+            if depth.unwrap() > 10 {
+                return self.create_elided_information_placeholder(context);
+            }
+            context
+                .symbol_depth
+                .borrow_mut()
+                .as_mut()
+                .unwrap()
+                .insert(id.clone(), depth.unwrap() + 1);
+        }
+        context
+            .visited_types
+            .borrow_mut()
+            .as_mut()
+            .unwrap()
+            .insert(type_id);
+        let start_length = context.approximate_length.get();
         let result = transform(type_);
+        let added_length = context.approximate_length.get() - start_length;
+        if !context.reported_diagnostic.get() && !context.encountered_error.get() {
+            if let Some(links) = links.as_ref() {
+                links
+                    .borrow_mut()
+                    .serialized_types
+                    .as_mut()
+                    .unwrap()
+                    .insert(
+                        key,
+                        NodeLinksSerializedType {
+                            truncating: if matches!(context.truncating.get(), Some(true)) {
+                                Some(true)
+                            } else {
+                                None
+                            },
+                            added_length,
+                            node: result.clone(),
+                        },
+                    );
+            }
+        }
+        context
+            .visited_types
+            .borrow_mut()
+            .as_mut()
+            .unwrap()
+            .remove(&type_id);
+        if let Some(id) = id {
+            context
+                .symbol_depth
+                .borrow_mut()
+                .as_mut()
+                .unwrap()
+                .insert(id, depth.unwrap());
+        }
         result
+    }
+
+    pub(super) fn deep_clone_or_reuse_node(&self, node: &Node) -> Rc<Node> {
+        unimplemented!()
     }
 
     pub(super) fn create_type_node_from_object_type(
@@ -276,7 +446,7 @@ impl NodeBuilder {
         type_checker: &TypeChecker,
         context: &NodeBuilderContext,
         type_: &Type, /*ObjectType*/
-    ) -> Node {
+    ) -> Rc<Node> {
         let resolved = type_checker.resolve_structured_type_members(type_);
 
         let members = self.create_type_nodes_from_resolved_type(type_checker, context, &resolved);
@@ -286,7 +456,10 @@ impl NodeBuilder {
         type_literal_node.into()
     }
 
-    pub(super) fn type_reference_to_type_node(&self, type_: &Type /*TypeReference*/) -> Node {
+    pub(super) fn type_reference_to_type_node(
+        &self,
+        type_: &Type, /*TypeReference*/
+    ) -> Rc<Node> {
         unimplemented!()
     }
 
@@ -294,7 +467,7 @@ impl NodeBuilder {
         &self,
         root: &Node, /*TypeReferenceNode | ImportTypeNode*/
         ref_: &Node, /*TypeReferenceNode*/
-    ) -> Node /*TypeReferenceNode | ImportTypeNode*/ {
+    ) -> Rc<Node /*TypeReferenceNode | ImportTypeNode*/> {
         unimplemented!()
     }
 
@@ -326,7 +499,7 @@ impl NodeBuilder {
     pub(super) fn create_elided_information_placeholder(
         &self,
         context: &NodeBuilderContext,
-    ) -> Node {
+    ) -> Rc<Node> {
         unimplemented!()
     }
 
@@ -356,7 +529,7 @@ impl NodeBuilder {
         if false {
             unimplemented!()
         } else {
-            let property_type_node: Node;
+            let property_type_node: Rc<Node>;
             if false {
                 unimplemented!()
             } else {
@@ -384,7 +557,7 @@ impl NodeBuilder {
                         modifiers,
                         property_name,
                         optional_token.map(Into::into),
-                        Some(property_type_node.wrap()),
+                        Some(property_type_node),
                     )
                 })
             });
@@ -425,7 +598,7 @@ impl NodeBuilder {
         index_info: &IndexInfo,
         context: &NodeBuilderContext,
         type_node: Option<TTypeNode /*TypeNode*/>,
-    ) -> Node /*IndexSignatureDeclaration*/ {
+    ) -> Rc<Node /*IndexSignatureDeclaration*/> {
         unimplemented!()
     }
 
@@ -435,7 +608,7 @@ impl NodeBuilder {
         kind: SyntaxKind,
         context: &NodeBuilderContext,
         options: Option<SignatureToSignatureDeclarationOptions>,
-    ) -> Node /*SignatureDeclaration*/ {
+    ) -> Rc<Node /*SignatureDeclaration*/> {
         unimplemented!()
     }
 
@@ -444,7 +617,7 @@ impl NodeBuilder {
         type_: &Type, /*TypeParameter*/
         context: &NodeBuilderContext,
         constraint_node: Option<Rc<Node>>,
-    ) -> Node /*TypeParameterDeclaration*/ {
+    ) -> Rc<Node /*TypeParameterDeclaration*/> {
         unimplemented!()
     }
 
@@ -454,7 +627,7 @@ impl NodeBuilder {
         type_: &Type, /*TypeParameter*/
         context: &NodeBuilderContext,
         constraint: Option<Rc<Type>>,
-    ) -> Node /*TypeParameterDeclaration*/ {
+    ) -> Rc<Node /*TypeParameterDeclaration*/> {
         let constraint =
             constraint.or_else(|| type_checker.get_constraint_of_type_parameter(type_));
         unimplemented!()
@@ -467,7 +640,7 @@ impl NodeBuilder {
         preserve_modifier_flags: Option<bool>,
         private_symbol_visitor: Option<TPrivateSymbolVisitor>,
         bundled_imports: Option<bool>,
-    ) -> Node /*ParameterDeclaration*/ {
+    ) -> Rc<Node /*ParameterDeclaration*/> {
         unimplemented!()
     }
 
@@ -503,7 +676,7 @@ impl NodeBuilder {
         unimplemented!()
     }
 
-    pub(super) fn symbol_to_entity_name_node(&self, symbol: &Symbol) -> Node /*EntityName*/ {
+    pub(super) fn symbol_to_entity_name_node(&self, symbol: &Symbol) -> Rc<Node /*EntityName*/> {
         unimplemented!()
     }
 
@@ -514,7 +687,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         meaning: SymbolFlags,
         override_type_arguments: Option<&[Rc<Node /*TypeNode*/>]>,
-    ) -> Node {
+    ) -> Rc<Node> {
         let chain = self.lookup_symbol_chain(symbol, context, Some(meaning));
 
         let chain_index = chain.len() - 1;
@@ -584,7 +757,7 @@ impl NodeBuilder {
         &self,
         type_: &Type, /*TypeParameter*/
         context: &NodeBuilderContext,
-    ) -> Node {
+    ) -> Rc<Node> {
         unimplemented!()
     }
 
@@ -595,7 +768,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
         expects_identifier: bool,
-    ) -> Node /*EntityName*/ {
+    ) -> Rc<Node /*EntityName*/> {
         unimplemented!()
     }
 
@@ -605,7 +778,7 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
         meaning: /*SymbolFlags*/ Option<SymbolFlags>,
-    ) -> Node {
+    ) -> Rc<Node> {
         let chain = self.lookup_symbol_chain(symbol, context, meaning);
         let index = chain.len() - 1;
         self.create_expression_from_symbol_chain(type_checker, context, chain, index)
@@ -662,7 +835,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         chain: Vec<Rc<Symbol>>,
         index: usize,
-    ) -> Node {
+    ) -> Rc<Node> {
         let type_parameter_nodes = Option::<NodeArray>::None; // TODO: this is wrong
         let symbol = &*(&chain)[index];
 
@@ -692,7 +865,7 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: &Type,
         symbol: &Symbol,
-    ) -> Node {
+    ) -> Rc<Node> {
         let result = self.type_to_type_node_helper(type_checker, Some(type_), context);
         result.unwrap()
     }

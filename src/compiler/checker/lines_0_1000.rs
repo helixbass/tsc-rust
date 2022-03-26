@@ -1594,7 +1594,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Node /*TypeNode*/> {
+    ) -> Option<Rc<Node /*TypeNode*/>> {
         self.node_builder
             .type_to_type_node(self, type_, enclosing_declaration, flags, tracker)
     }
@@ -1605,7 +1605,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Node /*IndexSignatureDeclaration*/> {
+    ) -> Option<Rc<Node /*IndexSignatureDeclaration*/>> {
         self.node_builder.index_info_to_index_signature_declaration(
             index_info,
             enclosing_declaration,
@@ -1621,7 +1621,7 @@ impl TypeChecker {
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<&dyn SymbolTracker>,
-    ) -> Option<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/> {
+    ) -> Option<Rc<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>> {
         self.node_builder.signature_to_signature_declaration(
             signature,
             kind,
@@ -1637,7 +1637,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Node /*EntityName*/> {
+    ) -> Option<Rc<Node /*EntityName*/>> {
         self.node_builder.symbol_to_entity_name(
             self,
             symbol,
@@ -1654,7 +1654,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Node /*Expression*/> {
+    ) -> Option<Rc<Node /*Expression*/>> {
         self.node_builder.symbol_to_expression(
             self,
             symbol,
@@ -1684,7 +1684,7 @@ impl TypeChecker {
         symbol: &Symbol,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Node /*ParameterDeclaration*/> {
+    ) -> Option<Rc<Node /*ParameterDeclaration*/>> {
         self.node_builder.symbol_to_parameter_declaration(
             symbol,
             enclosing_declaration,
@@ -1698,7 +1698,7 @@ impl TypeChecker {
         parameter: &Type, /*TypeParameter*/
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<NodeBuilderFlags>,
-    ) -> Option<Node /*TypeParameterDeclaration*/> {
+    ) -> Option<Rc<Node /*TypeParameterDeclaration*/>> {
         self.node_builder.type_parameter_to_declaration(
             self,
             parameter,
