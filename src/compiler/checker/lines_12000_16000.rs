@@ -317,6 +317,13 @@ impl TypeChecker {
         self.get_return_type_of_type_tag(declaration)
     }
 
+    pub(super) fn get_or_create_type_from_signature(
+        &self,
+        signature: &Signature,
+    ) -> Rc<Type /*ObjectType*/> {
+        unimplemented!()
+    }
+
     pub(super) fn get_index_symbol_from_symbol_table(
         &self,
         symbol_table: &SymbolTable,
@@ -967,6 +974,15 @@ impl TypeChecker {
             );
         }
         links_ref.resolved_type.clone().unwrap()
+    }
+
+    pub(super) fn get_intersection_type<TAliasSymbol: Borrow<Symbol>>(
+        &self,
+        types: &[Rc<Type>],
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn get_literal_type_from_property_name(

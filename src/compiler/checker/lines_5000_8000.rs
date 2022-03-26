@@ -8,13 +8,13 @@ use std::rc::Rc;
 
 use super::{get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext};
 use crate::{
-    factory, get_emit_script_target, get_object_flags, get_parse_tree_node, is_identifier_text,
-    is_static, maybe_for_each_bool, node_is_synthesized, null_transformation_context,
-    set_emit_flags, set_text_range, some, synthetic_factory, unescape_leading_underscores,
-    visit_each_child, Debug_, EmitFlags, IndexInfo, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
-    NodeInterface, NodeLinksSerializedType, ObjectFlags, Signature, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    VisitResult,
+    count_where, factory, filter, get_emit_script_target, get_object_flags, get_parse_tree_node,
+    is_identifier_text, is_static, length, map, maybe_for_each_bool, node_is_synthesized,
+    null_transformation_context, set_emit_flags, set_text_range, some, synthetic_factory,
+    unescape_leading_underscores, visit_each_child, Debug_, EmitFlags, IndexInfo, Node, NodeArray,
+    NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags, Signature,
+    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeId, TypeInterface, VisitResult,
 };
 
 impl NodeBuilder {
@@ -489,13 +489,140 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_: &Type, /*ObjectType*/
     ) -> Rc<Node> {
-        let resolved = type_checker.resolve_structured_type_members(type_);
+        if type_checker.is_generic_mapped_type(type_)
+            || matches!(
+                type_
+                    .maybe_as_mapped_type()
+                    .and_then(|type_| type_.contains_error),
+                Some(true)
+            )
+        {
+            return self.create_mapped_type_node_from_type(type_checker, context, type_);
+        }
 
+        let resolved = type_checker.resolve_structured_type_members(type_);
+        let resolved_as_resolved_type = resolved.as_resolved_type();
+        if resolved_as_resolved_type.properties().is_empty()
+            && resolved_as_resolved_type.index_infos().is_empty()
+        {
+            if resolved_as_resolved_type.call_signatures().is_empty()
+                && resolved_as_resolved_type.construct_signatures().is_empty()
+            {
+                context.increment_approximate_length_by(2);
+                return set_emit_flags(
+                    synthetic_factory.with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_
+                                .create_type_literal_node(
+                                    synthetic_factory_,
+                                    Option::<NodeArray>::None,
+                                )
+                                .into()
+                        })
+                    }),
+                    EmitFlags::SingleLine,
+                );
+            }
+
+            if resolved_as_resolved_type.call_signatures().len() == 1
+                && resolved_as_resolved_type.construct_signatures().is_empty()
+            {
+                let signature = &resolved_as_resolved_type.call_signatures()[0];
+                let signature_node = self.signature_to_signature_declaration_helper(
+                    signature,
+                    SyntaxKind::FunctionType,
+                    context,
+                    None,
+                );
+                return signature_node;
+            }
+
+            if resolved_as_resolved_type.construct_signatures().len() == 1
+                && resolved_as_resolved_type.call_signatures().is_empty()
+            {
+                let signature = &resolved_as_resolved_type.construct_signatures()[0];
+                let signature_node = self.signature_to_signature_declaration_helper(
+                    signature,
+                    SyntaxKind::ConstructorType,
+                    context,
+                    None,
+                );
+                return signature_node;
+            }
+        }
+
+        let abstract_signatures = filter(
+            Some(&*resolved_as_resolved_type.construct_signatures()),
+            |signature: &Rc<Signature>| signature.flags.intersects(SignatureFlags::Abstract),
+        );
+        if some(
+            abstract_signatures.as_deref(),
+            Option::<fn(&Rc<Signature>) -> bool>::None,
+        ) {
+            let mut types = map(
+                abstract_signatures.as_deref(),
+                |signature: &Rc<Signature>, _| {
+                    type_checker.get_or_create_type_from_signature(signature)
+                },
+            )
+            .unwrap();
+            let type_element_count = resolved_as_resolved_type.call_signatures().len()
+                + (resolved_as_resolved_type.construct_signatures().len()
+                    - abstract_signatures.as_ref().unwrap().len())
+                + resolved_as_resolved_type.index_infos().len()
+                + if context
+                    .flags()
+                    .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
+                {
+                    count_where(
+                        Some(&*resolved_as_resolved_type.properties()),
+                        |p: &Rc<Symbol>, _| !p.flags().intersects(SymbolFlags::Prototype),
+                    )
+                } else {
+                    length(Some(&*resolved_as_resolved_type.properties()))
+                };
+            if type_element_count > 0 {
+                types.push(
+                    type_checker.get_resolved_type_without_abstract_construct_signatures(&resolved),
+                );
+            }
+            return self
+                .type_to_type_node_helper(
+                    type_checker,
+                    Some(&*type_checker.get_intersection_type(
+                        &types,
+                        Option::<&Symbol>::None,
+                        None,
+                    )),
+                    context,
+                )
+                .unwrap();
+        }
+
+        let saved_flags = context.flags();
+        context.set_flags(context.flags() | NodeBuilderFlags::InObjectTypeLiteral);
         let members = self.create_type_nodes_from_resolved_type(type_checker, context, &resolved);
-        let type_literal_node = synthetic_factory.with(|synthetic_factory_| {
-            factory.with(|factory_| factory_.create_type_literal_node(synthetic_factory_, members))
+        context.set_flags(saved_flags);
+        let type_literal_node: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
+            factory.with(|factory_| {
+                factory_
+                    .create_type_literal_node(synthetic_factory_, members)
+                    .into()
+            })
         });
-        type_literal_node.into()
+        context.increment_approximate_length_by(2);
+        set_emit_flags(
+            type_literal_node.clone(),
+            if context
+                .flags()
+                .intersects(NodeBuilderFlags::MultilineObjectLiterals)
+            {
+                EmitFlags::None
+            } else {
+                EmitFlags::SingleLine
+            },
+        );
+        type_literal_node
     }
 
     pub(super) fn type_reference_to_type_node(

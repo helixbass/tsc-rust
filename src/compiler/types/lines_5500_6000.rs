@@ -22,6 +22,7 @@ use local_macros::{enum_unwrapped, type_type};
 pub struct MappedType {
     _object_type: BaseObjectType,
     pub declaration: Rc<Node /*MappedTypeNode*/>,
+    pub contains_error: Option<bool>,
 }
 
 pub trait ResolvedTypeInterface {

@@ -420,6 +420,13 @@ impl Type {
         enum_unwrapped!(self, [Type, ConditionalType])
     }
 
+    pub fn maybe_as_mapped_type(&self) -> Option<&MappedType> {
+        match self {
+            Type::ObjectType(ObjectType::MappedType(type_)) => Some(type_),
+            _ => None,
+        }
+    }
+
     pub fn as_mapped_type(&self) -> &MappedType {
         enum_unwrapped!(self, [Type, ObjectType, MappedType])
     }

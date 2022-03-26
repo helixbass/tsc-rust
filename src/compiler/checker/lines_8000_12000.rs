@@ -733,6 +733,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_generic_mapped_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn resolve_structured_type_members(
         &self,
         type_: &Type, /*StructuredType*/
