@@ -8,7 +8,7 @@ use crate::{
     factory, get_emit_script_target, is_identifier_text, synthetic_factory,
     unescape_leading_underscores, IndexInfo, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
     NodeInterface, Signature, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
-    TypeChecker, TypeInterface,
+    TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl NodeBuilder {
@@ -38,9 +38,13 @@ impl NodeBuilder {
             .unwrap();
         *context.infer_type_parameters.borrow_mut() = save_infer_type_parameters;
         let true_type_node = self.type_to_type_node_or_circularity_elision(
+            type_checker,
+            context,
             &type_checker.get_true_type_from_conditional_type(type_),
         );
         let false_type_node = self.type_to_type_node_or_circularity_elision(
+            type_checker,
+            context,
             &type_checker.get_false_type_from_conditional_type(type_),
         );
         context.increment_approximate_length_by(15);
@@ -61,9 +65,29 @@ impl NodeBuilder {
 
     pub(super) fn type_to_type_node_or_circularity_elision(
         &self,
-        type_: &Type, /*ObjectType*/
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
+        type_: &Type,
     ) -> Node {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::Union) {
+            if matches!(context.visited_types.borrow().as_ref(), Some(visited_types) if visited_types.contains(&type_checker.get_type_id(type_)))
+            {
+                if !context
+                    .flags()
+                    .intersects(NodeBuilderFlags::AllowAnonymousIdentifier)
+                {
+                    context.encountered_error.set(true);
+                    context.tracker.report_cyclic_structure_error();
+                }
+                return self.create_elided_information_placeholder(context);
+            }
+            return self.visit_and_transform_type(type_, |type_| {
+                self.type_to_type_node_helper(type_checker, Some(type_), context)
+                    .unwrap()
+            });
+        }
+        self.type_to_type_node_helper(type_checker, Some(type_), context)
+            .unwrap()
     }
 
     pub(super) fn create_anonymous_type_node(
@@ -145,6 +169,13 @@ impl NodeBuilder {
         } else {
             None
         }
+    }
+
+    pub(super) fn create_elided_information_placeholder(
+        &self,
+        context: &NodeBuilderContext,
+    ) -> Node {
+        unimplemented!()
     }
 
     pub(super) fn add_property_to_element_list(
