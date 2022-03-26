@@ -116,6 +116,106 @@ impl TypeParameter {
     }
 }
 
+bitflags! {
+    pub(crate) struct AccessFlags: u32 {
+        const None = 0;
+        const IncludeUndefined = 1 << 0;
+        const NoIndexSignatures = 1 << 1;
+        const Writing = 1 << 2;
+        const CacheSymbol = 1 << 3;
+        const NoTupleBoundsCheck = 1 << 4;
+        const ExpressionPosition = 1 << 5;
+        const ReportDeprecated = 1 << 6;
+        const SuppressNoImplicitAnyError = 1 << 7;
+        const Contextual = 1 << 8;
+        const PropagatingFlags = Self::IncludeUndefined.bits;
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct IndexedAccessType {
+    _type: BaseType,
+    pub object_type: Rc<Type>,
+    pub index_type: Rc<Type>,
+    pub(crate) access_flags: AccessFlags,
+    pub(crate) constraint: Option<Rc<Type>>,
+    pub(crate) simplified_for_reading: Option<Rc<Type>>,
+    pub(crate) simplified_for_writing: Option<Rc<Type>>,
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct IndexType {
+    _type: BaseType,
+    pub type_: Rc<Type /*InstantiableType | UnionOrIntersectionType*/>,
+    pub(crate) strings_only: bool,
+}
+
+impl IndexType {
+    pub fn new(_type: BaseType, type_: Rc<Type>, strings_only: bool) -> Self {
+        Self {
+            _type,
+            type_,
+            strings_only,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct TemplateLiteralType {
+    _type: BaseType,
+    pub texts: Vec<String>,
+    pub types: Vec<Rc<Type>>,
+}
+
+impl TemplateLiteralType {
+    pub fn new(_type: BaseType, texts: Vec<String>, types: Vec<Rc<Type>>) -> Self {
+        Self {
+            _type,
+            texts,
+            types,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct StringMappingType {
+    _type: BaseType,
+    pub symbol: Rc<Symbol>,
+    pub type_: Rc<Type>,
+}
+
+impl StringMappingType {
+    pub fn new(_type: BaseType, symbol: Rc<Symbol>, type_: Rc<Type>) -> Self {
+        Self {
+            _type,
+            symbol,
+            type_,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct SubstitutionType {
+    _type: BaseType,
+    pub base_type: Rc<Type>,
+    pub substitute: Rc<Type>,
+}
+
+impl SubstitutionType {
+    pub fn new(_type: BaseType, base_type: Rc<Type>, substitute: Rc<Type>) -> Self {
+        Self {
+            _type,
+            base_type,
+            substitute,
+        }
+    }
+}
+
 #[derive(PartialEq, Eq)]
 pub enum SignatureKind {
     Call,

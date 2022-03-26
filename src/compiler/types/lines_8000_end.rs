@@ -90,7 +90,7 @@ pub trait SymbolTracker {
     }
     fn report_inaccessible_this_error(&mut self) {}
     fn report_private_in_base_of_class_expression(&mut self, property_name: &str) {}
-    fn report_inaccessible_unique_symbol_error(&mut self) {}
+    fn report_inaccessible_unique_symbol_error(&self) {}
     fn report_cyclic_structure_error(&mut self) {}
     fn report_likely_unsafe_import_required_error(&mut self, specifier: &str) {}
     fn report_truncation_error(&mut self, specifier: &str) {}

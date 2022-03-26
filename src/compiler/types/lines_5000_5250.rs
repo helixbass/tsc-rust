@@ -1,16 +1,18 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseInterfaceType, BigIntLiteralType, InterfaceType, InterfaceTypeWithDeclaredMembersInterface,
-    LiteralType, NumberLiteralType, ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface,
-    ResolvedTypeInterface, Signature, StringLiteralType, Symbol, TypeParameter, TypeReference,
-    UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
+    BaseInterfaceType, BigIntLiteralType, IndexType, IndexedAccessType, InterfaceType,
+    InterfaceTypeWithDeclaredMembersInterface, LiteralType, NumberLiteralType,
+    ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface, ResolvedTypeInterface,
+    Signature, StringLiteralType, StringMappingType, SubstitutionType, Symbol, TemplateLiteralType,
+    TypeParameter, TypeReference, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
+    UnionType,
 };
 use crate::{ObjectFlags, Pattern, WeakSelf};
 use local_macros::{enum_unwrapped, type_type};
@@ -271,6 +273,11 @@ pub enum Type {
     ObjectType(ObjectType),
     UnionOrIntersectionType(UnionOrIntersectionType),
     TypeParameter(TypeParameter),
+    SubstitutionType(SubstitutionType),
+    IndexedAccessType(IndexedAccessType),
+    StringMappingType(StringMappingType),
+    TemplateLiteralType(TemplateLiteralType),
+    IndexType(IndexType),
 }
 
 impl Type {
@@ -367,6 +374,30 @@ impl Type {
     pub fn as_freshable_intrinsic_type(&self) -> &FreshableIntrinsicType {
         enum_unwrapped!(self, [Type, IntrinsicType, FreshableIntrinsicType])
     }
+
+    pub fn as_substitution_type(&self) -> &SubstitutionType {
+        enum_unwrapped!(self, [Type, SubstitutionType])
+    }
+
+    pub fn as_indexed_access_type(&self) -> &IndexedAccessType {
+        enum_unwrapped!(self, [Type, IndexedAccessType])
+    }
+
+    pub fn as_string_mapping_type(&self) -> &StringMappingType {
+        enum_unwrapped!(self, [Type, StringMappingType])
+    }
+
+    pub fn as_template_literal_type(&self) -> &TemplateLiteralType {
+        enum_unwrapped!(self, [Type, TemplateLiteralType])
+    }
+
+    pub fn as_index_type(&self) -> &IndexType {
+        enum_unwrapped!(self, [Type, IndexType])
+    }
+
+    pub fn as_union_type(&self) -> &UnionType {
+        enum_unwrapped!(self, [Type, UnionOrIntersectionType, UnionType])
+    }
 }
 
 pub trait TypeInterface {
@@ -378,6 +409,7 @@ pub trait TypeInterface {
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>);
     fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>>;
+    fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
 }
 
 #[derive(Clone, Debug)]
@@ -387,6 +419,7 @@ pub struct BaseType {
     pub id: Option<TypeId>,
     symbol: Option<Rc<Symbol>>,
     alias_symbol: Option<Rc<Symbol>>,
+    alias_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
 }
 
 impl BaseType {
@@ -397,6 +430,7 @@ impl BaseType {
             id: None,
             symbol: None,
             alias_symbol: None,
+            alias_type_arguments: RefCell::new(None),
         }
     }
 }
@@ -437,6 +471,10 @@ impl TypeInterface for BaseType {
 
     fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>> {
         self.alias_symbol.as_ref().map(Clone::clone)
+    }
+
+    fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.alias_type_arguments.borrow_mut()
     }
 }
 

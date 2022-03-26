@@ -546,7 +546,7 @@ impl NodeBuilder {
         tracker: Option<&dyn SymbolTracker>,
     ) -> Option<Node> {
         self.with_context(enclosing_declaration, flags, tracker, |context| {
-            Some(self.type_to_type_node_helper(type_checker, type_, context))
+            self.type_to_type_node_helper(type_checker, Some(type_), context)
         })
     }
 
@@ -705,7 +705,7 @@ impl NodeBuilder {
         }
         context.truncating.set(Some(
             context.approximate_length.get()
-                > if context.flags.intersects(NodeBuilderFlags::NoTruncation) {
+                > if context.flags().intersects(NodeBuilderFlags::NoTruncation) {
                     no_truncation_maximum_truncation_length
                 } else {
                     default_maximum_truncation_length
@@ -764,10 +764,10 @@ impl NodeBuilder {
                         factory_
                             .create_type_reference_node(
                                 synthetic_factory_,
-                                self.symbol_to_entity_name_node(&type_alias_symbol),
+                                self.symbol_to_entity_name_node(&type_alias_symbol).wrap(),
                                 self.map_to_type_nodes(
                                     type_checker,
-                                    type_.maybe_alias_type_arguments(),
+                                    type_.maybe_alias_type_arguments().as_deref(),
                                     context,
                                     None,
                                 ),
@@ -777,18 +777,23 @@ impl NodeBuilder {
                 }));
             }
             if Rc::ptr_eq(&type_, &type_checker.unresolved_type()) {
-                return Some(synthetic_factory.with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        add_synthetic_leading_comment(
+                let ret: Node =
+                    synthetic_factory.with(|synthetic_factory_| {
+                        factory.with(|factory_| {
                             Into::<KeywordTypeNode>::into(factory_.create_keyword_type_node(
                                 synthetic_factory_,
                                 SyntaxKind::AnyKeyword,
-                            )),
-                            SyntaxKind::MultiLineCommentTrivia,
-                            "unresolved",
-                        )
-                    })
-                }));
+                            ))
+                            .into()
+                        })
+                    });
+                add_synthetic_leading_comment(
+                    &ret,
+                    SyntaxKind::MultiLineCommentTrivia,
+                    "unresolved",
+                    None,
+                );
+                return Some(ret);
             }
             context.increment_approximate_length_by(3);
             return Some(synthetic_factory.with(|synthetic_factory_| {
@@ -872,8 +877,13 @@ impl NodeBuilder {
             && !type_.flags().intersects(TypeFlags::Union)
         {
             let parent_symbol = type_checker.get_parent_of_symbol(&type_.symbol()).unwrap();
-            let parent_name =
-                self.symbol_to_type_node(type_checker, &parent_symbol, context, SymbolFlags::Type);
+            let parent_name = self.symbol_to_type_node(
+                type_checker,
+                &parent_symbol,
+                context,
+                SymbolFlags::Type,
+                None,
+            );
             if Rc::ptr_eq(
                 &type_checker.get_declared_type_of_symbol(&parent_symbol),
                 &type_,
@@ -882,47 +892,73 @@ impl NodeBuilder {
             }
             let member_name = symbol_name(&type_.symbol());
             if is_identifier_text(&member_name, Some(ScriptTarget::ES3), None) {
-                return self.append_reference_to_type(
+                return Some(self.append_reference_to_type(
                     &parent_name,
-                    synthetic_factory.with(|synthetic_factory_| {
+                    &synthetic_factory.with(|synthetic_factory_| {
                         factory.with(|factory_| {
-                            factory_.create_type_reference_node(
-                                synthetic_factory_,
-                                member_name,
-                                None,
-                            )
+                            factory_
+                                .create_type_reference_node(
+                                    synthetic_factory_,
+                                    member_name,
+                                    Option::<NodeArray>::None,
+                                )
+                                .into()
                         })
                     }),
-                );
+                ));
             }
             if is_import_type_node(&parent_name) {
                 parent_name.as_import_type_node().set_is_type_of(true);
                 return Some(synthetic_factory.with(|synthetic_factory_| {
                     factory.with(|factory_| {
-                        factory_.create_indexed_access_type_node(
-                            synthetic_factory_,
-                            parent_name,
-                            factory_.create_literal_type_node(
+                        factory_
+                            .create_indexed_access_type_node(
                                 synthetic_factory_,
-                                factory_.create_string_literal(synthetic_factory_, member_name),
-                            ),
-                        )
+                                parent_name.wrap(),
+                                factory_
+                                    .create_literal_type_node(
+                                        synthetic_factory_,
+                                        factory_
+                                            .create_string_literal(
+                                                synthetic_factory_,
+                                                member_name,
+                                                None,
+                                                None,
+                                            )
+                                            .into(),
+                                    )
+                                    .into(),
+                            )
+                            .into()
                     })
                 }));
-            } else if is_type_reference_node() {
+            } else if is_type_reference_node(&parent_name) {
                 return Some(synthetic_factory.with(|synthetic_factory_| {
                     factory.with(|factory_| {
-                        factory_.create_indexed_access_type_node(
-                            synthetic_factory_,
-                            factory_.create_type_query_node(
+                        factory_
+                            .create_indexed_access_type_node(
                                 synthetic_factory_,
-                                parent_name.as_type_reference_node().type_name.clone(),
-                            ),
-                            factory_.create_literal_type_node(
-                                synthetic_factory_,
-                                factory_.create_string_literal(synthetic_factory_, member_name),
-                            ),
-                        )
+                                factory_
+                                    .create_type_query_node(
+                                        synthetic_factory_,
+                                        parent_name.as_type_reference_node().type_name.clone(),
+                                    )
+                                    .into(),
+                                factory_
+                                    .create_literal_type_node(
+                                        synthetic_factory_,
+                                        factory_
+                                            .create_string_literal(
+                                                synthetic_factory_,
+                                                member_name,
+                                                None,
+                                                None,
+                                            )
+                                            .into(),
+                                    )
+                                    .into(),
+                            )
+                            .into()
                     })
                 }));
             } else {
@@ -971,10 +1007,10 @@ impl NodeBuilder {
         if type_.flags().intersects(TypeFlags::NumberLiteral) {
             let value = type_.as_number_literal_type().value.value();
             context.increment_approximate_length_by(value.to_string().len());
-            return synthetic_factory
-                .with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        factory_.create_literal_type_node(
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_literal_type_node(
                             synthetic_factory_,
                             if value < 0.0 {
                                 factory_
@@ -1000,25 +1036,25 @@ impl NodeBuilder {
                                     .into()
                             },
                         )
-                    })
+                        .into()
                 })
-                .into();
+            }));
         }
         if type_.flags().intersects(TypeFlags::BigIntLiteral) {
             let value = &type_.as_big_int_literal_type().value;
             context.increment_approximate_length_by(pseudo_big_int_to_string(value).len() + 1);
-            return synthetic_factory
-                .with(|synthetic_factory_| {
-                    factory.with(|factory_| {
-                        factory_.create_literal_type_node(
+            return Some(synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_literal_type_node(
                             synthetic_factory_,
                             factory_
                                 .create_big_int_literal(synthetic_factory_, value.clone())
                                 .into(),
                         )
-                    })
+                        .into()
                 })
-                .into();
+            }));
         }
         if type_.flags().intersects(TypeFlags::BooleanLiteral) {
             let type_intrinsic_name = type_.as_intrinsic_type().intrinsic_name();
@@ -1193,7 +1229,7 @@ impl NodeBuilder {
                 {
                     let type_argument_nodes = self.map_to_type_nodes(
                         type_checker,
-                        type_.maybe_alias_type_arguments(),
+                        type_.maybe_alias_type_arguments().as_deref(),
                         context,
                         None,
                     );
@@ -1217,13 +1253,13 @@ impl NodeBuilder {
                             })
                         }));
                     }
-                    return self.symbol_to_type_node(
+                    return Some(self.symbol_to_type_node(
                         type_checker,
                         &type_alias_symbol,
                         context,
                         SymbolFlags::Type,
                         type_argument_nodes.as_deref(),
-                    );
+                    ));
                 }
             }
         }
@@ -1257,7 +1293,8 @@ impl NodeBuilder {
                                 synthetic_factory_,
                                 self.type_parameter_to_declaration_with_constraint(
                                     &type_, context, None,
-                                ),
+                                )
+                                .wrap(),
                             )
                             .into()
                     })
@@ -1285,7 +1322,7 @@ impl NodeBuilder {
                                     Option::<NodeArray>::None,
                                     None,
                                 )),
-                                None,
+                                Option::<NodeArray>::None,
                             )
                             .into()
                     })
@@ -1311,7 +1348,7 @@ impl NodeBuilder {
                                     Option::<NodeArray>::None,
                                     None,
                                 )),
-                                None,
+                                Option::<NodeArray>::None,
                             )
                             .into()
                     })
@@ -1369,13 +1406,13 @@ impl NodeBuilder {
         }
         if object_flags.intersects(ObjectFlags::Anonymous | ObjectFlags::Mapped) {
             Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
-            return self.create_anonymous_type_node(type_checker, context, &type_);
+            return Some(self.create_anonymous_type_node(type_checker, context, &type_));
         }
         if type_.flags().intersects(TypeFlags::Index) {
             let indexed_type = &type_.as_index_type().type_;
             context.increment_approximate_length_by(6);
             let index_type_node = self
-                .type_to_type_node_helper(type_checker, indexed_type, context)
+                .type_to_type_node_helper(type_checker, Some(&**indexed_type), context)
                 .unwrap();
             return Some(synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
@@ -1408,13 +1445,17 @@ impl NodeBuilder {
             let template_spans = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
                     factory_.create_node_array(
-                        map(Some(types), |t: &Rc<Node>, i| -> Rc<Node> {
+                        map(Some(types), |t: &Rc<Type>, i| -> Rc<Node> {
                             factory_
                                 .create_template_literal_type_span(
                                     synthetic_factory_,
-                                    self.type_to_type_node_helper(type_checker, Some(t), context)
-                                        .unwrap()
-                                        .wrap(),
+                                    self.type_to_type_node_helper(
+                                        type_checker,
+                                        Some(&**t),
+                                        context,
+                                    )
+                                    .unwrap()
+                                    .wrap(),
                                     if i < types.len() - 1 {
                                         factory_
                                             .create_template_middle(
@@ -1457,7 +1498,11 @@ impl NodeBuilder {
         if type_.flags().intersects(TypeFlags::StringMapping) {
             let type_as_string_mapping_type = type_.as_string_mapping_type();
             let type_node = self
-                .type_to_type_node_helper(type_checker, &type_as_string_mapping_type.type_, context)
+                .type_to_type_node_helper(
+                    type_checker,
+                    Some(&*type_as_string_mapping_type.type_),
+                    context,
+                )
                 .unwrap();
             return Some(self.symbol_to_type_node(
                 type_checker,
@@ -1472,14 +1517,14 @@ impl NodeBuilder {
             let object_type_node = self
                 .type_to_type_node_helper(
                     type_checker,
-                    &type_as_indexed_access_type.object_type,
+                    Some(&*type_as_indexed_access_type.object_type),
                     context,
                 )
                 .unwrap();
             let index_type_node = self
                 .type_to_type_node_helper(
                     type_checker,
-                    &type_as_indexed_access_type.index_type,
+                    Some(&*type_as_indexed_access_type.index_type),
                     context,
                 )
                 .unwrap();
@@ -1498,18 +1543,27 @@ impl NodeBuilder {
         }
         if type_.flags().intersects(TypeFlags::Conditional) {
             return Some(self.visit_and_transform_type(&type_, |type_| {
-                self.conditional_type_to_type_node(type_)
+                self.conditional_type_to_type_node(type_checker, context, type_)
             }));
         }
         if type_.flags().intersects(TypeFlags::Substitution) {
             return self.type_to_type_node_helper(
                 type_checker,
-                &type_.as_substitution_type().base_type,
+                Some(&*type_.as_substitution_type().base_type),
                 context,
             );
         }
 
         Debug_.fail(Some("Should be unreachable."));
+    }
+
+    pub(super) fn conditional_type_to_type_node(
+        &self,
+        type_checker: &TypeChecker,
+        context: &NodeBuilderContext,
+        type_: &Type, /*ConditionalType*/
+    ) -> Node {
+        unimplemented!()
     }
 
     pub(super) fn create_anonymous_type_node(
@@ -1523,12 +1577,9 @@ impl NodeBuilder {
             if false {
                 unimplemented!()
             } else {
-                return self.visit_and_transform_type(
-                    type_checker,
-                    context,
-                    type_,
-                    NodeBuilder::create_type_node_from_object_type,
-                );
+                return self.visit_and_transform_type(type_, |type_| {
+                    self.create_type_node_from_object_type(type_checker, context, type_)
+                });
             }
         } else {
             unimplemented!()
@@ -1557,6 +1608,18 @@ impl NodeBuilder {
             factory.with(|factory_| factory_.create_type_literal_node(synthetic_factory_, members))
         });
         type_literal_node.into()
+    }
+
+    pub(super) fn type_reference_to_type_node(&self, type_: &Type /*TypeReference*/) -> Node {
+        unimplemented!()
+    }
+
+    pub(super) fn append_reference_to_type(
+        &self,
+        root: &Node, /*TypeReferenceNode | ImportTypeNode*/
+        ref_: &Node, /*TypeReferenceNode*/
+    ) -> Node /*TypeReferenceNode | ImportTypeNode*/ {
+        unimplemented!()
     }
 
     pub(super) fn create_type_nodes_from_resolved_type(
@@ -1659,12 +1722,13 @@ impl NodeBuilder {
             /*some(types)*/
             {
                 let may_have_name_collisions = !context
-                    .flags
+                    .flags()
                     .intersects(NodeBuilderFlags::UseFullyQualifiedType);
                 let mut result: Vec<Rc<Node>> = vec![];
                 for (i, type_) in types.iter().enumerate() {
-                    let type_node = self.type_to_type_node_helper(type_checker, type_, context);
-                    result.push(type_node.into());
+                    let type_node =
+                        self.type_to_type_node_helper(type_checker, Some(&**type_), context);
+                    result.push(type_node.unwrap().into());
                 }
 
                 return Some(result);
@@ -1689,6 +1753,15 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         options: Option<SignatureToSignatureDeclarationOptions>,
     ) -> Node /*SignatureDeclaration*/ {
+        unimplemented!()
+    }
+
+    pub(super) fn type_parameter_to_declaration_with_constraint(
+        &self,
+        type_: &Type, /*TypeParameter*/
+        context: &NodeBuilderContext,
+        constraint_node: Option<Rc<Node>>,
+    ) -> Node /*TypeParameterDeclaration*/ {
         unimplemented!()
     }
 
@@ -1744,6 +1817,10 @@ impl NodeBuilder {
         symbol: &Symbol,
         context: &NodeBuilderContext,
     ) -> Option<NodeArray /*<TypeParameterDeclaration>*/> {
+        unimplemented!()
+    }
+
+    pub(super) fn symbol_to_entity_name_node(&self, symbol: &Symbol) -> Node /*EntityName*/ {
         unimplemented!()
     }
 
@@ -1818,6 +1895,14 @@ impl NodeBuilder {
         identifier.set_symbol(symbol);
 
         identifier.into()
+    }
+
+    pub(super) fn type_parameter_to_name(
+        &self,
+        type_: &Type, /*TypeParameter*/
+        context: &NodeBuilderContext,
+    ) -> Node {
+        unimplemented!()
     }
 
     pub(super) fn symbol_to_name(
@@ -1925,8 +2010,8 @@ impl NodeBuilder {
         type_: &Type,
         symbol: &Symbol,
     ) -> Node {
-        let result = self.type_to_type_node_helper(type_checker, type_, context);
-        result
+        let result = self.type_to_type_node_helper(type_checker, Some(type_), context);
+        result.unwrap()
     }
 
     pub(super) fn symbol_table_to_declaration_statements_(

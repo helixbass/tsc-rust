@@ -1046,6 +1046,10 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn is_this_type_parameter(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_indexed_access_type_or_undefined(
         &self,
         object_type: &Type,

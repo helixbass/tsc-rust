@@ -229,7 +229,7 @@ impl SymbolTracker for SingleLineStringWriter {
 
     fn report_inaccessible_this_error(&mut self) {}
 
-    fn report_inaccessible_unique_symbol_error(&mut self) {}
+    fn report_inaccessible_unique_symbol_error(&self) {}
 
     fn report_private_in_base_of_class_expression(&mut self, _property_name: &str) {}
 }

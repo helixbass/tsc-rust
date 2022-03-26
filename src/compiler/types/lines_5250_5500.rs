@@ -638,12 +638,14 @@ impl ObjectFlagsTypeInterface for BaseUnionOrIntersectionType {
 )]
 pub struct UnionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,
+    pub(crate) origin: Option<Rc<Type>>,
 }
 
 impl UnionType {
     pub fn new(union_or_intersection_type: BaseUnionOrIntersectionType) -> Self {
         Self {
             _union_or_intersection_type: union_or_intersection_type,
+            origin: None,
         }
     }
 }

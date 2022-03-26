@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use super::{
@@ -208,7 +208,7 @@ impl From<BaseNode> for KeywordTypeNode {
 pub struct ImportTypeNode {
     _node: BaseNode,
     pub type_arguments: Option<NodeArray /*<TypeNode>*/>,
-    pub is_type_of: bool,
+    is_type_of: Cell<bool>,
     pub argument: Rc<Node /*<TypeNode>*/>,
     pub qualifier: Option<Rc<Node /*<EntityName>*/>>,
 }
@@ -224,10 +224,18 @@ impl ImportTypeNode {
         Self {
             _node: base_node,
             type_arguments,
-            is_type_of,
+            is_type_of: Cell::new(is_type_of),
             argument,
             qualifier,
         }
+    }
+
+    pub fn is_type_of(&self) -> bool {
+        self.is_type_of.get()
+    }
+
+    pub fn set_is_type_of(&self, is_type_of: bool) {
+        self.is_type_of.set(is_type_of)
     }
 }
 

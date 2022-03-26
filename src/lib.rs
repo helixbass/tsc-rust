@@ -54,7 +54,9 @@ pub use compiler::factory::base_node_factory::{
     create_base_node_factory, BaseNodeFactory, BaseNodeFactoryConcrete,
 };
 pub use compiler::factory::emit_helpers::{create_emit_helper_factory, EmitHelperFactory};
-pub use compiler::factory::emit_node::{dispose_emit_nodes, set_emit_flags};
+pub use compiler::factory::emit_node::{
+    add_synthetic_leading_comment, dispose_emit_nodes, set_emit_flags,
+};
 use compiler::factory::emit_node::{get_starts_on_new_line, set_starts_on_new_line};
 pub use compiler::factory::node_converters::{create_node_converters, null_node_converters};
 pub use compiler::factory::node_factory::{
@@ -211,7 +213,7 @@ pub use compiler::tsbuild_public::{
     ReportEmitErrorSummary, SolutionBuilderHostBase,
 };
 use compiler::types::{
-    diagnostic_category_name, CommandLineOptionType, CommentDirectivesMap, EmitNode,
+    diagnostic_category_name, AccessFlags, CommandLineOptionType, CommentDirectivesMap, EmitNode,
     ExternalEmitHelpers, FileIncludeKind, FileIncludeReason, IterationTypes, PragmaArgumentType,
     ReadonlyPragmaMap, ReferencedFile, StringOrDiagnosticMessage,
 };
@@ -260,21 +262,22 @@ pub use compiler::types::{
     HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, HeritageClause, Identifier, IfStatement, ImportClause,
     ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
-    ImportsNotUsedAsValues, IndexInfo, IndexKind, IndexSignatureDeclaration, IndexedAccessTypeNode,
-    InferTypeNode, InputFiles, InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface,
-    InterfaceType, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
-    IntersectionTypeNode, IntrinsicType, IntrinsicTypeInterface, JSDoc, JSDocAugmentsTag,
-    JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode,
-    JSDocLinkLikeInterface, JSDocLinkPlain, JSDocMemberName, JSDocNameReference,
-    JSDocNamespaceDeclaration, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature,
-    JSDocTagInterface, JSDocTemplateTag, JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface,
-    JSDocTypeLiteral, JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute,
-    JsxAttributes, JsxClosingElement, JsxClosingFragment, JsxElement, JsxEmit, JsxExpression,
-    JsxFragment, JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute,
-    JsxText, KeywordTypeNode, LabeledStatement, LanguageVariant, LexicalEnvironmentFlags,
-    LineAndCharacter, ListFormat, LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface,
-    LiteralTypeNode, MappedTypeNode, MetaProperty, MethodDeclaration, MethodSignature,
-    MissingDeclaration, ModifierFlags, ModifiersArray, ModuleBlock, ModuleDeclaration, ModuleKind,
+    ImportsNotUsedAsValues, IndexInfo, IndexKind, IndexSignatureDeclaration, IndexType,
+    IndexedAccessType, IndexedAccessTypeNode, InferTypeNode, InputFiles, InterfaceDeclaration,
+    InterfaceOrClassLikeDeclarationInterface, InterfaceType,
+    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, IntersectionTypeNode,
+    IntrinsicType, IntrinsicTypeInterface, JSDoc, JSDocAugmentsTag, JSDocCallbackTag,
+    JSDocFunctionType, JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkLikeInterface,
+    JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocNamespaceDeclaration,
+    JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTagInterface, JSDocTemplateTag,
+    JSDocText, JSDocTypeExpression, JSDocTypeLikeTagInterface, JSDocTypeLiteral,
+    JSDocTypedefOrCallbackTagInterface, JSDocTypedefTag, JsxAttribute, JsxAttributes,
+    JsxClosingElement, JsxClosingFragment, JsxElement, JsxEmit, JsxExpression, JsxFragment,
+    JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
+    KeywordTypeNode, LabeledStatement, LanguageVariant, LexicalEnvironmentFlags, LineAndCharacter,
+    ListFormat, LiteralLikeNodeInterface, LiteralType, LiteralTypeInterface, LiteralTypeNode,
+    MappedTypeNode, MetaProperty, MethodDeclaration, MethodSignature, MissingDeclaration,
+    ModifierFlags, ModifiersArray, ModuleBlock, ModuleDeclaration, ModuleKind,
     ModuleResolutionHost, ModuleResolutionKind, ModuleSpecifierResolutionHost,
     NamedDeclarationInterface, NamedExports, NamedImports, NamedTupleMember, NamespaceExport,
     NamespaceExportDeclaration, NamespaceImport, NewExpression, NewLineKind, Node, NodeArray,
@@ -296,11 +299,12 @@ pub use compiler::types::{
     Signature, SignatureDeclarationBase, SignatureDeclarationInterface, SignatureFlags,
     SignatureKind, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost, SourceMapRange,
     SourceTextAsChars, SpreadAssignment, SpreadElement, StringLiteral, StringLiteralType,
-    StringOrNodeArray, StructureIsReused, SwitchStatement, Symbol, SymbolAccessibility,
-    SymbolAccessibilityResult, SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface,
-    SymbolLinks, SymbolTable, SymbolTracker, SymbolVisibilityResult, SymbolWalker, SymbolWriter,
-    SyntaxKind, SyntaxList, SynthesizedComment, TaggedTemplateExpression, TemplateExpression,
-    TemplateLiteralLikeNode, TemplateLiteralLikeNodeInterface, TemplateLiteralTypeNode,
+    StringMappingType, StringOrNodeArray, StructureIsReused, SubstitutionType, SwitchStatement,
+    Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolFormatFlags,
+    SymbolId, SymbolInterface, SymbolLinks, SymbolTable, SymbolTracker, SymbolVisibilityResult,
+    SymbolWalker, SymbolWriter, SyntaxKind, SyntaxList, SynthesizedComment,
+    TaggedTemplateExpression, TemplateExpression, TemplateLiteralLikeNode,
+    TemplateLiteralLikeNodeInterface, TemplateLiteralType, TemplateLiteralTypeNode,
     TemplateLiteralTypeSpan, TemplateSpan, Ternary, TextChangeRange, TextRange, TextSpan,
     ThisTypeNode, ThrowStatement, ToHashMapOfCompilerOptionsValues, TokenFlags, TransformFlags,
     TransformationContext, TransformationResult, Transformer, TransformerFactory,

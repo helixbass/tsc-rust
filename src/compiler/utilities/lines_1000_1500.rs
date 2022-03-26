@@ -572,7 +572,7 @@ pub fn is_part_of_type_node(node: &Node) -> bool {
                 return false;
             }
             if parent.kind() == SyntaxKind::ImportType {
-                return !parent.as_import_type_node().is_type_of;
+                return !parent.as_import_type_node().is_type_of();
             }
             if SyntaxKind::FirstTypeNode <= parent.kind()
                 && parent.kind() <= SyntaxKind::LastTypeNode
