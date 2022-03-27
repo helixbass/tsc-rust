@@ -14,10 +14,11 @@ use crate::{
     is_identifier_text, is_import_type_node, is_static, length, map, maybe_for_each_bool,
     node_is_synthesized, null_transformation_context, range_equals_rc, same_map, set_emit_flags,
     set_text_range, some, synthetic_factory, unescape_leading_underscores, visit_each_child,
-    Debug_, ElementFlags, EmitFlags, IndexInfo, InterfaceTypeInterface, ModifierFlags, Node,
-    NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, VisitResult,
+    Debug_, ElementFlags, EmitFlags, IndexInfo, InterfaceTypeInterface, KeywordTypeNode,
+    ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
+    NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeId, TypeInterface, VisitResult,
 };
 
 impl NodeBuilder {
@@ -1217,7 +1218,33 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
     ) -> Rc<Node> {
-        unimplemented!()
+        context.increment_approximate_length_by(3);
+        if !context.flags().intersects(NodeBuilderFlags::NoTruncation) {
+            return synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_type_reference_node(
+                            synthetic_factory_,
+                            Into::<Rc<Node>>::into(factory_.create_identifier(
+                                synthetic_factory_,
+                                "...",
+                                Option::<NodeArray>::None,
+                                None,
+                            )),
+                            Option::<NodeArray>::None,
+                        )
+                        .into()
+                })
+            });
+        }
+        synthetic_factory.with(|synthetic_factory_| {
+            factory.with(|factory_| {
+                Into::<KeywordTypeNode>::into(
+                    factory_.create_keyword_type_node(synthetic_factory_, SyntaxKind::AnyKeyword),
+                )
+                .into()
+            })
+        })
     }
 
     pub(super) fn add_property_to_element_list(
