@@ -21,17 +21,17 @@ use crate::{
     is_binding_pattern, is_call_expression, is_computed_property_name,
     is_external_module_augmentation, is_identifier_text,
     is_internal_module_import_equals_declaration, is_property_assignment, is_property_declaration,
-    is_property_signature, is_source_file, is_type_alias, is_variable_declaration, maybe_for_each,
-    push_if_unique_rc, range_equals_rc, starts_with, symbol_name, synthetic_factory,
-    try_to_add_to_set, walk_up_parenthesized_types, BaseInterfaceType, CharacterCodes, CheckFlags,
-    Debug_, EmitHint, EmitTextWriter, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Signature, SignatureFlags,
-    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeFormatFlags, TypeInterface, TypeMapper, TypePredicate, TypePredicateKind,
-    TypeSystemEntity, TypeSystemPropertyName, UnderscoreEscapedMap,
-    UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
+    is_property_signature, is_source_file, is_type_alias, is_variable_declaration, map,
+    maybe_for_each, push_if_unique_rc, range_equals_rc, starts_with, symbol_name,
+    synthetic_factory, try_to_add_to_set, walk_up_parenthesized_types, BaseInterfaceType,
+    CharacterCodes, CheckFlags, Debug_, EmitHint, EmitTextWriter, InterfaceType,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
+    LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags,
+    NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder,
+    Signature, SignatureFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeMapper,
+    TypePredicate, TypePredicateKind, TypeSystemEntity, TypeSystemPropertyName,
+    UnderscoreEscapedMap, UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -659,15 +659,47 @@ impl TypeChecker {
         .parent()
     }
 
+    pub(super) fn get_type_of_prototype_property(&self, prototype: &Symbol) -> Rc<Type> {
+        let class_type =
+            self.get_declared_type_of_symbol(&self.get_parent_of_symbol(prototype).unwrap());
+        if let Some(class_type_type_parameters) = class_type
+            .as_interface_type()
+            .maybe_type_parameters()
+            .as_deref()
+        {
+            self.create_type_reference(
+                &class_type,
+                map(Some(class_type_type_parameters), |_, _| self.any_type()),
+            )
+            .into()
+        } else {
+            class_type
+        }
+    }
+
     pub(super) fn get_type_of_property_of_type_(
         &self,
         type_: &Type,
         name: &__String,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let prop = self.get_property_of_type_(type_, name, None)?;
+        Some(self.get_type_of_symbol(&prop))
     }
 
-    pub(super) fn is_type_any<TTypeRef: Borrow<Type>>(&self, type_: Option<TTypeRef>) -> bool {
+    pub(super) fn get_type_of_property_or_index_signature(
+        &self,
+        type_: &Type,
+        name: &__String,
+    ) -> Rc<Type> {
+        self.get_type_of_property_of_type_(type_, name)
+            .or_else(|| {
+                self.get_applicable_index_info_for_name(type_, name)
+                    .map(|index_info| index_info.type_.clone())
+            })
+            .unwrap_or_else(|| self.unknown_type())
+    }
+
+    pub(super) fn is_type_any<TType: Borrow<Type>>(&self, type_: Option<TType>) -> bool {
         match type_ {
             Some(type_) => {
                 let type_ = type_.borrow();
@@ -680,6 +712,17 @@ impl TypeChecker {
     pub(super) fn is_error_type(&self, type_: &Type) -> bool {
         ptr::eq(type_, &*self.error_type())
             || type_.flags().intersects(TypeFlags::Any) && type_.maybe_alias_symbol().is_some()
+    }
+
+    pub(super) fn get_type_for_binding_element_parent(
+        &self,
+        node: &Node, /*BindingElementGrandparent*/
+    ) -> Option<Rc<Type>> {
+        let symbol = self.get_symbol_of_node(node)?;
+        RefCell::borrow(&self.get_symbol_links(&symbol))
+            .type_
+            .clone()
+            .or_else(|| self.get_type_for_variable_like_declaration(node, false))
     }
 
     pub(super) fn add_optionality(
@@ -700,6 +743,7 @@ impl TypeChecker {
     pub(super) fn get_type_for_variable_like_declaration(
         &self,
         declaration: &Node,
+        include_optionality: bool,
     ) -> Option<Rc<Type>> {
         let is_property =
             is_property_declaration(declaration) || is_property_signature(declaration);
@@ -733,7 +777,7 @@ impl TypeChecker {
         declaration: &Node,
     ) -> Rc<Type> {
         self.widen_type_for_variable_like_declaration(
-            self.get_type_for_variable_like_declaration(declaration),
+            self.get_type_for_variable_like_declaration(declaration, true),
             declaration,
         )
     }

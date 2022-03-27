@@ -106,6 +106,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_applicable_index_info_for_name(
+        &self,
+        type_: &Type,
+        name: &__String,
+    ) -> Option<Rc<IndexInfo>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_parameters_from_declaration(
         &self,
         declaration: &Node, /*DeclarationWithTypeParameters*/
