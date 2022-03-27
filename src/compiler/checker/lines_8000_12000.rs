@@ -9,21 +9,22 @@ use super::{MappedTypeModifiers, MembersOrExportsResolutionKind, NodeBuilderCont
 use crate::{
     are_option_rcs_equal, concatenate, create_printer, create_symbol_table,
     declaration_name_to_string, escape_leading_underscores, escape_string, factory, find_ancestor,
-    first_defined, get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
-    get_effective_type_parameter_declarations, get_emit_script_target, get_name_of_declaration,
-    get_source_file_of_node, has_dynamic_name, has_only_expression_initializer, is_ambient_module,
-    is_bindable_object_define_property_call, is_call_expression, is_computed_property_name,
-    is_external_module_augmentation, is_identifier_text, is_property_assignment,
-    is_property_declaration, is_property_signature, is_type_alias, is_variable_declaration,
-    range_equals_rc, starts_with, symbol_name, synthetic_factory, walk_up_parenthesized_types,
-    BaseInterfaceType, CharacterCodes, CheckFlags, Debug_, EmitHint, EmitTextWriter, InterfaceType,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
-    LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Signature,
-    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeMapper, TypePredicate,
-    TypePredicateKind, UnderscoreEscapedMap, UnionOrIntersectionTypeInterface, __String,
-    maybe_append_if_unique_rc,
+    first_defined, get_check_flags, get_combined_modifier_flags, get_declaration_of_kind,
+    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
+    get_emit_script_target, get_name_of_declaration, get_source_file_of_node, has_dynamic_name,
+    has_effective_modifier, has_only_expression_initializer, is_ambient_module,
+    is_bindable_object_define_property_call, is_binding_pattern, is_call_expression,
+    is_computed_property_name, is_external_module_augmentation, is_identifier_text,
+    is_property_assignment, is_property_declaration, is_property_signature, is_source_file,
+    is_type_alias, is_variable_declaration, range_equals_rc, starts_with, symbol_name,
+    synthetic_factory, walk_up_parenthesized_types, BaseInterfaceType, CharacterCodes, CheckFlags,
+    Debug_, EmitHint, EmitTextWriter, InterfaceType, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Signature, SignatureFlags,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeFormatFlags, TypeInterface, TypeMapper, TypePredicate, TypePredicateKind,
+    UnderscoreEscapedMap, UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -337,6 +338,108 @@ impl TypeChecker {
     }
 
     pub(super) fn is_declaration_visible(&self, node: &Node) -> bool {
+        // if (node) {
+        let links = self.get_node_links(node);
+        if RefCell::borrow(&links).is_visible.is_none() {
+            links.borrow_mut().is_visible = Some(self.determine_if_declaration_is_visible(node));
+        }
+        let ret = RefCell::borrow(&links).is_visible.unwrap();
+        ret
+        // }
+
+        // return false;
+    }
+
+    pub(super) fn determine_if_declaration_is_visible(&self, node: &Node) -> bool {
+        match node.kind() {
+            SyntaxKind::JSDocCallbackTag
+            | SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocEnumTag => {
+                matches!(
+                    node.maybe_parent()
+                        .and_then(|node_parent| node_parent.maybe_parent())
+                        .and_then(|node_parent_parent| node_parent_parent.maybe_parent()),
+                    Some(node_parent_parent_parent) if is_source_file(&node_parent_parent_parent)
+                )
+            }
+            SyntaxKind::BindingElement => self.is_declaration_visible(&node.parent().parent()),
+            SyntaxKind::VariableDeclaration
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::ImportEqualsDeclaration => {
+                if node.kind() == SyntaxKind::VariableDeclaration
+                    && is_binding_pattern(Some(node.as_variable_declaration().name()))
+                    && node
+                        .as_variable_declaration()
+                        .name()
+                        .as_has_elements()
+                        .elements()
+                        .is_empty()
+                {
+                    return false;
+                }
+                if is_external_module_augmentation(node) {
+                    return true;
+                }
+                let parent = self.get_declaration_container(node);
+                if !get_combined_modifier_flags(node).intersects(ModifierFlags::Export)
+                    && !(node.kind() != SyntaxKind::ImportEqualsDeclaration
+                        && parent.kind() != SyntaxKind::SourceFile
+                        && parent.flags().intersects(NodeFlags::Ambient))
+                {
+                    return self.is_global_source_file(&parent);
+                }
+                self.is_declaration_visible(&parent)
+            }
+
+            SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature => {
+                if has_effective_modifier(node, ModifierFlags::Private | ModifierFlags::Protected) {
+                    return false;
+                }
+                self.is_declaration_visible(&node.parent())
+            }
+
+            SyntaxKind::Constructor
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::CallSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::Parameter
+            | SyntaxKind::ModuleBlock
+            | SyntaxKind::FunctionType
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::TypeLiteral
+            | SyntaxKind::TypeReference
+            | SyntaxKind::ArrayType
+            | SyntaxKind::TupleType
+            | SyntaxKind::UnionType
+            | SyntaxKind::IntersectionType
+            | SyntaxKind::ParenthesizedType
+            | SyntaxKind::NamedTupleMember => self.is_declaration_visible(&node.parent()),
+
+            SyntaxKind::ImportClause
+            | SyntaxKind::NamespaceImport
+            | SyntaxKind::ImportSpecifier => false,
+
+            SyntaxKind::TypeParameter
+            | SyntaxKind::SourceFile
+            | SyntaxKind::NamespaceExportDeclaration => true,
+
+            SyntaxKind::ExportAssignment => false,
+
+            _ => false,
+        }
+    }
+
+    pub(super) fn get_declaration_container(&self, node: &Node) -> Rc<Node> {
         unimplemented!()
     }
 
