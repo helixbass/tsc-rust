@@ -80,6 +80,20 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_import_type_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*ImportTypeNode*/
+        argument: Rc<Node /*TypeNode*/>,
+        qualifier: Option<Rc<Node /*EntityName*/>>,
+        type_arguments: Option<Vec<Rc<Node /*TypeNode*/>>>,
+        is_type_of: Option<bool>,
+    ) -> Rc<Node> {
+        let node_as_import_type_node = node.as_import_type_node();
+        let is_type_of = is_type_of.unwrap_or_else(|| node_as_import_type_node.is_type_of());
+        unimplemented!()
+    }
+
     pub fn create_parenthesized_type(
         &self,
         base_factory: &TBaseNodeFactory,

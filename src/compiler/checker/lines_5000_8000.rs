@@ -10,13 +10,14 @@ use std::rc::Rc;
 use super::{get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext};
 use crate::{
     count_where, factory, filter, get_emit_script_target, get_object_flags, get_parse_tree_node,
-    is_class_like, is_identifier_text, is_static, length, map, maybe_for_each_bool,
-    node_is_synthesized, null_transformation_context, range_equals_rc, same_map, set_emit_flags,
-    set_text_range, some, synthetic_factory, unescape_leading_underscores, visit_each_child,
-    Debug_, ElementFlags, EmitFlags, IndexInfo, InterfaceTypeInterface, Node, NodeArray,
-    NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, VisitResult,
+    is_class_like, is_identifier, is_identifier_text, is_import_type_node, is_static, length, map,
+    maybe_for_each_bool, node_is_synthesized, null_transformation_context, range_equals_rc,
+    same_map, set_emit_flags, set_text_range, some, synthetic_factory,
+    unescape_leading_underscores, visit_each_child, Debug_, ElementFlags, EmitFlags, IndexInfo,
+    InterfaceTypeInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
+    NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeId, TypeInterface, VisitResult,
 };
 
 impl NodeBuilder {
@@ -963,6 +964,125 @@ impl NodeBuilder {
         root: &Node, /*TypeReferenceNode | ImportTypeNode*/
         ref_: &Node, /*TypeReferenceNode*/
     ) -> Rc<Node /*TypeReferenceNode | ImportTypeNode*/> {
+        if is_import_type_node(root) {
+            let root_as_import_type_node = root.as_import_type_node();
+            let type_arguments = root_as_import_type_node.type_arguments.as_ref();
+            let mut qualifier: Option<Rc<Node>> = root_as_import_type_node.qualifier.clone();
+            if let Some(qualifier_present) = qualifier {
+                if is_identifier(&qualifier_present) {
+                    qualifier = Some(synthetic_factory.with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_.update_identifier(
+                                synthetic_factory_,
+                                &qualifier_present,
+                                type_arguments.map(Clone::clone),
+                            )
+                        })
+                    }));
+                } else {
+                    qualifier = Some(synthetic_factory.with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_.update_qualified_name(
+                                synthetic_factory_,
+                                &qualifier_present,
+                                qualifier_present.as_qualified_name().left.clone(),
+                                factory_.update_identifier(
+                                    synthetic_factory_,
+                                    &qualifier_present.as_qualified_name().right,
+                                    type_arguments.map(Clone::clone),
+                                ),
+                            )
+                        })
+                    }));
+                }
+            }
+            let type_arguments = ref_.as_type_reference_node().type_arguments.as_deref();
+            let ids = self.get_access_stack(ref_);
+            for id in ids {
+                qualifier = Some(if let Some(qualifier) = qualifier {
+                    synthetic_factory.with(|synthetic_factory_| {
+                        factory.with(|factory_| {
+                            factory_
+                                .create_qualified_name(synthetic_factory_, qualifier, id)
+                                .into()
+                        })
+                    })
+                } else {
+                    id
+                });
+            }
+            synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .update_import_type_node(
+                            synthetic_factory_,
+                            root,
+                            root_as_import_type_node.argument.clone(),
+                            qualifier,
+                            type_arguments.map(ToOwned::to_owned),
+                            Some(root_as_import_type_node.is_type_of()),
+                        )
+                        .into()
+                })
+            })
+        } else {
+            let root_as_type_reference_node = root.as_type_reference_node();
+            let type_arguments = root_as_type_reference_node.type_arguments.as_ref();
+            let mut type_name: Rc<Node> = root_as_type_reference_node.type_name.clone();
+            if is_identifier(&type_name) {
+                type_name = synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_.update_identifier(
+                            synthetic_factory_,
+                            &type_name,
+                            type_arguments.map(Clone::clone),
+                        )
+                    })
+                });
+            } else {
+                type_name = synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_.update_qualified_name(
+                            synthetic_factory_,
+                            &type_name,
+                            type_name.as_qualified_name().left.clone(),
+                            factory_.update_identifier(
+                                synthetic_factory_,
+                                &type_name.as_qualified_name().right,
+                                type_arguments.map(Clone::clone),
+                            ),
+                        )
+                    })
+                });
+            }
+            let type_arguments = ref_.as_type_reference_node().type_arguments.as_ref();
+            let ids = self.get_access_stack(ref_);
+            for id in ids {
+                type_name = synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_qualified_name(synthetic_factory_, type_name, id)
+                            .into()
+                    })
+                });
+            }
+            synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_.update_type_reference_node(
+                        synthetic_factory_,
+                        root,
+                        type_name,
+                        type_arguments.map(Clone::clone),
+                    )
+                })
+            })
+        }
+    }
+
+    pub(super) fn get_access_stack(
+        &self,
+        ref_: &Node, /*TypeReferenceNode*/
+    ) -> Vec<Rc<Node /*Identifier*/>> {
         unimplemented!()
     }
 

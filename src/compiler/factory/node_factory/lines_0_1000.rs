@@ -1166,6 +1166,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_identifier(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*Identifier*/
+        type_arguments: Option<NodeArray /*<TypeNode | TypeParameterDeclaration>*/>,
+    ) -> Rc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_private_identifier(
         &self,
         base_factory: &TBaseNodeFactory,

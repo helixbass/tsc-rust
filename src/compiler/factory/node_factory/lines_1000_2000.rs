@@ -139,6 +139,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         node
     }
 
+    pub fn update_qualified_name(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*QualifiedName*/
+        left: Rc<Node /*EntityName*/>,
+        right: Rc<Node /*Identifier*/>,
+    ) -> Rc<Node> {
+        unimplemented!()
+    }
+
     pub fn create_computed_property_name(
         &self,
         base_factory: &TBaseNodeFactory,
@@ -661,6 +671,16 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
+    }
+
+    pub fn update_type_reference_node(
+        &self,
+        base_factory: &TBaseNodeFactory,
+        node: &Node, /*TypeReferenceNode*/
+        type_name: Rc<Node /*EntityName*/>,
+        type_arguments: Option<NodeArray /*<TypeNode>*/>,
+    ) -> Rc<Node> {
+        unimplemented!()
     }
 
     pub fn create_function_type_node<
