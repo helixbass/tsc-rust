@@ -9,9 +9,10 @@ use crate::{
     concatenate, create_symbol_table, escape_leading_underscores, get_check_flags,
     get_declaration_of_kind, get_effective_type_annotation_node,
     get_effective_type_parameter_declarations, has_dynamic_name, has_only_expression_initializer,
-    is_property_assignment, is_property_declaration, is_property_signature, is_type_alias,
-    is_variable_declaration, range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, InterfaceType,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
+    index_of_rc, is_property_assignment, is_property_declaration, is_property_signature,
+    is_type_alias, is_variable_declaration, range_equals_rc, BaseInterfaceType, CheckFlags, Debug_,
+    HasInitializerInterface, InterfaceType, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, LiteralType, NamedDeclarationInterface, Node,
     NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
     SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
@@ -23,14 +24,72 @@ impl TypeChecker {
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
     ) -> Option<Rc<Node>> {
-        unimplemented!()
+        let ancestor = node.parent().parent();
+        match ancestor.kind() {
+            SyntaxKind::BindingElement | SyntaxKind::PropertyAssignment => {
+                self.get_synthetic_element_access(&ancestor)
+            }
+            SyntaxKind::ArrayLiteralExpression => self.get_synthetic_element_access(&node.parent()),
+            SyntaxKind::VariableDeclaration => {
+                ancestor.as_variable_declaration().maybe_initializer()
+            }
+            SyntaxKind::BinaryExpression => Some(ancestor.as_binary_expression().right.clone()),
+            _ => None,
+        }
     }
 
     pub(super) fn get_destructuring_property_name(
         &self,
         node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
     ) -> Option<String> {
-        unimplemented!()
+        let parent = node.parent();
+        if node.kind() == SyntaxKind::BindingElement
+            && parent.kind() == SyntaxKind::ObjectBindingPattern
+        {
+            let node_as_binding_element = node.as_binding_element();
+            return self.get_literal_property_name_text(
+                &node_as_binding_element
+                    .property_name
+                    .clone()
+                    .unwrap_or_else(|| node_as_binding_element.name()),
+            );
+        }
+        if matches!(
+            node.kind(),
+            SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
+        ) {
+            return self.get_literal_property_name_text(&node.as_named_declaration().name());
+        }
+        Some(format!(
+            "{}",
+            index_of_rc(parent.as_has_elements().elements(), &node.node_wrapper())
+        ))
+    }
+
+    pub(super) fn get_literal_property_name_text(
+        &self,
+        name: &Node, /*PropertyName*/
+    ) -> Option<String> {
+        let type_ = self.get_literal_type_from_property_name(name);
+        if type_
+            .flags()
+            .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
+        {
+            Some(format!(
+                "{}",
+                match &*type_ {
+                    Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
+                        type_.value.to_string()
+                    }
+                    Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
+                        type_.value.clone()
+                    }
+                    _ => panic!("Expected NumberLiteralType or StringLiteralType"),
+                }
+            ))
+        } else {
+            None
+        }
     }
 
     pub(super) fn add_optionality(
