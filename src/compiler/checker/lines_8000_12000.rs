@@ -22,11 +22,12 @@ use crate::{
     has_only_expression_initializer, is_ambient_module, is_bindable_object_define_property_call,
     is_binding_pattern, is_call_expression, is_computed_property_name,
     is_external_module_augmentation, is_identifier_text,
-    is_internal_module_import_equals_declaration, is_property_assignment, is_property_declaration,
-    is_property_signature, is_source_file, is_type_alias, is_variable_declaration, map,
-    maybe_for_each, push_if_unique_rc, range_equals_rc, starts_with, symbol_name,
-    synthetic_factory, try_to_add_to_set, walk_up_parenthesized_types, BaseInterfaceType,
-    CharacterCodes, CheckFlags, Debug_, EmitHint, EmitTextWriter, InterfaceType,
+    is_internal_module_import_equals_declaration, is_left_hand_side_expression,
+    is_property_assignment, is_property_declaration, is_property_signature, is_source_file,
+    is_type_alias, is_variable_declaration, map, maybe_for_each, parse_base_node_factory,
+    parse_node_factory, push_if_unique_rc, range_equals_rc, set_parent, set_text_range,
+    starts_with, symbol_name, synthetic_factory, try_to_add_to_set, walk_up_parenthesized_types,
+    BaseInterfaceType, CharacterCodes, CheckFlags, Debug_, EmitHint, EmitTextWriter, InterfaceType,
     InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
     LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags,
     NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder,
@@ -836,6 +837,93 @@ impl TypeChecker {
             type_.type_wrapper()
         };
         self.get_type_with_facts(&type_or_constraint, TypeFacts::NEUndefined)
+    }
+
+    pub(super) fn get_flow_type_of_destructuring(
+        &self,
+        node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
+        declared_type: &Type,
+    ) -> Rc<Type> {
+        let reference = self.get_synthetic_element_access(node);
+        if let Some(reference) = reference {
+            self.get_flow_type_of_reference(
+                &reference,
+                declared_type,
+                Option::<&Type>::None,
+                Option::<&Node>::None,
+            )
+        } else {
+            declared_type.type_wrapper()
+        }
+    }
+
+    pub(super) fn get_synthetic_element_access(
+        &self,
+        node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
+    ) -> Option<Rc<Node /*ElementAccessExpression*/>> {
+        let parent_access = self.get_parent_element_access(node)?;
+        let ret = parent_access
+            .maybe_flow_node()
+            .clone()
+            .and_then(|parent_access_flow_node| {
+                let prop_name = self.get_destructuring_property_name(node)?;
+                let literal: Rc<Node> = parse_base_node_factory.with(|parse_base_node_factory_| {
+                    parse_node_factory.with(|parse_node_factory_| {
+                        parse_node_factory_
+                            .create_string_literal(parse_base_node_factory_, prop_name, None, None)
+                            .into()
+                    })
+                });
+                set_text_range(&*literal, Some(node));
+                let lhs_expr = if is_left_hand_side_expression(&parent_access) {
+                    parent_access.clone()
+                } else {
+                    parse_base_node_factory.with(|parse_base_node_factory_| {
+                        parse_node_factory.with(|parse_node_factory_| {
+                            parse_node_factory_
+                                .create_parenthesized_expression(
+                                    parse_base_node_factory_,
+                                    parent_access.clone(),
+                                )
+                                .into()
+                        })
+                    })
+                };
+                let result: Rc<Node> = parse_base_node_factory.with(|parse_base_node_factory_| {
+                    parse_node_factory.with(|parse_node_factory_| {
+                        parse_node_factory_
+                            .create_element_access_expression(
+                                parse_base_node_factory_,
+                                lhs_expr.clone(),
+                                literal.clone(),
+                            )
+                            .into()
+                    })
+                });
+                set_text_range(&*result, Some(node));
+                set_parent(&literal, Some(&*result));
+                set_parent(&result, Some(node));
+                if !Rc::ptr_eq(&lhs_expr, &parent_access) {
+                    set_parent(&lhs_expr, Some(&*result));
+                }
+                result.set_flow_node(Some(parent_access_flow_node));
+                Some(result)
+            });
+        ret
+    }
+
+    pub(super) fn get_parent_element_access(
+        &self,
+        node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
+    ) -> Option<Rc<Node>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_destructuring_property_name(
+        &self,
+        node: &Node, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
+    ) -> Option<String> {
+        unimplemented!()
     }
 
     pub(super) fn add_optionality(

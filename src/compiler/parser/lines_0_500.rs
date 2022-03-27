@@ -100,7 +100,7 @@ thread_local! {
 }
 
 thread_local! {
-    pub static parse_node_factory: Rc<NodeFactory<ParserType>> = create_node_factory::<ParserType>(
+    pub static parse_node_factory: Rc<NodeFactory<ParseBaseNodeFactory>> = create_node_factory::<ParseBaseNodeFactory>(
         NodeFactoryFlags::NoParenthesizerRules,
         /*parse_base_node_factory.with(|_parse_base_node_factory| _parse_base_node_factory)*/
     );

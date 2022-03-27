@@ -143,10 +143,10 @@ pub use compiler::module_name_resolver::{
 };
 pub use compiler::parser::{
     create_source_file, for_each_child, for_each_child_bool, for_each_child_returns,
-    is_external_module, parse_isolated_entity_name, parse_json_text, IncrementalParser,
-    IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface,
-    IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType,
-    ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
+    is_external_module, parse_base_node_factory, parse_isolated_entity_name, parse_json_text,
+    parse_node_factory, IncrementalParser, IncrementalParserSyntaxCursor,
+    IncrementalParserSyntaxCursorInterface, IncrementalParserSyntaxCursorReparseTopLevelAwait,
+    IncrementalParserType, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
 };
 use compiler::parser::{
     is_declaration_file_name, is_jsdoc_like_text, process_comment_pragmas,
