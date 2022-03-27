@@ -7,21 +7,23 @@ use std::rc::Rc;
 
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind, NodeBuilderContext};
 use crate::{
-    concatenate, create_printer, create_symbol_table, declaration_name_to_string,
-    escape_leading_underscores, escape_string, factory, first_defined, get_check_flags,
-    get_declaration_of_kind, get_effective_type_annotation_node,
+    are_option_rcs_equal, concatenate, create_printer, create_symbol_table,
+    declaration_name_to_string, escape_leading_underscores, escape_string, factory, find_ancestor,
+    first_defined, get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
     get_effective_type_parameter_declarations, get_emit_script_target, get_name_of_declaration,
     get_source_file_of_node, has_dynamic_name, has_only_expression_initializer, is_ambient_module,
+    is_bindable_object_define_property_call, is_call_expression, is_computed_property_name,
     is_external_module_augmentation, is_identifier_text, is_property_assignment,
     is_property_declaration, is_property_signature, is_type_alias, is_variable_declaration,
-    range_equals_rc, starts_with, synthetic_factory, walk_up_parenthesized_types,
+    range_equals_rc, starts_with, symbol_name, synthetic_factory, walk_up_parenthesized_types,
     BaseInterfaceType, CharacterCodes, CheckFlags, Debug_, EmitHint, EmitTextWriter, InterfaceType,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, ModifierFlags,
-    Node, NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    PrinterOptionsBuilder, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
-    TypeMapper, TypePredicate, TypePredicateKind, UnderscoreEscapedMap,
-    UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
+    LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Signature,
+    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeMapper, TypePredicate,
+    TypePredicateKind, UnderscoreEscapedMap, UnionOrIntersectionTypeInterface, __String,
+    maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -232,26 +234,106 @@ impl TypeChecker {
         symbol: &Symbol,
         context: Option<&NodeBuilderContext>,
     ) -> Cow<'static, str> {
-        if let Some(declarations) = &*symbol.maybe_declarations() {
-            if !declarations.is_empty() {
-                let declaration = first_defined(declarations, |d, _| {
+        if let Some(context) = context {
+            if symbol.escaped_name() == &InternalSymbolName::Default()
+                && !context
+                    .flags()
+                    .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
+                && (!context
+                    .flags()
+                    .intersects(NodeBuilderFlags::InInitialEntityName)
+                    || match symbol.maybe_declarations().as_deref() {
+                        None => true,
+                        Some(symbol_declarations) => matches!(
+                            context.maybe_enclosing_declaration().as_deref(),
+                            Some(context_enclosing_declaration) if are_option_rcs_equal(
+                                find_ancestor(symbol_declarations.get(0).map(Clone::clone), |declaration| self.is_default_binding_context(declaration)).as_ref(),
+                                find_ancestor(Some(context_enclosing_declaration), |declaration| self.is_default_binding_context(declaration)).as_ref(),
+                            )
+                        ),
+                    })
+            {
+                return "default".into();
+            }
+        }
+        if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+            if !symbol_declarations.is_empty() {
+                let mut declaration = first_defined(symbol_declarations, |d: &Rc<Node>, _| {
                     if get_name_of_declaration(Some(&**d)).is_some() {
                         Some(d)
                     } else {
                         None
                     }
                 });
-                let name = if let Some(declaration) = declaration {
-                    get_name_of_declaration(Some(&**declaration))
-                } else {
-                    None
-                };
-                if let Some(name) = name {
-                    return declaration_name_to_string(Some(&*name));
+                let name = declaration
+                    .and_then(|declaration| get_name_of_declaration(Some(&**declaration)));
+                if let Some(declaration) = declaration {
+                    if let Some(name) = name {
+                        if is_call_expression(declaration)
+                            && is_bindable_object_define_property_call(declaration)
+                        {
+                            return symbol_name(symbol).into();
+                        }
+                        if is_computed_property_name(&name)
+                            && !get_check_flags(symbol).intersects(CheckFlags::Late)
+                        {
+                            let name_type = RefCell::borrow(&self.get_symbol_links(symbol))
+                                .name_type
+                                .clone();
+                            if matches!(name_type, Some(name_type) if name_type.flags().intersects(TypeFlags::StringOrNumberLiteral))
+                            {
+                                let result =
+                                    self.get_name_of_symbol_from_name_type(symbol, context);
+                                if let Some(result) = result {
+                                    return result.into();
+                                }
+                            }
+                        }
+                        return declaration_name_to_string(Some(name));
+                    }
+                }
+                if declaration.is_none() {
+                    declaration = Some(&symbol_declarations[0]);
+                }
+                let declaration = declaration.unwrap();
+                if let Some(declaration_parent) = declaration.maybe_parent() {
+                    if declaration_parent.kind() == SyntaxKind::VariableDeclaration {
+                        return declaration_name_to_string(Some(
+                            declaration_parent.as_variable_declaration().name(),
+                        ));
+                    }
+                }
+                match declaration.kind() {
+                    SyntaxKind::ClassExpression
+                    | SyntaxKind::FunctionExpression
+                    | SyntaxKind::ArrowFunction => {
+                        if let Some(context) = context {
+                            if !context.encountered_error.get()
+                                && !context
+                                    .flags()
+                                    .intersects(NodeBuilderFlags::AllowAnonymousIdentifier)
+                            {
+                                context.encountered_error.set(true);
+                            }
+                        }
+                        return if declaration.kind() == SyntaxKind::ClassExpression {
+                            "(Anonymous class)"
+                        } else {
+                            "(Anonymous function)"
+                        }
+                        .into();
+                    }
+                    _ => (),
                 }
             }
         }
-        unimplemented!()
+        let name = self.get_name_of_symbol_from_name_type(symbol, context);
+        if let Some(name) = name {
+            name
+        } else {
+            symbol_name(symbol)
+        }
+        .into()
     }
 
     pub(super) fn is_declaration_visible(&self, node: &Node) -> bool {
