@@ -1083,7 +1083,7 @@ impl NodeBuilder {
             {
                 if type_checker.is_value_symbol_accessible(
                     &type_.symbol(),
-                    context.enclosing_declaration.as_deref(),
+                    context.maybe_enclosing_declaration().as_deref(),
                 ) {
                     context.increment_approximate_length_by(6);
                     return Some(self.symbol_to_type_node(
@@ -1223,7 +1223,7 @@ impl NodeBuilder {
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
                     || type_checker.is_type_symbol_accessible(
                         &type_alias_symbol,
-                        context.enclosing_declaration.as_deref(),
+                        context.maybe_enclosing_declaration().as_deref(),
                     )
                 {
                     let type_argument_nodes = self.map_to_type_nodes(
@@ -1306,7 +1306,7 @@ impl NodeBuilder {
                 && type_.flags().intersects(TypeFlags::TypeParameter)
                 && !type_checker.is_type_symbol_accessible(
                     &type_.symbol(),
-                    context.enclosing_declaration.as_deref(),
+                    context.maybe_enclosing_declaration().as_deref(),
                 )
             {
                 let name = self.type_parameter_to_name(&type_, context);
@@ -1573,7 +1573,7 @@ impl DefaultNodeBuilderContextSymbolTracker {
 impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {}
 
 pub struct NodeBuilderContext<'symbol_tracker> {
-    pub enclosing_declaration: Option<Rc<Node>>,
+    enclosing_declaration: RefCell<Option<Rc<Node>>>,
     pub flags: Cell<NodeBuilderFlags>,
     pub tracker: &'symbol_tracker dyn SymbolTracker,
 
@@ -1600,7 +1600,7 @@ impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
         tracker: &'symbol_tracker dyn SymbolTracker,
     ) -> Self {
         Self {
-            enclosing_declaration,
+            enclosing_declaration: RefCell::new(enclosing_declaration),
             flags: Cell::new(flags),
             tracker,
             encountered_error: Cell::new(false),
@@ -1618,6 +1618,14 @@ impl<'symbol_tracker> NodeBuilderContext<'symbol_tracker> {
             remapped_symbol_names: RefCell::new(None),
             reverse_mapped_stack: RefCell::new(None),
         }
+    }
+
+    pub fn maybe_enclosing_declaration(&self) -> Option<Rc<Node>> {
+        self.enclosing_declaration.borrow().clone()
+    }
+
+    pub fn set_enclosing_declaration(&self, enclosing_declaration: Option<Rc<Node>>) {
+        *self.enclosing_declaration.borrow_mut() = enclosing_declaration;
     }
 
     pub fn flags(&self) -> NodeBuilderFlags {

@@ -300,7 +300,7 @@ impl NodeBuilder {
                     .intersects(NodeBuilderFlags::UseStructuralFallback)
                     || type_checker.is_value_symbol_accessible(
                         symbol,
-                        context.enclosing_declaration.as_deref(),
+                        context.maybe_enclosing_declaration().as_deref(),
                     ));
         }
         false
@@ -347,7 +347,7 @@ impl NodeBuilder {
             *context.symbol_depth.borrow_mut() = Some(HashMap::new());
         }
         let links = context
-            .enclosing_declaration
+            .maybe_enclosing_declaration()
             .as_ref()
             .map(|enclosing_declaration| type_checker.get_node_links(enclosing_declaration));
         let key = format!(
@@ -878,7 +878,7 @@ impl NodeBuilder {
             && matches!(type_.symbol().maybe_value_declaration(), Some(value_declaration) if is_class_like(&value_declaration))
             && !type_checker.is_value_symbol_accessible(
                 &type_.symbol(),
-                context.enclosing_declaration.as_deref(),
+                context.maybe_enclosing_declaration().as_deref(),
             )
         {
             Some(self.create_anonymous_type_node(type_checker, context, type_))
@@ -1275,11 +1275,15 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         type_elements: &mut Vec<Rc<Node /*TypeElement*/>>,
     ) {
-        let property_type = if false {
-            unimplemented!()
+        let property_is_reverse_mapped =
+            get_check_flags(property_symbol).intersects(CheckFlags::ReverseMapped);
+        let property_type = if self.should_use_placeholder_for_property(property_symbol, context) {
+            type_checker.any_type()
         } else {
             type_checker.get_non_missing_type_of_symbol(property_symbol)
         };
+        let save_enclosing_declaration = context.maybe_enclosing_declaration();
+        context.set_enclosing_declaration(None);
         let property_name =
             self.get_property_name_node_for_symbol(type_checker, property_symbol, context);
         let optional_token = if property_symbol.flags().intersects(SymbolFlags::Optional) {
