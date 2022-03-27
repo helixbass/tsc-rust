@@ -2,28 +2,32 @@
 
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{MappedTypeModifiers, MembersOrExportsResolutionKind, NodeBuilderContext};
+use super::{
+    get_symbol_id, MappedTypeModifiers, MembersOrExportsResolutionKind, NodeBuilderContext,
+};
 use crate::{
     are_option_rcs_equal, concatenate, create_printer, create_symbol_table,
     declaration_name_to_string, escape_leading_underscores, escape_string, factory, find_ancestor,
     first_defined, get_check_flags, get_combined_modifier_flags, get_declaration_of_kind,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
-    get_emit_script_target, get_name_of_declaration, get_source_file_of_node, has_dynamic_name,
-    has_effective_modifier, has_only_expression_initializer, is_ambient_module,
+    get_emit_script_target, get_first_identifier, get_name_of_declaration, get_source_file_of_node,
+    has_dynamic_name, has_effective_modifier, has_only_expression_initializer, is_ambient_module,
     is_bindable_object_define_property_call, is_binding_pattern, is_call_expression,
     is_computed_property_name, is_external_module_augmentation, is_identifier_text,
-    is_property_assignment, is_property_declaration, is_property_signature, is_source_file,
-    is_type_alias, is_variable_declaration, range_equals_rc, starts_with, symbol_name,
-    synthetic_factory, walk_up_parenthesized_types, BaseInterfaceType, CharacterCodes, CheckFlags,
+    is_internal_module_import_equals_declaration, is_property_assignment, is_property_declaration,
+    is_property_signature, is_source_file, is_type_alias, is_variable_declaration, maybe_for_each,
+    push_if_unique_rc, range_equals_rc, starts_with, symbol_name, synthetic_factory,
+    try_to_add_to_set, walk_up_parenthesized_types, BaseInterfaceType, CharacterCodes, CheckFlags,
     Debug_, EmitHint, EmitTextWriter, InterfaceType, InterfaceTypeInterface,
     InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
     ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Signature, SignatureFlags,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeFormatFlags, TypeInterface, TypeMapper, TypePredicate, TypePredicateKind,
+    Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeFormatFlags, TypeInterface, TypeMapper, TypePredicate, TypePredicateKind,
     UnderscoreEscapedMap, UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
 };
 
@@ -437,6 +441,102 @@ impl TypeChecker {
 
             _ => false,
         }
+    }
+
+    pub(super) fn collect_linked_aliases(
+        &self,
+        node: &Node, /*Identifier*/
+        set_visibility: Option<bool>,
+    ) -> Option<Vec<Rc<Node>>> {
+        let mut export_symbol: Option<Rc<Symbol>> = None;
+        if
+        /*node.parent &&*/
+        node.parent().kind() == SyntaxKind::ExportAssignment {
+            export_symbol = self.resolve_name_(
+                Some(node),
+                &node.as_identifier().escaped_text,
+                SymbolFlags::Value
+                    | SymbolFlags::Type
+                    | SymbolFlags::Namespace
+                    | SymbolFlags::Alias,
+                None,
+                Some(node.node_wrapper()),
+                false,
+                None,
+            );
+        } else if node.parent().kind() == SyntaxKind::ExportSpecifier {
+            export_symbol = self.get_target_of_export_specifier(
+                &node.parent(),
+                SymbolFlags::Value
+                    | SymbolFlags::Type
+                    | SymbolFlags::Namespace
+                    | SymbolFlags::Alias,
+                None,
+            );
+        }
+        let result: RefCell<Option<Vec<Rc<Node>>>> = RefCell::new(None);
+        if let Some(export_symbol) = export_symbol {
+            let mut visited: HashSet<SymbolId> = HashSet::new();
+            visited.insert(get_symbol_id(&export_symbol));
+            self.build_visible_node_list(
+                set_visibility.unwrap_or(false),
+                &result,
+                &mut visited,
+                export_symbol.maybe_declarations().as_deref(),
+            );
+        }
+        result.into_inner()
+    }
+
+    pub(super) fn build_visible_node_list(
+        &self,
+        set_visibility: bool,
+        result: &RefCell<Option<Vec<Rc<Node>>>>,
+        visited: &mut HashSet<SymbolId>,
+        declarations: Option<&[Rc<Node /*Declaration*/>]>,
+    ) {
+        maybe_for_each(declarations, |declaration: &Rc<Node>, _| {
+            let result_node = self
+                .get_any_import_syntax(declaration)
+                .unwrap_or_else(|| declaration.node_wrapper());
+            if set_visibility {
+                self.get_node_links(declaration).borrow_mut().is_visible = Some(true);
+            } else {
+                let mut result = result.borrow_mut();
+                if result.is_none() {
+                    *result = Some(vec![]);
+                }
+                push_if_unique_rc(result.as_mut().unwrap(), &result_node);
+            }
+
+            if is_internal_module_import_equals_declaration(declaration) {
+                let internal_module_reference =
+                    &declaration.as_import_equals_declaration().module_reference;
+                let first_identifier = get_first_identifier(internal_module_reference);
+                let import_symbol = self.resolve_name_(
+                    Some(&**declaration),
+                    &first_identifier.as_identifier().escaped_text,
+                    SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
+                    None,
+                    Option::<Rc<Node>>::None,
+                    false,
+                    None,
+                );
+                if let Some(import_symbol) = import_symbol
+                /*&& visited*/
+                {
+                    if try_to_add_to_set(visited, get_symbol_id(&import_symbol)) {
+                        self.build_visible_node_list(
+                            set_visibility,
+                            result,
+                            visited,
+                            import_symbol.maybe_declarations().as_deref(),
+                        );
+                    }
+                }
+            }
+            Option::<()>::None
+        });
     }
 
     pub(super) fn get_declaration_container(&self, node: &Node) -> Rc<Node> {

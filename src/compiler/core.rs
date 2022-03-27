@@ -3,12 +3,11 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::{TryFrom, TryInto};
 use std::hash;
 use std::hash::Hash;
 use std::mem;
-use std::ops::Add;
 use std::rc::Rc;
 
 use crate::{text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
@@ -304,6 +303,14 @@ pub fn get_or_update<TKey: Eq + Hash, TValue, TCallback: FnOnce() -> TValue>(
     callback: TCallback,
 ) -> &mut TValue {
     map.entry(key).or_insert_with(callback)
+}
+
+pub fn try_to_add_to_set<TItem: Eq + Hash>(set: &mut HashSet<TItem>, value: TItem) -> bool {
+    if !set.contains(&value) {
+        set.insert(value);
+        return true;
+    }
+    false
 }
 
 pub fn some<TItem, TPredicate: FnMut(&TItem) -> bool>(

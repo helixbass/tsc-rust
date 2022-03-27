@@ -42,7 +42,8 @@ pub use compiler::core::{
     not_implemented, pad_left, pad_right, push_if_unique_rc, range_equals_rc, remove_prefix,
     same_map, set_ui_locale, single_element_array, single_or_undefined, some, sort,
     sort_and_deduplicate, starts_with, string_contains, sum, to_file_name_lower_case, trim_string,
-    trim_string_start, try_cast, AssertionLevel, GetCanonicalFileName, MultiMap, Pattern,
+    trim_string_start, try_cast, try_to_add_to_set, AssertionLevel, GetCanonicalFileName, MultiMap,
+    Pattern,
 };
 pub use compiler::core_public::{
     version, Comparer, Comparison, MapLike, Push, ReadonlyCollection, SortedArray,
