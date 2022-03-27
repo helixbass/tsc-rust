@@ -8,9 +8,9 @@ use std::rc::Rc;
 use crate::{
     filter, get_effective_constraint_of_type_parameter, get_effective_return_type_node,
     get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
-    map_defined, maybe_append_if_unique_rc, node_is_missing, IndexInfo, InterfaceTypeInterface,
-    Signature, SignatureFlags, SignatureKind, SymbolTable, TypePredicate, TypePredicateKind,
-    UnionType, __String, binary_search_copy_key, compare_values, concatenate,
+    map_defined, maybe_append_if_unique_rc, node_is_missing, AccessFlags, IndexInfo,
+    InterfaceTypeInterface, Signature, SignatureFlags, SignatureKind, SymbolTable, TypePredicate,
+    TypePredicateKind, UnionType, __String, binary_search_copy_key, compare_values, concatenate,
     get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
     BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
@@ -826,6 +826,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn create_array_type(
+        &self,
+        element_type: &Type,
+        readonly: Option<bool>,
+    ) -> Rc<Type /*ObjectType*/> {
+        unimplemented!()
+    }
+
     pub(super) fn get_array_or_tuple_target_type(
         &self,
         node: &Node, /*ArrayTypeNode*/
@@ -859,6 +867,16 @@ impl TypeChecker {
         target: &Type, /*GenericType*/
         type_arguments: Option<Vec<Rc<Type>>>,
     ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn slice_tuple_type(
+        &self,
+        type_: &Type, /*TupleTypeReference*/
+        index: usize,
+        end_skip_count: Option<usize>,
+    ) -> Rc<Type> {
+        let end_skip_count = end_skip_count.unwrap_or(0);
         unimplemented!()
     }
 
@@ -1117,11 +1135,39 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn get_indexed_access_type_or_undefined(
+    pub(super) fn get_indexed_access_type<
+        TAccessNode: Borrow<Node>,
+        TAliasSymbol: Borrow<Symbol>,
+    >(
         &self,
         object_type: &Type,
         index_type: &Type,
+        access_flags: Option<AccessFlags>,
+        access_node: Option<
+            TAccessNode, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
+        >,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        let access_flags = access_flags.unwrap_or(AccessFlags::None);
+        unimplemented!()
+    }
+
+    pub(super) fn get_indexed_access_type_or_undefined<
+        TAccessNode: Borrow<Node>,
+        TAliasSymbol: Borrow<Symbol>,
+    >(
+        &self,
+        object_type: &Type,
+        index_type: &Type,
+        access_flags: Option<AccessFlags>,
+        access_node: Option<
+            TAccessNode, /*ElementAccessExpression | IndexedAccessTypeNode | PropertyName | BindingName | SyntheticExpression*/
+        >,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Option<Rc<Type>> {
+        let access_flags = access_flags.unwrap_or(AccessFlags::None);
         let apparent_object_type = self.get_reduced_apparent_type(object_type);
         self.get_property_type_for_index_type(
             object_type,

@@ -601,7 +601,14 @@ impl TypeChecker {
         target: &Type,
         name_type: &Type,
     ) -> Option<Rc<Type>> {
-        let idx = self.get_indexed_access_type_or_undefined(target, name_type);
+        let idx = self.get_indexed_access_type_or_undefined(
+            target,
+            name_type,
+            None,
+            Option::<&Node>::None,
+            Option::<&Symbol>::None,
+            None,
+        );
         if idx.is_some() {
             return idx;
         }
@@ -650,7 +657,14 @@ impl TypeChecker {
             {
                 continue;
             }
-            let source_prop_type = self.get_indexed_access_type_or_undefined(source, &name_type);
+            let source_prop_type = self.get_indexed_access_type_or_undefined(
+                source,
+                &name_type,
+                None,
+                Option::<&Node>::None,
+                Option::<&Symbol>::None,
+                None,
+            );
             if source_prop_type.is_none() {
                 continue;
             }

@@ -186,6 +186,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_array_like_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_unit_type(&self, type_: &Type) -> bool {
         type_.flags().intersects(TypeFlags::Unit)
     }
@@ -280,6 +284,10 @@ impl TypeChecker {
                 .intersects(ObjectFlags::Tuple)
     }
 
+    pub(super) fn get_falsy_flags(&self, type_: &Type) -> TypeFlags {
+        unimplemented!()
+    }
+
     pub(super) fn get_optional_type_(&self, type_: &Type, is_property: Option<bool>) -> Rc<Type> {
         let is_property = is_property.unwrap_or(false);
         Debug_.assert(self.strict_null_checks, None);
@@ -288,6 +296,10 @@ impl TypeChecker {
         } else {
             unimplemented!()
         }
+    }
+
+    pub(super) fn get_non_nullable_type(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn add_optional_type_marker(&self, type_: &Type) -> Rc<Type> {
@@ -417,11 +429,28 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_type_facts(&self, type_: &Type, ignore_objects: Option<bool>) -> TypeFacts {
+        let ignore_objects = ignore_objects.unwrap_or(false);
+        unimplemented!()
+    }
+
     pub(super) fn get_type_with_facts(&self, type_: &Type, include: TypeFacts) -> Rc<Type> {
         unimplemented!()
     }
 
+    pub(super) fn get_type_of_initializer(&self, node: &Node /*Expression*/) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn some_type<TCallback: FnMut(&Type) -> bool>(
+        &self,
+        type_: &Type,
+        mut f: TCallback,
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn every_type<TCallback: FnMut(&Type) -> bool>(
         &self,
         type_: &Type,
         mut f: TCallback,

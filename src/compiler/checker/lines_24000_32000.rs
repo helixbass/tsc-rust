@@ -332,6 +332,13 @@ impl TypeChecker {
         })
     }
 
+    pub(super) fn has_default_value(
+        &self,
+        node: &Node, /*BindingElement | Expression*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_numeric_literal_name(&self, name: &str) -> bool {
         unimplemented!()
     }
@@ -379,6 +386,10 @@ impl TypeChecker {
         };
 
         create_object_literal_type()
+    }
+
+    pub(super) fn is_valid_spread_type(&self, type_: &Type) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn is_known_property(

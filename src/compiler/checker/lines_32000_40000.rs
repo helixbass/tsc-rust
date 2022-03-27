@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, UnusedKind};
+use super::{CheckMode, IterationUse, UnusedKind};
 use crate::{
     for_each, get_combined_node_flags, get_containing_function_or_class_static_block,
     get_effective_initializer, get_function_flags, is_binding_element, is_function_or_module_block,
@@ -130,10 +130,10 @@ impl TypeChecker {
         resolved_type
     }
 
-    pub(super) fn check_declaration_initializer<TTypeRef: Borrow<Type>>(
+    pub(super) fn check_declaration_initializer<TType: Borrow<Type>>(
         &self,
         declaration: &Node, /*HasExpressionInitializer*/
-        contextual_type: Option<TTypeRef>,
+        contextual_type: Option<TType>,
     ) -> Rc<Type> {
         let initializer = get_effective_initializer(declaration).unwrap();
         let type_ = self
@@ -572,6 +572,16 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
         self.check_truthiness_of_type(&self.check_expression(node, check_mode), node)
+    }
+
+    pub(super) fn check_iterated_type_or_element_type<TErrorNode: Borrow<Node>>(
+        &self,
+        use_: IterationUse,
+        input_type: &Type,
+        sent_type: &Type,
+        error_node: Option<TErrorNode>,
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn create_iteration_types(

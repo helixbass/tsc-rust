@@ -2,21 +2,23 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::convert::TryInto;
 use std::rc::Rc;
 
-use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
+use super::{IterationUse, MappedTypeModifiers, MembersOrExportsResolutionKind, TypeFacts};
 use crate::{
     concatenate, create_symbol_table, escape_leading_underscores, get_check_flags,
     get_declaration_of_kind, get_effective_type_annotation_node,
     get_effective_type_parameter_declarations, has_dynamic_name, has_only_expression_initializer,
-    index_of_rc, is_property_assignment, is_property_declaration, is_property_signature,
-    is_type_alias, is_variable_declaration, range_equals_rc, BaseInterfaceType, CheckFlags, Debug_,
-    HasInitializerInterface, InterfaceType, InterfaceTypeInterface,
+    index_of_rc, is_parameter_declaration, is_property_assignment, is_property_declaration,
+    is_property_signature, is_type_alias, is_variable_declaration, range_equals_rc,
+    walk_up_binding_elements_and_patterns, AccessFlags, BaseInterfaceType, CheckFlags, Debug_,
+    Diagnostics, HasInitializerInterface, InterfaceType, InterfaceTypeInterface,
     InterfaceTypeWithDeclaredMembersInterface, LiteralType, NamedDeclarationInterface, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
-    maybe_append_if_unique_rc,
+    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Signature,
+    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
+    UnionReduction, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -90,6 +92,160 @@ impl TypeChecker {
         } else {
             None
         }
+    }
+
+    pub(super) fn get_type_for_binding_element(
+        &self,
+        declaration: &Node, /*BindingElement*/
+    ) -> Option<Rc<Type>> {
+        let pattern = declaration.parent();
+        let mut parent_type = self.get_type_for_binding_element_parent(&pattern.parent())?;
+        if self.is_type_any(Some(&*parent_type)) {
+            return Some(parent_type);
+        }
+        if self.strict_null_checks
+            && declaration.flags().intersects(NodeFlags::Ambient)
+            && is_parameter_declaration(declaration)
+        {
+            parent_type = self.get_non_nullable_type(&parent_type);
+        } else if self.strict_null_checks
+            && matches!(
+                pattern.parent().as_has_initializer().maybe_initializer(),
+                Some(initializer) if !self.get_type_facts(&self.get_type_of_initializer(&initializer), None).intersects(TypeFacts::EQUndefined)
+            )
+        {
+            parent_type = self.get_type_with_facts(&parent_type, TypeFacts::NEUndefined);
+        }
+        let type_: Option<Rc<Type>>;
+        let declaration_as_binding_element = declaration.as_binding_element();
+        if pattern.kind() == SyntaxKind::ObjectBindingPattern {
+            if declaration_as_binding_element.dot_dot_dot_token.is_some() {
+                parent_type = self.get_reduced_type(&parent_type);
+                if parent_type.flags().intersects(TypeFlags::Unknown)
+                    || !self.is_valid_spread_type(&parent_type)
+                {
+                    self.error(
+                        Some(declaration),
+                        &Diagnostics::Rest_types_may_only_be_created_from_object_types,
+                        None,
+                    );
+                    return Some(self.error_type());
+                }
+                let mut literal_members: Vec<Rc<Node /*PropertyName*/>> = vec![];
+                for element in &pattern.as_object_binding_pattern().elements {
+                    let element_as_binding_element = element.as_binding_element();
+                    if element_as_binding_element.dot_dot_dot_token.is_none() {
+                        literal_members.push(
+                            element_as_binding_element
+                                .property_name
+                                .clone()
+                                .unwrap_or_else(|| element_as_binding_element.name()),
+                        );
+                    }
+                }
+                type_ = Some(self.get_rest_type(
+                    &parent_type,
+                    &literal_members,
+                    declaration.maybe_symbol(),
+                ));
+            } else {
+                let name = declaration_as_binding_element
+                    .property_name
+                    .clone()
+                    .unwrap_or_else(|| declaration_as_binding_element.name());
+                let index_type = self.get_literal_type_from_property_name(&name);
+                let declared_type = self.get_indexed_access_type(
+                    &parent_type,
+                    &index_type,
+                    Some(AccessFlags::ExpressionPosition),
+                    Some(&*name),
+                    Option::<&Symbol>::None,
+                    None,
+                );
+                type_ = Some(self.get_flow_type_of_destructuring(declaration, &declared_type));
+            }
+        } else {
+            let element_type = self.check_iterated_type_or_element_type(
+                IterationUse::Destructuring
+                    | if declaration_as_binding_element.dot_dot_dot_token.is_some() {
+                        IterationUse::None
+                    } else {
+                        IterationUse::PossiblyOutOfBounds
+                    },
+                &parent_type,
+                &self.undefined_type(),
+                Some(&*pattern),
+            );
+            let index: usize = index_of_rc(
+                &pattern.as_array_binding_pattern().elements,
+                &declaration.node_wrapper(),
+            )
+            .try_into()
+            .unwrap();
+            if declaration_as_binding_element.dot_dot_dot_token.is_some() {
+                type_ = if self.every_type(&parent_type, |type_| self.is_tuple_type(type_)) {
+                    self.map_type(
+                        &parent_type,
+                        &mut |t| Some(self.slice_tuple_type(t, index, None)),
+                        None,
+                    )
+                } else {
+                    Some(self.create_array_type(&element_type, None))
+                };
+            } else if self.is_array_like_type(&parent_type) {
+                let index_type = self.get_number_literal_type(Number::new(index as f64));
+                let access_flags = AccessFlags::ExpressionPosition
+                    | if self.has_default_value(declaration) {
+                        AccessFlags::NoTupleBoundsCheck
+                    } else {
+                        AccessFlags::None
+                    };
+                let declared_type = self
+                    .get_indexed_access_type_or_undefined(
+                        &parent_type,
+                        &index_type,
+                        Some(access_flags),
+                        declaration_as_binding_element.maybe_name(),
+                        Option::<&Symbol>::None,
+                        None,
+                    )
+                    .unwrap_or_else(|| self.error_type());
+                type_ = Some(self.get_flow_type_of_destructuring(declaration, &declared_type));
+            } else {
+                type_ = Some(element_type);
+            }
+        }
+        if declaration_as_binding_element.maybe_initializer().is_none() {
+            return type_;
+        }
+        let type_ = type_.unwrap();
+        if get_effective_type_annotation_node(&walk_up_binding_elements_and_patterns(declaration))
+            .is_some()
+        {
+            return Some(
+                if self.strict_null_checks
+                    && !self
+                        .get_falsy_flags(
+                            &self.check_declaration_initializer(declaration, Option::<&Type>::None),
+                        )
+                        .intersects(TypeFlags::Undefined)
+                {
+                    self.get_non_undefined_type(&type_)
+                } else {
+                    type_
+                },
+            );
+        }
+        Some(self.widen_type_inferred_from_initializer(
+            declaration,
+            &self.get_union_type(
+                vec![
+                    self.get_non_undefined_type(&type_),
+                    self.check_declaration_initializer(declaration, Option::<&Type>::None),
+                ],
+                Some(UnionReduction::Subtype),
+            ),
+        ))
     }
 
     pub(super) fn add_optionality(
