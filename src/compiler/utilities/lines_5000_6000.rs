@@ -213,6 +213,14 @@ pub fn get_check_flags(symbol: &Symbol) -> CheckFlags {
     }
 }
 
+pub fn get_declaration_modifier_flags_from_symbol(
+    symbol: &Symbol,
+    is_write: Option<bool>,
+) -> ModifierFlags {
+    let is_write = is_write.unwrap_or(false);
+    unimplemented!()
+}
+
 pub fn is_write_only_access(node: &Node) -> bool {
     access_kind(node) == AccessKind::Write
 }

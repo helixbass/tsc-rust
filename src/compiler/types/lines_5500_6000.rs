@@ -9,7 +9,8 @@ use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseObjectType, BaseType, Node, Symbol, SymbolTable, Type, TypeChecker, TypePredicate,
+    BaseObjectType, BaseType, Node, ObjectFlagsTypeInterface, ObjectTypeInterface,
+    ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker, TypePredicate,
 };
 use crate::{Debug_, ScriptKind};
 use local_macros::{enum_unwrapped, type_type};
@@ -25,7 +26,9 @@ pub struct MappedType {
     pub contains_error: Option<bool>,
 }
 
-pub trait ResolvedTypeInterface {
+pub trait ResolvedTypeInterface:
+    ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
+{
     fn members(&self) -> Rc<RefCell<SymbolTable>>;
     fn properties(&self) -> RefMut<Vec<Rc<Symbol>>>;
     fn set_properties(&self, properties: Vec<Rc<Symbol>>);

@@ -9,15 +9,15 @@ use std::rc::Rc;
 
 use super::{get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext};
 use crate::{
-    count_where, factory, filter, get_emit_script_target, get_object_flags, get_parse_tree_node,
-    is_class_like, is_identifier, is_identifier_text, is_import_type_node, is_static, length, map,
-    maybe_for_each_bool, node_is_synthesized, null_transformation_context, range_equals_rc,
-    same_map, set_emit_flags, set_text_range, some, synthetic_factory,
-    unescape_leading_underscores, visit_each_child, Debug_, ElementFlags, EmitFlags, IndexInfo,
-    InterfaceTypeInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
-    NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeId, TypeInterface, VisitResult,
+    count_where, factory, filter, get_declaration_modifier_flags_from_symbol,
+    get_emit_script_target, get_object_flags, get_parse_tree_node, is_class_like, is_identifier,
+    is_identifier_text, is_import_type_node, is_static, length, map, maybe_for_each_bool,
+    node_is_synthesized, null_transformation_context, range_equals_rc, same_map, set_emit_flags,
+    set_text_range, some, synthetic_factory, unescape_leading_underscores, visit_each_child,
+    Debug_, ElementFlags, EmitFlags, IndexInfo, InterfaceTypeInterface, ModifierFlags, Node,
+    NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, VisitResult,
 };
 
 impl NodeBuilder {
@@ -1083,7 +1083,15 @@ impl NodeBuilder {
         &self,
         ref_: &Node, /*TypeReferenceNode*/
     ) -> Vec<Rc<Node /*Identifier*/>> {
-        unimplemented!()
+        let mut state: &Rc<Node> = &ref_.as_type_reference_node().type_name;
+        let mut ids = vec![];
+        while !is_identifier(&state) {
+            let state_as_qualified_name = state.as_qualified_name();
+            ids.insert(0, state_as_qualified_name.right.clone());
+            state = &state_as_qualified_name.left;
+        }
+        ids.insert(0, state.clone());
+        ids
     }
 
     pub(super) fn create_type_nodes_from_resolved_type(
@@ -1092,14 +1100,108 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         resolved_type: &Type, /*ResolvedType*/
     ) -> Option<Vec<Rc<Node /*TypeElement*/>>> {
+        if self.check_truncation_length(context) {
+            return Some(vec![synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_property_signature(
+                            synthetic_factory_,
+                            Option::<NodeArray>::None,
+                            "...".to_owned(),
+                            None,
+                            None,
+                        )
+                        .into()
+                })
+            })]);
+        }
         let mut type_elements: Vec<Rc<Node>> = vec![];
+        let resolved_type_as_resolved_type = resolved_type.as_resolved_type();
+        for signature in &*resolved_type_as_resolved_type.call_signatures() {
+            type_elements.push(self.signature_to_signature_declaration_helper(
+                signature,
+                SyntaxKind::CallSignature,
+                context,
+                None,
+            ));
+        }
+        for signature in &*resolved_type_as_resolved_type.construct_signatures() {
+            if signature.flags.intersects(SignatureFlags::Abstract) {
+                continue;
+            }
+            type_elements.push(self.signature_to_signature_declaration_helper(
+                signature,
+                SyntaxKind::ConstructSignature,
+                context,
+                None,
+            ));
+        }
+        for info in &*resolved_type_as_resolved_type.index_infos() {
+            type_elements.push(
+                self.index_info_to_index_signature_declaration_helper(
+                    info,
+                    context,
+                    if resolved_type_as_resolved_type
+                        .object_flags()
+                        .intersects(ObjectFlags::ReverseMapped)
+                    {
+                        Some(self.create_elided_information_placeholder(context))
+                    } else {
+                        None
+                    },
+                ),
+            );
+        }
 
-        let properties = resolved_type.as_resolved_type().properties();
+        let properties = resolved_type_as_resolved_type.properties();
+        // if (!properties) {
+        //     return typeElements;
+        // }
 
+        let mut i = 0;
         for property_symbol in &*properties {
+            i += 1;
+            if context
+                .flags()
+                .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
+            {
+                if property_symbol.flags().intersects(SymbolFlags::Prototype) {
+                    continue;
+                }
+                if get_declaration_modifier_flags_from_symbol(property_symbol, None)
+                    .intersects(ModifierFlags::Private | ModifierFlags::Protected)
+                /*&& context.tracker.reportPrivateInBaseOfClassExpression*/
+                {
+                    context.tracker.report_private_in_base_of_class_expression(
+                        &unescape_leading_underscores(property_symbol.escaped_name()),
+                    );
+                }
+            }
+            if self.check_truncation_length(context) && i + 2 < properties.len() - 1 {
+                type_elements.push(synthetic_factory.with(|synthetic_factory_| {
+                    factory.with(|factory_| {
+                        factory_
+                            .create_property_signature(
+                                synthetic_factory_,
+                                Option::<NodeArray>::None,
+                                format!("... {} more ...", properties.len() - 1),
+                                None,
+                                None,
+                            )
+                            .into()
+                    })
+                }));
+                self.add_property_to_element_list(
+                    type_checker,
+                    &properties[properties.len() - 1],
+                    context,
+                    &mut type_elements,
+                );
+                break;
+            }
             self.add_property_to_element_list(
                 type_checker,
-                &property_symbol,
+                property_symbol,
                 context,
                 &mut type_elements,
             );
