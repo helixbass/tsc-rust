@@ -90,6 +90,10 @@ impl TypeChecker {
         self.get_signatures_of_structured_type(&self.get_reduced_apparent_type(type_), kind)
     }
 
+    pub(super) fn get_index_infos_of_type(&self, type_: &Type) -> Vec<Rc<IndexInfo>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_index_info_of_type_(
         &self,
         type_: &Type,
@@ -557,6 +561,16 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_type_alias_instantiation<TAliasSymbol: Borrow<Symbol>>(
+        &self,
+        symbol: &Symbol,
+        type_arguments: Option<&[Rc<Type>]>,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_reference_name(
         &self,
         node: &Node, /*TypeReferenceNode*/
@@ -805,6 +819,10 @@ impl TypeChecker {
     }
 
     pub(super) fn get_global_generator_type(&self, report_errors: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_global_omit_symbol(&self) -> Option<Rc<Symbol>> {
         unimplemented!()
     }
 
@@ -1085,6 +1103,14 @@ impl TypeChecker {
             }
         }
         None
+    }
+
+    pub(super) fn is_generic_object_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_generic_index_type(&self, type_: &Type) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn is_this_type_parameter(&self, type_: &Type) -> bool {

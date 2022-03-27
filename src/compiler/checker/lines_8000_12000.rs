@@ -13,7 +13,8 @@ use super::{
 use crate::{
     are_option_rcs_equal, concatenate, create_printer, create_symbol_table,
     declaration_name_to_string, escape_leading_underscores, escape_string, factory, find_ancestor,
-    first_defined, get_check_flags, get_combined_modifier_flags, get_declaration_of_kind,
+    first_defined, get_check_flags, get_combined_modifier_flags,
+    get_declaration_modifier_flags_from_symbol, get_declaration_of_kind,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_emit_script_target, get_first_identifier, get_name_of_declaration, get_root_declaration,
     get_source_file_of_node, has_dynamic_name, has_effective_modifier,
@@ -723,6 +724,85 @@ impl TypeChecker {
             .type_
             .clone()
             .or_else(|| self.get_type_for_variable_like_declaration(node, false))
+    }
+
+    pub(super) fn get_rest_type<TSymbol: Borrow<Symbol>>(
+        &self,
+        source: &Type,
+        properties: &[Rc<Node /*PropertyName*/>],
+        symbol: Option<TSymbol>,
+    ) -> Rc<Type> {
+        let source = self.filter_type(source, |t| !t.flags().intersects(TypeFlags::Nullable));
+        if source.flags().intersects(TypeFlags::Never) {
+            return self.empty_object_type();
+        }
+        let symbol = symbol.map(|symbol| symbol.borrow().symbol_wrapper());
+        if source.flags().intersects(TypeFlags::Union) {
+            return self
+                .map_type(
+                    &source,
+                    &mut |t| Some(self.get_rest_type(t, properties, symbol.as_deref())),
+                    None,
+                )
+                .unwrap();
+        }
+        let omit_key_type = self.get_union_type(
+            map(Some(properties), |property: &Rc<Node>, _| {
+                self.get_literal_type_from_property_name(property)
+            })
+            .unwrap(),
+            None,
+        );
+        if self.is_generic_object_type(&source) || self.is_generic_index_type(&omit_key_type) {
+            if omit_key_type.flags().intersects(TypeFlags::Never) {
+                return source;
+            }
+
+            let omit_type_alias = self.get_global_omit_symbol();
+            if omit_type_alias.is_none() {
+                return self.error_type();
+            }
+            let omit_type_alias = omit_type_alias.unwrap();
+            return self.get_type_alias_instantiation(
+                &omit_type_alias,
+                Some(&vec![source, omit_key_type]),
+                Option::<&Symbol>::None,
+                None,
+            );
+        }
+        let mut members = create_symbol_table(None);
+        for prop in self.get_properties_of_type(&source) {
+            if !self.is_type_assignable_to(
+                &self.get_literal_type_from_property(
+                    &prop,
+                    TypeFlags::StringOrNumberLiteralOrUnique,
+                    None,
+                ),
+                &omit_key_type,
+            ) && !get_declaration_modifier_flags_from_symbol(&prop, None)
+                .intersects(ModifierFlags::Private | ModifierFlags::Protected)
+                && self.is_spreadable_property(&prop)
+            {
+                members.insert(
+                    prop.escaped_name().clone(),
+                    self.get_spread_symbol(&prop, false),
+                );
+            }
+        }
+        let result: Rc<Type> = self
+            .create_anonymous_type(
+                symbol,
+                Rc::new(RefCell::new(members)),
+                vec![],
+                vec![],
+                self.get_index_infos_of_type(&source),
+            )
+            .into();
+        let result_as_interface_type = result.as_interface_type();
+        result_as_interface_type.set_object_flags(
+            result_as_interface_type.object_flags() | ObjectFlags::ObjectRestType,
+        );
+        result
     }
 
     pub(super) fn add_optionality(

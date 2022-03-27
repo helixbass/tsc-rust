@@ -417,11 +417,15 @@ impl TypeChecker {
         unimplemented!()
     }
 
-    pub(super) fn filter_type(&self, type_: &Type, f: fn(&TypeChecker, &Type) -> bool) -> Rc<Type> {
+    pub(super) fn filter_type<TCallback: FnMut(&Type) -> bool>(
+        &self,
+        type_: &Type,
+        mut f: TCallback,
+    ) -> Rc<Type> {
         if type_.flags().intersects(TypeFlags::Union) {
             unimplemented!()
         }
-        if type_.flags().intersects(TypeFlags::Never) || f(self, type_) {
+        if type_.flags().intersects(TypeFlags::Never) || f(type_) {
             type_.type_wrapper()
         } else {
             self.never_type()

@@ -272,10 +272,9 @@ impl<'type_checker> CheckTypeRelatedTo<'type_checker> {
                     is_comparing_jsx_attributes,
                 ) {
                     if report_errors {
-                        let error_target = self.type_checker.filter_type(
-                            reduced_target,
-                            TypeChecker::is_excess_property_check_target,
-                        );
+                        let error_target = self.type_checker.filter_type(reduced_target, |type_| {
+                            self.type_checker.is_excess_property_check_target(type_)
+                        });
                         let error_node = match self.error_node.as_ref().map(|rc| rc.clone()) {
                             None => Debug_.fail(None),
                             Some(error_node) => error_node,

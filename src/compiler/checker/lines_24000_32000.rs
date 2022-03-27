@@ -634,7 +634,7 @@ impl TypeChecker {
             while i >= 0 {
                 let type_ = self.get_type_at_position(signature, i);
                 if self
-                    .filter_type(&type_, TypeChecker::accepts_void)
+                    .filter_type(&type_, |type_| self.accepts_void(type_))
                     .flags()
                     .intersects(TypeFlags::Never)
                 {

@@ -17,6 +17,14 @@ use crate::{
 use local_macros::enum_unwrapped;
 
 impl TypeChecker {
+    pub(super) fn is_spreadable_property(&self, prop: &Symbol) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_spread_symbol(&self, prop: &Symbol, readonly: bool) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
     // pub fn create_literal_type(
     pub fn create_string_literal_type<TTypeRef: Borrow<Type>>(
         &self,
