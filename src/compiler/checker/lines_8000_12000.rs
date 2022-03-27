@@ -593,7 +593,47 @@ impl TypeChecker {
         target: &TypeSystemEntity,
         property_name: TypeSystemPropertyName,
     ) -> bool {
-        unimplemented!()
+        match property_name {
+            TypeSystemPropertyName::Type => {
+                RefCell::borrow(&self.get_symbol_links(target.as_symbol()))
+                    .type_
+                    .is_some()
+            }
+            TypeSystemPropertyName::EnumTagType => {
+                RefCell::borrow(&self.get_node_links(target.as_node()))
+                    .resolved_enum_type
+                    .is_some()
+            }
+            TypeSystemPropertyName::DeclaredType => {
+                RefCell::borrow(&self.get_symbol_links(target.as_symbol()))
+                    .declared_type
+                    .is_some()
+            }
+            TypeSystemPropertyName::ResolvedBaseConstructorType => target
+                .as_type()
+                .as_interface_type()
+                .maybe_resolved_base_constructor_type()
+                .is_some(),
+            TypeSystemPropertyName::ResolvedReturnType => {
+                target.as_signature().maybe_resolved_return_type().is_some()
+            }
+            TypeSystemPropertyName::ImmediateBaseConstraint => {
+                target.as_type().maybe_immediate_base_constraint().is_some()
+            }
+            TypeSystemPropertyName::ResolvedTypeArguments => target
+                .as_type()
+                .as_type_reference()
+                .maybe_resolved_type_arguments()
+                .is_some(),
+            TypeSystemPropertyName::ResolvedBaseTypes => matches!(
+                target
+                    .as_type()
+                    .as_interface_type()
+                    .maybe_base_types_resolved(),
+                Some(true)
+            ),
+        }
+        // Debug.assertNever(propertyName);
     }
 
     pub(super) fn get_declaration_container(&self, node: &Node) -> Rc<Node> {

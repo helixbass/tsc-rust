@@ -453,6 +453,9 @@ pub struct BaseInterfaceType {
     outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     local_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     this_type: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
+    resolved_base_constructor_type: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
+    resolved_base_types: RefCell<Option<Vec<Rc<Type /*BaseType*/>>>>,
+    base_types_resolved: Cell<Option<bool>>,
     declared_properties: RefCell<Option<Vec<Rc<Symbol>>>>,
     declared_call_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
     declared_construct_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
@@ -474,6 +477,9 @@ impl BaseInterfaceType {
             outer_type_parameters,
             local_type_parameters,
             this_type: RefCell::new(this_type),
+            resolved_base_constructor_type: RefCell::new(None),
+            resolved_base_types: RefCell::new(None),
+            base_types_resolved: Cell::new(None),
             declared_properties: RefCell::new(None),
             declared_call_signatures: RefCell::new(None),
             declared_construct_signatures: RefCell::new(None),
@@ -489,6 +495,10 @@ pub trait InterfaceTypeInterface {
     fn maybe_local_type_parameters(&self) -> Option<&[Rc<Type>]>;
     fn maybe_this_type(&self) -> Option<Rc<Type>>;
     fn maybe_this_type_mut(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_resolved_base_constructor_type(&self) -> RefMut<Option<Rc<Type>>>;
+    fn maybe_resolved_base_types(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
+    fn maybe_base_types_resolved(&self) -> Option<bool>;
+    fn set_base_types_resolved(&self, base_types_resolved: Option<bool>);
 }
 
 impl InterfaceTypeInterface for BaseInterfaceType {
@@ -510,6 +520,22 @@ impl InterfaceTypeInterface for BaseInterfaceType {
 
     fn maybe_this_type_mut(&self) -> RefMut<Option<Rc<Type>>> {
         self.this_type.borrow_mut()
+    }
+
+    fn maybe_resolved_base_constructor_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_base_constructor_type.borrow_mut()
+    }
+
+    fn maybe_resolved_base_types(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.resolved_base_types.borrow_mut()
+    }
+
+    fn maybe_base_types_resolved(&self) -> Option<bool> {
+        self.base_types_resolved.get()
+    }
+
+    fn set_base_types_resolved(&self, base_types_resolved: Option<bool>) {
+        self.base_types_resolved.set(base_types_resolved)
     }
 }
 
@@ -600,6 +626,10 @@ impl TypeReference {
             node: RefCell::new(None),
             resolved_type_arguments: RefCell::new(resolved_type_arguments),
         }
+    }
+
+    pub fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.resolved_type_arguments.borrow_mut()
     }
 }
 

@@ -311,6 +311,10 @@ impl Signature {
         self.parameters = Some(parameters);
     }
 
+    pub fn maybe_resolved_return_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_return_type.borrow_mut()
+    }
+
     pub fn min_argument_count(&self) -> usize {
         self.min_argument_count.unwrap()
     }

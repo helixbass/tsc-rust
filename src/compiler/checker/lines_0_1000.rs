@@ -274,6 +274,36 @@ pub(crate) enum TypeSystemEntity {
     Signature(Rc<Signature>),
 }
 
+impl TypeSystemEntity {
+    pub fn as_node(&self) -> &Node {
+        match self {
+            Self::Node(node) => &*node,
+            _ => panic!("Expected node"),
+        }
+    }
+
+    pub fn as_symbol(&self) -> &Symbol {
+        match self {
+            Self::Symbol(symbol) => &*symbol,
+            _ => panic!("Expected symbol"),
+        }
+    }
+
+    pub fn as_type(&self) -> &Type {
+        match self {
+            Self::Type(type_) => &*type_,
+            _ => panic!("Expected type"),
+        }
+    }
+
+    pub fn as_signature(&self) -> &Signature {
+        match self {
+            Self::Signature(signature) => &*signature,
+            _ => panic!("Expected signature"),
+        }
+    }
+}
+
 impl PartialEq for TypeSystemEntity {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

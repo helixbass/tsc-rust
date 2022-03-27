@@ -186,6 +186,7 @@ pub struct NodeLinksSerializedType {
 pub struct NodeLinks {
     pub flags: NodeCheckFlags,
     pub resolved_type: Option<Rc<Type>>,
+    pub resolved_enum_type: Option<Rc<Type>>,
     pub resolved_signature: Option<Rc<Signature>>,
     pub resolved_symbol: Option<Rc<Symbol>>,
     pub is_visible: Option<bool>,
@@ -199,6 +200,7 @@ impl NodeLinks {
         Self {
             flags: NodeCheckFlags::None,
             resolved_type: None,
+            resolved_enum_type: None,
             resolved_symbol: None,
             resolved_signature: None,
             is_visible: None,
@@ -460,6 +462,7 @@ pub trait TypeInterface {
     fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>);
     fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>>;
     fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
+    fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
 }
 
 #[derive(Clone, Debug)]
@@ -470,6 +473,7 @@ pub struct BaseType {
     symbol: Option<Rc<Symbol>>,
     alias_symbol: Option<Rc<Symbol>>,
     alias_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
+    immediate_base_constraint: RefCell<Option<Rc<Type>>>,
 }
 
 impl BaseType {
@@ -481,6 +485,7 @@ impl BaseType {
             symbol: None,
             alias_symbol: None,
             alias_type_arguments: RefCell::new(None),
+            immediate_base_constraint: RefCell::new(None),
         }
     }
 }
@@ -525,6 +530,10 @@ impl TypeInterface for BaseType {
 
     fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.alias_type_arguments.borrow_mut()
+    }
+
+    fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>> {
+        self.immediate_base_constraint.borrow_mut()
     }
 }
 
