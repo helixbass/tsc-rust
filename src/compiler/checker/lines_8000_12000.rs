@@ -15,10 +15,11 @@ use crate::{
     declaration_name_to_string, escape_leading_underscores, escape_string, factory, find_ancestor,
     first_defined, get_check_flags, get_combined_modifier_flags, get_declaration_of_kind,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
-    get_emit_script_target, get_first_identifier, get_name_of_declaration, get_source_file_of_node,
-    has_dynamic_name, has_effective_modifier, has_only_expression_initializer, is_ambient_module,
-    is_bindable_object_define_property_call, is_binding_pattern, is_call_expression,
-    is_computed_property_name, is_external_module_augmentation, is_identifier_text,
+    get_emit_script_target, get_first_identifier, get_name_of_declaration, get_root_declaration,
+    get_source_file_of_node, has_dynamic_name, has_effective_modifier,
+    has_only_expression_initializer, is_ambient_module, is_bindable_object_define_property_call,
+    is_binding_pattern, is_call_expression, is_computed_property_name,
+    is_external_module_augmentation, is_identifier_text,
     is_internal_module_import_equals_declaration, is_property_assignment, is_property_declaration,
     is_property_signature, is_source_file, is_type_alias, is_variable_declaration, maybe_for_each,
     push_if_unique_rc, range_equals_rc, starts_with, symbol_name, synthetic_factory,
@@ -636,8 +637,26 @@ impl TypeChecker {
         // Debug.assertNever(propertyName);
     }
 
+    pub(super) fn pop_type_resolution(&self) -> bool {
+        self.resolution_targets().pop();
+        self.resolution_property_names().pop();
+        self.resolution_results().pop().unwrap()
+    }
+
     pub(super) fn get_declaration_container(&self, node: &Node) -> Rc<Node> {
-        unimplemented!()
+        find_ancestor(Some(get_root_declaration(node)), |node| {
+            !matches!(
+                node.kind(),
+                SyntaxKind::VariableDeclaration
+                    | SyntaxKind::VariableDeclarationList
+                    | SyntaxKind::ImportSpecifier
+                    | SyntaxKind::NamedImports
+                    | SyntaxKind::NamespaceImport
+                    | SyntaxKind::ImportClause
+            )
+        })
+        .unwrap()
+        .parent()
     }
 
     pub(super) fn get_type_of_property_of_type_(
