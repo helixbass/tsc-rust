@@ -3,6 +3,7 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
@@ -28,7 +29,8 @@ use crate::{
     ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Signature, SignatureFlags,
     Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker,
     TypeFlags, TypeFormatFlags, TypeInterface, TypeMapper, TypePredicate, TypePredicateKind,
-    UnderscoreEscapedMap, UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
+    TypeSystemEntity, TypeSystemPropertyName, UnderscoreEscapedMap,
+    UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -537,6 +539,35 @@ impl TypeChecker {
             }
             Option::<()>::None
         });
+    }
+
+    pub(super) fn push_type_resolution(
+        &self,
+        target: &TypeSystemEntity,
+        property_name: TypeSystemPropertyName,
+    ) -> bool {
+        let resolution_cycle_start_index =
+            self.find_resolution_cycle_start_index(target, property_name);
+        if resolution_cycle_start_index >= 0 {
+            let length = self.resolution_targets().len();
+            let mut resolution_results = self.resolution_results();
+            for i in resolution_cycle_start_index.try_into().unwrap()..length {
+                resolution_results[i] = false;
+            }
+            return false;
+        }
+        self.resolution_targets().push(target.clone());
+        self.resolution_results().push(true);
+        self.resolution_property_names().push(property_name);
+        true
+    }
+
+    pub(super) fn find_resolution_cycle_start_index(
+        &self,
+        target: &TypeSystemEntity,
+        property_name: TypeSystemPropertyName,
+    ) -> isize {
+        unimplemented!()
     }
 
     pub(super) fn get_declaration_container(&self, node: &Node) -> Rc<Node> {

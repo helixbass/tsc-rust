@@ -266,7 +266,7 @@ lazy_static! {
         ]));
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum TypeSystemEntity {
     Node(Rc<Node>),
     Symbol(Rc<Symbol>),
@@ -2563,6 +2563,18 @@ impl TypeChecker {
 
     pub(super) fn global_readonly_array_type(&self) -> Rc<Type> {
         self.global_readonly_array_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn resolution_targets(&self) -> RefMut<Vec<TypeSystemEntity>> {
+        self.resolution_targets.borrow_mut()
+    }
+
+    pub(super) fn resolution_results(&self) -> RefMut<Vec<bool>> {
+        self.resolution_results.borrow_mut()
+    }
+
+    pub(super) fn resolution_property_names(&self) -> RefMut<Vec<TypeSystemPropertyName>> {
+        self.resolution_property_names.borrow_mut()
     }
 
     pub(super) fn suggestion_count(&self) -> usize {
