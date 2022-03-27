@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use super::{
     get_symbol_id, MappedTypeModifiers, MembersOrExportsResolutionKind, NodeBuilderContext,
+    TypeFacts,
 };
 use crate::{
     are_option_rcs_equal, concatenate, create_printer, create_symbol_table,
@@ -805,6 +806,38 @@ impl TypeChecker {
         result
     }
 
+    pub(super) fn is_generic_type_with_undefined_constraint(&self, type_: &Type) -> bool {
+        type_.flags().intersects(TypeFlags::Instantiable)
+            && self.maybe_type_of_kind(
+                &self
+                    .get_base_constraint_of_type(type_)
+                    .unwrap_or_else(|| self.unknown_type()),
+                TypeFlags::Undefined,
+            )
+    }
+
+    pub(super) fn get_non_undefined_type(&self, type_: &Type) -> Rc<Type> {
+        let type_or_constraint = if self.some_type(type_, |type_| {
+            self.is_generic_type_with_undefined_constraint(type_)
+        }) {
+            self.map_type(
+                type_,
+                &mut |t| {
+                    Some(if t.flags().intersects(TypeFlags::Instantiable) {
+                        self.get_base_constraint_or_type(t)
+                    } else {
+                        t.type_wrapper()
+                    })
+                },
+                None,
+            )
+            .unwrap()
+        } else {
+            type_.type_wrapper()
+        };
+        self.get_type_with_facts(&type_or_constraint, TypeFacts::NEUndefined)
+    }
+
     pub(super) fn add_optionality(
         &self,
         type_: &Type,
@@ -1509,6 +1542,14 @@ impl TypeChecker {
         } else {
             None
         }
+    }
+
+    pub(super) fn get_base_constraint_of_type(&self, type_: &Type) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_base_constraint_or_type(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn has_non_circular_base_constraint(

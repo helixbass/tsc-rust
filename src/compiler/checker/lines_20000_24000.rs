@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::ptr;
 use std::rc::Rc;
 
-use super::WideningKind;
+use super::{TypeFacts, WideningKind};
 use crate::{
     every, for_each, get_object_flags, is_write_only_access, length, node_is_missing, Debug_,
     DiagnosticMessage, Diagnostics, Identifier, Node, NodeInterface, ObjectFlags,
@@ -414,6 +414,18 @@ impl TypeChecker {
     }
 
     pub(super) fn is_in_type_query(&self, node: &Node) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_with_facts(&self, type_: &Type, include: TypeFacts) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn some_type<TCallback: FnMut(&Type) -> bool>(
+        &self,
+        type_: &Type,
+        mut f: TCallback,
+    ) -> bool {
         unimplemented!()
     }
 
