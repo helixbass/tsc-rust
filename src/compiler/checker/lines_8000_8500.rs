@@ -7,34 +7,25 @@ use std::convert::{TryFrom, TryInto};
 use std::ptr;
 use std::rc::Rc;
 
-use super::{
-    get_symbol_id, MappedTypeModifiers, MembersOrExportsResolutionKind, NodeBuilderContext,
-    TypeFacts,
-};
+use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
-    are_option_rcs_equal, concatenate, create_printer, create_symbol_table,
-    declaration_name_to_string, escape_leading_underscores, escape_string, factory, find_ancestor,
-    first_defined, get_check_flags, get_combined_modifier_flags,
-    get_declaration_modifier_flags_from_symbol, get_declaration_of_kind,
-    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
+    are_option_rcs_equal, create_printer, create_symbol_table, declaration_name_to_string,
+    escape_string, factory, find_ancestor, first_defined, get_check_flags,
+    get_combined_modifier_flags, get_declaration_modifier_flags_from_symbol,
     get_emit_script_target, get_first_identifier, get_name_of_declaration, get_root_declaration,
-    get_source_file_of_node, has_dynamic_name, has_effective_modifier,
-    has_only_expression_initializer, is_ambient_module, is_bindable_object_define_property_call,
-    is_binding_pattern, is_call_expression, is_computed_property_name,
-    is_external_module_augmentation, is_identifier_text,
-    is_internal_module_import_equals_declaration, is_left_hand_side_expression,
-    is_property_assignment, is_property_declaration, is_property_signature, is_source_file,
-    is_type_alias, is_variable_declaration, map, maybe_for_each, parse_base_node_factory,
-    parse_node_factory, push_if_unique_rc, range_equals_rc, set_parent, set_text_range,
-    starts_with, symbol_name, synthetic_factory, try_to_add_to_set, walk_up_parenthesized_types,
-    BaseInterfaceType, CharacterCodes, CheckFlags, Debug_, EmitHint, EmitTextWriter, InterfaceType,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
-    LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags,
-    NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder,
-    Signature, SignatureFlags, Symbol, SymbolFlags, SymbolId, SymbolInterface, SymbolTable,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeMapper,
+    get_source_file_of_node, has_effective_modifier, is_ambient_module,
+    is_bindable_object_define_property_call, is_binding_pattern, is_call_expression,
+    is_computed_property_name, is_external_module_augmentation, is_identifier_text,
+    is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
+    map, maybe_for_each, parse_base_node_factory, parse_node_factory, push_if_unique_rc,
+    set_parent, set_text_range, starts_with, symbol_name, synthetic_factory, try_to_add_to_set,
+    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter,
+    InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol, SymbolFlags, SymbolId,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
     TypePredicate, TypePredicateKind, TypeSystemEntity, TypeSystemPropertyName,
-    UnderscoreEscapedMap, UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
+    UnionOrIntersectionTypeInterface, __String,
 };
 
 impl TypeChecker {
