@@ -274,6 +274,20 @@ pub(crate) enum TypeSystemEntity {
     Signature(Rc<Signature>),
 }
 
+impl PartialEq for TypeSystemEntity {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Node(a), Self::Node(b)) => Rc::ptr_eq(a, b),
+            (Self::Symbol(a), Self::Symbol(b)) => Rc::ptr_eq(a, b),
+            (Self::Type(a), Self::Type(b)) => Rc::ptr_eq(a, b),
+            (Self::Signature(a), Self::Signature(b)) => Rc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for TypeSystemEntity {}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum TypeSystemPropertyName {
     Type,

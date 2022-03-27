@@ -3,7 +3,7 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashSet;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::ptr;
 use std::rc::Rc;
 
@@ -567,6 +567,32 @@ impl TypeChecker {
         target: &TypeSystemEntity,
         property_name: TypeSystemPropertyName,
     ) -> isize {
+        let resolution_targets = self.resolution_targets();
+        let mut i: isize = isize::try_from(resolution_targets.len()).unwrap() - 1;
+        let resolution_property_names = self.resolution_property_names();
+        while i >= 0 {
+            let i_as_usize: usize = i.try_into().unwrap();
+            if self.has_type(
+                &resolution_targets[i_as_usize],
+                resolution_property_names[i_as_usize],
+            ) {
+                return -1;
+            }
+            if &resolution_targets[i_as_usize] == target
+                && resolution_property_names[i_as_usize] == property_name
+            {
+                return i;
+            }
+            i -= 1;
+        }
+        -1
+    }
+
+    pub(super) fn has_type(
+        &self,
+        target: &TypeSystemEntity,
+        property_name: TypeSystemPropertyName,
+    ) -> bool {
         unimplemented!()
     }
 
