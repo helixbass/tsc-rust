@@ -9,7 +9,7 @@ use super::{
     BaseType, IndexInfo, MappedType, Node, PseudoBigInt, ResolvedTypeInterface, Signature, Symbol,
     SymbolTable, Type, TypeChecker, TypeInterface,
 };
-use crate::{Number, WeakSelf};
+use crate::{Number, WeakSelf, __String};
 use local_macros::type_type;
 
 pub trait LiteralTypeInterface: TypeInterface {
@@ -66,6 +66,14 @@ impl LiteralTypeInterface for BaseLiteralType {
     fn set_regular_type(&self, regular_type: &Rc<Type>) {
         self.regular_type.init(regular_type, false);
     }
+}
+
+#[derive(Clone, Debug)]
+#[type_type]
+pub struct UniqueESSymbolType {
+    _type: BaseType,
+    pub symbol: Rc<Symbol>,
+    pub escaped_name: __String,
 }
 
 #[derive(Clone, Debug)]

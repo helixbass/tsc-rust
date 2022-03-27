@@ -332,6 +332,10 @@ impl TypeChecker {
         })
     }
 
+    pub(super) fn is_numeric_literal_name(&self, name: &str) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_object_literal(
         &self,
         node: &Node, /*ObjectLiteralExpression*/

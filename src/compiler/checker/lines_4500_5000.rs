@@ -21,7 +21,7 @@ use crate::{
     NodeFlags, NodeInterface, ObjectFlags, PrinterOptionsBuilder, ScriptTarget, Signature,
     SignatureKind, Symbol, SymbolAccessibility, SymbolFlags, SymbolFormatFlags, SymbolId,
     SymbolInterface, SymbolTable, SymbolTracker, SymbolVisibilityResult, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypePredicate,
+    TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -510,17 +510,6 @@ impl TypeChecker {
                 type_.flags().intersects(TypeFlags::Object) && get_object_flags(type_).intersects(ObjectFlags::IsClassInstanceClone)
             )
         )
-    }
-
-    pub fn type_predicate_to_string_<TEnclosingDeclaration: Borrow<Node>>(
-        &self,
-        type_predicate: &TypePredicate,
-        enclosing_declaration: Option<TEnclosingDeclaration>,
-        flags: Option<TypeFormatFlags>,
-        writer: Option<&dyn EmitTextWriter>,
-    ) -> String {
-        let flags = flags.unwrap_or(TypeFormatFlags::UseAliasDefinedOutsideCurrentScope);
-        unimplemented!()
     }
 }
 

@@ -7,26 +7,99 @@ use std::rc::Rc;
 
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind, NodeBuilderContext};
 use crate::{
-    concatenate, create_symbol_table, declaration_name_to_string, escape_leading_underscores,
-    first_defined, get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
-    get_effective_type_parameter_declarations, get_name_of_declaration, has_dynamic_name,
-    has_only_expression_initializer, is_property_assignment, is_property_declaration,
-    is_property_signature, is_type_alias, is_variable_declaration, range_equals_rc,
-    BaseInterfaceType, CheckFlags, Debug_, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, UnderscoreEscapedMap, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
-    __String, maybe_append_if_unique_rc,
+    concatenate, create_printer, create_symbol_table, declaration_name_to_string,
+    escape_leading_underscores, escape_string, factory, first_defined, get_check_flags,
+    get_declaration_of_kind, get_effective_type_annotation_node,
+    get_effective_type_parameter_declarations, get_emit_script_target, get_name_of_declaration,
+    get_source_file_of_node, has_dynamic_name, has_only_expression_initializer, is_ambient_module,
+    is_external_module_augmentation, is_identifier_text, is_property_assignment,
+    is_property_declaration, is_property_signature, is_type_alias, is_variable_declaration,
+    range_equals_rc, starts_with, synthetic_factory, walk_up_parenthesized_types,
+    BaseInterfaceType, CharacterCodes, CheckFlags, Debug_, EmitHint, EmitTextWriter, InterfaceType,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, ModifierFlags,
+    Node, NodeArray, NodeBuilderFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    PrinterOptionsBuilder, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypeMapper, TypePredicate, TypePredicateKind, UnderscoreEscapedMap,
+    UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
+    pub(super) fn type_predicate_to_string_worker<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        type_predicate: &TypePredicate,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: TypeFormatFlags,
+        writer: Rc<RefCell<dyn EmitTextWriter>>,
+    ) {
+        let enclosing_declaration = enclosing_declaration
+            .map(|enclosing_declaration| enclosing_declaration.borrow().node_wrapper());
+        let predicate: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
+            factory.with(|factory_| {
+                factory_
+                    .create_type_predicate_node(
+                        synthetic_factory_,
+                        if matches!(
+                            type_predicate.kind,
+                            TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
+                        ) {
+                            Some(
+                                factory_
+                                    .create_token(synthetic_factory_, SyntaxKind::AssertsKeyword)
+                                    .into(),
+                            )
+                        } else {
+                            None
+                        },
+                        if matches!(
+                            type_predicate.kind,
+                            TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
+                        ) {
+                            Into::<Rc<Node>>::into(factory_.create_identifier(
+                                synthetic_factory_,
+                                type_predicate.parameter_name.as_ref().unwrap(),
+                                Option::<NodeArray>::None,
+                                None,
+                            ))
+                        } else {
+                            factory_.create_this_type_node(synthetic_factory_).into()
+                        },
+                        type_predicate.type_.as_ref().and_then(|type_| {
+                            self.node_builder.type_to_type_node(
+                                self,
+                                type_,
+                                enclosing_declaration.as_deref(),
+                                Some(
+                                    self.to_node_builder_flags(Some(flags))
+                                        | NodeBuilderFlags::IgnoreErrors
+                                        | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
+                                ),
+                                None,
+                            )
+                        }),
+                    )
+                    .into()
+            })
+        });
+        let mut printer = create_printer(
+            PrinterOptionsBuilder::default()
+                .remove_comments(Some(true))
+                .build()
+                .unwrap(),
+        );
+        let source_file = enclosing_declaration
+            .as_deref()
+            .and_then(|enclosing_declaration| get_source_file_of_node(Some(enclosing_declaration)));
+        printer.write_node(EmitHint::Unspecified, &predicate, source_file, writer);
+        // return writer;
+    }
+
     pub(super) fn format_union_types(&self, types: &[Rc<Type>]) -> Vec<Rc<Type>> {
         let mut result: Vec<Rc<Type>> = vec![];
         let mut flags: TypeFlags = TypeFlags::None;
         let mut i = 0;
         while i < types.len() {
-            let t = types[i].clone();
+            let t = &types[i];
             flags |= t.flags();
             if !t.flags().intersects(TypeFlags::Nullable) {
                 if t.flags()
@@ -35,18 +108,16 @@ impl TypeChecker {
                     let base_type = if t.flags().intersects(TypeFlags::BooleanLiteral) {
                         self.boolean_type()
                     } else {
-                        unimplemented!()
+                        self.get_base_type_of_enum_literal_type(t)
                     };
-                    if let Type::UnionOrIntersectionType(UnionOrIntersectionType::UnionType(
-                        base_type_as_union_type,
-                    )) = &*base_type
-                    {
+                    if base_type.flags().intersects(TypeFlags::Union) {
+                        let base_type_as_union_type = base_type.as_union_type();
                         let count = base_type_as_union_type.types().len();
                         if i + count <= types.len()
                             && Rc::ptr_eq(
                                 &self.get_regular_type_of_literal_type(&*types[i + count - 1]),
                                 &self.get_regular_type_of_literal_type(
-                                    &*base_type_as_union_type.types()[count - 1],
+                                    &base_type_as_union_type.types()[count - 1],
                                 ),
                             )
                         {
@@ -60,11 +131,100 @@ impl TypeChecker {
             }
             i += 1;
         }
+        if flags.intersects(TypeFlags::Null) {
+            result.push(self.null_type());
+        }
+        if flags.intersects(TypeFlags::Undefined) {
+            result.push(self.undefined_type());
+        }
         result /*|| types*/
     }
 
+    pub(super) fn visibility_to_string(&self, flags: ModifierFlags) -> Option<&'static str> {
+        if flags == ModifierFlags::Private {
+            return Some("private");
+        }
+        if flags == ModifierFlags::Protected {
+            return Some("protected");
+        }
+        Some("public")
+    }
+
     pub(super) fn get_type_alias_for_type_literal(&self, type_: &Type) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if let Some(type_symbol) = type_.maybe_symbol() {
+            if type_symbol.flags().intersects(SymbolFlags::TypeLiteral) {
+                if let Some(type_symbol_declarations) = type_symbol.maybe_declarations().as_deref()
+                {
+                    let node =
+                        walk_up_parenthesized_types(&type_symbol_declarations[0].parent()).unwrap();
+                    if node.kind() == SyntaxKind::TypeAliasDeclaration {
+                        return self.get_symbol_of_node(&node);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    pub(super) fn is_top_level_in_external_module_augmentation(&self, node: &Node) -> bool {
+        /*node &&*/
+        matches!(
+            node.maybe_parent(),
+            Some(node_parent) if node_parent.kind() == SyntaxKind::ModuleBlock && is_external_module_augmentation(&node_parent.parent())
+        )
+    }
+
+    pub(super) fn is_default_binding_context(&self, location: &Node) -> bool {
+        location.kind() == SyntaxKind::SourceFile || is_ambient_module(location)
+    }
+
+    pub(super) fn get_name_of_symbol_from_name_type(
+        &self,
+        symbol: &Symbol,
+        context: Option<&NodeBuilderContext>,
+    ) -> Option<String> {
+        let name_type = RefCell::borrow(&self.get_symbol_links(symbol))
+            .name_type
+            .clone()?;
+        if name_type
+            .flags()
+            .intersects(TypeFlags::StringOrNumberLiteral)
+        {
+            let name: String = match &*name_type {
+                Type::LiteralType(LiteralType::StringLiteralType(name_type)) => {
+                    name_type.value.clone()
+                }
+                Type::LiteralType(LiteralType::NumberLiteralType(name_type)) => {
+                    name_type.value.value().to_string()
+                }
+                _ => panic!("Expected string or number literal type"),
+            };
+            if !is_identifier_text(
+                &name,
+                Some(get_emit_script_target(&self.compiler_options)),
+                None,
+            ) && !self.is_numeric_literal_name(&name)
+            {
+                return Some(format!(
+                    "\"{}\"",
+                    escape_string(&name, Some(CharacterCodes::double_quote))
+                ));
+            }
+            if self.is_numeric_literal_name(&name) && starts_with(&name, "-") {
+                return Some(format!("[{}]", name));
+            }
+            return Some(name);
+        }
+        if name_type.flags().intersects(TypeFlags::UniqueESSymbol) {
+            return Some(format!(
+                "[{}]",
+                self.get_name_of_symbol_as_written(
+                    &name_type.as_unique_es_symbol_type().symbol,
+                    context
+                )
+            ));
+        }
+        None
     }
 
     pub(super) fn get_name_of_symbol_as_written(
@@ -441,6 +601,10 @@ impl TypeChecker {
             links.declared_type = Some(type_);
         }
         links.declared_type.clone().unwrap()
+    }
+
+    pub(super) fn get_base_type_of_enum_literal_type(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn get_declared_type_of_type_parameter(

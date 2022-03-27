@@ -14,12 +14,13 @@ use crate::{
     get_parse_tree_node, is_class_like, is_identifier, is_identifier_text, is_import_type_node,
     is_static, last, length, map, maybe_for_each_bool, node_is_synthesized,
     null_transformation_context, range_equals_rc, same_map, set_emit_flags, set_text_range, some,
-    synthetic_factory, unescape_leading_underscores, visit_each_child, CheckFlags, Debug_,
-    ElementFlags, EmitFlags, IndexInfo, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags,
-    Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType,
-    ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    VisitResult,
+    synthetic_factory, unescape_leading_underscores, using_single_line_string_writer,
+    visit_each_child, CheckFlags, Debug_, ElementFlags, EmitFlags, EmitTextWriter, IndexInfo,
+    InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilder,
+    NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    TypePredicate, VisitResult,
 };
 
 impl NodeBuilder {
@@ -1646,6 +1647,36 @@ impl NodeBuilder {
         bundled: Option<bool>,
     ) -> Option<Vec<Rc<Node /*Statement*/>>> {
         unimplemented!()
+    }
+}
+
+impl TypeChecker {
+    pub fn type_predicate_to_string_<TEnclosingDeclaration: Borrow<Node>>(
+        &self,
+        type_predicate: &TypePredicate,
+        enclosing_declaration: Option<TEnclosingDeclaration>,
+        flags: Option<TypeFormatFlags>,
+        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
+    ) -> String {
+        let flags = flags.unwrap_or(TypeFormatFlags::UseAliasDefinedOutsideCurrentScope);
+        if let Some(writer) = writer {
+            self.type_predicate_to_string_worker(
+                type_predicate,
+                enclosing_declaration,
+                flags,
+                writer.clone(),
+            );
+            RefCell::borrow(&writer).get_text()
+        } else {
+            using_single_line_string_writer(|writer| {
+                self.type_predicate_to_string_worker(
+                    type_predicate,
+                    enclosing_declaration,
+                    flags,
+                    writer,
+                )
+            })
+        }
     }
 }
 

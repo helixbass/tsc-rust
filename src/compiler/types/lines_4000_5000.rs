@@ -1073,6 +1073,7 @@ impl From<BaseSymbol> for Symbol {
 pub struct SymbolLinks {
     pub target: Option<Rc<Symbol>>,
     pub type_: Option<Rc<Type>>,
+    pub name_type: Option<Rc<Type>>,
     pub declared_type: Option<Rc<Type>>,
     pub mapper: Option<TypeMapper>,
     pub referenced: Option<bool>,
@@ -1091,6 +1092,7 @@ impl SymbolLinks {
         Self {
             target: None,
             type_: None,
+            name_type: None,
             declared_type: None,
             mapper: None,
             referenced: None,

@@ -1900,7 +1900,7 @@ impl TypeChecker {
         predicate: &TypePredicate,
         enclosing_declaration: Option<TEnclosingDeclaration>,
         flags: Option<TypeFormatFlags>,
-        writer: Option<&dyn EmitTextWriter>,
+        writer: Option<Rc<RefCell<dyn EmitTextWriter>>>,
     ) -> String {
         self.type_predicate_to_string_(
             predicate,

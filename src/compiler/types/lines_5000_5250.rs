@@ -12,7 +12,7 @@ use super::{
     NumberLiteralType, ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface,
     ResolvedTypeInterface, Signature, StringLiteralType, StringMappingType, SubstitutionType,
     Symbol, TemplateLiteralType, TupleType, TypeParameter, TypeReference, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, UnionType,
+    UnionOrIntersectionTypeInterface, UnionType, UniqueESSymbolType,
 };
 use crate::{BaseTransientSymbol, Node, ObjectFlags, Pattern, WeakSelf};
 use local_macros::{enum_unwrapped, symbol_type, type_type};
@@ -297,6 +297,7 @@ pub enum Type {
     TemplateLiteralType(TemplateLiteralType),
     IndexType(IndexType),
     ConditionalType(ConditionalType),
+    UniqueESSymbolType(UniqueESSymbolType),
 }
 
 impl Type {
@@ -442,6 +443,10 @@ impl Type {
 
     pub fn as_tuple_type(&self) -> &TupleType {
         enum_unwrapped!(self, [Type, ObjectType, InterfaceType, TupleType])
+    }
+
+    pub fn as_unique_es_symbol_type(&self) -> &UniqueESSymbolType {
+        enum_unwrapped!(self, [Type, UniqueESSymbolType])
     }
 }
 
