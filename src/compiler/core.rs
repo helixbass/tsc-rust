@@ -9,7 +9,6 @@ use std::hash;
 use std::hash::Hash;
 use std::mem;
 use std::ops::Add;
-use std::ptr;
 use std::rc::Rc;
 
 use crate::{text_char_at_index, Comparison, Debug_, SortedArray, SourceTextAsChars};
@@ -567,9 +566,14 @@ pub fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     })
 }
 
-pub fn range_equals<TItem>(array1: &[TItem], array2: &[TItem], mut pos: usize, end: usize) -> bool {
+pub fn range_equals_rc<TItem>(
+    array1: &[Rc<TItem>],
+    array2: &[Rc<TItem>],
+    mut pos: usize,
+    end: usize,
+) -> bool {
     while pos < end {
-        if !ptr::eq(&array1[pos], &array2[pos]) {
+        if !Rc::ptr_eq(&array1[pos], &array2[pos]) {
             return false;
         }
         pos += 1;

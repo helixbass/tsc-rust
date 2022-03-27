@@ -8,13 +8,13 @@ use std::rc::Rc;
 use crate::{
     filter, get_effective_constraint_of_type_parameter, get_effective_return_type_node,
     get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
-    map_defined, maybe_append_if_unique_rc, node_is_missing, IndexInfo, Signature, SignatureFlags,
-    SignatureKind, SymbolTable, TypePredicate, TypePredicateKind, UnionType, __String,
-    binary_search_copy_key, compare_values, concatenate, get_name_of_declaration, get_object_flags,
-    map, unescape_leading_underscores, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    TypeReference, UnionReduction,
+    map_defined, maybe_append_if_unique_rc, node_is_missing, IndexInfo, InterfaceTypeInterface,
+    Signature, SignatureFlags, SignatureKind, SymbolTable, TypePredicate, TypePredicateKind,
+    UnionType, __String, binary_search_copy_key, compare_values, concatenate,
+    get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
+    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeId, TypeInterface, TypeReference, UnionReduction,
 };
 
 impl TypeChecker {
@@ -428,6 +428,13 @@ impl TypeChecker {
             })
     }
 
+    pub(super) fn get_parent_symbol_of_type_parameter(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_propagating_flags_of_types(
         &self,
         types: &[Rc<Type>],
@@ -470,18 +477,19 @@ impl TypeChecker {
                 None => vec![],
                 Some(node) => match &**node {
                     Node::TypeReferenceNode(type_reference_node) => {
-                        let target_as_base_interface_type =
-                            type_as_type_reference.target.as_base_interface_type();
+                        let target_as_interface_type =
+                            type_as_type_reference.target.as_interface_type();
                         concatenate(
-                            target_as_base_interface_type
-                                .outer_type_parameters
-                                .clone()
-                                .unwrap_or_else(|| vec![]),
+                            target_as_interface_type
+                                .maybe_outer_type_parameters()
+                                .map_or_else(
+                                    || vec![],
+                                    |outer_type_parameters| outer_type_parameters.to_owned(),
+                                ),
                             self.get_effective_type_arguments(
                                 node,
-                                target_as_base_interface_type
-                                    .local_type_parameters
-                                    .as_ref()
+                                target_as_interface_type
+                                    .maybe_local_type_parameters()
                                     .unwrap(),
                             ),
                         )
@@ -503,6 +511,10 @@ impl TypeChecker {
         (*resolved_type_arguments).clone().unwrap()
     }
 
+    pub(super) fn get_type_reference_arity(&self, type_: &Type /*TypeReference*/) -> usize {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_from_class_or_interface_reference(
         &self,
         node: &Node,
@@ -510,14 +522,16 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let type_ =
             self.get_declared_type_of_symbol(&self.get_merged_symbol(Some(symbol)).unwrap());
-        let type_as_base_interface_type = type_.as_base_interface_type();
-        let type_parameters = type_as_base_interface_type.type_parameters.as_ref();
+        let type_as_interface_type = type_.as_interface_type();
+        let type_parameters = type_as_interface_type.maybe_type_parameters();
         if let Some(type_parameters) = type_parameters {
             let type_arguments = concatenate(
-                type_as_base_interface_type
-                    .outer_type_parameters
-                    .clone()
-                    .unwrap_or_else(|| vec![]),
+                type_as_interface_type
+                    .maybe_outer_type_parameters()
+                    .map_or_else(
+                        || vec![],
+                        |outer_type_parameters| outer_type_parameters.to_owned(),
+                    ),
                 self.fill_missing_type_arguments(
                     self.type_arguments_from_type_reference_node(&*node.node_wrapper()),
                     Some(type_parameters),

@@ -1361,8 +1361,24 @@ fn get_type_struct_interface_impl(
         "InterfaceTypeInterface" => {
             quote! {
                 impl crate::InterfaceTypeInterface for #type_type_name {
+                    fn maybe_type_parameters(&self) -> ::std::option::Option<&[::std::rc::Rc<crate::Type>]> {
+                        self.#first_field_name.maybe_type_parameters()
+                    }
+
                     fn maybe_outer_type_parameters(&self) -> ::std::option::Option<&[::std::rc::Rc<crate::Type>]> {
                         self.#first_field_name.maybe_outer_type_parameters()
+                    }
+
+                    fn maybe_local_type_parameters(&self) -> ::std::option::Option<&[::std::rc::Rc<crate::Type>]> {
+                        self.#first_field_name.maybe_local_type_parameters()
+                    }
+
+                    fn maybe_this_type(&self) -> ::std::option::Option<::std::rc::Rc<crate::Type>> {
+                        self.#first_field_name.maybe_this_type()
+                    }
+
+                    fn maybe_this_type_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        self.#first_field_name.maybe_this_type_mut()
                     }
                 }
             }
@@ -1669,9 +1685,33 @@ fn get_type_enum_interface_impl(
         "InterfaceTypeInterface" => {
             quote! {
                 impl crate::InterfaceTypeInterface for #type_type_name {
+                    fn maybe_type_parameters(&self) -> ::std::option::Option<&[::std::rc::Rc<crate::Type>]> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_type_parameters()),*
+                        }
+                    }
+
                     fn maybe_outer_type_parameters(&self) -> ::std::option::Option<&[::std::rc::Rc<crate::Type>]> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_outer_type_parameters()),*
+                        }
+                    }
+
+                    fn maybe_local_type_parameters(&self) -> ::std::option::Option<&[::std::rc::Rc<crate::Type>]> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_local_type_parameters()),*
+                        }
+                    }
+
+                    fn maybe_this_type(&self) -> ::std::option::Option<::std::rc::Rc<crate::Type>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_this_type()),*
+                        }
+                    }
+
+                    fn maybe_this_type_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Type>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_this_type_mut()),*
                         }
                     }
                 }

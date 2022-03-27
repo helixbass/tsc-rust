@@ -545,6 +545,13 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn get_tuple_element_label(
+        &self,
+        d: &Node, /*ParameterDeclaration | NamedTupleMember*/
+    ) -> __String {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_at_position(&self, signature: &Signature, pos: usize) -> Rc<Type> {
         self.try_get_type_at_position(signature, pos)
             .unwrap_or_else(|| self.any_type())

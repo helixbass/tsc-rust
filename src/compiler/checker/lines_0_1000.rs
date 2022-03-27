@@ -2561,6 +2561,10 @@ impl TypeChecker {
         self.global_array_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn global_readonly_array_type(&self) -> Rc<Type> {
+        self.global_readonly_array_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn suggestion_count(&self) -> usize {
         self.suggestion_count.get()
     }

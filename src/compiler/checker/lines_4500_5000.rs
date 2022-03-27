@@ -1269,10 +1269,12 @@ impl NodeBuilder {
             Debug_.assert(type_.flags().intersects(TypeFlags::Object), None);
             return Some(if type_.as_type_reference().node.borrow().is_some() {
                 self.visit_and_transform_type(type_checker, context, &type_, |type_| {
-                    self.type_reference_to_type_node(type_)
+                    self.type_reference_to_type_node(type_checker, context, type_)
+                        .unwrap()
                 })
             } else {
-                self.type_reference_to_type_node(&type_)
+                self.type_reference_to_type_node(type_checker, context, &type_)
+                    .unwrap()
             });
         }
         if type_.flags().intersects(TypeFlags::TypeParameter)

@@ -441,10 +441,10 @@ pub enum InterfaceType {
 )]
 pub struct BaseInterfaceType {
     _object_type: BaseObjectType,
-    pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     outer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
-    pub local_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
-    pub this_type: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
+    local_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    this_type: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
     declared_properties: RefCell<Option<Vec<Rc<Symbol>>>>,
     declared_call_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
     declared_construct_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
@@ -476,12 +476,32 @@ impl BaseInterfaceType {
 }
 
 pub trait InterfaceTypeInterface {
+    fn maybe_type_parameters(&self) -> Option<&[Rc<Type>]>;
     fn maybe_outer_type_parameters(&self) -> Option<&[Rc<Type>]>;
+    fn maybe_local_type_parameters(&self) -> Option<&[Rc<Type>]>;
+    fn maybe_this_type(&self) -> Option<Rc<Type>>;
+    fn maybe_this_type_mut(&self) -> RefMut<Option<Rc<Type>>>;
 }
 
 impl InterfaceTypeInterface for BaseInterfaceType {
+    fn maybe_type_parameters(&self) -> Option<&[Rc<Type>]> {
+        self.type_parameters.as_deref()
+    }
+
     fn maybe_outer_type_parameters(&self) -> Option<&[Rc<Type>]> {
         self.outer_type_parameters.as_deref()
+    }
+
+    fn maybe_local_type_parameters(&self) -> Option<&[Rc<Type>]> {
+        self.local_type_parameters.as_deref()
+    }
+
+    fn maybe_this_type(&self) -> Option<Rc<Type>> {
+        self.this_type.borrow().clone()
+    }
+
+    fn maybe_this_type_mut(&self) -> RefMut<Option<Rc<Type>>> {
+        self.this_type.borrow_mut()
     }
 }
 

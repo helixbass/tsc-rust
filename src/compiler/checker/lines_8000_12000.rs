@@ -11,12 +11,13 @@ use crate::{
     first_defined, get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
     get_effective_type_parameter_declarations, get_name_of_declaration, has_dynamic_name,
     has_only_expression_initializer, is_property_assignment, is_property_declaration,
-    is_property_signature, is_type_alias, is_variable_declaration, range_equals, BaseInterfaceType,
-    CheckFlags, Debug_, InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, __String, maybe_append_if_unique_rc,
+    is_property_signature, is_type_alias, is_variable_declaration, range_equals_rc,
+    BaseInterfaceType, CheckFlags, Debug_, InterfaceType, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, UnderscoreEscapedMap, UnionOrIntersectionType, UnionOrIntersectionTypeInterface,
+    __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -386,9 +387,8 @@ impl TypeChecker {
             let type_rc: Rc<Type> = type_.into();
             if need_to_set_constraint {
                 *type_rc
-                    .as_base_interface_type()
-                    .this_type
-                    .borrow_mut()
+                    .as_interface_type()
+                    .maybe_this_type_mut()
                     .as_ref()
                     .unwrap()
                     .as_type_parameter()
@@ -577,7 +577,7 @@ impl TypeChecker {
         let construct_signatures: Vec<Rc<Signature>>;
         let source_as_interface_type_with_declared_members =
             source.as_interface_type_with_declared_members();
-        if range_equals(&type_parameters, &type_arguments, 0, type_parameters.len()) {
+        if range_equals_rc(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.maybe_symbol() {
                 self.get_members_of_symbol(&source_symbol)
             } else {
@@ -633,19 +633,15 @@ impl TypeChecker {
     pub(super) fn resolve_type_reference_members(&self, type_: &Type /*TypeReference*/) {
         let type_as_type_reference = type_.as_type_reference();
         let source = self.resolve_declared_members(&type_as_type_reference.target);
-        let source_as_base_interface_type = source.as_base_interface_type();
+        let source_as_interface_type = source.as_interface_type();
         let type_parameters = concatenate(
-            source_as_base_interface_type
-                .type_parameters
-                .clone()
+            source_as_interface_type
+                .maybe_type_parameters()
+                .map(|type_parameters| type_parameters.to_owned())
                 .unwrap(),
-            vec![source_as_base_interface_type
-                .this_type
-                .borrow()
-                .clone()
-                .unwrap()],
+            vec![source_as_interface_type.maybe_this_type().unwrap()],
         );
-        let type_arguments = self.get_type_arguments(type_as_type_reference);
+        let type_arguments = self.get_type_arguments(type_);
         let padded_type_arguments = if type_arguments.len() == type_parameters.len() {
             type_arguments
         } else {

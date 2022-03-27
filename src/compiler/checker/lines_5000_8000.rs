@@ -11,12 +11,12 @@ use super::{get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext}
 use crate::{
     count_where, factory, filter, get_emit_script_target, get_object_flags, get_parse_tree_node,
     is_class_like, is_identifier_text, is_static, length, map, maybe_for_each_bool,
-    node_is_synthesized, null_transformation_context, same_map, set_emit_flags, set_text_range,
-    some, synthetic_factory, unescape_leading_underscores, visit_each_child, Debug_, ElementFlags,
-    EmitFlags, IndexInfo, InterfaceTypeInterface, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
-    NodeInterface, NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeId, TypeInterface, VisitResult,
+    node_is_synthesized, null_transformation_context, range_equals_rc, same_map, set_emit_flags,
+    set_text_range, some, synthetic_factory, unescape_leading_underscores, visit_each_child,
+    Debug_, ElementFlags, EmitFlags, IndexInfo, InterfaceTypeInterface, Node, NodeArray,
+    NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface, VisitResult,
 };
 
 impl NodeBuilder {
@@ -647,7 +647,7 @@ impl NodeBuilder {
                 .intersects(NodeBuilderFlags::WriteArrayAsGenericType)
             {
                 let type_argument_node = self
-                    .type_to_type_node_helper(type_checker, &type_arguments[0], context)
+                    .type_to_type_node_helper(type_checker, Some(&*type_arguments[0]), context)
                     .unwrap();
                 return Some(synthetic_factory.with(|synthetic_factory_| {
                     factory.with(|factory_| {
@@ -670,7 +670,7 @@ impl NodeBuilder {
                 }));
             }
             let element_type = self
-                .type_to_type_node_helper(type_checker, &type_arguments[0], context)
+                .type_to_type_node_helper(type_checker, Some(&*type_arguments[0]), context)
                 .unwrap();
             let array_type: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
                 factory.with(|factory_| {
@@ -715,9 +715,13 @@ impl NodeBuilder {
             .unwrap();
             if !type_arguments.is_empty() {
                 let arity = type_checker.get_type_reference_arity(type_);
-                let mut tuple_constituent_nodes =
-                    self.map_to_type_nodes(type_checker, Some(&type_arguments[0..arity]), context);
-                if let Some(tuple_constituent_nodes) = tuple_constituent_nodes.as_mut() {
+                let tuple_constituent_nodes = self.map_to_type_nodes(
+                    type_checker,
+                    Some(&type_arguments[0..arity]),
+                    context,
+                    None,
+                );
+                if let Some(mut tuple_constituent_nodes) = tuple_constituent_nodes {
                     if let Some(type_target_labeled_element_declarations) =
                         type_target_as_tuple_type
                             .labeled_element_declarations
@@ -732,18 +736,27 @@ impl NodeBuilder {
                                         .create_named_tuple_member(
                                             synthetic_factory_,
                                             if flags.intersects(ElementFlags::Variable) {
-                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::DotDotDotToken))
+                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::DotDotDotToken).into())
                                             } else {
                                                 None
                                             },
-                                            factory_.create_identifier(synthetic_factory_, unescape_leading_underscores(&type_checker.get_tuple_element_label(&type_target_labeled_element_declarations[i]))),
+                                            factory_.create_identifier(
+                                                synthetic_factory_,
+                                                &unescape_leading_underscores(
+                                                    &type_checker.get_tuple_element_label(
+                                                        &type_target_labeled_element_declarations[i]
+                                                    )
+                                                ),
+                                                Option::<NodeArray>::None,
+                                                None,
+                                            ).into(),
                                             if flags.intersects(ElementFlags::Optional) {
-                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::QuestionToken))
+                                                Some(factory_.create_token(synthetic_factory_, SyntaxKind::QuestionToken).into())
                                             } else {
                                                 None
                                             },
                                             if flags.intersects(ElementFlags::Rest) {
-                                                Some(factory_.create_array_type_node(synthetic_factory_, tuple_constituent_node))
+                                                factory_.create_array_type_node(synthetic_factory_, tuple_constituent_node).into()
                                             } else {
                                                 tuple_constituent_node
                                             },
@@ -764,10 +777,12 @@ impl NodeBuilder {
                                             .create_rest_type_node(
                                                 synthetic_factory_,
                                                 if flags.intersects(ElementFlags::Rest) {
-                                                    factory_.create_array_type_node(
-                                                        synthetic_factory_,
-                                                        tuple_constituent_node,
-                                                    )
+                                                    factory_
+                                                        .create_array_type_node(
+                                                            synthetic_factory_,
+                                                            tuple_constituent_node,
+                                                        )
+                                                        .into()
                                                 } else {
                                                     tuple_constituent_node
                                                 },
@@ -869,6 +884,77 @@ impl NodeBuilder {
                 .target
                 .as_interface_type()
                 .maybe_outer_type_parameters();
+            let mut i = 0;
+            let mut result_type: Option<Rc<Node /*TypeReferenceNode | ImportTypeNode*/>> = None;
+            if let Some(outer_type_parameters) = outer_type_parameters {
+                let length = outer_type_parameters.len();
+                while i < length {
+                    let start = i;
+                    let parent = type_checker
+                        .get_parent_symbol_of_type_parameter(&outer_type_parameters[i])
+                        .unwrap();
+                    while {
+                        i += 1;
+                        i < length
+                            && matches!(type_checker.get_parent_symbol_of_type_parameter(&outer_type_parameters[i]), Some(parent_symbol) if Rc::ptr_eq(&parent_symbol, &parent))
+                    } {}
+                    if !range_equals_rc(outer_type_parameters, &type_arguments, start, i) {
+                        let type_argument_slice = self.map_to_type_nodes(
+                            type_checker,
+                            Some(&type_arguments[start..i]),
+                            context,
+                            None,
+                        );
+                        let flags = context.flags();
+                        context.set_flags(
+                            context.flags() | NodeBuilderFlags::ForbidIndexedAccessSymbolReferences,
+                        );
+                        let ref_ = self.symbol_to_type_node(
+                            type_checker,
+                            &parent,
+                            context,
+                            SymbolFlags::Type,
+                            type_argument_slice.as_deref(),
+                        );
+                        context.set_flags(flags);
+                        result_type = match result_type {
+                            None => Some(ref_),
+                            Some(result_type) => {
+                                Some(self.append_reference_to_type(&result_type, &ref_))
+                            }
+                        };
+                    }
+                }
+            }
+            let mut type_argument_nodes: Option<Vec<Rc<Node /*TypeNode*/>>> = None;
+            if !type_arguments.is_empty() {
+                let type_parameter_count = type_as_type_reference
+                    .target
+                    .as_interface_type()
+                    .maybe_type_parameters()
+                    .map_or(0, |type_parameters| type_parameters.len());
+                type_argument_nodes = self.map_to_type_nodes(
+                    type_checker,
+                    Some(&type_arguments[i..type_parameter_count]),
+                    context,
+                    None,
+                );
+            }
+            let flags = context.flags();
+            context
+                .set_flags(context.flags() | NodeBuilderFlags::ForbidIndexedAccessSymbolReferences);
+            let final_ref = self.symbol_to_type_node(
+                type_checker,
+                &type_.symbol(),
+                context,
+                SymbolFlags::Type,
+                type_argument_nodes.as_deref(),
+            );
+            context.set_flags(flags);
+            Some(match result_type {
+                None => final_ref,
+                Some(result_type) => self.append_reference_to_type(&result_type, &final_ref),
+            })
         }
     }
 

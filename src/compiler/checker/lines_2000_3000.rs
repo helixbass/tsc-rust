@@ -24,10 +24,10 @@ use crate::{
     is_source_file_js, is_static, is_string_literal_like, is_type_literal_node, is_type_query_node,
     is_valid_type_only_alias_use_site, is_variable_declaration, map, should_preserve_const_enums,
     some, AssignmentDeclarationKind, Diagnostic, Diagnostics, Extension,
-    FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, InternalSymbolName,
-    ModifierFlags, ModuleKind, NodeFlags, SyntaxKind, TypeFlags, TypeInterface, __String,
-    declaration_name_to_string, unescape_leading_underscores, Debug_, Node, NodeInterface, Symbol,
-    SymbolFlags, SymbolInterface, TypeChecker,
+    FindAncestorCallbackReturn, HasInitializerInterface, HasTypeInterface, InterfaceTypeInterface,
+    InternalSymbolName, ModifierFlags, ModuleKind, NodeFlags, SyntaxKind, TypeFlags, TypeInterface,
+    __String, declaration_name_to_string, unescape_leading_underscores, Debug_, Node,
+    NodeInterface, Symbol, SymbolFlags, SymbolInterface, TypeChecker,
 };
 
 impl TypeChecker {
@@ -213,8 +213,8 @@ impl TypeChecker {
 
                 if Rc::ptr_eq(&location_present, &container) && !is_static(&location_present) {
                     let declared_type = self.get_declared_type_of_symbol(&class_symbol);
-                    let instance_type = declared_type.as_base_interface_type().this_type.borrow();
-                    let instance_type = instance_type.as_ref().unwrap();
+                    let instance_type =
+                        declared_type.as_interface_type().maybe_this_type().unwrap();
                     if self.get_property_of_type(&instance_type, name).is_some() {
                         self.error(
                             Some(error_location),
