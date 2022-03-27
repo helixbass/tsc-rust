@@ -16,8 +16,8 @@ use super::{
 };
 use crate::{
     Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo, IterationTypes,
-    IterationTypesResolver, NodeBuilder, Number, PatternAmbientModule, StringOrNumber, TypeId,
-    TypeSystemEntity, TypeSystemPropertyName,
+    IterationTypesResolver, NodeBuilder, Number, PatternAmbientModule, ReverseMappedSymbol,
+    StringOrNumber, TypeId, TypeSystemEntity, TypeSystemPropertyName,
 };
 use local_macros::{enum_unwrapped, symbol_type};
 
@@ -880,6 +880,10 @@ impl Symbol {
     pub fn as_transient_symbol(&self) -> &TransientSymbol {
         enum_unwrapped!(self, [Symbol, TransientSymbol])
     }
+
+    pub fn as_reverse_mapped_symbol(&self) -> &ReverseMappedSymbol {
+        enum_unwrapped!(self, [Symbol, TransientSymbol, ReverseMappedSymbol])
+    }
 }
 
 #[derive(Debug)]
@@ -1109,11 +1113,26 @@ bitflags! {
         const SyntheticProperty = 1 << 1;
         const SyntheticMethod = 1 << 2;
         const Readonly = 1 << 3;
+        const ReadPartial = 1 << 4;
+        const WritePartial = 1 << 5;
+        const HasNonUniformType = 1 << 6;
+        const HasLiteralType = 1 << 7;
+        const ContainsPublic = 1 << 8;
+        const ContainsProtected = 1 << 3;
+        const ContainsPrivate = 1 << 10;
+        const ContainsStatic = 1 << 11;
         const Late = 1 << 12;
+        const ReverseMapped = 1 << 13;
         const OptionalParameter = 1 << 14;
         const RestParameter = 1 << 15;
-
+        const DeferredType = 1 << 16;
+        const HasNeverType = 1 << 17;
+        const Mapped = 1 << 18;
+        const StripOptional = 1 << 19;
+        const Unresolved = 1 << 20;
         const Synthetic = Self::SyntheticProperty.bits | Self::SyntheticMethod.bits;
+        const Discriminant = Self::HasNonUniformType.bits | Self::HasLiteralType.bits;
+        const Partial = Self::ReadPartial.bits | Self::WritePartial.bits;
     }
 }
 
@@ -1126,6 +1145,7 @@ pub trait TransientSymbolInterface: SymbolInterface {
 #[symbol_type(interfaces = "TransientSymbolInterface")]
 pub enum TransientSymbol {
     BaseTransientSymbol(BaseTransientSymbol),
+    ReverseMappedSymbol(ReverseMappedSymbol),
 }
 
 #[derive(Debug)]

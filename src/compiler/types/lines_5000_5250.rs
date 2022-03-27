@@ -14,8 +14,17 @@ use super::{
     Symbol, TemplateLiteralType, TupleType, TypeParameter, TypeReference, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface, UnionType,
 };
-use crate::{Node, ObjectFlags, Pattern, WeakSelf};
-use local_macros::{enum_unwrapped, type_type};
+use crate::{BaseTransientSymbol, Node, ObjectFlags, Pattern, WeakSelf};
+use local_macros::{enum_unwrapped, symbol_type, type_type};
+
+#[derive(Debug)]
+#[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]
+pub struct ReverseMappedSymbol {
+    _transient_symbol: BaseTransientSymbol,
+    pub property_type: Rc<Type>,
+    pub mapped_type: Rc<Type /*MappedType*/>,
+    pub constraint_type: Rc<Type /*IndexType*/>,
+}
 
 pub struct InternalSymbolName;
 

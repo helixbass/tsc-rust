@@ -9,16 +9,17 @@ use std::rc::Rc;
 
 use super::{get_node_id, get_symbol_id, MappedTypeModifiers, NodeBuilderContext};
 use crate::{
-    count_where, factory, filter, get_declaration_modifier_flags_from_symbol,
-    get_emit_script_target, get_object_flags, get_parse_tree_node, is_class_like, is_identifier,
-    is_identifier_text, is_import_type_node, is_static, length, map, maybe_for_each_bool,
-    node_is_synthesized, null_transformation_context, range_equals_rc, same_map, set_emit_flags,
-    set_text_range, some, synthetic_factory, unescape_leading_underscores, visit_each_child,
-    Debug_, ElementFlags, EmitFlags, IndexInfo, InterfaceTypeInterface, KeywordTypeNode,
-    ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
-    NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeId, TypeInterface, VisitResult,
+    contains_rc, count_where, factory, filter, get_check_flags,
+    get_declaration_modifier_flags_from_symbol, get_emit_script_target, get_object_flags,
+    get_parse_tree_node, is_class_like, is_identifier, is_identifier_text, is_import_type_node,
+    is_static, last, length, map, maybe_for_each_bool, node_is_synthesized,
+    null_transformation_context, range_equals_rc, same_map, set_emit_flags, set_text_range, some,
+    synthetic_factory, unescape_leading_underscores, visit_each_child, CheckFlags, Debug_,
+    ElementFlags, EmitFlags, IndexInfo, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags,
+    Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface, NodeLinksSerializedType,
+    ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    VisitResult,
 };
 
 impl NodeBuilder {
@@ -1245,6 +1246,26 @@ impl NodeBuilder {
                 .into()
             })
         })
+    }
+
+    pub(super) fn should_use_placeholder_for_property(
+        &self,
+        property_symbol: &Symbol,
+        context: &NodeBuilderContext,
+    ) -> bool {
+        get_check_flags(property_symbol).intersects(CheckFlags::ReverseMapped)
+            && (contains_rc(
+                context.reverse_mapped_stack.borrow().as_deref(),
+                &property_symbol.symbol_wrapper(),
+            ) || matches!(
+                context.reverse_mapped_stack.borrow().as_ref(),
+                Some(reverse_mapped_stack) if reverse_mapped_stack.get(0).is_some()
+            ) && !get_object_flags(
+                &last(context.reverse_mapped_stack.borrow().as_deref().unwrap())
+                    .as_reverse_mapped_symbol()
+                    .property_type,
+            )
+            .intersects(ObjectFlags::Anonymous))
     }
 
     pub(super) fn add_property_to_element_list(
