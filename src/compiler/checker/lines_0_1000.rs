@@ -2617,6 +2617,10 @@ impl TypeChecker {
         self.global_readonly_array_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn any_array_type(&self) -> Rc<Type> {
+        self.any_array_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn auto_array_type(&self) -> Rc<Type> {
         self.auto_array_type.as_ref().unwrap().clone()
     }

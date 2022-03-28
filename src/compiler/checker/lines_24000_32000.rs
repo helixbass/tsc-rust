@@ -536,6 +536,10 @@ impl TypeChecker {
         t.flags().intersects(TypeFlags::Void)
     }
 
+    pub(super) fn get_single_call_signature(&self, type_: &Type) -> Option<Rc<Signature>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_resolved_signature_(
         &self,
         node: &Node, /*CallLikeExpression*/
@@ -702,6 +706,13 @@ impl TypeChecker {
             return !self.is_tuple_type(&rest_type) || unimplemented!();
         }
         false
+    }
+
+    pub(super) fn get_type_of_first_parameter_of_signature(
+        &self,
+        signature: &Signature,
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn create_promise_type(&self, promised_type: &Type) -> Rc<Type> {

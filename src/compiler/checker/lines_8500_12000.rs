@@ -8,29 +8,29 @@ use std::rc::Rc;
 
 use super::{IterationUse, MappedTypeModifiers, MembersOrExportsResolutionKind, TypeFacts};
 use crate::{
-    concatenate, create_symbol_table, escape_leading_underscores, every, factory, filter,
-    get_assigned_expando_initializer, get_assignment_declaration_kind,
-    get_assignment_declaration_property_access_kind, get_check_flags, get_combined_modifier_flags,
-    get_combined_node_flags, get_declaration_of_kind, get_declared_expando_initializer,
-    get_effective_modifier_flags, get_effective_type_annotation_node,
-    get_effective_type_parameter_declarations, get_jsdoc_type, get_jsdoc_type_tag,
-    get_source_file_of_node, get_this_container, has_dynamic_name, has_only_expression_initializer,
-    has_static_modifier, index_of_rc, is_access_expression, is_binary_expression,
-    is_binding_pattern, is_call_expression, is_class_static_block_declaration,
-    is_function_type_node, is_in_js_file, is_jsx_attribute, is_module_exports_access_expression,
-    is_object_literal_expression, is_parameter, is_parameter_declaration,
-    is_property_access_expression, is_property_assignment, is_property_declaration,
-    is_property_signature, is_string_or_numeric_literal_like, is_type_alias,
-    is_variable_declaration, length, maybe_every, range_equals_rc, set_parent, skip_parentheses,
-    some, starts_with, synthetic_factory, unescape_leading_underscores,
+    add_related_info, concatenate, copy_entries, create_diagnostic_for_node, create_symbol_table,
+    escape_leading_underscores, every, factory, filter, get_assigned_expando_initializer,
+    get_assignment_declaration_kind, get_assignment_declaration_property_access_kind,
+    get_check_flags, get_combined_modifier_flags, get_combined_node_flags, get_declaration_of_kind,
+    get_declared_expando_initializer, get_effective_modifier_flags,
+    get_effective_type_annotation_node, get_effective_type_parameter_declarations, get_jsdoc_type,
+    get_jsdoc_type_tag, get_object_flags, get_source_file_of_node, get_this_container,
+    has_dynamic_name, has_only_expression_initializer, has_static_modifier, index_of_rc,
+    is_access_expression, is_binary_expression, is_binding_pattern, is_call_expression,
+    is_class_static_block_declaration, is_function_type_node, is_in_js_file, is_jsx_attribute,
+    is_module_exports_access_expression, is_named_declaration, is_object_literal_expression,
+    is_parameter, is_parameter_declaration, is_property_access_expression, is_property_assignment,
+    is_property_declaration, is_property_signature, is_string_or_numeric_literal_like,
+    is_type_alias, is_variable_declaration, length, maybe_every, range_equals_rc, set_parent,
+    skip_parentheses, some, starts_with, synthetic_factory, try_cast, unescape_leading_underscores,
     walk_up_binding_elements_and_patterns, AccessFlags, AssignmentDeclarationKind,
     BaseInterfaceType, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
     InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
     NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Signature,
     SignatureFlags, StringOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
-    UnionReduction, __String, maybe_append_if_unique_rc,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, UnderscoreEscapedMap, UnionReduction, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -1110,6 +1110,218 @@ impl TypeChecker {
         expression: &Node, /*BinaryExpression | CallExpression*/
         kind: AssignmentDeclarationKind,
     ) -> Rc<Type> {
+        let resolved_symbol =
+            resolved_symbol.map(|resolved_symbol| resolved_symbol.borrow().symbol_wrapper());
+        if is_call_expression(expression) {
+            if let Some(resolved_symbol) = resolved_symbol.as_ref() {
+                return self.get_type_of_symbol(resolved_symbol);
+            }
+            let object_lit_type =
+                self.check_expression_cached(&expression.as_call_expression().arguments[2], None);
+            let value_type = self.get_type_of_property_of_type_(
+                &object_lit_type,
+                &__String::new("value".to_owned()),
+            );
+            if let Some(value_type) = value_type {
+                return value_type;
+            }
+            let get_func = self
+                .get_type_of_property_of_type_(&object_lit_type, &__String::new("get".to_owned()));
+            if let Some(get_func) = get_func {
+                let get_sig = self.get_single_call_signature(&get_func);
+                if let Some(get_sig) = get_sig {
+                    return self.get_return_type_of_signature(&get_sig);
+                }
+            }
+            let set_func = self
+                .get_type_of_property_of_type_(&object_lit_type, &__String::new("set".to_owned()));
+            if let Some(set_func) = set_func {
+                let set_sig = self.get_single_call_signature(&set_func);
+                if let Some(set_sig) = set_sig {
+                    return self.get_type_of_first_parameter_of_signature(&set_sig);
+                }
+            }
+            return self.any_type();
+        }
+        let expression_as_binary_expression = expression.as_binary_expression();
+        if self.contains_same_named_this_property(
+            &expression_as_binary_expression.left,
+            &expression_as_binary_expression.right,
+        ) {
+            return self.any_type();
+        }
+        let type_ = if let Some(resolved_symbol) = resolved_symbol.as_ref() {
+            self.get_type_of_symbol(resolved_symbol)
+        } else {
+            self.get_widened_literal_type(
+                &self.check_expression_cached(&expression_as_binary_expression.right, None),
+            )
+        };
+        if type_.flags().intersects(TypeFlags::Object)
+            && kind == AssignmentDeclarationKind::ModuleExports
+            && symbol.escaped_name() == &InternalSymbolName::ExportEquals()
+        {
+            let exported_type = self.resolve_structured_type_members(&type_);
+            let mut members = create_symbol_table(None);
+            let exported_type_as_resolved_type = exported_type.as_resolved_type();
+            copy_entries(
+                &RefCell::borrow(&exported_type_as_resolved_type.members()),
+                &mut members,
+            );
+            let initial_size = members.len();
+            if let Some(resolved_symbol) = resolved_symbol.as_ref() {
+                let mut resolved_symbol_exports = resolved_symbol.maybe_exports();
+                if resolved_symbol_exports.is_none() {
+                    *resolved_symbol_exports =
+                        Some(Rc::new(RefCell::new(create_symbol_table(None))));
+                }
+            }
+            for (name, s) in
+                &*RefCell::borrow(&resolved_symbol.as_deref().unwrap_or(symbol).exports())
+            {
+                let exported_member = members.get(name).map(Clone::clone);
+                if let Some(exported_member) =
+                    exported_member.filter(|exported_member| !Rc::ptr_eq(exported_member, s))
+                {
+                    if s.flags().intersects(SymbolFlags::Value)
+                        && exported_member.flags().intersects(SymbolFlags::Value)
+                    {
+                        if let Some(s_value_declaration) = s.maybe_value_declaration() {
+                            if let Some(exported_member_value_declaration) =
+                                exported_member.maybe_value_declaration()
+                            {
+                                if !Rc::ptr_eq(
+                                    &get_source_file_of_node(Some(&*s_value_declaration)).unwrap(),
+                                    &get_source_file_of_node(Some(
+                                        &*exported_member_value_declaration,
+                                    ))
+                                    .unwrap(),
+                                ) {
+                                    let unescaped_name =
+                                        unescape_leading_underscores(s.escaped_name());
+                                    let exported_member_name = try_cast(
+                                        &exported_member_value_declaration,
+                                        |node: &&Rc<Node>| is_named_declaration(node),
+                                    )
+                                    .and_then(|named_declaration: &Rc<Node>| {
+                                        named_declaration.as_named_declaration().maybe_name()
+                                    })
+                                    .unwrap_or_else(|| exported_member_value_declaration);
+                                    add_related_info(
+                                        &self.error(
+                                            Some(&*s_value_declaration),
+                                            &Diagnostics::Duplicate_identifier_0,
+                                            Some(vec![unescaped_name.clone()]),
+                                        ),
+                                        vec![Rc::new(
+                                            create_diagnostic_for_node(
+                                                &exported_member_name,
+                                                &Diagnostics::_0_was_also_declared_here,
+                                                Some(vec![unescaped_name.clone()]),
+                                            )
+                                            .into(),
+                                        )],
+                                    );
+                                    add_related_info(
+                                        &self.error(
+                                            Some(&*exported_member_name),
+                                            &Diagnostics::Duplicate_identifier_0,
+                                            Some(vec![unescaped_name.clone()]),
+                                        ),
+                                        vec![Rc::new(
+                                            create_diagnostic_for_node(
+                                                &s_value_declaration,
+                                                &Diagnostics::_0_was_also_declared_here,
+                                                Some(vec![unescaped_name.clone()]),
+                                            )
+                                            .into(),
+                                        )],
+                                    );
+                                }
+                            }
+                        }
+                        let union: Rc<Symbol> = self
+                            .create_symbol(s.flags() | exported_member.flags(), name.clone(), None)
+                            .into();
+                        union
+                            .as_transient_symbol()
+                            .symbol_links()
+                            .borrow_mut()
+                            .type_ = Some(self.get_union_type(
+                            vec![
+                                self.get_type_of_symbol(s),
+                                self.get_type_of_symbol(&exported_member),
+                            ],
+                            None,
+                        ));
+                        if let Some(exported_member_value_declaration) =
+                            exported_member.maybe_value_declaration()
+                        {
+                            union.set_value_declaration(exported_member_value_declaration);
+                        }
+                        union.set_declarations(concatenate(
+                            exported_member
+                                .maybe_declarations()
+                                .as_ref()
+                                .map_or_else(|| vec![], |declarations| declarations.clone()),
+                            s.maybe_declarations()
+                                .as_ref()
+                                .map_or_else(|| vec![], |declarations| declarations.clone()),
+                        ));
+                        members.insert(name.clone(), union);
+                    } else {
+                        members.insert(name.clone(), self.merge_symbol(s, &exported_member, None));
+                    }
+                } else {
+                    members.insert(name.clone(), s.clone());
+                }
+            }
+            let result: Rc<Type> = self
+                .create_anonymous_type(
+                    if initial_size != members.len() {
+                        None
+                    } else {
+                        exported_type.maybe_symbol()
+                    },
+                    Rc::new(RefCell::new(members)),
+                    exported_type_as_resolved_type.call_signatures().clone(),
+                    exported_type_as_resolved_type
+                        .construct_signatures()
+                        .clone(),
+                    exported_type_as_resolved_type.index_infos().clone(),
+                )
+                .into();
+            let result_as_object_type = result.as_object_type();
+            result_as_object_type.set_object_flags(
+                result_as_object_type.object_flags()
+                    | get_object_flags(&type_) & ObjectFlags::JSLiteral,
+            );
+            if let Some(result_symbol) = result.maybe_symbol() {
+                if result_symbol.flags().intersects(SymbolFlags::Class)
+                    && Rc::ptr_eq(
+                        &type_,
+                        &self.get_declared_type_of_class_or_interface(&result_symbol),
+                    )
+                {
+                    result_as_object_type.set_object_flags(
+                        result_as_object_type.object_flags() | ObjectFlags::IsClassInstanceClone,
+                    );
+                }
+            }
+            return result;
+        }
+        if self.is_empty_array_literal_type(&type_) {
+            self.report_implicit_any(expression, &self.any_array_type(), None);
+            return self.any_array_type();
+        }
+        type_
+    }
+
+    pub(super) fn contains_same_named_this_property(
+        &self,
+        this_expression: &Node, /*Expression*/
+        expression: &Node,      /*Expression*/
+    ) -> bool {
         unimplemented!()
     }
 
