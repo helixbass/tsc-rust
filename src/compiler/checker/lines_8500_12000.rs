@@ -13,9 +13,10 @@ use crate::{
     get_declared_expando_initializer, get_effective_modifier_flags,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations, get_jsdoc_type,
     has_dynamic_name, has_only_expression_initializer, has_static_modifier, index_of_rc,
-    is_binding_pattern, is_class_static_block_declaration, is_function_type_node, is_in_js_file,
-    is_jsx_attribute, is_parameter, is_parameter_declaration, is_property_assignment,
-    is_property_declaration, is_property_signature, is_type_alias, is_variable_declaration,
+    is_binary_expression, is_binding_pattern, is_class_static_block_declaration,
+    is_function_type_node, is_in_js_file, is_jsx_attribute, is_parameter, is_parameter_declaration,
+    is_property_assignment, is_property_declaration, is_property_signature,
+    is_string_or_numeric_literal_like, is_type_alias, is_variable_declaration, maybe_every,
     range_equals_rc, skip_parentheses, walk_up_binding_elements_and_patterns, AccessFlags,
     BaseInterfaceType, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
     InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
@@ -519,6 +520,53 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn is_constructor_declared_property(&self, symbol: &Symbol) -> bool {
+        if matches!(symbol.maybe_value_declaration(), Some(value_declaration) if is_binary_expression(&value_declaration))
+        {
+            let links = self.get_symbol_links(symbol);
+            if (*links).borrow().is_constructor_declared_property.is_none() {
+                links.borrow_mut().is_constructor_declared_property = Some(false);
+                let is_constructor_declared_property =
+                    self.get_declaring_constructor(symbol).is_some()
+                        && maybe_every(
+                            symbol.maybe_declarations().as_deref(),
+                            |declaration: &Rc<Node>, _| {
+                                is_binary_expression(declaration)
+                                    && self.is_possibly_aliased_this_property(declaration, None)
+                                    && {
+                                        let declaration_as_binary_expression =
+                                            declaration.as_binary_expression();
+                                        declaration_as_binary_expression.left.kind()
+                                            != SyntaxKind::ElementAccessExpression
+                                            || is_string_or_numeric_literal_like(
+                                                &declaration_as_binary_expression
+                                                    .left
+                                                    .as_element_access_expression()
+                                                    .argument_expression,
+                                            )
+                                    }
+                                    && self
+                                        .get_annotated_type_for_assignment_declaration(
+                                            Option::<&Type>::None,
+                                            declaration,
+                                            symbol,
+                                            declaration,
+                                        )
+                                        .is_none()
+                            },
+                        );
+                links.borrow_mut().is_constructor_declared_property =
+                    Some(is_constructor_declared_property);
+            }
+            return (*links).borrow().is_constructor_declared_property.unwrap();
+        }
+        false
+    }
+
+    pub(super) fn get_declaring_constructor(&self, symbol: &Symbol) -> Option<Rc<Node>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_flow_type_in_static_blocks(
         &self,
         symbol: &Symbol,
@@ -540,6 +588,16 @@ impl TypeChecker {
         decl: &Node,
         symbol: &Symbol,
         init: Option<TInit>,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_annotated_type_for_assignment_declaration<TDeclaredType: Borrow<Type>>(
+        &self,
+        declared_type: Option<TDeclaredType>,
+        expression: &Node, /*Expression*/
+        symbol: &Symbol,
+        declaration: &Node, /*Declaration*/
     ) -> Option<Rc<Type>> {
         unimplemented!()
     }

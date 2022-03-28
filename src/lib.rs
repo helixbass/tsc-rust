@@ -38,7 +38,7 @@ pub use compiler::core::{
     first_defined, first_or_undefined, flat_map, flat_map_to_mutable, flatten, for_each,
     for_each_bool, get_or_update, get_ranges_where, get_spelling_suggestion, get_string_comparer,
     identity_str_to_cow, identity_str_to_owned, insert_sorted, last, last_or_undefined, length,
-    map, map_defined, maybe_append_if_unique_rc, maybe_for_each, maybe_for_each_bool,
+    map, map_defined, maybe_append_if_unique_rc, maybe_every, maybe_for_each, maybe_for_each_bool,
     not_implemented, pad_left, pad_right, push_if_unique_rc, range_equals_rc, remove_prefix,
     same_map, set_ui_locale, single_element_array, single_or_undefined, some, sort,
     sort_and_deduplicate, starts_with, string_contains, sum, to_file_name_lower_case, trim_string,

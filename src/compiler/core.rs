@@ -91,6 +91,13 @@ pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
         .all(|(index, value)| predicate(value, index))
 }
 
+pub fn maybe_every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
+    array: Option<&[TItem]>,
+    predicate: TCallback,
+) -> bool {
+    array.map_or(false, |array| every(array, predicate))
+}
+
 pub fn find<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     array: &[TItem],
     mut predicate: TCallback,

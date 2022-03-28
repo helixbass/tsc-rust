@@ -10,8 +10,9 @@ use super::{
     WideningKind,
 };
 use crate::{
-    filter, get_this_container, is_function_expression_or_arrow_function, is_import_call,
-    is_object_literal_method, ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature,
+    filter, get_assignment_declaration_kind, get_this_container,
+    is_function_expression_or_arrow_function, is_import_call, is_object_literal_method,
+    AssignmentDeclarationKind, ContextFlags, Debug_, Diagnostics, FunctionFlags, Signature,
     SignatureFlags, SignatureKind, SymbolFlags, Ternary, UnionReduction, __String,
     create_symbol_table, get_effective_type_annotation_node, get_function_flags, get_object_flags,
     has_initializer, is_object_literal_expression, HasInitializerInterface, Node, NodeInterface,
@@ -113,6 +114,15 @@ impl TypeChecker {
         call_target: &Node, /*CallLikeExpression*/
         arg_index: usize,
     ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_possibly_aliased_this_property(
+        &self,
+        declaration: &Node, /*BinaryExpression*/
+        kind: Option<AssignmentDeclarationKind>,
+    ) -> bool {
+        let kind = kind.unwrap_or_else(|| get_assignment_declaration_kind(declaration));
         unimplemented!()
     }
 

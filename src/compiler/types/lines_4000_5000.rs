@@ -1084,6 +1084,7 @@ pub struct SymbolLinks {
     pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Rc<Symbol>>>>,
     pub cjs_export_merged: Option<Rc<Symbol>>,
     pub type_only_declaration: Option<Option<Rc<Node /*TypeOnlyAliasDeclaration | false*/>>>,
+    pub is_constructor_declared_property: Option<bool>,
     pub accessible_chain_cache: Option<HashMap<String, Option<Vec<Rc<Symbol>>>>>,
 }
 
@@ -1103,6 +1104,7 @@ impl SymbolLinks {
             extended_containers_by_file: None,
             cjs_export_merged: None,
             type_only_declaration: None,
+            is_constructor_declared_property: None,
             accessible_chain_cache: None,
         }
     }
