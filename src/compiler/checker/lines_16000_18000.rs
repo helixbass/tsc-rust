@@ -174,7 +174,7 @@ impl TypeChecker {
         let mut links_ref = links.borrow_mut();
         if links_ref.resolved_type.is_none() {
             links_ref.resolved_type = Some(self.get_regular_type_of_literal_type(
-                &self.check_expression(&node_as_literal_type_node.literal, None),
+                &self.check_expression(&node_as_literal_type_node.literal, None, None),
             ));
         }
         links_ref.resolved_type.clone().unwrap()
@@ -627,6 +627,7 @@ impl TypeChecker {
             next,
             Some(CheckMode::Contextual),
             Some(source_prop_type),
+            None,
         )
     }
 

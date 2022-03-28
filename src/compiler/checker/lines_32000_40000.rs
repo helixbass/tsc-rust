@@ -42,7 +42,7 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let node_as_prefix_unary_expression = node.as_prefix_unary_expression();
         let operand = &node_as_prefix_unary_expression.operand;
-        let operand_type = self.check_expression(operand, None);
+        let operand_type = self.check_expression(operand, None, None);
         match node_as_prefix_unary_expression.operator {
             SyntaxKind::PlusPlusToken => {
                 self.check_arithmetic_operand_type(operand, &operand_type, &Diagnostics::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type);
@@ -93,7 +93,7 @@ impl TypeChecker {
         let mut types = vec![];
         for span in node_as_template_expression.template_spans.iter() {
             let span = span.as_template_span();
-            let type_ = self.check_expression(&span.expression, None);
+            let type_ = self.check_expression(&span.expression, None, None);
             texts.push(span.literal.as_literal_like_node().text());
             types.push(
                 if self.is_type_assignable_to(&type_, &self.template_constraint_type()) {
@@ -120,10 +120,10 @@ impl TypeChecker {
         if links_resolved_type_is_none {
             if let Some(check_mode) = check_mode {
                 if check_mode != CheckMode::Normal {
-                    return self.check_expression(node, Some(check_mode));
+                    return self.check_expression(node, Some(check_mode), None);
                 }
             }
-            let resolved_type = self.check_expression(node, check_mode);
+            let resolved_type = self.check_expression(node, check_mode, None);
             links.borrow_mut().resolved_type = Some(resolved_type);
         }
         let resolved_type = (*links).borrow().resolved_type.clone().unwrap();
@@ -206,13 +206,14 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn check_expression_for_mutable_location<TTypeRef: Borrow<Type>>(
+    pub(super) fn check_expression_for_mutable_location<TContextualType: Borrow<Type>>(
         &self,
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
-        contextual_type: Option<TTypeRef>,
+        contextual_type: Option<TContextualType>,
+        force_tuple: Option<bool>,
     ) -> Rc<Type> {
-        let type_ = self.check_expression(node, check_mode);
+        let type_ = self.check_expression(node, check_mode, force_tuple);
         if false {
             unimplemented!()
         } else {
@@ -240,6 +241,7 @@ impl TypeChecker {
             &node.as_property_assignment().initializer,
             check_mode,
             Option::<&Type>::None,
+            None,
         )
     }
 
@@ -257,15 +259,16 @@ impl TypeChecker {
                 | SyntaxKind::TrueKeyword
                 | SyntaxKind::FalseKeyword
         ) {
-            return Some(self.check_expression(node, None));
+            return Some(self.check_expression(node, None, None));
         }
         None
     }
 
     pub(super) fn check_expression(
         &self,
-        node: &Node, /*Expression*/
+        node: &Node, /*Expression | QualifiedName*/
         check_mode: Option<CheckMode>,
+        force_tuple: Option<bool>,
     ) -> Rc<Type> {
         self.check_expression_worker(node, check_mode)
     }
@@ -535,7 +538,7 @@ impl TypeChecker {
 
     pub(super) fn check_expression_statement(&self, node: &Node /*ExpressionStatement*/) {
         let expression = &node.as_expression_statement().expression;
-        self.check_expression(expression, None);
+        self.check_expression(expression, None, None);
     }
 
     pub(super) fn check_if_statement(&self, node: &Node /*IfStatement*/) {
@@ -571,7 +574,14 @@ impl TypeChecker {
         node: &Node, /*Expression*/
         check_mode: Option<CheckMode>,
     ) -> Rc<Type> {
-        self.check_truthiness_of_type(&self.check_expression(node, check_mode), node)
+        self.check_truthiness_of_type(&self.check_expression(node, check_mode, None), node)
+    }
+
+    pub(super) fn check_right_hand_side_of_for_of(
+        &self,
+        statement: &Node, /*ForOfStatement*/
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn check_iterated_type_or_element_type<TErrorNode: Borrow<Node>>(

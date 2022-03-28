@@ -2463,6 +2463,10 @@ impl TypeChecker {
         self.any_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn auto_type(&self) -> Rc<Type> {
+        self.auto_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn wildcard_type(&self) -> Rc<Type> {
         self.wildcard_type.as_ref().unwrap().clone()
     }
@@ -2611,6 +2615,10 @@ impl TypeChecker {
 
     pub(super) fn global_readonly_array_type(&self) -> Rc<Type> {
         self.global_readonly_array_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn auto_array_type(&self) -> Rc<Type> {
+        self.auto_array_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn resolution_targets(&self) -> RefMut<Vec<TypeSystemEntity>> {

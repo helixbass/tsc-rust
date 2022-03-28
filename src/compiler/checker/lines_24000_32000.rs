@@ -61,6 +61,20 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_contextual_this_parameter_type(
+        &self,
+        func: &Node, /*SignatureDeclaration*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_contextually_typed_parameter_type(
+        &self,
+        parameter: &Node, /*ParameterDeclaration*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_contextual_type_for_variable_like_declaration(
         &self,
         declaration: &Node,
@@ -425,6 +439,10 @@ impl TypeChecker {
             || (type_.flags().intersects(TypeFlags::Intersection) && unimplemented!())
     }
 
+    pub(super) fn get_non_nullable_type_if_needed(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn lookup_symbol_for_private_identifier_declaration(
         &self,
         prop_name: &__String,
@@ -592,6 +610,10 @@ impl TypeChecker {
             unimplemented!()
         }
         None
+    }
+
+    pub(super) fn get_rest_type_at_position(&self, signature: &Signature, pos: usize) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn get_parameter_count(&self, signature: &Signature) -> usize {

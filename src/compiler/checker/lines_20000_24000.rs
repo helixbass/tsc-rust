@@ -39,6 +39,10 @@ impl TypeChecker {
         self.is_unit_type(type_) || type_.flags().intersects(TypeFlags::TemplateLiteral)
     }
 
+    pub(super) fn get_type_of_property_in_base_class(&self, property: &Symbol) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn is_matching_signature(
         &self,
         source: &Signature,

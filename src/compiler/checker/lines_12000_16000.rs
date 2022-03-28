@@ -136,6 +136,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_jsdoc_optional_parameter(
+        &self,
+        node: &Node, /*ParameterDeclaration*/
+    ) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn try_find_ambient_module_(
         &self,
         module_name: &str,
@@ -149,6 +156,10 @@ impl TypeChecker {
         node: &Node, /*ParameterDeclaration | JSDocParameterTag | JSDocPropertyTag*/
     ) -> bool {
         unimplemented!()
+    }
+
+    pub(super) fn is_optional_jsdoc_property_like_tag(&self, node: &Node) -> bool {
+        false
     }
 
     pub(super) fn create_type_predicate(
@@ -1086,6 +1097,20 @@ impl TypeChecker {
                 }
             }
         }
+        unimplemented!()
+    }
+
+    pub(super) fn get_index_type(
+        &self,
+        type_: &Type,
+        strings_only: Option<bool>,
+        no_index_signatures: Option<bool>,
+    ) -> Rc<Type> {
+        let strings_only = strings_only.unwrap_or(self.keyof_strings_only);
+        unimplemented!()
+    }
+
+    pub(super) fn get_extract_string_type(&self, type_: &Type) -> Rc<Type> {
         unimplemented!()
     }
 

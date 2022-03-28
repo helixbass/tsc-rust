@@ -3,22 +3,27 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::convert::TryInto;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{IterationUse, MappedTypeModifiers, MembersOrExportsResolutionKind, TypeFacts};
 use crate::{
-    concatenate, create_symbol_table, escape_leading_underscores, get_check_flags,
-    get_declaration_of_kind, get_effective_type_annotation_node,
-    get_effective_type_parameter_declarations, has_dynamic_name, has_only_expression_initializer,
-    index_of_rc, is_parameter_declaration, is_property_assignment, is_property_declaration,
-    is_property_signature, is_type_alias, is_variable_declaration, range_equals_rc,
-    walk_up_binding_elements_and_patterns, AccessFlags, BaseInterfaceType, CheckFlags, Debug_,
-    Diagnostics, HasInitializerInterface, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, LiteralType, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
-    UnionReduction, __String, maybe_append_if_unique_rc,
+    concatenate, create_symbol_table, escape_leading_underscores, filter, get_check_flags,
+    get_combined_modifier_flags, get_combined_node_flags, get_declaration_of_kind,
+    get_declared_expando_initializer, get_effective_modifier_flags,
+    get_effective_type_annotation_node, get_effective_type_parameter_declarations, get_jsdoc_type,
+    has_dynamic_name, has_only_expression_initializer, has_static_modifier, index_of_rc,
+    is_binding_pattern, is_class_static_block_declaration, is_function_type_node, is_in_js_file,
+    is_jsx_attribute, is_parameter, is_parameter_declaration, is_property_assignment,
+    is_property_declaration, is_property_signature, is_type_alias, is_variable_declaration,
+    range_equals_rc, skip_parentheses, walk_up_binding_elements_and_patterns, AccessFlags,
+    BaseInterfaceType, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
+    InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    InternalSymbolName, LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags,
+    NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, UnionReduction, __String,
+    maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -248,6 +253,27 @@ impl TypeChecker {
         ))
     }
 
+    pub(super) fn get_type_for_declaration_from_jsdoc_comment(
+        &self,
+        declaration: &Node,
+    ) -> Option<Rc<Type>> {
+        let jsdoc_type = get_jsdoc_type(declaration)?;
+        Some(self.get_type_from_type_node_(&jsdoc_type))
+    }
+
+    pub(super) fn is_null_or_undefined(&self, node: &Node /*Expression*/) -> bool {
+        let expr = skip_parentheses(node, Some(true));
+        expr.kind() == SyntaxKind::NullKeyword
+            || expr.kind() == SyntaxKind::Identifier
+                && Rc::ptr_eq(&self.get_resolved_symbol(&expr), &self.undefined_symbol())
+    }
+
+    pub(super) fn is_empty_array_literal(&self, node: &Node /*Expression*/) -> bool {
+        let expr = skip_parentheses(node, Some(true));
+        expr.kind() == SyntaxKind::ArrayLiteralExpression
+            && expr.as_array_literal_expression().elements.is_empty()
+    }
+
     pub(super) fn add_optionality(
         &self,
         type_: &Type,
@@ -265,12 +291,66 @@ impl TypeChecker {
 
     pub(super) fn get_type_for_variable_like_declaration(
         &self,
-        declaration: &Node,
+        declaration: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
         include_optionality: bool,
     ) -> Option<Rc<Type>> {
+        if is_variable_declaration(declaration)
+            && declaration.parent().parent().kind() == SyntaxKind::ForInStatement
+        {
+            let index_type = self.get_index_type(
+                &self.get_non_nullable_type_if_needed(
+                    &self.check_expression(
+                        &declaration
+                            .parent()
+                            .parent()
+                            .as_for_in_statement()
+                            .expression,
+                        None,
+                        None,
+                    ),
+                ),
+                None,
+                None,
+            );
+            return Some(
+                if index_type
+                    .flags()
+                    .intersects(TypeFlags::TypeParameter | TypeFlags::Index)
+                {
+                    self.get_extract_string_type(&index_type)
+                } else {
+                    self.string_type()
+                },
+            );
+        }
+
+        if is_variable_declaration(declaration)
+            && declaration.parent().parent().kind() == SyntaxKind::ForOfStatement
+        {
+            let for_of_statement = declaration.parent().parent();
+            return Some(self.check_right_hand_side_of_for_of(&for_of_statement));
+            /*|| anyType*/
+        }
+
+        if is_binding_pattern(Some(declaration.parent())) {
+            return self.get_type_for_binding_element(declaration);
+        }
+
         let is_property =
             is_property_declaration(declaration) || is_property_signature(declaration);
-        let is_optional = false;
+        let is_optional = include_optionality
+            && (is_property
+                && declaration
+                    .as_has_question_token()
+                    .maybe_question_token()
+                    .is_some()
+                || is_parameter(declaration)
+                    && (declaration
+                        .as_parameter_declaration()
+                        .question_token
+                        .is_some()
+                        || self.is_jsdoc_optional_parameter(declaration))
+                || self.is_optional_jsdoc_property_like_tag(declaration));
 
         let declared_type = self.try_get_type_from_effective_type_node(declaration);
         if let Some(declared_type) = declared_type {
@@ -281,18 +361,198 @@ impl TypeChecker {
             ));
         }
 
+        if (self.no_implicit_any || is_in_js_file(Some(declaration)))
+            && is_variable_declaration(declaration)
+            && !is_binding_pattern(declaration.as_variable_declaration().maybe_name())
+            && !get_combined_modifier_flags(declaration).intersects(ModifierFlags::Export)
+            && !declaration.flags().intersects(NodeFlags::Ambient)
+        {
+            let declaration_as_variable_declaration = declaration.as_variable_declaration();
+            if !get_combined_node_flags(declaration).intersects(NodeFlags::Const)
+                && match declaration_as_variable_declaration.maybe_initializer() {
+                    None => true,
+                    Some(initializer) => self.is_null_or_undefined(&initializer),
+                }
+            {
+                return Some(self.auto_type());
+            }
+
+            if matches!(declaration_as_variable_declaration.maybe_initializer(), Some(initializer) if self.is_empty_array_literal(&initializer))
+            {
+                return Some(self.auto_array_type());
+            }
+        }
+
+        if is_parameter(declaration) {
+            let func = declaration.parent();
+            if func.kind() == SyntaxKind::SetAccessor && self.has_bindable_name(&func) {
+                let getter = get_declaration_of_kind(
+                    &self.get_symbol_of_node(&declaration.parent()).unwrap(),
+                    SyntaxKind::GetAccessor,
+                );
+                if let Some(getter) = getter {
+                    let getter_signature = self.get_signature_from_declaration_(&getter);
+                    let this_parameter = self.get_accessor_this_parameter(&func);
+                    if let Some(this_parameter) = this_parameter {
+                        if ptr::eq(declaration, &*this_parameter) {
+                            Debug_.assert(
+                                this_parameter
+                                    .as_parameter_declaration()
+                                    .maybe_type()
+                                    .is_none(),
+                                None,
+                            );
+                            return Some(self.get_type_of_symbol(
+                                getter_signature.this_parameter.as_ref().unwrap(),
+                            ));
+                        }
+                    }
+                    return Some(self.get_return_type_of_signature(&getter_signature));
+                }
+            }
+            if is_in_js_file(Some(declaration)) {
+                let type_tag = get_jsdoc_type(&func);
+                if let Some(type_tag) = type_tag {
+                    if is_function_type_node(&type_tag) {
+                        let signature = self.get_signature_from_declaration_(&type_tag);
+                        let pos: usize = index_of_rc(
+                            func.as_function_like_declaration().parameters(),
+                            &declaration.node_wrapper(),
+                        )
+                        .try_into()
+                        .unwrap();
+                        return Some(
+                            if declaration
+                                .as_parameter_declaration()
+                                .dot_dot_dot_token
+                                .is_some()
+                            {
+                                self.get_rest_type_at_position(&signature, pos)
+                            } else {
+                                self.get_type_at_position(&signature, pos)
+                            },
+                        );
+                    }
+                }
+            }
+            let type_ = if declaration.symbol().escaped_name() == &InternalSymbolName::This() {
+                self.get_contextual_this_parameter_type(&func)
+            } else {
+                self.get_contextually_typed_parameter_type(declaration)
+            };
+            if let Some(type_) = type_ {
+                return Some(self.add_optionality(&type_, Some(false), Some(is_optional)));
+            }
+        }
+
         if has_only_expression_initializer(declaration)
             && declaration
                 .as_has_initializer()
                 .maybe_initializer()
                 .is_some()
         {
-            let type_ = self.check_declaration_initializer(declaration, Option::<&Type>::None);
-            let type_ = self.widen_type_inferred_from_initializer(declaration, &type_);
+            if is_in_js_file(Some(declaration)) && !is_parameter(declaration) {
+                let container_object_type = self.get_js_container_object_type(
+                    declaration,
+                    &self.get_symbol_of_node(declaration).unwrap(),
+                    get_declared_expando_initializer(declaration),
+                );
+                if container_object_type.is_some() {
+                    return container_object_type;
+                }
+            }
+            let type_ = self.widen_type_inferred_from_initializer(
+                declaration,
+                &self.check_declaration_initializer(declaration, Option::<&Type>::None),
+            );
             return Some(self.add_optionality(&type_, Some(is_property), Some(is_optional)));
         }
 
+        if is_property_declaration(declaration)
+            && (self.no_implicit_any || is_in_js_file(Some(declaration)))
+        {
+            if !has_static_modifier(declaration) {
+                let constructor = self.find_constructor_declaration(&declaration.parent());
+                let type_ = if let Some(constructor) = constructor {
+                    self.get_flow_type_in_constructor(&declaration.symbol(), &constructor)
+                } else if get_effective_modifier_flags(declaration)
+                    .intersects(ModifierFlags::Ambient)
+                {
+                    self.get_type_of_property_in_base_class(&declaration.symbol())
+                } else {
+                    None
+                };
+                return type_
+                    .map(|type_| self.add_optionality(&type_, Some(true), Some(is_optional)));
+            } else {
+                let static_blocks = filter(
+                    Some(declaration.parent().as_class_like_declaration().members()),
+                    |member: &Rc<Node>| is_class_static_block_declaration(member),
+                )
+                .unwrap();
+                let type_ = if !static_blocks.is_empty() {
+                    self.get_flow_type_in_static_blocks(&declaration.symbol(), &static_blocks)
+                } else if get_effective_modifier_flags(declaration)
+                    .intersects(ModifierFlags::Ambient)
+                {
+                    self.get_type_of_property_in_base_class(&declaration.symbol())
+                } else {
+                    None
+                };
+                return type_
+                    .map(|type_| self.add_optionality(&type_, Some(true), Some(is_optional)));
+            }
+        }
+
+        if is_jsx_attribute(declaration) {
+            return Some(self.true_type());
+        }
+
+        if is_binding_pattern(declaration.as_named_declaration().maybe_name()) {
+            return Some(self.get_type_from_binding_pattern(
+                &declaration.as_named_declaration().name(),
+                Some(false),
+                Some(true),
+            ));
+        }
+
         None
+    }
+
+    pub(super) fn get_flow_type_in_static_blocks(
+        &self,
+        symbol: &Symbol,
+        static_blocks: &[Rc<Node /*ClassStaticBlockDeclaration*/>],
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_flow_type_in_constructor(
+        &self,
+        symbol: &Symbol,
+        constructor: &Node, /*ConstructorDeclaration*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_js_container_object_type<TInit: Borrow<Node>>(
+        &self,
+        decl: &Node,
+        symbol: &Symbol,
+        init: Option<TInit>,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_from_binding_pattern(
+        &self,
+        pattern: &Node, /*BindingPattern*/
+        include_pattern_in_type: Option<bool>,
+        report_errors: Option<bool>,
+    ) -> Rc<Type> {
+        let include_pattern_in_type = include_pattern_in_type.unwrap_or(false);
+        let report_errors = report_errors.unwrap_or(false);
+        unimplemented!()
     }
 
     pub(super) fn get_widened_type_for_variable_like_declaration(

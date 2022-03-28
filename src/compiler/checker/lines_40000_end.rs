@@ -195,6 +195,13 @@ impl TypeChecker {
         // self.global_array_type = self.get_global_type(__String::new("Array".to_string()));
     }
 
+    pub(super) fn get_accessor_this_parameter(
+        &self,
+        accessor: &Node, /*AccessorDeclaration*/
+    ) -> Option<Rc<Node /*ParameterDeclaration*/>> {
+        unimplemented!()
+    }
+
     pub(super) fn check_grammar_numeric_literal(
         &self,
         node: &Node, /*NumericLiteral*/
