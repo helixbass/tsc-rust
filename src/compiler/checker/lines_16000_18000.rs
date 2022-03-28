@@ -521,6 +521,10 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn is_type_identical_to(&self, source: &Type, target: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn compare_types_identical(&self, source: &Type, target: &Type) -> Ternary {
         unimplemented!()
     }

@@ -521,6 +521,18 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn error_next_variable_or_property_declaration_must_have_same_type<
+        TFirstDeclaration: Borrow<Node>,
+    >(
+        &self,
+        first_declaration: Option<TFirstDeclaration /*Declaration*/>,
+        first_type: &Type,
+        next_declaration: &Node, /*Declaration*/
+        next_type: &Type,
+    ) {
+        unimplemented!()
+    }
+
     pub(super) fn check_variable_declaration(&self, node: &Node /*VariableDeclaration*/) {
         self.check_variable_like_declaration(node);
     }

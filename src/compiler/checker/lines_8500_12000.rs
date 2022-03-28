@@ -1060,7 +1060,45 @@ impl TypeChecker {
         symbol: &Symbol,
         declaration: &Node, /*Declaration*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let type_node = get_effective_type_annotation_node(&expression.parent());
+        let declared_type =
+            declared_type.map(|declared_type| declared_type.borrow().type_wrapper());
+        if let Some(type_node) = type_node {
+            let type_ = self.get_widened_type(&self.get_type_from_type_node_(&type_node));
+            if declared_type.is_none() {
+                return Some(type_);
+            }
+            let declared_type = declared_type.as_ref().unwrap();
+            if !self.is_error_type(declared_type)
+                && !self.is_error_type(&type_)
+                && !self.is_type_identical_to(&declared_type, &type_)
+            {
+                self.error_next_variable_or_property_declaration_must_have_same_type(
+                    Option::<&Node>::None,
+                    &declared_type,
+                    declaration,
+                    &type_,
+                );
+            }
+        }
+        if let Some(symbol_parent) = symbol.maybe_parent() {
+            if let Some(symbol_parent_value_declaration) = symbol_parent.maybe_value_declaration() {
+                let type_node =
+                    get_effective_type_annotation_node(&symbol_parent_value_declaration);
+                if let Some(type_node) = type_node {
+                    let annotation_symbol = self.get_property_of_type_(
+                        &self.get_type_from_type_node_(&type_node),
+                        symbol.escaped_name(),
+                        None,
+                    );
+                    if let Some(annotation_symbol) = annotation_symbol {
+                        return Some(self.get_non_missing_type_of_symbol(&annotation_symbol));
+                    }
+                }
+            }
+        }
+
+        declared_type
     }
 
     pub(super) fn get_initializer_type_from_assignment_declaration<
