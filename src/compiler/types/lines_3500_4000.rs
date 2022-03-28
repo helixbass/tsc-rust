@@ -534,6 +534,10 @@ impl SourceFile {
         *self.config_file_specs.borrow_mut() = config_file_specs;
     }
 
+    pub fn maybe_end_flow_node(&self) -> RefMut<Option<Rc<FlowNode>>> {
+        self.end_flow_node.borrow_mut()
+    }
+
     pub fn keep_strong_reference_to_symbol(&self, symbol: Rc<Symbol>) {
         self._symbols_without_a_symbol_table_strong_references
             .borrow_mut()

@@ -1259,6 +1259,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory> NodeFactory<TBaseNodeFactory> 
     }
 }
 
+#[derive(Clone)]
 pub enum StringOrRcNode {
     String(String),
     RcNode(Rc<Node>),

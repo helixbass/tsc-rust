@@ -8,23 +8,25 @@ use std::rc::Rc;
 
 use super::{IterationUse, MappedTypeModifiers, MembersOrExportsResolutionKind, TypeFacts};
 use crate::{
-    concatenate, create_symbol_table, escape_leading_underscores, filter, get_check_flags,
-    get_combined_modifier_flags, get_combined_node_flags, get_declaration_of_kind,
+    concatenate, create_symbol_table, escape_leading_underscores, every, factory, filter,
+    get_check_flags, get_combined_modifier_flags, get_combined_node_flags, get_declaration_of_kind,
     get_declared_expando_initializer, get_effective_modifier_flags,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations, get_jsdoc_type,
-    has_dynamic_name, has_only_expression_initializer, has_static_modifier, index_of_rc,
-    is_binary_expression, is_binding_pattern, is_class_static_block_declaration,
-    is_function_type_node, is_in_js_file, is_jsx_attribute, is_parameter, is_parameter_declaration,
+    get_source_file_of_node, get_this_container, has_dynamic_name, has_only_expression_initializer,
+    has_static_modifier, index_of_rc, is_access_expression, is_binary_expression,
+    is_binding_pattern, is_class_static_block_declaration, is_function_type_node, is_in_js_file,
+    is_jsx_attribute, is_module_exports_access_expression, is_parameter, is_parameter_declaration,
     is_property_assignment, is_property_declaration, is_property_signature,
     is_string_or_numeric_literal_like, is_type_alias, is_variable_declaration, maybe_every,
-    range_equals_rc, skip_parentheses, walk_up_binding_elements_and_patterns, AccessFlags,
+    range_equals_rc, set_parent, skip_parentheses, starts_with, synthetic_factory,
+    unescape_leading_underscores, walk_up_binding_elements_and_patterns, AccessFlags,
     BaseInterfaceType, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
     InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    InternalSymbolName, LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags,
-    NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, UnionReduction, __String,
-    maybe_append_if_unique_rc,
+    InternalSymbolName, LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Signature,
+    SignatureFlags, StringOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
+    UnionReduction, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -563,8 +565,122 @@ impl TypeChecker {
         false
     }
 
+    pub(super) fn is_auto_typed_property(&self, symbol: &Symbol) -> bool {
+        let declaration = symbol.maybe_value_declaration();
+        matches!(
+            declaration,
+            Some(declaration) if is_property_declaration(&declaration) && get_effective_type_annotation_node(&declaration).is_none() &&
+                declaration.as_property_declaration().maybe_initializer().is_none() && (self.no_implicit_any || is_in_js_file(Some(&*declaration)))
+        )
+    }
+
     pub(super) fn get_declaring_constructor(&self, symbol: &Symbol) -> Option<Rc<Node>> {
-        unimplemented!()
+        let symbol_declarations = symbol.maybe_declarations();
+        let symbol_declarations = symbol_declarations.as_deref()?;
+        for declaration in symbol_declarations {
+            let container = get_this_container(&declaration, false);
+            if
+            /*container &&*/
+            container.kind() == SyntaxKind::Constructor
+                || self.is_js_constructor(Some(&*container))
+            {
+                return Some(container);
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_flow_type_from_common_js_export(&self, symbol: &Symbol) -> Rc<Type> {
+        let file = get_source_file_of_node(
+            symbol
+                .maybe_declarations()
+                .as_ref()
+                .unwrap()
+                .get(0)
+                .map(Clone::clone),
+        )
+        .unwrap();
+        let access_name = unescape_leading_underscores(symbol.escaped_name());
+        let are_all_module_exports = every(
+            symbol.maybe_declarations().as_deref().unwrap(),
+            |d: &Rc<Node>, _| {
+                is_in_js_file(Some(&**d))
+                    && is_access_expression(d)
+                    && is_module_exports_access_expression(d)
+            },
+        );
+        let reference: Rc<Node> = if are_all_module_exports {
+            synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_property_access_expression(
+                            synthetic_factory_,
+                            factory_
+                                .create_property_access_expression(
+                                    synthetic_factory_,
+                                    factory_
+                                        .create_identifier(
+                                            synthetic_factory_,
+                                            "module",
+                                            Option::<NodeArray>::None,
+                                            None,
+                                        )
+                                        .into(),
+                                    Into::<Rc<Node>>::into(factory_.create_identifier(
+                                        synthetic_factory_,
+                                        "exports",
+                                        Option::<NodeArray>::None,
+                                        None,
+                                    )),
+                                )
+                                .into(),
+                            access_name,
+                        )
+                        .into()
+                })
+            })
+        } else {
+            synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_property_access_expression(
+                            synthetic_factory_,
+                            factory_
+                                .create_identifier(
+                                    synthetic_factory_,
+                                    "exports",
+                                    Option::<NodeArray>::None,
+                                    None,
+                                )
+                                .into(),
+                            access_name,
+                        )
+                        .into()
+                })
+            })
+        };
+        if are_all_module_exports {
+            set_parent(
+                &reference
+                    .as_property_access_expression()
+                    .expression
+                    .as_property_access_expression()
+                    .expression,
+                Some(&*reference.as_property_access_expression().expression),
+            );
+        }
+        set_parent(
+            &reference.as_property_access_expression().expression,
+            Some(&*reference),
+        );
+        set_parent(&reference, Some(&*file));
+        reference.set_flow_node(file.as_source_file().maybe_end_flow_node().clone());
+        self.get_flow_type_of_reference(
+            &reference,
+            &self.auto_type(),
+            Some(self.undefined_type()),
+            Option::<&Node>::None,
+        )
     }
 
     pub(super) fn get_flow_type_in_static_blocks(
@@ -572,7 +688,61 @@ impl TypeChecker {
         symbol: &Symbol,
         static_blocks: &[Rc<Node /*ClassStaticBlockDeclaration*/>],
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let access_name: StringOrRcNode = if starts_with(&**symbol.escaped_name(), "__#") {
+            synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    Into::<Rc<Node>>::into(factory_.create_private_identifier(
+                        synthetic_factory_,
+                        (&*symbol.escaped_name()).split("@").nth(1).unwrap(),
+                    ))
+                    .into()
+                })
+            })
+        } else {
+            unescape_leading_underscores(symbol.escaped_name()).into()
+        };
+        for static_block in static_blocks {
+            let reference: Rc<Node> = synthetic_factory.with(|synthetic_factory_| {
+                factory.with(|factory_| {
+                    factory_
+                        .create_property_access_expression(
+                            synthetic_factory_,
+                            factory_.create_this(synthetic_factory_).into(),
+                            access_name.clone(),
+                        )
+                        .into()
+                })
+            });
+            set_parent(
+                &reference.as_property_access_expression().expression,
+                Some(&*reference),
+            );
+            set_parent(&reference, Some(&**static_block));
+            reference.set_flow_node(
+                static_block
+                    .as_class_static_block_declaration()
+                    .maybe_return_flow_node(),
+            );
+            let flow_type = self.get_flow_type_of_property(&reference, Some(symbol));
+            if self.no_implicit_any
+                && (Rc::ptr_eq(&flow_type, &self.auto_type())
+                    || Rc::ptr_eq(&flow_type, &self.auto_array_type()))
+            {
+                self.error(
+                    symbol.maybe_value_declaration(),
+                    &Diagnostics::Member_0_implicitly_has_an_1_type,
+                    Some(vec![
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None),
+                        self.type_to_string_(&flow_type, Option::<&Node>::None, None, None),
+                    ]),
+                );
+            }
+            if self.every_type(&flow_type, |type_| self.is_nullable_type(type_)) {
+                continue;
+            }
+            return Some(self.convert_auto_to_any(&flow_type));
+        }
+        None
     }
 
     pub(super) fn get_flow_type_in_constructor(
@@ -580,6 +750,14 @@ impl TypeChecker {
         symbol: &Symbol,
         constructor: &Node, /*ConstructorDeclaration*/
     ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_flow_type_of_property<TSymbol: Borrow<Symbol>>(
+        &self,
+        reference: &Node,
+        symbol: Option<TSymbol>,
+    ) -> Rc<Type> {
         unimplemented!()
     }
 

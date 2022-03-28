@@ -449,6 +449,10 @@ impl TypeChecker {
             || (type_.flags().intersects(TypeFlags::Intersection) && unimplemented!())
     }
 
+    pub(super) fn is_nullable_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_non_nullable_type_if_needed(&self, type_: &Type) -> Rc<Type> {
         unimplemented!()
     }
