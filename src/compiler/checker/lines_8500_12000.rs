@@ -18,7 +18,8 @@ use crate::{
     has_static_modifier, index_of_rc, is_access_expression, is_binary_expression,
     is_binding_pattern, is_call_expression, is_class_static_block_declaration,
     is_function_type_node, is_in_js_file, is_jsx_attribute, is_module_exports_access_expression,
-    is_parameter, is_parameter_declaration, is_property_assignment, is_property_declaration,
+    is_object_literal_expression, is_parameter, is_parameter_declaration,
+    is_property_access_expression, is_property_assignment, is_property_declaration,
     is_property_signature, is_string_or_numeric_literal_like, is_type_alias,
     is_variable_declaration, length, maybe_every, range_equals_rc, set_parent, skip_parentheses,
     some, starts_with, synthetic_factory, unescape_leading_underscores,
@@ -1000,7 +1001,56 @@ impl TypeChecker {
         symbol: &Symbol,
         init: Option<TInit>,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        if !is_in_js_file(Some(decl)) {
+            return None;
+        }
+        let init = init?;
+        let init = init.borrow();
+        if !is_object_literal_expression(init)
+            || !init.as_object_literal_expression().properties.is_empty()
+        {
+            return None;
+        }
+        let mut exports = create_symbol_table(None);
+        let mut decl = decl.node_wrapper();
+        while is_binary_expression(&decl) || is_property_access_expression(&decl) {
+            let s = self.get_symbol_of_node(&decl);
+            if let Some(s) = s {
+                if let Some(s_exports) = s.maybe_exports().as_deref() {
+                    let s_exports = RefCell::borrow(s_exports);
+                    if !s_exports.is_empty() {
+                        self.merge_symbol_table(&mut exports, &s_exports, None);
+                    }
+                }
+            }
+            decl = if is_binary_expression(&decl) {
+                decl.parent()
+            } else {
+                decl.parent().parent()
+            };
+        }
+        let s = self.get_symbol_of_node(&decl);
+        if let Some(s) = s {
+            if let Some(s_exports) = s.maybe_exports().as_deref() {
+                let s_exports = RefCell::borrow(s_exports);
+                if !s_exports.is_empty() {
+                    self.merge_symbol_table(&mut exports, &s_exports, None);
+                }
+            }
+        }
+        let type_: Rc<Type> = self
+            .create_anonymous_type(
+                Some(symbol),
+                Rc::new(RefCell::new(exports)),
+                vec![],
+                vec![],
+                vec![],
+            )
+            .into();
+        let type_as_object_type = type_.as_object_type();
+        type_as_object_type
+            .set_object_flags(type_as_object_type.object_flags() | ObjectFlags::JSLiteral);
+        Some(type_)
     }
 
     pub(super) fn get_annotated_type_for_assignment_declaration<TDeclaredType: Borrow<Type>>(
