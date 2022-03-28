@@ -2,35 +2,19 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::convert::TryInto;
-use std::ptr;
 use std::rc::Rc;
 
-use super::{IterationUse, MappedTypeModifiers, MembersOrExportsResolutionKind, TypeFacts};
+use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    add_related_info, concatenate, copy_entries, create_diagnostic_for_node, create_symbol_table,
-    escape_leading_underscores, every, factory, filter, get_assigned_expando_initializer,
-    get_assignment_declaration_kind, get_assignment_declaration_property_access_kind,
-    get_check_flags, get_combined_modifier_flags, get_combined_node_flags, get_declaration_of_kind,
-    get_declared_expando_initializer, get_effective_modifier_flags,
-    get_effective_type_annotation_node, get_effective_type_parameter_declarations, get_jsdoc_type,
-    get_jsdoc_type_tag, get_object_flags, get_source_file_of_node, get_this_container,
-    has_dynamic_name, has_only_expression_initializer, has_static_modifier, index_of_rc,
-    is_access_expression, is_binary_expression, is_binding_pattern, is_call_expression,
-    is_class_static_block_declaration, is_function_type_node, is_in_js_file, is_jsx_attribute,
-    is_module_exports_access_expression, is_named_declaration, is_object_literal_expression,
-    is_parameter, is_parameter_declaration, is_property_access_expression, is_property_assignment,
-    is_property_declaration, is_property_signature, is_string_or_numeric_literal_like,
-    is_type_alias, is_variable_declaration, length, maybe_every, range_equals_rc, set_parent,
-    skip_parentheses, some, starts_with, synthetic_factory, try_cast, unescape_leading_underscores,
-    walk_up_binding_elements_and_patterns, AccessFlags, AssignmentDeclarationKind,
-    BaseInterfaceType, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
-    InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    InternalSymbolName, LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    SignatureFlags, StringOrRcNode, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, UnderscoreEscapedMap, UnionReduction, __String, maybe_append_if_unique_rc,
+    concatenate, create_symbol_table, escape_leading_underscores, get_check_flags,
+    get_declaration_of_kind, get_effective_type_annotation_node,
+    get_effective_type_parameter_declarations, has_dynamic_name, is_property_assignment,
+    is_property_signature, is_type_alias, is_variable_declaration, range_equals_rc,
+    BaseInterfaceType, CheckFlags, Debug_, InterfaceType, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
