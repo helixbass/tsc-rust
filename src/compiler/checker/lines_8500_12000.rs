@@ -9,17 +9,20 @@ use std::rc::Rc;
 use super::{IterationUse, MappedTypeModifiers, MembersOrExportsResolutionKind, TypeFacts};
 use crate::{
     concatenate, create_symbol_table, escape_leading_underscores, every, factory, filter,
-    get_check_flags, get_combined_modifier_flags, get_combined_node_flags, get_declaration_of_kind,
-    get_declared_expando_initializer, get_effective_modifier_flags,
-    get_effective_type_annotation_node, get_effective_type_parameter_declarations, get_jsdoc_type,
+    get_assigned_expando_initializer, get_assignment_declaration_kind,
+    get_assignment_declaration_property_access_kind, get_check_flags, get_combined_modifier_flags,
+    get_combined_node_flags, get_declaration_of_kind, get_declared_expando_initializer,
+    get_effective_modifier_flags, get_effective_type_annotation_node,
+    get_effective_type_parameter_declarations, get_jsdoc_type, get_jsdoc_type_tag,
     get_source_file_of_node, get_this_container, has_dynamic_name, has_only_expression_initializer,
     has_static_modifier, index_of_rc, is_access_expression, is_binary_expression,
-    is_binding_pattern, is_class_static_block_declaration, is_function_type_node, is_in_js_file,
-    is_jsx_attribute, is_module_exports_access_expression, is_parameter, is_parameter_declaration,
-    is_property_assignment, is_property_declaration, is_property_signature,
-    is_string_or_numeric_literal_like, is_type_alias, is_variable_declaration, maybe_every,
-    range_equals_rc, set_parent, skip_parentheses, starts_with, synthetic_factory,
-    unescape_leading_underscores, walk_up_binding_elements_and_patterns, AccessFlags,
+    is_binding_pattern, is_call_expression, is_class_static_block_declaration,
+    is_function_type_node, is_in_js_file, is_jsx_attribute, is_module_exports_access_expression,
+    is_parameter, is_parameter_declaration, is_property_assignment, is_property_declaration,
+    is_property_signature, is_string_or_numeric_literal_like, is_type_alias,
+    is_variable_declaration, length, maybe_every, range_equals_rc, set_parent, skip_parentheses,
+    some, starts_with, synthetic_factory, unescape_leading_underscores,
+    walk_up_binding_elements_and_patterns, AccessFlags, AssignmentDeclarationKind,
     BaseInterfaceType, CheckFlags, Debug_, Diagnostics, HasInitializerInterface, HasTypeInterface,
     InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
@@ -805,12 +808,190 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_flow_type_of_property<TSymbol: Borrow<Symbol>>(
+    pub(super) fn get_flow_type_of_property<TProp: Borrow<Symbol>>(
         &self,
         reference: &Node,
-        symbol: Option<TSymbol>,
+        prop: Option<TProp>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let initial_type = prop.and_then(|prop| {
+            let prop = prop.borrow();
+            if matches!(
+                prop.maybe_value_declaration(),
+                Some(value_declaration) if !self.is_auto_typed_property(prop) || get_effective_modifier_flags(&value_declaration).intersects(ModifierFlags::Ambient)
+            ) {
+                self.get_type_of_property_in_base_class(prop)
+            } else {
+                None
+            }
+        }).unwrap_or_else(|| self.undefined_type());
+        self.get_flow_type_of_reference(
+            reference,
+            &self.auto_type(),
+            Some(initial_type),
+            Option::<&Node>::None,
+        )
+    }
+
+    pub(super) fn get_widened_type_for_assignment_declaration<TResolvedSymbol: Borrow<Symbol>>(
+        &self,
+        symbol: &Symbol,
+        resolved_symbol: Option<TResolvedSymbol>,
+    ) -> Rc<Type> {
+        let container = get_assigned_expando_initializer(symbol.maybe_value_declaration());
+        if let Some(container) = container {
+            let tag = get_jsdoc_type_tag(&container);
+            if let Some(tag) = tag
+            /*&& tag.typeExpression*/
+            {
+                return self
+                    .get_type_from_type_node_(&tag.as_jsdoc_type_like_tag().type_expression());
+            }
+            let container_object_type =
+                symbol
+                    .maybe_value_declaration()
+                    .and_then(|value_declaration| {
+                        self.get_js_container_object_type(
+                            &value_declaration,
+                            symbol,
+                            Some(&*container),
+                        )
+                    });
+            return container_object_type.unwrap_or_else(|| {
+                self.get_widened_literal_type(&self.check_expression_cached(&container, None))
+            });
+        }
+        let mut type_: Option<Rc<Type>> = None;
+        let mut defined_in_constructor = false;
+        let mut defined_in_method = false;
+        if self.is_constructor_declared_property(symbol) {
+            type_ = self.get_flow_type_in_constructor(
+                symbol,
+                &self.get_declaring_constructor(symbol).unwrap(),
+            );
+        }
+        let resolved_symbol =
+            resolved_symbol.map(|resolved_symbol| resolved_symbol.borrow().symbol_wrapper());
+        if type_.is_none() {
+            let mut types: Option<Vec<Rc<Type>>> = None;
+            if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+                let mut jsdoc_type: Option<Rc<Type>> = None;
+                for declaration in symbol_declarations {
+                    let expression =
+                        if is_binary_expression(declaration) || is_call_expression(declaration) {
+                            Some(declaration.clone())
+                        } else if is_access_expression(declaration) {
+                            Some(if is_binary_expression(&declaration.parent()) {
+                                declaration.parent()
+                            } else {
+                                declaration.clone()
+                            })
+                        } else {
+                            None
+                        };
+                    if expression.is_none() {
+                        continue;
+                    }
+                    let expression = expression.unwrap();
+
+                    let kind = if is_access_expression(&expression) {
+                        get_assignment_declaration_property_access_kind(&expression)
+                    } else {
+                        get_assignment_declaration_kind(&expression)
+                    };
+                    if kind == AssignmentDeclarationKind::ThisProperty
+                        || is_binary_expression(&expression)
+                            && self.is_possibly_aliased_this_property(&expression, Some(kind))
+                    {
+                        if self.is_declaration_in_constructor(&expression) {
+                            defined_in_constructor = true;
+                        } else {
+                            defined_in_method = true;
+                        }
+                    }
+                    if !is_call_expression(&expression) {
+                        jsdoc_type = self.get_annotated_type_for_assignment_declaration(
+                            jsdoc_type,
+                            &expression,
+                            symbol,
+                            declaration,
+                        );
+                    }
+                    if jsdoc_type.is_none() {
+                        if types.is_none() {
+                            types = Some(vec![]);
+                        }
+                        types.as_mut().unwrap().push(
+                            if is_binary_expression(&expression) || is_call_expression(&expression)
+                            {
+                                self.get_initializer_type_from_assignment_declaration(
+                                    symbol,
+                                    resolved_symbol.as_deref(),
+                                    &expression,
+                                    kind,
+                                )
+                            } else {
+                                self.never_type()
+                            },
+                        );
+                    }
+                }
+                type_ = jsdoc_type;
+            }
+            if type_.is_none() {
+                if length(types.as_deref()) == 0 {
+                    return self.error_type();
+                }
+                let types = types.unwrap();
+                let mut constructor_types = if defined_in_constructor {
+                    symbol
+                        .maybe_declarations()
+                        .as_ref()
+                        .and_then(|declarations| {
+                            self.get_constructor_defined_this_assignment_types(
+                                &types,
+                                &declarations,
+                            )
+                        })
+                } else {
+                    None
+                };
+                if defined_in_method {
+                    let prop_type = self.get_type_of_property_in_base_class(symbol);
+                    if let Some(prop_type) = prop_type {
+                        if constructor_types.is_none() {
+                            constructor_types = Some(vec![]);
+                        }
+                        constructor_types.as_mut().unwrap().push(prop_type);
+                        defined_in_constructor = true;
+                    }
+                }
+                let source_types = if some(
+                    constructor_types.as_deref(),
+                    Some(|t: &Rc<Type>| t.flags().intersects(!TypeFlags::Nullable)),
+                ) {
+                    constructor_types.unwrap()
+                } else {
+                    types
+                };
+                type_ = Some(self.get_union_type(source_types, Some(UnionReduction::Subtype)));
+            }
+        }
+        let type_ = type_.unwrap();
+        let widened = self.get_widened_type(&self.add_optionality(
+            &type_,
+            Some(false),
+            Some(defined_in_method && !defined_in_constructor),
+        ));
+        if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
+            if Rc::ptr_eq(
+                &self.filter_type(&widened, |t| t.flags().intersects(!TypeFlags::Nullable)),
+                &self.never_type(),
+            ) {
+                self.report_implicit_any(&symbol_value_declaration, &self.any_type(), None);
+                return self.any_type();
+            }
+        }
+        widened
     }
 
     pub(super) fn get_js_container_object_type<TInit: Borrow<Node>>(
@@ -829,6 +1010,33 @@ impl TypeChecker {
         symbol: &Symbol,
         declaration: &Node, /*Declaration*/
     ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_initializer_type_from_assignment_declaration<
+        TResolvedSymbol: Borrow<Symbol>,
+    >(
+        &self,
+        symbol: &Symbol,
+        resolved_symbol: Option<TResolvedSymbol>,
+        expression: &Node, /*BinaryExpression | CallExpression*/
+        kind: AssignmentDeclarationKind,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn is_declaration_in_constructor(
+        &self,
+        expression: &Node, /*Expression*/
+    ) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_constructor_defined_this_assignment_types(
+        &self,
+        types: &[Rc<Type>],
+        declarations: &[Rc<Node /*Declaration*/>],
+    ) -> Option<Vec<Rc<Type>>> {
         unimplemented!()
     }
 
