@@ -1,18 +1,20 @@
 #![allow(non_upper_case_globals)]
 
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
     concatenate, create_symbol_table, escape_leading_underscores, find, get_check_flags,
     get_declaration_of_kind, get_effective_type_parameter_declarations, has_dynamic_name,
-    is_type_alias, range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, InterfaceType,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
+    is_access_expression, is_shorthand_ambient_module_symbol, is_source_file, is_type_alias,
+    range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, InterfaceType, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, Node,
     NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
     SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
-    __String, maybe_append_if_unique_rc,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, TypeSystemPropertyName,
+    UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -67,7 +69,78 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_of_func_class_enum_module_worker(&self, symbol: &Symbol) -> Rc<Type> {
-        unimplemented!()
+        let declaration = symbol.maybe_value_declaration();
+        if symbol.flags().intersects(SymbolFlags::Module)
+            && is_shorthand_ambient_module_symbol(symbol)
+        {
+            return self.any_type();
+        } else if matches!(
+            declaration.as_ref(),
+            Some(declaration) if declaration.kind() == SyntaxKind::BinaryExpression ||
+                is_access_expression(declaration) &&
+                declaration.parent().kind() == SyntaxKind::BinaryExpression
+        ) {
+            return self
+                .get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None);
+        } else if symbol.flags().intersects(SymbolFlags::ValueModule)
+            && matches!(
+                declaration.as_ref(),
+                Some(declaration) if is_source_file(declaration) && declaration.as_source_file().maybe_common_js_module_indicator().is_some()
+            )
+        {
+            let resolved_module = self
+                .resolve_external_module_symbol(Some(symbol), None)
+                .unwrap();
+            if !ptr::eq(&*resolved_module, symbol) {
+                if !self.push_type_resolution(
+                    &symbol.symbol_wrapper().into(),
+                    TypeSystemPropertyName::Type,
+                ) {
+                    return self.error_type();
+                }
+                let export_equals = self
+                    .get_merged_symbol(
+                        (*symbol.exports())
+                            .borrow()
+                            .get(&InternalSymbolName::ExportEquals())
+                            .map(Clone::clone),
+                    )
+                    .unwrap();
+                let type_ = self.get_widened_type_for_assignment_declaration(
+                    &export_equals,
+                    if Rc::ptr_eq(&export_equals, &resolved_module) {
+                        None
+                    } else {
+                        Some(resolved_module)
+                    },
+                );
+                if !self.pop_type_resolution() {
+                    return self.report_circularity_error(symbol);
+                }
+                return type_;
+            }
+        }
+        let type_: Rc<Type> = self
+            .create_object_type(ObjectFlags::Anonymous, Some(symbol))
+            .into();
+        if symbol.flags().intersects(SymbolFlags::Class) {
+            let base_type_variable = self.get_base_type_variable_of_class(symbol);
+            if let Some(base_type_variable) = base_type_variable {
+                self.get_intersection_type(
+                    &vec![type_, base_type_variable],
+                    Option::<&Symbol>::None,
+                    None,
+                )
+            } else {
+                type_
+            }
+        } else {
+            if self.strict_null_checks && symbol.flags().intersects(SymbolFlags::Optional) {
+                self.get_optional_type_(&type_, None)
+            } else {
+                type_
+            }
+        }
     }
 
     pub(super) fn get_type_of_enum_member(&self, symbol: &Symbol) -> Rc<Type> {
