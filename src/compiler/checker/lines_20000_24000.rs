@@ -392,6 +392,13 @@ impl TypeChecker {
         result
     }
 
+    pub(super) fn get_type_of_reverse_mapped_symbol(
+        &self,
+        symbol: &Symbol, /*ReverseMappedSymbol*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn is_object_literal_type(&self, type_: &Type) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral)
     }
