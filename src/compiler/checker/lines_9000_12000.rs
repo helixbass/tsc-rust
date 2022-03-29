@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use super::{CheckMode, MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    concatenate, create_symbol_table, escape_leading_underscores, find_last_index, for_each,
+    concatenate, create_symbol_table, escape_leading_underscores, find, find_last_index, for_each,
     for_each_child_recursively_bool, get_check_flags, get_declaration_of_kind,
     get_effective_return_type_node, get_effective_set_accessor_type_annotation_node,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
@@ -23,13 +23,14 @@ use crate::{
     is_property_assignment, is_property_declaration, is_property_signature,
     is_prototype_property_assignment, is_shorthand_property_assignment, is_source_file,
     is_string_literal_like, is_type_alias, is_variable_declaration, last_or_undefined, map,
-    range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, ElementFlags, HasInitializerInterface,
-    IndexInfo, InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    LiteralType, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, ScriptTarget, Signature, SignatureFlags, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeMapper, TypePredicate, TypeSystemPropertyName,
-    UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
+    range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, Diagnostics, ElementFlags,
+    HasInitializerInterface, IndexInfo, InterfaceType, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, LiteralType, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ScriptTarget, Signature,
+    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, TypeSystemPropertyName, UnderscoreEscapedMap, __String,
+    maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -703,7 +704,29 @@ impl TypeChecker {
         symbol: &Symbol,
         writing: Option<bool>,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        if !self.push_type_resolution(
+            &symbol.symbol_wrapper().into(),
+            TypeSystemPropertyName::Type,
+        ) {
+            return Some(self.error_type());
+        }
+
+        let mut type_ = self.resolve_type_of_accessors(symbol, writing);
+
+        if !self.pop_type_resolution() {
+            type_ = Some(self.any_type());
+            if self.no_implicit_any {
+                let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor);
+                self.error(
+                    getter,
+                    &Diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
+                    Some(vec![
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+                    ])
+                );
+            }
+        }
+        type_
     }
 
     pub(super) fn resolve_type_of_accessors(
@@ -712,11 +735,105 @@ impl TypeChecker {
         writing: Option<bool>,
     ) -> Option<Rc<Type>> {
         let writing = writing.unwrap_or(false);
-        unimplemented!()
+        let getter = get_declaration_of_kind(symbol, SyntaxKind::GetAccessor);
+        let setter = get_declaration_of_kind(symbol, SyntaxKind::SetAccessor);
+
+        let setter_type = self.get_annotated_accessor_type(setter.as_deref());
+
+        if writing {
+            if let Some(setter_type) = setter_type.as_ref() {
+                return Some(self.instantiate_type_if_needed(setter_type, symbol));
+            }
+        }
+
+        if let Some(getter) = getter.as_deref() {
+            if is_in_js_file(Some(getter)) {
+                let js_doc_type = self.get_type_for_declaration_from_jsdoc_comment(getter);
+                if let Some(js_doc_type) = js_doc_type {
+                    return Some(self.instantiate_type_if_needed(&js_doc_type, symbol));
+                }
+            }
+        }
+
+        let getter_type = self.get_annotated_accessor_type(getter.as_deref());
+        if let Some(getter_type) = getter_type.as_ref() {
+            return Some(self.instantiate_type_if_needed(getter_type, symbol));
+        }
+
+        if setter_type.is_some() {
+            return setter_type;
+        }
+
+        if let Some(getter) = getter.as_ref() {
+            if getter.as_function_like_declaration().maybe_body().is_some() {
+                let return_type_from_body = self.get_return_type_from_body(getter, None);
+                return Some(self.instantiate_type_if_needed(&return_type_from_body, symbol));
+            }
+        }
+
+        if let Some(setter) = setter.as_ref() {
+            if !self.is_private_within_ambient(setter) {
+                self.error_or_suggestion(
+                    self.no_implicit_any,
+                    setter,
+                    Diagnostics::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation.clone().into(),
+                    Some(vec![
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+                    ])
+                );
+            }
+            return Some(self.any_type());
+        } else if let Some(getter) = getter.as_ref() {
+            // Debug.assert(!!getter, ...);
+            if !self.is_private_within_ambient(getter) {
+                self.error_or_suggestion(
+                    self.no_implicit_any,
+                    getter,
+                    Diagnostics::Property_0_implicitly_has_type_any_because_its_get_accessor_lacks_a_return_type_annotation.clone().into(),
+                    Some(vec![
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+                    ])
+                );
+            }
+            return Some(self.any_type());
+        }
+        None
+    }
+
+    pub(super) fn instantiate_type_if_needed(&self, type_: &Type, symbol: &Symbol) -> Rc<Type> {
+        if get_check_flags(symbol).intersects(CheckFlags::Instantiated) {
+            let links = self.get_symbol_links(symbol);
+            return self
+                .instantiate_type(Some(type_), (*links).borrow().mapper.as_ref())
+                .unwrap();
+        }
+
+        type_.type_wrapper()
     }
 
     pub(super) fn get_base_type_variable_of_class(&self, symbol: &Symbol) -> Option<Rc<Type>> {
-        unimplemented!()
+        let base_constructor_type = self.get_base_constructor_type_of_class(
+            &self.get_declared_type_of_class_or_interface(symbol),
+        );
+        if base_constructor_type
+            .flags()
+            .intersects(TypeFlags::TypeVariable)
+        {
+            Some(base_constructor_type)
+        } else if base_constructor_type
+            .flags()
+            .intersects(TypeFlags::Intersection)
+        {
+            find(
+                base_constructor_type
+                    .as_union_or_intersection_type_interface()
+                    .types(),
+                |t: &Rc<Type>, _| t.flags().intersects(TypeFlags::TypeVariable),
+            )
+            .map(Clone::clone)
+        } else {
+            None
+        }
     }
 
     pub(super) fn get_type_of_func_class_enum_module(&self, symbol: &Symbol) -> Rc<Type> {
@@ -830,6 +947,13 @@ impl TypeChecker {
             }
         }
         result
+    }
+
+    pub(super) fn get_base_constructor_type_of_class(
+        &self,
+        type_: &Type, /*InterfaceType*/
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn get_declared_type_of_class_or_interface(
