@@ -437,6 +437,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_matching_reference(&self, source: &Node, target: &Node) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_facts(&self, type_: &Type, ignore_objects: Option<bool>) -> TypeFacts {
         let ignore_objects = ignore_objects.unwrap_or(false);
         unimplemented!()

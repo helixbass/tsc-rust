@@ -51,6 +51,10 @@ impl NodeArray {
     pub fn to_vec(&self) -> Vec<Rc<Node>> {
         self._nodes.clone()
     }
+
+    pub fn into_vec(self) -> Vec<Rc<Node>> {
+        self._nodes
+    }
 }
 
 impl ReadonlyTextRange for NodeArray {

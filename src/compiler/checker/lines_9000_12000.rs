@@ -6,24 +6,34 @@ use std::rc::Rc;
 
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    concatenate, create_symbol_table, escape_leading_underscores, get_check_flags,
-    get_declaration_of_kind, get_effective_type_annotation_node,
-    get_effective_type_parameter_declarations, has_dynamic_name, is_property_assignment,
-    is_property_signature, is_type_alias, is_variable_declaration, range_equals_rc,
-    BaseInterfaceType, CheckFlags, Debug_, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
+    concatenate, create_symbol_table, escape_leading_underscores, for_each_child_recursively_bool,
+    get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
+    get_effective_type_parameter_declarations, has_dynamic_name, is_property_access_expression,
+    is_property_assignment, is_property_signature, is_type_alias, is_variable_declaration,
+    range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, InterfaceType, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeArray, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypePredicate, UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
     pub(super) fn contains_same_named_this_property(
         &self,
-        this_expression: &Node, /*Expression*/
-        expression: &Node,      /*Expression*/
+        this_property: &Node, /*Expression*/
+        expression: &Node,    /*Expression*/
     ) -> bool {
-        unimplemented!()
+        is_property_access_expression(this_property)
+            && this_property
+                .as_property_access_expression()
+                .expression
+                .kind()
+                == SyntaxKind::ThisKeyword
+            && for_each_child_recursively_bool(
+                expression,
+                |n, _| self.is_matching_reference(this_property, n),
+                Option::<fn(&NodeArray, &Node) -> bool>::None,
+            )
     }
 
     pub(super) fn is_declaration_in_constructor(
