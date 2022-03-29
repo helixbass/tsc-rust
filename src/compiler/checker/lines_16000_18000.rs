@@ -180,6 +180,10 @@ impl TypeChecker {
         links_ref.resolved_type.clone().unwrap()
     }
 
+    pub(super) fn get_es_symbol_like_type_for_node(&self, node: &Node) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_array_element_type_node(
         &self,
         node: &Node, /*ArrayTypeNode*/

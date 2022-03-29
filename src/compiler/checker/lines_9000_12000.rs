@@ -3,24 +3,32 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::convert::TryInto;
+use std::ptr;
 use std::rc::Rc;
 
-use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
+use super::{CheckMode, MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
     concatenate, create_symbol_table, escape_leading_underscores, find_last_index, for_each,
     for_each_child_recursively_bool, get_check_flags, get_declaration_of_kind,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
-    get_this_container, has_dynamic_name, is_binary_expression, is_binding_pattern,
-    is_omitted_expression, is_property_access_expression, is_property_assignment,
-    is_property_signature, is_prototype_property_assignment, is_type_alias,
-    is_variable_declaration, last_or_undefined, map, range_equals_rc, BaseInterfaceType,
-    CheckFlags, Debug_, ElementFlags, HasInitializerInterface, IndexInfo, InterfaceType,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
+    get_root_declaration, get_source_file_of_node, get_this_container, has_dynamic_name,
+    is_accessor, is_binary_expression, is_bindable_static_element_access_expression,
+    is_binding_element, is_binding_pattern, is_call_expression,
+    is_catch_clause_variable_declaration_or_binding_element, is_class_declaration,
+    is_element_access_expression, is_enum_declaration, is_enum_member, is_function_declaration,
+    is_identifier, is_in_js_file, is_jsdoc_property_like_tag, is_json_source_file,
+    is_jsx_attribute, is_method_declaration, is_method_signature, is_numeric_literal,
+    is_object_literal_method, is_omitted_expression, is_parameter, is_property_access_expression,
+    is_property_assignment, is_property_declaration, is_property_signature,
+    is_prototype_property_assignment, is_shorthand_property_assignment, is_source_file,
+    is_string_literal_like, is_type_alias, is_variable_declaration, last_or_undefined, map,
+    range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, ElementFlags, HasInitializerInterface,
+    IndexInfo, InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    LiteralType, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, ScriptTarget, Signature, SignatureFlags, Symbol, SymbolFlags,
     SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
-    maybe_append_if_unique_rc,
+    TypeFlags, TypeInterface, TypeMapper, TypePredicate, TypeSystemPropertyName,
+    UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -277,35 +285,104 @@ impl TypeChecker {
     ) -> Rc<Type> {
         let include_pattern_in_type = include_pattern_in_type.unwrap_or(false);
         let report_errors = report_errors.unwrap_or(false);
-        unimplemented!()
+        if pattern.kind() == SyntaxKind::ObjectBindingPattern {
+            self.get_type_from_object_binding_pattern(
+                pattern,
+                include_pattern_in_type,
+                report_errors,
+            )
+        } else {
+            self.get_type_from_array_binding_pattern(
+                pattern,
+                include_pattern_in_type,
+                report_errors,
+            )
+        }
     }
 
     pub(super) fn get_widened_type_for_variable_like_declaration(
         &self,
-        declaration: &Node,
+        declaration: &Node, /*ParameterDeclaration | PropertyDeclaration | PropertySignature | VariableDeclaration | BindingElement | JSDocPropertyLikeTag*/
+        report_errors: Option<bool>,
     ) -> Rc<Type> {
         self.widen_type_for_variable_like_declaration(
             self.get_type_for_variable_like_declaration(declaration, true),
             declaration,
+            report_errors,
         )
     }
 
-    pub(super) fn widen_type_for_variable_like_declaration<TTypeRef: Borrow<Type>>(
+    pub(super) fn is_global_symbol_constructor(&self, node: &Node) -> bool {
+        let symbol = self.get_symbol_of_node(node);
+        let global_symbol = self.get_global_es_symbol_constructor_type_symbol(false);
+        matches!(
+            (global_symbol, symbol),
+            (Some(global_symbol), Some(symbol)) if Rc::ptr_eq(&symbol, &global_symbol)
+        )
+    }
+
+    pub(super) fn widen_type_for_variable_like_declaration<TType: Borrow<Type>>(
         &self,
-        type_: Option<TTypeRef>,
+        type_: Option<TType>,
         declaration: &Node,
+        report_errors: Option<bool>,
     ) -> Rc<Type> {
+        let report_errors = report_errors.unwrap_or(false);
         if let Some(type_) = type_ {
-            return self.get_widened_type(type_.borrow());
+            let mut type_ = type_.borrow().type_wrapper();
+            if type_.flags().intersects(TypeFlags::ESSymbol)
+                && self.is_global_symbol_constructor(&declaration.parent())
+            {
+                type_ = self.get_es_symbol_like_type_for_node(declaration);
+            }
+            if report_errors {
+                self.report_errors_from_widening(declaration, &type_, None);
+            }
+
+            if type_.flags().intersects(TypeFlags::UniqueESSymbol)
+                && (is_binding_element(declaration)
+                    || declaration.as_has_type().maybe_type().is_none())
+                && !matches!(
+                    type_.maybe_symbol(),
+                    Some(type_symbol) if matches!(self.get_symbol_of_node(declaration), Some(symbol_of_node) if Rc::ptr_eq(&type_symbol, &symbol_of_node))
+                )
+            {
+                type_ = self.es_symbol_type();
+            }
+
+            return self.get_widened_type(&type_);
         }
-        unimplemented!()
+
+        let type_ = if is_parameter(declaration)
+            && declaration
+                .as_parameter_declaration()
+                .dot_dot_dot_token
+                .is_some()
+        {
+            self.any_array_type()
+        } else {
+            self.any_type()
+        };
+
+        if report_errors {
+            if !self.declaration_belongs_to_private_ambient_member(declaration) {
+                self.report_implicit_any(declaration, &type_, None);
+            }
+        }
+        type_
     }
 
     pub(super) fn declaration_belongs_to_private_ambient_member(
         &self,
         declaration: &Node, /*VariableLikeDeclaration*/
     ) -> bool {
-        unimplemented!()
+        let root = get_root_declaration(declaration);
+        let member_declaration = if root.kind() == SyntaxKind::Parameter {
+            root.parent()
+        } else {
+            root
+        };
+        self.is_private_within_ambient(&member_declaration)
     }
 
     pub(super) fn try_get_type_from_effective_type_node(
@@ -313,7 +390,7 @@ impl TypeChecker {
         declaration: &Node, /*Declaration*/
     ) -> Option<Rc<Type>> {
         let type_node = get_effective_type_annotation_node(declaration);
-        type_node.map(|type_node| self.get_type_from_type_node_(&*type_node))
+        type_node.map(|type_node| self.get_type_from_type_node_(&type_node))
     }
 
     pub(super) fn get_type_of_variable_or_parameter_or_property(
@@ -324,39 +401,258 @@ impl TypeChecker {
         let links_type_is_none = { (*links).borrow().type_.is_none() };
         if links_type_is_none {
             let type_ = self.get_type_of_variable_or_parameter_or_property_worker(symbol);
-            let mut links_ref = links.borrow_mut();
-            if links_ref.type_.is_none() {
-                links_ref.type_ = Some(type_);
+            let mut links = links.borrow_mut();
+            if links.type_.is_none() {
+                links.type_ = Some(type_);
             }
         }
-        let links_ref = (*links).borrow();
-        links_ref.type_.clone().unwrap()
+        let links = (*links).borrow();
+        links.type_.clone().unwrap()
     }
 
     pub(super) fn get_type_of_variable_or_parameter_or_property_worker(
         &self,
         symbol: &Symbol,
     ) -> Rc<Type> {
+        if symbol.flags().intersects(SymbolFlags::Prototype) {
+            return self.get_type_of_prototype_property(symbol);
+        }
+        if ptr::eq(symbol, &*self.require_symbol()) {
+            return self.any_type();
+        }
+        if symbol.flags().intersects(SymbolFlags::ModuleExports) {
+            if let Some(symbol_value_declaration) = symbol.maybe_value_declaration() {
+                let file_symbol = self
+                    .get_symbol_of_node(
+                        &get_source_file_of_node(Some(&*symbol_value_declaration)).unwrap(),
+                    )
+                    .unwrap();
+                let result: Rc<Symbol> = self
+                    .create_symbol(
+                        file_symbol.flags(),
+                        __String::new("exports".to_owned()),
+                        None,
+                    )
+                    .into();
+                result.set_declarations(
+                    file_symbol
+                        .maybe_declarations()
+                        .as_ref()
+                        .map_or_else(|| vec![], Clone::clone),
+                );
+                result.set_parent(Some(symbol.symbol_wrapper()));
+                result
+                    .as_transient_symbol()
+                    .symbol_links()
+                    .borrow_mut()
+                    .target = Some(file_symbol.clone());
+                if let Some(file_symbol_value_declaration) = file_symbol.maybe_value_declaration() {
+                    result.set_value_declaration(file_symbol_value_declaration);
+                }
+                if let Some(file_symbol_members) = file_symbol.maybe_members().as_ref() {
+                    *result.maybe_members() = Some(Rc::new(RefCell::new(
+                        RefCell::borrow(file_symbol_members).clone(),
+                    )));
+                }
+                if let Some(file_symbol_exports) = file_symbol.maybe_exports().as_ref() {
+                    *result.maybe_exports() = Some(Rc::new(RefCell::new(
+                        RefCell::borrow(file_symbol_exports).clone(),
+                    )));
+                }
+                let mut members = create_symbol_table(None);
+                members.insert(__String::new("exports".to_owned()), result);
+                return self
+                    .create_anonymous_type(
+                        Some(symbol),
+                        Rc::new(RefCell::new(members)),
+                        vec![],
+                        vec![],
+                        vec![],
+                    )
+                    .into();
+            }
+        }
         Debug_.assert_is_defined(&symbol.maybe_value_declaration(), None);
-        let declaration = symbol.maybe_value_declaration().unwrap();
-
-        let type_: Rc<Type>;
-        if false {
-            unimplemented!()
-        } else if is_property_assignment(&declaration) {
-            type_ = self
-                .try_get_type_from_effective_type_node(&declaration)
-                .unwrap_or_else(|| self.check_property_assignment(&declaration, None));
-        } else if is_property_signature(&declaration) || is_variable_declaration(&declaration) {
-            type_ = self.get_widened_type_for_variable_like_declaration(&declaration);
-        } else {
-            unimplemented!()
+        let declaration = symbol.maybe_value_declaration();
+        let declaration = declaration.as_deref().unwrap();
+        if is_catch_clause_variable_declaration_or_binding_element(declaration) {
+            let type_node = get_effective_type_annotation_node(declaration);
+            if type_node.is_none() {
+                return if self.use_unknown_in_catch_variables {
+                    self.unknown_type()
+                } else {
+                    self.any_type()
+                };
+            }
+            let type_node = type_node.unwrap();
+            let type_ = self.get_type_of_node(&type_node);
+            return if self.is_type_any(Some(&*type_)) || Rc::ptr_eq(&type_, &self.unknown_type()) {
+                type_
+            } else {
+                self.error_type()
+            };
+        }
+        if is_source_file(declaration) && is_json_source_file(declaration) {
+            let declaration_as_source_file = declaration.as_source_file();
+            if declaration_as_source_file.statements.is_empty() {
+                return self.empty_object_type();
+            }
+            return self.get_widened_type(
+                &self.get_widened_literal_type(
+                    &self.check_expression(
+                        &declaration_as_source_file.statements[0]
+                            .as_expression_statement()
+                            .expression,
+                        None,
+                        None,
+                    ),
+                ),
+            );
         }
 
+        if !self.push_type_resolution(
+            &symbol.symbol_wrapper().into(),
+            TypeSystemPropertyName::Type,
+        ) {
+            if symbol.flags().intersects(SymbolFlags::ValueModule)
+                && !symbol.flags().intersects(SymbolFlags::Assignment)
+            {
+                return self.get_type_of_func_class_enum_module(symbol);
+            }
+            return self.report_circularity_error(symbol);
+        }
+        let type_: Rc<Type>;
+        if declaration.kind() == SyntaxKind::ExportAssignment {
+            type_ = self.widen_type_for_variable_like_declaration(
+                Some(
+                    self.try_get_type_from_effective_type_node(declaration)
+                        .unwrap_or_else(|| {
+                            self.check_expression_cached(
+                                &declaration.as_export_assignment().expression,
+                                None,
+                            )
+                        }),
+                ),
+                declaration,
+                None,
+            );
+        } else if is_binary_expression(declaration)
+            || is_in_js_file(Some(declaration))
+                && (is_call_expression(declaration)
+                    || (is_property_access_expression(declaration)
+                        || is_bindable_static_element_access_expression(declaration, None))
+                        && is_binary_expression(&declaration.parent()))
+        {
+            type_ =
+                self.get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None);
+        } else if is_property_access_expression(declaration)
+            || is_element_access_expression(declaration)
+            || is_identifier(declaration)
+            || is_string_literal_like(declaration)
+            || is_numeric_literal(declaration)
+            || is_class_declaration(declaration)
+            || is_function_declaration(declaration)
+            || (is_method_declaration(declaration) && !is_object_literal_method(declaration))
+            || is_method_signature(declaration)
+            || is_source_file(declaration)
+        {
+            if symbol.flags().intersects(
+                SymbolFlags::Function
+                    | SymbolFlags::Method
+                    | SymbolFlags::Class
+                    | SymbolFlags::Enum
+                    | SymbolFlags::ValueModule,
+            ) {
+                return self.get_type_of_func_class_enum_module(symbol);
+            }
+            type_ = if is_binary_expression(&declaration.parent()) {
+                self.get_widened_type_for_assignment_declaration(symbol, Option::<&Symbol>::None)
+            } else {
+                self.try_get_type_from_effective_type_node(declaration)
+                    .unwrap_or_else(|| self.any_type())
+            };
+        } else if is_property_assignment(declaration) {
+            type_ = self
+                .try_get_type_from_effective_type_node(declaration)
+                .unwrap_or_else(|| self.check_property_assignment(declaration, None));
+        } else if is_jsx_attribute(declaration) {
+            type_ = self
+                .try_get_type_from_effective_type_node(declaration)
+                .unwrap_or_else(|| self.check_jsx_attribute(declaration, None));
+        } else if is_shorthand_property_assignment(declaration) {
+            type_ = self
+                .try_get_type_from_effective_type_node(declaration)
+                .unwrap_or_else(|| {
+                    self.check_expression_for_mutable_location(
+                        &declaration.as_shorthand_property_assignment().name(),
+                        Some(CheckMode::Normal),
+                        Option::<&Type>::None,
+                        None,
+                    )
+                });
+        } else if is_object_literal_method(declaration) {
+            type_ = self
+                .try_get_type_from_effective_type_node(declaration)
+                .unwrap_or_else(|| {
+                    self.check_object_literal_method(declaration, Some(CheckMode::Normal))
+                });
+        } else if is_parameter(declaration)
+            || is_property_declaration(declaration)
+            || is_property_signature(declaration)
+            || is_variable_declaration(declaration)
+            || is_binding_element(declaration)
+            || is_jsdoc_property_like_tag(declaration)
+        {
+            type_ = self.get_widened_type_for_variable_like_declaration(declaration, Some(true));
+        } else if is_enum_declaration(declaration) {
+            type_ = self.get_type_of_func_class_enum_module(symbol);
+        } else if is_enum_member(declaration) {
+            type_ = self.get_type_of_enum_member(symbol);
+        } else if is_accessor(declaration) {
+            type_ = self
+                .resolve_type_of_accessors(symbol, None)
+                .unwrap_or_else(|| {
+                    Debug_.fail(Some(
+                        "Non-write accessor resolution must always produce a type",
+                    ))
+                });
+        } else {
+            Debug_.fail(Some(&format!(
+                "Unhandled declaration kind! {} for {}",
+                Debug_.format_syntax_kind(Some(declaration.kind())),
+                Debug_.format_symbol(symbol)
+            )));
+        }
+
+        if !self.pop_type_resolution() {
+            if symbol.flags().intersects(SymbolFlags::ValueModule)
+                && !symbol.flags().intersects(SymbolFlags::Assignment)
+            {
+                return self.get_type_of_func_class_enum_module(symbol);
+            }
+            return self.report_circularity_error(symbol);
+        }
         type_
     }
 
+    pub(super) fn resolve_type_of_accessors(
+        &self,
+        symbol: &Symbol,
+        writing: Option<bool>,
+    ) -> Option<Rc<Type>> {
+        let writing = writing.unwrap_or(false);
+        unimplemented!()
+    }
+
     pub(super) fn get_base_type_variable_of_class(&self, symbol: &Symbol) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_of_func_class_enum_module(&self, symbol: &Symbol) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_of_enum_member(&self, symbol: &Symbol) -> Rc<Type> {
         unimplemented!()
     }
 
@@ -371,6 +667,10 @@ impl TypeChecker {
             links.type_ = type_;
         }
         links.type_.clone().unwrap()
+    }
+
+    pub(super) fn report_circularity_error(&self, symbol: &Symbol) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn get_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {

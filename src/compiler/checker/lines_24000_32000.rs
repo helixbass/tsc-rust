@@ -416,6 +416,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_jsx_attribute(
+        &self,
+        node: &Node, /*JsxAttribute*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn is_known_property(
         &self,
         target_type: &Type,

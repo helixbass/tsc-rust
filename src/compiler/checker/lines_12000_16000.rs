@@ -765,6 +765,13 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_global_es_symbol_constructor_type_symbol(
+        &self,
+        report_errors: bool,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/> {
         let mut deferred_global_promise_type_ref = self.deferred_global_promise_type.borrow_mut();
         if let Some(deferred_global_promise_type) = deferred_global_promise_type_ref.as_ref() {

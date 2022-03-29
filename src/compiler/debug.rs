@@ -5,7 +5,10 @@ use std::cell::{Cell, RefCell};
 use std::fmt;
 use std::rc::Rc;
 
-use crate::{AssertionLevel, Node, NodeArray, NodeInterface, SyntaxKind};
+use crate::{
+    map, unescape_leading_underscores, AssertionLevel, Node, NodeArray, NodeInterface, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind,
+};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum LogLevel {
@@ -179,8 +182,24 @@ impl DebugType {
         }
     }
 
+    pub fn format_symbol(&self, symbol: &Symbol) -> String {
+        format!(
+            "{{ name: {}; flags: {}; declarations: {:?} }}",
+            unescape_leading_underscores(symbol.escaped_name()),
+            self.format_symbol_flags(Some(symbol.flags())),
+            map(
+                symbol.maybe_declarations().as_deref(),
+                |node: &Rc<Node>, _| self.format_syntax_kind(Some(node.kind()))
+            )
+        )
+    }
+
     pub fn format_syntax_kind(&self, kind: Option<SyntaxKind>) -> String {
         format!("{:?}", kind)
+    }
+
+    pub fn format_symbol_flags(&self, flags: Option<SymbolFlags>) -> String {
+        unimplemented!()
     }
 
     pub fn attach_node_array_debug_info(&self, array: &mut NodeArray) {

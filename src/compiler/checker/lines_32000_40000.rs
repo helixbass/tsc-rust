@@ -245,6 +245,14 @@ impl TypeChecker {
         )
     }
 
+    pub(super) fn check_object_literal_method(
+        &self,
+        node: &Node, /*MethodDeclaration*/
+        check_mode: Option<CheckMode>,
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_quick_type_of_expression(
         &self,
         node: &Node, /*Expression*/
@@ -386,6 +394,10 @@ impl TypeChecker {
             },
         );
         self.get_type_from_type_node_(node);
+    }
+
+    pub(super) fn is_private_within_ambient(&self, node: &Node) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn check_awaited_type(

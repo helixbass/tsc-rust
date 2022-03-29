@@ -318,6 +318,30 @@ impl PartialEq for TypeSystemEntity {
 
 impl Eq for TypeSystemEntity {}
 
+impl From<Rc<Node>> for TypeSystemEntity {
+    fn from(value: Rc<Node>) -> Self {
+        Self::Node(value)
+    }
+}
+
+impl From<Rc<Symbol>> for TypeSystemEntity {
+    fn from(value: Rc<Symbol>) -> Self {
+        Self::Symbol(value)
+    }
+}
+
+impl From<Rc<Type>> for TypeSystemEntity {
+    fn from(value: Rc<Type>) -> Self {
+        Self::Type(value)
+    }
+}
+
+impl From<Rc<Signature>> for TypeSystemEntity {
+    fn from(value: Rc<Signature>) -> Self {
+        Self::Signature(value)
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum TypeSystemPropertyName {
     Type,
