@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
+use super::{signature_has_rest_parameter, MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
     append, concatenate, create_symbol_table, escape_leading_underscores, find, find_ancestor,
     flat_map, get_assignment_declaration_kind, get_check_flags, get_declaration_of_kind,
@@ -16,8 +16,8 @@ use crate::{
     range_equals_rc, some, AssignmentDeclarationKind, BaseInterfaceType, CheckFlags, Debug_,
     Diagnostics, InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     TypePredicate, TypeSystemPropertyName, UnderscoreEscapedMap, __String,
     maybe_append_if_unique_rc,
 };
@@ -568,34 +568,68 @@ impl TypeChecker {
             Some("Class was missing valueDeclaration -OR- non-class had no interface declarations"),
         );
         let declaration = declaration.unwrap();
-        self.get_outer_type_parameters(&*declaration, None)
+        self.get_outer_type_parameters(&declaration, None)
     }
 
     pub(super) fn get_local_type_parameters_of_class_or_interface_or_type_alias(
         &self,
         symbol: &Symbol,
     ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
-        let declarations = symbol.maybe_declarations();
-        if declarations.is_none() {
-            return None;
-        }
-        let declarations = declarations.as_ref().unwrap();
+        let symbol_declarations = symbol.maybe_declarations();
+        let symbol_declarations = symbol_declarations.as_ref()?;
         let mut result: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
-        for node in declarations {
-            if node.kind() == SyntaxKind::InterfaceDeclaration
-                || node.kind() == SyntaxKind::ClassDeclaration
-                || node.kind() == SyntaxKind::ClassExpression
-                || false
-                || is_type_alias(&**node)
+        for node in symbol_declarations {
+            if matches!(
+                node.kind(),
+                SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::ClassDeclaration
+                    | SyntaxKind::ClassExpression
+            ) || self.is_js_constructor(Some(&**node))
+                || is_type_alias(node)
             {
                 let declaration = node;
                 result = self.append_type_parameters(
                     result,
-                    &get_effective_type_parameter_declarations(&*declaration),
+                    &get_effective_type_parameter_declarations(declaration),
                 );
             }
         }
         result
+    }
+
+    pub(super) fn get_type_parameters_of_class_or_interface(
+        &self,
+        symbol: &Symbol,
+    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+        let outer_type_parameters = self.get_outer_type_parameters_of_class_or_interface(symbol);
+        let local_type_parameters =
+            self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+        if outer_type_parameters.is_none() && local_type_parameters.is_none() {
+            return None;
+        }
+        Some(concatenate(
+            outer_type_parameters.unwrap_or_else(|| vec![]),
+            local_type_parameters.unwrap_or_else(|| vec![]),
+        ))
+    }
+
+    pub(super) fn is_mixin_constructor_type(&self, type_: &Type) -> bool {
+        let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct);
+        if signatures.len() == 1 {
+            let s = &signatures[0];
+            if s.type_parameters.is_none()
+                && s.parameters().len() == 1
+                && signature_has_rest_parameter(s)
+            {
+                let param_type = self.get_type_of_parameter(&s.parameters()[0]);
+                return self.is_type_any(Some(&*param_type))
+                    || matches!(
+                        self.get_element_type_of_array_type(&param_type),
+                        Some(element_type) if Rc::ptr_eq(&element_type, &self.any_type())
+                    );
+            }
+        }
+        false
     }
 
     pub(super) fn get_base_constructor_type_of_class(
