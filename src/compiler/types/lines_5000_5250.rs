@@ -460,6 +460,7 @@ pub trait TypeInterface {
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
     fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>);
+    fn maybe_pattern(&self) -> RefMut<Option<Rc<Node /*DestructuringPattern*/>>>;
     fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>>;
     fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
     fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
@@ -471,6 +472,7 @@ pub struct BaseType {
     pub flags: TypeFlags,
     pub id: Option<TypeId>,
     symbol: Option<Rc<Symbol>>,
+    pattern: RefCell<Option<Rc<Node>>>,
     alias_symbol: Option<Rc<Symbol>>,
     alias_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
     immediate_base_constraint: RefCell<Option<Rc<Type>>>,
@@ -483,6 +485,7 @@ impl BaseType {
             flags,
             id: None,
             symbol: None,
+            pattern: RefCell::new(None),
             alias_symbol: None,
             alias_type_arguments: RefCell::new(None),
             immediate_base_constraint: RefCell::new(None),
@@ -522,6 +525,10 @@ impl TypeInterface for BaseType {
 
     fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>) {
         self.symbol = symbol;
+    }
+
+    fn maybe_pattern(&self) -> RefMut<Option<Rc<Node>>> {
+        self.pattern.borrow_mut()
     }
 
     fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>> {

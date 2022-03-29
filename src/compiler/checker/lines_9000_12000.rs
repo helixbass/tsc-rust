@@ -6,14 +6,17 @@ use std::rc::Rc;
 
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    concatenate, create_symbol_table, escape_leading_underscores, for_each_child_recursively_bool,
-    get_check_flags, get_declaration_of_kind, get_effective_type_annotation_node,
-    get_effective_type_parameter_declarations, has_dynamic_name, is_property_access_expression,
-    is_property_assignment, is_property_signature, is_type_alias, is_variable_declaration,
-    range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeArray, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    concatenate, create_symbol_table, escape_leading_underscores, for_each,
+    for_each_child_recursively_bool, get_check_flags, get_declaration_of_kind,
+    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
+    get_this_container, has_dynamic_name, is_binary_expression, is_binding_pattern,
+    is_property_access_expression, is_property_assignment, is_property_signature,
+    is_prototype_property_assignment, is_type_alias, is_variable_declaration, range_equals_rc,
+    BaseInterfaceType, CheckFlags, Debug_, HasInitializerInterface, IndexInfo, InterfaceType,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeMapper, TypePredicate, UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
 };
 
@@ -40,7 +43,12 @@ impl TypeChecker {
         &self,
         expression: &Node, /*Expression*/
     ) -> bool {
-        unimplemented!()
+        let this_container = get_this_container(expression, false);
+        matches!(
+            this_container.kind(),
+            SyntaxKind::Constructor | SyntaxKind::FunctionDeclaration
+        ) || this_container.kind() == SyntaxKind::FunctionExpression
+            && !is_prototype_property_assignment(&this_container.parent())
     }
 
     pub(super) fn get_constructor_defined_this_assignment_types(
@@ -48,7 +56,146 @@ impl TypeChecker {
         types: &[Rc<Type>],
         declarations: &[Rc<Node /*Declaration*/>],
     ) -> Option<Vec<Rc<Type>>> {
-        unimplemented!()
+        Debug_.assert(types.len() == declarations.len(), None);
+        Some(types.iter().enumerate().filter(|(i, _)| {
+            let declaration = &declarations[*i];
+            let expression = if is_binary_expression(declaration) {
+                Some(declaration.node_wrapper())
+            } else if is_binary_expression(&declaration.parent()) {
+                Some(declaration.parent())
+            } else {
+                None
+            };
+            matches!(expression, Some(expression) if self.is_declaration_in_constructor(&expression))
+        }).map(|(_, type_)| type_.clone()).collect())
+    }
+
+    pub(super) fn get_type_from_binding_element(
+        &self,
+        element: &Node, /*BindingElement*/
+        include_pattern_in_type: Option<bool>,
+        report_errors: Option<bool>,
+    ) -> Rc<Type> {
+        let element_as_binding_element = element.as_binding_element();
+        if element_as_binding_element.maybe_initializer().is_some() {
+            let contextual_type = if is_binding_pattern(Some(element_as_binding_element.name())) {
+                self.get_type_from_binding_pattern(
+                    &element_as_binding_element.name(),
+                    Some(true),
+                    Some(false),
+                )
+            } else {
+                self.unknown_type()
+            };
+            return self.add_optionality(
+                &self.widen_type_inferred_from_initializer(
+                    element,
+                    &self.check_declaration_initializer(element, Some(contextual_type)),
+                ),
+                None,
+                None,
+            );
+        }
+        if is_binding_pattern(Some(element_as_binding_element.name())) {
+            return self.get_type_from_binding_pattern(
+                &element_as_binding_element.name(),
+                include_pattern_in_type,
+                report_errors,
+            );
+        }
+        if matches!(report_errors, Some(true))
+            && !self.declaration_belongs_to_private_ambient_member(element)
+        {
+            self.report_implicit_any(element, &self.any_type(), None);
+        }
+        if matches!(include_pattern_in_type, Some(true)) {
+            self.non_inferrable_any_type()
+        } else {
+            self.any_type()
+        }
+    }
+
+    pub(super) fn get_type_from_object_binding_pattern(
+        &self,
+        pattern: &Node, /*ObjectBindingPattern*/
+        include_pattern_in_type: bool,
+        report_errors: bool,
+    ) -> Rc<Type> {
+        let mut members = create_symbol_table(None);
+        let mut string_index_info: Option<Rc<IndexInfo>> = None;
+        let mut object_flags =
+            ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
+        for_each(
+            &pattern.as_object_binding_pattern().elements,
+            |e: &Rc<Node>, _| {
+                let e_as_binding_element = e.as_binding_element();
+                let name = e_as_binding_element
+                    .property_name
+                    .as_ref()
+                    .map_or_else(|| e_as_binding_element.name(), Clone::clone);
+                if e_as_binding_element.dot_dot_dot_token.is_some() {
+                    string_index_info = Some(Rc::new(self.create_index_info(
+                        self.string_type(),
+                        self.any_type(),
+                        false,
+                        None,
+                    )));
+                    return Option::<()>::None;
+                }
+
+                let expr_type = self.get_literal_type_from_property_name(&name);
+                if !self.is_type_usable_as_property_name(&expr_type) {
+                    object_flags |= ObjectFlags::ObjectLiteralPatternWithComputedProperties;
+                    return Option::<()>::None;
+                }
+                let text = self.get_property_name_from_type(&expr_type);
+                let flags = SymbolFlags::Property
+                    | if e_as_binding_element.maybe_initializer().is_some() {
+                        SymbolFlags::Optional
+                    } else {
+                        SymbolFlags::None
+                    };
+                let symbol: Rc<Symbol> = self.create_symbol(flags, text, None).into();
+                symbol
+                    .as_transient_symbol()
+                    .symbol_links()
+                    .borrow_mut()
+                    .type_ = Some(self.get_type_from_binding_element(
+                    e,
+                    Some(include_pattern_in_type),
+                    Some(report_errors),
+                ));
+                symbol
+                    .as_transient_symbol()
+                    .symbol_links()
+                    .borrow_mut()
+                    .binding_element = Some(e.clone());
+                members.insert(symbol.escaped_name().clone(), symbol);
+                Option::<()>::None
+            },
+        );
+        let result: Rc<Type> = self
+            .create_anonymous_type(
+                Option::<&Symbol>::None,
+                Rc::new(RefCell::new(members)),
+                vec![],
+                vec![],
+                if let Some(string_index_info) = string_index_info {
+                    vec![string_index_info]
+                } else {
+                    vec![]
+                },
+            )
+            .into();
+        let result_as_object_type = result.as_object_type();
+        result_as_object_type.set_object_flags(result_as_object_type.object_flags() | object_flags);
+        if include_pattern_in_type {
+            *result.maybe_pattern() = Some(pattern.node_wrapper());
+            result_as_object_type.set_object_flags(
+                result_as_object_type.object_flags() | ObjectFlags::ContainsObjectOrArrayLiteral,
+            );
+        }
+        result
     }
 
     pub(super) fn get_type_from_binding_pattern(
@@ -80,6 +227,13 @@ impl TypeChecker {
         if let Some(type_) = type_ {
             return self.get_widened_type(type_.borrow());
         }
+        unimplemented!()
+    }
+
+    pub(super) fn declaration_belongs_to_private_ambient_member(
+        &self,
+        declaration: &Node, /*VariableLikeDeclaration*/
+    ) -> bool {
         unimplemented!()
     }
 

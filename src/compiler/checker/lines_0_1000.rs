@@ -2479,6 +2479,10 @@ impl TypeChecker {
         self.unresolved_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn non_inferrable_any_type(&self) -> Rc<Type> {
+        self.non_inferrable_any_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn intrinsic_marker_type(&self) -> Rc<Type> {
         self.intrinsic_marker_type.as_ref().unwrap().clone()
     }

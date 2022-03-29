@@ -1176,6 +1176,10 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_symbol(symbol)
                     }
 
+                    fn maybe_pattern(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
+                        self.#first_field_name.maybe_pattern()
+                    }
+
                     fn maybe_alias_symbol(&self) -> ::std::option::Option<::std::rc::Rc<crate::Symbol>> {
                         self.#first_field_name.maybe_alias_symbol()
                     }
@@ -1455,6 +1459,12 @@ fn get_type_enum_interface_impl(
                     fn set_symbol(&mut self, symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
+                        }
+                    }
+
+                    fn maybe_pattern(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_pattern()),*
                         }
                     }
 
