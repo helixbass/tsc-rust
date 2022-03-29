@@ -10,9 +10,9 @@ use crate::{
     is_type_alias, range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, InterfaceType,
     InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
     NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
-    maybe_append_if_unique_rc,
+    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
+    __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -42,6 +42,31 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_of_func_class_enum_module(&self, symbol: &Symbol) -> Rc<Type> {
+        let mut links = self.get_symbol_links(symbol);
+        let original_links = links.clone();
+        let mut symbol = symbol.symbol_wrapper();
+        if (*links).borrow().type_.is_none() {
+            let expando = symbol
+                .maybe_value_declaration()
+                .and_then(|value_declaration| {
+                    self.get_symbol_of_expando(&value_declaration, false)
+                });
+            if let Some(expando) = expando {
+                let merged = self.merge_js_symbols(&symbol, Some(expando));
+                if let Some(merged) = merged {
+                    symbol = merged.clone();
+                    links = merged.as_transient_symbol().symbol_links();
+                }
+            }
+            let type_ = self.get_type_of_func_class_enum_module_worker(&symbol);
+            original_links.borrow_mut().type_ = Some(type_.clone());
+            links.borrow_mut().type_ = Some(type_);
+        }
+        let ret = (*links).borrow().type_.clone().unwrap();
+        ret
+    }
+
+    pub(super) fn get_type_of_func_class_enum_module_worker(&self, symbol: &Symbol) -> Rc<Type> {
         unimplemented!()
     }
 

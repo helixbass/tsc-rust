@@ -569,6 +569,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_symbol_of_expando(
+        &self,
+        node: &Node,
+        allow_declaration: bool,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_with_synthetic_default_only(
         &self,
         type_: &Type,
