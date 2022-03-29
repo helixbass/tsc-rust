@@ -1241,4 +1241,11 @@ impl TypeChecker {
     ) -> Rc<Type> {
         unimplemented!()
     }
+
+    pub(super) fn get_infer_type_parameters(
+        &self,
+        node: &Node, /*ConditionalTypeNode*/
+    ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
+        unimplemented!()
+    }
 }

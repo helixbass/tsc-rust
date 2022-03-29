@@ -7,17 +7,19 @@ use std::rc::Rc;
 
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    concatenate, create_symbol_table, escape_leading_underscores, find, get_check_flags,
-    get_declaration_of_kind, get_effective_type_annotation_node,
-    get_effective_type_parameter_declarations, get_object_flags, has_dynamic_name,
-    is_access_expression, is_export_assignment, is_shorthand_ambient_module_symbol, is_source_file,
-    is_type_alias, maybe_first_defined, range_equals_rc, some, BaseInterfaceType, CheckFlags,
-    Debug_, Diagnostics, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, TypeSystemPropertyName,
-    UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
+    append, concatenate, create_symbol_table, escape_leading_underscores, find, find_ancestor,
+    flat_map, get_assignment_declaration_kind, get_check_flags, get_declaration_of_kind,
+    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
+    get_object_flags, get_parameter_symbol_from_jsdoc, has_dynamic_name, is_access_expression,
+    is_binary_expression, is_export_assignment, is_jsdoc_template_tag,
+    is_shorthand_ambient_module_symbol, is_source_file, is_type_alias, maybe_first_defined,
+    range_equals_rc, some, AssignmentDeclarationKind, BaseInterfaceType, CheckFlags, Debug_,
+    Diagnostics, InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    InternalSymbolName, LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, TypeSystemPropertyName, UnderscoreEscapedMap, __String,
+    maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -407,8 +409,149 @@ impl TypeChecker {
     pub(super) fn get_outer_type_parameters(
         &self,
         node: &Node,
+        include_this_types: Option<bool>,
     ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
-        None
+        let mut node = Some(node.node_wrapper());
+        loop {
+            node = node.unwrap().maybe_parent();
+            if let Some(node_present) = node.as_ref() {
+                if is_binary_expression(node_present) {
+                    let assignment_kind = get_assignment_declaration_kind(node_present);
+                    if matches!(
+                        assignment_kind,
+                        AssignmentDeclarationKind::Prototype
+                            | AssignmentDeclarationKind::PrototypeProperty
+                    ) {
+                        let symbol =
+                            self.get_symbol_of_node(&node_present.as_binary_expression().left);
+                        if let Some(symbol) = symbol {
+                            if let Some(symbol_parent) = symbol.maybe_parent() {
+                                if find_ancestor(symbol_parent.maybe_value_declaration(), |d| {
+                                    ptr::eq(&**node_present, d)
+                                })
+                                .is_none()
+                                {
+                                    node = symbol_parent.maybe_value_declaration();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if node.is_none() {
+                return None;
+            }
+            let node_present = node.as_deref().unwrap();
+            match node_present.kind() {
+                SyntaxKind::ClassDeclaration
+                | SyntaxKind::ClassExpression
+                | SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::CallSignature
+                | SyntaxKind::ConstructSignature
+                | SyntaxKind::MethodSignature
+                | SyntaxKind::FunctionType
+                | SyntaxKind::ConstructorType
+                | SyntaxKind::JSDocFunctionType
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction
+                | SyntaxKind::TypeAliasDeclaration
+                | SyntaxKind::JSDocTemplateTag
+                | SyntaxKind::JSDocTypedefTag
+                | SyntaxKind::JSDocEnumTag
+                | SyntaxKind::JSDocCallbackTag
+                | SyntaxKind::MappedType
+                | SyntaxKind::ConditionalType => {
+                    let mut outer_type_parameters =
+                        self.get_outer_type_parameters(node_present, include_this_types);
+                    if node_present.kind() == SyntaxKind::MappedType {
+                        if outer_type_parameters.is_none() {
+                            outer_type_parameters = Some(vec![]);
+                        }
+                        append(
+                            outer_type_parameters.as_mut().unwrap(),
+                            Some(
+                                self.get_declared_type_of_type_parameter(
+                                    &self
+                                        .get_symbol_of_node(
+                                            &node_present.as_mapped_type_node().type_parameter,
+                                        )
+                                        .unwrap(),
+                                ),
+                            ),
+                        );
+                        return outer_type_parameters;
+                    } else if node_present.kind() == SyntaxKind::ConditionalType {
+                        let infer_type_parameters = self.get_infer_type_parameters(node_present);
+                        if outer_type_parameters.is_none() && infer_type_parameters.is_none() {
+                            return None;
+                        }
+                        return Some(concatenate(
+                            outer_type_parameters.unwrap_or_else(|| vec![]),
+                            infer_type_parameters.unwrap_or_else(|| vec![]),
+                        ));
+                    }
+                    let mut outer_and_own_type_parameters = self.append_type_parameters(
+                        outer_type_parameters,
+                        &get_effective_type_parameter_declarations(node_present),
+                    );
+                    let this_type = if matches!(include_this_types, Some(true))
+                        && (matches!(
+                            node_present.kind(),
+                            SyntaxKind::ClassDeclaration
+                                | SyntaxKind::ClassExpression
+                                | SyntaxKind::InterfaceDeclaration
+                        ) || self.is_js_constructor(Some(node_present)))
+                    {
+                        self.get_declared_type_of_class_or_interface(
+                            &self.get_symbol_of_node(node_present).unwrap(),
+                        )
+                        .as_interface_type()
+                        .maybe_this_type()
+                    } else {
+                        None
+                    };
+                    return if let Some(this_type) = this_type {
+                        if outer_and_own_type_parameters.is_none() {
+                            outer_and_own_type_parameters = Some(vec![]);
+                        }
+                        append(
+                            outer_and_own_type_parameters.as_mut().unwrap(),
+                            Some(this_type),
+                        );
+                        outer_and_own_type_parameters
+                    } else {
+                        outer_and_own_type_parameters
+                    };
+                }
+                SyntaxKind::JSDocParameterTag => {
+                    let param_symbol = get_parameter_symbol_from_jsdoc(node_present);
+                    if let Some(param_symbol) = param_symbol {
+                        node = param_symbol.maybe_value_declaration();
+                    }
+                }
+                SyntaxKind::JSDocComment => {
+                    let outer_type_parameters =
+                        self.get_outer_type_parameters(node_present, include_this_types);
+                    return if let Some(node_tags) = node_present.as_jsdoc().tags.as_deref() {
+                        self.append_type_parameters(
+                            outer_type_parameters,
+                            &flat_map(Some(node_tags), |t: &Rc<Node>, _| {
+                                if is_jsdoc_template_tag(t) {
+                                    t.as_jsdoc_template_tag().type_parameters.to_vec()
+                                } else {
+                                    vec![]
+                                }
+                            }),
+                        )
+                    } else {
+                        outer_type_parameters
+                    };
+                }
+                _ => (),
+            }
+        }
     }
 
     pub(super) fn get_outer_type_parameters_of_class_or_interface(
@@ -425,7 +568,7 @@ impl TypeChecker {
             Some("Class was missing valueDeclaration -OR- non-class had no interface declarations"),
         );
         let declaration = declaration.unwrap();
-        self.get_outer_type_parameters(&*declaration)
+        self.get_outer_type_parameters(&*declaration, None)
     }
 
     pub(super) fn get_local_type_parameters_of_class_or_interface_or_type_alias(
