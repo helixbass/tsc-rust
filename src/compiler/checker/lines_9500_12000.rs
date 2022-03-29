@@ -10,18 +10,18 @@ use crate::{
     add_related_info, append, concatenate, create_diagnostic_for_node, create_symbol_table,
     escape_leading_underscores, filter, find, find_ancestor, flat_map,
     get_assignment_declaration_kind, get_check_flags, get_declaration_of_kind,
-    get_effective_base_type_node, get_effective_type_annotation_node,
-    get_effective_type_parameter_declarations, get_object_flags, get_parameter_symbol_from_jsdoc,
-    has_dynamic_name, is_access_expression, is_binary_expression, is_export_assignment,
-    is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol, is_source_file,
-    is_type_alias, length, map, maybe_first_defined, range_equals_rc, same_map, some,
-    AssignmentDeclarationKind, BaseInterfaceType, CheckFlags, Debug_, Diagnostics, InterfaceType,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
-    LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, TypeSystemPropertyName, UnderscoreEscapedMap, __String,
-    maybe_append_if_unique_rc,
+    get_effective_base_type_node, get_effective_implements_type_nodes,
+    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
+    get_object_flags, get_parameter_symbol_from_jsdoc, has_dynamic_name, is_access_expression,
+    is_binary_expression, is_export_assignment, is_in_js_file, is_jsdoc_template_tag,
+    is_shorthand_ambient_module_symbol, is_source_file, is_type_alias, length, map,
+    maybe_first_defined, range_equals_rc, same_map, some, AssignmentDeclarationKind,
+    BaseInterfaceType, CheckFlags, Debug_, Diagnostics, InterfaceType, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeMapper, TypePredicate,
+    TypeSystemPropertyName, UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -841,6 +841,42 @@ impl TypeChecker {
             .maybe_resolved_base_constructor_type()
             .clone()
             .unwrap()
+    }
+
+    pub(super) fn get_implements_types(
+        &self,
+        type_: &Type, /*InterfaceType*/
+    ) -> Vec<Rc<Type /*BaseType*/>> {
+        let mut resolved_implements_types: Vec<Rc<Type /*BaseType*/>> = vec![];
+        if let Some(type_symbol_declarations) = type_.symbol().maybe_declarations().as_deref() {
+            for declaration in type_symbol_declarations {
+                let implements_type_nodes = get_effective_implements_type_nodes(declaration);
+                if implements_type_nodes.is_none() {
+                    continue;
+                }
+                let implements_type_nodes = implements_type_nodes.unwrap();
+                for node in implements_type_nodes {
+                    let implements_type = self.get_type_from_type_node_(&node);
+                    if !self.is_error_type(&implements_type) {
+                        resolved_implements_types.push(implements_type);
+                    }
+                }
+            }
+        }
+        resolved_implements_types
+    }
+
+    pub(super) fn report_circular_base_type(&self, node: &Node, type_: &Type) {
+        self.error(
+            Some(node),
+            &Diagnostics::Type_0_recursively_references_itself_as_a_base_type,
+            Some(vec![self.type_to_string_(
+                type_,
+                Option::<&Node>::None,
+                Some(TypeFormatFlags::WriteArrayAsGenericType),
+                None,
+            )]),
+        );
     }
 
     pub(super) fn get_base_types(
