@@ -7,19 +7,19 @@ use std::rc::Rc;
 
 use super::{signature_has_rest_parameter, MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    append, concatenate, create_symbol_table, escape_leading_underscores, find, find_ancestor,
-    flat_map, get_assignment_declaration_kind, get_check_flags, get_declaration_of_kind,
-    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
-    get_object_flags, get_parameter_symbol_from_jsdoc, has_dynamic_name, is_access_expression,
-    is_binary_expression, is_export_assignment, is_jsdoc_template_tag,
-    is_shorthand_ambient_module_symbol, is_source_file, is_type_alias, maybe_first_defined,
-    range_equals_rc, some, AssignmentDeclarationKind, BaseInterfaceType, CheckFlags, Debug_,
-    Diagnostics, InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    InternalSymbolName, LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, TypeSystemPropertyName, UnderscoreEscapedMap, __String,
-    maybe_append_if_unique_rc,
+    append, concatenate, create_symbol_table, escape_leading_underscores, filter, find,
+    find_ancestor, flat_map, get_assignment_declaration_kind, get_check_flags,
+    get_declaration_of_kind, get_effective_base_type_node, get_effective_type_annotation_node,
+    get_effective_type_parameter_declarations, get_object_flags, get_parameter_symbol_from_jsdoc,
+    has_dynamic_name, is_access_expression, is_binary_expression, is_export_assignment,
+    is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol, is_source_file,
+    is_type_alias, length, maybe_first_defined, range_equals_rc, some, AssignmentDeclarationKind,
+    BaseInterfaceType, CheckFlags, Debug_, Diagnostics, InterfaceType, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, TypeSystemPropertyName,
+    UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -630,6 +630,50 @@ impl TypeChecker {
             }
         }
         false
+    }
+
+    pub(super) fn mixin_constructor_type(&self, type_: &Type) -> bool {
+        if !self
+            .get_signatures_of_type(type_, SignatureKind::Construct)
+            .is_empty()
+        {
+            return true;
+        }
+        if type_.flags().intersects(TypeFlags::TypeVariable) {
+            let constraint = self.get_base_constraint_of_type(type_);
+            return matches!(
+                constraint,
+                Some(constraint) if self.is_mixin_constructor_type(&constraint)
+            );
+        }
+        false
+    }
+
+    pub(super) fn get_base_type_node_of_class(
+        &self,
+        type_: &Type, /*InterfaceType*/
+    ) -> Option<Rc<Node /*ExpressionWithTypeArguments*/>> {
+        get_effective_base_type_node(&type_.symbol().maybe_value_declaration().unwrap())
+    }
+
+    pub(super) fn get_constructors_for_type_arguments(
+        &self,
+        type_: &Type,
+        type_argument_nodes: Option<&[Rc<Node /*TypeNode*/>]>,
+        location: &Node,
+    ) -> Vec<Rc<Signature>> {
+        let type_arg_count = length(type_argument_nodes);
+        let is_javascript = is_in_js_file(Some(location));
+        filter(
+            Some(&self.get_signatures_of_type(type_, SignatureKind::Construct)),
+            |sig: &Rc<Signature>| {
+                (is_javascript
+                    || type_arg_count
+                        >= self.get_min_type_argument_count(sig.type_parameters.as_deref()))
+                    && type_arg_count <= length(sig.type_parameters.as_deref())
+            },
+        )
+        .unwrap()
     }
 
     pub(super) fn get_base_constructor_type_of_class(

@@ -177,6 +177,13 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_min_type_argument_count(
+        &self,
+        type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+    ) -> usize {
+        unimplemented!()
+    }
+
     pub(super) fn fill_missing_type_arguments(
         &self,
         type_arguments: Option<Vec<Rc<Type>>>,
