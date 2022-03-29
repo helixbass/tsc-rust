@@ -7,19 +7,21 @@ use std::rc::Rc;
 
 use super::{signature_has_rest_parameter, MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    append, concatenate, create_symbol_table, escape_leading_underscores, filter, find,
-    find_ancestor, flat_map, get_assignment_declaration_kind, get_check_flags,
-    get_declaration_of_kind, get_effective_base_type_node, get_effective_type_annotation_node,
+    add_related_info, append, concatenate, create_diagnostic_for_node, create_symbol_table,
+    escape_leading_underscores, filter, find, find_ancestor, flat_map,
+    get_assignment_declaration_kind, get_check_flags, get_declaration_of_kind,
+    get_effective_base_type_node, get_effective_type_annotation_node,
     get_effective_type_parameter_declarations, get_object_flags, get_parameter_symbol_from_jsdoc,
     has_dynamic_name, is_access_expression, is_binary_expression, is_export_assignment,
     is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol, is_source_file,
-    is_type_alias, length, maybe_first_defined, range_equals_rc, some, AssignmentDeclarationKind,
-    BaseInterfaceType, CheckFlags, Debug_, Diagnostics, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, TypeSystemPropertyName,
-    UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
+    is_type_alias, length, map, maybe_first_defined, range_equals_rc, same_map, some,
+    AssignmentDeclarationKind, BaseInterfaceType, CheckFlags, Debug_, Diagnostics, InterfaceType,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
+    LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, TypeSystemPropertyName, UnderscoreEscapedMap, __String,
+    maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -632,7 +634,7 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn mixin_constructor_type(&self, type_: &Type) -> bool {
+    pub(super) fn is_constructor_type(&self, type_: &Type) -> bool {
         if !self
             .get_signatures_of_type(type_, SignatureKind::Construct)
             .is_empty()
@@ -676,11 +678,169 @@ impl TypeChecker {
         .unwrap()
     }
 
+    pub(super) fn get_instantiated_constructors_for_type_arguments(
+        &self,
+        type_: &Type,
+        type_argument_nodes: Option<&[Rc<Node /*TypeNode*/>]>,
+        location: &Node,
+    ) -> Vec<Rc<Signature>> {
+        let signatures =
+            self.get_constructors_for_type_arguments(type_, type_argument_nodes, location);
+        let type_arguments = map(type_argument_nodes, |type_argument_node: &Rc<Node>, _| {
+            self.get_type_from_type_node_(type_argument_node)
+        });
+        same_map(Some(&signatures), |sig: &Rc<Signature>, _| {
+            if some(
+                sig.type_parameters.as_deref(),
+                Option::<fn(&Rc<Type>) -> bool>::None,
+            ) {
+                self.get_signature_instantiation(
+                    sig,
+                    type_arguments.as_deref(),
+                    is_in_js_file(Some(location)),
+                    None,
+                )
+            } else {
+                sig.clone()
+            }
+        })
+        .unwrap()
+    }
+
     pub(super) fn get_base_constructor_type_of_class(
         &self,
         type_: &Type, /*InterfaceType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        if type_
+            .as_interface_type()
+            .maybe_resolved_base_constructor_type()
+            .is_none()
+        {
+            let decl = type_.symbol().maybe_value_declaration().unwrap();
+            let extended = get_effective_base_type_node(&decl);
+            let base_type_node = self.get_base_type_node_of_class(type_);
+            if base_type_node.is_none() {
+                let ret = self.undefined_type();
+                *type_
+                    .as_interface_type()
+                    .maybe_resolved_base_constructor_type() = Some(ret.clone());
+                return ret;
+            }
+            let base_type_node = base_type_node.unwrap();
+            if !self.push_type_resolution(
+                &type_.type_wrapper().into(),
+                TypeSystemPropertyName::ResolvedBaseConstructorType,
+            ) {
+                return self.error_type();
+            }
+            let base_constructor_type = self.check_expression(
+                &base_type_node
+                    .as_expression_with_type_arguments()
+                    .expression,
+                None,
+                None,
+            );
+            if let Some(extended) = extended.as_ref() {
+                Debug_.assert(
+                    extended
+                        .as_expression_with_type_arguments()
+                        .type_arguments
+                        .is_none(),
+                    None,
+                );
+                self.check_expression(
+                    &extended.as_expression_with_type_arguments().expression,
+                    None,
+                    None,
+                );
+            }
+            if base_constructor_type
+                .flags()
+                .intersects(TypeFlags::Object | TypeFlags::Intersection)
+            {
+                self.resolve_structured_type_members(&base_constructor_type);
+            }
+            if !self.pop_type_resolution() {
+                self.error(
+                    type_.symbol().maybe_value_declaration(),
+                    &Diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_base_expression,
+                    Some(vec![
+                        self.symbol_to_string_(&type_.symbol(), Option::<&Node>::None, None, None, None)
+                    ])
+                );
+                let ret = self.error_type();
+                *type_
+                    .as_interface_type()
+                    .maybe_resolved_base_constructor_type() = Some(ret.clone());
+                return ret;
+            }
+            if !base_constructor_type.flags().intersects(TypeFlags::Any)
+                && !Rc::ptr_eq(&base_constructor_type, &self.null_widening_type())
+                && self.is_constructor_type(&base_constructor_type)
+            {
+                let err = self.error(
+                    Some(
+                        &*base_type_node
+                            .as_expression_with_type_arguments()
+                            .expression,
+                    ),
+                    &Diagnostics::Type_0_is_not_a_constructor_function_type,
+                    Some(vec![self.type_to_string_(
+                        &base_constructor_type,
+                        Option::<&Node>::None,
+                        None,
+                        None,
+                    )]),
+                );
+                if base_constructor_type
+                    .flags()
+                    .intersects(TypeFlags::TypeParameter)
+                {
+                    let constraint =
+                        self.get_constraint_from_type_parameter(&base_constructor_type);
+                    let mut ctor_return = self.unknown_type();
+                    if let Some(constraint) = constraint {
+                        let ctor_sig =
+                            self.get_signatures_of_type(&constraint, SignatureKind::Construct);
+                        if let Some(ctor_sig_0) = ctor_sig.get(0) {
+                            ctor_return = self.get_return_type_of_signature(ctor_sig_0);
+                        }
+                    }
+                    if let Some(base_constructor_type_symbol_declarations) = base_constructor_type
+                        .symbol()
+                        .maybe_declarations()
+                        .as_deref()
+                    {
+                        add_related_info(
+                            &err,
+                            vec![Rc::new(
+                                create_diagnostic_for_node(
+                                    &base_constructor_type_symbol_declarations[0],
+                                    &Diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1,
+                                    Some(vec![
+                                        self.symbol_to_string_(&base_constructor_type.symbol(), Option::<&Node>::None, None, None, None),
+                                        self.type_to_string_(&ctor_return, Option::<&Node>::None, None, None)
+                                    ])
+                                ).into()
+                            )]
+                        );
+                    }
+                }
+                let ret = self.error_type();
+                *type_
+                    .as_interface_type()
+                    .maybe_resolved_base_constructor_type() = Some(ret.clone());
+                return ret;
+            }
+            *type_
+                .as_interface_type()
+                .maybe_resolved_base_constructor_type() = Some(base_constructor_type);
+        }
+        type_
+            .as_interface_type()
+            .maybe_resolved_base_constructor_type()
+            .clone()
+            .unwrap()
     }
 
     pub(super) fn get_base_types(

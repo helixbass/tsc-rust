@@ -2527,6 +2527,10 @@ impl TypeChecker {
         self.null_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn null_widening_type(&self) -> Rc<Type> {
+        self.null_widening_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn string_type(&self) -> Rc<Type> {
         self.string_type.as_ref().unwrap().clone()
     }

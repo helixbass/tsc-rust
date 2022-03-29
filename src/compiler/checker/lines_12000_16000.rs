@@ -347,6 +347,16 @@ impl TypeChecker {
         self.get_return_type_of_type_tag(declaration)
     }
 
+    pub(super) fn get_signature_instantiation(
+        &self,
+        signature: &Signature,
+        type_arguments: Option<&[Rc<Type>]>,
+        is_javascript: bool,
+        inferred_type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+    ) -> Rc<Signature> {
+        unimplemented!()
+    }
+
     pub(super) fn get_or_create_type_from_signature(
         &self,
         signature: &Signature,
