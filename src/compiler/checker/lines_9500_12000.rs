@@ -1,35 +1,17 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::convert::TryInto;
-use std::ptr;
 use std::rc::Rc;
 
-use super::{CheckMode, MappedTypeModifiers, MembersOrExportsResolutionKind};
+use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    concatenate, create_symbol_table, escape_leading_underscores, find, find_last_index, for_each,
-    for_each_child_recursively_bool, get_check_flags, get_declaration_of_kind,
-    get_effective_return_type_node, get_effective_set_accessor_type_annotation_node,
-    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
-    get_root_declaration, get_source_file_of_node, get_this_container, has_dynamic_name,
-    is_accessor, is_binary_expression, is_bindable_static_element_access_expression,
-    is_binding_element, is_binding_pattern, is_call_expression,
-    is_catch_clause_variable_declaration_or_binding_element, is_class_declaration,
-    is_element_access_expression, is_enum_declaration, is_enum_member, is_function_declaration,
-    is_identifier, is_in_js_file, is_jsdoc_property_like_tag, is_json_source_file,
-    is_jsx_attribute, is_method_declaration, is_method_signature, is_numeric_literal,
-    is_object_literal_method, is_omitted_expression, is_parameter, is_property_access_expression,
-    is_property_assignment, is_property_declaration, is_property_signature,
-    is_prototype_property_assignment, is_shorthand_property_assignment, is_source_file,
-    is_string_literal_like, is_type_alias, is_variable_declaration, last_or_undefined, map,
-    range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, Diagnostics, ElementFlags,
-    HasInitializerInterface, IndexInfo, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, LiteralType, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ScriptTarget, Signature,
-    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, TypeSystemPropertyName, UnderscoreEscapedMap, __String,
+    concatenate, create_symbol_table, escape_leading_underscores, find, get_check_flags,
+    get_declaration_of_kind, get_effective_type_parameter_declarations, has_dynamic_name,
+    is_type_alias, range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, InterfaceType,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
     maybe_append_if_unique_rc,
 };
 
