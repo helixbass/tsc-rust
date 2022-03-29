@@ -15,6 +15,10 @@ use crate::{
 };
 
 impl TypeChecker {
+    pub(super) fn is_duplicated_common_js_export(&self, declarations: Option<&[Rc<Node>]>) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn check_source_element<TNodeRef: Borrow<Node>>(&self, node: Option<TNodeRef>) {
         if let Some(node) = node {
             let node = node.borrow();

@@ -8,13 +8,14 @@ use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
     concatenate, create_symbol_table, escape_leading_underscores, find, get_check_flags,
     get_declaration_of_kind, get_effective_type_parameter_declarations, has_dynamic_name,
-    is_access_expression, is_shorthand_ambient_module_symbol, is_source_file, is_type_alias,
-    range_equals_rc, BaseInterfaceType, CheckFlags, Debug_, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, TypeSystemPropertyName,
-    UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
+    is_access_expression, is_export_assignment, is_shorthand_ambient_module_symbol, is_source_file,
+    is_type_alias, maybe_first_defined, range_equals_rc, BaseInterfaceType, CheckFlags, Debug_,
+    InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    InternalSymbolName, LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, TypeSystemPropertyName, UnderscoreEscapedMap, __String,
+    maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -144,7 +145,58 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_of_enum_member(&self, symbol: &Symbol) -> Rc<Type> {
-        unimplemented!()
+        let links = self.get_symbol_links(symbol);
+        if let Some(links_type) = (*links).borrow().type_.clone() {
+            return links_type;
+        }
+        let ret = self.get_declared_type_of_enum_member(symbol);
+        links.borrow_mut().type_ = Some(ret.clone());
+        ret
+    }
+
+    pub(super) fn get_type_of_alias(&self, symbol: &Symbol) -> Rc<Type> {
+        let links = self.get_symbol_links(symbol);
+        if (*links).borrow().type_.is_none() {
+            let target_symbol = self.resolve_alias(symbol);
+            let export_symbol = symbol.maybe_declarations().as_ref().and_then(|_| {
+                self.get_target_of_alias_declaration(
+                    &self.get_declaration_of_alias_symbol(symbol).unwrap(),
+                    Some(true),
+                )
+            });
+            let declared_type = export_symbol.as_ref().and_then(|export_symbol| {
+                maybe_first_defined(
+                    export_symbol.maybe_declarations().as_deref(),
+                    |d: &Rc<Node>, _| {
+                        if is_export_assignment(d) {
+                            self.try_get_type_from_effective_type_node(d)
+                        } else {
+                            None
+                        }
+                    },
+                )
+            });
+            links.borrow_mut().type_ = Some(
+                if let Some(export_symbol) = export_symbol.as_ref().filter(|export_symbol| {
+                    matches!(
+                        export_symbol.maybe_declarations().as_deref(),
+                        Some(export_symbol_declarations) if self.is_duplicated_common_js_export(Some(export_symbol_declarations))
+                    ) && !symbol.maybe_declarations().as_ref().unwrap().is_empty()
+                }) {
+                    self.get_flow_type_from_common_js_export(export_symbol)
+                } else if self.is_duplicated_common_js_export(symbol.maybe_declarations().as_deref()) {
+                    self.auto_type()
+                } else if let Some(declared_type) = declared_type {
+                    declared_type
+                } else if target_symbol.flags().intersects(SymbolFlags::Value) {
+                    self.get_type_of_symbol(&target_symbol)
+                } else {
+                    self.error_type()
+                }
+            );
+        }
+        let ret = (*links).borrow().type_.clone().unwrap();
+        ret
     }
 
     pub(super) fn get_type_of_instantiated_symbol(&self, symbol: &Symbol) -> Rc<Type> {
@@ -362,6 +414,10 @@ impl TypeChecker {
     }
 
     pub(super) fn get_base_type_of_enum_literal_type(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_declared_type_of_enum_member(&self, symbol: &Symbol) -> Rc<Type> {
         unimplemented!()
     }
 

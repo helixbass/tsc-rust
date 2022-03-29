@@ -81,6 +81,17 @@ pub fn first_defined<
     for_each(array, callback)
 }
 
+pub fn maybe_first_defined<
+    TCollection: IntoIterator,
+    TReturn,
+    TCallback: FnMut(TCollection::Item, usize) -> Option<TReturn>,
+>(
+    array: Option<TCollection>,
+    callback: TCallback,
+) -> Option<TReturn> {
+    maybe_for_each(array, callback)
+}
+
 pub fn every<TItem, TCallback: FnMut(&TItem, usize) -> bool>(
     array: &[TItem],
     mut predicate: TCallback,
