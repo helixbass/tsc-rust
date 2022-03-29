@@ -2,22 +2,25 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    concatenate, create_symbol_table, escape_leading_underscores, for_each,
+    concatenate, create_symbol_table, escape_leading_underscores, find_last_index, for_each,
     for_each_child_recursively_bool, get_check_flags, get_declaration_of_kind,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_this_container, has_dynamic_name, is_binary_expression, is_binding_pattern,
-    is_property_access_expression, is_property_assignment, is_property_signature,
-    is_prototype_property_assignment, is_type_alias, is_variable_declaration, range_equals_rc,
-    BaseInterfaceType, CheckFlags, Debug_, HasInitializerInterface, IndexInfo, InterfaceType,
+    is_omitted_expression, is_property_access_expression, is_property_assignment,
+    is_property_signature, is_prototype_property_assignment, is_type_alias,
+    is_variable_declaration, last_or_undefined, map, range_equals_rc, BaseInterfaceType,
+    CheckFlags, Debug_, ElementFlags, HasInitializerInterface, IndexInfo, InterfaceType,
     InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypePredicate, UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
+    ObjectFlagsTypeInterface, ScriptTarget, Signature, SignatureFlags, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
+    maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -191,6 +194,74 @@ impl TypeChecker {
         result_as_object_type.set_object_flags(result_as_object_type.object_flags() | object_flags);
         if include_pattern_in_type {
             *result.maybe_pattern() = Some(pattern.node_wrapper());
+            result_as_object_type.set_object_flags(
+                result_as_object_type.object_flags() | ObjectFlags::ContainsObjectOrArrayLiteral,
+            );
+        }
+        result
+    }
+
+    pub(super) fn get_type_from_array_binding_pattern(
+        &self,
+        pattern: &Node, /*BindingPattern*/
+        include_pattern_in_type: bool,
+        report_errors: bool,
+    ) -> Rc<Type> {
+        let elements = pattern.as_has_elements().elements();
+        let last_element = last_or_undefined(&**elements);
+        let rest_element = last_element.filter(|last_element| {
+            last_element.kind() == SyntaxKind::BindingElement
+                && last_element
+                    .as_binding_element()
+                    .dot_dot_dot_token
+                    .is_some()
+        });
+        if elements.is_empty() || elements.len() == 1 && rest_element.is_some() {
+            return if self.language_version >= ScriptTarget::ES2015 {
+                self.create_iterable_type(&self.any_type())
+            } else {
+                self.any_array_type()
+            };
+        }
+        let element_types = map(Some(&**elements), |e: &Rc<Node>, _| {
+            if is_omitted_expression(e) {
+                self.any_type()
+            } else {
+                self.get_type_from_binding_element(
+                    e,
+                    Some(include_pattern_in_type),
+                    Some(report_errors),
+                )
+            }
+        })
+        .unwrap();
+        let min_length: usize = (find_last_index(
+            &**elements,
+            |e: &Rc<Node>, _| {
+                !(matches!(rest_element.as_ref(), Some(rest_element) if Rc::ptr_eq(e, rest_element))
+                    || is_omitted_expression(e)
+                    || self.has_default_value(e))
+            },
+            Some(elements.len() - 1),
+        ) + 1)
+            .try_into()
+            .unwrap();
+        let element_flags = map(Some(&**elements), |e: &Rc<Node>, i| {
+            if matches!(rest_element.as_ref(), Some(rest_element) if Rc::ptr_eq(e, rest_element)) {
+                ElementFlags::Rest
+            } else if i >= min_length {
+                ElementFlags::Optional
+            } else {
+                ElementFlags::Required
+            }
+        })
+        .unwrap();
+        let mut result: Rc<Type> =
+            self.create_tuple_type(&element_types, Some(&element_flags), None, None);
+        if include_pattern_in_type {
+            result = self.clone_type_reference(&result);
+            *result.maybe_pattern() = Some(pattern.node_wrapper());
+            let result_as_object_type = result.as_object_type();
             result_as_object_type.set_object_flags(
                 result_as_object_type.object_flags() | ObjectFlags::ContainsObjectOrArrayLiteral,
             );

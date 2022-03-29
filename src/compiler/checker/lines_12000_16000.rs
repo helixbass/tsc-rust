@@ -8,7 +8,7 @@ use std::rc::Rc;
 use crate::{
     filter, get_effective_constraint_of_type_parameter, get_effective_return_type_node,
     get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
-    map_defined, maybe_append_if_unique_rc, node_is_missing, AccessFlags, IndexInfo,
+    map_defined, maybe_append_if_unique_rc, node_is_missing, AccessFlags, ElementFlags, IndexInfo,
     InterfaceTypeInterface, Signature, SignatureFlags, SignatureKind, SymbolTable, TypePredicate,
     TypePredicateKind, UnionType, __String, binary_search_copy_key, compare_values, concatenate,
     get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
@@ -490,6 +490,10 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn clone_type_reference(&self, source: &Type /*TypeReference*/) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_type_arguments(&self, type_: &Type /*TypeReference*/) -> Vec<Rc<Type>> {
         let type_as_type_reference = type_.as_type_reference();
         let mut resolved_type_arguments =
@@ -837,6 +841,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn create_iterable_type(&self, iterated_type: &Type) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn create_array_type(
         &self,
         element_type: &Type,
@@ -871,6 +879,17 @@ impl TypeChecker {
                 vec![self.get_type_from_type_node_(&*node_as_array_type_node.element_type)];
             return self.create_normalized_type_reference(&target, Some(element_types));
         }
+    }
+
+    pub(super) fn create_tuple_type(
+        &self,
+        element_types: &[Rc<Type>],
+        element_flags: Option<&[ElementFlags]>,
+        readonly: Option<bool>,
+        named_member_declarations: Option<&[Rc<Node /*NamedTupleMember | ParameterDeclaration*/>]>,
+    ) -> Rc<Type> {
+        let readonly = readonly.unwrap_or(false);
+        unimplemented!()
     }
 
     pub(super) fn create_normalized_type_reference(
