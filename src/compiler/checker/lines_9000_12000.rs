@@ -10,6 +10,7 @@ use super::{CheckMode, MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
     concatenate, create_symbol_table, escape_leading_underscores, find_last_index, for_each,
     for_each_child_recursively_bool, get_check_flags, get_declaration_of_kind,
+    get_effective_return_type_node, get_effective_set_accessor_type_annotation_node,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_root_declaration, get_source_file_of_node, get_this_container, has_dynamic_name,
     is_accessor, is_binary_expression, is_bindable_static_element_access_expression,
@@ -633,6 +634,76 @@ impl TypeChecker {
             return self.report_circularity_error(symbol);
         }
         type_
+    }
+
+    pub(super) fn get_annotated_accessor_type_node<TAccessor: Borrow<Node>>(
+        &self,
+        accessor: Option<TAccessor /*AccessorDeclaration*/>,
+    ) -> Option<Rc<Node /*TypeNode*/>> {
+        let accessor = accessor?;
+        let accessor = accessor.borrow();
+        if accessor.kind() == SyntaxKind::GetAccessor {
+            let getter_type_annotation = get_effective_return_type_node(accessor);
+            return getter_type_annotation;
+        } else {
+            let setter_type_annotation = get_effective_set_accessor_type_annotation_node(accessor);
+            return setter_type_annotation;
+        }
+    }
+
+    pub(super) fn get_annotated_accessor_type<TAccessor: Borrow<Node>>(
+        &self,
+        accessor: Option<TAccessor /*AccessorDeclaration*/>,
+    ) -> Option<Rc<Type>> {
+        let node = self.get_annotated_accessor_type_node(accessor)?;
+        Some(self.get_type_from_type_node_(&node))
+    }
+
+    pub(super) fn get_annotated_accessor_this_parameter(
+        &self,
+        accessor: &Node, /*AccessorDeclaration*/
+    ) -> Option<Rc<Symbol>> {
+        let parameter = self.get_accessor_this_parameter(accessor)?;
+        parameter.maybe_symbol()
+    }
+
+    pub(super) fn get_this_type_of_declaration(
+        &self,
+        declaration: &Node, /*SignatureDeclaration*/
+    ) -> Option<Rc<Type>> {
+        self.get_this_type_of_signature(&self.get_signature_from_declaration_(declaration))
+    }
+
+    pub(super) fn get_type_of_accessors(&self, symbol: &Symbol) -> Rc<Type> {
+        let links = self.get_symbol_links(symbol);
+        if let Some(links_type) = (*links).borrow().type_.clone() {
+            return links_type;
+        }
+        let ret = self
+            .get_type_of_accessors_worker(symbol, None)
+            .unwrap_or_else(|| {
+                Debug_.fail(Some("Read type of accessor must always produce a type"))
+            });
+        links.borrow_mut().type_ = Some(ret.clone());
+        ret
+    }
+
+    pub(super) fn get_type_of_set_accessor(&self, symbol: &Symbol) -> Option<Rc<Type>> {
+        let links = self.get_symbol_links(symbol);
+        if let Some(links_write_type) = (*links).borrow().write_type.clone() {
+            return Some(links_write_type);
+        }
+        let ret = self.get_type_of_accessors_worker(symbol, Some(true));
+        links.borrow_mut().write_type = ret.clone();
+        ret
+    }
+
+    pub(super) fn get_type_of_accessors_worker(
+        &self,
+        symbol: &Symbol,
+        writing: Option<bool>,
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 
     pub(super) fn resolve_type_of_accessors(
