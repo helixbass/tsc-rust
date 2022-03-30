@@ -16,12 +16,13 @@ use crate::{
     is_binary_expression, is_export_assignment, is_in_js_file, is_jsdoc_template_tag,
     is_shorthand_ambient_module_symbol, is_source_file, is_type_alias, length, map,
     maybe_first_defined, range_equals_rc, same_map, some, AssignmentDeclarationKind,
-    BaseInterfaceType, CheckFlags, Debug_, Diagnostics, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypeMapper, TypePredicate,
-    TypeSystemPropertyName, UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
+    BaseInterfaceType, CheckFlags, Debug_, Diagnostics, ElementFlags, InterfaceType,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
+    LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypeMapper, TypePredicate, TypeSystemPropertyName, UnderscoreEscapedMap, __String,
+    maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -883,6 +884,91 @@ impl TypeChecker {
         &self,
         type_: &Type, /*InterfaceType*/
     ) -> Vec<Rc<Type /*BaseType*/>> {
+        let type_as_interface_type = type_.as_interface_type();
+        if !matches!(
+            type_as_interface_type.maybe_base_types_resolved(),
+            Some(true)
+        ) {
+            if self.push_type_resolution(
+                &type_.type_wrapper().into(),
+                TypeSystemPropertyName::ResolvedBaseTypes,
+            ) {
+                if type_as_interface_type
+                    .object_flags()
+                    .intersects(ObjectFlags::Tuple)
+                {
+                    *type_as_interface_type.maybe_resolved_base_types() =
+                        Some(vec![self.get_tuple_base_type(type_)]);
+                } else if type_
+                    .symbol()
+                    .flags()
+                    .intersects(SymbolFlags::Class | SymbolFlags::Interface)
+                {
+                    if type_.symbol().flags().intersects(SymbolFlags::Class) {
+                        self.resolve_base_types_of_class(type_);
+                    }
+                    if type_.symbol().flags().intersects(SymbolFlags::Interface) {
+                        self.resolve_base_types_of_interface(type_);
+                    }
+                } else {
+                    Debug_.fail(Some("type must be class or interface"));
+                }
+                if !self.pop_type_resolution() {
+                    if let Some(type_symbol_declarations) =
+                        type_.symbol().maybe_declarations().as_deref()
+                    {
+                        for declaration in type_symbol_declarations {
+                            if matches!(
+                                declaration.kind(),
+                                SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration
+                            ) {
+                                self.report_circular_base_type(declaration, type_);
+                            }
+                        }
+                    }
+                }
+            }
+            type_as_interface_type.set_base_types_resolved(Some(true));
+        }
+        type_as_interface_type
+            .maybe_resolved_base_types()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn get_tuple_base_type(&self, type_: &Type /*TupleType*/) -> Rc<Type> {
+        let type_as_tuple_type = type_.as_tuple_type();
+        let element_types = same_map(
+            type_as_tuple_type.maybe_type_parameters(),
+            |t: &Rc<Type>, i| {
+                if type_as_tuple_type.element_flags[i].intersects(ElementFlags::Variadic) {
+                    self.get_indexed_access_type(
+                        t,
+                        &self.number_type(),
+                        None,
+                        Option::<&Node>::None,
+                        Option::<&Symbol>::None,
+                        None,
+                    )
+                } else {
+                    t.type_wrapper()
+                }
+            },
+        );
+        self.create_array_type(
+            &self.get_union_type(element_types.unwrap_or_else(|| vec![]), None),
+            Some(type_as_tuple_type.readonly),
+        )
+    }
+
+    pub(super) fn resolve_base_types_of_class(
+        &self,
+        type_: &Type, /*InterfaceType*/
+    ) -> Vec<Rc<Type /*BaseType*/>> {
+        unimplemented!()
+    }
+
+    pub(super) fn resolve_base_types_of_interface(&self, type_: &Type /*InterfaceType*/) {
         unimplemented!()
     }
 
