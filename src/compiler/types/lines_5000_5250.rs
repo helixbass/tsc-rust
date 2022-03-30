@@ -365,6 +365,13 @@ impl Type {
         enum_unwrapped!(self, [Type, ObjectType, InterfaceType])
     }
 
+    pub fn maybe_as_interface_type(&self) -> Option<&InterfaceType> {
+        match self {
+            Type::ObjectType(ObjectType::InterfaceType(type_)) => Some(type_),
+            _ => None,
+        }
+    }
+
     pub fn as_object_type(&self) -> &ObjectType {
         enum_unwrapped!(self, [Type, ObjectType])
     }

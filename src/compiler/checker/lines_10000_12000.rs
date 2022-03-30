@@ -1,29 +1,151 @@
 #![allow(non_upper_case_globals)]
 
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    concatenate, create_symbol_table, escape_leading_underscores, has_dynamic_name, is_type_alias,
-    range_equals_rc, BaseInterfaceType, Debug_, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate,
-    UnderscoreEscapedMap, __String,
+    concatenate, create_symbol_table, escape_leading_underscores, every,
+    get_interface_base_type_nodes, has_dynamic_name, is_entity_name_expression, is_type_alias,
+    range_equals_rc, BaseInterfaceType, Debug_, Diagnostics, InterfaceType, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeFlags, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
 };
 
 impl TypeChecker {
     pub(super) fn are_all_outer_type_parameters_applied(&self, type_: &Type) -> bool {
-        unimplemented!()
+        let outer_type_parameters = type_
+            .maybe_as_interface_type()
+            .and_then(|type_| type_.maybe_outer_type_parameters());
+        if let Some(outer_type_parameters) = outer_type_parameters {
+            let last = outer_type_parameters.len() - 1;
+            let type_arguments = self.get_type_arguments(type_);
+            return !match (
+                outer_type_parameters[last].maybe_symbol(),
+                type_arguments[last].maybe_symbol(),
+            ) {
+                (None, None) => true,
+                (Some(symbol_a), Some(symbol_b)) => Rc::ptr_eq(&symbol_a, &symbol_b),
+                _ => false,
+            };
+        }
+        true
     }
 
     pub(super) fn is_valid_base_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::TypeParameter) {
+            if type_.flags().intersects(TypeFlags::TypeParameter) {
+                let constraint = self.get_base_constraint_of_type(type_);
+                if let Some(constraint) = constraint {
+                    return self.is_valid_base_type(&constraint);
+                }
+            }
+        }
+        type_
+            .flags()
+            .intersects(TypeFlags::Object | TypeFlags::NonPrimitive | TypeFlags::Any)
+            && !self.is_generic_mapped_type(type_)
+            || type_.flags().intersects(TypeFlags::Intersection)
+                && every(
+                    type_.as_union_or_intersection_type_interface().types(),
+                    |type_: &Rc<Type>, _| self.is_valid_base_type(type_),
+                )
     }
 
     pub(super) fn resolve_base_types_of_interface(&self, type_: &Type /*InterfaceType*/) {
-        unimplemented!()
+        let type_as_interface_type = type_.as_interface_type();
+        if type_as_interface_type.maybe_resolved_base_types().is_none() {
+            *type_as_interface_type.maybe_resolved_base_types() = Some(Rc::new(vec![]));
+        }
+        if let Some(type_symbol_declarations) = type_.symbol().maybe_declarations().as_deref() {
+            for declaration in type_symbol_declarations {
+                if declaration.kind() == SyntaxKind::InterfaceDeclaration
+                    && get_interface_base_type_nodes(declaration).is_some()
+                {
+                    for node in get_interface_base_type_nodes(declaration)
+                        .as_deref()
+                        .unwrap()
+                    {
+                        let base_type = self.get_reduced_type(&self.get_type_from_type_node_(node));
+                        if !self.is_error_type(&base_type) {
+                            if self.is_valid_base_type(&base_type) {
+                                if !ptr::eq(type_, &*base_type)
+                                    && !self.has_base_type(&base_type, Some(type_))
+                                {
+                                    let mut resolved_base_types = Vec::clone(
+                                        type_as_interface_type
+                                            .maybe_resolved_base_types()
+                                            .as_ref()
+                                            .unwrap(),
+                                    );
+                                    resolved_base_types.push(base_type);
+                                    *type_as_interface_type.maybe_resolved_base_types() =
+                                        Some(Rc::new(resolved_base_types));
+                                } else {
+                                    self.report_circular_base_type(declaration, type_);
+                                }
+                            } else {
+                                self.error(
+                                    Some(&**node),
+                                    &Diagnostics::An_interface_can_only_extend_an_object_type_or_intersection_of_object_types_with_statically_known_members,
+                                    None,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn is_thisless_interface(&self, symbol: &Symbol) -> bool {
+        let symbol_declarations = symbol.maybe_declarations();
+        if symbol_declarations.is_none() {
+            return true;
+        }
+        let symbol_declarations = symbol_declarations.as_deref().unwrap();
+        for declaration in symbol_declarations {
+            if declaration.kind() == SyntaxKind::InterfaceDeclaration {
+                if declaration.flags().intersects(NodeFlags::ContainsThis) {
+                    return false;
+                }
+                let base_type_nodes = get_interface_base_type_nodes(declaration);
+                if let Some(base_type_nodes) = base_type_nodes {
+                    for node in &*base_type_nodes {
+                        let node_as_expression_with_type_arguments =
+                            node.as_expression_with_type_arguments();
+                        if is_entity_name_expression(
+                            &node_as_expression_with_type_arguments.expression,
+                        ) {
+                            let base_symbol = self.resolve_entity_name(
+                                &node_as_expression_with_type_arguments.expression,
+                                SymbolFlags::Type,
+                                Some(true),
+                                None,
+                                Option::<&Node>::None,
+                            );
+                            if match base_symbol {
+                                None => true,
+                                Some(base_symbol) => {
+                                    !base_symbol.flags().intersects(SymbolFlags::Interface)
+                                        || self
+                                            .get_declared_type_of_class_or_interface(&base_symbol)
+                                            .as_interface_type()
+                                            .maybe_this_type()
+                                            .is_some()
+                                }
+                            } {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        true
     }
 
     pub(super) fn get_declared_type_of_class_or_interface(
