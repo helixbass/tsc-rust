@@ -7,22 +7,22 @@ use std::rc::Rc;
 
 use super::{signature_has_rest_parameter, MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    add_related_info, append, concatenate, create_diagnostic_for_node, create_symbol_table,
-    escape_leading_underscores, filter, find, find_ancestor, flat_map,
-    get_assignment_declaration_kind, get_check_flags, get_declaration_of_kind,
-    get_effective_base_type_node, get_effective_implements_type_nodes,
+    add_related_info, append, chain_diagnostic_messages, concatenate, create_diagnostic_for_node,
+    create_diagnostic_for_node_from_message_chain, create_symbol_table, escape_leading_underscores,
+    filter, find, find_ancestor, flat_map, get_assignment_declaration_kind, get_check_flags,
+    get_declaration_of_kind, get_effective_base_type_node, get_effective_implements_type_nodes,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_object_flags, get_parameter_symbol_from_jsdoc, has_dynamic_name, is_access_expression,
     is_binary_expression, is_export_assignment, is_in_js_file, is_jsdoc_template_tag,
     is_shorthand_ambient_module_symbol, is_source_file, is_type_alias, length, map,
-    maybe_first_defined, range_equals_rc, same_map, some, AssignmentDeclarationKind,
-    BaseInterfaceType, CheckFlags, Debug_, Diagnostics, ElementFlags, InterfaceType,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
-    LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
-    TypeMapper, TypePredicate, TypeSystemPropertyName, UnderscoreEscapedMap, __String,
-    maybe_append_if_unique_rc,
+    maybe_first_defined, range_equals_rc, resolving_empty_array, same_map, some,
+    AssignmentDeclarationKind, BaseInterfaceType, CheckFlags, Debug_, Diagnostics, ElementFlags,
+    InterfaceType, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    InternalSymbolName, LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    ObjectTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeFormatFlags, TypeInterface, TypeMapper, TypePredicate, TypeSystemPropertyName,
+    UnderscoreEscapedMap, __String, maybe_append_if_unique_rc,
 };
 
 impl TypeChecker {
@@ -898,7 +898,7 @@ impl TypeChecker {
                     .intersects(ObjectFlags::Tuple)
                 {
                     *type_as_interface_type.maybe_resolved_base_types() =
-                        Some(vec![self.get_tuple_base_type(type_)]);
+                        Some(Rc::new(vec![self.get_tuple_base_type(type_)]));
                 } else if type_
                     .symbol()
                     .flags()
@@ -930,10 +930,12 @@ impl TypeChecker {
             }
             type_as_interface_type.set_base_types_resolved(Some(true));
         }
-        type_as_interface_type
-            .maybe_resolved_base_types()
-            .clone()
-            .unwrap()
+        Vec::clone(
+            type_as_interface_type
+                .maybe_resolved_base_types()
+                .as_ref()
+                .unwrap(),
+        )
     }
 
     pub(super) fn get_tuple_base_type(&self, type_: &Type /*TupleType*/) -> Rc<Type> {
@@ -964,7 +966,129 @@ impl TypeChecker {
     pub(super) fn resolve_base_types_of_class(
         &self,
         type_: &Type, /*InterfaceType*/
-    ) -> Vec<Rc<Type /*BaseType*/>> {
+    ) -> Rc<Vec<Rc<Type /*BaseType*/>>> {
+        let type_as_interface_type = type_.as_interface_type();
+        *type_as_interface_type.maybe_resolved_base_types() = Some(resolving_empty_array());
+        let base_constructor_type =
+            self.get_apparent_type(&self.get_base_constructor_type_of_class(type_));
+        if !base_constructor_type
+            .flags()
+            .intersects(TypeFlags::Object | TypeFlags::Intersection | TypeFlags::Any)
+        {
+            let ret = Rc::new(vec![]);
+            *type_as_interface_type.maybe_resolved_base_types() = Some(ret.clone());
+            return ret;
+        }
+        let base_type_node = self.get_base_type_node_of_class(type_).unwrap();
+        let base_type: Rc<Type>;
+        let original_base_type = base_constructor_type
+            .maybe_symbol()
+            .map(|symbol| self.get_declared_type_of_symbol(&symbol));
+        if let Some(base_constructor_type_symbol) = base_constructor_type
+            .maybe_symbol()
+            .as_ref()
+            .filter(|base_constructor_type_symbol| {
+                base_constructor_type_symbol
+                    .flags()
+                    .intersects(SymbolFlags::Class)
+                    && self
+                        .are_all_outer_type_parameters_applied(original_base_type.as_ref().unwrap())
+            })
+        {
+            base_type = self.get_type_from_class_or_interface_reference(
+                &base_type_node,
+                base_constructor_type_symbol,
+            );
+        } else if base_constructor_type.flags().intersects(TypeFlags::Any) {
+            base_type = base_constructor_type;
+        } else {
+            let constructors = self.get_instantiated_constructors_for_type_arguments(
+                &base_constructor_type,
+                base_type_node
+                    .as_expression_with_type_arguments()
+                    .type_arguments
+                    .as_deref(),
+                &base_type_node,
+            );
+            if constructors.is_empty() {
+                self.error(
+                    Some(
+                        &*base_type_node
+                            .as_expression_with_type_arguments()
+                            .expression,
+                    ),
+                    &Diagnostics::No_base_constructor_has_the_specified_number_of_type_arguments,
+                    None,
+                );
+                let ret = Rc::new(vec![]);
+                *type_as_interface_type.maybe_resolved_base_types() = Some(ret.clone());
+                return ret;
+            }
+            base_type = self.get_return_type_of_signature(&constructors[0]);
+        }
+
+        if self.is_error_type(&base_type) {
+            let ret = Rc::new(vec![]);
+            *type_as_interface_type.maybe_resolved_base_types() = Some(ret.clone());
+            return ret;
+        }
+        let reduced_base_type = self.get_reduced_type(&base_type);
+        if !self.is_valid_base_type(&reduced_base_type) {
+            let elaboration = self.elaborate_never_intersection(None, &base_type);
+            let diagnostic = chain_diagnostic_messages(elaboration, &Diagnostics::Base_constructor_return_type_0_is_not_an_object_type_or_intersection_of_object_types_with_statically_known_members,
+                Some(vec![
+                    self.type_to_string_(&reduced_base_type, Option::<&Node>::None, None, None)
+                ]));
+            self.diagnostics().add(Rc::new(
+                create_diagnostic_for_node_from_message_chain(
+                    &base_type_node
+                        .as_expression_with_type_arguments()
+                        .expression,
+                    diagnostic,
+                    None,
+                )
+                .into(),
+            ));
+            let ret = Rc::new(vec![]);
+            *type_as_interface_type.maybe_resolved_base_types() = Some(ret.clone());
+            return ret;
+        }
+        if ptr::eq(type_, &*reduced_base_type)
+            || self.has_base_type(&reduced_base_type, Some(type_))
+        {
+            self.error(
+                type_.symbol().maybe_value_declaration(),
+                &Diagnostics::Type_0_recursively_references_itself_as_a_base_type,
+                Some(vec![self.type_to_string_(
+                    type_,
+                    Option::<&Node>::None,
+                    Some(TypeFormatFlags::WriteArrayAsGenericType),
+                    None,
+                )]),
+            );
+            let ret = Rc::new(vec![]);
+            *type_as_interface_type.maybe_resolved_base_types() = Some(ret.clone());
+            return ret;
+        }
+        if Rc::ptr_eq(
+            type_as_interface_type
+                .maybe_resolved_base_types()
+                .as_ref()
+                .unwrap(),
+            &resolving_empty_array(),
+        ) {
+            type_as_interface_type.set_members(None);
+        }
+        let ret = Rc::new(vec![reduced_base_type]);
+        *type_as_interface_type.maybe_resolved_base_types() = Some(ret.clone());
+        ret
+    }
+
+    pub(super) fn are_all_outer_type_parameters_applied(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn is_valid_base_type(&self, type_: &Type) -> bool {
         unimplemented!()
     }
 

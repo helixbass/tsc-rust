@@ -8,13 +8,14 @@ use std::rc::Rc;
 use crate::{
     filter, get_effective_constraint_of_type_parameter, get_effective_return_type_node,
     get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
-    map_defined, maybe_append_if_unique_rc, node_is_missing, AccessFlags, ElementFlags, IndexInfo,
-    InterfaceTypeInterface, Signature, SignatureFlags, SignatureKind, SymbolTable, TypePredicate,
-    TypePredicateKind, UnionType, __String, binary_search_copy_key, compare_values, concatenate,
-    get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
-    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeId, TypeInterface, TypeReference, UnionReduction,
+    map_defined, maybe_append_if_unique_rc, node_is_missing, AccessFlags, DiagnosticMessageChain,
+    ElementFlags, IndexInfo, InterfaceTypeInterface, Signature, SignatureFlags, SignatureKind,
+    SymbolTable, TypePredicate, TypePredicateKind, UnionType, __String, binary_search_copy_key,
+    compare_values, concatenate, get_name_of_declaration, get_object_flags, map,
+    unescape_leading_underscores, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics,
+    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    TypeReference, UnionReduction,
 };
 
 impl TypeChecker {
@@ -37,6 +38,14 @@ impl TypeChecker {
 
     pub(super) fn get_reduced_type(&self, type_: &Type) -> Rc<Type> {
         type_.type_wrapper()
+    }
+
+    pub(super) fn elaborate_never_intersection(
+        &self,
+        error_info: Option<DiagnosticMessageChain>,
+        type_: &Type,
+    ) -> Option<DiagnosticMessageChain> {
+        unimplemented!()
     }
 
     pub(super) fn get_property_of_type_(

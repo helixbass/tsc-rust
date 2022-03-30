@@ -17,7 +17,7 @@ use super::{
     full_triple_slash_reference_type_reference_directive_reg_ex,
 };
 use crate::{
-    __String, binary_search_copy_key, compare_values, create_mode_aware_cache,
+    Type, __String, binary_search_copy_key, compare_values, create_mode_aware_cache,
     escape_jsx_attribute_string, escape_leading_underscores, escape_non_ascii_string,
     escape_string, find_ancestor, for_each_child_bool, full_triple_slash_amd_reference_path_reg_ex,
     full_triple_slash_reference_path_reg_ex, get_base_file_name, get_combined_node_flags,
@@ -41,7 +41,12 @@ use crate::{
     TokenFlags, UnderscoreEscapedMap,
 };
 
-// resolvingEmptyArray: never[] = [];
+thread_local! {
+    static resolving_empty_array_: Rc<Vec<Rc<Type>>> = Rc::new(vec![]);
+}
+pub fn resolving_empty_array() -> Rc<Vec<Rc<Type>>> {
+    resolving_empty_array_.with(|resolving_empty_array| resolving_empty_array.clone())
+}
 
 pub const external_helpers_module_name_text: &str = "tslib";
 
