@@ -367,6 +367,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn check_computed_property_name(
+        &self,
+        node: &Node, /*ComputedPropertyName*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn check_object_literal(
         &self,
         node: &Node, /*ObjectLiteralExpression*/

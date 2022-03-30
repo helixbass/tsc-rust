@@ -1345,6 +1345,14 @@ fn get_type_struct_interface_impl(
                     fn set_declared_construct_signatures(&self, declared_construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
                         self.#first_field_name.set_declared_construct_signatures(declared_construct_signatures)
                     }
+
+                    fn declared_index_infos(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::IndexInfo>>> {
+                        self.#first_field_name.declared_index_infos()
+                    }
+
+                    fn set_declared_index_infos(&self, declared_index_infos: ::std::vec::Vec<::std::rc::Rc<crate::IndexInfo>>) {
+                        self.#first_field_name.set_declared_index_infos(declared_index_infos)
+                    }
                 }
             }
         }
@@ -1721,6 +1729,18 @@ fn get_type_enum_interface_impl(
                     fn set_declared_construct_signatures(&self, declared_construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_declared_construct_signatures(declared_construct_signatures)),*
+                        }
+                    }
+
+                    fn declared_index_infos(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::IndexInfo>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.declared_index_infos()),*
+                        }
+                    }
+
+                    fn set_declared_index_infos(&self, declared_index_infos: ::std::vec::Vec<::std::rc::Rc<crate::IndexInfo>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_declared_index_infos(declared_index_infos)),*
                         }
                     }
                 }

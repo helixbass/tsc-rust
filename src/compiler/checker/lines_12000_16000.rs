@@ -296,6 +296,13 @@ impl TypeChecker {
         signature.map(|signature| self.get_return_type_of_signature(&signature))
     }
 
+    pub(super) fn get_signatures_of_symbol<TSymbol: Borrow<Symbol>>(
+        &self,
+        symbol: Option<TSymbol>,
+    ) -> Vec<Rc<Signature>> {
+        unimplemented!()
+    }
+
     pub(super) fn resolve_external_module_type_by_literal(
         &self,
         name: &Node, /*StringLiteral*/
@@ -393,6 +400,10 @@ impl TypeChecker {
             is_readonly,
             declaration,
         }
+    }
+
+    pub(super) fn get_index_infos_of_symbol(&self, symbol: &Symbol) -> Vec<Rc<IndexInfo>> {
+        unimplemented!()
     }
 
     pub(super) fn get_constraint_declaration(

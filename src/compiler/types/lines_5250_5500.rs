@@ -461,9 +461,11 @@ pub struct BaseInterfaceType {
     resolved_base_constructor_type: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
     resolved_base_types: RefCell<Option<Rc<Vec<Rc<Type /*BaseType*/>>>>>,
     base_types_resolved: Cell<Option<bool>>,
+    // InterfaceTypeWithDeclaredMembers fields
     declared_properties: RefCell<Option<Vec<Rc<Symbol>>>>,
     declared_call_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
     declared_construct_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
+    declared_index_infos: RefCell<Option<Vec<Rc<IndexInfo>>>>,
     // GenericType fields
     instantiations: RefCell<Option<HashMap<String, Rc<Type /*TypeReference*/>>>>,
     variances: RefCell<Option<Vec<VarianceFlags>>>,
@@ -493,6 +495,7 @@ impl BaseInterfaceType {
             declared_properties: RefCell::new(None),
             declared_call_signatures: RefCell::new(None),
             declared_construct_signatures: RefCell::new(None),
+            declared_index_infos: RefCell::new(None),
             instantiations: RefCell::new(None),
             variances: RefCell::new(None),
             target: RefCell::new(None),
@@ -582,6 +585,16 @@ impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
     fn set_declared_construct_signatures(&self, declared_construct_signatures: Vec<Rc<Signature>>) {
         *self.declared_construct_signatures.borrow_mut() = Some(declared_construct_signatures);
     }
+
+    fn declared_index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>> {
+        Ref::map(self.declared_index_infos.borrow(), |declared_index_infos| {
+            declared_index_infos.as_ref().unwrap()
+        })
+    }
+
+    fn set_declared_index_infos(&self, declared_index_infos: Vec<Rc<IndexInfo>>) {
+        *self.declared_index_infos.borrow_mut() = Some(declared_index_infos);
+    }
 }
 
 pub trait InterfaceTypeWithDeclaredMembersInterface {
@@ -591,6 +604,8 @@ pub trait InterfaceTypeWithDeclaredMembersInterface {
     fn set_declared_call_signatures(&self, declared_call_signatures: Vec<Rc<Signature>>);
     fn declared_construct_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
     fn set_declared_construct_signatures(&self, declared_construct_signatures: Vec<Rc<Signature>>);
+    fn declared_index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>>;
+    fn set_declared_index_infos(&self, declared_index_infos: Vec<Rc<IndexInfo>>);
 }
 
 impl GenericableTypeInterface for BaseInterfaceType {

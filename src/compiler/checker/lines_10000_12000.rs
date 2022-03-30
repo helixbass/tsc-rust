@@ -10,13 +10,14 @@ use crate::{
     concatenate, create_symbol_table, escape_leading_underscores, every,
     get_effective_constraint_of_type_parameter, get_effective_return_type_node,
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
-    get_interface_base_type_nodes, has_dynamic_name, has_initializer, is_entity_name_expression,
-    is_jsdoc_type_alias, is_named_declaration, is_private_identifier_class_element_declaration,
-    is_static, is_string_literal_like, is_type_alias, node_is_missing, range_equals_rc,
-    BaseInterfaceType, Debug_, Diagnostics, EnumKind, GenericableTypeInterface,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
-    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    get_interface_base_type_nodes, has_dynamic_name, has_initializer, is_computed_property_name,
+    is_element_access_expression, is_entity_name_expression, is_jsdoc_type_alias,
+    is_named_declaration, is_private_identifier_class_element_declaration, is_static,
+    is_string_literal_like, is_type_alias, node_is_missing, range_equals_rc, BaseInterfaceType,
+    CharacterCodes, Debug_, Diagnostics, EnumKind, GenericableTypeInterface,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
+    LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface,
+    Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     TypePredicate, TypeReferenceInterface, TypeSystemPropertyName, UnderscoreEscapedMap,
     UnionReduction, __String,
@@ -665,8 +666,22 @@ impl TypeChecker {
         if type_as_interface_type.maybe_declared_properties().is_none() {
             let symbol = type_.symbol();
             let members = self.get_members_of_symbol(&symbol);
+            let members = (*members).borrow();
+            type_as_interface_type.set_declared_properties(self.get_named_members(&*members));
+            type_as_interface_type.set_declared_call_signatures(vec![]);
+            type_as_interface_type.set_declared_construct_signatures(vec![]);
+            type_as_interface_type.set_declared_index_infos(vec![]);
+
+            type_as_interface_type.set_declared_call_signatures(self.get_signatures_of_symbol(
+                members.get(&InternalSymbolName::Call()).map(Clone::clone),
+            ));
+            type_as_interface_type.set_declared_construct_signatures(
+                self.get_signatures_of_symbol(
+                    members.get(&InternalSymbolName::New()).map(Clone::clone),
+                ),
+            );
             type_as_interface_type
-                .set_declared_properties(self.get_named_members(&*(*members).borrow()));
+                .set_declared_index_infos(self.get_index_infos_of_symbol(&symbol));
         }
         type_.type_wrapper()
     }
@@ -675,6 +690,31 @@ impl TypeChecker {
         type_
             .flags()
             .intersects(TypeFlags::StringOrNumberLiteralOrUnique)
+    }
+
+    pub(super) fn is_late_bindable_name(&self, node: &Node /*DeclarationName*/) -> bool {
+        if !is_computed_property_name(node) && !is_element_access_expression(node) {
+            return false;
+        }
+        let expr = if is_computed_property_name(node) {
+            &node.as_computed_property_name().expression
+        } else {
+            &node.as_element_access_expression().argument_expression
+        };
+        is_entity_name_expression(expr)
+            && self.is_type_usable_as_property_name(&*if is_computed_property_name(node) {
+                self.check_computed_property_name(node)
+            } else {
+                self.check_expression_cached(expr, None)
+            })
+    }
+
+    pub(super) fn is_late_bound_name(&self, name: &__String) -> bool {
+        let name = &**name;
+        let mut name_chars = name.chars();
+        matches!(name_chars.next(), Some(ch) if ch == CharacterCodes::underscore)
+            && matches!(name_chars.next(), Some(ch) if ch == CharacterCodes::underscore)
+            && matches!(name_chars.next(), Some(ch) if ch == CharacterCodes::at)
     }
 
     pub(super) fn has_bindable_name(&self, node: &Node /*Declaration*/) -> bool {
