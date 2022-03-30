@@ -1,25 +1,21 @@
 #![allow(non_upper_case_globals)]
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    concatenate, create_symbol_table, escape_leading_underscores, every,
-    get_effective_constraint_of_type_parameter, get_effective_return_type_node,
-    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
-    get_interface_base_type_nodes, has_dynamic_name, has_initializer, is_computed_property_name,
-    is_element_access_expression, is_entity_name_expression, is_jsdoc_type_alias,
-    is_named_declaration, is_private_identifier_class_element_declaration, is_static,
-    is_string_literal_like, is_type_alias, node_is_missing, range_equals_rc, BaseInterfaceType,
+    concatenate, create_symbol_table, every, get_effective_constraint_of_type_parameter,
+    get_effective_return_type_node, get_effective_type_annotation_node,
+    get_effective_type_parameter_declarations, get_interface_base_type_nodes, has_initializer,
+    is_computed_property_name, is_element_access_expression, is_entity_name_expression,
+    is_jsdoc_type_alias, is_named_declaration, is_private_identifier_class_element_declaration,
+    is_static, is_string_literal_like, is_type_alias, node_is_missing, BaseInterfaceType,
     CharacterCodes, Debug_, Diagnostics, EnumKind, GenericableTypeInterface,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
-    LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface,
-    Signature, SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, TypeReferenceInterface, TypeSystemPropertyName, UnderscoreEscapedMap,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, Node,
+    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeMapper, TypeReferenceInterface, TypeSystemPropertyName,
     UnionReduction, __String,
 };
 
