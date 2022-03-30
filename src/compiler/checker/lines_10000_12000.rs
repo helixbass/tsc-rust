@@ -8,13 +8,16 @@ use std::rc::Rc;
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
     concatenate, create_symbol_table, escape_leading_underscores, every,
-    get_interface_base_type_nodes, has_dynamic_name, is_entity_name_expression,
-    is_jsdoc_type_alias, is_named_declaration, is_string_literal_like, is_type_alias,
-    node_is_missing, range_equals_rc, BaseInterfaceType, Debug_, Diagnostics, EnumKind,
-    GenericableTypeInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface,
-    Signature, SignatureFlags, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    get_effective_constraint_of_type_parameter, get_effective_return_type_node,
+    get_effective_type_annotation_node, get_effective_type_parameter_declarations,
+    get_interface_base_type_nodes, has_dynamic_name, has_initializer, is_entity_name_expression,
+    is_jsdoc_type_alias, is_named_declaration, is_private_identifier_class_element_declaration,
+    is_static, is_string_literal_like, is_type_alias, node_is_missing, range_equals_rc,
+    BaseInterfaceType, Debug_, Diagnostics, EnumKind, GenericableTypeInterface,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
+    NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, Signature,
+    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     TypePredicate, TypeReferenceInterface, TypeSystemPropertyName, UnderscoreEscapedMap,
     UnionReduction, __String,
 };
@@ -459,7 +462,17 @@ impl TypeChecker {
     }
 
     pub(super) fn get_declared_type_of_enum_member(&self, symbol: &Symbol) -> Rc<Type> {
-        unimplemented!()
+        let links = self.get_symbol_links(symbol);
+        if (*links).borrow().declared_type.is_none() {
+            let enum_type =
+                self.get_declared_type_of_enum(&self.get_parent_of_symbol(symbol).unwrap());
+            let mut links = links.borrow_mut();
+            if links.declared_type.is_none() {
+                links.declared_type = Some(enum_type);
+            }
+        }
+        let ret = (*links).borrow().declared_type.clone().unwrap();
+        ret
     }
 
     pub(super) fn get_declared_type_of_type_parameter(
@@ -469,17 +482,24 @@ impl TypeChecker {
         let links = self.get_symbol_links(symbol);
         let mut links = links.borrow_mut();
         if links.declared_type.is_none() {
-            links.declared_type = Some(
-                self.create_type_parameter(Some(symbol.symbol_wrapper()))
-                    .into(),
-            );
+            links.declared_type = Some(self.create_type_parameter(Some(symbol)).into());
         }
         links.declared_type.clone().unwrap()
     }
 
+    pub(super) fn get_declared_type_of_alias(&self, symbol: &Symbol) -> Rc<Type> {
+        let links = self.get_symbol_links(symbol);
+        if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
+            return links_declared_type;
+        }
+        let declared_type = self.get_declared_type_of_symbol(&self.resolve_alias(symbol));
+        links.borrow_mut().declared_type = Some(declared_type.clone());
+        declared_type
+    }
+
     pub(super) fn get_declared_type_of_symbol(&self, symbol: &Symbol) -> Rc<Type> {
         self.try_get_declared_type_of_symbol(symbol)
-            .unwrap_or_else(|| unimplemented!())
+            .unwrap_or_else(|| self.error_type())
     }
 
     pub(super) fn try_get_declared_type_of_symbol(&self, symbol: &Symbol) -> Option<Rc<Type>> {
@@ -495,7 +515,108 @@ impl TypeChecker {
         if symbol.flags().intersects(SymbolFlags::TypeParameter) {
             return Some(self.get_declared_type_of_type_parameter(symbol));
         }
-        unimplemented!()
+        if symbol.flags().intersects(SymbolFlags::Enum) {
+            return Some(self.get_declared_type_of_enum(symbol));
+        }
+        if symbol.flags().intersects(SymbolFlags::EnumMember) {
+            return Some(self.get_declared_type_of_enum_member(symbol));
+        }
+        if symbol.flags().intersects(SymbolFlags::Alias) {
+            return Some(self.get_declared_type_of_alias(symbol));
+        }
+        None
+    }
+
+    pub(super) fn is_thisless_type(&self, node: &Node /*TypeNode*/) -> bool {
+        match node.kind() {
+            SyntaxKind::AnyKeyword
+            | SyntaxKind::UnknownKeyword
+            | SyntaxKind::StringKeyword
+            | SyntaxKind::NumberKeyword
+            | SyntaxKind::BigIntKeyword
+            | SyntaxKind::BooleanKeyword
+            | SyntaxKind::SymbolKeyword
+            | SyntaxKind::ObjectKeyword
+            | SyntaxKind::VoidKeyword
+            | SyntaxKind::UndefinedKeyword
+            | SyntaxKind::NeverKeyword
+            | SyntaxKind::LiteralType => true,
+            SyntaxKind::ArrayType => self.is_thisless_type(&node.as_array_type_node().element_type),
+            SyntaxKind::TypeReference => {
+                match node.as_type_reference_node().type_arguments.as_deref() {
+                    None => true,
+                    Some(type_arguments) => every(type_arguments, |type_argument: &Rc<Node>, _| {
+                        self.is_thisless_type(type_argument)
+                    }),
+                }
+            }
+            _ => false,
+        }
+    }
+
+    pub(super) fn is_thisless_type_parameter(
+        &self,
+        node: &Node, /*TypeParameterDeclaration*/
+    ) -> bool {
+        let constraint = get_effective_constraint_of_type_parameter(node);
+        match constraint {
+            None => true,
+            Some(constraint) => self.is_thisless_type(&constraint),
+        }
+    }
+
+    pub(super) fn is_thisless_variable_like_declaration(
+        &self,
+        node: &Node, /*VariableLikeDeclaration*/
+    ) -> bool {
+        let type_node = get_effective_type_annotation_node(node);
+        if let Some(type_node) = type_node {
+            self.is_thisless_type(&type_node)
+        } else {
+            !has_initializer(node)
+        }
+    }
+
+    pub(super) fn is_thisless_function_like_declaration(
+        &self,
+        node: &Node, /*FunctionLikeDeclaration*/
+    ) -> bool {
+        let return_type = get_effective_return_type_node(node);
+        let type_parameters = get_effective_type_parameter_declarations(node);
+        (node.kind() == SyntaxKind::Constructor
+            || matches!(return_type, Some(return_type) if self.is_thisless_type(&return_type)))
+            && node
+                .as_function_like_declaration()
+                .parameters()
+                .iter()
+                .all(|parameter: &Rc<Node>| self.is_thisless_variable_like_declaration(parameter))
+            && type_parameters
+                .iter()
+                .all(|type_parameter: &Rc<Node>| self.is_thisless_type_parameter(type_parameter))
+    }
+
+    pub(super) fn is_thisless(&self, symbol: &Symbol) -> bool {
+        if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+            if symbol_declarations.len() == 1 {
+                let declaration = &symbol_declarations[0];
+                // if (declaration) {
+                match declaration.kind() {
+                    SyntaxKind::PropertyDeclaration | SyntaxKind::PropertySignature => {
+                        return self.is_thisless_variable_like_declaration(declaration);
+                    }
+                    SyntaxKind::MethodDeclaration
+                    | SyntaxKind::MethodSignature
+                    | SyntaxKind::Constructor
+                    | SyntaxKind::GetAccessor
+                    | SyntaxKind::SetAccessor => {
+                        return self.is_thisless_function_like_declaration(declaration);
+                    }
+                    _ => (),
+                }
+                // }
+            }
+        }
+        false
     }
 
     pub(super) fn create_instantiated_symbol_table(
@@ -508,7 +629,7 @@ impl TypeChecker {
         for symbol in symbols {
             result.insert(
                 symbol.escaped_name().clone(),
-                if mapping_this_only && true {
+                if mapping_this_only && self.is_thisless(symbol) {
                     symbol.clone()
                 } else {
                     self.instantiate_symbol(&symbol, mapper)
@@ -516,6 +637,27 @@ impl TypeChecker {
             );
         }
         result
+    }
+
+    pub(super) fn add_inherited_members(
+        &self,
+        symbols: &mut SymbolTable,
+        base_symbols: &[Rc<Symbol>],
+    ) {
+        for s in base_symbols {
+            if !symbols.contains_key(s.escaped_name())
+                && !self.is_static_private_identifier_property(s)
+            {
+                symbols.insert(s.escaped_name().clone(), s.clone());
+            }
+        }
+    }
+
+    pub(super) fn is_static_private_identifier_property(&self, s: &Symbol) -> bool {
+        matches!(
+            s.maybe_value_declaration().as_ref(),
+            Some(value_declaration) if is_private_identifier_class_element_declaration(value_declaration) && is_static(value_declaration)
+        )
     }
 
     pub(super) fn resolve_declared_members(&self, type_: &Type /*InterfaceType*/) -> Rc<Type> {
