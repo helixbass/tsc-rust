@@ -8,13 +8,15 @@ use std::rc::Rc;
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
     concatenate, create_symbol_table, escape_leading_underscores, every,
-    get_interface_base_type_nodes, has_dynamic_name, is_entity_name_expression, is_type_alias,
-    range_equals_rc, BaseInterfaceType, Debug_, Diagnostics, GenericableTypeInterface,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
-    NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, TypeReferenceInterface,
-    UnderscoreEscapedMap, __String,
+    get_interface_base_type_nodes, has_dynamic_name, is_entity_name_expression,
+    is_jsdoc_type_alias, is_named_declaration, is_string_literal_like, is_type_alias,
+    node_is_missing, range_equals_rc, BaseInterfaceType, Debug_, Diagnostics, EnumKind,
+    GenericableTypeInterface, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    LiteralType, Node, NodeFlags, NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface,
+    Signature, SignatureFlags, StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, TypeReferenceInterface, TypeSystemPropertyName, UnderscoreEscapedMap,
+    UnionReduction, __String,
 };
 
 impl TypeChecker {
@@ -235,8 +237,14 @@ impl TypeChecker {
 
     pub(super) fn get_declared_type_of_type_alias(&self, symbol: &Symbol) -> Rc<Type> {
         let links = self.get_symbol_links(symbol);
-        let mut links = links.borrow_mut();
-        if links.declared_type.is_none() {
+        if (*links).borrow().declared_type.is_none() {
+            if !self.push_type_resolution(
+                &symbol.symbol_wrapper().into(),
+                TypeSystemPropertyName::DeclaredType,
+            ) {
+                return self.error_type();
+            }
+
             let declaration = Debug_.check_defined(
                 symbol
                     .maybe_declarations()
@@ -244,36 +252,210 @@ impl TypeChecker {
                     .and_then(|declarations| {
                         declarations
                             .iter()
-                            .find(|declaration| is_type_alias(&***declaration))
+                            .find(|declaration| is_type_alias(declaration))
                             .map(|rc| rc.clone())
                     }),
-                None,
+                Some("Type alias symbol with no valid declaration found"),
             );
-            let type_node = if false {
-                unimplemented!()
+            let type_node = if is_jsdoc_type_alias(&declaration) {
+                declaration.as_jsdoc_type_like_tag().maybe_type_expression()
             } else {
                 Some(declaration.as_type_alias_declaration().type_.clone())
             };
-            let type_ = type_node.map_or_else(
+            let mut type_ = type_node.map_or_else(
                 || self.error_type(),
                 |type_node| self.get_type_from_type_node_(&type_node),
             );
-            if true {
+
+            if self.pop_type_resolution() {
                 let type_parameters =
                     self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
                 if let Some(type_parameters) = type_parameters {
-                    unimplemented!()
+                    let mut links = links.borrow_mut();
+                    let mut instantiations: HashMap<String, Rc<Type>> = HashMap::new();
+                    instantiations.insert(
+                        self.get_type_list_id(Some(&*type_parameters)),
+                        type_.clone(),
+                    );
+                    links.type_parameters = Some(type_parameters);
+                    links.instantiations = Some(instantiations);
                 }
             } else {
-                unimplemented!()
+                type_ = self.error_type();
+                if declaration.kind() == SyntaxKind::JSDocEnumTag {
+                    self.error(
+                        Some(
+                            &*declaration
+                                .as_jsdoc_type_like_tag()
+                                .type_expression()
+                                .as_jsdoc_type_expression()
+                                .type_,
+                        ),
+                        &Diagnostics::Type_alias_0_circularly_references_itself,
+                        Some(vec![self.symbol_to_string_(
+                            symbol,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                            None,
+                        )]),
+                    );
+                } else {
+                    self.error(
+                        Some(if is_named_declaration(&declaration) {
+                            declaration
+                                .as_named_declaration()
+                                .maybe_name()
+                                .unwrap_or_else(|| declaration.clone())
+                        } else {
+                            declaration.clone()
+                        }),
+                        &Diagnostics::Type_alias_0_circularly_references_itself,
+                        Some(vec![self.symbol_to_string_(
+                            symbol,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                            None,
+                        )]),
+                    );
+                }
             }
-            links.declared_type = Some(type_);
+            links.borrow_mut().declared_type = Some(type_);
         }
-        links.declared_type.clone().unwrap()
+        let ret = (*links).borrow().declared_type.clone().unwrap();
+        ret
+    }
+
+    pub(super) fn is_string_concat_expression(&self, expr: &Node) -> bool {
+        if is_string_literal_like(expr) {
+            return true;
+        } else if expr.kind() == SyntaxKind::BinaryExpression {
+            let expr_as_binary_expression = expr.as_binary_expression();
+            return self.is_string_concat_expression(&expr_as_binary_expression.left)
+                && self.is_string_concat_expression(&expr_as_binary_expression.right);
+        }
+        false
+    }
+
+    pub(super) fn is_literal_enum_member(&self, member: &Node /*EnumMember*/) -> bool {
+        let member_as_enum_member = member.as_enum_member();
+        let expr = member_as_enum_member.initializer.as_deref();
+        if expr.is_none() {
+            return !member.flags().intersects(NodeFlags::Ambient);
+        }
+        let expr = expr.unwrap();
+        match expr.kind() {
+            SyntaxKind::StringLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral => true,
+            SyntaxKind::PrefixUnaryExpression => {
+                let expr_as_prefix_unary_expression = expr.as_prefix_unary_expression();
+                expr_as_prefix_unary_expression.operator == SyntaxKind::MinusToken
+                    && expr_as_prefix_unary_expression.operand.kind() == SyntaxKind::NumericLiteral
+            }
+            SyntaxKind::Identifier => {
+                node_is_missing(Some(expr))
+                    || (*self.get_symbol_of_node(&member.parent()).unwrap().exports())
+                        .borrow()
+                        .get(&expr.as_identifier().escaped_text)
+                        .is_some()
+            }
+            SyntaxKind::BinaryExpression => self.is_string_concat_expression(expr),
+            _ => false,
+        }
+    }
+
+    pub(super) fn get_enum_kind(&self, symbol: &Symbol) -> EnumKind {
+        let links = self.get_symbol_links(symbol);
+        if let Some(links_enum_kind) = (*links).borrow().enum_kind {
+            return links_enum_kind;
+        }
+        let mut has_non_literal_member = false;
+        if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+            for declaration in symbol_declarations {
+                if declaration.kind() == SyntaxKind::EnumDeclaration {
+                    for member in &declaration.as_enum_declaration().members {
+                        if matches!(member.as_enum_member().initializer.as_ref(), Some(initializer) if is_string_literal_like(initializer))
+                        {
+                            let ret = EnumKind::Literal;
+                            links.borrow_mut().enum_kind = Some(ret);
+                            return ret;
+                        }
+                        if !self.is_literal_enum_member(member) {
+                            has_non_literal_member = true;
+                        }
+                    }
+                }
+            }
+        }
+        let ret = if has_non_literal_member {
+            EnumKind::Numeric
+        } else {
+            EnumKind::Literal
+        };
+        links.borrow_mut().enum_kind = Some(ret);
+        ret
     }
 
     pub(super) fn get_base_type_of_enum_literal_type(&self, type_: &Type) -> Rc<Type> {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::EnumLiteral)
+            && !type_.flags().intersects(TypeFlags::Union)
+        {
+            self.get_declared_type_of_symbol(&self.get_parent_of_symbol(&type_.symbol()).unwrap())
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
+    pub(super) fn get_declared_type_of_enum(&self, symbol: &Symbol) -> Rc<Type> {
+        let links = self.get_symbol_links(symbol);
+        if let Some(links_declared_type) = (*links).borrow().declared_type.clone() {
+            return links_declared_type;
+        }
+        if self.get_enum_kind(symbol) == EnumKind::Literal {
+            self.increment_enum_count();
+            let mut member_type_list: Vec<Rc<Type>> = vec![];
+            if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+                for declaration in symbol_declarations {
+                    if declaration.kind() == SyntaxKind::EnumDeclaration {
+                        for member in &declaration.as_enum_declaration().members {
+                            let value = self.get_enum_member_value(member);
+                            let member_type =
+                                self.get_fresh_type_of_literal_type(&self.get_enum_literal_type(
+                                    value.unwrap_or_else(|| Number::new(0.0).into()),
+                                    self.enum_count(),
+                                    &self.get_symbol_of_node(member).unwrap(),
+                                ));
+                            self.get_symbol_links(&self.get_symbol_of_node(member).unwrap())
+                                .borrow_mut()
+                                .declared_type = Some(member_type.clone());
+                            member_type_list
+                                .push(self.get_regular_type_of_literal_type(&member_type));
+                        }
+                    }
+                }
+            }
+            if !member_type_list.is_empty() {
+                let enum_type = self.get_union_type(
+                    member_type_list,
+                    Some(UnionReduction::Literal),
+                    Some(symbol),
+                    None,
+                    Option::<&Type>::None,
+                );
+                if enum_type.flags().intersects(TypeFlags::Union) {
+                    enum_type.set_flags(enum_type.flags() | TypeFlags::EnumLiteral);
+                    enum_type.set_symbol(Some(symbol.symbol_wrapper()));
+                }
+                links.borrow_mut().declared_type = Some(enum_type.clone());
+                return enum_type;
+            }
+        }
+        let enum_type: Rc<Type> = self.create_type(TypeFlags::Enum).into();
+        enum_type.set_symbol(Some(symbol.symbol_wrapper()));
+        links.borrow_mut().declared_type = Some(enum_type.clone());
+        enum_type
     }
 
     pub(super) fn get_declared_type_of_enum_member(&self, symbol: &Symbol) -> Rc<Type> {

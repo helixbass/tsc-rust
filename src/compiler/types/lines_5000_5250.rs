@@ -1,7 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use bitflags::bitflags;
-use std::cell::{RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
@@ -288,6 +288,7 @@ pub type TypeId = u32;
 #[derive(Clone, Debug)]
 #[type_type(impl_from = false)]
 pub enum Type {
+    BaseType(BaseType),
     IntrinsicType(IntrinsicType),
     LiteralType(LiteralType),
     ObjectType(ObjectType),
@@ -463,10 +464,11 @@ pub trait TypeInterface {
     fn type_wrapper(&self) -> Rc<Type>;
     fn set_type_wrapper(&self, wrapper: Rc<Type>);
     fn flags(&self) -> TypeFlags;
+    fn set_flags(&self, flags: TypeFlags);
     fn id(&self) -> TypeId;
     fn maybe_symbol(&self) -> Option<Rc<Symbol>>;
     fn symbol(&self) -> Rc<Symbol>;
-    fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>);
+    fn set_symbol(&self, symbol: Option<Rc<Symbol>>);
     fn maybe_pattern(&self) -> RefMut<Option<Rc<Node /*DestructuringPattern*/>>>;
     fn maybe_alias_symbol(&self) -> Option<Rc<Symbol>>;
     fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
@@ -476,9 +478,9 @@ pub trait TypeInterface {
 #[derive(Clone, Debug)]
 pub struct BaseType {
     _type_wrapper: RefCell<Option<Weak<Type>>>,
-    pub flags: TypeFlags,
+    flags: Cell<TypeFlags>,
     pub id: Option<TypeId>,
-    symbol: Option<Rc<Symbol>>,
+    symbol: RefCell<Option<Rc<Symbol>>>,
     pattern: RefCell<Option<Rc<Node>>>,
     alias_symbol: Option<Rc<Symbol>>,
     alias_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
@@ -489,9 +491,9 @@ impl BaseType {
     pub fn new(flags: TypeFlags) -> Self {
         Self {
             _type_wrapper: RefCell::new(None),
-            flags,
+            flags: Cell::new(flags),
             id: None,
-            symbol: None,
+            symbol: RefCell::new(None),
             pattern: RefCell::new(None),
             alias_symbol: None,
             alias_type_arguments: RefCell::new(None),
@@ -515,7 +517,11 @@ impl TypeInterface for BaseType {
     }
 
     fn flags(&self) -> TypeFlags {
-        self.flags
+        self.flags.get()
+    }
+
+    fn set_flags(&self, flags: TypeFlags) {
+        self.flags.set(flags)
     }
 
     fn id(&self) -> TypeId {
@@ -523,15 +529,15 @@ impl TypeInterface for BaseType {
     }
 
     fn maybe_symbol(&self) -> Option<Rc<Symbol>> {
-        self.symbol.as_ref().map(Clone::clone)
+        self.symbol.borrow().as_ref().map(Clone::clone)
     }
 
     fn symbol(&self) -> Rc<Symbol> {
-        self.symbol.as_ref().unwrap().clone()
+        self.symbol.borrow().as_ref().unwrap().clone()
     }
 
-    fn set_symbol(&mut self, symbol: Option<Rc<Symbol>>) {
-        self.symbol = symbol;
+    fn set_symbol(&self, symbol: Option<Rc<Symbol>>) {
+        *self.symbol.borrow_mut() = symbol;
     }
 
     fn maybe_pattern(&self) -> RefMut<Option<Rc<Node>>> {
@@ -548,6 +554,20 @@ impl TypeInterface for BaseType {
 
     fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>> {
         self.immediate_base_constraint.borrow_mut()
+    }
+}
+
+impl From<BaseType> for Type {
+    fn from(value: BaseType) -> Self {
+        Self::BaseType(value)
+    }
+}
+
+impl From<BaseType> for Rc<Type> {
+    fn from(value: BaseType) -> Rc<Type> {
+        let rc = Rc::new(Type::BaseType(value));
+        rc.set_type_wrapper(rc.clone());
+        rc
     }
 }
 

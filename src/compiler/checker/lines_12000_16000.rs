@@ -1024,10 +1024,13 @@ impl TypeChecker {
         false
     }
 
-    pub(super) fn get_union_type(
+    pub(super) fn get_union_type<TAliasSymbol: Borrow<Symbol>, TOrigin: Borrow<Type>>(
         &self,
         types: Vec<Rc<Type>>,
         union_reduction: Option<UnionReduction>,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+        origin: Option<TOrigin>,
     ) -> Rc<Type> {
         let union_reduction = union_reduction.unwrap_or(UnionReduction::Literal);
         if types.is_empty() {
@@ -1098,6 +1101,9 @@ impl TypeChecker {
                     })
                     .unwrap(),
                     Some(UnionReduction::Literal),
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
                 ),
             );
         }

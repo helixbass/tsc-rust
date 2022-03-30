@@ -275,7 +275,13 @@ impl TypeChecker {
                     .flags()
                     .intersects(TypeFlags::Union)
                 {
-                    self.get_union_type(links.deferral_constituents.clone().unwrap(), None)
+                    self.get_union_type(
+                        links.deferral_constituents.clone().unwrap(),
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
                 } else {
                     self.get_intersection_type(
                         links.deferral_constituents.as_deref().unwrap(),
@@ -954,7 +960,13 @@ impl TypeChecker {
             },
         );
         self.create_array_type(
-            &self.get_union_type(element_types.unwrap_or_else(|| vec![]), None),
+            &self.get_union_type(
+                element_types.unwrap_or_else(|| vec![]),
+                None,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            ),
             Some(type_as_tuple_type.readonly),
         )
     }

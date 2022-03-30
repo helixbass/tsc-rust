@@ -252,6 +252,9 @@ impl TypeChecker {
                     self.check_declaration_initializer(declaration, Option::<&Type>::None),
                 ],
                 Some(UnionReduction::Subtype),
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
             ),
         ))
     }
@@ -970,7 +973,13 @@ impl TypeChecker {
                 } else {
                     types
                 };
-                type_ = Some(self.get_union_type(source_types, Some(UnionReduction::Subtype)));
+                type_ = Some(self.get_union_type(
+                    source_types,
+                    Some(UnionReduction::Subtype),
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ));
             }
         }
         let type_ = type_.unwrap();
@@ -1249,6 +1258,9 @@ impl TypeChecker {
                                 self.get_type_of_symbol(&exported_member),
                             ],
                             None,
+                            Option::<&Symbol>::None,
+                            None,
+                            Option::<&Type>::None,
                         ));
                         if let Some(exported_member_value_declaration) =
                             exported_member.maybe_value_declaration()

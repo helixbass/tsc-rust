@@ -836,7 +836,13 @@ impl TypeChecker {
                 };
             }
 
-            return_type = Some(self.get_union_type(types, Some(UnionReduction::Subtype)));
+            return_type = Some(self.get_union_type(
+                types,
+                Some(UnionReduction::Subtype),
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            ));
         }
 
         if return_type.is_some() || yield_type.is_some() || next_type.is_some() {

@@ -1158,6 +1158,14 @@ impl Node {
     pub fn as_mapped_type_node(&self) -> &MappedTypeNode {
         enum_unwrapped!(self, [Node, MappedTypeNode])
     }
+
+    pub fn as_enum_member(&self) -> &EnumMember {
+        enum_unwrapped!(self, [Node, EnumMember])
+    }
+
+    pub fn as_enum_declaration(&self) -> &EnumDeclaration {
+        enum_unwrapped!(self, [Node, EnumDeclaration])
+    }
 }
 
 #[derive(Debug)]

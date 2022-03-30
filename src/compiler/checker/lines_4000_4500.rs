@@ -159,6 +159,9 @@ impl TypeChecker {
                 .map(|key| -> Rc<Type> { self.get_string_literal_type(key).into() })
                 .collect::<Vec<_>>(),
             None,
+            Option::<&Symbol>::None,
+            None,
+            Option::<&Type>::None,
         )
     }
 

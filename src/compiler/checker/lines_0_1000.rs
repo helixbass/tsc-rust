@@ -1064,6 +1064,9 @@ pub fn create_type_checker(
             type_checker.regular_true_type(),
         ],
         None,
+        Option::<&Symbol>::None,
+        None,
+        Option::<&Type>::None,
     ));
     type_checker.es_symbol_type = Some(
         type_checker
@@ -1112,6 +1115,9 @@ pub fn create_type_checker(
     type_checker.string_or_number_type = Some(type_checker.get_union_type(
         vec![type_checker.string_type(), type_checker.number_type()],
         None,
+        Option::<&Symbol>::None,
+        None,
+        Option::<&Type>::None,
     ));
     type_checker.string_number_symbol_type = Some(type_checker.get_union_type(
         vec![
@@ -1120,6 +1126,9 @@ pub fn create_type_checker(
             type_checker.es_symbol_type(),
         ],
         None,
+        Option::<&Symbol>::None,
+        None,
+        Option::<&Type>::None,
     ));
     type_checker.keyof_constraint_type = Some(if type_checker.keyof_strings_only {
         type_checker.string_type()
@@ -1129,6 +1138,9 @@ pub fn create_type_checker(
     type_checker.number_or_big_int_type = Some(type_checker.get_union_type(
         vec![type_checker.number_type(), type_checker.bigint_type()],
         None,
+        Option::<&Symbol>::None,
+        None,
+        Option::<&Type>::None,
     ));
     type_checker.template_constraint_type = Some(type_checker.get_union_type(
         vec![
@@ -1140,6 +1152,9 @@ pub fn create_type_checker(
             type_checker.undefined_type(),
         ],
         None,
+        Option::<&Symbol>::None,
+        None,
+        Option::<&Type>::None,
     ));
 
     type_checker.restrictive_mapper = Some(Rc::new(
@@ -1468,6 +1483,14 @@ impl TypeChecker {
 
     pub(super) fn increment_symbol_count(&self) {
         self.symbol_count.set(self.symbol_count() + 1);
+    }
+
+    pub(super) fn enum_count(&self) -> usize {
+        self.enum_count.get()
+    }
+
+    pub(super) fn increment_enum_count(&self) {
+        self.enum_count.set(self.enum_count() + 1);
     }
 
     pub(super) fn total_instantiation_count(&self) -> usize {

@@ -536,6 +536,9 @@ impl TypeChecker {
                     } else {
                         UnionReduction::Literal
                     }),
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
                 ))
             } else {
                 None

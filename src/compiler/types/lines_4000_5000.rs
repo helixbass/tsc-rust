@@ -1076,11 +1076,14 @@ pub struct SymbolLinks {
     pub write_type: Option<Rc<Type>>,
     pub name_type: Option<Rc<Type>>,
     pub declared_type: Option<Rc<Type>>,
+    pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
+    pub instantiations: Option<HashMap<String, Rc<Type>>>,
     pub mapper: Option<TypeMapper>,
     pub referenced: Option<bool>,
     pub const_enum_referenced: Option<bool>,
     pub resolved_exports: Option<Rc<RefCell<SymbolTable>>>,
     pub binding_element: Option<Rc<Node /*BindingElement*/>>,
+    pub enum_kind: Option<EnumKind>,
     pub originating_import: Option<Rc<Node /*ImportDeclaration | ImportCall*/>>,
     pub extended_containers: Option<Vec<Rc<Symbol>>>,
     pub extended_containers_by_file: Option<HashMap<NodeId, Vec<Rc<Symbol>>>>,
@@ -1100,11 +1103,14 @@ impl SymbolLinks {
             write_type: None,
             name_type: None,
             declared_type: None,
+            type_parameters: None,
+            instantiations: None,
             mapper: None,
             referenced: None,
             const_enum_referenced: None,
             resolved_exports: None,
             binding_element: None,
+            enum_kind: None,
             originating_import: None,
             extended_containers: None,
             extended_containers_by_file: None,
@@ -1116,6 +1122,12 @@ impl SymbolLinks {
             accessible_chain_cache: None,
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum EnumKind {
+    Numeric,
+    Literal,
 }
 
 bitflags! {

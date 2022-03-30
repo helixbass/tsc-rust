@@ -1160,6 +1160,10 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.flags()
                     }
 
+                    fn set_flags(&self, flags: crate::TypeFlags) {
+                        self.#first_field_name.set_flags(flags)
+                    }
+
                     fn id(&self) -> crate::TypeId {
                         self.#first_field_name.id()
                     }
@@ -1172,7 +1176,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.symbol()
                     }
 
-                    fn set_symbol(&mut self, symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                    fn set_symbol(&self, symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
                         self.#first_field_name.set_symbol(symbol)
                     }
 
@@ -1464,6 +1468,12 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
+                    fn set_flags(&self, flags: crate::TypeFlags) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_flags(flags)),*
+                        }
+                    }
+
                     fn id(&self) -> crate::TypeId {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.id()),*
@@ -1482,7 +1492,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn set_symbol(&mut self, symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
+                    fn set_symbol(&self, symbol: ::std::option::Option<::std::rc::Rc<crate::Symbol>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_symbol(symbol)),*
                         }

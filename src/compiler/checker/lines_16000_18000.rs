@@ -10,8 +10,8 @@ use crate::{
     get_check_flags, map, pseudo_big_int_to_string, BaseLiteralType, BigIntLiteralType, CheckFlags,
     Debug_, DiagnosticMessage, LiteralTypeInterface, NamedDeclarationInterface, Node,
     NodeInterface, Number, NumberLiteralType, PseudoBigInt, RelationComparisonResult, Signature,
-    SignatureFlags, StringLiteralType, Symbol, SymbolInterface, SyntaxKind, Ternary,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    SignatureFlags, StringLiteralType, StringOrNumber, Symbol, SymbolInterface, SyntaxKind,
+    Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     UnionOrIntersectionType,
 };
 use local_macros::enum_unwrapped;
@@ -160,6 +160,15 @@ impl TypeChecker {
         );
         big_int_literal_types.insert(key, type_.clone());
         type_
+    }
+
+    pub(super) fn get_enum_literal_type(
+        &self,
+        value: StringOrNumber,
+        enum_id: usize,
+        symbol: &Symbol,
+    ) -> Rc<Type /*LiteralType*/> {
+        unimplemented!()
     }
 
     pub(super) fn get_type_from_literal_type_node(

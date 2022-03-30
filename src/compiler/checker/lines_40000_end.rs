@@ -158,6 +158,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_enum_member_value(
+        &self,
+        node: &Node, /*EnumMember*/
+    ) -> Option<StringOrNumber> {
+        unimplemented!()
+    }
+
     pub(super) fn can_have_constant_value(&self, node: &Node) -> bool {
         unimplemented!()
     }
