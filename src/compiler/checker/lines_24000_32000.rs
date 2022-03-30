@@ -569,6 +569,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_assigned_class_symbol(
+        &self,
+        decl: &Node, /*Declaration*/
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_symbol_of_expando(
         &self,
         node: &Node,

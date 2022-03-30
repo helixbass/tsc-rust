@@ -440,7 +440,7 @@ impl ResolvedTypeInterface for BaseObjectType {
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
-    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InterfaceTypeInterface"
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InterfaceTypeInterface, TypeReferenceInterface, GenericTypeInterface, GenericableTypeInterface"
 )]
 pub enum InterfaceType {
     BaseInterfaceType(BaseInterfaceType),
@@ -464,8 +464,13 @@ pub struct BaseInterfaceType {
     declared_properties: RefCell<Option<Vec<Rc<Symbol>>>>,
     declared_call_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
     declared_construct_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
+    // GenericType fields
     instantiations: RefCell<Option<HashMap<String, Rc<Type /*TypeReference*/>>>>,
     variances: RefCell<Option<Vec<VarianceFlags>>>,
+    // TypeReference fields (for GenericType)
+    pub target: RefCell<Option<Rc<Type /*GenericType*/>>>,
+    pub node: RefCell<Option<Rc<Node /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/>>>,
+    pub resolved_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
 }
 
 impl BaseInterfaceType {
@@ -490,6 +495,9 @@ impl BaseInterfaceType {
             declared_construct_signatures: RefCell::new(None),
             instantiations: RefCell::new(None),
             variances: RefCell::new(None),
+            target: RefCell::new(None),
+            node: RefCell::new(None),
+            resolved_type_arguments: RefCell::new(None),
         }
     }
 }
@@ -607,6 +615,24 @@ impl GenericTypeInterface for BaseInterfaceType {
     }
 }
 
+impl TypeReferenceInterface for BaseInterfaceType {
+    fn target(&self) -> Rc<Type> {
+        self.target.borrow().clone().unwrap()
+    }
+
+    fn set_target(&self, target: Rc<Type>) {
+        *self.target.borrow_mut() = Some(target);
+    }
+
+    fn maybe_node(&self) -> RefMut<Option<Rc<Node>>> {
+        self.node.borrow_mut()
+    }
+
+    fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+        self.resolved_type_arguments.borrow_mut()
+    }
+}
+
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
@@ -632,8 +658,29 @@ impl TypeReference {
             resolved_type_arguments: RefCell::new(resolved_type_arguments),
         }
     }
+}
 
-    pub fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
+pub trait TypeReferenceInterface {
+    fn target(&self) -> Rc<Type>;
+    fn set_target(&self, target: Rc<Type>);
+    fn maybe_node(&self) -> RefMut<Option<Rc<Node>>>;
+    fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
+}
+
+impl TypeReferenceInterface for TypeReference {
+    fn target(&self) -> Rc<Type> {
+        self.target.clone()
+    }
+
+    fn set_target(&self, _target: Rc<Type>) {
+        panic!("Shouldn't call set_target() on a TypeReference")
+    }
+
+    fn maybe_node(&self) -> RefMut<Option<Rc<Node>>> {
+        self.node.borrow_mut()
+    }
+
+    fn maybe_resolved_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>> {
         self.resolved_type_arguments.borrow_mut()
     }
 }
@@ -656,7 +703,7 @@ pub trait GenericableTypeInterface: TypeInterface {
     fn genericize(&self, instantiations: HashMap<String, Rc<Type /*TypeReference*/>>);
 }
 
-pub trait GenericTypeInterface: TypeInterface {
+pub trait GenericTypeInterface: TypeReferenceInterface {
     fn instantiations(&self) -> RefMut<HashMap<String, Rc<Type /*TypeReference*/>>>;
     fn maybe_variances(&self) -> RefMut<Option<Vec<VarianceFlags>>>;
     fn set_variances(&self, variances: Vec<VarianceFlags>);
@@ -679,7 +726,7 @@ bitflags! {
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "InterfaceType, ObjectType",
-    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, GenericableTypeInterface, GenericTypeInterface, InterfaceTypeInterface"
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, GenericableTypeInterface, GenericTypeInterface, InterfaceTypeInterface, TypeReferenceInterface"
 )]
 pub struct TupleType {
     _interface_type: BaseInterfaceType,

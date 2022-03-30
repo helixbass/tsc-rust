@@ -1411,6 +1411,28 @@ fn get_type_struct_interface_impl(
                 }
             }
         }
+        "TypeReferenceInterface" => {
+            quote! {
+                impl crate::TypeReferenceInterface for #type_type_name {
+                    fn target(&self) -> ::std::rc::Rc<crate::Type> {
+                        self.#first_field_name.target()
+                    }
+
+                    fn set_target(&self, target: ::std::rc::Rc<crate::Type>) {
+                        self.#first_field_name.set_target(target)
+                    }
+
+                    fn maybe_node(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
+                        self.#first_field_name.maybe_node()
+                    }
+
+                    fn maybe_resolved_type_arguments(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Type>>>> {
+                        self.#first_field_name.maybe_resolved_type_arguments()
+                    }
+                }
+            }
+        }
+
         _ => panic!("Unknown interface: {}", interface_name),
     }
 }
@@ -1782,6 +1804,35 @@ fn get_type_enum_interface_impl(
                     fn set_base_types_resolved(&self, base_types_resolved: ::std::option::Option<bool>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_base_types_resolved(base_types_resolved)),*
+                        }
+                    }
+                }
+            }
+        }
+        "TypeReferenceInterface" => {
+            quote! {
+                impl crate::TypeReferenceInterface for #type_type_name {
+                    fn target(&self) -> ::std::rc::Rc<crate::Type> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.target()),*
+                        }
+                    }
+
+                    fn set_target(&self, target: ::std::rc::Rc<crate::Type>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_target(target)),*
+                        }
+                    }
+
+                    fn maybe_node(&self) -> ::std::cell::RefMut<::std::option::Option<::std::rc::Rc<crate::Node>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_node()),*
+                        }
+                    }
+
+                    fn maybe_resolved_type_arguments(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Type>>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_type_arguments()),*
                         }
                     }
                 }

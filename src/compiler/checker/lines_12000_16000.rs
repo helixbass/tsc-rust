@@ -484,6 +484,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_type_list_id(&self, types: Option<&[Rc<Type>]>) -> String {
+        unimplemented!()
+    }
+
     pub(super) fn get_propagating_flags_of_types(
         &self,
         types: &[Rc<Type>],

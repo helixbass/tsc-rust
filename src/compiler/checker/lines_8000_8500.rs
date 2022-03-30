@@ -24,8 +24,8 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags, NodeFlags, NodeInterface,
     ObjectFlags, ObjectFlagsTypeInterface, PrinterOptionsBuilder, Symbol, SymbolFlags, SymbolId,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
-    TypePredicate, TypePredicateKind, TypeSystemEntity, TypeSystemPropertyName,
-    UnionOrIntersectionTypeInterface, __String,
+    TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
+    TypeSystemPropertyName, UnionOrIntersectionTypeInterface, __String,
 };
 
 impl TypeChecker {

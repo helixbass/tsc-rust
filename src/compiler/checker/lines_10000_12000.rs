@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
@@ -8,11 +9,12 @@ use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
     concatenate, create_symbol_table, escape_leading_underscores, every,
     get_interface_base_type_nodes, has_dynamic_name, is_entity_name_expression, is_type_alias,
-    range_equals_rc, BaseInterfaceType, Debug_, Diagnostics, InterfaceType, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node, NodeFlags, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
+    range_equals_rc, BaseInterfaceType, Debug_, Diagnostics, GenericableTypeInterface,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
+    NodeFlags, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, TypeReferenceInterface,
+    UnderscoreEscapedMap, __String,
 };
 
 impl TypeChecker {
@@ -152,30 +154,43 @@ impl TypeChecker {
         &self,
         symbol: &Symbol,
     ) -> Rc<Type /*InterfaceType*/> {
-        let links = self.get_symbol_links(symbol);
+        let mut links = self.get_symbol_links(symbol);
         let original_links = links.clone();
-        let mut original_links_ref = original_links.borrow_mut();
-        if original_links_ref.declared_type.is_none() {
+        let mut symbol = symbol.symbol_wrapper();
+        if (*links).borrow().declared_type.is_none() {
             let kind = if symbol.flags().intersects(SymbolFlags::Class) {
                 ObjectFlags::Class
             } else {
                 ObjectFlags::Interface
             };
+            let merged = self.merge_js_symbols(
+                &symbol,
+                symbol
+                    .maybe_value_declaration()
+                    .as_ref()
+                    .and_then(|value_declaration| {
+                        self.get_assigned_class_symbol(value_declaration)
+                    }),
+            );
+            if let Some(merged) = merged {
+                symbol = merged.clone();
+                links = merged.as_transient_symbol().symbol_links();
+            }
 
-            let type_ = self.create_object_type(kind, Some(symbol));
+            let type_ = self.create_object_type(kind, Some(&*symbol));
             let outer_type_parameters =
-                self.get_outer_type_parameters_of_class_or_interface(symbol);
+                self.get_outer_type_parameters_of_class_or_interface(&symbol);
             let local_type_parameters =
-                self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+                self.get_local_type_parameters_of_class_or_interface_or_type_alias(&symbol);
             let mut need_to_set_constraint = false;
-            let type_: InterfaceType = if outer_type_parameters.is_some()
+            let type_: Rc<Type> = if outer_type_parameters.is_some()
                 || local_type_parameters.is_some()
                 || kind == ObjectFlags::Class
-                || false
+                || !self.is_thisless_interface(&symbol)
             {
                 need_to_set_constraint = true;
                 type_.set_object_flags(type_.object_flags() | ObjectFlags::Reference);
-                let mut this_type = self.create_type_parameter(Some(symbol.symbol_wrapper()));
+                let mut this_type = self.create_type_parameter(Some(symbol.clone()));
                 this_type.is_this_type = Some(true);
                 BaseInterfaceType::new(
                     type_,
@@ -191,24 +206,31 @@ impl TypeChecker {
                 BaseInterfaceType::new(type_, None, None, None, None)
             }
             .into();
-            let type_rc: Rc<Type> = type_.into();
+            let type_as_interface_type = type_.as_interface_type();
             if need_to_set_constraint {
-                *type_rc
-                    .as_interface_type()
+                *type_as_interface_type
                     .maybe_this_type_mut()
                     .as_ref()
                     .unwrap()
                     .as_type_parameter()
                     .constraint
-                    .borrow_mut() = Some(Rc::downgrade(&type_rc));
+                    .borrow_mut() = Some(Rc::downgrade(&type_));
             }
-            original_links_ref.declared_type = Some(type_rc.clone());
-            if !Rc::ptr_eq(&links, &original_links) {
-                let mut links_ref = links.borrow_mut();
-                links_ref.declared_type = Some(type_rc);
-            }
+            let mut instantiations: HashMap<String, Rc<Type /*TypeReference*/>> = HashMap::new();
+            instantiations.insert(
+                self.get_type_list_id(type_as_interface_type.maybe_type_parameters()),
+                type_.clone(),
+            );
+            type_as_interface_type.genericize(instantiations);
+            type_as_interface_type.set_target(type_.clone());
+            *type_as_interface_type.maybe_resolved_type_arguments() = type_as_interface_type
+                .maybe_type_parameters()
+                .map(ToOwned::to_owned);
+            original_links.borrow_mut().declared_type = Some(type_.clone());
+            links.borrow_mut().declared_type = Some(type_.clone());
         }
-        original_links_ref.declared_type.clone().unwrap()
+        let ret = (*links).borrow().declared_type.clone().unwrap();
+        ret
     }
 
     pub(super) fn get_declared_type_of_type_alias(&self, symbol: &Symbol) -> Rc<Type> {
