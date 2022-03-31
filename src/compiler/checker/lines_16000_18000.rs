@@ -8,7 +8,7 @@ use std::rc::Rc;
 use super::{CheckMode, CheckTypeRelatedTo};
 use crate::{
     get_check_flags, map, pseudo_big_int_to_string, BaseLiteralType, BigIntLiteralType, CheckFlags,
-    Debug_, DiagnosticMessage, LiteralTypeInterface, NamedDeclarationInterface, Node,
+    Debug_, DiagnosticMessage, IndexInfo, LiteralTypeInterface, NamedDeclarationInterface, Node,
     NodeInterface, Number, NumberLiteralType, PseudoBigInt, RelationComparisonResult, Signature,
     SignatureFlags, StringLiteralType, StringOrNumber, Symbol, SymbolInterface, SyntaxKind,
     Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
@@ -267,6 +267,14 @@ impl TypeChecker {
             self.instantiate_signature(signature.clone(), mapper, None)
         })
         .unwrap()
+    }
+
+    pub(super) fn instantiate_index_infos(
+        &self,
+        index_infos: &[Rc<IndexInfo>],
+        mapper: &TypeMapper,
+    ) -> Vec<Rc<IndexInfo>> {
+        unimplemented!()
     }
 
     pub(super) fn create_type_mapper(

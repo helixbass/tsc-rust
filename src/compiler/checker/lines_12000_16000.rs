@@ -6,7 +6,7 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    filter, get_effective_constraint_of_type_parameter, get_effective_return_type_node,
+    filter, find, get_effective_constraint_of_type_parameter, get_effective_return_type_node,
     get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
     map_defined, maybe_append_if_unique_rc, node_is_missing, AccessFlags, DiagnosticMessageChain,
     ElementFlags, IndexInfo, InterfaceTypeInterface, Signature, SignatureFlags, SignatureKind,
@@ -97,6 +97,17 @@ impl TypeChecker {
         kind: SignatureKind,
     ) -> Vec<Rc<Signature>> {
         self.get_signatures_of_structured_type(&self.get_reduced_apparent_type(type_), kind)
+    }
+
+    pub(super) fn find_index_info(
+        &self,
+        index_infos: &[Rc<IndexInfo>],
+        key_type: &Type,
+    ) -> Option<Rc<IndexInfo>> {
+        find(index_infos, |info: &Rc<IndexInfo>, _| {
+            ptr::eq(&*info.key_type, key_type)
+        })
+        .map(Clone::clone)
     }
 
     pub(super) fn get_index_infos_of_type(&self, type_: &Type) -> Vec<Rc<IndexInfo>> {

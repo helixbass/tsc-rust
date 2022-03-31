@@ -8,15 +8,15 @@ use std::rc::Rc;
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
     are_rc_slices_equal, concatenate, create_symbol_table, declaration_name_to_string,
-    escape_leading_underscores, get_assignment_declaration_kind, get_check_flags,
+    escape_leading_underscores, filter, get_assignment_declaration_kind, get_check_flags,
     get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
-    has_static_modifier, is_binary_expression, is_element_access_expression, length,
-    maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
+    has_static_modifier, is_binary_expression, is_element_access_expression, last_or_undefined,
+    length, maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
-    LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    InternalSymbolName, LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
+    SymbolTable, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     TypePredicate, UnderscoreEscapedMap, __String,
 };
 
@@ -437,16 +437,21 @@ impl TypeChecker {
         type_arguments: Vec<Rc<Type>>,
     ) {
         let mut mapper: Option<TypeMapper> = None;
-        let members: Rc<RefCell<SymbolTable>>;
-        let call_signatures: Vec<Rc<Signature>>;
-        let construct_signatures: Vec<Rc<Signature>>;
+        let mut members: Rc<RefCell<SymbolTable>>;
+        let mut call_signatures: Vec<Rc<Signature>>;
+        let mut construct_signatures: Vec<Rc<Signature>>;
+        let mut index_infos: Vec<Rc<IndexInfo>>;
         let source_as_interface_type_with_declared_members =
             source.as_interface_type_with_declared_members();
         if range_equals_rc(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.maybe_symbol() {
                 self.get_members_of_symbol(&source_symbol)
             } else {
-                unimplemented!()
+                Rc::new(RefCell::new(create_symbol_table(
+                    source_as_interface_type_with_declared_members
+                        .maybe_declared_properties()
+                        .as_deref(),
+                )))
             };
             call_signatures = source_as_interface_type_with_declared_members
                 .declared_call_signatures()
@@ -454,9 +459,12 @@ impl TypeChecker {
             construct_signatures = source_as_interface_type_with_declared_members
                 .declared_construct_signatures()
                 .clone();
+            index_infos = source_as_interface_type_with_declared_members
+                .declared_index_infos()
+                .clone();
         } else {
             let type_parameters_len_is_1 = type_parameters.len() == 1;
-            mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments)));
+            mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments.clone())));
             members = Rc::new(RefCell::new(
                 self.create_instantiated_symbol_table(
                     source
@@ -476,13 +484,78 @@ impl TypeChecker {
                 &*source_as_interface_type_with_declared_members.declared_construct_signatures(),
                 mapper.as_ref().unwrap(),
             );
+            index_infos = self.instantiate_index_infos(
+                &*source_as_interface_type_with_declared_members.declared_index_infos(),
+                mapper.as_ref().unwrap(),
+            );
+        }
+        let base_types = self.get_base_types(source);
+        if !base_types.is_empty() {
+            if matches!(source.maybe_symbol(), Some(symbol) if Rc::ptr_eq(&members, &self.get_members_of_symbol(&symbol)))
+            {
+                members = Rc::new(RefCell::new(create_symbol_table(
+                    source_as_interface_type_with_declared_members
+                        .maybe_declared_properties()
+                        .as_deref(),
+                )));
+            }
+            self.set_structured_type_members(
+                type_.as_object_type(),
+                members.clone(),
+                call_signatures.clone(),
+                construct_signatures.clone(),
+                index_infos.clone(),
+            );
+            let this_argument = last_or_undefined(&type_arguments);
+            for base_type in base_types {
+                let instantiated_base_type = if let Some(this_argument) = this_argument {
+                    self.get_type_with_this_argument(
+                        &self
+                            .instantiate_type(Some(base_type), mapper.as_ref())
+                            .unwrap(),
+                        Some(&**this_argument),
+                        None,
+                    )
+                } else {
+                    base_type.clone()
+                };
+                self.add_inherited_members(
+                    &mut members.borrow_mut(),
+                    &self.get_properties_of_type(&instantiated_base_type),
+                );
+                call_signatures = concatenate(
+                    call_signatures,
+                    self.get_signatures_of_type(&instantiated_base_type, SignatureKind::Call),
+                );
+                construct_signatures = concatenate(
+                    construct_signatures,
+                    self.get_signatures_of_type(&instantiated_base_type, SignatureKind::Construct),
+                );
+                let inherited_index_infos =
+                    if !Rc::ptr_eq(&instantiated_base_type, &self.any_type()) {
+                        self.get_index_infos_of_type(&instantiated_base_type)
+                    } else {
+                        vec![Rc::new(self.create_index_info(
+                            self.string_type(),
+                            self.any_type(),
+                            false,
+                            None,
+                        ))]
+                    };
+                let inherited_index_infos_filtered =
+                    filter(Some(&*inherited_index_infos), |info: &Rc<IndexInfo>| {
+                        self.find_index_info(&index_infos, &info.key_type).is_none()
+                    })
+                    .unwrap();
+                index_infos = concatenate(index_infos, inherited_index_infos_filtered);
+            }
         }
         self.set_structured_type_members(
             type_.as_object_type(),
             members,
             call_signatures,
             construct_signatures,
-            vec![], // TODO: this is wrong
+            index_infos,
         );
     }
 
