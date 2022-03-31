@@ -504,5 +504,6 @@ pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::number::Number;
 pub use rust_helpers::weak_self::WeakSelf;
 pub use rust_helpers::{
-    are_option_rcs_equal, index_of, index_of_rc, is_same_variant, last_index_of,
+    are_option_rcs_equal, are_rc_slices_equal, index_of, index_of_rc, is_same_variant,
+    last_index_of,
 };

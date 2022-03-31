@@ -1,21 +1,23 @@
 #![allow(non_upper_case_globals)]
 
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    concatenate, create_symbol_table, declaration_name_to_string, escape_leading_underscores,
-    get_assignment_declaration_kind, get_check_flags, get_members_of_declaration,
-    get_name_of_declaration, has_dynamic_name, has_static_modifier, is_binary_expression,
-    is_element_access_expression, maybe_concatenate, maybe_for_each, range_equals_rc,
+    are_rc_slices_equal, concatenate, create_symbol_table, declaration_name_to_string,
+    escape_leading_underscores, get_assignment_declaration_kind, get_check_flags,
+    get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
+    has_static_modifier, is_binary_expression, is_element_access_expression, length,
+    maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
-    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
-    __String,
+    InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName,
+    LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature,
+    SignatureFlags, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, UnderscoreEscapedMap, __String,
 };
 
 impl TypeChecker {
@@ -228,7 +230,7 @@ impl TypeChecker {
             let mut late_symbols = create_symbol_table(None);
             let early_symbols_ref = early_symbols
                 .as_ref()
-                .map(|early_symbols| (*early_symbols).borrow());
+                .map(|early_symbols| (**early_symbols).borrow());
             if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
                 for decl in symbol_declarations {
                     let members = get_members_of_declaration(decl);
@@ -324,18 +326,107 @@ impl TypeChecker {
     }
 
     pub(super) fn get_members_of_symbol(&self, symbol: &Symbol) -> Rc<RefCell<SymbolTable>> {
-        if false {
-            unimplemented!()
+        if symbol.flags().intersects(SymbolFlags::LateBindingContainer) {
+            self.get_resolved_members_or_exports_of_symbol(
+                symbol,
+                MembersOrExportsResolutionKind::resolved_members,
+            )
         } else {
             symbol
                 .maybe_members()
                 .clone()
-                .unwrap_or_else(|| unimplemented!())
+                .unwrap_or_else(|| self.empty_symbols())
         }
     }
 
     pub(super) fn get_late_bound_symbol(&self, symbol: &Symbol) -> Rc<Symbol> {
+        if symbol.flags().intersects(SymbolFlags::ClassMember)
+            && symbol.escaped_name() == &InternalSymbolName::Computed()
+        {
+            let links = self.get_symbol_links(symbol);
+            if (*links).borrow().late_symbol.is_none()
+                && some(
+                    symbol.maybe_declarations().as_deref(),
+                    Some(|declaration: &Rc<Node>| self.has_late_bindable_name(declaration)),
+                )
+            {
+                let parent = self.get_merged_symbol(symbol.maybe_parent()).unwrap();
+                if some(
+                    symbol.maybe_declarations().as_deref(),
+                    Some(|declaration: &Rc<Node>| has_static_modifier(declaration)),
+                ) {
+                    self.get_exports_of_symbol(&parent);
+                } else {
+                    self.get_members_of_symbol(&parent);
+                }
+            }
+            let mut links = links.borrow_mut();
+            if links.late_symbol.is_none() {
+                links.late_symbol = Some(symbol.symbol_wrapper());
+            }
+            return links.late_symbol.clone().unwrap();
+        }
         symbol.symbol_wrapper()
+    }
+
+    pub(super) fn get_type_with_this_argument<TThisArgument: Borrow<Type>>(
+        &self,
+        type_: &Type,
+        this_argument: Option<TThisArgument>,
+        need_apparent_type: Option<bool>,
+    ) -> Rc<Type> {
+        let this_argument =
+            this_argument.map(|this_argument| this_argument.borrow().type_wrapper());
+        if get_object_flags(type_).intersects(ObjectFlags::Reference) {
+            let target = &type_.as_type_reference().target;
+            let type_arguments = self.get_type_arguments(type_);
+            let target_as_interface_type = target.as_interface_type();
+            if length(target_as_interface_type.maybe_type_parameters())
+                == length(Some(&type_arguments))
+            {
+                let ref_: Rc<Type> = self
+                    .create_type_reference(
+                        target,
+                        Some(concatenate(
+                            type_arguments,
+                            vec![this_argument.clone().unwrap_or_else(|| {
+                                target_as_interface_type.maybe_this_type().unwrap()
+                            })],
+                        )),
+                    )
+                    .into();
+                return if matches!(need_apparent_type, Some(true)) {
+                    self.get_apparent_type(&ref_)
+                } else {
+                    ref_
+                };
+            }
+        } else if type_.flags().intersects(TypeFlags::Intersection) {
+            let types = same_map(
+                Some(type_.as_union_or_intersection_type_interface().types()),
+                |t: &Rc<Type>, _| {
+                    self.get_type_with_this_argument(
+                        t,
+                        this_argument.as_deref(),
+                        need_apparent_type,
+                    )
+                },
+            )
+            .unwrap();
+            return if !are_rc_slices_equal(
+                &types,
+                type_.as_union_or_intersection_type_interface().types(),
+            ) {
+                self.get_intersection_type(&types, Option::<&Symbol>::None, None)
+            } else {
+                type_.type_wrapper()
+            };
+        }
+        if matches!(need_apparent_type, Some(true)) {
+            self.get_apparent_type(type_)
+        } else {
+            type_.type_wrapper()
+        }
     }
 
     pub(super) fn resolve_object_type_members(
