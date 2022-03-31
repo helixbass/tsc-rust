@@ -2,24 +2,26 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
 use super::{signature_has_rest_parameter, MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    are_rc_slices_equal, concatenate, create_symbol_table, declaration_name_to_string,
-    escape_leading_underscores, every, filter, get_assignment_declaration_kind, get_check_flags,
-    get_class_like_declaration_of_symbol, get_members_of_declaration, get_name_of_declaration,
-    get_object_flags, has_dynamic_name, has_static_modifier, has_syntactic_modifier,
-    is_binary_expression, is_element_access_expression, is_in_js_file, last_or_undefined, length,
-    map, maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
+    append_if_unique_rc, are_rc_slices_equal, concatenate, create_symbol_table,
+    declaration_name_to_string, escape_leading_underscores, every, filter, for_each,
+    get_assignment_declaration_kind, get_check_flags, get_class_like_declaration_of_symbol,
+    get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
+    has_static_modifier, has_syntactic_modifier, is_binary_expression,
+    is_element_access_expression, is_in_js_file, last_or_undefined, length, map, map_defined,
+    maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
     ElementFlags, IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind,
     SignatureOptionalCallSignatureCache, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
-    SymbolTable, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, UnderscoreEscapedMap, __String,
+    SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
 };
 
 impl TypeChecker {
@@ -854,6 +856,141 @@ impl TypeChecker {
             }
         }
         result
+    }
+
+    pub(super) fn find_matching_signature(
+        &self,
+        signature_list: &[Rc<Signature>],
+        signature: &Signature,
+        partial_match: bool,
+        ignore_this_types: bool,
+        ignore_return_types: bool,
+    ) -> Option<Rc<Signature>> {
+        for s in signature_list {
+            if self.compare_signatures_identical(
+                s.clone(),
+                signature,
+                partial_match,
+                ignore_this_types,
+                ignore_return_types,
+                |source, target| {
+                    if partial_match {
+                        self.compare_types_subtype_of(source, target)
+                    } else {
+                        self.compare_types_identical(source, target)
+                    }
+                },
+            ) != Ternary::False
+            {
+                return Some(s.clone());
+            }
+        }
+        None
+    }
+
+    pub(super) fn find_matching_signatures(
+        &self,
+        signature_lists: &[Vec<Rc<Signature>>],
+        signature: Rc<Signature>,
+        list_index: usize,
+    ) -> Option<Vec<Rc<Signature>>> {
+        if signature.type_parameters.is_some() {
+            if list_index > 0 {
+                return None;
+            }
+            for signature_list in signature_lists.iter().skip(1) {
+                if self
+                    .find_matching_signature(signature_list, &signature, false, false, false)
+                    .is_none()
+                {
+                    return None;
+                }
+            }
+            return Some(vec![signature]);
+        }
+        let mut result: Option<Vec<Rc<Signature>>> = None;
+        for (i, signature_list) in signature_lists.iter().enumerate() {
+            let match_ = if i == list_index {
+                Some(signature.clone())
+            } else {
+                self.find_matching_signature(signature_list, &signature, true, false, true)
+            }?;
+            if result.is_none() {
+                result = Some(vec![]);
+            }
+            append_if_unique_rc(result.as_mut().unwrap(), &match_);
+        }
+        result
+    }
+
+    pub(super) fn get_union_signatures(
+        &self,
+        signature_lists: &[Vec<Rc<Signature>>],
+    ) -> Vec<Rc<Signature>> {
+        let mut result: Option<Vec<Rc<Signature>>> = None;
+        let mut index_with_length_over_one: Option<isize> = None;
+        for (i, signature_list) in signature_lists.iter().enumerate() {
+            if signature_list.is_empty() {
+                return vec![];
+            }
+            if signature_list.len() > 1 {
+                index_with_length_over_one = Some(if index_with_length_over_one.is_none() {
+                    i.try_into().unwrap()
+                } else {
+                    -1
+                });
+            }
+            for signature in signature_list {
+                if match result.as_deref() {
+                    None => true,
+                    Some(result) => self
+                        .find_matching_signature(result, signature, false, false, true)
+                        .is_none(),
+                } {
+                    let union_signatures =
+                        self.find_matching_signatures(signature_lists, signature.clone(), i);
+                    if let Some(union_signatures) = union_signatures {
+                        let mut s = signature.clone();
+                        if union_signatures.len() > 1 {
+                            let mut this_parameter = signature.this_parameter.clone();
+                            let first_this_parameter_of_union_signatures =
+                                for_each(&union_signatures, |sig: &Rc<Signature>, _| {
+                                    sig.this_parameter.clone()
+                                });
+                            if let Some(first_this_parameter_of_union_signatures) =
+                                first_this_parameter_of_union_signatures
+                            {
+                                let this_type = self.get_intersection_type(
+                                    &map_defined(
+                                        Some(&union_signatures),
+                                        |sig: &Rc<Signature>, _| {
+                                            sig.this_parameter.as_ref().map(|this_parameter| {
+                                                self.get_type_of_symbol(this_parameter)
+                                            })
+                                        },
+                                    ),
+                                    Option::<&Symbol>::None,
+                                    None,
+                                );
+                                this_parameter = Some(self.create_symbol_with_type(
+                                    &first_this_parameter_of_union_signatures,
+                                    Some(this_type),
+                                ));
+                            }
+                            let mut s_not_wrapped =
+                                self.create_union_signature(signature, union_signatures);
+                            s_not_wrapped.this_parameter = this_parameter;
+                            s = Rc::new(s_not_wrapped);
+                        }
+                        if result.is_none() {
+                            result = Some(vec![]);
+                        }
+                        result.as_mut().unwrap().push(s);
+                    }
+                }
+            }
+        }
+        result.unwrap_or_else(|| vec![])
     }
 
     pub(super) fn get_type_of_mapped_symbol(

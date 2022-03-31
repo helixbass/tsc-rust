@@ -330,6 +330,14 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn create_symbol_with_type<TType: Borrow<Type>>(
+        &self,
+        source: &Symbol,
+        type_: Option<TType>,
+    ) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
     pub(super) fn get_regular_type_of_object_literal(&self, type_: &Type) -> Rc<Type> {
         type_.type_wrapper()
     }

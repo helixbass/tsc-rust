@@ -550,6 +550,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn compare_types_subtype_of(&self, source: &Type, target: &Type) -> Ternary {
+        unimplemented!()
+    }
+
     pub(super) fn is_type_assignable_to(&self, source: &Type, target: &Type) -> bool {
         self.is_type_related_to(source, target, &self.assignable_relation())
     }
