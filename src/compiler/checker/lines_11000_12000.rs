@@ -1,27 +1,11 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::convert::TryInto;
-use std::ptr;
 use std::rc::Rc;
 
-use super::{signature_has_rest_parameter, MappedTypeModifiers, MembersOrExportsResolutionKind};
+use super::MappedTypeModifiers;
 use crate::{
-    append_if_unique_rc, are_rc_slices_equal, concatenate, create_symbol_table,
-    declaration_name_to_string, escape_leading_underscores, every, filter, for_each,
-    get_assignment_declaration_kind, get_check_flags, get_class_like_declaration_of_symbol,
-    get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
-    has_static_modifier, has_syntactic_modifier, is_binary_expression,
-    is_element_access_expression, is_in_js_file, last_or_undefined, length, map, map_defined,
-    maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
-    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
-    ElementFlags, IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind,
-    SignatureOptionalCallSignatureCache, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
-    SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
+    ObjectFlags, ObjectFlagsTypeInterface, Symbol, Type, TypeChecker, TypeFlags, TypeInterface,
+    __String,
 };
 
 impl TypeChecker {

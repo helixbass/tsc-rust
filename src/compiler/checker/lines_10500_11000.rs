@@ -6,7 +6,7 @@ use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{signature_has_rest_parameter, MappedTypeModifiers, MembersOrExportsResolutionKind};
+use super::{signature_has_rest_parameter, MembersOrExportsResolutionKind};
 use crate::{
     append_if_unique_rc, are_rc_slices_equal, concatenate, create_symbol_table,
     declaration_name_to_string, escape_leading_underscores, every, filter, for_each,
@@ -17,11 +17,11 @@ use crate::{
     maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
     ElementFlags, IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind,
-    SignatureOptionalCallSignatureCache, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
-    SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypePredicate, UnderscoreEscapedMap, __String,
+    InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, Signature,
+    SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol, SymbolFlags,
+    SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
+    __String,
 };
 
 impl TypeChecker {
