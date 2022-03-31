@@ -993,6 +993,48 @@ impl TypeChecker {
         result.unwrap_or_else(|| vec![])
     }
 
+    pub(super) fn compare_type_parameters_identical(
+        &self,
+        source_params: Option<&[Rc<Type /*TypeParameter*/>]>,
+        target_params: Option<&[Rc<Type /*TypeParameter*/>]>,
+    ) -> bool {
+        if length(source_params) != length(target_params) {
+            return false;
+        }
+        if source_params.is_none() || target_params.is_none() {
+            return true;
+        }
+        let source_params = source_params.unwrap();
+        let target_params = target_params.unwrap();
+
+        let mapper =
+            self.create_type_mapper(target_params.to_owned(), Some(source_params.to_owned()));
+        for (i, source) in source_params.iter().enumerate() {
+            let target = &target_params[i];
+            if Rc::ptr_eq(source, target) {
+                continue;
+            }
+            if !self.is_type_identical_to(
+                &self
+                    .get_constraint_from_type_parameter(source)
+                    .unwrap_or_else(|| self.unknown_type()),
+                &self
+                    .instantiate_type(
+                        Some(
+                            self.get_constraint_from_type_parameter(target)
+                                .unwrap_or_else(|| self.unknown_type()),
+                        ),
+                        Some(&mapper),
+                    )
+                    .unwrap(),
+            ) {
+                return false;
+            }
+        }
+
+        true
+    }
+
     pub(super) fn get_type_of_mapped_symbol(
         &self,
         symbol: &Symbol, /*MappedSymbol*/
