@@ -333,7 +333,7 @@ impl TypeChecker {
     }
 
     pub(super) fn get_return_type_of_signature(&self, signature: &Signature) -> Rc<Type> {
-        if signature.resolved_return_type.borrow().is_none() {
+        if signature.maybe_resolved_return_type().is_none() {
             let mut type_: Rc<Type> = if false {
                 unimplemented!()
             } else {
@@ -358,9 +358,9 @@ impl TypeChecker {
             } else if signature.flags.intersects(SignatureFlags::IsOuterCallChain) {
                 type_ = self.get_optional_type_(&type_, None);
             }
-            *signature.resolved_return_type.borrow_mut() = Some(type_);
+            *signature.maybe_resolved_return_type() = Some(type_);
         }
-        signature.resolved_return_type.borrow().clone().unwrap()
+        signature.maybe_resolved_return_type().clone().unwrap()
     }
 
     pub(super) fn get_return_type_from_annotation(

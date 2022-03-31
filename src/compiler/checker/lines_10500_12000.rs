@@ -5,19 +5,20 @@ use std::cell::RefCell;
 use std::ptr;
 use std::rc::Rc;
 
-use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
+use super::{signature_has_rest_parameter, MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
     are_rc_slices_equal, concatenate, create_symbol_table, declaration_name_to_string,
-    escape_leading_underscores, filter, get_assignment_declaration_kind, get_check_flags,
+    escape_leading_underscores, every, filter, get_assignment_declaration_kind, get_check_flags,
     get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
     has_static_modifier, is_binary_expression, is_element_access_expression, last_or_undefined,
-    length, maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
+    length, map, maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
-    IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
+    ElementFlags, IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
     InternalSymbolName, LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
-    SymbolTable, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    TypePredicate, UnderscoreEscapedMap, __String,
+    Signature, SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol,
+    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
+    __String,
 };
 
 impl TypeChecker {
@@ -604,18 +605,182 @@ impl TypeChecker {
         sig.type_parameters = type_parameters;
         sig.set_parameters(parameters);
         sig.this_parameter = this_parameter;
-        *sig.resolved_return_type.borrow_mut() = resolved_return_type;
+        *sig.maybe_resolved_return_type() = resolved_return_type;
         sig.resolved_type_predicate = resolved_type_predicate;
         sig.set_min_argument_count(min_argument_count);
         sig
     }
 
+    pub(super) fn clone_signature(&self, sig: &Signature) -> Signature {
+        let mut result = self.create_signature(
+            sig.declaration.clone(),
+            sig.type_parameters.clone(),
+            sig.this_parameter.clone(),
+            sig.parameters().to_owned(),
+            None,
+            None,
+            sig.min_argument_count(),
+            sig.flags & SignatureFlags::PropagatingFlags,
+        );
+        result.target = sig.target.clone();
+        result.mapper = sig.mapper.clone();
+        result.composite_signatures = sig.composite_signatures.clone();
+        result.composite_kind = sig.composite_kind;
+        result
+    }
+
     pub(super) fn create_union_signature(
         &self,
-        signature: Rc<Signature>,
-        union_signatures: &[Rc<Signature>],
+        signature: &Signature,
+        union_signatures: Vec<Rc<Signature>>,
     ) -> Signature {
-        unimplemented!()
+        let mut result = self.clone_signature(signature);
+        result.composite_signatures = Some(union_signatures);
+        result.composite_kind = Some(TypeFlags::Union);
+        result.target = None;
+        result.mapper = None;
+        result
+    }
+
+    pub(super) fn get_optional_call_signature(
+        &self,
+        signature: Rc<Signature>,
+        call_chain_flags: SignatureFlags,
+    ) -> Rc<Signature> {
+        if signature.flags & SignatureFlags::CallChainFlags == call_chain_flags {
+            return signature;
+        }
+        if signature.maybe_optional_call_signature_cache().is_none() {
+            *signature.maybe_optional_call_signature_cache() =
+                Some(SignatureOptionalCallSignatureCache::new());
+        }
+        let key = if call_chain_flags == SignatureFlags::IsInnerCallChain {
+            "inner"
+        } else {
+            "outer"
+        };
+        let existing = if key == "inner" {
+            signature
+                .maybe_optional_call_signature_cache()
+                .as_ref()
+                .unwrap()
+                .inner
+                .clone()
+        } else {
+            signature
+                .maybe_optional_call_signature_cache()
+                .as_ref()
+                .unwrap()
+                .outer
+                .clone()
+        };
+        if let Some(existing) = existing {
+            return existing;
+        }
+        let ret = Rc::new(self.create_optional_call_signature(&signature, call_chain_flags));
+        if key == "inner" {
+            signature
+                .maybe_optional_call_signature_cache()
+                .as_mut()
+                .unwrap()
+                .inner = Some(ret.clone());
+        } else {
+            signature
+                .maybe_optional_call_signature_cache()
+                .as_mut()
+                .unwrap()
+                .outer = Some(ret.clone());
+        };
+        ret
+    }
+
+    pub(super) fn create_optional_call_signature(
+        &self,
+        signature: &Signature,
+        call_chain_flags: SignatureFlags,
+    ) -> Signature {
+        Debug_.assert(
+            call_chain_flags == SignatureFlags::IsInnerCallChain || call_chain_flags == SignatureFlags::IsOuterCallChain,
+            Some("An optional call signature can either be for an inner call chain or an outer call chain, but not both.")
+        );
+        let mut result = self.clone_signature(signature);
+        result.flags |= call_chain_flags;
+        result
+    }
+
+    pub(super) fn get_expanded_parameters(
+        &self,
+        sig: &Signature,
+        skip_union_expanding: Option<bool>,
+    ) -> Vec<Vec<Rc<Symbol>>> {
+        let skip_union_expanding = skip_union_expanding.unwrap_or(false);
+        if signature_has_rest_parameter(sig) {
+            let rest_index = sig.parameters().len() - 1;
+            let rest_type = self.get_type_of_symbol(&sig.parameters()[rest_index]);
+            if self.is_tuple_type(&rest_type) {
+                return vec![self
+                    .expand_signature_parameters_with_tuple_members(sig, &rest_type, rest_index)];
+            } else if !skip_union_expanding
+                && rest_type.flags().intersects(TypeFlags::Union)
+                && every(
+                    rest_type.as_union_or_intersection_type_interface().types(),
+                    |type_: &Rc<Type>, _| self.is_tuple_type(type_),
+                )
+            {
+                return map(
+                    Some(rest_type.as_union_or_intersection_type_interface().types()),
+                    |t: &Rc<Type>, _| {
+                        self.expand_signature_parameters_with_tuple_members(sig, t, rest_index)
+                    },
+                )
+                .unwrap();
+            }
+        }
+        return vec![sig.parameters().to_owned()];
+    }
+
+    pub(super) fn expand_signature_parameters_with_tuple_members(
+        &self,
+        sig: &Signature,
+        rest_type: &Type, /*TupleTypeReference*/
+        rest_index: usize,
+    ) -> Vec<Rc<Symbol>> {
+        let element_types = self.get_type_arguments(rest_type);
+        let rest_type_as_type_reference = rest_type.as_type_reference();
+        let rest_type_target_as_tuple_type = rest_type_as_type_reference.target.as_tuple_type();
+        let associated_names = rest_type_target_as_tuple_type
+            .labeled_element_declarations
+            .as_ref();
+        let rest_params = map(Some(&element_types), |t: &Rc<Type>, i| {
+            let tuple_label_name = associated_names
+                .map(|associated_names| self.get_tuple_element_label(&associated_names[i]));
+            let name = tuple_label_name.unwrap_or_else(|| {
+                self.get_parameter_name_at_position(sig, rest_index + i, Some(rest_type))
+            });
+            let flags = rest_type_target_as_tuple_type.element_flags[i];
+            let check_flags = if flags.intersects(ElementFlags::Variable) {
+                CheckFlags::RestParameter
+            } else if flags.intersects(ElementFlags::Optional) {
+                CheckFlags::OptionalParameter
+            } else {
+                CheckFlags::None
+            };
+            let symbol: Rc<Symbol> = self
+                .create_symbol(SymbolFlags::FunctionScopedVariable, name, Some(check_flags))
+                .into();
+            symbol
+                .as_transient_symbol()
+                .symbol_links()
+                .borrow_mut()
+                .type_ = Some(if flags.intersects(ElementFlags::Rest) {
+                self.create_array_type(t, None)
+            } else {
+                t.clone()
+            });
+            symbol
+        })
+        .unwrap();
+        concatenate(sig.parameters()[0..rest_index].to_owned(), rest_params)
     }
 
     pub(super) fn get_type_of_mapped_symbol(

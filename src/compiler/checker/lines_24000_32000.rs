@@ -351,7 +351,7 @@ impl TypeChecker {
             if signature_list.len() == 1 {
                 signature_list[0].clone()
             } else {
-                Rc::new(self.create_union_signature(signature_list[0].clone(), &signature_list))
+                Rc::new(self.create_union_signature(&signature_list[0].clone(), signature_list))
             }
         })
     }
@@ -629,6 +629,15 @@ impl TypeChecker {
     pub(super) fn get_tuple_element_label(
         &self,
         d: &Node, /*ParameterDeclaration | NamedTupleMember*/
+    ) -> __String {
+        unimplemented!()
+    }
+
+    pub(super) fn get_parameter_name_at_position<TOverrideRestType: Borrow<Type>>(
+        &self,
+        signature: &Signature,
+        pos: usize,
+        override_rest_type: Option<TOverrideRestType>,
     ) -> __String {
         unimplemented!()
     }

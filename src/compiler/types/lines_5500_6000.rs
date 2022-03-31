@@ -12,7 +12,7 @@ use super::{
     BaseObjectType, BaseType, Node, ObjectFlagsTypeInterface, ObjectTypeInterface,
     ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker, TypePredicate,
 };
-use crate::{Debug_, ScriptKind};
+use crate::{Debug_, ScriptKind, TypeFlags};
 use local_macros::{enum_unwrapped, type_type};
 
 #[derive(Clone, Debug)]
@@ -278,12 +278,15 @@ pub struct Signature {
     pub type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
     parameters: Option<Vec<Rc<Symbol>>>,
     pub this_parameter: Option<Rc<Symbol>>,
-    pub resolved_return_type: RefCell<Option<Rc<Type>>>,
+    resolved_return_type: RefCell<Option<Rc<Type>>>,
     pub resolved_type_predicate: Option<TypePredicate>,
     min_argument_count: Option<usize>,
-    pub resolved_min_argument_count: Cell<Option<usize>>,
+    resolved_min_argument_count: Cell<Option<usize>>,
     pub target: Option<Rc<Signature>>,
-    pub mapper: Option<TypeMapper>,
+    pub mapper: Option<TypeMapper>, // TODO: should this be Rc-wrapped since it gets cloned eg in clone_signature()?
+    pub composite_signatures: Option<Vec<Rc<Signature>>>,
+    pub composite_kind: Option<TypeFlags>,
+    optional_call_signature_cache: RefCell<Option<SignatureOptionalCallSignatureCache>>,
 }
 
 impl Signature {
@@ -300,6 +303,9 @@ impl Signature {
             resolved_min_argument_count: Cell::new(None),
             target: None,
             mapper: None,
+            composite_signatures: None,
+            composite_kind: None,
+            optional_call_signature_cache: RefCell::new(None),
         }
     }
 
@@ -334,6 +340,27 @@ impl Signature {
     pub fn set_resolved_min_argument_count(&self, min_argument_count: usize) {
         self.resolved_min_argument_count
             .set(Some(min_argument_count));
+    }
+
+    pub fn maybe_optional_call_signature_cache(
+        &self,
+    ) -> RefMut<Option<SignatureOptionalCallSignatureCache>> {
+        self.optional_call_signature_cache.borrow_mut()
+    }
+}
+
+#[derive(Debug)]
+pub struct SignatureOptionalCallSignatureCache {
+    pub inner: Option<Rc<Signature>>,
+    pub outer: Option<Rc<Signature>>,
+}
+
+impl SignatureOptionalCallSignatureCache {
+    pub fn new() -> Self {
+        Self {
+            inner: None,
+            outer: None,
+        }
     }
 }
 
