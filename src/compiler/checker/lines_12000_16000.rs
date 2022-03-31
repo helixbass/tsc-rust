@@ -208,6 +208,8 @@ impl TypeChecker {
         &self,
         type_arguments: Option<Vec<Rc<Type>>>,
         type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
+        min_type_argument_count: usize,
+        is_java_script_implicit_any: bool,
     ) -> Option<Vec<Rc<Type>>> {
         type_arguments.map(|vec| vec.clone())
     }
@@ -381,6 +383,14 @@ impl TypeChecker {
         is_javascript: bool,
         inferred_type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
     ) -> Rc<Signature> {
+        unimplemented!()
+    }
+
+    pub(super) fn create_signature_instantiation(
+        &self,
+        signature: &Signature,
+        type_arguments: Option<&[Rc<Type>]>,
+    ) -> Signature {
         unimplemented!()
     }
 
@@ -614,6 +624,8 @@ impl TypeChecker {
                 self.fill_missing_type_arguments(
                     self.type_arguments_from_type_reference_node(&*node.node_wrapper()),
                     Some(type_parameters),
+                    0, // TODO: this is wrong
+                    false,
                 )
                 .unwrap_or_else(|| vec![]),
             );

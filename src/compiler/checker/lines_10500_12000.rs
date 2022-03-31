@@ -9,16 +9,17 @@ use super::{signature_has_rest_parameter, MappedTypeModifiers, MembersOrExportsR
 use crate::{
     are_rc_slices_equal, concatenate, create_symbol_table, declaration_name_to_string,
     escape_leading_underscores, every, filter, get_assignment_declaration_kind, get_check_flags,
-    get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
-    has_static_modifier, is_binary_expression, is_element_access_expression, last_or_undefined,
-    length, map, maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
+    get_class_like_declaration_of_symbol, get_members_of_declaration, get_name_of_declaration,
+    get_object_flags, has_dynamic_name, has_static_modifier, has_syntactic_modifier,
+    is_binary_expression, is_element_access_expression, is_in_js_file, last_or_undefined, length,
+    map, maybe_concatenate, maybe_for_each, range_equals_rc, same_map, some,
     unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
     ElementFlags, IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    InternalSymbolName, LiteralType, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    Signature, SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, TransientSymbolInterface, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
-    __String,
+    InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind,
+    SignatureOptionalCallSignatureCache, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
+    SymbolTable, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    TypePredicate, UnderscoreEscapedMap, __String,
 };
 
 impl TypeChecker {
@@ -781,6 +782,78 @@ impl TypeChecker {
         })
         .unwrap();
         concatenate(sig.parameters()[0..rest_index].to_owned(), rest_params)
+    }
+
+    pub(super) fn get_default_construct_signatures(
+        &self,
+        class_type: &Type, /*InterfaceType*/
+    ) -> Vec<Rc<Signature>> {
+        let base_constructor_type = self.get_base_constructor_type_of_class(class_type);
+        let base_signatures =
+            self.get_signatures_of_type(&base_constructor_type, SignatureKind::Construct);
+        let declaration = get_class_like_declaration_of_symbol(&class_type.symbol());
+        let is_abstract = matches!(declaration.as_ref(), Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract));
+        if base_signatures.is_empty() {
+            return vec![Rc::new(
+                self.create_signature(
+                    None,
+                    class_type
+                        .as_interface_type()
+                        .maybe_local_type_parameters()
+                        .map(ToOwned::to_owned),
+                    None,
+                    vec![],
+                    Some(class_type.type_wrapper()),
+                    None,
+                    0,
+                    if is_abstract {
+                        SignatureFlags::Abstract
+                    } else {
+                        SignatureFlags::None
+                    },
+                ),
+            )];
+        }
+        let base_type_node = self.get_base_type_node_of_class(class_type).unwrap();
+        let is_java_script = is_in_js_file(Some(&*base_type_node));
+        let type_arguments = self.type_arguments_from_type_reference_node(&base_type_node);
+        let type_arg_count = length(type_arguments.as_deref());
+        let mut result: Vec<Rc<Signature>> = vec![];
+        let class_type_as_interface_type = class_type.as_interface_type();
+        for base_sig in base_signatures {
+            let min_type_argument_count =
+                self.get_min_type_argument_count(base_sig.type_parameters.as_deref());
+            let type_param_count = length(base_sig.type_parameters.as_deref());
+            if is_java_script
+                || type_arg_count >= min_type_argument_count && type_arg_count <= type_param_count
+            {
+                let mut sig = if type_param_count > 0 {
+                    self.create_signature_instantiation(
+                        &base_sig,
+                        self.fill_missing_type_arguments(
+                            type_arguments.clone(),
+                            base_sig.type_parameters.as_deref(),
+                            min_type_argument_count,
+                            is_java_script,
+                        )
+                        .as_deref(),
+                    )
+                } else {
+                    self.clone_signature(&base_sig)
+                };
+                sig.type_parameters = class_type_as_interface_type
+                    .maybe_local_type_parameters()
+                    .map(ToOwned::to_owned);
+                *sig.maybe_resolved_return_type() = Some(class_type.type_wrapper());
+                sig.flags = if is_abstract {
+                    sig.flags | SignatureFlags::Abstract
+                } else {
+                    sig.flags & !SignatureFlags::Abstract
+                };
+                result.push(Rc::new(sig));
+            }
+        }
+        result
     }
 
     pub(super) fn get_type_of_mapped_symbol(

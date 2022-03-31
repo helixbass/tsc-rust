@@ -356,6 +356,8 @@ impl TypeChecker {
                 |type_argument, _| self.get_type_from_type_node_(type_argument),
             ),
             Some(type_parameters),
+            0, // TODO: this is wrong
+            false,
         )
         .unwrap()
     }

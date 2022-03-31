@@ -278,6 +278,12 @@ fn access_kind(node: &Node) -> AccessKind {
     }
 }
 
+pub fn get_class_like_declaration_of_symbol(
+    symbol: &Symbol,
+) -> Option<Rc<Node /*ClassLikeDeclaration*/>> {
+    unimplemented!()
+}
+
 pub fn get_object_flags(type_: &Type) -> ObjectFlags {
     if type_.flags().intersects(TypeFlags::ObjectFlagsType) {
         type_.as_object_flags_type().object_flags()
