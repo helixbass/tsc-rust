@@ -391,6 +391,22 @@ pub fn concatenate<TItem>(mut array1: Vec<TItem>, mut array2: Vec<TItem>) -> Vec
     array1
 }
 
+pub fn maybe_concatenate<TItem>(
+    array1: Option<Vec<TItem>>,
+    array2: Option<Vec<TItem>>,
+) -> Option<Vec<TItem>> {
+    if !some(array2.as_deref(), Option::<fn(&TItem) -> bool>::None) {
+        return array1;
+    }
+    if !some(array1.as_deref(), Option::<fn(&TItem) -> bool>::None) {
+        return array2;
+    }
+    let mut array1 = array1.unwrap();
+    let mut array2 = array2.unwrap();
+    array1.append(&mut array2);
+    Some(array1)
+}
+
 enum ComparerOrEqualityComparer<'closure, TItem> {
     Comparer(&'closure dyn Fn(&TItem, &TItem) -> Comparison),
     EqualityComparer(&'closure dyn Fn(&TItem, &TItem) -> bool),

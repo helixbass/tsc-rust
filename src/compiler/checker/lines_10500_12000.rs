@@ -1,36 +1,53 @@
 #![allow(non_upper_case_globals)]
 
 use std::cell::RefCell;
+use std::ptr;
 use std::rc::Rc;
 
 use super::{MappedTypeModifiers, MembersOrExportsResolutionKind};
 use crate::{
-    concatenate, escape_leading_underscores, has_dynamic_name, range_equals_rc, Debug_,
+    concatenate, create_symbol_table, declaration_name_to_string, escape_leading_underscores,
+    get_assignment_declaration_kind, get_check_flags, get_members_of_declaration,
+    get_name_of_declaration, has_dynamic_name, has_static_modifier, is_binary_expression,
+    is_element_access_expression, maybe_concatenate, maybe_for_each, range_equals_rc,
+    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
     InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface, LiteralType, Node,
-    ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol, SymbolInterface,
-    SymbolTable, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate,
-    UnderscoreEscapedMap, __String,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags, Symbol,
+    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, TransientSymbolInterface, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate, UnderscoreEscapedMap,
+    __String,
 };
 
 impl TypeChecker {
+    pub(super) fn has_late_bindable_name(&self, node: &Node /*Declaration*/) -> bool {
+        let name = get_name_of_declaration(Some(node));
+        match name {
+            None => false,
+            Some(name) => self.is_late_bindable_name(&name),
+        }
+    }
+
     pub(super) fn has_bindable_name(&self, node: &Node /*Declaration*/) -> bool {
-        !has_dynamic_name(node) || unimplemented!()
+        !has_dynamic_name(node) || self.has_late_bindable_name(node)
     }
 
     pub(super) fn get_property_name_from_type(
         &self,
         type_: &Type, /*StringLiteralType | NumberLiteralType | UniqueESSymbolType*/
     ) -> __String {
+        if type_.flags().intersects(TypeFlags::UniqueESSymbol) {
+            return type_.as_unique_es_symbol_type().escaped_name.clone();
+        }
         if type_
             .flags()
             .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
         {
             return match type_ {
-                Type::LiteralType(LiteralType::NumberLiteralType(number_literal_type)) => {
-                    escape_leading_underscores(&number_literal_type.value.to_string())
+                Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
+                    escape_leading_underscores(&type_.value.to_string())
                 }
-                Type::LiteralType(LiteralType::StringLiteralType(string_literal_type)) => {
-                    escape_leading_underscores(&string_literal_type.value)
+                Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
+                    escape_leading_underscores(&type_.value)
                 }
                 _ => panic!("Expected NumberLiteralType or StringLiteralType"),
             };
@@ -38,12 +55,272 @@ impl TypeChecker {
         Debug_.fail(None)
     }
 
+    pub(super) fn add_declaration_to_late_bound_symbol(
+        &self,
+        symbol: &Symbol,
+        member: &Node, /*LateBoundDeclaration | BinaryExpression*/
+        symbol_flags: SymbolFlags,
+    ) {
+        Debug_.assert(
+            get_check_flags(symbol).intersects(CheckFlags::Late),
+            Some("Expected a late-bound symbol."),
+        );
+        symbol.set_flags(symbol.flags() | symbol_flags);
+        self.get_symbol_links(&member.symbol())
+            .borrow_mut()
+            .late_symbol = Some(symbol.symbol_wrapper());
+        if symbol.maybe_declarations().is_none() {
+            symbol.set_declarations(vec![member.node_wrapper()]);
+        } else if !matches!(member.symbol().maybe_is_replaceable_by_method(), Some(true)) {
+            symbol
+                .maybe_declarations_mut()
+                .as_mut()
+                .unwrap()
+                .push(member.node_wrapper());
+        }
+        if symbol_flags.intersects(SymbolFlags::Value) {
+            if match symbol.maybe_value_declaration().as_ref() {
+                None => true,
+                Some(value_declaration) => value_declaration.kind() != member.kind(),
+            } {
+                symbol.set_value_declaration(member.node_wrapper());
+            }
+        }
+    }
+
+    pub(super) fn late_bind_member(
+        &self,
+        parent: &Symbol,
+        early_symbols: Option<&SymbolTable>,
+        late_symbols: &mut UnderscoreEscapedMap<Rc<Symbol /*TransientSymbol*/>>,
+        decl: &Node, /*LateBoundDeclaration | LateBoundBinaryExpressionDeclaration*/
+    ) -> Rc<Symbol> {
+        Debug_.assert(
+            decl.maybe_symbol().is_some(),
+            Some("The member is expected to have a symbol."),
+        );
+        let links = self.get_node_links(decl);
+        if (*links).borrow().resolved_symbol.is_none() {
+            links.borrow_mut().resolved_symbol = decl.maybe_symbol();
+            let decl_name = if is_binary_expression(decl) {
+                decl.as_binary_expression().left.clone()
+            } else {
+                decl.as_named_declaration().name()
+            };
+            let type_ = if is_element_access_expression(&decl_name) {
+                self.check_expression_cached(
+                    &decl_name.as_element_access_expression().argument_expression,
+                    None,
+                )
+            } else {
+                self.check_computed_property_name(&decl_name)
+            };
+            if self.is_type_usable_as_property_name(&type_) {
+                let member_name = self.get_property_name_from_type(&type_);
+                let symbol_flags = decl.symbol().flags();
+
+                let mut late_symbol: Option<Rc<Symbol>> =
+                    late_symbols.get(&member_name).map(Clone::clone);
+                if late_symbol.is_none() {
+                    late_symbol = Some(
+                        self.create_symbol(
+                            SymbolFlags::None,
+                            member_name.clone(),
+                            Some(CheckFlags::Late),
+                        )
+                        .into(),
+                    );
+                    late_symbols.insert(member_name.clone(), late_symbol.clone().unwrap());
+                }
+                let mut late_symbol = late_symbol.unwrap();
+
+                let early_symbol =
+                    early_symbols.and_then(|early_symbols| early_symbols.get(&member_name));
+                if late_symbol
+                    .flags()
+                    .intersects(self.get_excluded_symbol_flags(symbol_flags))
+                    || early_symbol.is_some()
+                {
+                    let declarations = if let Some(early_symbol) = early_symbol.as_ref() {
+                        maybe_concatenate(
+                            early_symbol.maybe_declarations().clone(),
+                            late_symbol.maybe_declarations().clone(),
+                        )
+                    } else {
+                        late_symbol.maybe_declarations().clone()
+                    };
+                    let name = if !type_.flags().intersects(TypeFlags::UniqueESSymbol) {
+                        unescape_leading_underscores(&member_name)
+                    } else {
+                        declaration_name_to_string(Some(&*decl_name)).into_owned()
+                    };
+                    maybe_for_each(declarations.as_deref(), |declaration: &Rc<Node>, _| {
+                        self.error(
+                            Some(
+                                get_name_of_declaration(Some(&**declaration))
+                                    .unwrap_or_else(|| declaration.clone()),
+                            ),
+                            &Diagnostics::Property_0_was_also_declared_here,
+                            Some(vec![name.clone()]),
+                        );
+                        Option::<()>::None
+                    });
+                    self.error(
+                        Some(decl_name), /*|| decl*/
+                        &Diagnostics::Duplicate_property_0,
+                        Some(vec![name]),
+                    );
+                    late_symbol = self
+                        .create_symbol(SymbolFlags::None, member_name, Some(CheckFlags::Late))
+                        .into();
+                }
+                late_symbol
+                    .as_transient_symbol()
+                    .symbol_links()
+                    .borrow_mut()
+                    .name_type = Some(type_.type_wrapper());
+                self.add_declaration_to_late_bound_symbol(&late_symbol, decl, symbol_flags);
+                if let Some(late_symbol_parent) = late_symbol.maybe_parent() {
+                    Debug_.assert(
+                        ptr::eq(&*late_symbol_parent, parent),
+                        Some("Existing symbol parent should match new one"),
+                    );
+                } else {
+                    late_symbol.set_parent(Some(parent.symbol_wrapper()));
+                }
+                links.borrow_mut().resolved_symbol = Some(late_symbol.clone());
+                return late_symbol;
+            }
+        }
+        let ret = (*links).borrow().resolved_symbol.clone().unwrap();
+        ret
+    }
+
     pub(super) fn get_resolved_members_or_exports_of_symbol(
         &self,
         symbol: &Symbol,
         resolution_kind: MembersOrExportsResolutionKind,
     ) -> Rc<RefCell<UnderscoreEscapedMap<Rc<Symbol>>>> {
-        unimplemented!()
+        let links = self.get_symbol_links(symbol);
+        if self
+            .get_symbol_links_members_or_exports_resolution_field_value(&links, resolution_kind)
+            .is_none()
+        {
+            let is_static = resolution_kind == MembersOrExportsResolutionKind::resolved_exports;
+            let early_symbols: Option<Rc<RefCell<SymbolTable>>> = if !is_static {
+                symbol.maybe_members().clone()
+            } else if symbol.flags().intersects(SymbolFlags::Module) {
+                Some(self.get_exports_of_module_worker(symbol))
+            } else {
+                symbol.maybe_exports().clone()
+            };
+
+            self.set_symbol_links_members_or_exports_resolution_field_value(
+                &links,
+                resolution_kind,
+                Some(
+                    early_symbols
+                        .clone()
+                        .unwrap_or_else(|| self.empty_symbols()),
+                ),
+            );
+
+            let mut late_symbols = create_symbol_table(None);
+            let early_symbols_ref = early_symbols
+                .as_ref()
+                .map(|early_symbols| (*early_symbols).borrow());
+            if let Some(symbol_declarations) = symbol.maybe_declarations().as_deref() {
+                for decl in symbol_declarations {
+                    let members = get_members_of_declaration(decl);
+                    if let Some(members) = members {
+                        for member in &members {
+                            if is_static == has_static_modifier(member)
+                                && self.has_late_bindable_name(member)
+                            {
+                                self.late_bind_member(
+                                    symbol,
+                                    early_symbols_ref.as_deref(),
+                                    &mut late_symbols,
+                                    member,
+                                );
+                            }
+                        }
+                    }
+                }
+                let assignments = symbol.maybe_assignment_declaration_members();
+                if let Some(assignments) = assignments.as_ref() {
+                    let decls = assignments.values();
+                    for member in decls {
+                        let assignment_kind = get_assignment_declaration_kind(member);
+                        let is_instance_member = assignment_kind
+                            == AssignmentDeclarationKind::PrototypeProperty
+                            || is_binary_expression(member)
+                                && self.is_possibly_aliased_this_property(
+                                    member,
+                                    Some(assignment_kind),
+                                )
+                            || matches!(
+                                assignment_kind,
+                                AssignmentDeclarationKind::ObjectDefinePrototypeProperty
+                                    | AssignmentDeclarationKind::Prototype
+                            );
+                        if is_static != is_instance_member && self.has_late_bindable_name(member) {
+                            self.late_bind_member(
+                                symbol,
+                                early_symbols_ref.as_deref(),
+                                &mut late_symbols,
+                                member,
+                            );
+                        }
+                    }
+                }
+
+                self.set_symbol_links_members_or_exports_resolution_field_value(
+                    &links,
+                    resolution_kind,
+                    Some(
+                        self.combine_symbol_tables(
+                            early_symbols.clone(),
+                            Some(Rc::new(RefCell::new(late_symbols))),
+                        )
+                        .unwrap_or_else(|| self.empty_symbols()),
+                    ),
+                )
+            }
+        }
+        self.get_symbol_links_members_or_exports_resolution_field_value(&links, resolution_kind)
+            .unwrap()
+    }
+
+    pub(super) fn get_symbol_links_members_or_exports_resolution_field_value(
+        &self,
+        symbol_links: &RefCell<SymbolLinks>,
+        resolution_kind: MembersOrExportsResolutionKind,
+    ) -> Option<Rc<RefCell<SymbolTable>>> {
+        match resolution_kind {
+            MembersOrExportsResolutionKind::resolved_exports => {
+                symbol_links.borrow().resolved_exports.clone()
+            }
+            MembersOrExportsResolutionKind::resolved_members => {
+                symbol_links.borrow().resolved_members.clone()
+            }
+        }
+    }
+
+    pub(super) fn set_symbol_links_members_or_exports_resolution_field_value(
+        &self,
+        symbol_links: &RefCell<SymbolLinks>,
+        resolution_kind: MembersOrExportsResolutionKind,
+        value: Option<Rc<RefCell<SymbolTable>>>,
+    ) {
+        match resolution_kind {
+            MembersOrExportsResolutionKind::resolved_exports => {
+                symbol_links.borrow_mut().resolved_exports = value;
+            }
+            MembersOrExportsResolutionKind::resolved_members => {
+                symbol_links.borrow_mut().resolved_members = value;
+            }
+        }
     }
 
     pub(super) fn get_members_of_symbol(&self, symbol: &Symbol) -> Rc<RefCell<SymbolTable>> {
