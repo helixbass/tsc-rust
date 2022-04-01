@@ -9,11 +9,31 @@ use std::ops::BitAndAssign;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseObjectType, BaseType, Node, ObjectFlagsTypeInterface, ObjectTypeInterface,
-    ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker, TypePredicate,
+    BaseObjectType, BaseType, BaseUnionOrIntersectionType, Node, ObjectFlagsTypeInterface,
+    ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker,
+    TypePredicate,
 };
 use crate::{Debug_, ScriptKind, TypeFlags};
 use local_macros::{enum_unwrapped, type_type};
+
+#[derive(Clone, Debug)]
+#[type_type(
+    ancestors = "UnionOrIntersectionType",
+    interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+)]
+pub struct IntersectionType {
+    _union_or_intersection_type: BaseUnionOrIntersectionType,
+    pub(crate) resolved_apparent_type: RefCell<Option<Rc<Type>>>,
+}
+
+impl IntersectionType {
+    pub fn new(union_or_intersection_type: BaseUnionOrIntersectionType) -> Self {
+        Self {
+            _union_or_intersection_type: union_or_intersection_type,
+            resolved_apparent_type: RefCell::new(None),
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 #[type_type(

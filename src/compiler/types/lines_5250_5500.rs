@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use super::{
-    BaseType, IndexInfo, MappedType, Node, PseudoBigInt, ResolvedTypeInterface, Signature, Symbol,
-    SymbolTable, Type, TypeChecker, TypeInterface,
+    BaseType, IndexInfo, IntersectionType, MappedType, Node, PseudoBigInt, ResolvedTypeInterface,
+    Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
 };
 use crate::{Number, WeakSelf, __String};
 use local_macros::type_type;
@@ -763,6 +763,7 @@ pub trait UnionOrIntersectionTypeInterface: TypeInterface {
 #[type_type(interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface")]
 pub enum UnionOrIntersectionType {
     UnionType(UnionType),
+    IntersectionType(IntersectionType),
 }
 
 #[derive(Clone, Debug)]
@@ -771,6 +772,11 @@ pub struct BaseUnionOrIntersectionType {
     _type: BaseType,
     pub types: Vec<Rc<Type>>,
     pub object_flags: Cell<ObjectFlags>,
+    members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
+    properties: RefCell<Option<Vec<Rc<Symbol>>>>,
+    call_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
+    construct_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
+    index_infos: RefCell<Option<Vec<Rc<IndexInfo>>>>,
 }
 
 impl BaseUnionOrIntersectionType {
@@ -779,6 +785,11 @@ impl BaseUnionOrIntersectionType {
             _type: base_type,
             types,
             object_flags: Cell::new(object_flags),
+            members: RefCell::new(None),
+            properties: RefCell::new(None),
+            call_signatures: RefCell::new(None),
+            construct_signatures: RefCell::new(None),
+            index_infos: RefCell::new(None),
         }
     }
 }
@@ -799,10 +810,80 @@ impl ObjectFlagsTypeInterface for BaseUnionOrIntersectionType {
     }
 }
 
+impl ResolvableTypeInterface for BaseUnionOrIntersectionType {
+    fn resolve(
+        &self,
+        members: Rc<RefCell<SymbolTable>>,
+        properties: Vec<Rc<Symbol>>,
+        call_signatures: Vec<Rc<Signature>>,
+        construct_signatures: Vec<Rc<Signature>>,
+        index_infos: Vec<Rc<IndexInfo>>,
+    ) {
+        *self.members.borrow_mut() = Some(members);
+        *self.properties.borrow_mut() = Some(properties);
+        *self.call_signatures.borrow_mut() = Some(call_signatures);
+        *self.construct_signatures.borrow_mut() = Some(construct_signatures);
+        *self.index_infos.borrow_mut() = Some(index_infos);
+    }
+
+    fn is_resolved(&self) -> bool {
+        self.members.borrow().is_some()
+    }
+}
+
+impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
+    fn members(&self) -> Rc<RefCell<SymbolTable>> {
+        self.members.borrow_mut().as_ref().unwrap().clone()
+    }
+
+    fn properties(&self) -> RefMut<Vec<Rc<Symbol>>> {
+        RefMut::map(self.properties.borrow_mut(), |option| {
+            option.as_mut().unwrap()
+        })
+    }
+
+    fn set_properties(&self, properties: Vec<Rc<Symbol>>) {
+        *self.properties.borrow_mut() = Some(properties);
+    }
+
+    fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>> {
+        Ref::map(self.call_signatures.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>> {
+        Ref::map(self.construct_signatures.borrow(), |option| {
+            option.as_ref().unwrap()
+        })
+    }
+
+    fn index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>> {
+        Ref::map(self.index_infos.borrow(), |option| option.as_ref().unwrap())
+    }
+
+    fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Rc<Type>> {
+        None
+    }
+
+    fn set_object_type_without_abstract_construct_signatures(
+        &self,
+        object_type_without_abstract_construct_signatures: Option<Rc<Type>>,
+    ) {
+        panic!("Shouldn't call set_object_type_without_abstract_construct_signatures() on BaseUnionOrIntersectionType?")
+    }
+}
+
+impl ObjectTypeInterface for BaseUnionOrIntersectionType {
+    fn set_members(&self, members: Option<Rc<RefCell<SymbolTable>>>) {
+        *self.members.borrow_mut() = members;
+    }
+}
+
 #[derive(Clone, Debug)]
 #[type_type(
     ancestors = "UnionOrIntersectionType",
-    interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface"
+    interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
 )]
 pub struct UnionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,

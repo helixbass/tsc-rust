@@ -2642,6 +2642,10 @@ impl TypeChecker {
         self.marker_super_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn unknown_signature(&self) -> Rc<Signature> {
+        self.unknown_signature.as_ref().unwrap().clone()
+    }
+
     pub(super) fn maybe_amalgamated_duplicates(
         &self,
     ) -> RefMut<Option<HashMap<String, DuplicateInfoForFiles>>> {
@@ -2662,6 +2666,10 @@ impl TypeChecker {
 
     pub(super) fn maybe_global_object_type(&self) -> Option<Rc<Type>> {
         self.global_object_type.clone()
+    }
+
+    pub(super) fn global_function_type(&self) -> Rc<Type> {
+        self.global_function_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn global_array_type(&self) -> Rc<Type> {

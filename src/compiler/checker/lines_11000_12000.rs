@@ -1,13 +1,16 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cmp;
 use std::ptr;
 use std::rc::Rc;
 
 use super::MappedTypeModifiers;
 use crate::{
-    ObjectFlags, ObjectFlagsTypeInterface, Signature, Symbol, SymbolFlags, SymbolInterface,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, __String,
+    concatenate, every, map, some, IndexInfo, ObjectFlags, ObjectFlagsTypeInterface, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
+    __String,
 };
 
 impl TypeChecker {
@@ -160,6 +163,133 @@ impl TypeChecker {
             params.push(rest_param_symbol);
         }
         params
+    }
+
+    pub(super) fn combine_signatures_of_union_members(
+        &self,
+        left: Rc<Signature>,
+        right: Rc<Signature>,
+    ) -> Signature {
+        let type_params = left
+            .type_parameters
+            .clone()
+            .or_else(|| right.type_parameters.clone());
+        let mut param_mapper: Option<TypeMapper> = None;
+        if left.type_parameters.is_some() && right.type_parameters.is_some() {
+            param_mapper = Some(self.create_type_mapper(
+                right.type_parameters.clone().unwrap(),
+                left.type_parameters.clone(),
+            ));
+        }
+        let declaration = left.declaration.clone();
+        let params = self.combine_union_parameters(&left, &right, param_mapper.as_ref());
+        let this_param = self.combine_union_this_param(
+            left.this_parameter.as_deref(),
+            right.this_parameter.as_deref(),
+            param_mapper.as_ref(),
+        );
+        let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
+        let mut result = self.create_signature(
+            declaration,
+            type_params,
+            this_param,
+            params,
+            None,
+            None,
+            min_arg_count,
+            (left.flags | right.flags) & SignatureFlags::PropagatingFlags,
+        );
+        result.composite_kind = Some(TypeFlags::Union);
+        result.composite_signatures = Some(concatenate(
+            if !matches!(left.composite_kind, Some(TypeFlags::Intersection)) {
+                left.composite_signatures.clone()
+            } else {
+                None
+            }
+            .unwrap_or_else(|| vec![left.clone()]),
+            vec![right],
+        ));
+        if let Some(param_mapper) = param_mapper {
+            result.mapper = Some(
+                if !matches!(left.composite_kind, Some(TypeFlags::Intersection))
+                    && left.mapper.is_some()
+                    && left.composite_signatures.is_some()
+                {
+                    self.combine_type_mappers(left.mapper.clone(), param_mapper)
+                } else {
+                    param_mapper
+                },
+            );
+        }
+        result
+    }
+
+    pub(super) fn get_union_index_infos(&self, types: &[Rc<Type>]) -> Vec<Rc<IndexInfo>> {
+        let source_infos = self.get_index_infos_of_type(&types[0]);
+        // if (sourceInfos) {
+        let mut result = vec![];
+        for info in source_infos {
+            let index_type = &info.key_type;
+            if every(types, |t: &Rc<Type>, _| {
+                self.get_index_info_of_type_(t, index_type).is_some()
+            }) {
+                result.push(Rc::new(
+                    self.create_index_info(
+                        index_type.clone(),
+                        self.get_union_type(
+                            map(Some(types), |t: &Rc<Type>, _| {
+                                self.get_index_type_of_type_(t, index_type).unwrap()
+                            })
+                            .unwrap(),
+                            None,
+                            Option::<&Symbol>::None,
+                            None,
+                            Option::<&Type>::None,
+                        ),
+                        some(
+                            Some(types),
+                            Some(|t: &Rc<Type>| {
+                                self.get_index_info_of_type_(t, index_type)
+                                    .unwrap()
+                                    .is_readonly
+                            }),
+                        ),
+                        None,
+                    ),
+                ));
+            }
+        }
+        result
+        // }
+        // return emptyArray;
+    }
+
+    pub(super) fn resolve_union_type_members(&self, type_: &Type /*UnionType*/) {
+        let type_as_union_type = type_.as_union_type();
+        let call_signatures = self.get_union_signatures(
+            &map(Some(type_as_union_type.types()), |t: &Rc<Type>, _| {
+                if Rc::ptr_eq(t, &self.global_function_type()) {
+                    vec![self.unknown_signature()]
+                } else {
+                    self.get_signatures_of_type(t, SignatureKind::Call)
+                }
+            })
+            .unwrap(),
+        );
+        let construct_signatures = self.get_union_signatures(
+            &map(Some(type_as_union_type.types()), |t: &Rc<Type>, _| {
+                self.get_signatures_of_type(t, SignatureKind::Construct)
+            })
+            .unwrap(),
+        );
+        let index_infos = self.get_union_index_infos(type_as_union_type.types());
+        self.set_structured_type_members(
+            type_as_union_type,
+            self.empty_symbols(),
+            call_signatures,
+            construct_signatures,
+            index_infos,
+        );
     }
 
     pub(super) fn get_type_of_mapped_symbol(
