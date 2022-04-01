@@ -1,20 +1,11 @@
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::cmp;
-use std::convert::TryInto;
-use std::ptr;
 use std::rc::Rc;
 
 use super::MappedTypeModifiers;
 use crate::{
-    add_range, append, concatenate, count_where, create_symbol_table, every, get_check_flags,
-    index_of, map, map_defined, reduce_left, same_map, some, CheckFlags, Diagnostics, IndexInfo,
-    InternalSymbolName, Node, Number, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
-    ResolvedTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
-    SymbolInterface, SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, __String,
+    ObjectFlags, ObjectFlagsTypeInterface, Symbol, Type, TypeChecker, TypeFlags, TypeInterface,
+    __String,
 };
 
 impl TypeChecker {
