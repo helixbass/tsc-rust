@@ -334,6 +334,10 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn remove_missing_or_undefined_type(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn create_symbol_with_type<TType: Borrow<Type>>(
         &self,
         source: &Symbol,

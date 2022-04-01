@@ -10,11 +10,11 @@ use std::rc::Rc;
 use super::MappedTypeModifiers;
 use crate::{
     add_range, append, concatenate, count_where, create_symbol_table, every, get_check_flags,
-    index_of, map, map_defined, reduce_left, same_map, some, CheckFlags, IndexInfo,
-    InternalSymbolName, Number, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
+    index_of, map, map_defined, reduce_left, same_map, some, CheckFlags, Diagnostics, IndexInfo,
+    InternalSymbolName, Node, Number, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
     ResolvedTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface, __String,
+    TypeInterface, TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, __String,
 };
 
 impl TypeChecker {
@@ -1147,21 +1147,108 @@ impl TypeChecker {
         &self,
         symbol: &Symbol, /*MappedSymbol*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let symbol_as_mapped_symbol = symbol.as_mapped_symbol();
+        if (*symbol_as_mapped_symbol.symbol_links())
+            .borrow()
+            .type_
+            .is_none()
+        {
+            let mapped_type = &symbol_as_mapped_symbol.mapped_type;
+            let mapped_type_as_mapped_type = mapped_type.as_mapped_type();
+            if !self.push_type_resolution(
+                &symbol.symbol_wrapper().into(),
+                TypeSystemPropertyName::Type,
+            ) {
+                mapped_type_as_mapped_type.set_contains_error(Some(true));
+                return self.error_type();
+            }
+            let template_type = self.get_template_type_from_mapped_type(
+                &mapped_type_as_mapped_type
+                    .maybe_target()
+                    .unwrap_or_else(|| mapped_type.type_wrapper()),
+            );
+            let mapper = self.append_type_mapping(
+                mapped_type_as_mapped_type.maybe_mapper().map(Clone::clone),
+                &self.get_type_parameter_from_mapped_type(mapped_type),
+                &symbol_as_mapped_symbol.key_type(),
+            );
+            let prop_type = self
+                .instantiate_type(Some(&*template_type), Some(&mapper))
+                .unwrap();
+            let mut type_ = if self.strict_null_checks
+                && symbol.flags().intersects(SymbolFlags::Optional)
+                && !self.maybe_type_of_kind(&prop_type, TypeFlags::Undefined | TypeFlags::Void)
+            {
+                self.get_optional_type_(&prop_type, Some(true))
+            } else if symbol_as_mapped_symbol
+                .check_flags()
+                .intersects(CheckFlags::StripOptional)
+            {
+                self.remove_missing_or_undefined_type(&prop_type)
+            } else {
+                prop_type
+            };
+            if !self.pop_type_resolution() {
+                self.error(
+                    self.maybe_current_node(),
+                    &Diagnostics::Type_of_property_0_circularly_references_itself_in_mapped_type_1,
+                    Some(vec![
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None),
+                        self.type_to_string_(mapped_type, Option::<&Node>::None, None, None),
+                    ]),
+                );
+                type_ = self.error_type();
+            }
+            symbol_as_mapped_symbol.symbol_links().borrow_mut().type_ = Some(type_);
+        }
+        (*symbol_as_mapped_symbol.symbol_links())
+            .borrow()
+            .type_
+            .clone()
+            .unwrap()
     }
 
     pub(super) fn get_type_parameter_from_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_as_mapped_type = type_.as_mapped_type();
+        type_as_mapped_type
+            .maybe_type_parameter()
+            .clone()
+            .unwrap_or_else(|| {
+                let ret = self.get_declared_type_of_type_parameter(
+                    &self
+                        .get_symbol_of_node(
+                            &type_as_mapped_type
+                                .declaration
+                                .as_mapped_type_node()
+                                .type_parameter,
+                        )
+                        .unwrap(),
+                );
+                *type_as_mapped_type.maybe_type_parameter() = Some(ret.clone());
+                ret
+            })
     }
 
     pub(super) fn get_constraint_type_from_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_as_mapped_type = type_.as_mapped_type();
+        type_as_mapped_type
+            .maybe_constraint_type()
+            .clone()
+            .unwrap_or_else(|| {
+                let ret = self
+                    .get_constraint_of_type_parameter(
+                        &self.get_type_parameter_from_mapped_type(type_),
+                    )
+                    .unwrap_or_else(|| self.error_type());
+                *type_as_mapped_type.maybe_constraint_type() = Some(ret.clone());
+                ret
+            })
     }
 
     pub(super) fn get_name_type_from_mapped_type(

@@ -43,7 +43,27 @@ impl IntersectionType {
 pub struct MappedType {
     _object_type: BaseObjectType,
     pub declaration: Rc<Node /*MappedTypeNode*/>,
-    pub contains_error: Option<bool>,
+    type_parameter: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
+    constraint_type: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
+    contains_error: Cell<Option<bool>>,
+}
+
+impl MappedType {
+    pub fn maybe_type_parameter(&self) -> RefMut<Option<Rc<Type>>> {
+        self.type_parameter.borrow_mut()
+    }
+
+    pub fn maybe_constraint_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.constraint_type.borrow_mut()
+    }
+
+    pub fn maybe_contains_error(&self) -> Option<bool> {
+        self.contains_error.get()
+    }
+
+    pub fn set_contains_error(&self, contains_error: Option<bool>) {
+        self.contains_error.set(contains_error);
+    }
 }
 
 #[derive(Clone, Debug)]

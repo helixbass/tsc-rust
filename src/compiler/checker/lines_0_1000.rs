@@ -1497,6 +1497,10 @@ impl TypeChecker {
         self.total_instantiation_count.get()
     }
 
+    pub(super) fn maybe_current_node(&self) -> Option<Rc<Node>> {
+        self.current_node.borrow().clone()
+    }
+
     pub(super) fn empty_symbols(&self) -> Rc<RefCell<SymbolTable>> {
         self.empty_symbols.clone()
     }

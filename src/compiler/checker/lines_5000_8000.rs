@@ -499,7 +499,7 @@ impl NodeBuilder {
             || matches!(
                 type_
                     .maybe_as_mapped_type()
-                    .and_then(|type_| type_.contains_error),
+                    .and_then(|type_| type_.maybe_contains_error()),
                 Some(true)
             )
         {
