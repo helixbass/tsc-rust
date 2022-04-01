@@ -16,8 +16,8 @@ use super::{
 };
 use crate::{
     Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType, IndexInfo, IterationTypes,
-    IterationTypesResolver, NodeBuilder, Number, PatternAmbientModule, ReverseMappedSymbol,
-    StringOrNumber, TypeId, TypeSystemEntity, TypeSystemPropertyName,
+    IterationTypesResolver, MappedSymbol, NodeBuilder, Number, PatternAmbientModule,
+    ReverseMappedSymbol, StringOrNumber, TypeId, TypeSystemEntity, TypeSystemPropertyName,
 };
 use local_macros::{enum_unwrapped, symbol_type};
 
@@ -884,6 +884,10 @@ impl Symbol {
     pub fn as_reverse_mapped_symbol(&self) -> &ReverseMappedSymbol {
         enum_unwrapped!(self, [Symbol, TransientSymbol, ReverseMappedSymbol])
     }
+
+    pub fn as_mapped_symbol(&self) -> &MappedSymbol {
+        enum_unwrapped!(self, [Symbol, TransientSymbol, MappedSymbol])
+    }
 }
 
 #[derive(Debug)]
@@ -1081,6 +1085,7 @@ pub struct SymbolLinks {
     pub mapper: Option<TypeMapper>,
     pub referenced: Option<bool>,
     pub const_enum_referenced: Option<bool>,
+    pub synthetic_origin: Option<Rc<Symbol>>,
     pub resolved_exports: Option<Rc<RefCell<SymbolTable>>>,
     pub resolved_members: Option<Rc<RefCell<SymbolTable>>>,
     pub binding_element: Option<Rc<Node /*BindingElement*/>>,
@@ -1110,6 +1115,7 @@ impl SymbolLinks {
             mapper: None,
             referenced: None,
             const_enum_referenced: None,
+            synthetic_origin: None,
             resolved_exports: None,
             resolved_members: None,
             binding_element: None,
@@ -1174,6 +1180,7 @@ pub trait TransientSymbolInterface: SymbolInterface {
 pub enum TransientSymbol {
     BaseTransientSymbol(BaseTransientSymbol),
     ReverseMappedSymbol(ReverseMappedSymbol),
+    MappedSymbol(MappedSymbol),
 }
 
 impl TransientSymbol {
@@ -1188,6 +1195,15 @@ impl TransientSymbol {
                 ReverseMappedSymbol::new(symbol, property_type, mapped_type, constraint_type),
             ),
             _ => panic!("Should only call into_reverse_mapped_symbol() on BaseTransientSymbol"),
+        }
+    }
+
+    pub fn into_mapped_symbol(self, mapped_type: Rc<Type>, key_type: Rc<Type>) -> Self {
+        match self {
+            Self::BaseTransientSymbol(symbol) => {
+                Self::MappedSymbol(MappedSymbol::new(symbol, mapped_type, key_type))
+            }
+            _ => panic!("Should only call into_mapped_symbol() on BaseTransientSymbol"),
         }
     }
 }

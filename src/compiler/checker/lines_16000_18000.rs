@@ -386,6 +386,24 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn prepend_type_mapping(
+        &self,
+        source: &Type,
+        target: &Type,
+        mapper: Option<TypeMapper>,
+    ) -> TypeMapper {
+        unimplemented!()
+    }
+
+    pub(super) fn append_type_mapping(
+        &self,
+        mapper: Option<TypeMapper>,
+        source: &Type,
+        target: &Type,
+    ) -> TypeMapper {
+        unimplemented!()
+    }
+
     pub(super) fn get_restrictive_type_parameter(
         &self,
         tp: &Type, /*TypeParameter*/
@@ -489,6 +507,16 @@ impl TypeChecker {
             result.set_value_declaration(value_declaration);
         }
         result.into()
+    }
+
+    pub(super) fn get_conditional_type_instantiation<TAliasSymbol: Borrow<Symbol>>(
+        &self,
+        type_: &Type, /*ConditionalType*/
+        mapper: &TypeMapper,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type> {
+        unimplemented!()
     }
 
     pub(super) fn instantiate_type<TTypeRef: Borrow<Type>>(

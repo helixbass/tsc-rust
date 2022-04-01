@@ -434,6 +434,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_valid_index_key_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_constraint_declaration(
         &self,
         type_: &Type, /*TypeParameter*/
@@ -985,6 +989,13 @@ impl TypeChecker {
         end_skip_count: Option<usize>,
     ) -> Rc<Type> {
         let end_skip_count = end_skip_count.unwrap_or(0);
+        unimplemented!()
+    }
+
+    pub(super) fn get_known_keys_of_tuple_type(
+        &self,
+        type_: &Type, /*TupleTypeReference*/
+    ) -> Rc<Type> {
         unimplemented!()
     }
 

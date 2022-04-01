@@ -215,6 +215,8 @@ impl IndexType {
 #[derive(Clone, Debug)]
 pub struct ConditionalRoot {
     pub node: Rc<Node /*ConditionalTypeNode*/>,
+    pub check_type: Rc<Type>,
+    pub is_distributive: bool,
     pub infer_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>>,
 }
 
@@ -225,6 +227,7 @@ pub struct ConditionalType {
     pub root: ConditionalRoot,
     pub check_type: Rc<Type>,
     pub extends_type: Rc<Type>,
+    pub(crate) mapper: Option<TypeMapper>,
 }
 
 #[derive(Clone, Debug)]

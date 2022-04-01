@@ -296,6 +296,10 @@ impl TypeChecker {
                 .intersects(ObjectFlags::Tuple)
     }
 
+    pub(super) fn is_generic_tuple_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn get_falsy_flags(&self, type_: &Type) -> TypeFlags {
         unimplemented!()
     }
@@ -479,6 +483,14 @@ impl TypeChecker {
     }
 
     pub(super) fn get_type_of_initializer(&self, node: &Node /*Expression*/) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn for_each_type<TReturn, TCallback: FnMut(&Type) -> Option<TReturn>>(
+        &self,
+        type_: &Type,
+        mut f: TCallback,
+    ) -> Option<TReturn> {
         unimplemented!()
     }
 

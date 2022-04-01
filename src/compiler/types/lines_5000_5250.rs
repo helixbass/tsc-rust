@@ -19,6 +19,36 @@ use local_macros::{enum_unwrapped, symbol_type, type_type};
 
 #[derive(Debug)]
 #[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]
+pub struct MappedSymbol {
+    _transient_symbol: BaseTransientSymbol,
+    pub mapped_type: Rc<Type /*MappedType*/>,
+    key_type: RefCell<Rc<Type>>,
+}
+
+impl MappedSymbol {
+    pub fn new(
+        transient_symbol: BaseTransientSymbol,
+        mapped_type: Rc<Type>,
+        key_type: Rc<Type>,
+    ) -> Self {
+        Self {
+            _transient_symbol: transient_symbol,
+            mapped_type,
+            key_type: RefCell::new(key_type),
+        }
+    }
+
+    pub fn key_type(&self) -> Rc<Type> {
+        self.key_type.borrow().clone()
+    }
+
+    pub fn set_key_type(&self, key_type: Rc<Type>) {
+        *self.key_type.borrow_mut() = key_type;
+    }
+}
+
+#[derive(Debug)]
+#[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]
 pub struct ReverseMappedSymbol {
     _transient_symbol: BaseTransientSymbol,
     pub property_type: Rc<Type>,

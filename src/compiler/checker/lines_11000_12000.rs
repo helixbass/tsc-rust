@@ -9,12 +9,12 @@ use std::rc::Rc;
 
 use super::MappedTypeModifiers;
 use crate::{
-    add_range, append, concatenate, count_where, create_symbol_table, every, index_of, map,
-    map_defined, reduce_left, some, CheckFlags, IndexInfo, InternalSymbolName, Number, ObjectFlags,
-    ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvedTypeInterface, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    UnionOrIntersectionTypeInterface, __String,
+    add_range, append, concatenate, count_where, create_symbol_table, every, get_check_flags,
+    index_of, map, map_defined, reduce_left, same_map, some, CheckFlags, IndexInfo,
+    InternalSymbolName, Number, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface,
+    ResolvedTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface, __String,
 };
 
 impl TypeChecker {
@@ -785,6 +785,362 @@ impl TypeChecker {
             vec![],
             index_infos,
         );
+    }
+
+    pub(super) fn get_lower_bound_of_key_type(&self, type_: &Type) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Index) {
+            let t = self.get_apparent_type(&type_.as_index_type().type_);
+            return if self.is_generic_tuple_type(&t) {
+                self.get_known_keys_of_tuple_type(&t)
+            } else {
+                self.get_index_type(&t, None, None)
+            };
+        }
+        if type_.flags().intersects(TypeFlags::Conditional) {
+            let type_as_conditional_type = type_.as_conditional_type();
+            if type_as_conditional_type.root.is_distributive {
+                let check_type = &type_as_conditional_type.check_type;
+                let constraint = self.get_lower_bound_of_key_type(check_type);
+                if !Rc::ptr_eq(&constraint, check_type) {
+                    return self.get_conditional_type_instantiation(
+                        type_,
+                        &self.prepend_type_mapping(
+                            &type_as_conditional_type.root.check_type,
+                            &constraint,
+                            type_as_conditional_type.mapper.clone(),
+                        ),
+                        Option::<&Symbol>::None,
+                        None,
+                    );
+                }
+            }
+            return type_.type_wrapper();
+        }
+        if type_.flags().intersects(TypeFlags::Union) {
+            return self
+                .map_type(
+                    type_,
+                    &mut |type_| Some(self.get_lower_bound_of_key_type(type_)),
+                    None,
+                )
+                .unwrap();
+        }
+        if type_.flags().intersects(TypeFlags::Intersection) {
+            return self.get_intersection_type(
+                &same_map(
+                    Some(type_.as_union_or_intersection_type_interface().types()),
+                    |type_: &Rc<Type>, _| self.get_lower_bound_of_key_type(type_),
+                )
+                .unwrap(),
+                Option::<&Symbol>::None,
+                None,
+            );
+        }
+        type_.type_wrapper()
+    }
+
+    pub(super) fn get_is_late_check_flag(&self, s: &Symbol) -> CheckFlags {
+        get_check_flags(s) & CheckFlags::Late
+    }
+
+    pub(super) fn for_each_mapped_type_property_key_type_and_index_signature_key_type<
+        TCallback: FnMut(&Type),
+    >(
+        &self,
+        type_: &Type,
+        include: TypeFlags,
+        strings_only: bool,
+        mut cb: TCallback,
+    ) {
+        for prop in self.get_properties_of_type(type_) {
+            cb(&self.get_literal_type_from_property(&prop, include, None));
+        }
+        if type_.flags().intersects(TypeFlags::Any) {
+            cb(&self.string_type());
+        } else {
+            for info in self.get_index_infos_of_type(type_) {
+                if !strings_only
+                    || info
+                        .key_type
+                        .flags()
+                        .intersects(TypeFlags::String | TypeFlags::TemplateLiteral)
+                {
+                    cb(&info.key_type);
+                }
+            }
+        }
+    }
+
+    pub(super) fn resolve_mapped_type_members(&self, type_: &Type /*MappedType*/) {
+        let mut members = create_symbol_table(None);
+        let mut index_infos: Vec<Rc<IndexInfo>> = vec![];
+        let type_as_mapped_type = type_.as_mapped_type();
+        self.set_structured_type_members(
+            type_as_mapped_type,
+            self.empty_symbols(),
+            vec![],
+            vec![],
+            vec![],
+        );
+        let type_parameter = self.get_type_parameter_from_mapped_type(type_);
+        let constraint_type = self.get_constraint_type_from_mapped_type(type_);
+        let name_type = self.get_name_type_from_mapped_type(
+            &type_as_mapped_type
+                .maybe_target()
+                .unwrap_or_else(|| type_.type_wrapper()),
+        );
+        let template_type = self.get_template_type_from_mapped_type(
+            &type_as_mapped_type
+                .maybe_target()
+                .unwrap_or_else(|| type_.type_wrapper()),
+        );
+        let modifiers_type =
+            self.get_apparent_type(&self.get_modifiers_type_from_mapped_type(type_));
+        let template_modifiers = self.get_mapped_type_modifiers(type_);
+        let include = if self.keyof_strings_only {
+            TypeFlags::StringLiteral
+        } else {
+            TypeFlags::StringOrNumberLiteralOrUnique
+        };
+        if self.is_mapped_type_with_keyof_constraint_declaration(type_) {
+            self.for_each_mapped_type_property_key_type_and_index_signature_key_type(
+                &modifiers_type,
+                include,
+                self.keyof_strings_only,
+                |key_type| {
+                    self.add_member_for_key_type(
+                        type_,
+                        name_type.as_deref(),
+                        &type_parameter,
+                        &mut members,
+                        &modifiers_type,
+                        template_modifiers,
+                        &template_type,
+                        &mut index_infos,
+                        key_type,
+                    )
+                },
+            );
+        } else {
+            self.for_each_type(
+                &self.get_lower_bound_of_key_type(&constraint_type),
+                |key_type| {
+                    self.add_member_for_key_type(
+                        type_,
+                        name_type.as_deref(),
+                        &type_parameter,
+                        &mut members,
+                        &modifiers_type,
+                        template_modifiers,
+                        &template_type,
+                        &mut index_infos,
+                        key_type,
+                    );
+                    Option::<()>::None
+                },
+            );
+        }
+        self.set_structured_type_members(
+            type_as_mapped_type,
+            Rc::new(RefCell::new(members)),
+            vec![],
+            vec![],
+            index_infos,
+        );
+    }
+
+    pub(super) fn add_member_for_key_type(
+        &self,
+        type_: &Type, /*MappedType*/
+        name_type: Option<&Type>,
+        type_parameter: &Type,
+        members: &mut SymbolTable,
+        modifiers_type: &Type,
+        template_modifiers: MappedTypeModifiers,
+        template_type: &Type,
+        index_infos: &mut Vec<Rc<IndexInfo>>,
+        key_type: &Type,
+    ) {
+        let prop_name_type = if let Some(name_type) = name_type {
+            self.instantiate_type(
+                Some(name_type),
+                Some(&self.append_type_mapping(
+                    type_.as_mapped_type().maybe_mapper().map(Clone::clone),
+                    type_parameter,
+                    key_type,
+                )),
+            )
+            .unwrap()
+        } else {
+            key_type.type_wrapper()
+        };
+        self.for_each_type(&prop_name_type, |t| {
+            self.add_member_for_key_type_worker(
+                members,
+                modifiers_type,
+                template_modifiers,
+                type_,
+                name_type,
+                template_type,
+                type_parameter,
+                index_infos,
+                key_type,
+                t,
+            );
+            Option::<()>::None
+        });
+    }
+
+    pub(super) fn add_member_for_key_type_worker(
+        &self,
+        members: &mut SymbolTable,
+        modifiers_type: &Type,
+        template_modifiers: MappedTypeModifiers,
+        type_: &Type,
+        name_type: Option<&Type>,
+        template_type: &Type,
+        type_parameter: &Type,
+        index_infos: &mut Vec<Rc<IndexInfo>>,
+        key_type: &Type,
+        prop_name_type: &Type,
+    ) {
+        if self.is_type_usable_as_property_name(prop_name_type) {
+            let prop_name = self.get_property_name_from_type(prop_name_type);
+            let existing_prop = members.get(&prop_name);
+            if let Some(existing_prop) = existing_prop {
+                let existing_prop_as_mapped_symbol = existing_prop.as_mapped_symbol();
+                let existing_prop_name_type = (*existing_prop_as_mapped_symbol.symbol_links())
+                    .borrow()
+                    .name_type
+                    .clone()
+                    .unwrap();
+                existing_prop_as_mapped_symbol
+                    .symbol_links()
+                    .borrow_mut()
+                    .name_type = Some(self.get_union_type(
+                    vec![existing_prop_name_type, prop_name_type.type_wrapper()],
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ));
+                existing_prop_as_mapped_symbol.set_key_type(self.get_union_type(
+                    vec![
+                        existing_prop_as_mapped_symbol.key_type(),
+                        key_type.type_wrapper(),
+                    ],
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ));
+            } else {
+                let modifiers_prop = if self.is_type_usable_as_property_name(key_type) {
+                    self.get_property_of_type_(
+                        modifiers_type,
+                        &self.get_property_name_from_type(key_type),
+                        None,
+                    )
+                } else {
+                    None
+                };
+                let is_optional = template_modifiers
+                    .intersects(MappedTypeModifiers::IncludeOptional)
+                    || !template_modifiers.intersects(MappedTypeModifiers::ExcludeOptional)
+                        && matches!(modifiers_prop.as_ref(), Some(modifiers_prop) if modifiers_prop.flags().intersects(SymbolFlags::Optional));
+                let is_readonly = template_modifiers
+                    .intersects(MappedTypeModifiers::IncludeReadonly)
+                    || !template_modifiers.intersects(MappedTypeModifiers::ExcludeReadonly)
+                        && matches!(modifiers_prop.as_ref(), Some(modifiers_prop) if self.is_readonly_symbol(modifiers_prop));
+                let strip_optional = self.strict_null_checks
+                    && !is_optional
+                    && matches!(modifiers_prop.as_ref(), Some(modifiers_prop) if modifiers_prop.flags().intersects(SymbolFlags::Optional));
+                let late_flag = if let Some(modifiers_prop) = modifiers_prop.as_ref() {
+                    self.get_is_late_check_flag(modifiers_prop)
+                } else {
+                    CheckFlags::None
+                };
+                let prop = self.create_symbol(
+                    SymbolFlags::Property
+                        | if is_optional {
+                            SymbolFlags::Optional
+                        } else {
+                            SymbolFlags::None
+                        },
+                    prop_name.clone(),
+                    Some(
+                        late_flag
+                            | CheckFlags::Mapped
+                            | if is_readonly {
+                                CheckFlags::Readonly
+                            } else {
+                                CheckFlags::None
+                            }
+                            | if strip_optional {
+                                CheckFlags::StripOptional
+                            } else {
+                                CheckFlags::None
+                            },
+                    ),
+                );
+                let prop: Rc<Symbol> = prop
+                    .into_mapped_symbol(type_.type_wrapper(), key_type.type_wrapper())
+                    .into();
+                let prop_as_mapped_symbol = prop.as_mapped_symbol();
+                prop_as_mapped_symbol.symbol_links().borrow_mut().name_type =
+                    Some(prop_name_type.type_wrapper());
+                if let Some(modifiers_prop) = modifiers_prop {
+                    prop_as_mapped_symbol
+                        .symbol_links()
+                        .borrow_mut()
+                        .synthetic_origin = Some(modifiers_prop.clone());
+                    let declarations = if name_type.is_some() {
+                        None
+                    } else {
+                        modifiers_prop.maybe_declarations().clone()
+                    };
+                    if let Some(declarations) = declarations {
+                        prop.set_declarations(declarations);
+                    }
+                }
+                members.insert(prop_name, prop);
+            }
+        } else if self.is_valid_index_key_type(prop_name_type)
+            || prop_name_type
+                .flags()
+                .intersects(TypeFlags::Any | TypeFlags::Enum)
+        {
+            let index_key_type = if prop_name_type
+                .flags()
+                .intersects(TypeFlags::Any | TypeFlags::String)
+            {
+                self.string_type()
+            } else if prop_name_type
+                .flags()
+                .intersects(TypeFlags::Number | TypeFlags::Enum)
+            {
+                self.number_type()
+            } else {
+                prop_name_type.type_wrapper()
+            };
+            let prop_type = self
+                .instantiate_type(
+                    Some(template_type),
+                    Some(&self.append_type_mapping(
+                        type_.as_mapped_type().maybe_mapper().map(Clone::clone),
+                        type_parameter,
+                        key_type,
+                    )),
+                )
+                .unwrap();
+            let index_info = Rc::new(self.create_index_info(
+                index_key_type,
+                prop_type,
+                template_modifiers.intersects(MappedTypeModifiers::IncludeReadonly),
+                None,
+            ));
+            self.append_index_info(index_infos, &index_info, true);
+        }
     }
 
     pub(super) fn get_type_of_mapped_symbol(
