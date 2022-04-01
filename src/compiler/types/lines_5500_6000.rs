@@ -53,7 +53,9 @@ pub trait ResolvedTypeInterface:
     fn properties(&self) -> RefMut<Vec<Rc<Symbol>>>;
     fn set_properties(&self, properties: Vec<Rc<Symbol>>);
     fn call_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
+    fn set_call_signatures(&self, call_signatures: Vec<Rc<Signature>>);
     fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>>;
+    fn set_construct_signatures(&self, construct_signatures: Vec<Rc<Signature>>);
     fn index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>>;
     fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Rc<Type>>;
     fn set_object_type_without_abstract_construct_signatures(

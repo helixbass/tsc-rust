@@ -9,7 +9,7 @@ use super::{
     BaseType, IndexInfo, IntersectionType, MappedType, Node, PseudoBigInt, ResolvedTypeInterface,
     Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
 };
-use crate::{Number, WeakSelf, __String};
+use crate::{Number, TypeMapper, WeakSelf, __String};
 use local_macros::type_type;
 
 pub trait LiteralTypeInterface: TypeInterface {
@@ -297,9 +297,13 @@ pub trait ObjectFlagsTypeInterface {
 
 pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
     fn set_members(&self, members: Option<Rc<RefCell<SymbolTable>>>);
+    fn maybe_properties(&self) -> Ref<Option<Vec<Rc<Symbol>>>>;
+    fn maybe_call_signatures(&self) -> Ref<Option<Vec<Rc<Signature>>>>;
     // fn maybe_properties(&self) -> Option<&[Rc<Symbol>]>;
     // fn properties(&self) -> &[Rc<Symbol>];
     // fn set_properties(&self, properties: Vec<Rc<Symbol>>);
+    fn maybe_target(&self) -> Option<Rc<Type>>;
+    fn maybe_mapper(&self) -> Option<&TypeMapper>;
 }
 
 #[derive(Clone, Debug)]
@@ -324,6 +328,10 @@ pub struct BaseObjectType {
     construct_signatures: RefCell<Option<Vec<Rc<Signature>>>>,
     index_infos: RefCell<Option<Vec<Rc<IndexInfo>>>>,
     object_type_without_abstract_construct_signatures: RefCell<Option<Rc<Type>>>,
+    // AnonymousType fields
+    target: Option<Rc<Type>>,
+    mapper: Option<TypeMapper>,
+    instantiations: Option<HashMap<String, Rc<Type>>>,
 }
 
 impl BaseObjectType {
@@ -337,6 +345,9 @@ impl BaseObjectType {
             construct_signatures: RefCell::new(None),
             index_infos: RefCell::new(None),
             object_type_without_abstract_construct_signatures: RefCell::new(None),
+            target: None,
+            mapper: None,
+            instantiations: None,
         }
     }
 }
@@ -354,6 +365,22 @@ impl ObjectFlagsTypeInterface for BaseObjectType {
 impl ObjectTypeInterface for BaseObjectType {
     fn set_members(&self, members: Option<Rc<RefCell<SymbolTable>>>) {
         *self.members.borrow_mut() = members;
+    }
+
+    fn maybe_properties(&self) -> Ref<Option<Vec<Rc<Symbol>>>> {
+        self.properties.borrow()
+    }
+
+    fn maybe_call_signatures(&self) -> Ref<Option<Vec<Rc<Signature>>>> {
+        self.call_signatures.borrow()
+    }
+
+    fn maybe_target(&self) -> Option<Rc<Type>> {
+        self.target.clone()
+    }
+
+    fn maybe_mapper(&self) -> Option<&TypeMapper> {
+        self.mapper.as_ref()
     }
 }
 
@@ -411,10 +438,18 @@ impl ResolvedTypeInterface for BaseObjectType {
         })
     }
 
+    fn set_call_signatures(&self, call_signatures: Vec<Rc<Signature>>) {
+        *self.call_signatures.borrow_mut() = Some(call_signatures);
+    }
+
     fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>> {
         Ref::map(self.construct_signatures.borrow(), |option| {
             option.as_ref().unwrap()
         })
+    }
+
+    fn set_construct_signatures(&self, construct_signatures: Vec<Rc<Signature>>) {
+        *self.construct_signatures.borrow_mut() = Some(construct_signatures);
     }
 
     fn index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>> {
@@ -852,10 +887,18 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
         })
     }
 
+    fn set_call_signatures(&self, call_signatures: Vec<Rc<Signature>>) {
+        *self.call_signatures.borrow_mut() = Some(call_signatures);
+    }
+
     fn construct_signatures(&self) -> Ref<Vec<Rc<Signature>>> {
         Ref::map(self.construct_signatures.borrow(), |option| {
             option.as_ref().unwrap()
         })
+    }
+
+    fn set_construct_signatures(&self, construct_signatures: Vec<Rc<Signature>>) {
+        *self.construct_signatures.borrow_mut() = Some(construct_signatures);
     }
 
     fn index_infos(&self) -> Ref<Vec<Rc<IndexInfo>>> {
@@ -877,6 +920,22 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
 impl ObjectTypeInterface for BaseUnionOrIntersectionType {
     fn set_members(&self, members: Option<Rc<RefCell<SymbolTable>>>) {
         *self.members.borrow_mut() = members;
+    }
+
+    fn maybe_properties(&self) -> Ref<Option<Vec<Rc<Symbol>>>> {
+        self.properties.borrow()
+    }
+
+    fn maybe_call_signatures(&self) -> Ref<Option<Vec<Rc<Signature>>>> {
+        self.call_signatures.borrow()
+    }
+
+    fn maybe_target(&self) -> Option<Rc<Type>> {
+        panic!("Shouldn't call maybe_target() on BaseUnionOrIntersectionType?")
+    }
+
+    fn maybe_mapper(&self) -> Option<&TypeMapper> {
+        panic!("Shouldn't call maybe_mapper() on BaseUnionOrIntersectionType?")
     }
 }
 

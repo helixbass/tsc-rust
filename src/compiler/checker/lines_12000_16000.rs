@@ -427,6 +427,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_index_infos_of_index_symbol(
+        &self,
+        index_symbol: &Symbol,
+    ) -> Vec<Rc<IndexInfo>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_constraint_declaration(
         &self,
         type_: &Type, /*TypeParameter*/

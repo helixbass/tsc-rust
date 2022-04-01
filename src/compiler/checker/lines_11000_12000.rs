@@ -1,16 +1,20 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::cmp;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
 use super::MappedTypeModifiers;
 use crate::{
-    concatenate, every, map, some, IndexInfo, ObjectFlags, ObjectFlagsTypeInterface, Signature,
-    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, TransientSymbolInterface,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, UnionOrIntersectionTypeInterface,
-    __String,
+    add_range, append, concatenate, count_where, create_symbol_table, every, index_of, map,
+    map_defined, reduce_left, some, IndexInfo, InternalSymbolName, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvedTypeInterface, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
+    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
+    UnionOrIntersectionTypeInterface, __String,
 };
 
 impl TypeChecker {
@@ -290,6 +294,375 @@ impl TypeChecker {
             construct_signatures,
             index_infos,
         );
+    }
+
+    pub(super) fn intersect_types<TType1: Borrow<Type>, TType2: Borrow<Type>>(
+        &self,
+        type1: Option<TType1>,
+        type2: Option<TType2>,
+    ) -> Option<Rc<Type>> {
+        let type1 = type1.map(|type1| type1.borrow().type_wrapper());
+        let type2 = type2.map(|type2| type2.borrow().type_wrapper());
+        if type1.is_none() {
+            type2
+        } else if type2.is_none() {
+            type1
+        } else {
+            let type1 = type1.unwrap();
+            let type2 = type2.unwrap();
+            Some(self.get_intersection_type(&vec![type1, type2], Option::<&Symbol>::None, None))
+        }
+    }
+
+    pub(super) fn find_mixins(&self, types: &[Rc<Type>]) -> Vec<bool> {
+        let constructor_type_count = count_where(Some(types), |t: &Rc<Type>, _| {
+            !self
+                .get_signatures_of_type(t, SignatureKind::Construct)
+                .is_empty()
+        });
+        let mut mixin_flags = map(Some(types), |t: &Rc<Type>, _| {
+            self.is_mixin_constructor_type(t)
+        })
+        .unwrap();
+        if constructor_type_count > 0
+            && constructor_type_count == count_where(Some(&mixin_flags), |b: &bool, _| *b)
+        {
+            let first_mixin_index: usize =
+                index_of(&mixin_flags, &true, |a: &bool, b: &bool| a == b)
+                    .try_into()
+                    .unwrap();
+            mixin_flags[first_mixin_index] = false;
+        }
+        mixin_flags
+    }
+
+    pub(super) fn include_mixin_type(
+        &self,
+        type_: &Type,
+        types: &[Rc<Type>],
+        mixin_flags: &[bool],
+        index: usize,
+    ) -> Rc<Type> {
+        let mut mixed_types: Vec<Rc<Type>> = vec![];
+        for i in 0..types.len() {
+            if i == index {
+                mixed_types.push(type_.type_wrapper());
+            } else if mixin_flags[i] {
+                mixed_types.push(self.get_return_type_of_signature(
+                    &self.get_signatures_of_type(&types[i], SignatureKind::Construct)[0],
+                ));
+            }
+        }
+        self.get_intersection_type(&mixed_types, Option::<&Symbol>::None, None)
+    }
+
+    pub(super) fn resolve_intersection_type_members(&self, type_: &Type /*IntersectionType*/) {
+        let mut call_signatures: Vec<Rc<Signature>> = vec![];
+        let mut construct_signatures: Vec<Rc<Signature>> = vec![];
+        let mut index_infos: Vec<Rc<IndexInfo>> = vec![];
+        let type_as_intersection_type = type_.as_intersection_type();
+        let types = type_as_intersection_type.types();
+        let mixin_flags = self.find_mixins(types);
+        let mixin_count = count_where(Some(&mixin_flags), |b: &bool, _| *b);
+        for (i, t) in types.iter().enumerate() {
+            if !mixin_flags[i] {
+                let mut signatures = self.get_signatures_of_type(t, SignatureKind::Construct);
+                if !signatures.is_empty() && mixin_count > 0 {
+                    signatures = map(Some(&signatures), |s: &Rc<Signature>, _| {
+                        let clone = self.clone_signature(s);
+                        *clone.maybe_resolved_return_type() = Some(self.include_mixin_type(
+                            &self.get_return_type_of_signature(s),
+                            types,
+                            mixin_flags.as_ref(),
+                            i,
+                        ));
+                        Rc::new(clone)
+                    })
+                    .unwrap();
+                }
+                self.append_signatures(&mut construct_signatures, &signatures);
+            }
+            self.append_signatures(
+                &mut call_signatures,
+                &self.get_signatures_of_type(t, SignatureKind::Call),
+            );
+            index_infos = reduce_left(
+                &self.get_index_infos_of_type(t),
+                |mut infos: Vec<Rc<IndexInfo>>, new_info: &Rc<IndexInfo>, _| {
+                    self.append_index_info(&mut infos, new_info, false);
+                    infos
+                },
+                index_infos,
+                None,
+                None,
+            );
+        }
+        self.set_structured_type_members(
+            type_as_intersection_type,
+            self.empty_symbols(),
+            call_signatures,
+            construct_signatures,
+            index_infos,
+        );
+    }
+
+    pub(super) fn append_signatures(
+        &self,
+        signatures: &mut Vec<Rc<Signature>>,
+        new_signatures: &[Rc<Signature>],
+    ) {
+        for sig in new_signatures {
+            if
+            /* !signatures ||*/
+            every(signatures, |s: &Rc<Signature>, _| {
+                self.compare_signatures_identical(s.clone(), sig, false, false, false, |a, b| {
+                    self.compare_types_identical(a, b)
+                }) != Ternary::False
+            }) {
+                append(signatures, Some(sig.clone()));
+            }
+        }
+        // return signatures;
+    }
+
+    pub(super) fn append_index_info(
+        &self,
+        index_infos: &mut Vec<Rc<IndexInfo>>,
+        new_info: &Rc<IndexInfo>,
+        union: bool,
+    ) {
+        // if (indexInfos) {
+        for i in 0..index_infos.len() {
+            let info = index_infos[i].clone();
+            if Rc::ptr_eq(&info.key_type, &new_info.key_type) {
+                index_infos[i] = Rc::new(self.create_index_info(
+                    info.key_type.clone(),
+                    if union {
+                        self.get_union_type(
+                            vec![info.type_.clone(), new_info.type_.clone()],
+                            None,
+                            Option::<&Symbol>::None,
+                            None,
+                            Option::<&Type>::None,
+                        )
+                    } else {
+                        self.get_intersection_type(
+                            &vec![info.type_.clone(), new_info.type_.clone()],
+                            Option::<&Symbol>::None,
+                            None,
+                        )
+                    },
+                    if union {
+                        info.is_readonly || new_info.is_readonly
+                    } else {
+                        info.is_readonly && new_info.is_readonly
+                    },
+                    None,
+                ));
+                return /*indexInfos*/;
+            }
+        }
+        // }
+        /*return*/
+        append(index_infos, Some(new_info.clone()));
+    }
+
+    pub(super) fn resolve_anonymous_type_members(&self, type_: &Type /*AnonymousType*/) {
+        let symbol = self.get_merged_symbol(type_.maybe_symbol()).unwrap();
+        let type_as_object_type = type_.as_object_type();
+        if let Some(type_target) = type_as_object_type.maybe_target() {
+            self.set_structured_type_members(
+                type_as_object_type,
+                self.empty_symbols(),
+                vec![],
+                vec![],
+                vec![],
+            );
+            let members = self.create_instantiated_symbol_table(
+                &self.get_properties_of_object_type(&type_target),
+                type_as_object_type.maybe_mapper().unwrap(),
+                false,
+            );
+            let call_signatures = self.instantiate_signatures(
+                &self.get_signatures_of_type(&type_target, SignatureKind::Call),
+                type_as_object_type.maybe_mapper().unwrap(),
+            );
+            let construct_signatures = self.instantiate_signatures(
+                &self.get_signatures_of_type(&type_target, SignatureKind::Construct),
+                type_as_object_type.maybe_mapper().unwrap(),
+            );
+            let index_infos = self.instantiate_index_infos(
+                &self.get_index_infos_of_type(&type_target),
+                type_as_object_type.maybe_mapper().unwrap(),
+            );
+            self.set_structured_type_members(
+                type_as_object_type,
+                Rc::new(RefCell::new(members)),
+                call_signatures,
+                construct_signatures,
+                index_infos,
+            );
+        } else if symbol.flags().intersects(SymbolFlags::TypeLiteral) {
+            self.set_structured_type_members(
+                type_as_object_type,
+                self.empty_symbols(),
+                vec![],
+                vec![],
+                vec![],
+            );
+            let members = self.get_members_of_symbol(&symbol);
+            let call_signatures = self.get_signatures_of_symbol(
+                (*members)
+                    .borrow()
+                    .get(&InternalSymbolName::Call())
+                    .map(Clone::clone),
+            );
+            let construct_signatures = self.get_signatures_of_symbol(
+                (*members)
+                    .borrow()
+                    .get(&InternalSymbolName::New())
+                    .map(Clone::clone),
+            );
+            let index_infos = self.get_index_infos_of_symbol(&symbol);
+            self.set_structured_type_members(
+                type_as_object_type,
+                members,
+                call_signatures,
+                construct_signatures,
+                index_infos,
+            );
+        } else {
+            let mut members = self.empty_symbols();
+            let mut index_infos: Vec<Rc<IndexInfo>> = vec![];
+            let symbol_exports = symbol.maybe_exports();
+            if let Some(symbol_exports) = symbol_exports.as_ref() {
+                members = self.get_exports_of_symbol(&symbol);
+                if Rc::ptr_eq(&symbol, &self.global_this_symbol()) {
+                    let mut vars_only = SymbolTable::new();
+                    for (_, p) in &*(*members).borrow() {
+                        if !p.flags().intersects(SymbolFlags::BlockScoped) {
+                            vars_only.insert(p.escaped_name().clone(), p.clone());
+                        }
+                    }
+                    members = Rc::new(RefCell::new(vars_only));
+                }
+            }
+            let mut base_constructor_index_info: Option<Rc<IndexInfo>> = None;
+            self.set_structured_type_members(
+                type_as_object_type,
+                members.clone(),
+                vec![],
+                vec![],
+                vec![],
+            );
+            if symbol.flags().intersects(SymbolFlags::Class) {
+                let class_type = self.get_declared_type_of_class_or_interface(&symbol);
+                let base_constructor_type = self.get_base_constructor_type_of_class(&class_type);
+                if base_constructor_type.flags().intersects(
+                    TypeFlags::Object | TypeFlags::Intersection | TypeFlags::TypeVariable,
+                ) {
+                    let members_new = Rc::new(RefCell::new(create_symbol_table(Some(
+                        &self.get_named_or_index_signature_members(&*(*members).borrow()),
+                    ))));
+                    members = members_new;
+                    self.add_inherited_members(
+                        &mut members.borrow_mut(),
+                        &self.get_properties_of_type(&base_constructor_type),
+                    );
+                } else if Rc::ptr_eq(&base_constructor_type, &self.any_type()) {
+                    base_constructor_index_info = Some(Rc::new(self.create_index_info(
+                        self.string_type(),
+                        self.any_type(),
+                        false,
+                        None,
+                    )));
+                }
+            }
+
+            let index_symbol = self.get_index_symbol_from_symbol_table(&(*members).borrow());
+            if let Some(index_symbol) = index_symbol {
+                index_infos = self.get_index_infos_of_index_symbol(&index_symbol);
+            } else {
+                if let Some(base_constructor_index_info) = base_constructor_index_info.as_ref() {
+                    append(&mut index_infos, Some(base_constructor_index_info.clone()));
+                }
+                if symbol.flags().intersects(SymbolFlags::Enum)
+                    && (self
+                        .get_declared_type_of_symbol(&symbol)
+                        .flags()
+                        .intersects(TypeFlags::Enum)
+                        || some(
+                            type_as_object_type.maybe_properties().as_deref(),
+                            Some(|prop: &Rc<Symbol>| {
+                                self.get_type_of_symbol(prop)
+                                    .flags()
+                                    .intersects(TypeFlags::NumberLike)
+                            }),
+                        ))
+                {
+                    append(&mut index_infos, Some(self.enum_number_index_info()));
+                }
+            }
+            self.set_structured_type_members(
+                type_as_object_type,
+                members.clone(),
+                vec![],
+                vec![],
+                index_infos,
+            );
+            if symbol
+                .flags()
+                .intersects(SymbolFlags::Function | SymbolFlags::Method)
+            {
+                type_as_object_type
+                    .set_call_signatures(self.get_signatures_of_symbol(Some(&*symbol)));
+            }
+            if symbol.flags().intersects(SymbolFlags::Class) {
+                let class_type = self.get_declared_type_of_class_or_interface(&symbol);
+                let symbol_members = symbol.maybe_members();
+                let mut construct_signatures = if let Some(symbol_members) = symbol_members.as_ref()
+                {
+                    self.get_signatures_of_symbol(
+                        (**symbol_members)
+                            .borrow()
+                            .get(&InternalSymbolName::Constructor())
+                            .map(Clone::clone),
+                    )
+                } else {
+                    vec![]
+                };
+                if symbol.flags().intersects(SymbolFlags::Function) {
+                    add_range(
+                        &mut construct_signatures,
+                        Some(&map_defined(
+                            type_as_object_type.maybe_call_signatures().as_deref(),
+                            |sig: &Rc<Signature>, _| {
+                                if self.is_js_constructor(sig.declaration.as_deref()) {
+                                    Some(Rc::new(self.create_signature(
+                                        sig.declaration.clone(),
+                                        sig.type_parameters.clone(),
+                                        sig.this_parameter.clone(),
+                                        sig.parameters().to_owned(),
+                                        Some(class_type.clone()),
+                                        None,
+                                        sig.min_argument_count(),
+                                        sig.flags & SignatureFlags::PropagatingFlags,
+                                    )))
+                                } else {
+                                    None
+                                }
+                            },
+                        )),
+                        None,
+                        None,
+                    );
+                }
+                if construct_signatures.is_empty() {
+                    construct_signatures = self.get_default_construct_signatures(&class_type);
+                }
+                type_as_object_type.set_construct_signatures(construct_signatures);
+            }
+        }
     }
 
     pub(super) fn get_type_of_mapped_symbol(

@@ -1254,6 +1254,22 @@ fn get_type_struct_interface_impl(
                     fn set_members(&self, members: ::std::option::Option<::std::rc::Rc<::std::cell::RefCell<crate::SymbolTable>>>) {
                         self.#first_field_name.set_members(members)
                     }
+
+                    fn maybe_properties(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>>> {
+                        self.#first_field_name.maybe_properties()
+                    }
+
+                    fn maybe_call_signatures(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Signature>>>> {
+                        self.#first_field_name.maybe_call_signatures()
+                    }
+
+                    fn maybe_target(&self) -> ::std::option::Option<::std::rc::Rc<crate::Type>> {
+                        self.#first_field_name.maybe_target()
+                    }
+
+                    fn maybe_mapper(&self) -> ::std::option::Option<&crate::TypeMapper> {
+                        self.#first_field_name.maybe_mapper()
+                    }
                 }
             }
         }
@@ -1289,8 +1305,16 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.call_signatures()
                     }
 
+                    fn set_call_signatures(&self, call_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
+                        self.#first_field_name.set_call_signatures(call_signatures)
+                    }
+
                     fn construct_signatures(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
                         self.#first_field_name.construct_signatures()
+                    }
+
+                    fn set_construct_signatures(&self, construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
+                        self.#first_field_name.set_construct_signatures(construct_signatures)
                     }
 
                     fn index_infos(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::IndexInfo>>> {
@@ -1606,6 +1630,30 @@ fn get_type_enum_interface_impl(
                             #(#type_type_name::#variant_names(nested) => nested.set_members(members)),*
                         }
                     }
+
+                    fn maybe_properties(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_properties()),*
+                        }
+                    }
+
+                    fn maybe_call_signatures(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Signature>>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_call_signatures()),*
+                        }
+                    }
+
+                    fn maybe_target(&self) -> ::std::option::Option<::std::rc::Rc<crate::Type>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_target()),*
+                        }
+                    }
+
+                    fn maybe_mapper(&self) -> ::std::option::Option<&crate::TypeMapper> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_mapper()),*
+                        }
+                    }
                 }
             }
         }
@@ -1653,9 +1701,21 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
+                    fn set_call_signatures(&self, call_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_call_signatures(call_signatures)),*
+                        }
+                    }
+
                     fn construct_signatures(&self) -> ::std::cell::Ref<::std::vec::Vec<::std::rc::Rc<crate::Signature>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.construct_signatures()),*
+                        }
+                    }
+
+                    fn set_construct_signatures(&self, construct_signatures: ::std::vec::Vec<::std::rc::Rc<crate::Signature>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_construct_signatures(construct_signatures)),*
                         }
                     }
 

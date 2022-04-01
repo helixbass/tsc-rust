@@ -8,8 +8,8 @@ use std::rc::{Rc, Weak};
 
 use super::{
     BaseInterfaceType, BigIntLiteralType, ConditionalType, IndexType, IndexedAccessType,
-    InterfaceType, InterfaceTypeWithDeclaredMembersInterface, LiteralType, MappedType,
-    NumberLiteralType, ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface,
+    InterfaceType, InterfaceTypeWithDeclaredMembersInterface, IntersectionType, LiteralType,
+    MappedType, NumberLiteralType, ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface,
     ResolvedTypeInterface, Signature, StringLiteralType, StringMappingType, SubstitutionType,
     Symbol, TemplateLiteralType, TupleType, TypeParameter, TypeReference, UnionOrIntersectionType,
     UnionOrIntersectionTypeInterface, UnionType, UniqueESSymbolType,
@@ -457,6 +457,10 @@ impl Type {
 
     pub fn as_unique_es_symbol_type(&self) -> &UniqueESSymbolType {
         enum_unwrapped!(self, [Type, UniqueESSymbolType])
+    }
+
+    pub fn as_intersection_type(&self) -> &IntersectionType {
+        enum_unwrapped!(self, [Type, UnionOrIntersectionType, IntersectionType])
     }
 }
 

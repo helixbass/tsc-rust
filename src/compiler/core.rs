@@ -799,6 +799,48 @@ fn binary_search_key_copy_key<
     !low
 }
 
+pub fn reduce_left<TItem, TMemo, TCallback: FnMut(TMemo, &TItem, usize) -> TMemo>(
+    array: &[TItem],
+    mut f: TCallback,
+    initial: TMemo,
+    start: Option<usize>,
+    count: Option<usize>,
+) -> TMemo {
+    if
+    /*array &&*/
+    !array.is_empty() {
+        let size = array.len();
+        // if (size > 0) {
+        let mut pos = if start.is_none() /*|| start < 0*/ {
+            0
+        } else {
+            start.unwrap()
+        };
+        let end = if match count {
+            None => true,
+            Some(count) => pos + count > size - 1,
+        } {
+            size - 1
+        } else {
+            pos + count.unwrap()
+        };
+        let mut result: TMemo;
+        // if (arguments.length <= 2) {
+        //     result = array[pos];
+        //     pos++;
+        // } else {
+        result = initial;
+        while pos <= end {
+            result = f(result, &array[pos], pos);
+            pos += 1;
+        }
+        return result;
+        // }
+        // }
+    }
+    initial
+}
+
 pub fn array_to_map<
     TItem,
     TKey: hash::Hash + Eq,
