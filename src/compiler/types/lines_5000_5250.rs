@@ -10,9 +10,9 @@ use super::{
     BaseInterfaceType, BigIntLiteralType, ConditionalType, IndexType, IndexedAccessType,
     InterfaceType, InterfaceTypeWithDeclaredMembersInterface, IntersectionType, LiteralType,
     MappedType, NumberLiteralType, ObjectFlagsTypeInterface, ObjectType, ResolvableTypeInterface,
-    ResolvedTypeInterface, Signature, StringLiteralType, StringMappingType, SubstitutionType,
-    Symbol, TemplateLiteralType, TupleType, TypeParameter, TypeReference, UnionOrIntersectionType,
-    UnionOrIntersectionTypeInterface, UnionType, UniqueESSymbolType,
+    ResolvedTypeInterface, ReverseMappedType, Signature, StringLiteralType, StringMappingType,
+    SubstitutionType, Symbol, TemplateLiteralType, TupleType, TypeParameter, TypeReference,
+    UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, UniqueESSymbolType,
 };
 use crate::{BaseTransientSymbol, Node, ObjectFlags, Pattern, WeakSelf};
 use local_macros::{enum_unwrapped, symbol_type, type_type};
@@ -24,6 +24,22 @@ pub struct ReverseMappedSymbol {
     pub property_type: Rc<Type>,
     pub mapped_type: Rc<Type /*MappedType*/>,
     pub constraint_type: Rc<Type /*IndexType*/>,
+}
+
+impl ReverseMappedSymbol {
+    pub fn new(
+        transient_symbol: BaseTransientSymbol,
+        property_type: Rc<Type>,
+        mapped_type: Rc<Type>,
+        constraint_type: Rc<Type>,
+    ) -> Self {
+        Self {
+            _transient_symbol: transient_symbol,
+            property_type,
+            mapped_type,
+            constraint_type,
+        }
+    }
 }
 
 pub struct InternalSymbolName;
@@ -461,6 +477,10 @@ impl Type {
 
     pub fn as_intersection_type(&self) -> &IntersectionType {
         enum_unwrapped!(self, [Type, UnionOrIntersectionType, IntersectionType])
+    }
+
+    pub fn as_reverse_mapped_type(&self) -> &ReverseMappedType {
+        enum_unwrapped!(self, [Type, ObjectType, ReverseMappedType])
     }
 }
 

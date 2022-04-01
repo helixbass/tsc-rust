@@ -411,6 +411,15 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn infer_reverse_mapped_type(
+        &self,
+        source_type: &Type,
+        target: &Type,     /*MappedType*/
+        constraint: &Type, /*IndexType*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn is_object_literal_type(&self, type_: &Type) -> bool {
         get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral)
     }

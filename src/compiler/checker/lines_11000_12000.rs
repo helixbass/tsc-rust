@@ -10,7 +10,7 @@ use std::rc::Rc;
 use super::MappedTypeModifiers;
 use crate::{
     add_range, append, concatenate, count_where, create_symbol_table, every, index_of, map,
-    map_defined, reduce_left, some, IndexInfo, InternalSymbolName, ObjectFlags,
+    map_defined, reduce_left, some, CheckFlags, IndexInfo, InternalSymbolName, Number, ObjectFlags,
     ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvedTypeInterface, Signature,
     SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
@@ -663,6 +663,128 @@ impl TypeChecker {
                 type_as_object_type.set_construct_signatures(construct_signatures);
             }
         }
+    }
+
+    pub(super) fn replace_indexed_access(
+        &self,
+        instantiable: &Type,
+        type_: &Type, /*ReplaceableIndexedAccessType*/
+        replacement: &Type,
+    ) -> Rc<Type> {
+        let type_as_indexed_access_type = type_.as_indexed_access_type();
+        self.instantiate_type(
+            Some(instantiable),
+            Some(&self.create_type_mapper(
+                vec![
+                    type_as_indexed_access_type.index_type.clone(),
+                    type_as_indexed_access_type.object_type.clone(),
+                ],
+                Some(vec![
+                    self.get_number_literal_type(Number::new(0.0)),
+                    self.create_tuple_type(&[replacement.type_wrapper()], None, None, None),
+                ]),
+            )),
+        )
+        .unwrap()
+    }
+
+    pub(super) fn resolve_reverse_mapped_type_members(
+        &self,
+        type_: &Type, /*ReverseMappedType*/
+    ) {
+        let type_as_reverse_mapped_type = type_.as_reverse_mapped_type();
+        let index_info =
+            self.get_index_info_of_type_(&type_as_reverse_mapped_type.source, &self.string_type());
+        let modifiers = self.get_mapped_type_modifiers(&type_as_reverse_mapped_type.mapped_type);
+        let readonly_mask = if modifiers.intersects(MappedTypeModifiers::IncludeReadonly) {
+            false
+        } else {
+            true
+        };
+        let optional_mask = if modifiers.intersects(MappedTypeModifiers::IncludeOptional) {
+            SymbolFlags::None
+        } else {
+            SymbolFlags::Optional
+        };
+        let index_infos = if let Some(index_info) = index_info {
+            vec![Rc::new(self.create_index_info(
+                self.string_type(),
+                self.infer_reverse_mapped_type(
+                    &index_info.type_,
+                    &type_as_reverse_mapped_type.mapped_type,
+                    &type_as_reverse_mapped_type.constraint_type,
+                ),
+                readonly_mask && index_info.is_readonly,
+                None,
+            ))]
+        } else {
+            vec![]
+        };
+        let mut members = create_symbol_table(None);
+        for prop in self.get_properties_of_type(&type_as_reverse_mapped_type.source) {
+            let check_flags = CheckFlags::ReverseMapped
+                | if readonly_mask && self.is_readonly_symbol(&prop) {
+                    CheckFlags::Readonly
+                } else {
+                    CheckFlags::None
+                };
+            let inferred_prop = self.create_symbol(
+                SymbolFlags::Property | prop.flags() & optional_mask,
+                prop.escaped_name().clone(),
+                Some(check_flags),
+            );
+            if let Some(prop_declarations) = prop.maybe_declarations().clone() {
+                inferred_prop.set_declarations(prop_declarations);
+            }
+            inferred_prop.symbol_links().borrow_mut().name_type =
+                (*self.get_symbol_links(&prop)).borrow().name_type.clone();
+            let property_type = self.get_type_of_symbol(&prop);
+            let mapped_type: Rc<Type>;
+            let constraint_type: Rc<Type>;
+            let type_constraint_type_type = &type_as_reverse_mapped_type
+                .constraint_type
+                .as_index_type()
+                .type_;
+            if type_constraint_type_type
+                .flags()
+                .intersects(TypeFlags::IndexedAccess)
+                && type_constraint_type_type
+                    .as_indexed_access_type()
+                    .object_type
+                    .flags()
+                    .intersects(TypeFlags::TypeParameter)
+                && type_constraint_type_type
+                    .as_indexed_access_type()
+                    .index_type
+                    .flags()
+                    .intersects(TypeFlags::TypeParameter)
+            {
+                let new_type_param = &type_constraint_type_type
+                    .as_indexed_access_type()
+                    .object_type;
+                let new_mapped_type = self.replace_indexed_access(
+                    &type_as_reverse_mapped_type.mapped_type,
+                    type_constraint_type_type,
+                    new_type_param,
+                );
+                mapped_type = new_mapped_type;
+                constraint_type = self.get_index_type(new_type_param, None, None);
+            } else {
+                mapped_type = type_as_reverse_mapped_type.mapped_type.clone();
+                constraint_type = type_as_reverse_mapped_type.constraint_type.clone();
+            }
+            let inferred_prop: Rc<Symbol> = inferred_prop
+                .into_reverse_mapped_symbol(property_type, mapped_type, constraint_type)
+                .into();
+            members.insert(prop.escaped_name().clone(), inferred_prop);
+        }
+        self.set_structured_type_members(
+            type_as_reverse_mapped_type,
+            Rc::new(RefCell::new(members)),
+            vec![],
+            vec![],
+            index_infos,
+        );
     }
 
     pub(super) fn get_type_of_mapped_symbol(

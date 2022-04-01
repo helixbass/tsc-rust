@@ -1176,6 +1176,22 @@ pub enum TransientSymbol {
     ReverseMappedSymbol(ReverseMappedSymbol),
 }
 
+impl TransientSymbol {
+    pub fn into_reverse_mapped_symbol(
+        self,
+        property_type: Rc<Type>,
+        mapped_type: Rc<Type>,
+        constraint_type: Rc<Type>,
+    ) -> Self {
+        match self {
+            Self::BaseTransientSymbol(symbol) => Self::ReverseMappedSymbol(
+                ReverseMappedSymbol::new(symbol, property_type, mapped_type, constraint_type),
+            ),
+            _ => panic!("Should only call into_reverse_mapped_symbol() on BaseTransientSymbol"),
+        }
+    }
+}
+
 #[derive(Debug)]
 #[symbol_type(ancestors = "TransientSymbol")]
 pub struct BaseTransientSymbol {

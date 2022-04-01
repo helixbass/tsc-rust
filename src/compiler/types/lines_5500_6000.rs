@@ -46,6 +46,18 @@ pub struct MappedType {
     pub contains_error: Option<bool>,
 }
 
+#[derive(Clone, Debug)]
+#[type_type(
+    ancestors = "ObjectType",
+    interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface"
+)]
+pub struct ReverseMappedType {
+    _object_type: BaseObjectType,
+    pub source: Rc<Type>,
+    pub mapped_type: Rc<Type /*MappedType*/>,
+    pub constraint_type: Rc<Type /*IndexType*/>,
+}
+
 pub trait ResolvedTypeInterface:
     ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
 {

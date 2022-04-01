@@ -7,7 +7,7 @@ use std::rc::{Rc, Weak};
 
 use super::{
     BaseType, IndexInfo, IntersectionType, MappedType, Node, PseudoBigInt, ResolvedTypeInterface,
-    Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
+    ReverseMappedType, Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
 };
 use crate::{Number, TypeMapper, WeakSelf, __String};
 use local_macros::type_type;
@@ -315,6 +315,7 @@ pub enum ObjectType {
     InterfaceType(InterfaceType),
     TypeReference(TypeReference),
     MappedType(MappedType),
+    ReverseMappedType(ReverseMappedType),
 }
 
 #[derive(Clone, Debug)]

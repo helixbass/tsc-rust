@@ -13,8 +13,8 @@ use crate::{
     FunctionFlags, HasTypeParametersInterface, IfStatement, InterfaceDeclaration, IterationTypes,
     LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     PrefixUnaryExpression, PropertyAssignment, PropertySignature, PseudoBigInt, ReturnStatement,
-    SymbolInterface, SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration, TypeChecker,
-    TypeFlags, TypeInterface, TypeParameterDeclaration, TypeReferenceNode,
+    Symbol, SymbolInterface, SyntaxKind, TemplateExpression, Type, TypeAliasDeclaration,
+    TypeChecker, TypeFlags, TypeInterface, TypeParameterDeclaration, TypeReferenceNode,
     UnionOrIntersectionTypeInterface, VariableDeclaration, VariableLikeDeclarationInterface,
     VariableStatement,
 };
@@ -34,6 +34,10 @@ impl TypeChecker {
             return false;
         }
         true
+    }
+
+    pub(super) fn is_readonly_symbol(&self, symbol: &Symbol) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn check_prefix_unary_expression(
