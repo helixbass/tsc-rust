@@ -52,6 +52,7 @@ pub struct MappedType {
     name_type: RefCell<Option<Rc<Type>>>,
     template_type: RefCell<Option<Rc<Type>>>,
     modifiers_type: RefCell<Option<Rc<Type>>>,
+    resolved_apparent_type: RefCell<Option<Rc<Type>>>,
     contains_error: Cell<Option<bool>>,
 }
 
@@ -74,6 +75,10 @@ impl MappedType {
 
     pub fn maybe_modifiers_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.modifiers_type.borrow_mut()
+    }
+
+    pub fn maybe_resolved_apparent_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_apparent_type.borrow_mut()
     }
 
     pub fn maybe_contains_error(&self) -> Option<bool> {

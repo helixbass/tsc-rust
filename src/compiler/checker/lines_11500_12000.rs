@@ -7,9 +7,10 @@ use super::MappedTypeModifiers;
 use crate::{
     add_related_info, append, create_diagnostic_for_node, create_symbol_table,
     get_effective_constraint_of_type_parameter, get_object_flags, is_node_descendant_of,
-    is_type_parameter_declaration, map_defined, maybe_for_each, Diagnostics, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface, Symbol, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeSystemPropertyName, __String,
+    is_type_parameter_declaration, map_defined, maybe_for_each, maybe_for_each_bool, Diagnostics,
+    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeSystemPropertyName, __String,
 };
 
 impl TypeChecker {
@@ -940,8 +941,82 @@ impl TypeChecker {
 
     pub(super) fn get_default_from_type_parameter_(
         &self,
-        type_: &Type, /*TypeParameter*/
+        type_parameter: &Type, /*TypeParameter*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let default_type = self.get_resolved_type_parameter_default(type_parameter);
+        default_type.filter(|default_type| {
+            !Rc::ptr_eq(&default_type, &self.no_constraint_type())
+                && !Rc::ptr_eq(&default_type, &self.circular_constraint_type())
+        })
+    }
+
+    pub(super) fn has_non_circular_type_parameter_default(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> bool {
+        !matches!(
+            self.get_resolved_type_parameter_default(type_parameter),
+            Some(resolved) if Rc::ptr_eq(&resolved, &self.circular_constraint_type())
+        )
+    }
+
+    pub(super) fn has_type_parameter_default(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> bool {
+        matches!(
+            type_parameter.maybe_symbol(),
+            Some(symbol) if maybe_for_each_bool(symbol.maybe_declarations().as_deref(), |decl: &Rc<Node>, _| {
+                is_type_parameter_declaration(decl) && decl.as_type_parameter_declaration().default.is_some()
+            })
+        )
+    }
+
+    pub(super) fn get_apparent_type_of_mapped_type(
+        &self,
+        type_: &Type, /*MappedType*/
+    ) -> Rc<Type> {
+        let type_as_mapped_type = type_.as_mapped_type();
+        if type_as_mapped_type.maybe_resolved_apparent_type().is_none() {
+            let resolved = self.get_resolved_apparent_type_of_mapped_type(type_);
+            *type_as_mapped_type.maybe_resolved_apparent_type() = Some(resolved);
+        }
+        type_as_mapped_type
+            .maybe_resolved_apparent_type()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn get_resolved_apparent_type_of_mapped_type(
+        &self,
+        type_: &Type, /*MappedType*/
+    ) -> Rc<Type> {
+        let type_variable = self.get_homomorphic_type_variable(type_);
+        if let Some(type_variable) = type_variable {
+            let type_as_mapped_type = type_.as_mapped_type();
+            if type_as_mapped_type
+                .declaration
+                .as_mapped_type_node()
+                .name_type
+                .is_none()
+            {
+                let constraint = self.get_constraint_of_type_parameter(&type_variable);
+                if let Some(constraint) = constraint.filter(|constraint| {
+                    self.is_array_type(constraint) || self.is_tuple_type(constraint)
+                }) {
+                    return self
+                        .instantiate_type(
+                            Some(type_),
+                            Some(&self.prepend_type_mapping(
+                                &type_variable,
+                                &constraint,
+                                type_as_mapped_type.maybe_mapper().map(Clone::clone),
+                            )),
+                        )
+                        .unwrap();
+                }
+            }
+        }
+        type_.type_wrapper()
     }
 }

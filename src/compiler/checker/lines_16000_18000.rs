@@ -509,6 +509,13 @@ impl TypeChecker {
         result.into()
     }
 
+    pub(super) fn get_homomorphic_type_variable(
+        &self,
+        type_: &Type, /*MappedType*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_conditional_type_instantiation<TAliasSymbol: Borrow<Symbol>>(
         &self,
         type_: &Type, /*ConditionalType*/
