@@ -262,7 +262,14 @@ pub struct ConditionalType {
     pub root: ConditionalRoot,
     pub check_type: Rc<Type>,
     pub extends_type: Rc<Type>,
+    resolved_default_constraint: RefCell<Option<Rc<Type>>>,
     pub(crate) mapper: Option<TypeMapper>,
+}
+
+impl ConditionalType {
+    pub(crate) fn maybe_resolved_default_constraint(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_default_constraint.borrow_mut()
+    }
 }
 
 #[derive(Clone, Debug)]

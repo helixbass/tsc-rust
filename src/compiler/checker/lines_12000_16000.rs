@@ -1292,6 +1292,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_simplified_type(&self, type_: &Type, writing: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_indexed_access_type<
         TAccessNode: Borrow<Node>,
         TAliasSymbol: Borrow<Symbol>,
@@ -1349,6 +1353,13 @@ impl TypeChecker {
     }
 
     pub(super) fn get_false_type_from_conditional_type(
+        &self,
+        type_: &Type, /*ConditionalType*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_inferred_true_type_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
     ) -> Rc<Type> {

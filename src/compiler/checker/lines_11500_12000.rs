@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use std::ptr;
 use std::rc::Rc;
 
 use super::MappedTypeModifiers;
@@ -397,6 +398,21 @@ impl TypeChecker {
         props.values().map(Clone::clone).collect()
     }
 
+    pub(super) fn get_constraint_of_type(
+        &self,
+        type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
+    ) -> Option<Rc<Type>> {
+        if type_.flags().intersects(TypeFlags::TypeParameter) {
+            self.get_constraint_of_type_parameter(type_)
+        } else if type_.flags().intersects(TypeFlags::IndexedAccess) {
+            self.get_constraint_of_indexed_access(type_)
+        } else if type_.flags().intersects(TypeFlags::Conditional) {
+            self.get_constraint_of_conditional_type(type_)
+        } else {
+            self.get_base_constraint_of_type(type_)
+        }
+    }
+
     pub(super) fn get_constraint_of_type_parameter(
         &self,
         type_parameter: &Type, /*TypeParameter*/
@@ -406,6 +422,142 @@ impl TypeChecker {
         } else {
             None
         }
+    }
+
+    pub(super) fn get_constraint_of_indexed_access(
+        &self,
+        type_: &Type, /*IndexedAccessType*/
+    ) -> Option<Rc<Type>> {
+        if self.has_non_circular_base_constraint(type_) {
+            self.get_constraint_from_indexed_access(type_)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_simplified_type_or_constraint(&self, type_: &Type) -> Option<Rc<Type>> {
+        let simplified = self.get_simplified_type(type_, false);
+        if !ptr::eq(&*simplified, type_) {
+            Some(simplified)
+        } else {
+            self.get_constraint_of_type(type_)
+        }
+    }
+
+    pub(super) fn get_constraint_from_indexed_access(
+        &self,
+        type_: &Type, /*IndexedAccessType*/
+    ) -> Option<Rc<Type>> {
+        let type_as_indexed_access_type = type_.as_indexed_access_type();
+        let index_constraint =
+            self.get_simplified_type_or_constraint(&type_as_indexed_access_type.index_type);
+        if let Some(index_constraint) = index_constraint.filter(|index_constraint| {
+            !Rc::ptr_eq(index_constraint, &type_as_indexed_access_type.index_type)
+        }) {
+            let indexed_access = self.get_indexed_access_type_or_undefined(
+                &type_as_indexed_access_type.object_type,
+                &index_constraint,
+                Some(type_as_indexed_access_type.access_flags),
+                Option::<&Node>::None,
+                Option::<&Symbol>::None,
+                None,
+            );
+            if indexed_access.is_some() {
+                return indexed_access;
+            }
+        }
+        let object_constraint =
+            self.get_simplified_type_or_constraint(&type_as_indexed_access_type.object_type);
+        if let Some(object_constraint) = object_constraint.filter(|object_constraint| {
+            !Rc::ptr_eq(object_constraint, &type_as_indexed_access_type.object_type)
+        }) {
+            return self.get_indexed_access_type_or_undefined(
+                &object_constraint,
+                &type_as_indexed_access_type.index_type,
+                Some(type_as_indexed_access_type.access_flags),
+                Option::<&Node>::None,
+                Option::<&Symbol>::None,
+                None,
+            );
+        }
+        None
+    }
+
+    pub(super) fn get_default_constraint_of_conditional_type(
+        &self,
+        type_: &Type, /*ConditionalType*/
+    ) -> Rc<Type> {
+        let type_as_conditional_type = type_.as_conditional_type();
+        if type_as_conditional_type
+            .maybe_resolved_default_constraint()
+            .is_none()
+        {
+            let true_constraint = self.get_inferred_true_type_from_conditional_type(type_);
+            let false_constraint = self.get_false_type_from_conditional_type(type_);
+            *type_as_conditional_type.maybe_resolved_default_constraint() =
+                Some(if self.is_type_any(Some(&*true_constraint)) {
+                    false_constraint
+                } else if self.is_type_any(Some(&*false_constraint)) {
+                    true_constraint
+                } else {
+                    self.get_union_type(
+                        vec![true_constraint, false_constraint],
+                        None,
+                        Option::<&Symbol>::None,
+                        None,
+                        Option::<&Type>::None,
+                    )
+                });
+        }
+        type_as_conditional_type
+            .maybe_resolved_default_constraint()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn get_constraint_of_distributive_conditional_type(
+        &self,
+        type_: &Type, /*ConditionalType*/
+    ) -> Option<Rc<Type>> {
+        let type_as_conditional_type = type_.as_conditional_type();
+        if type_as_conditional_type.root.is_distributive
+            && !matches!(
+                type_.maybe_restrictive_instantiation().as_deref(),
+                Some(restrictive_instantiation) if ptr::eq(restrictive_instantiation, type_)
+            )
+        {
+            let simplified = self.get_simplified_type(&type_as_conditional_type.check_type, false);
+            let constraint = if Rc::ptr_eq(&simplified, &type_as_conditional_type.check_type) {
+                self.get_constraint_of_type(&simplified)
+            } else {
+                Some(simplified)
+            };
+            if let Some(constraint) = constraint
+                .filter(|constraint| !Rc::ptr_eq(constraint, &type_as_conditional_type.check_type))
+            {
+                let instantiated = self.get_conditional_type_instantiation(
+                    type_,
+                    &self.prepend_type_mapping(
+                        &type_as_conditional_type.root.check_type,
+                        &constraint,
+                        type_as_conditional_type.mapper.clone(),
+                    ),
+                    Option::<&Symbol>::None,
+                    None,
+                );
+                if !instantiated.flags().intersects(TypeFlags::Never) {
+                    return Some(instantiated);
+                }
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_constraint_of_conditional_type(
+        &self,
+        type_: &Type, /*ConditionalType*/
+    ) -> Option<Rc<Type>> {
+        unimplemented!()
     }
 
     pub(super) fn get_base_constraint_of_type(&self, type_: &Type) -> Option<Rc<Type>> {
