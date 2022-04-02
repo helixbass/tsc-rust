@@ -6,9 +6,9 @@ use std::rc::Rc;
 use super::{
     BaseBindingLikeDeclaration, BaseNamedDeclaration, BaseNode, BaseVariableLikeDeclaration,
     BindingLikeDeclarationInterface, FlowNode, HasExpressionInterface, HasInitializerInterface,
-    HasPropertyNameInterface, HasStatementsInterface, HasTypeInterface, LiteralLikeNodeInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, SyntaxKind,
-    VariableLikeDeclarationInterface,
+    HasPropertiesInterface, HasPropertyNameInterface, HasStatementsInterface, HasTypeInterface,
+    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface,
+    SyntaxKind, VariableLikeDeclarationInterface,
 };
 use local_macros::ast_type;
 
@@ -68,6 +68,12 @@ impl JsxAttributes {
             _node: base_node,
             properties,
         }
+    }
+}
+
+impl HasPropertiesInterface for JsxAttributes {
+    fn properties(&self) -> &NodeArray {
+        &self.properties
     }
 }
 

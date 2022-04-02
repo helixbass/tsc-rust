@@ -147,6 +147,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_augmented_properties_of_type(&self, type_: &Type) -> Vec<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn is_const_enum_or_const_enum_only_module(&self, s: &Symbol) -> bool {
         unimplemented!()
     }

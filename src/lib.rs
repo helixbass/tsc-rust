@@ -260,7 +260,7 @@ pub use compiler::types::{
     GeneratedIdentifierFlags, GenericNamedDeclarationInterface, GenericTypeInterface,
     GenericableTypeInterface, GetAccessorDeclaration, HasConditionInterface, HasElementsInterface,
     HasExpressionInterface, HasInitializerInterface, HasIsTypeOnlyInterface,
-    HasJSDocDotPosInterface, HasLabelInterface, HasPropertyNameInterface,
+    HasJSDocDotPosInterface, HasLabelInterface, HasPropertiesInterface, HasPropertyNameInterface,
     HasQuestionDotTokenInterface, HasQuestionTokenInterface, HasStatementInterface,
     HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, HeritageClause, Identifier, IfStatement, ImportClause,

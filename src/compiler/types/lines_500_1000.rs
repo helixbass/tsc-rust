@@ -19,10 +19,10 @@ use super::{
     ForStatement, FunctionDeclaration, FunctionExpression, FunctionLikeDeclarationInterface,
     FunctionTypeNode, GetAccessorDeclaration, HasConditionInterface, HasElementsInterface,
     HasExpressionInterface, HasIsTypeOnlyInterface, HasJSDocDotPosInterface, HasLabelInterface,
-    HasPropertyNameInterface, HasQuestionDotTokenInterface, HasQuestionTokenInterface,
-    HasStatementInterface, HasStatementsInterface, HasTypeArgumentsInterface,
-    HasTypeParametersInterface, HeritageClause, Identifier, IfStatement, ImportClause,
-    ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
+    HasPropertiesInterface, HasPropertyNameInterface, HasQuestionDotTokenInterface,
+    HasQuestionTokenInterface, HasStatementInterface, HasStatementsInterface,
+    HasTypeArgumentsInterface, HasTypeParametersInterface, HeritageClause, Identifier, IfStatement,
+    ImportClause, ImportDeclaration, ImportEqualsDeclaration, ImportSpecifier, ImportTypeNode,
     IndexSignatureDeclaration, IndexedAccessTypeNode, InferTypeNode, InputFiles,
     InterfaceDeclaration, InterfaceOrClassLikeDeclarationInterface, IntersectionTypeNode, JSDoc,
     JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
@@ -672,6 +672,14 @@ impl Node {
             Node::ExportSpecifier(node) => node,
             Node::BindingElement(node) => node,
             _ => panic!("Expected has property name"),
+        }
+    }
+
+    pub fn as_has_properties(&self) -> &dyn HasPropertiesInterface {
+        match self {
+            Node::ObjectLiteralExpression(node) => node,
+            Node::JsxAttributes(node) => node,
+            _ => panic!("Expected has properties"),
         }
     }
 

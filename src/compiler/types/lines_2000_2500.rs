@@ -401,6 +401,16 @@ impl ObjectLiteralExpression {
     }
 }
 
+pub trait HasPropertiesInterface {
+    fn properties(&self) -> &NodeArray;
+}
+
+impl HasPropertiesInterface for ObjectLiteralExpression {
+    fn properties(&self) -> &NodeArray {
+        &self.properties
+    }
+}
+
 pub trait HasQuestionDotTokenInterface {
     fn maybe_question_dot_token(&self) -> Option<Rc<Node>>;
 }

@@ -1340,6 +1340,10 @@ fn get_type_struct_interface_impl(
                     fn types(&self) -> &[::std::rc::Rc<crate::Type>] {
                         self.#first_field_name.types()
                     }
+
+                    fn maybe_resolved_properties(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>>> {
+                        self.#first_field_name.maybe_resolved_properties()
+                    }
                 }
             }
         }
@@ -1748,6 +1752,12 @@ fn get_type_enum_interface_impl(
                     fn types(&self) -> &[::std::rc::Rc<crate::Type>] {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.types()),*
+                        }
+                    }
+
+                    fn maybe_resolved_properties(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::std::rc::Rc<crate::Symbol>>>> {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_properties()),*
                         }
                     }
                 }

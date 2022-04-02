@@ -36,6 +36,24 @@ impl TypeChecker {
         self.get_reduced_type(&self.get_apparent_type(&self.get_reduced_type(type_)))
     }
 
+    pub(super) fn create_union_or_intersection_property(
+        &self,
+        containing_type: &Type, /*UnionOrIntersectionType*/
+        name: &__String,
+        skip_object_function_property_augment: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_property_of_union_or_intersection_type(
+        &self,
+        type_: &Type, /*UnionOrIntersectionType*/
+        name: &__String,
+        skip_object_function_property_augment: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_reduced_type(&self, type_: &Type) -> Rc<Type> {
         type_.type_wrapper()
     }
