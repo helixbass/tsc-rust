@@ -23,7 +23,7 @@ use local_macros::{enum_unwrapped, type_type};
 )]
 pub struct IntersectionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,
-    pub(crate) resolved_apparent_type: RefCell<Option<Rc<Type>>>,
+    resolved_apparent_type: RefCell<Option<Rc<Type>>>,
 }
 
 impl IntersectionType {
@@ -32,6 +32,10 @@ impl IntersectionType {
             _union_or_intersection_type: union_or_intersection_type,
             resolved_apparent_type: RefCell::new(None),
         }
+    }
+
+    pub(crate) fn maybe_resolved_apparent_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_apparent_type.borrow_mut()
     }
 }
 
@@ -165,6 +169,7 @@ impl IterationTypes {
 pub struct TypeParameter {
     _type: BaseType,
     pub constraint: RefCell<Option<Weak<Type>>>, // TODO: is it correct that this is weak?
+    pub default: RefCell<Option<Rc<Type>>>,
     pub target: Option<Rc<Type /*TypeParameter*/>>,
     pub mapper: RefCell<Option<TypeMapper>>,
     pub is_this_type: Option<bool>,
@@ -175,6 +180,7 @@ impl TypeParameter {
         Self {
             _type: base_type,
             constraint: RefCell::new(None),
+            default: RefCell::new(None),
             target: None,
             mapper: RefCell::new(None),
             is_this_type: None,
@@ -190,6 +196,10 @@ impl TypeParameter {
 
     pub fn set_constraint(&self, constraint: Rc<Type>) {
         *self.constraint.borrow_mut() = Some(Rc::downgrade(&constraint));
+    }
+
+    pub fn maybe_default(&self) -> RefMut<Option<Rc<Type>>> {
+        self.default.borrow_mut()
     }
 
     pub fn maybe_mapper(&self) -> Ref<Option<TypeMapper>> {

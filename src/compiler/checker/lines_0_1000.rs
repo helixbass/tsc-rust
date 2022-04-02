@@ -2642,6 +2642,10 @@ impl TypeChecker {
         self.circular_constraint_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn resolving_default_type(&self) -> Rc<Type> {
+        self.resolving_default_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn marker_super_type(&self) -> Rc<Type> {
         self.marker_super_type.as_ref().unwrap().clone()
     }

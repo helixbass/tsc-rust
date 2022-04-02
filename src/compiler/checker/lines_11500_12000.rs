@@ -7,9 +7,9 @@ use super::MappedTypeModifiers;
 use crate::{
     add_related_info, append, create_diagnostic_for_node, create_symbol_table,
     get_effective_constraint_of_type_parameter, get_object_flags, is_node_descendant_of,
-    map_defined, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypeSystemPropertyName, __String,
+    is_type_parameter_declaration, map_defined, maybe_for_each, Diagnostics, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface, Symbol, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeSystemPropertyName, __String,
 };
 
 impl TypeChecker {
@@ -859,6 +859,83 @@ impl TypeChecker {
             return self.get_base_constraint(stack, &t.as_substitution_type().substitute);
         }
         Some(t.type_wrapper())
+    }
+
+    pub(super) fn get_apparent_type_of_intersection_type(
+        &self,
+        type_: &Type, /*IntersectionType*/
+    ) -> Rc<Type> {
+        let type_as_intersection_type = type_.as_intersection_type();
+        if type_as_intersection_type
+            .maybe_resolved_apparent_type()
+            .is_none()
+        {
+            let resolved = self.get_type_with_this_argument(type_, Some(type_), Some(true));
+            *type_as_intersection_type.maybe_resolved_apparent_type() = Some(resolved);
+        }
+        type_as_intersection_type
+            .maybe_resolved_apparent_type()
+            .clone()
+            .unwrap()
+    }
+
+    pub(super) fn get_resolved_type_parameter_default(
+        &self,
+        type_parameter: &Type, /*TypeParameter*/
+    ) -> Option<Rc<Type>> {
+        let type_parameter_as_type_parameter = type_parameter.as_type_parameter();
+        if type_parameter_as_type_parameter.maybe_default().is_none() {
+            if let Some(type_parameter_target) = type_parameter_as_type_parameter.target.as_ref() {
+                let target_default =
+                    self.get_resolved_type_parameter_default(type_parameter_target);
+                *type_parameter_as_type_parameter.maybe_default() =
+                    Some(if let Some(target_default) = target_default {
+                        self.instantiate_type(
+                            Some(target_default),
+                            type_parameter_as_type_parameter.maybe_mapper().as_ref(),
+                        )
+                        .unwrap()
+                    } else {
+                        self.no_constraint_type()
+                    });
+            } else {
+                *type_parameter_as_type_parameter.maybe_default() =
+                    Some(self.resolving_default_type());
+                let default_declaration = type_parameter.maybe_symbol().and_then(|symbol| {
+                    maybe_for_each(
+                        symbol.maybe_declarations().as_deref(),
+                        |decl: &Rc<Node>, _| {
+                            if is_type_parameter_declaration(decl) {
+                                decl.as_type_parameter_declaration().default.clone()
+                            } else {
+                                None
+                            }
+                        },
+                    )
+                });
+                let default_type = if let Some(default_declaration) = default_declaration {
+                    self.get_type_from_type_node_(&default_declaration)
+                } else {
+                    self.no_constraint_type()
+                };
+                if matches!(
+                    type_parameter_as_type_parameter.maybe_default().as_ref(),
+                    Some(default) if Rc::ptr_eq(default, &self.resolving_default_type())
+                ) {
+                    *type_parameter_as_type_parameter.maybe_default() = Some(default_type);
+                }
+            }
+        } else if Rc::ptr_eq(
+            type_parameter_as_type_parameter
+                .maybe_default()
+                .as_ref()
+                .unwrap(),
+            &self.resolving_default_type(),
+        ) {
+            *type_parameter_as_type_parameter.maybe_default() =
+                Some(self.circular_constraint_type());
+        }
+        type_parameter_as_type_parameter.maybe_default().clone()
     }
 
     pub(super) fn get_default_from_type_parameter_(
