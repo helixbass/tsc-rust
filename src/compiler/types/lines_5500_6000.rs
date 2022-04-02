@@ -44,7 +44,10 @@ pub struct MappedType {
     _object_type: BaseObjectType,
     pub declaration: Rc<Node /*MappedTypeNode*/>,
     type_parameter: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
-    constraint_type: RefCell<Option<Rc<Type /*TypeParameter*/>>>,
+    constraint_type: RefCell<Option<Rc<Type>>>,
+    name_type: RefCell<Option<Rc<Type>>>,
+    template_type: RefCell<Option<Rc<Type>>>,
+    modifiers_type: RefCell<Option<Rc<Type>>>,
     contains_error: Cell<Option<bool>>,
 }
 
@@ -55,6 +58,18 @@ impl MappedType {
 
     pub fn maybe_constraint_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.constraint_type.borrow_mut()
+    }
+
+    pub fn maybe_name_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.name_type.borrow_mut()
+    }
+
+    pub fn maybe_template_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.template_type.borrow_mut()
+    }
+
+    pub fn maybe_modifiers_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.modifiers_type.borrow_mut()
     }
 
     pub fn maybe_contains_error(&self) -> Option<bool> {

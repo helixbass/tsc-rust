@@ -1316,6 +1316,13 @@ impl TypeChecker {
         )
     }
 
+    pub(super) fn get_type_from_mapped_type_node(
+        &self,
+        node: &Node, /*MappedTypeNode*/
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_true_type_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/

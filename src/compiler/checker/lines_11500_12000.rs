@@ -4,8 +4,9 @@ use std::rc::Rc;
 
 use super::MappedTypeModifiers;
 use crate::{
-    ObjectFlags, ObjectFlagsTypeInterface, Symbol, Type, TypeChecker, TypeFlags, TypeInterface,
-    __String,
+    get_effective_constraint_of_type_parameter, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, ObjectTypeInterface, Symbol, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, __String,
 };
 
 impl TypeChecker {
@@ -13,28 +14,130 @@ impl TypeChecker {
         &self,
         type_: &Type, /*MappedType*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let type_as_mapped_type = type_.as_mapped_type();
+        type_as_mapped_type
+            .declaration
+            .as_mapped_type_node()
+            .name_type
+            .as_ref()
+            .map(|type_declaration_name_type| {
+                if type_as_mapped_type.maybe_name_type().is_none() {
+                    let name_type = self
+                        .instantiate_type(
+                            Some(self.get_type_from_type_node_(type_declaration_name_type)),
+                            type_as_mapped_type.maybe_mapper(),
+                        )
+                        .unwrap();
+                    *type_as_mapped_type.maybe_name_type() = Some(name_type);
+                }
+                type_as_mapped_type.maybe_name_type().clone().unwrap()
+            })
     }
 
     pub(super) fn get_template_type_from_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_as_mapped_type = type_.as_mapped_type();
+        if type_as_mapped_type.maybe_template_type().is_none() {
+            let template_type = if let Some(type_declaration_type) = type_as_mapped_type
+                .declaration
+                .as_mapped_type_node()
+                .type_
+                .as_ref()
+            {
+                self.instantiate_type(
+                    Some(
+                        self.add_optionality(
+                            &self.get_type_from_type_node_(type_declaration_type),
+                            Some(true),
+                            Some(
+                                self.get_mapped_type_modifiers(type_)
+                                    .intersects(MappedTypeModifiers::IncludeOptional),
+                            ),
+                        ),
+                    ),
+                    type_as_mapped_type.maybe_mapper(),
+                )
+                .unwrap()
+            } else {
+                self.error_type()
+            };
+            *type_as_mapped_type.maybe_template_type() = Some(template_type);
+        }
+        type_as_mapped_type.maybe_template_type().clone().unwrap()
+    }
+
+    pub(super) fn get_constraint_declaration_for_mapped_type(
+        &self,
+        type_: &Type, /*MappedType*/
+    ) -> Option<Rc<Node>> {
+        get_effective_constraint_of_type_parameter(
+            &type_
+                .as_mapped_type()
+                .declaration
+                .as_mapped_type_node()
+                .type_parameter,
+        )
     }
 
     pub(super) fn is_mapped_type_with_keyof_constraint_declaration(
         &self,
         type_: &Type, /*MappedType*/
     ) -> bool {
-        unimplemented!()
+        let constraint_declaration = self
+            .get_constraint_declaration_for_mapped_type(type_)
+            .unwrap();
+        constraint_declaration.kind() == SyntaxKind::TypeOperator
+            && constraint_declaration.as_type_operator_node().operator == SyntaxKind::KeyOfKeyword
     }
 
     pub(super) fn get_modifiers_type_from_mapped_type(
         &self,
         type_: &Type, /*MappedType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_as_mapped_type = type_.as_mapped_type();
+        if type_as_mapped_type.maybe_modifiers_type().is_none() {
+            if self.is_mapped_type_with_keyof_constraint_declaration(type_) {
+                *type_as_mapped_type.maybe_modifiers_type() = self.instantiate_type(
+                    Some(
+                        self.get_type_from_type_node_(
+                            &self
+                                .get_constraint_declaration_for_mapped_type(type_)
+                                .unwrap()
+                                .as_type_operator_node()
+                                .type_,
+                        ),
+                    ),
+                    type_as_mapped_type.maybe_mapper(),
+                );
+            } else {
+                let declared_type =
+                    self.get_type_from_mapped_type_node(&type_as_mapped_type.declaration);
+                let constraint = self.get_constraint_type_from_mapped_type(&declared_type);
+                let extended_constraint = /*constraint &&*/ if constraint.flags().intersects(TypeFlags::TypeParameter) {
+                    self.get_constraint_of_type_parameter(&constraint)
+                } else {
+                    Some(constraint)
+                };
+                *type_as_mapped_type.maybe_modifiers_type() = Some(
+                    if let Some(extended_constraint) =
+                        extended_constraint.filter(|extended_constraint| {
+                            extended_constraint.flags().intersects(TypeFlags::Index)
+                        })
+                    {
+                        self.instantiate_type(
+                            Some(&*extended_constraint.as_index_type().type_),
+                            type_as_mapped_type.maybe_mapper(),
+                        )
+                        .unwrap()
+                    } else {
+                        self.unknown_type()
+                    },
+                );
+            }
+        }
+        type_as_mapped_type.maybe_modifiers_type().clone().unwrap()
     }
 
     pub(super) fn get_mapped_type_modifiers(

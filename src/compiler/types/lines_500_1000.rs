@@ -1166,6 +1166,10 @@ impl Node {
     pub fn as_enum_declaration(&self) -> &EnumDeclaration {
         enum_unwrapped!(self, [Node, EnumDeclaration])
     }
+
+    pub fn as_type_operator_node(&self) -> &TypeOperatorNode {
+        enum_unwrapped!(self, [Node, TypeOperatorNode])
+    }
 }
 
 #[derive(Debug)]
