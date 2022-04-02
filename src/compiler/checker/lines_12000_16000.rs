@@ -1246,6 +1246,18 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_template_literal_type(
+        &self,
+        texts: &[String],
+        types: &[Rc<Type>],
+    ) -> Rc<Type> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_string_mapping_type(&self, symbol: &Symbol, type_: &Type) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_property_name_from_index(&self, index_type: &Type) -> Option<__String> {
         if self.is_type_usable_as_property_name(index_type) {
             Some(self.get_property_name_from_type(index_type))

@@ -528,6 +528,8 @@ pub trait TypeInterface {
     fn maybe_alias_type_arguments(&self) -> RefMut<Option<Vec<Rc<Type>>>>;
     fn maybe_restrictive_instantiation(&self) -> RefMut<Option<Rc<Type>>>;
     fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
+    // InstantiableType fields
+    fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Rc<Type>>>;
 }
 
 #[derive(Clone, Debug)]
@@ -541,6 +543,8 @@ pub struct BaseType {
     alias_type_arguments: RefCell<Option<Vec<Rc<Type>>>>,
     restrictive_instantiation: RefCell<Option<Rc<Type>>>,
     immediate_base_constraint: RefCell<Option<Rc<Type>>>,
+    // InstantiableType fields
+    resolved_base_constraint: RefCell<Option<Rc<Type>>>,
 }
 
 impl BaseType {
@@ -555,6 +559,7 @@ impl BaseType {
             alias_type_arguments: RefCell::new(None),
             restrictive_instantiation: RefCell::new(None),
             immediate_base_constraint: RefCell::new(None),
+            resolved_base_constraint: RefCell::new(None),
         }
     }
 }
@@ -615,6 +620,10 @@ impl TypeInterface for BaseType {
 
     fn maybe_immediate_base_constraint(&self) -> RefMut<Option<Rc<Type>>> {
         self.immediate_base_constraint.borrow_mut()
+    }
+
+    fn maybe_resolved_base_constraint(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_base_constraint.borrow_mut()
     }
 }
 

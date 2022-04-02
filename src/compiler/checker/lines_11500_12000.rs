@@ -5,9 +5,11 @@ use std::rc::Rc;
 
 use super::MappedTypeModifiers;
 use crate::{
-    create_symbol_table, get_effective_constraint_of_type_parameter, get_object_flags, Node,
-    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, __String,
+    add_related_info, append, create_diagnostic_for_node, create_symbol_table,
+    get_effective_constraint_of_type_parameter, get_object_flags, is_node_descendant_of,
+    map_defined, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    ObjectTypeInterface, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
+    TypeInterface, TypeSystemPropertyName, __String,
 };
 
 impl TypeChecker {
@@ -553,19 +555,100 @@ impl TypeChecker {
         None
     }
 
+    pub(super) fn get_constraint_from_conditional_type(
+        &self,
+        type_: &Type, /*ConditionalType*/
+    ) -> Rc<Type> {
+        self.get_constraint_of_distributive_conditional_type(type_)
+            .unwrap_or_else(|| self.get_default_constraint_of_conditional_type(type_))
+    }
+
     pub(super) fn get_constraint_of_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        if self.has_non_circular_base_constraint(type_) {
+            Some(self.get_constraint_from_conditional_type(type_))
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_effective_constraint_of_intersection(
+        &self,
+        types: &[Rc<Type>],
+        target_is_union: bool,
+    ) -> Option<Rc<Type>> {
+        let mut constraints: Option<Vec<Rc<Type>>> = None;
+        let mut has_disjoint_domain_type = false;
+        for t in types {
+            if t.flags().intersects(TypeFlags::Instantiable) {
+                let mut constraint = self.get_constraint_of_type(t);
+                while let Some(constraint_present) = constraint.as_ref() {
+                    if constraint_present.flags().intersects(
+                        TypeFlags::TypeParameter | TypeFlags::Index | TypeFlags::Conditional,
+                    ) {
+                        constraint = self.get_constraint_of_type(constraint_present);
+                    }
+                }
+                if let Some(constraint) = constraint {
+                    if constraints.is_none() {
+                        constraints = Some(vec![]);
+                    }
+                    append(constraints.as_mut().unwrap(), Some(constraint));
+                    if target_is_union {
+                        append(constraints.as_mut().unwrap(), Some(t.clone()));
+                    }
+                }
+            } else if t.flags().intersects(TypeFlags::DisjointDomains) {
+                has_disjoint_domain_type = true;
+            }
+        }
+        constraints.and_then(|mut constraints| {
+            if target_is_union || has_disjoint_domain_type {
+                if has_disjoint_domain_type {
+                    for t in types {
+                        if t.flags().intersects(TypeFlags::DisjointDomains) {
+                            append(&mut constraints, Some(t.clone()));
+                        }
+                    }
+                }
+                return Some(self.get_intersection_type(
+                    &constraints,
+                    Option::<&Symbol>::None,
+                    None,
+                ));
+            }
+            None
+        })
     }
 
     pub(super) fn get_base_constraint_of_type(&self, type_: &Type) -> Option<Rc<Type>> {
-        unimplemented!()
+        if type_.flags().intersects(
+            TypeFlags::InstantiableNonPrimitive
+                | TypeFlags::UnionOrIntersection
+                | TypeFlags::TemplateLiteral
+                | TypeFlags::StringMapping,
+        ) {
+            let constraint = self.get_resolved_base_constraint(type_);
+            return if !Rc::ptr_eq(&constraint, &self.no_constraint_type())
+                && !Rc::ptr_eq(&constraint, &self.circular_constraint_type())
+            {
+                Some(constraint)
+            } else {
+                None
+            };
+        }
+        if type_.flags().intersects(TypeFlags::Index) {
+            Some(self.keyof_constraint_type())
+        } else {
+            None
+        }
     }
 
     pub(super) fn get_base_constraint_or_type(&self, type_: &Type) -> Rc<Type> {
-        unimplemented!()
+        self.get_base_constraint_of_type(type_)
+            .unwrap_or_else(|| type_.type_wrapper())
     }
 
     pub(super) fn has_non_circular_base_constraint(
@@ -582,7 +665,200 @@ impl TypeChecker {
         &self,
         type_: &Type, /*InstantiableType | UnionOrIntersectionType*/
     ) -> Rc<Type> {
-        unimplemented!()
+        if let Some(type_resolved_base_constraint) = type_.maybe_resolved_base_constraint().clone()
+        {
+            return type_resolved_base_constraint;
+        }
+        let mut stack: Vec<Rc<Type>> = vec![];
+        let ret = self.get_type_with_this_argument(
+            &self.get_immediate_base_constraint(&mut stack, type_),
+            Some(type_),
+            None,
+        );
+        *type_.maybe_resolved_base_constraint() = Some(ret.clone());
+        ret
+    }
+
+    pub(super) fn get_immediate_base_constraint(
+        &self,
+        stack: &mut Vec<Rc<Type>>,
+        t: &Type,
+    ) -> Rc<Type> {
+        if t.maybe_immediate_base_constraint().is_none() {
+            if !self.push_type_resolution(
+                &t.type_wrapper().into(),
+                TypeSystemPropertyName::ImmediateBaseConstraint,
+            ) {
+                return self.circular_constraint_type();
+            }
+            let mut result: Option<Rc<Type>> = None;
+            if stack.len() < 10
+                || stack.len() < 50 && !self.is_deeply_nested_type(t, stack, stack.len(), None)
+            {
+                stack.push(t.type_wrapper());
+                result = self.compute_base_constraint(stack, &self.get_simplified_type(t, false));
+                stack.pop();
+            }
+            if !self.pop_type_resolution() {
+                if t.flags().intersects(TypeFlags::TypeParameter) {
+                    let error_node = self.get_constraint_declaration(t);
+                    if let Some(error_node) = error_node {
+                        let diagnostic = self.error(
+                            Some(&*error_node),
+                            &Diagnostics::Type_parameter_0_has_a_circular_constraint,
+                            Some(vec![self.type_to_string_(
+                                t,
+                                Option::<&Node>::None,
+                                None,
+                                None,
+                            )]),
+                        );
+                        if let Some(current_node) = self.maybe_current_node() {
+                            if !is_node_descendant_of(&error_node, Some(&*current_node))
+                                && !is_node_descendant_of(&current_node, Some(&*error_node))
+                            {
+                                add_related_info(
+                                    &diagnostic,
+                                    vec![
+                                        Rc::new(
+                                            create_diagnostic_for_node(
+                                                &current_node,
+                                                &Diagnostics::Circularity_originates_in_type_at_this_location,
+                                                None,
+                                            ).into()
+                                        )
+                                    ]
+                                );
+                            }
+                        }
+                    }
+                }
+                result = Some(self.circular_constraint_type());
+            }
+            *t.maybe_immediate_base_constraint() =
+                Some(result.unwrap_or_else(|| self.no_constraint_type()));
+        }
+        t.maybe_immediate_base_constraint().clone().unwrap()
+    }
+
+    pub(super) fn get_base_constraint(
+        &self,
+        stack: &mut Vec<Rc<Type>>,
+        t: &Type,
+    ) -> Option<Rc<Type>> {
+        let c = self.get_immediate_base_constraint(stack, t);
+        if !Rc::ptr_eq(&c, &self.no_constraint_type())
+            && !Rc::ptr_eq(&c, &self.circular_constraint_type())
+        {
+            Some(c)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn compute_base_constraint(
+        &self,
+        stack: &mut Vec<Rc<Type>>,
+        t: &Type,
+    ) -> Option<Rc<Type>> {
+        if t.flags().intersects(TypeFlags::TypeParameter) {
+            let constraint = self.get_constraint_from_type_parameter(t);
+            return if matches!(t.as_type_parameter().is_this_type, Some(true))
+                || constraint.is_none()
+            {
+                constraint
+            } else {
+                self.get_base_constraint(stack, constraint.as_ref().unwrap())
+            };
+        }
+        if t.flags().intersects(TypeFlags::UnionOrIntersection) {
+            let types = t.as_union_or_intersection_type_interface().types();
+            let mut base_types: Vec<Rc<Type>> = vec![];
+            let mut different = false;
+            for type_ in types {
+                let base_type = self.get_base_constraint(stack, type_);
+                if let Some(base_type) = base_type {
+                    if !Rc::ptr_eq(&base_type, type_) {
+                        different = true;
+                    }
+                    base_types.push(base_type);
+                } else {
+                    different = true;
+                }
+            }
+            if !different {
+                return Some(t.type_wrapper());
+            }
+            return if t.flags().intersects(TypeFlags::Union) && base_types.len() == types.len() {
+                Some(self.get_union_type(
+                    base_types,
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                ))
+            } else if t.flags().intersects(TypeFlags::Intersection) && !base_types.is_empty() {
+                Some(self.get_intersection_type(&base_types, Option::<&Symbol>::None, None))
+            } else {
+                None
+            };
+        }
+        if t.flags().intersects(TypeFlags::Index) {
+            return Some(self.keyof_constraint_type());
+        }
+        if t.flags().intersects(TypeFlags::TemplateLiteral) {
+            let t_as_template_literal_type = t.as_template_literal_type();
+            let types = &t_as_template_literal_type.types;
+            let constraints = map_defined(Some(types), |type_: &Rc<Type>, _| {
+                self.get_base_constraint(stack, type_)
+            });
+            return Some(if constraints.len() == types.len() {
+                self.get_template_literal_type(&t_as_template_literal_type.texts, &constraints)
+            } else {
+                self.string_type()
+            });
+        }
+        if t.flags().intersects(TypeFlags::StringMapping) {
+            let t_as_string_mapping_type = t.as_string_mapping_type();
+            let constraint = self.get_base_constraint(stack, &t_as_string_mapping_type.type_);
+            return Some(if let Some(constraint) = constraint {
+                self.get_string_mapping_type(&t_as_string_mapping_type.symbol, &constraint)
+            } else {
+                self.string_type()
+            });
+        }
+        if t.flags().intersects(TypeFlags::IndexedAccess) {
+            let t_as_indexed_access_type = t.as_indexed_access_type();
+            let base_object_type =
+                self.get_base_constraint(stack, &t_as_indexed_access_type.object_type);
+            let base_index_type =
+                self.get_base_constraint(stack, &t_as_indexed_access_type.index_type);
+            let base_indexed_access = if let (Some(base_object_type), Some(base_index_type)) =
+                (base_object_type, base_index_type)
+            {
+                self.get_indexed_access_type_or_undefined(
+                    &base_object_type,
+                    &base_index_type,
+                    Some(t_as_indexed_access_type.access_flags),
+                    Option::<&Node>::None,
+                    Option::<&Symbol>::None,
+                    None,
+                )
+            } else {
+                None
+            };
+            return base_indexed_access.and_then(|base_indexed_access| {
+                self.get_base_constraint(stack, &base_indexed_access)
+            });
+        }
+        if t.flags().intersects(TypeFlags::Conditional) {
+            let constraint = self.get_constraint_from_conditional_type(t);
+            return /*constraint &&*/ self.get_base_constraint(stack, &constraint);
+        }
+        if t.flags().intersects(TypeFlags::Substitution) {
+            return self.get_base_constraint(stack, &t.as_substitution_type().substitute);
+        }
+        Some(t.type_wrapper())
     }
 
     pub(super) fn get_default_from_type_parameter_(

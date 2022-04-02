@@ -43,6 +43,17 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_deeply_nested_type(
+        &self,
+        type_: &Type,
+        stack: &[Rc<Type>],
+        depth: usize,
+        max_depth: Option<usize>,
+    ) -> bool {
+        let max_depth = max_depth.unwrap_or(5);
+        unimplemented!()
+    }
+
     pub(super) fn is_matching_signature(
         &self,
         source: &Signature,
