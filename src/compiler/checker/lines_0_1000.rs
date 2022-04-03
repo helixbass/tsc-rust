@@ -2634,6 +2634,10 @@ impl TypeChecker {
         self.empty_generic_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn any_function_type(&self) -> Rc<Type> {
+        self.any_function_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn no_constraint_type(&self) -> Rc<Type> {
         self.no_constraint_type.as_ref().unwrap().clone()
     }
@@ -2680,8 +2684,20 @@ impl TypeChecker {
         self.global_object_type.clone()
     }
 
+    pub(super) fn global_object_type(&self) -> Rc<Type> {
+        self.global_object_type.clone().unwrap()
+    }
+
     pub(super) fn global_function_type(&self) -> Rc<Type> {
         self.global_function_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn global_callable_function_type(&self) -> Rc<Type> {
+        self.global_callable_function_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn global_newable_function_type(&self) -> Rc<Type> {
+        self.global_newable_function_type.as_ref().unwrap().clone()
     }
 
     pub(super) fn global_array_type(&self) -> Rc<Type> {

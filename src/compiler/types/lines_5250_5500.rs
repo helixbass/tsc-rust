@@ -974,6 +974,7 @@ impl ObjectTypeInterface for BaseUnionOrIntersectionType {
 )]
 pub struct UnionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,
+    resolved_reduced_type: RefCell<Option<Rc<Type>>>,
     pub(crate) origin: Option<Rc<Type>>,
 }
 
@@ -981,7 +982,12 @@ impl UnionType {
     pub fn new(union_or_intersection_type: BaseUnionOrIntersectionType) -> Self {
         Self {
             _union_or_intersection_type: union_or_intersection_type,
+            resolved_reduced_type: RefCell::new(None),
             origin: None,
         }
+    }
+
+    pub fn maybe_resolved_reduced_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.resolved_reduced_type.borrow_mut()
     }
 }

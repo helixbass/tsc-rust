@@ -8,15 +8,16 @@ use std::rc::Rc;
 
 use super::get_symbol_id;
 use crate::{
-    add_range, append, create_symbol_table, filter, find,
-    get_declaration_modifier_flags_from_symbol, get_effective_constraint_of_type_parameter,
-    get_effective_return_type_node, get_effective_type_parameter_declarations, is_binding_pattern,
-    is_type_parameter_declaration, length, map_defined, maybe_append_if_unique_rc, node_is_missing,
-    AccessFlags, CheckFlags, DiagnosticMessageChain, ElementFlags, IndexInfo,
-    InterfaceTypeInterface, ModifierFlags, ScriptTarget, Signature, SignatureFlags, SignatureKind,
-    SymbolId, SymbolTable, Ternary, TransientSymbolInterface, TypePredicate, TypePredicateKind,
-    UnionType, __String, binary_search_copy_key, compare_values, concatenate,
-    get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
+    add_range, append, are_rc_slices_equal, chain_diagnostic_messages, create_symbol_table, filter,
+    find, get_check_flags, get_declaration_modifier_flags_from_symbol,
+    get_effective_constraint_of_type_parameter, get_effective_return_type_node,
+    get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
+    length, map_defined, maybe_append_if_unique_rc, node_is_missing, same_map, some, AccessFlags,
+    CheckFlags, DiagnosticMessageChain, ElementFlags, IndexInfo, InterfaceTypeInterface,
+    ModifierFlags, ScriptTarget, Signature, SignatureFlags, SignatureKind, SymbolId, SymbolTable,
+    Ternary, TransientSymbolInterface, TypeFormatFlags, TypePredicate, TypePredicateKind,
+    UnionOrIntersectionTypeInterface, UnionType, __String, binary_search_copy_key, compare_values,
+    concatenate, get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
     BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
     TypeFlags, TypeId, TypeInterface, TypeReference, UnionReduction,
@@ -404,11 +405,101 @@ impl TypeChecker {
         name: &__String,
         skip_object_function_property_augment: Option<bool>,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let property = self.get_union_or_intersection_property(
+            type_,
+            name,
+            skip_object_function_property_augment,
+        );
+        property.filter(|property| !get_check_flags(property).intersects(CheckFlags::ReadPartial))
     }
 
     pub(super) fn get_reduced_type(&self, type_: &Type) -> Rc<Type> {
+        if type_.flags().intersects(TypeFlags::Union)
+            && type_
+                .as_union_type()
+                .object_flags()
+                .intersects(ObjectFlags::ContainsIntersections)
+        {
+            let type_as_union_type = type_.as_union_type();
+            if type_as_union_type.maybe_resolved_reduced_type().is_none() {
+                *type_as_union_type.maybe_resolved_reduced_type() =
+                    Some(self.get_reduced_union_type(type_));
+            }
+            return (*type_as_union_type.maybe_resolved_reduced_type())
+                .borrow()
+                .clone()
+                .unwrap();
+        } else if type_.flags().intersects(TypeFlags::Intersection) {
+            let type_as_intersection_type = type_.as_intersection_type();
+            if !type_as_intersection_type
+                .object_flags()
+                .intersects(ObjectFlags::IsNeverIntersectionComputed)
+            {
+                type_as_intersection_type.set_object_flags(
+                    type_as_intersection_type.object_flags()
+                        | ObjectFlags::IsNeverIntersectionComputed
+                        | if some(
+                            Some(&self.get_properties_of_union_or_intersection_type(type_)),
+                            Some(|symbol: &Rc<Symbol>| self.is_never_reduced_property(symbol)),
+                        ) {
+                            ObjectFlags::IsNeverIntersection
+                        } else {
+                            ObjectFlags::None
+                        },
+                );
+            }
+            return if type_as_intersection_type
+                .object_flags()
+                .intersects(ObjectFlags::IsNeverIntersection)
+            {
+                self.never_type()
+            } else {
+                type_.type_wrapper()
+            };
+        }
         type_.type_wrapper()
+    }
+
+    pub(super) fn get_reduced_union_type(&self, union_type: &Type /*UnionType*/) -> Rc<Type> {
+        let union_type_as_union_type = union_type.as_union_type();
+        let reduced_types = same_map(
+            Some(union_type_as_union_type.types()),
+            |type_: &Rc<Type>, _| self.get_reduced_type(type_),
+        )
+        .unwrap();
+        if are_rc_slices_equal(&reduced_types, union_type_as_union_type.types()) {
+            return union_type.type_wrapper();
+        }
+        let reduced = self.get_union_type(
+            reduced_types,
+            None,
+            Option::<Symbol>::None,
+            None,
+            Option::<&Type>::None,
+        );
+        if reduced.flags().intersects(TypeFlags::Union) {
+            *reduced.as_union_type().maybe_resolved_reduced_type() = Some(reduced.clone());
+        }
+        reduced
+    }
+
+    pub(super) fn is_never_reduced_property(&self, prop: &Symbol) -> bool {
+        self.is_discriminant_with_never_type(prop) || self.is_conflicting_private_property(prop)
+    }
+
+    pub(super) fn is_discriminant_with_never_type(&self, prop: &Symbol) -> bool {
+        !prop.flags().intersects(SymbolFlags::Optional)
+            && get_check_flags(prop) & (CheckFlags::Discriminant | CheckFlags::HasNeverType)
+                == CheckFlags::Discriminant
+            && self
+                .get_type_of_symbol(prop)
+                .flags()
+                .intersects(TypeFlags::Never)
+    }
+
+    pub(super) fn is_conflicting_private_property(&self, prop: &Symbol) -> bool {
+        prop.maybe_value_declaration().is_none()
+            && get_check_flags(prop).intersects(CheckFlags::ContainsPrivate)
     }
 
     pub(super) fn elaborate_never_intersection(
@@ -416,7 +507,45 @@ impl TypeChecker {
         error_info: Option<DiagnosticMessageChain>,
         type_: &Type,
     ) -> Option<DiagnosticMessageChain> {
-        unimplemented!()
+        if type_.flags().intersects(TypeFlags::Intersection)
+            && get_object_flags(type_).intersects(ObjectFlags::IsNeverIntersection)
+        {
+            let never_prop = find(
+                &self.get_properties_of_union_or_intersection_type(type_),
+                |property: &Rc<Symbol>, _| self.is_discriminant_with_never_type(property),
+            )
+            .map(Clone::clone);
+            if let Some(never_prop) = never_prop {
+                return Some(
+                    chain_diagnostic_messages(
+                        error_info,
+                        &Diagnostics::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
+                        Some(vec![
+                            self.type_to_string_(type_, Option::<&Node>::None, Some(TypeFormatFlags::NoTypeReduction), None),
+                            self.symbol_to_string_(&never_prop, Option::<&Node>::None, None, None, None)
+                        ])
+                    )
+                );
+            }
+            let private_prop = find(
+                &self.get_properties_of_union_or_intersection_type(type_),
+                |property: &Rc<Symbol>, _| self.is_conflicting_private_property(property),
+            )
+            .map(Clone::clone);
+            if let Some(private_prop) = private_prop {
+                return Some(
+                    chain_diagnostic_messages(
+                        error_info,
+                        &Diagnostics::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
+                        Some(vec![
+                            self.type_to_string_(type_, Option::<&Node>::None, Some(TypeFormatFlags::NoTypeReduction), None),
+                            self.symbol_to_string_(&private_prop, Option::<&Node>::None, None, None, None)
+                        ])
+                    )
+                );
+            }
+        }
+        error_info
     }
 
     pub(super) fn get_property_of_type_(
@@ -437,10 +566,33 @@ impl TypeChecker {
                     return Some(symbol);
                 }
             }
-            return /*self.get_property_of_object_type(self.global_object_type(), name)*/ None;
+            if matches!(skip_object_function_property_augment, Some(true)) {
+                return None;
+            }
+            let resolved_as_resolved_type = resolved.as_resolved_type();
+            let function_type = if Rc::ptr_eq(&resolved, &self.any_function_type()) {
+                Some(self.global_function_type())
+            } else if !resolved_as_resolved_type.call_signatures().is_empty() {
+                Some(self.global_callable_function_type())
+            } else if !resolved_as_resolved_type.construct_signatures().is_empty() {
+                Some(self.global_newable_function_type())
+            } else {
+                None
+            };
+            if let Some(function_type) = function_type {
+                let symbol = self.get_property_of_object_type(&function_type, name);
+                if symbol.is_some() {
+                    return symbol;
+                }
+            }
+            return self.get_property_of_object_type(&self.global_object_type(), name);
         }
         if type_.flags().intersects(TypeFlags::UnionOrIntersection) {
-            unimplemented!()
+            return self.get_property_of_union_or_intersection_type(
+                &type_,
+                name,
+                skip_object_function_property_augment,
+            );
         }
         None
     }

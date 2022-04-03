@@ -75,12 +75,13 @@ impl Diagnostics {
         "Unexpected_token_1012",
         "Unexpected token.",
     );
-    pub const A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma: DiagnosticMessage = diag(
-        1013,
-        DiagnosticCategory::Error,
-        "A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma_1013",
-        "A rest parameter or binding pattern may not have a trailing comma.",
-    );
+    pub const A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma: DiagnosticMessage =
+        diag(
+            1013,
+            DiagnosticCategory::Error,
+            "A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma_1013",
+            "A rest parameter or binding pattern may not have a trailing comma.",
+        );
     pub const A_rest_parameter_must_be_last_in_a_parameter_list: DiagnosticMessage = diag(
         1014,
         DiagnosticCategory::Error,
@@ -105,7 +106,8 @@ impl Diagnostics {
         "An_index_signature_cannot_have_a_rest_parameter_1017",
         "An index signature cannot have a rest parameter.",
     );
-    pub const An_index_signature_parameter_cannot_have_an_accessibility_modifier: DiagnosticMessage = diag(
+    pub const An_index_signature_parameter_cannot_have_an_accessibility_modifier:
+        DiagnosticMessage = diag(
         1018,
         DiagnosticCategory::Error,
         "An_index_signature_parameter_cannot_have_an_accessibility_modifier_1018",
@@ -135,7 +137,8 @@ impl Diagnostics {
         "An_index_signature_parameter_must_have_a_type_annotation_1022",
         "An index signature parameter must have a type annotation.",
     );
-    pub const readonly_modifier_can_only_appear_on_a_property_declaration_or_index_signature: DiagnosticMessage = diag(
+    pub const readonly_modifier_can_only_appear_on_a_property_declaration_or_index_signature:
+        DiagnosticMessage = diag(
         1024,
         DiagnosticCategory::Error,
         "readonly_modifier_can_only_appear_on_a_property_declaration_or_index_signature_1024",
@@ -189,12 +192,13 @@ impl Diagnostics {
         "Statements_are_not_allowed_in_ambient_contexts_1036",
         "Statements are not allowed in ambient contexts.",
     );
-    pub const A_declare_modifier_cannot_be_used_in_an_already_ambient_context: DiagnosticMessage = diag(
-        1038,
-        DiagnosticCategory::Error,
-        "A_declare_modifier_cannot_be_used_in_an_already_ambient_context_1038",
-        "A 'declare' modifier cannot be used in an already ambient context.",
-    );
+    pub const A_declare_modifier_cannot_be_used_in_an_already_ambient_context: DiagnosticMessage =
+        diag(
+            1038,
+            DiagnosticCategory::Error,
+            "A_declare_modifier_cannot_be_used_in_an_already_ambient_context_1038",
+            "A 'declare' modifier cannot be used in an already ambient context.",
+        );
     pub const Initializers_are_not_allowed_in_ambient_contexts: DiagnosticMessage = diag(
         1039,
         DiagnosticCategory::Error,
@@ -273,7 +277,8 @@ impl Diagnostics {
         "Type_0_is_not_a_valid_async_function_return_type_in_ES5_SlashES3_because_it_does_not_refer_to_a_Prom_1055",
         "Type '{0}' is not a valid async function return type in ES5/ES3 because it does not refer to a Promise-compatible constructor value.",
     );
-    pub const Accessors_are_only_available_when_targeting_ECMAScript_5_and_higher: DiagnosticMessage = diag(
+    pub const Accessors_are_only_available_when_targeting_ECMAScript_5_and_higher:
+        DiagnosticMessage = diag(
         1056,
         DiagnosticCategory::Error,
         "Accessors_are_only_available_when_targeting_ECMAScript_5_and_higher_1056",
@@ -291,7 +296,8 @@ impl Diagnostics {
         "A_promise_must_have_a_then_method_1059",
         "A promise must have a 'then' method.",
     );
-    pub const The_first_parameter_of_the_then_method_of_a_promise_must_be_a_callback: DiagnosticMessage = diag(
+    pub const The_first_parameter_of_the_then_method_of_a_promise_must_be_a_callback:
+        DiagnosticMessage = diag(
         1060,
         DiagnosticCategory::Error,
         "The_first_parameter_of_the_then_method_of_a_promise_must_be_a_callback_1060",
@@ -321,19 +327,22 @@ impl Diagnostics {
         "The_return_type_of_an_async_function_or_method_must_be_the_global_Promise_T_type_Did_you_mean_to_wri_1064",
         "The return type of an async function or method must be the global Promise<T> type. Did you mean to write 'Promise<{0}>'?",
     );
-    pub const In_ambient_enum_declarations_member_initializer_must_be_constant_expression: DiagnosticMessage = diag(
+    pub const In_ambient_enum_declarations_member_initializer_must_be_constant_expression:
+        DiagnosticMessage = diag(
         1066,
         DiagnosticCategory::Error,
         "In_ambient_enum_declarations_member_initializer_must_be_constant_expression_1066",
         "In ambient enum declarations member initializer must be constant expression.",
     );
-    pub const Unexpected_token_A_constructor_method_accessor_or_property_was_expected: DiagnosticMessage = diag(
+    pub const Unexpected_token_A_constructor_method_accessor_or_property_was_expected:
+        DiagnosticMessage = diag(
         1068,
         DiagnosticCategory::Error,
         "Unexpected_token_A_constructor_method_accessor_or_property_was_expected_1068",
         "Unexpected token. A constructor, method, accessor, or property was expected.",
     );
-    pub const Unexpected_token_A_type_parameter_name_was_expected_without_curly_braces: DiagnosticMessage = diag(
+    pub const Unexpected_token_A_type_parameter_name_was_expected_without_curly_braces:
+        DiagnosticMessage = diag(
         1069,
         DiagnosticCategory::Error,
         "Unexpected_token_A_type_parameter_name_was_expected_without_curly_braces_1069",
@@ -381,7 +390,8 @@ impl Diagnostics {
         "_0_modifier_cannot_appear_on_a_parameter_1090",
         "'{0}' modifier cannot appear on a parameter.",
     );
-    pub const Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement: DiagnosticMessage = diag(
+    pub const Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement:
+        DiagnosticMessage = diag(
         1091,
         DiagnosticCategory::Error,
         "Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement_1091",
@@ -459,7 +469,8 @@ impl Diagnostics {
         "for_await_loops_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules_1103",
         "'for await' loops are only allowed within async functions and at the top levels of modules.",
     );
-    pub const A_continue_statement_can_only_be_used_within_an_enclosing_iteration_statement: DiagnosticMessage = diag(
+    pub const A_continue_statement_can_only_be_used_within_an_enclosing_iteration_statement:
+        DiagnosticMessage = diag(
         1104,
         DiagnosticCategory::Error,
         "A_continue_statement_can_only_be_used_within_an_enclosing_iteration_statement_1104",
@@ -501,7 +512,8 @@ impl Diagnostics {
         "Type_expected_1110",
         "Type expected.",
     );
-    pub const A_default_clause_cannot_appear_more_than_once_in_a_switch_statement: DiagnosticMessage = diag(
+    pub const A_default_clause_cannot_appear_more_than_once_in_a_switch_statement:
+        DiagnosticMessage = diag(
         1113,
         DiagnosticCategory::Error,
         "A_default_clause_cannot_appear_more_than_once_in_a_switch_statement_1113",
@@ -513,13 +525,15 @@ impl Diagnostics {
         "Duplicate_label_0_1114",
         "Duplicate label '{0}'.",
     );
-    pub const A_continue_statement_can_only_jump_to_a_label_of_an_enclosing_iteration_statement: DiagnosticMessage = diag(
+    pub const A_continue_statement_can_only_jump_to_a_label_of_an_enclosing_iteration_statement:
+        DiagnosticMessage = diag(
         1115,
         DiagnosticCategory::Error,
         "A_continue_statement_can_only_jump_to_a_label_of_an_enclosing_iteration_statement_1115",
         "A 'continue' statement can only jump to a label of an enclosing iteration statement.",
     );
-    pub const A_break_statement_can_only_jump_to_a_label_of_an_enclosing_statement: DiagnosticMessage = diag(
+    pub const A_break_statement_can_only_jump_to_a_label_of_an_enclosing_statement:
+        DiagnosticMessage = diag(
         1116,
         DiagnosticCategory::Error,
         "A_break_statement_can_only_jump_to_a_label_of_an_enclosing_statement_1116",
@@ -531,13 +545,15 @@ impl Diagnostics {
         "An_object_literal_cannot_have_multiple_properties_with_the_same_name_in_strict_mode_1117",
         "An object literal cannot have multiple properties with the same name in strict mode.",
     );
-    pub const An_object_literal_cannot_have_multiple_get_Slashset_accessors_with_the_same_name: DiagnosticMessage = diag(
+    pub const An_object_literal_cannot_have_multiple_get_Slashset_accessors_with_the_same_name:
+        DiagnosticMessage = diag(
         1118,
         DiagnosticCategory::Error,
         "An_object_literal_cannot_have_multiple_get_Slashset_accessors_with_the_same_name_1118",
         "An object literal cannot have multiple get/set accessors with the same name.",
     );
-    pub const An_object_literal_cannot_have_property_and_accessor_with_the_same_name: DiagnosticMessage = diag(
+    pub const An_object_literal_cannot_have_property_and_accessor_with_the_same_name:
+        DiagnosticMessage = diag(
         1119,
         DiagnosticCategory::Error,
         "An_object_literal_cannot_have_property_and_accessor_with_the_same_name_1119",
@@ -681,19 +697,22 @@ impl Diagnostics {
         "Declaration_expected_1146",
         "Declaration expected.",
     );
-    pub const Import_declarations_in_a_namespace_cannot_reference_a_module: DiagnosticMessage = diag(
-        1147,
-        DiagnosticCategory::Error,
-        "Import_declarations_in_a_namespace_cannot_reference_a_module_1147",
-        "Import declarations in a namespace cannot reference a module.",
-    );
-    pub const Cannot_use_imports_exports_or_module_augmentations_when_module_is_none: DiagnosticMessage = diag(
+    pub const Import_declarations_in_a_namespace_cannot_reference_a_module: DiagnosticMessage =
+        diag(
+            1147,
+            DiagnosticCategory::Error,
+            "Import_declarations_in_a_namespace_cannot_reference_a_module_1147",
+            "Import declarations in a namespace cannot reference a module.",
+        );
+    pub const Cannot_use_imports_exports_or_module_augmentations_when_module_is_none:
+        DiagnosticMessage = diag(
         1148,
         DiagnosticCategory::Error,
         "Cannot_use_imports_exports_or_module_augmentations_when_module_is_none_1148",
         "Cannot use imports, exports, or module augmentations when '--module' is 'none'.",
     );
-    pub const File_name_0_differs_from_already_included_file_name_1_only_in_casing: DiagnosticMessage = diag(
+    pub const File_name_0_differs_from_already_included_file_name_1_only_in_casing:
+        DiagnosticMessage = diag(
         1149,
         DiagnosticCategory::Error,
         "File_name_0_differs_from_already_included_file_name_1_only_in_casing_1149",
@@ -777,12 +796,13 @@ impl Diagnostics {
         "A_computed_property_name_in_a_type_literal_must_refer_to_an_expression_whose_type_is_a_literal_type__1170",
         "A computed property name in a type literal must refer to an expression whose type is a literal type or a 'unique symbol' type.",
     );
-    pub const A_comma_expression_is_not_allowed_in_a_computed_property_name: DiagnosticMessage = diag(
-        1171,
-        DiagnosticCategory::Error,
-        "A_comma_expression_is_not_allowed_in_a_computed_property_name_1171",
-        "A comma expression is not allowed in a computed property name.",
-    );
+    pub const A_comma_expression_is_not_allowed_in_a_computed_property_name: DiagnosticMessage =
+        diag(
+            1171,
+            DiagnosticCategory::Error,
+            "A_comma_expression_is_not_allowed_in_a_computed_property_name_1171",
+            "A comma expression is not allowed in a computed property name.",
+        );
     pub const extends_clause_already_seen: DiagnosticMessage = diag(
         1172,
         DiagnosticCategory::Error,
@@ -873,25 +893,29 @@ impl Diagnostics {
         "A_rest_element_cannot_have_an_initializer_1186",
         "A rest element cannot have an initializer.",
     );
-    pub const A_parameter_property_may_not_be_declared_using_a_binding_pattern: DiagnosticMessage = diag(
-        1187,
-        DiagnosticCategory::Error,
-        "A_parameter_property_may_not_be_declared_using_a_binding_pattern_1187",
-        "A parameter property may not be declared using a binding pattern.",
-    );
-    pub const Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement: DiagnosticMessage = diag(
+    pub const A_parameter_property_may_not_be_declared_using_a_binding_pattern: DiagnosticMessage =
+        diag(
+            1187,
+            DiagnosticCategory::Error,
+            "A_parameter_property_may_not_be_declared_using_a_binding_pattern_1187",
+            "A parameter property may not be declared using a binding pattern.",
+        );
+    pub const Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement:
+        DiagnosticMessage = diag(
         1188,
         DiagnosticCategory::Error,
         "Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement_1188",
         "Only a single variable declaration is allowed in a 'for...of' statement.",
     );
-    pub const The_variable_declaration_of_a_for_in_statement_cannot_have_an_initializer: DiagnosticMessage = diag(
+    pub const The_variable_declaration_of_a_for_in_statement_cannot_have_an_initializer:
+        DiagnosticMessage = diag(
         1189,
         DiagnosticCategory::Error,
         "The_variable_declaration_of_a_for_in_statement_cannot_have_an_initializer_1189",
         "The variable declaration of a 'for...in' statement cannot have an initializer.",
     );
-    pub const The_variable_declaration_of_a_for_of_statement_cannot_have_an_initializer: DiagnosticMessage = diag(
+    pub const The_variable_declaration_of_a_for_of_statement_cannot_have_an_initializer:
+        DiagnosticMessage = diag(
         1190,
         DiagnosticCategory::Error,
         "The_variable_declaration_of_a_for_of_statement_cannot_have_an_initializer_1190",
@@ -927,7 +951,8 @@ impl Diagnostics {
         "export_Asterisk_does_not_re_export_a_default_1195",
         "'export *' does not re-export a default.",
     );
-    pub const Catch_clause_variable_type_annotation_must_be_any_or_unknown_if_specified: DiagnosticMessage = diag(
+    pub const Catch_clause_variable_type_annotation_must_be_any_or_unknown_if_specified:
+        DiagnosticMessage = diag(
         1196,
         DiagnosticCategory::Error,
         "Catch_clause_variable_type_annotation_must_be_any_or_unknown_if_specified_1196",
@@ -939,7 +964,8 @@ impl Diagnostics {
         "Catch_clause_variable_cannot_have_an_initializer_1197",
         "Catch clause variable cannot have an initializer.",
     );
-    pub const An_extended_Unicode_escape_value_must_be_between_0x0_and_0x10FFFF_inclusive: DiagnosticMessage = diag(
+    pub const An_extended_Unicode_escape_value_must_be_between_0x0_and_0x10FFFF_inclusive:
+        DiagnosticMessage = diag(
         1198,
         DiagnosticCategory::Error,
         "An_extended_Unicode_escape_value_must_be_between_0x0_and_0x10FFFF_inclusive_1198",
@@ -981,7 +1007,8 @@ impl Diagnostics {
         "Decorators_are_not_valid_here_1206",
         "Decorators are not valid here.",
     );
-    pub const Decorators_cannot_be_applied_to_multiple_get_Slashset_accessors_of_the_same_name: DiagnosticMessage = diag(
+    pub const Decorators_cannot_be_applied_to_multiple_get_Slashset_accessors_of_the_same_name:
+        DiagnosticMessage = diag(
         1207,
         DiagnosticCategory::Error,
         "Decorators_cannot_be_applied_to_multiple_get_Slashset_accessors_of_the_same_name_1207",
@@ -999,12 +1026,13 @@ impl Diagnostics {
         "Code_contained_in_a_class_is_evaluated_in_JavaScript_s_strict_mode_which_does_not_allow_this_use_of__1210",
         "Code contained in a class is evaluated in JavaScript's strict mode which does not allow this use of '{0}'. For more information, see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode.",
     );
-    pub const A_class_declaration_without_the_default_modifier_must_have_a_name: DiagnosticMessage = diag(
-        1211,
-        DiagnosticCategory::Error,
-        "A_class_declaration_without_the_default_modifier_must_have_a_name_1211",
-        "A class declaration without the 'default' modifier must have a name.",
-    );
+    pub const A_class_declaration_without_the_default_modifier_must_have_a_name: DiagnosticMessage =
+        diag(
+            1211,
+            DiagnosticCategory::Error,
+            "A_class_declaration_without_the_default_modifier_must_have_a_name_1211",
+            "A class declaration without the 'default' modifier must have a name.",
+        );
     pub const Identifier_expected_0_is_a_reserved_word_in_strict_mode: DiagnosticMessage = diag(
         1212,
         DiagnosticCategory::Error,
@@ -1035,12 +1063,13 @@ impl Diagnostics {
         "Identifier_expected_esModule_is_reserved_as_an_exported_marker_when_transforming_ECMAScript_modules_1216",
         "Identifier expected. '__esModule' is reserved as an exported marker when transforming ECMAScript modules.",
     );
-    pub const Export_assignment_is_not_supported_when_module_flag_is_system: DiagnosticMessage = diag(
-        1218,
-        DiagnosticCategory::Error,
-        "Export_assignment_is_not_supported_when_module_flag_is_system_1218",
-        "Export assignment is not supported when '--module' flag is 'system'.",
-    );
+    pub const Export_assignment_is_not_supported_when_module_flag_is_system: DiagnosticMessage =
+        diag(
+            1218,
+            DiagnosticCategory::Error,
+            "Export_assignment_is_not_supported_when_module_flag_is_system_1218",
+            "Export assignment is not supported when '--module' flag is 'system'.",
+        );
     pub const Experimental_support_for_decorators_is_a_feature_that_is_subject_to_change_in_a_future_release_Set_the_experimentalDecorators_option_in_your_tsconfig_or_jsconfig_to_remove_this_warning: DiagnosticMessage = diag(
         1219,
         DiagnosticCategory::Error,
@@ -1089,7 +1118,8 @@ impl Diagnostics {
         "Parameter_0_is_not_in_the_same_position_as_parameter_1_1227",
         "Parameter '{0}' is not in the same position as parameter '{1}'.",
     );
-    pub const A_type_predicate_is_only_allowed_in_return_type_position_for_functions_and_methods: DiagnosticMessage = diag(
+    pub const A_type_predicate_is_only_allowed_in_return_type_position_for_functions_and_methods:
+        DiagnosticMessage = diag(
         1228,
         DiagnosticCategory::Error,
         "A_type_predicate_is_only_allowed_in_return_type_position_for_functions_and_methods_1228",
@@ -1101,79 +1131,91 @@ impl Diagnostics {
         "A_type_predicate_cannot_reference_a_rest_parameter_1229",
         "A type predicate cannot reference a rest parameter.",
     );
-    pub const A_type_predicate_cannot_reference_element_0_in_a_binding_pattern: DiagnosticMessage = diag(
-        1230,
-        DiagnosticCategory::Error,
-        "A_type_predicate_cannot_reference_element_0_in_a_binding_pattern_1230",
-        "A type predicate cannot reference element '{0}' in a binding pattern.",
-    );
-    pub const An_export_assignment_must_be_at_the_top_level_of_a_file_or_module_declaration: DiagnosticMessage = diag(
+    pub const A_type_predicate_cannot_reference_element_0_in_a_binding_pattern: DiagnosticMessage =
+        diag(
+            1230,
+            DiagnosticCategory::Error,
+            "A_type_predicate_cannot_reference_element_0_in_a_binding_pattern_1230",
+            "A type predicate cannot reference element '{0}' in a binding pattern.",
+        );
+    pub const An_export_assignment_must_be_at_the_top_level_of_a_file_or_module_declaration:
+        DiagnosticMessage = diag(
         1231,
         DiagnosticCategory::Error,
         "An_export_assignment_must_be_at_the_top_level_of_a_file_or_module_declaration_1231",
         "An export assignment must be at the top level of a file or module declaration.",
     );
-    pub const An_import_declaration_can_only_be_used_in_a_namespace_or_module: DiagnosticMessage = diag(
-        1232,
-        DiagnosticCategory::Error,
-        "An_import_declaration_can_only_be_used_in_a_namespace_or_module_1232",
-        "An import declaration can only be used in a namespace or module.",
-    );
+    pub const An_import_declaration_can_only_be_used_in_a_namespace_or_module: DiagnosticMessage =
+        diag(
+            1232,
+            DiagnosticCategory::Error,
+            "An_import_declaration_can_only_be_used_in_a_namespace_or_module_1232",
+            "An import declaration can only be used in a namespace or module.",
+        );
     pub const An_export_declaration_can_only_be_used_in_a_module: DiagnosticMessage = diag(
         1233,
         DiagnosticCategory::Error,
         "An_export_declaration_can_only_be_used_in_a_module_1233",
         "An export declaration can only be used in a module.",
     );
-    pub const An_ambient_module_declaration_is_only_allowed_at_the_top_level_in_a_file: DiagnosticMessage = diag(
+    pub const An_ambient_module_declaration_is_only_allowed_at_the_top_level_in_a_file:
+        DiagnosticMessage = diag(
         1234,
         DiagnosticCategory::Error,
         "An_ambient_module_declaration_is_only_allowed_at_the_top_level_in_a_file_1234",
         "An ambient module declaration is only allowed at the top level in a file.",
     );
-    pub const A_namespace_declaration_is_only_allowed_in_a_namespace_or_module: DiagnosticMessage = diag(
-        1235,
-        DiagnosticCategory::Error,
-        "A_namespace_declaration_is_only_allowed_in_a_namespace_or_module_1235",
-        "A namespace declaration is only allowed in a namespace or module.",
-    );
-    pub const The_return_type_of_a_property_decorator_function_must_be_either_void_or_any: DiagnosticMessage = diag(
+    pub const A_namespace_declaration_is_only_allowed_in_a_namespace_or_module: DiagnosticMessage =
+        diag(
+            1235,
+            DiagnosticCategory::Error,
+            "A_namespace_declaration_is_only_allowed_in_a_namespace_or_module_1235",
+            "A namespace declaration is only allowed in a namespace or module.",
+        );
+    pub const The_return_type_of_a_property_decorator_function_must_be_either_void_or_any:
+        DiagnosticMessage = diag(
         1236,
         DiagnosticCategory::Error,
         "The_return_type_of_a_property_decorator_function_must_be_either_void_or_any_1236",
         "The return type of a property decorator function must be either 'void' or 'any'.",
     );
-    pub const The_return_type_of_a_parameter_decorator_function_must_be_either_void_or_any: DiagnosticMessage = diag(
+    pub const The_return_type_of_a_parameter_decorator_function_must_be_either_void_or_any:
+        DiagnosticMessage = diag(
         1237,
         DiagnosticCategory::Error,
         "The_return_type_of_a_parameter_decorator_function_must_be_either_void_or_any_1237",
         "The return type of a parameter decorator function must be either 'void' or 'any'.",
     );
-    pub const Unable_to_resolve_signature_of_class_decorator_when_called_as_an_expression: DiagnosticMessage = diag(
+    pub const Unable_to_resolve_signature_of_class_decorator_when_called_as_an_expression:
+        DiagnosticMessage = diag(
         1238,
         DiagnosticCategory::Error,
         "Unable_to_resolve_signature_of_class_decorator_when_called_as_an_expression_1238",
         "Unable to resolve signature of class decorator when called as an expression.",
     );
-    pub const Unable_to_resolve_signature_of_parameter_decorator_when_called_as_an_expression: DiagnosticMessage = diag(
+    pub const Unable_to_resolve_signature_of_parameter_decorator_when_called_as_an_expression:
+        DiagnosticMessage = diag(
         1239,
         DiagnosticCategory::Error,
         "Unable_to_resolve_signature_of_parameter_decorator_when_called_as_an_expression_1239",
         "Unable to resolve signature of parameter decorator when called as an expression.",
     );
-    pub const Unable_to_resolve_signature_of_property_decorator_when_called_as_an_expression: DiagnosticMessage = diag(
+    pub const Unable_to_resolve_signature_of_property_decorator_when_called_as_an_expression:
+        DiagnosticMessage = diag(
         1240,
         DiagnosticCategory::Error,
         "Unable_to_resolve_signature_of_property_decorator_when_called_as_an_expression_1240",
         "Unable to resolve signature of property decorator when called as an expression.",
     );
-    pub const Unable_to_resolve_signature_of_method_decorator_when_called_as_an_expression: DiagnosticMessage = diag(
+    pub const Unable_to_resolve_signature_of_method_decorator_when_called_as_an_expression:
+        DiagnosticMessage = diag(
         1241,
         DiagnosticCategory::Error,
         "Unable_to_resolve_signature_of_method_decorator_when_called_as_an_expression_1241",
         "Unable to resolve signature of method decorator when called as an expression.",
     );
-    pub const abstract_modifier_can_only_appear_on_a_class_method_or_property_declaration: DiagnosticMessage = diag(
+    pub const abstract_modifier_can_only_appear_on_a_class_method_or_property_declaration:
+        DiagnosticMessage = diag(
         1242,
         DiagnosticCategory::Error,
         "abstract_modifier_can_only_appear_on_a_class_method_or_property_declaration_1242",
@@ -1191,7 +1233,8 @@ impl Diagnostics {
         "Abstract_methods_can_only_appear_within_an_abstract_class_1244",
         "Abstract methods can only appear within an abstract class.",
     );
-    pub const Method_0_cannot_have_an_implementation_because_it_is_marked_abstract: DiagnosticMessage = diag(
+    pub const Method_0_cannot_have_an_implementation_because_it_is_marked_abstract:
+        DiagnosticMessage = diag(
         1245,
         DiagnosticCategory::Error,
         "Method_0_cannot_have_an_implementation_because_it_is_marked_abstract_1245",
@@ -1215,7 +1258,8 @@ impl Diagnostics {
         "A_class_member_cannot_have_the_0_keyword_1248",
         "A class member cannot have the '{0}' keyword.",
     );
-    pub const A_decorator_can_only_decorate_a_method_implementation_not_an_overload: DiagnosticMessage = diag(
+    pub const A_decorator_can_only_decorate_a_method_implementation_not_an_overload:
+        DiagnosticMessage = diag(
         1249,
         DiagnosticCategory::Error,
         "A_decorator_can_only_decorate_a_method_implementation_not_an_overload_1249",
@@ -1245,19 +1289,21 @@ impl Diagnostics {
         "A_const_initializer_in_an_ambient_context_must_be_a_string_or_numeric_literal_or_literal_enum_refere_1254",
         "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
     );
-    pub const A_definite_assignment_assertion_is_not_permitted_in_this_context: DiagnosticMessage = diag(
-        1255,
-        DiagnosticCategory::Error,
-        "A_definite_assignment_assertion_is_not_permitted_in_this_context_1255",
-        "A definite assignment assertion '!' is not permitted in this context.",
-    );
+    pub const A_definite_assignment_assertion_is_not_permitted_in_this_context: DiagnosticMessage =
+        diag(
+            1255,
+            DiagnosticCategory::Error,
+            "A_definite_assignment_assertion_is_not_permitted_in_this_context_1255",
+            "A definite assignment assertion '!' is not permitted in this context.",
+        );
     pub const A_required_element_cannot_follow_an_optional_element: DiagnosticMessage = diag(
         1257,
         DiagnosticCategory::Error,
         "A_required_element_cannot_follow_an_optional_element_1257",
         "A required element cannot follow an optional element.",
     );
-    pub const A_default_export_must_be_at_the_top_level_of_a_file_or_module_declaration: DiagnosticMessage = diag(
+    pub const A_default_export_must_be_at_the_top_level_of_a_file_or_module_declaration:
+        DiagnosticMessage = diag(
         1258,
         DiagnosticCategory::Error,
         "A_default_export_must_be_at_the_top_level_of_a_file_or_module_declaration_1258",
@@ -1275,25 +1321,29 @@ impl Diagnostics {
         "Keywords_cannot_contain_escape_characters_1260",
         "Keywords cannot contain escape characters.",
     );
-    pub const Already_included_file_name_0_differs_from_file_name_1_only_in_casing: DiagnosticMessage = diag(
+    pub const Already_included_file_name_0_differs_from_file_name_1_only_in_casing:
+        DiagnosticMessage = diag(
         1261,
         DiagnosticCategory::Error,
         "Already_included_file_name_0_differs_from_file_name_1_only_in_casing_1261",
         "Already included file name '{0}' differs from file name '{1}' only in casing.",
     );
-    pub const Identifier_expected_0_is_a_reserved_word_at_the_top_level_of_a_module: DiagnosticMessage = diag(
+    pub const Identifier_expected_0_is_a_reserved_word_at_the_top_level_of_a_module:
+        DiagnosticMessage = diag(
         1262,
         DiagnosticCategory::Error,
         "Identifier_expected_0_is_a_reserved_word_at_the_top_level_of_a_module_1262",
         "Identifier expected. '{0}' is a reserved word at the top-level of a module.",
     );
-    pub const Declarations_with_initializers_cannot_also_have_definite_assignment_assertions: DiagnosticMessage = diag(
+    pub const Declarations_with_initializers_cannot_also_have_definite_assignment_assertions:
+        DiagnosticMessage = diag(
         1263,
         DiagnosticCategory::Error,
         "Declarations_with_initializers_cannot_also_have_definite_assignment_assertions_1263",
         "Declarations with initializers cannot also have definite assignment assertions.",
     );
-    pub const Declarations_with_definite_assignment_assertions_must_also_have_type_annotations: DiagnosticMessage = diag(
+    pub const Declarations_with_definite_assignment_assertions_must_also_have_type_annotations:
+        DiagnosticMessage = diag(
         1264,
         DiagnosticCategory::Error,
         "Declarations_with_definite_assignment_assertions_must_also_have_type_annotations_1264",
@@ -1311,7 +1361,8 @@ impl Diagnostics {
         "An_optional_element_cannot_follow_a_rest_element_1266",
         "An optional element cannot follow a rest element.",
     );
-    pub const Property_0_cannot_have_an_initializer_because_it_is_marked_abstract: DiagnosticMessage = diag(
+    pub const Property_0_cannot_have_an_initializer_because_it_is_marked_abstract:
+        DiagnosticMessage = diag(
         1267,
         DiagnosticCategory::Error,
         "Property_0_cannot_have_an_initializer_because_it_is_marked_abstract_1267",
@@ -1365,24 +1416,26 @@ impl Diagnostics {
         "Global_module_exports_may_only_appear_at_top_level_1316",
         "Global module exports may only appear at top level.",
     );
-    pub const A_parameter_property_cannot_be_declared_using_a_rest_parameter: DiagnosticMessage = diag(
-        1317,
-        DiagnosticCategory::Error,
-        "A_parameter_property_cannot_be_declared_using_a_rest_parameter_1317",
-        "A parameter property cannot be declared using a rest parameter.",
-    );
+    pub const A_parameter_property_cannot_be_declared_using_a_rest_parameter: DiagnosticMessage =
+        diag(
+            1317,
+            DiagnosticCategory::Error,
+            "A_parameter_property_cannot_be_declared_using_a_rest_parameter_1317",
+            "A parameter property cannot be declared using a rest parameter.",
+        );
     pub const An_abstract_accessor_cannot_have_an_implementation: DiagnosticMessage = diag(
         1318,
         DiagnosticCategory::Error,
         "An_abstract_accessor_cannot_have_an_implementation_1318",
         "An abstract accessor cannot have an implementation.",
     );
-    pub const A_default_export_can_only_be_used_in_an_ECMAScript_style_module: DiagnosticMessage = diag(
-        1319,
-        DiagnosticCategory::Error,
-        "A_default_export_can_only_be_used_in_an_ECMAScript_style_module_1319",
-        "A default export can only be used in an ECMAScript-style module.",
-    );
+    pub const A_default_export_can_only_be_used_in_an_ECMAScript_style_module: DiagnosticMessage =
+        diag(
+            1319,
+            DiagnosticCategory::Error,
+            "A_default_export_can_only_be_used_in_an_ECMAScript_style_module_1319",
+            "A default export can only be used in an ECMAScript-style module.",
+        );
     pub const Type_of_await_operand_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member: DiagnosticMessage = diag(
         1320,
         DiagnosticCategory::Error,
@@ -1461,13 +1514,15 @@ impl Diagnostics {
         "A_variable_whose_type_is_a_unique_symbol_type_must_be_const_1332",
         "A variable whose type is a 'unique symbol' type must be 'const'.",
     );
-    pub const unique_symbol_types_may_not_be_used_on_a_variable_declaration_with_a_binding_name: DiagnosticMessage = diag(
+    pub const unique_symbol_types_may_not_be_used_on_a_variable_declaration_with_a_binding_name:
+        DiagnosticMessage = diag(
         1333,
         DiagnosticCategory::Error,
         "unique_symbol_types_may_not_be_used_on_a_variable_declaration_with_a_binding_name_1333",
         "'unique symbol' types may not be used on a variable declaration with a binding name.",
     );
-    pub const unique_symbol_types_are_only_allowed_on_variables_in_a_variable_statement: DiagnosticMessage = diag(
+    pub const unique_symbol_types_are_only_allowed_on_variables_in_a_variable_statement:
+        DiagnosticMessage = diag(
         1334,
         DiagnosticCategory::Error,
         "unique_symbol_types_are_only_allowed_on_variables_in_a_variable_statement_1334",
@@ -1485,18 +1540,20 @@ impl Diagnostics {
         "An_index_signature_parameter_type_cannot_be_a_literal_type_or_generic_type_Consider_using_a_mapped_o_1337",
         "An index signature parameter type cannot be a literal type or generic type. Consider using a mapped object type instead.",
     );
-    pub const infer_declarations_are_only_permitted_in_the_extends_clause_of_a_conditional_type: DiagnosticMessage = diag(
+    pub const infer_declarations_are_only_permitted_in_the_extends_clause_of_a_conditional_type:
+        DiagnosticMessage = diag(
         1338,
         DiagnosticCategory::Error,
         "infer_declarations_are_only_permitted_in_the_extends_clause_of_a_conditional_type_1338",
         "'infer' declarations are only permitted in the 'extends' clause of a conditional type.",
     );
-    pub const Module_0_does_not_refer_to_a_value_but_is_used_as_a_value_here: DiagnosticMessage = diag(
-        1339,
-        DiagnosticCategory::Error,
-        "Module_0_does_not_refer_to_a_value_but_is_used_as_a_value_here_1339",
-        "Module '{0}' does not refer to a value, but is used as a value here.",
-    );
+    pub const Module_0_does_not_refer_to_a_value_but_is_used_as_a_value_here: DiagnosticMessage =
+        diag(
+            1339,
+            DiagnosticCategory::Error,
+            "Module_0_does_not_refer_to_a_value_but_is_used_as_a_value_here_1339",
+            "Module '{0}' does not refer to a value, but is used as a value here.",
+        );
     pub const Module_0_does_not_refer_to_a_type_but_is_used_as_a_type_here_Did_you_mean_typeof_import_0: DiagnosticMessage = diag(
         1340,
         DiagnosticCategory::Error,
@@ -1533,7 +1590,8 @@ impl Diagnostics {
         "This_parameter_is_not_allowed_with_use_strict_directive_1346",
         "This parameter is not allowed with 'use strict' directive.",
     );
-    pub const use_strict_directive_cannot_be_used_with_non_simple_parameter_list: DiagnosticMessage = diag(
+    pub const use_strict_directive_cannot_be_used_with_non_simple_parameter_list:
+        DiagnosticMessage = diag(
         1347,
         DiagnosticCategory::Error,
         "use_strict_directive_cannot_be_used_with_non_simple_parameter_list_1347",
@@ -1557,7 +1615,8 @@ impl Diagnostics {
         "Print_the_final_configuration_instead_of_building_1350",
         "Print the final configuration instead of building.",
     );
-    pub const An_identifier_or_keyword_cannot_immediately_follow_a_numeric_literal: DiagnosticMessage = diag(
+    pub const An_identifier_or_keyword_cannot_immediately_follow_a_numeric_literal:
+        DiagnosticMessage = diag(
         1351,
         DiagnosticCategory::Error,
         "An_identifier_or_keyword_cannot_immediately_follow_a_numeric_literal_1351",
@@ -1575,7 +1634,8 @@ impl Diagnostics {
         "A_bigint_literal_must_be_an_integer_1353",
         "A bigint literal must be an integer.",
     );
-    pub const readonly_type_modifier_is_only_permitted_on_array_and_tuple_literal_types: DiagnosticMessage = diag(
+    pub const readonly_type_modifier_is_only_permitted_on_array_and_tuple_literal_types:
+        DiagnosticMessage = diag(
         1354,
         DiagnosticCategory::Error,
         "readonly_type_modifier_is_only_permitted_on_array_and_tuple_literal_types_1354",
@@ -1599,31 +1659,36 @@ impl Diagnostics {
         "An_enum_member_name_must_be_followed_by_a_or_1357",
         "An enum member name must be followed by a ',', '=', or '}'.",
     );
-    pub const Tagged_template_expressions_are_not_permitted_in_an_optional_chain: DiagnosticMessage = diag(
+    pub const Tagged_template_expressions_are_not_permitted_in_an_optional_chain:
+        DiagnosticMessage = diag(
         1358,
         DiagnosticCategory::Error,
         "Tagged_template_expressions_are_not_permitted_in_an_optional_chain_1358",
         "Tagged template expressions are not permitted in an optional chain.",
     );
-    pub const Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here: DiagnosticMessage = diag(
-        1359,
-        DiagnosticCategory::Error,
-        "Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here_1359",
-        "Identifier expected. '{0}' is a reserved word that cannot be used here.",
-    );
-    pub const _0_cannot_be_used_as_a_value_because_it_was_imported_using_import_type: DiagnosticMessage = diag(
+    pub const Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here: DiagnosticMessage =
+        diag(
+            1359,
+            DiagnosticCategory::Error,
+            "Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here_1359",
+            "Identifier expected. '{0}' is a reserved word that cannot be used here.",
+        );
+    pub const _0_cannot_be_used_as_a_value_because_it_was_imported_using_import_type:
+        DiagnosticMessage = diag(
         1361,
         DiagnosticCategory::Error,
         "_0_cannot_be_used_as_a_value_because_it_was_imported_using_import_type_1361",
         "'{0}' cannot be used as a value because it was imported using 'import type'.",
     );
-    pub const _0_cannot_be_used_as_a_value_because_it_was_exported_using_export_type: DiagnosticMessage = diag(
+    pub const _0_cannot_be_used_as_a_value_because_it_was_exported_using_export_type:
+        DiagnosticMessage = diag(
         1362,
         DiagnosticCategory::Error,
         "_0_cannot_be_used_as_a_value_because_it_was_exported_using_export_type_1362",
         "'{0}' cannot be used as a value because it was exported using 'export type'.",
     );
-    pub const A_type_only_import_can_specify_a_default_import_or_named_bindings_but_not_both: DiagnosticMessage = diag(
+    pub const A_type_only_import_can_specify_a_default_import_or_named_bindings_but_not_both:
+        DiagnosticMessage = diag(
         1363,
         DiagnosticCategory::Error,
         "A_type_only_import_can_specify_a_default_import_or_named_bindings_but_not_both_1363",
@@ -1671,12 +1736,13 @@ impl Diagnostics {
         "Convert_to_type_only_import_1373",
         "Convert to type-only import",
     );
-    pub const Convert_all_imports_not_used_as_a_value_to_type_only_imports: DiagnosticMessage = diag(
-        1374,
-        DiagnosticCategory::Message,
-        "Convert_all_imports_not_used_as_a_value_to_type_only_imports_1374",
-        "Convert all imports not used as a value to type-only imports",
-    );
+    pub const Convert_all_imports_not_used_as_a_value_to_type_only_imports: DiagnosticMessage =
+        diag(
+            1374,
+            DiagnosticCategory::Message,
+            "Convert_all_imports_not_used_as_a_value_to_type_only_imports_1374",
+            "Convert all imports not used as a value to type-only imports",
+        );
     pub const await_expressions_are_only_allowed_at_the_top_level_of_a_file_when_that_file_is_a_module_but_this_file_has_no_imports_or_exports_Consider_adding_an_empty_export_to_make_this_file_a_module: DiagnosticMessage = diag(
         1375,
         DiagnosticCategory::Error,
@@ -1701,13 +1767,15 @@ impl Diagnostics {
         "Top_level_await_expressions_are_only_allowed_when_the_module_option_is_set_to_es2022_esnext_system_o_1378",
         "Top-level 'await' expressions are only allowed when the 'module' option is set to 'es2022', 'esnext', 'system', or 'nodenext', and the 'target' option is set to 'es2017' or higher.",
     );
-    pub const An_import_alias_cannot_reference_a_declaration_that_was_exported_using_export_type: DiagnosticMessage = diag(
+    pub const An_import_alias_cannot_reference_a_declaration_that_was_exported_using_export_type:
+        DiagnosticMessage = diag(
         1379,
         DiagnosticCategory::Error,
         "An_import_alias_cannot_reference_a_declaration_that_was_exported_using_export_type_1379",
         "An import alias cannot reference a declaration that was exported using 'export type'.",
     );
-    pub const An_import_alias_cannot_reference_a_declaration_that_was_imported_using_import_type: DiagnosticMessage = diag(
+    pub const An_import_alias_cannot_reference_a_declaration_that_was_imported_using_import_type:
+        DiagnosticMessage = diag(
         1380,
         DiagnosticCategory::Error,
         "An_import_alias_cannot_reference_a_declaration_that_was_imported_using_import_type_1380",
@@ -1737,25 +1805,29 @@ impl Diagnostics {
         "A_new_expression_with_type_arguments_must_always_be_followed_by_a_parenthesized_argument_list_1384",
         "A 'new' expression with type arguments must always be followed by a parenthesized argument list.",
     );
-    pub const Function_type_notation_must_be_parenthesized_when_used_in_a_union_type: DiagnosticMessage = diag(
+    pub const Function_type_notation_must_be_parenthesized_when_used_in_a_union_type:
+        DiagnosticMessage = diag(
         1385,
         DiagnosticCategory::Error,
         "Function_type_notation_must_be_parenthesized_when_used_in_a_union_type_1385",
         "Function type notation must be parenthesized when used in a union type.",
     );
-    pub const Constructor_type_notation_must_be_parenthesized_when_used_in_a_union_type: DiagnosticMessage = diag(
+    pub const Constructor_type_notation_must_be_parenthesized_when_used_in_a_union_type:
+        DiagnosticMessage = diag(
         1386,
         DiagnosticCategory::Error,
         "Constructor_type_notation_must_be_parenthesized_when_used_in_a_union_type_1386",
         "Constructor type notation must be parenthesized when used in a union type.",
     );
-    pub const Function_type_notation_must_be_parenthesized_when_used_in_an_intersection_type: DiagnosticMessage = diag(
+    pub const Function_type_notation_must_be_parenthesized_when_used_in_an_intersection_type:
+        DiagnosticMessage = diag(
         1387,
         DiagnosticCategory::Error,
         "Function_type_notation_must_be_parenthesized_when_used_in_an_intersection_type_1387",
         "Function type notation must be parenthesized when used in an intersection type.",
     );
-    pub const Constructor_type_notation_must_be_parenthesized_when_used_in_an_intersection_type: DiagnosticMessage = diag(
+    pub const Constructor_type_notation_must_be_parenthesized_when_used_in_an_intersection_type:
+        DiagnosticMessage = diag(
         1388,
         DiagnosticCategory::Error,
         "Constructor_type_notation_must_be_parenthesized_when_used_in_an_intersection_type_1388",
@@ -1803,7 +1875,8 @@ impl Diagnostics {
         "Imported_via_0_from_file_1_with_packageId_2_to_import_importHelpers_as_specified_in_compilerOptions_1396",
         "Imported via {0} from file '{1}' with packageId '{2}' to import 'importHelpers' as specified in compilerOptions",
     );
-    pub const Imported_via_0_from_file_1_to_import_jsx_and_jsxs_factory_functions: DiagnosticMessage = diag(
+    pub const Imported_via_0_from_file_1_to_import_jsx_and_jsxs_factory_functions:
+        DiagnosticMessage = diag(
         1397,
         DiagnosticCategory::Message,
         "Imported_via_0_from_file_1_to_import_jsx_and_jsxs_factory_functions_1397",
@@ -1887,13 +1960,15 @@ impl Diagnostics {
         "File_is_matched_by_files_list_specified_here_1410",
         "File is matched by 'files' list specified here.",
     );
-    pub const Output_from_referenced_project_0_included_because_1_specified: DiagnosticMessage = diag(
-        1411,
-        DiagnosticCategory::Message,
-        "Output_from_referenced_project_0_included_because_1_specified_1411",
-        "Output from referenced project '{0}' included because '{1}' specified",
-    );
-    pub const Output_from_referenced_project_0_included_because_module_is_specified_as_none: DiagnosticMessage = diag(
+    pub const Output_from_referenced_project_0_included_because_1_specified: DiagnosticMessage =
+        diag(
+            1411,
+            DiagnosticCategory::Message,
+            "Output_from_referenced_project_0_included_because_1_specified_1411",
+            "Output from referenced project '{0}' included because '{1}' specified",
+        );
+    pub const Output_from_referenced_project_0_included_because_module_is_specified_as_none:
+        DiagnosticMessage = diag(
         1412,
         DiagnosticCategory::Message,
         "Output_from_referenced_project_0_included_because_module_is_specified_as_none_1412",
@@ -1905,13 +1980,15 @@ impl Diagnostics {
         "File_is_output_from_referenced_project_specified_here_1413",
         "File is output from referenced project specified here.",
     );
-    pub const Source_from_referenced_project_0_included_because_1_specified: DiagnosticMessage = diag(
-        1414,
-        DiagnosticCategory::Message,
-        "Source_from_referenced_project_0_included_because_1_specified_1414",
-        "Source from referenced project '{0}' included because '{1}' specified",
-    );
-    pub const Source_from_referenced_project_0_included_because_module_is_specified_as_none: DiagnosticMessage = diag(
+    pub const Source_from_referenced_project_0_included_because_1_specified: DiagnosticMessage =
+        diag(
+            1414,
+            DiagnosticCategory::Message,
+            "Source_from_referenced_project_0_included_because_1_specified_1414",
+            "Source from referenced project '{0}' included because '{1}' specified",
+        );
+    pub const Source_from_referenced_project_0_included_because_module_is_specified_as_none:
+        DiagnosticMessage = diag(
         1415,
         DiagnosticCategory::Message,
         "Source_from_referenced_project_0_included_because_module_is_specified_as_none_1415",
@@ -1929,7 +2006,8 @@ impl Diagnostics {
         "Entry_point_of_type_library_0_specified_in_compilerOptions_1417",
         "Entry point of type library '{0}' specified in compilerOptions",
     );
-    pub const Entry_point_of_type_library_0_specified_in_compilerOptions_with_packageId_1: DiagnosticMessage = diag(
+    pub const Entry_point_of_type_library_0_specified_in_compilerOptions_with_packageId_1:
+        DiagnosticMessage = diag(
         1418,
         DiagnosticCategory::Message,
         "Entry_point_of_type_library_0_specified_in_compilerOptions_with_packageId_1_1418",
@@ -2037,7 +2115,8 @@ impl Diagnostics {
         "Unknown_keyword_or_identifier_Did_you_mean_0_1435",
         "Unknown keyword or identifier. Did you mean '{0}'?",
     );
-    pub const Decorators_must_precede_the_name_and_all_keywords_of_property_declarations: DiagnosticMessage = diag(
+    pub const Decorators_must_precede_the_name_and_all_keywords_of_property_declarations:
+        DiagnosticMessage = diag(
         1436,
         DiagnosticCategory::Error,
         "Decorators_must_precede_the_name_and_all_keywords_of_property_declarations_1436",
@@ -2139,12 +2218,13 @@ impl Diagnostics {
         "The_types_of_0_are_incompatible_between_these_types_2200",
         "The types of '{0}' are incompatible between these types.",
     );
-    pub const The_types_returned_by_0_are_incompatible_between_these_types: DiagnosticMessage = diag(
-        2201,
-        DiagnosticCategory::Error,
-        "The_types_returned_by_0_are_incompatible_between_these_types_2201",
-        "The types returned by '{0}' are incompatible between these types.",
-    );
+    pub const The_types_returned_by_0_are_incompatible_between_these_types: DiagnosticMessage =
+        diag(
+            2201,
+            DiagnosticCategory::Error,
+            "The_types_returned_by_0_are_incompatible_between_these_types_2201",
+            "The types returned by '{0}' are incompatible between these types.",
+        );
     pub const Call_signature_return_types_0_and_1_are_incompatible: DiagnosticMessage = diag(
         2202,
         DiagnosticCategory::Error,
@@ -2157,13 +2237,15 @@ impl Diagnostics {
         "Construct_signature_return_types_0_and_1_are_incompatible_2203",
         "Construct signature return types '{0}' and '{1}' are incompatible.",
     );
-    pub const Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1: DiagnosticMessage = diag(
+    pub const Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1:
+        DiagnosticMessage = diag(
         2204,
         DiagnosticCategory::Error,
         "Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1_2204",
         "Call signatures with no arguments have incompatible return types '{0}' and '{1}'.",
     );
-    pub const Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1: DiagnosticMessage = diag(
+    pub const Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1:
+        DiagnosticMessage = diag(
         2205,
         DiagnosticCategory::Error,
         "Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1_2205",
@@ -2235,7 +2317,8 @@ impl Diagnostics {
         "Module_0_has_already_exported_a_member_named_1_Consider_explicitly_re_exporting_to_resolve_the_ambig_2308",
         "Module {0} has already exported a member named '{1}'. Consider explicitly re-exporting to resolve the ambiguity.",
     );
-    pub const An_export_assignment_cannot_be_used_in_a_module_with_other_exported_elements: DiagnosticMessage = diag(
+    pub const An_export_assignment_cannot_be_used_in_a_module_with_other_exported_elements:
+        DiagnosticMessage = diag(
         2309,
         DiagnosticCategory::Error,
         "An_export_assignment_cannot_be_used_in_a_module_with_other_exported_elements_2309",
@@ -2487,25 +2570,29 @@ impl Diagnostics {
         "Conversion_of_type_0_to_type_1_may_be_a_mistake_because_neither_type_sufficiently_overlaps_with_the__2352",
         "Conversion of type '{0}' to type '{1}' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
     );
-    pub const Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1: DiagnosticMessage = diag(
+    pub const Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1:
+        DiagnosticMessage = diag(
         2353,
         DiagnosticCategory::Error,
         "Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1_2353",
         "Object literal may only specify known properties, and '{0}' does not exist in type '{1}'.",
     );
-    pub const This_syntax_requires_an_imported_helper_but_module_0_cannot_be_found: DiagnosticMessage = diag(
+    pub const This_syntax_requires_an_imported_helper_but_module_0_cannot_be_found:
+        DiagnosticMessage = diag(
         2354,
         DiagnosticCategory::Error,
         "This_syntax_requires_an_imported_helper_but_module_0_cannot_be_found_2354",
         "This syntax requires an imported helper but module '{0}' cannot be found.",
     );
-    pub const A_function_whose_declared_type_is_neither_void_nor_any_must_return_a_value: DiagnosticMessage = diag(
+    pub const A_function_whose_declared_type_is_neither_void_nor_any_must_return_a_value:
+        DiagnosticMessage = diag(
         2355,
         DiagnosticCategory::Error,
         "A_function_whose_declared_type_is_neither_void_nor_any_must_return_a_value_2355",
         "A function whose declared type is neither 'void' nor 'any' must return a value.",
     );
-    pub const An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type: DiagnosticMessage = diag(
+    pub const An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type:
+        DiagnosticMessage = diag(
         2356,
         DiagnosticCategory::Error,
         "An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type_2356",
@@ -2535,12 +2622,13 @@ impl Diagnostics {
         "The_left_hand_side_of_an_in_expression_must_be_a_private_identifier_or_of_type_any_string_number_or__2360",
         "The left-hand side of an 'in' expression must be a private identifier or of type 'any', 'string', 'number', or 'symbol'.",
     );
-    pub const The_right_hand_side_of_an_in_expression_must_not_be_a_primitive: DiagnosticMessage = diag(
-        2361,
-        DiagnosticCategory::Error,
-        "The_right_hand_side_of_an_in_expression_must_not_be_a_primitive_2361",
-        "The right-hand side of an 'in' expression must not be a primitive.",
-    );
+    pub const The_right_hand_side_of_an_in_expression_must_not_be_a_primitive: DiagnosticMessage =
+        diag(
+            2361,
+            DiagnosticCategory::Error,
+            "The_right_hand_side_of_an_in_expression_must_not_be_a_primitive_2361",
+            "The right-hand side of an 'in' expression must not be a primitive.",
+        );
     pub const The_left_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type: DiagnosticMessage = diag(
         2362,
         DiagnosticCategory::Error,
@@ -2565,13 +2653,15 @@ impl Diagnostics {
         "Operator_0_cannot_be_applied_to_types_1_and_2_2365",
         "Operator '{0}' cannot be applied to types '{1}' and '{2}'.",
     );
-    pub const Function_lacks_ending_return_statement_and_return_type_does_not_include_undefined: DiagnosticMessage = diag(
+    pub const Function_lacks_ending_return_statement_and_return_type_does_not_include_undefined:
+        DiagnosticMessage = diag(
         2366,
         DiagnosticCategory::Error,
         "Function_lacks_ending_return_statement_and_return_type_does_not_include_undefined_2366",
         "Function lacks ending return statement and return type does not include 'undefined'.",
     );
-    pub const This_condition_will_always_return_0_since_the_types_1_and_2_have_no_overlap: DiagnosticMessage = diag(
+    pub const This_condition_will_always_return_0_since_the_types_1_and_2_have_no_overlap:
+        DiagnosticMessage = diag(
         2367,
         DiagnosticCategory::Error,
         "This_condition_will_always_return_0_since_the_types_1_and_2_have_no_overlap_2367",
@@ -2583,7 +2673,8 @@ impl Diagnostics {
         "Type_parameter_name_cannot_be_0_2368",
         "Type parameter name cannot be '{0}'.",
     );
-    pub const A_parameter_property_is_only_allowed_in_a_constructor_implementation: DiagnosticMessage = diag(
+    pub const A_parameter_property_is_only_allowed_in_a_constructor_implementation:
+        DiagnosticMessage = diag(
         2369,
         DiagnosticCategory::Error,
         "A_parameter_property_is_only_allowed_in_a_constructor_implementation_2369",
@@ -2649,7 +2740,8 @@ impl Diagnostics {
         "Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_Colon_tr_2379",
         "Argument of type '{0}' is not assignable to parameter of type '{1}' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.",
     );
-    pub const The_return_type_of_a_get_accessor_must_be_assignable_to_its_set_accessor_type: DiagnosticMessage = diag(
+    pub const The_return_type_of_a_get_accessor_must_be_assignable_to_its_set_accessor_type:
+        DiagnosticMessage = diag(
         2380,
         DiagnosticCategory::Error,
         "The_return_type_of_a_get_accessor_must_be_assignable_to_its_set_accessor_type_2380",
@@ -2703,7 +2795,8 @@ impl Diagnostics {
         "Constructor_implementation_is_missing_2390",
         "Constructor implementation is missing.",
     );
-    pub const Function_implementation_is_missing_or_not_immediately_following_the_declaration: DiagnosticMessage = diag(
+    pub const Function_implementation_is_missing_or_not_immediately_following_the_declaration:
+        DiagnosticMessage = diag(
         2391,
         DiagnosticCategory::Error,
         "Function_implementation_is_missing_or_not_immediately_following_the_declaration_2391",
@@ -2721,13 +2814,15 @@ impl Diagnostics {
         "Duplicate_function_implementation_2393",
         "Duplicate function implementation.",
     );
-    pub const This_overload_signature_is_not_compatible_with_its_implementation_signature: DiagnosticMessage = diag(
+    pub const This_overload_signature_is_not_compatible_with_its_implementation_signature:
+        DiagnosticMessage = diag(
         2394,
         DiagnosticCategory::Error,
         "This_overload_signature_is_not_compatible_with_its_implementation_signature_2394",
         "This overload signature is not compatible with its implementation signature.",
     );
-    pub const Individual_declarations_in_merged_declaration_0_must_be_all_exported_or_all_local: DiagnosticMessage = diag(
+    pub const Individual_declarations_in_merged_declaration_0_must_be_all_exported_or_all_local:
+        DiagnosticMessage = diag(
         2395,
         DiagnosticCategory::Error,
         "Individual_declarations_in_merged_declaration_0_must_be_all_exported_or_all_local_2395",
@@ -2739,12 +2834,13 @@ impl Diagnostics {
         "Duplicate_identifier_arguments_Compiler_uses_arguments_to_initialize_rest_parameters_2396",
         "Duplicate identifier 'arguments'. Compiler uses 'arguments' to initialize rest parameters.",
     );
-    pub const Declaration_name_conflicts_with_built_in_global_identifier_0: DiagnosticMessage = diag(
-        2397,
-        DiagnosticCategory::Error,
-        "Declaration_name_conflicts_with_built_in_global_identifier_0_2397",
-        "Declaration name conflicts with built-in global identifier '{0}'.",
-    );
+    pub const Declaration_name_conflicts_with_built_in_global_identifier_0: DiagnosticMessage =
+        diag(
+            2397,
+            DiagnosticCategory::Error,
+            "Declaration_name_conflicts_with_built_in_global_identifier_0_2397",
+            "Declaration name conflicts with built-in global identifier '{0}'.",
+        );
     pub const constructor_cannot_be_used_as_a_parameter_property_name: DiagnosticMessage = diag(
         2398,
         DiagnosticCategory::Error,
@@ -2763,7 +2859,8 @@ impl Diagnostics {
         "Expression_resolves_to_variable_declaration_this_that_compiler_uses_to_capture_this_reference_2400",
         "Expression resolves to variable declaration '_this' that compiler uses to capture 'this' reference.",
     );
-    pub const Expression_resolves_to_super_that_compiler_uses_to_capture_base_class_reference: DiagnosticMessage = diag(
+    pub const Expression_resolves_to_super_that_compiler_uses_to_capture_base_class_reference:
+        DiagnosticMessage = diag(
         2402,
         DiagnosticCategory::Error,
         "Expression_resolves_to_super_that_compiler_uses_to_capture_base_class_reference_2402",
@@ -2775,19 +2872,22 @@ impl Diagnostics {
         "Subsequent_variable_declarations_must_have_the_same_type_Variable_0_must_be_of_type_1_but_here_has_t_2403",
         "Subsequent variable declarations must have the same type.  Variable '{0}' must be of type '{1}', but here has type '{2}'.",
     );
-    pub const The_left_hand_side_of_a_for_in_statement_cannot_use_a_type_annotation: DiagnosticMessage = diag(
+    pub const The_left_hand_side_of_a_for_in_statement_cannot_use_a_type_annotation:
+        DiagnosticMessage = diag(
         2404,
         DiagnosticCategory::Error,
         "The_left_hand_side_of_a_for_in_statement_cannot_use_a_type_annotation_2404",
         "The left-hand side of a 'for...in' statement cannot use a type annotation.",
     );
-    pub const The_left_hand_side_of_a_for_in_statement_must_be_of_type_string_or_any: DiagnosticMessage = diag(
+    pub const The_left_hand_side_of_a_for_in_statement_must_be_of_type_string_or_any:
+        DiagnosticMessage = diag(
         2405,
         DiagnosticCategory::Error,
         "The_left_hand_side_of_a_for_in_statement_must_be_of_type_string_or_any_2405",
         "The left-hand side of a 'for...in' statement must be of type 'string' or 'any'.",
     );
-    pub const The_left_hand_side_of_a_for_in_statement_must_be_a_variable_or_a_property_access: DiagnosticMessage = diag(
+    pub const The_left_hand_side_of_a_for_in_statement_must_be_a_variable_or_a_property_access:
+        DiagnosticMessage = diag(
         2406,
         DiagnosticCategory::Error,
         "The_left_hand_side_of_a_for_in_statement_must_be_a_variable_or_a_property_access_2406",
@@ -2847,19 +2947,22 @@ impl Diagnostics {
         "Class_0_incorrectly_extends_base_class_1_2415",
         "Class '{0}' incorrectly extends base class '{1}'.",
     );
-    pub const Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2: DiagnosticMessage = diag(
+    pub const Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2:
+        DiagnosticMessage = diag(
         2416,
         DiagnosticCategory::Error,
         "Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2_2416",
         "Property '{0}' in type '{1}' is not assignable to the same property in base type '{2}'.",
     );
-    pub const Class_static_side_0_incorrectly_extends_base_class_static_side_1: DiagnosticMessage = diag(
-        2417,
-        DiagnosticCategory::Error,
-        "Class_static_side_0_incorrectly_extends_base_class_static_side_1_2417",
-        "Class static side '{0}' incorrectly extends base class static side '{1}'.",
-    );
-    pub const Type_of_computed_property_s_value_is_0_which_is_not_assignable_to_type_1: DiagnosticMessage = diag(
+    pub const Class_static_side_0_incorrectly_extends_base_class_static_side_1: DiagnosticMessage =
+        diag(
+            2417,
+            DiagnosticCategory::Error,
+            "Class_static_side_0_incorrectly_extends_base_class_static_side_1_2417",
+            "Class static side '{0}' incorrectly extends base class static side '{1}'.",
+        );
+    pub const Type_of_computed_property_s_value_is_0_which_is_not_assignable_to_type_1:
+        DiagnosticMessage = diag(
         2418,
         DiagnosticCategory::Error,
         "Type_of_computed_property_s_value_is_0_which_is_not_assignable_to_type_1_2418",
@@ -2943,24 +3046,27 @@ impl Diagnostics {
         "A_namespace_declaration_cannot_be_located_prior_to_a_class_or_function_with_which_it_is_merged_2434",
         "A namespace declaration cannot be located prior to a class or function with which it is merged.",
     );
-    pub const Ambient_modules_cannot_be_nested_in_other_modules_or_namespaces: DiagnosticMessage = diag(
-        2435,
-        DiagnosticCategory::Error,
-        "Ambient_modules_cannot_be_nested_in_other_modules_or_namespaces_2435",
-        "Ambient modules cannot be nested in other modules or namespaces.",
-    );
-    pub const Ambient_module_declaration_cannot_specify_relative_module_name: DiagnosticMessage = diag(
-        2436,
-        DiagnosticCategory::Error,
-        "Ambient_module_declaration_cannot_specify_relative_module_name_2436",
-        "Ambient module declaration cannot specify relative module name.",
-    );
-    pub const Module_0_is_hidden_by_a_local_declaration_with_the_same_name: DiagnosticMessage = diag(
-        2437,
-        DiagnosticCategory::Error,
-        "Module_0_is_hidden_by_a_local_declaration_with_the_same_name_2437",
-        "Module '{0}' is hidden by a local declaration with the same name.",
-    );
+    pub const Ambient_modules_cannot_be_nested_in_other_modules_or_namespaces: DiagnosticMessage =
+        diag(
+            2435,
+            DiagnosticCategory::Error,
+            "Ambient_modules_cannot_be_nested_in_other_modules_or_namespaces_2435",
+            "Ambient modules cannot be nested in other modules or namespaces.",
+        );
+    pub const Ambient_module_declaration_cannot_specify_relative_module_name: DiagnosticMessage =
+        diag(
+            2436,
+            DiagnosticCategory::Error,
+            "Ambient_module_declaration_cannot_specify_relative_module_name_2436",
+            "Ambient module declaration cannot specify relative module name.",
+        );
+    pub const Module_0_is_hidden_by_a_local_declaration_with_the_same_name: DiagnosticMessage =
+        diag(
+            2437,
+            DiagnosticCategory::Error,
+            "Module_0_is_hidden_by_a_local_declaration_with_the_same_name_2437",
+            "Module '{0}' is hidden by a local declaration with the same name.",
+        );
     pub const Import_name_cannot_be_0: DiagnosticMessage = diag(
         2438,
         DiagnosticCategory::Error,
@@ -2979,7 +3085,8 @@ impl Diagnostics {
         "Import_declaration_conflicts_with_local_declaration_of_0_2440",
         "Import declaration conflicts with local declaration of '{0}'.",
     );
-    pub const Duplicate_identifier_0_Compiler_reserves_name_1_in_top_level_scope_of_a_module: DiagnosticMessage = diag(
+    pub const Duplicate_identifier_0_Compiler_reserves_name_1_in_top_level_scope_of_a_module:
+        DiagnosticMessage = diag(
         2441,
         DiagnosticCategory::Error,
         "Duplicate_identifier_0_Compiler_reserves_name_1_in_top_level_scope_of_a_module_2441",
@@ -2991,19 +3098,21 @@ impl Diagnostics {
         "Types_have_separate_declarations_of_a_private_property_0_2442",
         "Types have separate declarations of a private property '{0}'.",
     );
-    pub const Property_0_is_protected_but_type_1_is_not_a_class_derived_from_2: DiagnosticMessage = diag(
-        2443,
-        DiagnosticCategory::Error,
-        "Property_0_is_protected_but_type_1_is_not_a_class_derived_from_2_2443",
-        "Property '{0}' is protected but type '{1}' is not a class derived from '{2}'.",
-    );
+    pub const Property_0_is_protected_but_type_1_is_not_a_class_derived_from_2: DiagnosticMessage =
+        diag(
+            2443,
+            DiagnosticCategory::Error,
+            "Property_0_is_protected_but_type_1_is_not_a_class_derived_from_2_2443",
+            "Property '{0}' is protected but type '{1}' is not a class derived from '{2}'.",
+        );
     pub const Property_0_is_protected_in_type_1_but_public_in_type_2: DiagnosticMessage = diag(
         2444,
         DiagnosticCategory::Error,
         "Property_0_is_protected_in_type_1_but_public_in_type_2_2444",
         "Property '{0}' is protected in type '{1}' but public in type '{2}'.",
     );
-    pub const Property_0_is_protected_and_only_accessible_within_class_1_and_its_subclasses: DiagnosticMessage = diag(
+    pub const Property_0_is_protected_and_only_accessible_within_class_1_and_its_subclasses:
+        DiagnosticMessage = diag(
         2445,
         DiagnosticCategory::Error,
         "Property_0_is_protected_and_only_accessible_within_class_1_and_its_subclasses_2445",
@@ -3015,7 +3124,8 @@ impl Diagnostics {
         "Property_0_is_protected_and_only_accessible_through_an_instance_of_class_1_This_is_an_instance_of_cl_2446",
         "Property '{0}' is protected and only accessible through an instance of class '{1}'. This is an instance of class '{2}'.",
     );
-    pub const The_0_operator_is_not_allowed_for_boolean_types_Consider_using_1_instead: DiagnosticMessage = diag(
+    pub const The_0_operator_is_not_allowed_for_boolean_types_Consider_using_1_instead:
+        DiagnosticMessage = diag(
         2447,
         DiagnosticCategory::Error,
         "The_0_operator_is_not_allowed_for_boolean_types_Consider_using_1_instead_2447",
@@ -3099,13 +3209,15 @@ impl Diagnostics {
         "A_rest_element_must_be_last_in_a_destructuring_pattern_2462",
         "A rest element must be last in a destructuring pattern.",
     );
-    pub const A_binding_pattern_parameter_cannot_be_optional_in_an_implementation_signature: DiagnosticMessage = diag(
+    pub const A_binding_pattern_parameter_cannot_be_optional_in_an_implementation_signature:
+        DiagnosticMessage = diag(
         2463,
         DiagnosticCategory::Error,
         "A_binding_pattern_parameter_cannot_be_optional_in_an_implementation_signature_2463",
         "A binding pattern parameter cannot be optional in an implementation signature.",
     );
-    pub const A_computed_property_name_must_be_of_type_string_number_symbol_or_any: DiagnosticMessage = diag(
+    pub const A_computed_property_name_must_be_of_type_string_number_symbol_or_any:
+        DiagnosticMessage = diag(
         2464,
         DiagnosticCategory::Error,
         "A_computed_property_name_must_be_of_type_string_number_symbol_or_any_2464",
@@ -3165,25 +3277,29 @@ impl Diagnostics {
         "const_enums_can_only_be_used_in_property_or_index_access_expressions_or_the_right_hand_side_of_an_im_2475",
         "'const' enums can only be used in property or index access expressions or the right hand side of an import declaration or export assignment or type query.",
     );
-    pub const A_const_enum_member_can_only_be_accessed_using_a_string_literal: DiagnosticMessage = diag(
-        2476,
-        DiagnosticCategory::Error,
-        "A_const_enum_member_can_only_be_accessed_using_a_string_literal_2476",
-        "A const enum member can only be accessed using a string literal.",
-    );
-    pub const const_enum_member_initializer_was_evaluated_to_a_non_finite_value: DiagnosticMessage = diag(
-        2477,
-        DiagnosticCategory::Error,
-        "const_enum_member_initializer_was_evaluated_to_a_non_finite_value_2477",
-        "'const' enum member initializer was evaluated to a non-finite value.",
-    );
-    pub const const_enum_member_initializer_was_evaluated_to_disallowed_value_NaN: DiagnosticMessage = diag(
+    pub const A_const_enum_member_can_only_be_accessed_using_a_string_literal: DiagnosticMessage =
+        diag(
+            2476,
+            DiagnosticCategory::Error,
+            "A_const_enum_member_can_only_be_accessed_using_a_string_literal_2476",
+            "A const enum member can only be accessed using a string literal.",
+        );
+    pub const const_enum_member_initializer_was_evaluated_to_a_non_finite_value: DiagnosticMessage =
+        diag(
+            2477,
+            DiagnosticCategory::Error,
+            "const_enum_member_initializer_was_evaluated_to_a_non_finite_value_2477",
+            "'const' enum member initializer was evaluated to a non-finite value.",
+        );
+    pub const const_enum_member_initializer_was_evaluated_to_disallowed_value_NaN:
+        DiagnosticMessage = diag(
         2478,
         DiagnosticCategory::Error,
         "const_enum_member_initializer_was_evaluated_to_disallowed_value_NaN_2478",
         "'const' enum member initializer was evaluated to disallowed value 'NaN'.",
     );
-    pub const let_is_not_allowed_to_be_used_as_a_name_in_let_or_const_declarations: DiagnosticMessage = diag(
+    pub const let_is_not_allowed_to_be_used_as_a_name_in_let_or_const_declarations:
+        DiagnosticMessage = diag(
         2480,
         DiagnosticCategory::Error,
         "let_is_not_allowed_to_be_used_as_a_name_in_let_or_const_declarations_2480",
@@ -3195,7 +3311,8 @@ impl Diagnostics {
         "Cannot_initialize_outer_scoped_variable_0_in_the_same_scope_as_block_scoped_declaration_1_2481",
         "Cannot initialize outer scoped variable '{0}' in the same scope as block scoped declaration '{1}'.",
     );
-    pub const The_left_hand_side_of_a_for_of_statement_cannot_use_a_type_annotation: DiagnosticMessage = diag(
+    pub const The_left_hand_side_of_a_for_of_statement_cannot_use_a_type_annotation:
+        DiagnosticMessage = diag(
         2483,
         DiagnosticCategory::Error,
         "The_left_hand_side_of_a_for_of_statement_cannot_use_a_type_annotation_2483",
@@ -3207,13 +3324,15 @@ impl Diagnostics {
         "Export_declaration_conflicts_with_exported_declaration_of_0_2484",
         "Export declaration conflicts with exported declaration of '{0}'.",
     );
-    pub const The_left_hand_side_of_a_for_of_statement_must_be_a_variable_or_a_property_access: DiagnosticMessage = diag(
+    pub const The_left_hand_side_of_a_for_of_statement_must_be_a_variable_or_a_property_access:
+        DiagnosticMessage = diag(
         2487,
         DiagnosticCategory::Error,
         "The_left_hand_side_of_a_for_of_statement_must_be_a_variable_or_a_property_access_2487",
         "The left-hand side of a 'for...of' statement must be a variable or a property access.",
     );
-    pub const Type_0_must_have_a_Symbol_iterator_method_that_returns_an_iterator: DiagnosticMessage = diag(
+    pub const Type_0_must_have_a_Symbol_iterator_method_that_returns_an_iterator:
+        DiagnosticMessage = diag(
         2488,
         DiagnosticCategory::Error,
         "Type_0_must_have_a_Symbol_iterator_method_that_returns_an_iterator_2488",
@@ -3225,13 +3344,15 @@ impl Diagnostics {
         "An_iterator_must_have_a_next_method_2489",
         "An iterator must have a 'next()' method.",
     );
-    pub const The_type_returned_by_the_0_method_of_an_iterator_must_have_a_value_property: DiagnosticMessage = diag(
+    pub const The_type_returned_by_the_0_method_of_an_iterator_must_have_a_value_property:
+        DiagnosticMessage = diag(
         2490,
         DiagnosticCategory::Error,
         "The_type_returned_by_the_0_method_of_an_iterator_must_have_a_value_property_2490",
         "The type returned by the '{0}()' method of an iterator must have a 'value' property.",
     );
-    pub const The_left_hand_side_of_a_for_in_statement_cannot_be_a_destructuring_pattern: DiagnosticMessage = diag(
+    pub const The_left_hand_side_of_a_for_in_statement_cannot_be_a_destructuring_pattern:
+        DiagnosticMessage = diag(
         2491,
         DiagnosticCategory::Error,
         "The_left_hand_side_of_a_for_in_statement_cannot_be_a_destructuring_pattern_2491",
@@ -3249,7 +3370,8 @@ impl Diagnostics {
         "Tuple_type_0_of_length_1_has_no_element_at_index_2_2493",
         "Tuple type '{0}' of length '{1}' has no element at index '{2}'.",
     );
-    pub const Using_a_string_in_a_for_of_statement_is_only_supported_in_ECMAScript_5_and_higher: DiagnosticMessage = diag(
+    pub const Using_a_string_in_a_for_of_statement_is_only_supported_in_ECMAScript_5_and_higher:
+        DiagnosticMessage = diag(
         2494,
         DiagnosticCategory::Error,
         "Using_a_string_in_a_for_of_statement_is_only_supported_in_ECMAScript_5_and_higher_2494",
@@ -3273,12 +3395,13 @@ impl Diagnostics {
         "This_module_can_only_be_referenced_with_ECMAScript_imports_Slashexports_by_turning_on_the_0_flag_and_2497",
         "This module can only be referenced with ECMAScript imports/exports by turning on the '{0}' flag and referencing its default export.",
     );
-    pub const Module_0_uses_export_and_cannot_be_used_with_export_Asterisk: DiagnosticMessage = diag(
-        2498,
-        DiagnosticCategory::Error,
-        "Module_0_uses_export_and_cannot_be_used_with_export_Asterisk_2498",
-        "Module '{0}' uses 'export =' and cannot be used with 'export *'.",
-    );
+    pub const Module_0_uses_export_and_cannot_be_used_with_export_Asterisk: DiagnosticMessage =
+        diag(
+            2498,
+            DiagnosticCategory::Error,
+            "Module_0_uses_export_and_cannot_be_used_with_export_Asterisk_2498",
+            "Module '{0}' uses 'export =' and cannot be used with 'export *'.",
+        );
     pub const An_interface_can_only_extend_an_identifier_Slashqualified_name_with_optional_type_arguments: DiagnosticMessage = diag(
         2499,
         DiagnosticCategory::Error,
@@ -3297,7 +3420,8 @@ impl Diagnostics {
         "A_rest_element_cannot_contain_a_binding_pattern_2501",
         "A rest element cannot contain a binding pattern.",
     );
-    pub const _0_is_referenced_directly_or_indirectly_in_its_own_type_annotation: DiagnosticMessage = diag(
+    pub const _0_is_referenced_directly_or_indirectly_in_its_own_type_annotation:
+        DiagnosticMessage = diag(
         2502,
         DiagnosticCategory::Error,
         "_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation_2502",
@@ -3309,7 +3433,8 @@ impl Diagnostics {
         "Cannot_find_namespace_0_2503",
         "Cannot find namespace '{0}'.",
     );
-    pub const Type_0_must_have_a_Symbol_asyncIterator_method_that_returns_an_async_iterator: DiagnosticMessage = diag(
+    pub const Type_0_must_have_a_Symbol_asyncIterator_method_that_returns_an_async_iterator:
+        DiagnosticMessage = diag(
         2504,
         DiagnosticCategory::Error,
         "Type_0_must_have_a_Symbol_asyncIterator_method_that_returns_an_async_iterator_2504",
@@ -3321,7 +3446,8 @@ impl Diagnostics {
         "A_generator_cannot_have_a_void_type_annotation_2505",
         "A generator cannot have a 'void' type annotation.",
     );
-    pub const _0_is_referenced_directly_or_indirectly_in_its_own_base_expression: DiagnosticMessage = diag(
+    pub const _0_is_referenced_directly_or_indirectly_in_its_own_base_expression:
+        DiagnosticMessage = diag(
         2506,
         DiagnosticCategory::Error,
         "_0_is_referenced_directly_or_indirectly_in_its_own_base_expression_2506",
@@ -3333,12 +3459,13 @@ impl Diagnostics {
         "Type_0_is_not_a_constructor_function_type_2507",
         "Type '{0}' is not a constructor function type.",
     );
-    pub const No_base_constructor_has_the_specified_number_of_type_arguments: DiagnosticMessage = diag(
-        2508,
-        DiagnosticCategory::Error,
-        "No_base_constructor_has_the_specified_number_of_type_arguments_2508",
-        "No base constructor has the specified number of type arguments.",
-    );
+    pub const No_base_constructor_has_the_specified_number_of_type_arguments: DiagnosticMessage =
+        diag(
+            2508,
+            DiagnosticCategory::Error,
+            "No_base_constructor_has_the_specified_number_of_type_arguments_2508",
+            "No base constructor has the specified number of type arguments.",
+        );
     pub const Base_constructor_return_type_0_is_not_an_object_type_or_intersection_of_object_types_with_statically_known_members: DiagnosticMessage = diag(
         2509,
         DiagnosticCategory::Error,
@@ -3363,7 +3490,8 @@ impl Diagnostics {
         "Overload_signatures_must_all_be_abstract_or_non_abstract_2512",
         "Overload signatures must all be abstract or non-abstract.",
     );
-    pub const Abstract_method_0_in_class_1_cannot_be_accessed_via_super_expression: DiagnosticMessage = diag(
+    pub const Abstract_method_0_in_class_1_cannot_be_accessed_via_super_expression:
+        DiagnosticMessage = diag(
         2513,
         DiagnosticCategory::Error,
         "Abstract_method_0_in_class_1_cannot_be_accessed_via_super_expression_2513",
@@ -3381,13 +3509,15 @@ impl Diagnostics {
         "All_declarations_of_an_abstract_method_must_be_consecutive_2516",
         "All declarations of an abstract method must be consecutive.",
     );
-    pub const Cannot_assign_an_abstract_constructor_type_to_a_non_abstract_constructor_type: DiagnosticMessage = diag(
+    pub const Cannot_assign_an_abstract_constructor_type_to_a_non_abstract_constructor_type:
+        DiagnosticMessage = diag(
         2517,
         DiagnosticCategory::Error,
         "Cannot_assign_an_abstract_constructor_type_to_a_non_abstract_constructor_type_2517",
         "Cannot assign an abstract constructor type to a non-abstract constructor type.",
     );
-    pub const A_this_based_type_guard_is_not_compatible_with_a_parameter_based_type_guard: DiagnosticMessage = diag(
+    pub const A_this_based_type_guard_is_not_compatible_with_a_parameter_based_type_guard:
+        DiagnosticMessage = diag(
         2518,
         DiagnosticCategory::Error,
         "A_this_based_type_guard_is_not_compatible_with_a_parameter_based_type_guard_2518",
@@ -3399,7 +3529,8 @@ impl Diagnostics {
         "An_async_iterator_must_have_a_next_method_2519",
         "An async iterator must have a 'next()' method.",
     );
-    pub const Duplicate_identifier_0_Compiler_uses_declaration_1_to_support_async_functions: DiagnosticMessage = diag(
+    pub const Duplicate_identifier_0_Compiler_uses_declaration_1_to_support_async_functions:
+        DiagnosticMessage = diag(
         2520,
         DiagnosticCategory::Error,
         "Duplicate_identifier_0_Compiler_uses_declaration_1_to_support_async_functions_2520",
@@ -3429,7 +3560,8 @@ impl Diagnostics {
         "Initializer_provides_no_value_for_this_binding_element_and_the_binding_element_has_no_default_value_2525",
         "Initializer provides no value for this binding element and the binding element has no default value.",
     );
-    pub const A_this_type_is_available_only_in_a_non_static_member_of_a_class_or_interface: DiagnosticMessage = diag(
+    pub const A_this_type_is_available_only_in_a_non_static_member_of_a_class_or_interface:
+        DiagnosticMessage = diag(
         2526,
         DiagnosticCategory::Error,
         "A_this_type_is_available_only_in_a_non_static_member_of_a_class_or_interface_2526",
@@ -3477,18 +3609,20 @@ impl Diagnostics {
         "Object_is_possibly_null_or_undefined_2533",
         "Object is possibly 'null' or 'undefined'.",
     );
-    pub const A_function_returning_never_cannot_have_a_reachable_end_point: DiagnosticMessage = diag(
-        2534,
-        DiagnosticCategory::Error,
-        "A_function_returning_never_cannot_have_a_reachable_end_point_2534",
-        "A function returning 'never' cannot have a reachable end point.",
-    );
-    pub const Enum_type_0_has_members_with_initializers_that_are_not_literals: DiagnosticMessage = diag(
-        2535,
-        DiagnosticCategory::Error,
-        "Enum_type_0_has_members_with_initializers_that_are_not_literals_2535",
-        "Enum type '{0}' has members with initializers that are not literals.",
-    );
+    pub const A_function_returning_never_cannot_have_a_reachable_end_point: DiagnosticMessage =
+        diag(
+            2534,
+            DiagnosticCategory::Error,
+            "A_function_returning_never_cannot_have_a_reachable_end_point_2534",
+            "A function returning 'never' cannot have a reachable end point.",
+        );
+    pub const Enum_type_0_has_members_with_initializers_that_are_not_literals: DiagnosticMessage =
+        diag(
+            2535,
+            DiagnosticCategory::Error,
+            "Enum_type_0_has_members_with_initializers_that_are_not_literals_2535",
+            "Enum type '{0}' has members with initializers that are not literals.",
+        );
     pub const Type_0_cannot_be_used_to_index_type_1: DiagnosticMessage = diag(
         2536,
         DiagnosticCategory::Error,
@@ -3537,7 +3671,8 @@ impl Diagnostics {
         "Expression_resolves_to_variable_declaration_newTarget_that_compiler_uses_to_capture_new_target_meta__2544",
         "Expression resolves to variable declaration '_newTarget' that compiler uses to capture 'new.target' meta-property reference.",
     );
-    pub const A_mixin_class_must_have_a_constructor_with_a_single_rest_parameter_of_type_any: DiagnosticMessage = diag(
+    pub const A_mixin_class_must_have_a_constructor_with_a_single_rest_parameter_of_type_any:
+        DiagnosticMessage = diag(
         2545,
         DiagnosticCategory::Error,
         "A_mixin_class_must_have_a_constructor_with_a_single_rest_parameter_of_type_any_2545",
@@ -3579,7 +3714,8 @@ impl Diagnostics {
         "Cannot_find_name_0_Did_you_mean_1_2552",
         "Cannot find name '{0}'. Did you mean '{1}'?",
     );
-    pub const Computed_values_are_not_permitted_in_an_enum_with_string_valued_members: DiagnosticMessage = diag(
+    pub const Computed_values_are_not_permitted_in_an_enum_with_string_valued_members:
+        DiagnosticMessage = diag(
         2553,
         DiagnosticCategory::Error,
         "Computed_values_are_not_permitted_in_an_enum_with_string_valued_members_2553",
@@ -3597,7 +3733,8 @@ impl Diagnostics {
         "Expected_at_least_0_arguments_but_got_1_2555",
         "Expected at least {0} arguments, but got {1}.",
     );
-    pub const A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter: DiagnosticMessage = diag(
+    pub const A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter:
+        DiagnosticMessage = diag(
         2556,
         DiagnosticCategory::Error,
         "A_spread_argument_must_either_have_a_tuple_type_or_be_passed_to_a_rest_parameter_2556",
@@ -3615,7 +3752,8 @@ impl Diagnostics {
         "Type_0_has_no_properties_in_common_with_type_1_2559",
         "Type '{0}' has no properties in common with type '{1}'.",
     );
-    pub const Value_of_type_0_has_no_properties_in_common_with_type_1_Did_you_mean_to_call_it: DiagnosticMessage = diag(
+    pub const Value_of_type_0_has_no_properties_in_common_with_type_1_Did_you_mean_to_call_it:
+        DiagnosticMessage = diag(
         2560,
         DiagnosticCategory::Error,
         "Value_of_type_0_has_no_properties_in_common_with_type_1_Did_you_mean_to_call_it_2560",
@@ -3627,19 +3765,22 @@ impl Diagnostics {
         "Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_writ_2561",
         "Object literal may only specify known properties, but '{0}' does not exist in type '{1}'. Did you mean to write '{2}'?",
     );
-    pub const Base_class_expressions_cannot_reference_class_type_parameters: DiagnosticMessage = diag(
-        2562,
-        DiagnosticCategory::Error,
-        "Base_class_expressions_cannot_reference_class_type_parameters_2562",
-        "Base class expressions cannot reference class type parameters.",
-    );
-    pub const The_containing_function_or_module_body_is_too_large_for_control_flow_analysis: DiagnosticMessage = diag(
+    pub const Base_class_expressions_cannot_reference_class_type_parameters: DiagnosticMessage =
+        diag(
+            2562,
+            DiagnosticCategory::Error,
+            "Base_class_expressions_cannot_reference_class_type_parameters_2562",
+            "Base class expressions cannot reference class type parameters.",
+        );
+    pub const The_containing_function_or_module_body_is_too_large_for_control_flow_analysis:
+        DiagnosticMessage = diag(
         2563,
         DiagnosticCategory::Error,
         "The_containing_function_or_module_body_is_too_large_for_control_flow_analysis_2563",
         "The containing function or module body is too large for control flow analysis.",
     );
-    pub const Property_0_has_no_initializer_and_is_not_definitely_assigned_in_the_constructor: DiagnosticMessage = diag(
+    pub const Property_0_has_no_initializer_and_is_not_definitely_assigned_in_the_constructor:
+        DiagnosticMessage = diag(
         2564,
         DiagnosticCategory::Error,
         "Property_0_has_no_initializer_and_is_not_definitely_assigned_in_the_constructor_2564",
@@ -3657,7 +3798,8 @@ impl Diagnostics {
         "A_rest_element_cannot_have_a_property_name_2566",
         "A rest element cannot have a property name.",
     );
-    pub const Enum_declarations_can_only_merge_with_namespace_or_other_enum_declarations: DiagnosticMessage = diag(
+    pub const Enum_declarations_can_only_merge_with_namespace_or_other_enum_declarations:
+        DiagnosticMessage = diag(
         2567,
         DiagnosticCategory::Error,
         "Enum_declarations_can_only_merge_with_namespace_or_other_enum_declarations_2567",
@@ -3759,18 +3901,20 @@ impl Diagnostics {
         "Cannot_assign_to_0_because_it_is_a_constant_2588",
         "Cannot assign to '{0}' because it is a constant.",
     );
-    pub const Type_instantiation_is_excessively_deep_and_possibly_infinite: DiagnosticMessage = diag(
-        2589,
-        DiagnosticCategory::Error,
-        "Type_instantiation_is_excessively_deep_and_possibly_infinite_2589",
-        "Type instantiation is excessively deep and possibly infinite.",
-    );
-    pub const Expression_produces_a_union_type_that_is_too_complex_to_represent: DiagnosticMessage = diag(
-        2590,
-        DiagnosticCategory::Error,
-        "Expression_produces_a_union_type_that_is_too_complex_to_represent_2590",
-        "Expression produces a union type that is too complex to represent.",
-    );
+    pub const Type_instantiation_is_excessively_deep_and_possibly_infinite: DiagnosticMessage =
+        diag(
+            2589,
+            DiagnosticCategory::Error,
+            "Type_instantiation_is_excessively_deep_and_possibly_infinite_2589",
+            "Type instantiation is excessively deep and possibly infinite.",
+        );
+    pub const Expression_produces_a_union_type_that_is_too_complex_to_represent: DiagnosticMessage =
+        diag(
+            2590,
+            DiagnosticCategory::Error,
+            "Expression_produces_a_union_type_that_is_too_complex_to_represent_2590",
+            "Expression produces a union type that is too complex to represent.",
+        );
     pub const Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_node_Try_npm_i_save_dev_types_Slashnode_and_then_add_node_to_the_types_field_in_your_tsconfig: DiagnosticMessage = diag(
         2591,
         DiagnosticCategory::Error,
@@ -3807,7 +3951,8 @@ impl Diagnostics {
         "_0_can_only_be_imported_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import_2596",
         "'{0}' can only be imported by turning on the 'esModuleInterop' flag and using a default import.",
     );
-    pub const _0_can_only_be_imported_by_using_a_require_call_or_by_using_a_default_import: DiagnosticMessage = diag(
+    pub const _0_can_only_be_imported_by_using_a_require_call_or_by_using_a_default_import:
+        DiagnosticMessage = diag(
         2597,
         DiagnosticCategory::Error,
         "_0_can_only_be_imported_by_using_a_require_call_or_by_using_a_default_import_2597",
@@ -3831,13 +3976,15 @@ impl Diagnostics {
         "Property_0_in_type_1_is_not_assignable_to_type_2_2603",
         "Property '{0}' in type '{1}' is not assignable to type '{2}'.",
     );
-    pub const JSX_element_type_0_does_not_have_any_construct_or_call_signatures: DiagnosticMessage = diag(
-        2604,
-        DiagnosticCategory::Error,
-        "JSX_element_type_0_does_not_have_any_construct_or_call_signatures_2604",
-        "JSX element type '{0}' does not have any construct or call signatures.",
-    );
-    pub const Property_0_of_JSX_spread_attribute_is_not_assignable_to_target_property: DiagnosticMessage = diag(
+    pub const JSX_element_type_0_does_not_have_any_construct_or_call_signatures: DiagnosticMessage =
+        diag(
+            2604,
+            DiagnosticCategory::Error,
+            "JSX_element_type_0_does_not_have_any_construct_or_call_signatures_2604",
+            "JSX element type '{0}' does not have any construct or call signatures.",
+        );
+    pub const Property_0_of_JSX_spread_attribute_is_not_assignable_to_target_property:
+        DiagnosticMessage = diag(
         2606,
         DiagnosticCategory::Error,
         "Property_0_of_JSX_spread_attribute_is_not_assignable_to_target_property_2606",
@@ -3891,13 +4038,15 @@ impl Diagnostics {
         "Module_0_has_no_exported_member_1_Did_you_mean_to_use_import_1_from_0_instead_2614",
         "Module '{0}' has no exported member '{1}'. Did you mean to use 'import {1} from {0}' instead?",
     );
-    pub const Type_of_property_0_circularly_references_itself_in_mapped_type_1: DiagnosticMessage = diag(
-        2615,
-        DiagnosticCategory::Error,
-        "Type_of_property_0_circularly_references_itself_in_mapped_type_1_2615",
-        "Type of property '{0}' circularly references itself in mapped type '{1}'.",
-    );
-    pub const _0_can_only_be_imported_by_using_import_1_require_2_or_a_default_import: DiagnosticMessage = diag(
+    pub const Type_of_property_0_circularly_references_itself_in_mapped_type_1: DiagnosticMessage =
+        diag(
+            2615,
+            DiagnosticCategory::Error,
+            "Type_of_property_0_circularly_references_itself_in_mapped_type_1_2615",
+            "Type of property '{0}' circularly references itself in mapped type '{1}'.",
+        );
+    pub const _0_can_only_be_imported_by_using_import_1_require_2_or_a_default_import:
+        DiagnosticMessage = diag(
         2616,
         DiagnosticCategory::Error,
         "_0_can_only_be_imported_by_using_import_1_require_2_or_a_default_import_2616",
@@ -3933,13 +4082,15 @@ impl Diagnostics {
         "Target_allows_only_0_element_s_but_source_may_have_more_2621",
         "Target allows only {0} element(s) but source may have more.",
     );
-    pub const Source_provides_no_match_for_required_element_at_position_0_in_target: DiagnosticMessage = diag(
+    pub const Source_provides_no_match_for_required_element_at_position_0_in_target:
+        DiagnosticMessage = diag(
         2623,
         DiagnosticCategory::Error,
         "Source_provides_no_match_for_required_element_at_position_0_in_target_2623",
         "Source provides no match for required element at position {0} in target.",
     );
-    pub const Source_provides_no_match_for_variadic_element_at_position_0_in_target: DiagnosticMessage = diag(
+    pub const Source_provides_no_match_for_variadic_element_at_position_0_in_target:
+        DiagnosticMessage = diag(
         2624,
         DiagnosticCategory::Error,
         "Source_provides_no_match_for_variadic_element_at_position_0_in_target_2624",
@@ -3951,7 +4102,8 @@ impl Diagnostics {
         "Variadic_element_at_position_0_in_source_does_not_match_element_at_position_1_in_target_2625",
         "Variadic element at position {0} in source does not match element at position {1} in target.",
     );
-    pub const Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target: DiagnosticMessage = diag(
+    pub const Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target:
+        DiagnosticMessage = diag(
         2626,
         DiagnosticCategory::Error,
         "Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target_2626",
@@ -3993,7 +4145,8 @@ impl Diagnostics {
         "Cannot_assign_to_0_because_it_is_an_import_2632",
         "Cannot assign to '{0}' because it is an import.",
     );
-    pub const JSX_property_access_expressions_cannot_include_JSX_namespace_names: DiagnosticMessage = diag(
+    pub const JSX_property_access_expressions_cannot_include_JSX_namespace_names:
+        DiagnosticMessage = diag(
         2633,
         DiagnosticCategory::Error,
         "JSX_property_access_expressions_cannot_include_JSX_namespace_names_2633",
@@ -4053,7 +4206,8 @@ impl Diagnostics {
         "super_can_only_be_referenced_in_members_of_derived_classes_or_object_literal_expressions_2660",
         "'super' can only be referenced in members of derived classes or object literal expressions.",
     );
-    pub const Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module: DiagnosticMessage = diag(
+    pub const Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module:
+        DiagnosticMessage = diag(
         2661,
         DiagnosticCategory::Error,
         "Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module_2661",
@@ -4071,19 +4225,21 @@ impl Diagnostics {
         "Cannot_find_name_0_Did_you_mean_the_instance_member_this_0_2663",
         "Cannot find name '{0}'. Did you mean the instance member 'this.{0}'?",
     );
-    pub const Invalid_module_name_in_augmentation_module_0_cannot_be_found: DiagnosticMessage = diag(
-        2664,
-        DiagnosticCategory::Error,
-        "Invalid_module_name_in_augmentation_module_0_cannot_be_found_2664",
-        "Invalid module name in augmentation, module '{0}' cannot be found.",
-    );
+    pub const Invalid_module_name_in_augmentation_module_0_cannot_be_found: DiagnosticMessage =
+        diag(
+            2664,
+            DiagnosticCategory::Error,
+            "Invalid_module_name_in_augmentation_module_0_cannot_be_found_2664",
+            "Invalid module name in augmentation, module '{0}' cannot be found.",
+        );
     pub const Invalid_module_name_in_augmentation_Module_0_resolves_to_an_untyped_module_at_1_which_cannot_be_augmented: DiagnosticMessage = diag(
         2665,
         DiagnosticCategory::Error,
         "Invalid_module_name_in_augmentation_Module_0_resolves_to_an_untyped_module_at_1_which_cannot_be_augm_2665",
         "Invalid module name in augmentation. Module '{0}' resolves to an untyped module at '{1}', which cannot be augmented.",
     );
-    pub const Exports_and_export_assignments_are_not_permitted_in_module_augmentations: DiagnosticMessage = diag(
+    pub const Exports_and_export_assignments_are_not_permitted_in_module_augmentations:
+        DiagnosticMessage = diag(
         2666,
         DiagnosticCategory::Error,
         "Exports_and_export_assignments_are_not_permitted_in_module_augmentations_2666",
@@ -4113,7 +4269,8 @@ impl Diagnostics {
         "Augmentations_for_the_global_scope_should_have_declare_modifier_unless_they_appear_in_already_ambien_2670",
         "Augmentations for the global scope should have 'declare' modifier unless they appear in already ambient context.",
     );
-    pub const Cannot_augment_module_0_because_it_resolves_to_a_non_module_entity: DiagnosticMessage = diag(
+    pub const Cannot_augment_module_0_because_it_resolves_to_a_non_module_entity:
+        DiagnosticMessage = diag(
         2671,
         DiagnosticCategory::Error,
         "Cannot_augment_module_0_because_it_resolves_to_a_non_module_entity_2671",
@@ -4125,7 +4282,8 @@ impl Diagnostics {
         "Cannot_assign_a_0_constructor_type_to_a_1_constructor_type_2672",
         "Cannot assign a '{0}' constructor type to a '{1}' constructor type.",
     );
-    pub const Constructor_of_class_0_is_private_and_only_accessible_within_the_class_declaration: DiagnosticMessage = diag(
+    pub const Constructor_of_class_0_is_private_and_only_accessible_within_the_class_declaration:
+        DiagnosticMessage = diag(
         2673,
         DiagnosticCategory::Error,
         "Constructor_of_class_0_is_private_and_only_accessible_within_the_class_declaration_2673",
@@ -4137,19 +4295,21 @@ impl Diagnostics {
         "Constructor_of_class_0_is_protected_and_only_accessible_within_the_class_declaration_2674",
         "Constructor of class '{0}' is protected and only accessible within the class declaration.",
     );
-    pub const Cannot_extend_a_class_0_Class_constructor_is_marked_as_private: DiagnosticMessage = diag(
-        2675,
-        DiagnosticCategory::Error,
-        "Cannot_extend_a_class_0_Class_constructor_is_marked_as_private_2675",
-        "Cannot extend a class '{0}'. Class constructor is marked as private.",
-    );
+    pub const Cannot_extend_a_class_0_Class_constructor_is_marked_as_private: DiagnosticMessage =
+        diag(
+            2675,
+            DiagnosticCategory::Error,
+            "Cannot_extend_a_class_0_Class_constructor_is_marked_as_private_2675",
+            "Cannot extend a class '{0}'. Class constructor is marked as private.",
+        );
     pub const Accessors_must_both_be_abstract_or_non_abstract: DiagnosticMessage = diag(
         2676,
         DiagnosticCategory::Error,
         "Accessors_must_both_be_abstract_or_non_abstract_2676",
         "Accessors must both be abstract or non-abstract.",
     );
-    pub const A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type: DiagnosticMessage = diag(
+    pub const A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type:
+        DiagnosticMessage = diag(
         2677,
         DiagnosticCategory::Error,
         "A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type_2677",
@@ -4179,13 +4339,15 @@ impl Diagnostics {
         "A_constructor_cannot_have_a_this_parameter_2681",
         "A constructor cannot have a 'this' parameter.",
     );
-    pub const this_implicitly_has_type_any_because_it_does_not_have_a_type_annotation: DiagnosticMessage = diag(
+    pub const this_implicitly_has_type_any_because_it_does_not_have_a_type_annotation:
+        DiagnosticMessage = diag(
         2683,
         DiagnosticCategory::Error,
         "this_implicitly_has_type_any_because_it_does_not_have_a_type_annotation_2683",
         "'this' implicitly has type 'any' because it does not have a type annotation.",
     );
-    pub const The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1: DiagnosticMessage = diag(
+    pub const The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1:
+        DiagnosticMessage = diag(
         2684,
         DiagnosticCategory::Error,
         "The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1_2684",
@@ -4227,13 +4389,15 @@ impl Diagnostics {
         "_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Did_you_mean_to_use_1_in_0_2690",
         "'{0}' only refers to a type, but is being used as a value here. Did you mean to use '{1} in {0}'?",
     );
-    pub const An_import_path_cannot_end_with_a_0_extension_Consider_importing_1_instead: DiagnosticMessage = diag(
+    pub const An_import_path_cannot_end_with_a_0_extension_Consider_importing_1_instead:
+        DiagnosticMessage = diag(
         2691,
         DiagnosticCategory::Error,
         "An_import_path_cannot_end_with_a_0_extension_Consider_importing_1_instead_2691",
         "An import path cannot end with a '{0}' extension. Consider importing '{1}' instead.",
     );
-    pub const _0_is_a_primitive_but_1_is_a_wrapper_object_Prefer_using_0_when_possible: DiagnosticMessage = diag(
+    pub const _0_is_a_primitive_but_1_is_a_wrapper_object_Prefer_using_0_when_possible:
+        DiagnosticMessage = diag(
         2692,
         DiagnosticCategory::Error,
         "_0_is_a_primitive_but_1_is_a_wrapper_object_Prefer_using_0_when_possible_2692",
@@ -4251,12 +4415,13 @@ impl Diagnostics {
         "Namespace_0_has_no_exported_member_1_2694",
         "Namespace '{0}' has no exported member '{1}'.",
     );
-    pub const Left_side_of_comma_operator_is_unused_and_has_no_side_effects: DiagnosticMessage = diag(
-        2695,
-        DiagnosticCategory::Error,
-        "Left_side_of_comma_operator_is_unused_and_has_no_side_effects_2695",
-        "Left side of comma operator is unused and has no side effects.",
-    );
+    pub const Left_side_of_comma_operator_is_unused_and_has_no_side_effects: DiagnosticMessage =
+        diag(
+            2695,
+            DiagnosticCategory::Error,
+            "Left_side_of_comma_operator_is_unused_and_has_no_side_effects_2695",
+            "Left side of comma operator is unused and has no side effects.",
+        );
     pub const The_Object_type_is_assignable_to_very_few_other_types_Did_you_mean_to_use_the_any_type_instead: DiagnosticMessage = diag(
         2696,
         DiagnosticCategory::Error,
@@ -4287,42 +4452,47 @@ impl Diagnostics {
         "Rest_types_may_only_be_created_from_object_types_2700",
         "Rest types may only be created from object types.",
     );
-    pub const The_target_of_an_object_rest_assignment_must_be_a_variable_or_a_property_access: DiagnosticMessage = diag(
+    pub const The_target_of_an_object_rest_assignment_must_be_a_variable_or_a_property_access:
+        DiagnosticMessage = diag(
         2701,
         DiagnosticCategory::Error,
         "The_target_of_an_object_rest_assignment_must_be_a_variable_or_a_property_access_2701",
         "The target of an object rest assignment must be a variable or a property access.",
     );
-    pub const _0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here: DiagnosticMessage = diag(
-        2702,
-        DiagnosticCategory::Error,
-        "_0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here_2702",
-        "'{0}' only refers to a type, but is being used as a namespace here.",
-    );
-    pub const The_operand_of_a_delete_operator_must_be_a_property_reference: DiagnosticMessage = diag(
-        2703,
-        DiagnosticCategory::Error,
-        "The_operand_of_a_delete_operator_must_be_a_property_reference_2703",
-        "The operand of a 'delete' operator must be a property reference.",
-    );
-    pub const The_operand_of_a_delete_operator_cannot_be_a_read_only_property: DiagnosticMessage = diag(
-        2704,
-        DiagnosticCategory::Error,
-        "The_operand_of_a_delete_operator_cannot_be_a_read_only_property_2704",
-        "The operand of a 'delete' operator cannot be a read-only property.",
-    );
+    pub const _0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here: DiagnosticMessage =
+        diag(
+            2702,
+            DiagnosticCategory::Error,
+            "_0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here_2702",
+            "'{0}' only refers to a type, but is being used as a namespace here.",
+        );
+    pub const The_operand_of_a_delete_operator_must_be_a_property_reference: DiagnosticMessage =
+        diag(
+            2703,
+            DiagnosticCategory::Error,
+            "The_operand_of_a_delete_operator_must_be_a_property_reference_2703",
+            "The operand of a 'delete' operator must be a property reference.",
+        );
+    pub const The_operand_of_a_delete_operator_cannot_be_a_read_only_property: DiagnosticMessage =
+        diag(
+            2704,
+            DiagnosticCategory::Error,
+            "The_operand_of_a_delete_operator_cannot_be_a_read_only_property_2704",
+            "The operand of a 'delete' operator cannot be a read-only property.",
+        );
     pub const An_async_function_or_method_in_ES5_SlashES3_requires_the_Promise_constructor_Make_sure_you_have_a_declaration_for_the_Promise_constructor_or_include_ES2015_in_your_lib_option: DiagnosticMessage = diag(
         2705,
         DiagnosticCategory::Error,
         "An_async_function_or_method_in_ES5_SlashES3_requires_the_Promise_constructor_Make_sure_you_have_a_de_2705",
         "An async function or method in ES5/ES3 requires the 'Promise' constructor.  Make sure you have a declaration for the 'Promise' constructor or include 'ES2015' in your '--lib' option.",
     );
-    pub const Required_type_parameters_may_not_follow_optional_type_parameters: DiagnosticMessage = diag(
-        2706,
-        DiagnosticCategory::Error,
-        "Required_type_parameters_may_not_follow_optional_type_parameters_2706",
-        "Required type parameters may not follow optional type parameters.",
-    );
+    pub const Required_type_parameters_may_not_follow_optional_type_parameters: DiagnosticMessage =
+        diag(
+            2706,
+            DiagnosticCategory::Error,
+            "Required_type_parameters_may_not_follow_optional_type_parameters_2706",
+            "Required type parameters may not follow optional type parameters.",
+        );
     pub const Generic_type_0_requires_between_1_and_2_type_arguments: DiagnosticMessage = diag(
         2707,
         DiagnosticCategory::Error,
@@ -4341,12 +4511,13 @@ impl Diagnostics {
         "Cannot_use_namespace_0_as_a_type_2709",
         "Cannot use namespace '{0}' as a type.",
     );
-    pub const _0_are_specified_twice_The_attribute_named_0_will_be_overwritten: DiagnosticMessage = diag(
-        2710,
-        DiagnosticCategory::Error,
-        "_0_are_specified_twice_The_attribute_named_0_will_be_overwritten_2710",
-        "'{0}' are specified twice. The attribute named '{0}' will be overwritten.",
-    );
+    pub const _0_are_specified_twice_The_attribute_named_0_will_be_overwritten: DiagnosticMessage =
+        diag(
+            2710,
+            DiagnosticCategory::Error,
+            "_0_are_specified_twice_The_attribute_named_0_will_be_overwritten_2710",
+            "'{0}' are specified twice. The attribute named '{0}' will be overwritten.",
+        );
     pub const A_dynamic_import_call_returns_a_Promise_Make_sure_you_have_a_declaration_for_Promise_or_include_ES2015_in_your_lib_option: DiagnosticMessage = diag(
         2711,
         DiagnosticCategory::Error,
@@ -4371,7 +4542,8 @@ impl Diagnostics {
         "The_expression_of_an_export_assignment_must_be_an_identifier_or_qualified_name_in_an_ambient_context_2714",
         "The expression of an export assignment must be an identifier or qualified name in an ambient context.",
     );
-    pub const Abstract_property_0_in_class_1_cannot_be_accessed_in_the_constructor: DiagnosticMessage = diag(
+    pub const Abstract_property_0_in_class_1_cannot_be_accessed_in_the_constructor:
+        DiagnosticMessage = diag(
         2715,
         DiagnosticCategory::Error,
         "Abstract_property_0_in_class_1_cannot_be_accessed_in_the_constructor_2715",
@@ -4431,12 +4603,13 @@ impl Diagnostics {
         "_0_has_no_exported_member_named_1_Did_you_mean_2_2724",
         "'{0}' has no exported member named '{1}'. Did you mean '{2}'?",
     );
-    pub const Class_name_cannot_be_Object_when_targeting_ES5_with_module_0: DiagnosticMessage = diag(
-        2725,
-        DiagnosticCategory::Error,
-        "Class_name_cannot_be_Object_when_targeting_ES5_with_module_0_2725",
-        "Class name cannot be 'Object' when targeting ES5 with module {0}.",
-    );
+    pub const Class_name_cannot_be_Object_when_targeting_ES5_with_module_0: DiagnosticMessage =
+        diag(
+            2725,
+            DiagnosticCategory::Error,
+            "Class_name_cannot_be_Object_when_targeting_ES5_with_module_0_2725",
+            "Class name cannot be 'Object' when targeting ES5 with module {0}.",
+        );
     pub const Cannot_find_lib_definition_for_0: DiagnosticMessage = diag(
         2726,
         DiagnosticCategory::Error,
@@ -4491,19 +4664,21 @@ impl Diagnostics {
         "Are_you_missing_a_semicolon_2734",
         "Are you missing a semicolon?",
     );
-    pub const Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1: DiagnosticMessage = diag(
-        2735,
-        DiagnosticCategory::Error,
-        "Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1_2735",
-        "Did you mean for '{0}' to be constrained to type 'new (...args: any[]) => {1}'?",
-    );
+    pub const Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1: DiagnosticMessage =
+        diag(
+            2735,
+            DiagnosticCategory::Error,
+            "Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1_2735",
+            "Did you mean for '{0}' to be constrained to type 'new (...args: any[]) => {1}'?",
+        );
     pub const Operator_0_cannot_be_applied_to_type_1: DiagnosticMessage = diag(
         2736,
         DiagnosticCategory::Error,
         "Operator_0_cannot_be_applied_to_type_1_2736",
         "Operator '{0}' cannot be applied to type '{1}'.",
     );
-    pub const BigInt_literals_are_not_available_when_targeting_lower_than_ES2020: DiagnosticMessage = diag(
+    pub const BigInt_literals_are_not_available_when_targeting_lower_than_ES2020:
+        DiagnosticMessage = diag(
         2737,
         DiagnosticCategory::Error,
         "BigInt_literals_are_not_available_when_targeting_lower_than_ES2020_2737",
@@ -4515,13 +4690,15 @@ impl Diagnostics {
         "An_outer_value_of_this_is_shadowed_by_this_container_2738",
         "An outer value of 'this' is shadowed by this container.",
     );
-    pub const Type_0_is_missing_the_following_properties_from_type_1_Colon_2: DiagnosticMessage = diag(
-        2739,
-        DiagnosticCategory::Error,
-        "Type_0_is_missing_the_following_properties_from_type_1_Colon_2_2739",
-        "Type '{0}' is missing the following properties from type '{1}': {2}",
-    );
-    pub const Type_0_is_missing_the_following_properties_from_type_1_Colon_2_and_3_more: DiagnosticMessage = diag(
+    pub const Type_0_is_missing_the_following_properties_from_type_1_Colon_2: DiagnosticMessage =
+        diag(
+            2739,
+            DiagnosticCategory::Error,
+            "Type_0_is_missing_the_following_properties_from_type_1_Colon_2_2739",
+            "Type '{0}' is missing the following properties from type '{1}': {2}",
+        );
+    pub const Type_0_is_missing_the_following_properties_from_type_1_Colon_2_and_3_more:
+        DiagnosticMessage = diag(
         2740,
         DiagnosticCategory::Error,
         "Type_0_is_missing_the_following_properties_from_type_1_Colon_2_and_3_more_2740",
@@ -4545,7 +4722,8 @@ impl Diagnostics {
         "No_overload_expects_0_type_arguments_but_overloads_do_exist_that_expect_either_1_or_2_type_arguments_2743",
         "No overload expects {0} type arguments, but overloads do exist that expect either {1} or {2} type arguments.",
     );
-    pub const Type_parameter_defaults_can_only_reference_previously_declared_type_parameters: DiagnosticMessage = diag(
+    pub const Type_parameter_defaults_can_only_reference_previously_declared_type_parameters:
+        DiagnosticMessage = diag(
         2744,
         DiagnosticCategory::Error,
         "Type_parameter_defaults_can_only_reference_previously_declared_type_parameters_2744",
@@ -4569,13 +4747,15 @@ impl Diagnostics {
         "_0_components_don_t_accept_text_as_child_elements_Text_in_JSX_has_the_type_string_but_the_expected_t_2747",
         "'{0}' components don't accept text as child elements. Text in JSX has the type 'string', but the expected type of '{1}' is '{2}'.",
     );
-    pub const Cannot_access_ambient_const_enums_when_the_isolatedModules_flag_is_provided: DiagnosticMessage = diag(
+    pub const Cannot_access_ambient_const_enums_when_the_isolatedModules_flag_is_provided:
+        DiagnosticMessage = diag(
         2748,
         DiagnosticCategory::Error,
         "Cannot_access_ambient_const_enums_when_the_isolatedModules_flag_is_provided_2748",
         "Cannot access ambient const enums when the '--isolatedModules' flag is provided.",
     );
-    pub const _0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0: DiagnosticMessage = diag(
+    pub const _0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0:
+        DiagnosticMessage = diag(
         2749,
         DiagnosticCategory::Error,
         "_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0_2749",
@@ -4737,7 +4917,8 @@ impl Diagnostics {
         "Assertions_require_every_name_in_the_call_target_to_be_declared_with_an_explicit_type_annotation_2775",
         "Assertions require every name in the call target to be declared with an explicit type annotation.",
     );
-    pub const Assertions_require_the_call_target_to_be_an_identifier_or_qualified_name: DiagnosticMessage = diag(
+    pub const Assertions_require_the_call_target_to_be_an_identifier_or_qualified_name:
+        DiagnosticMessage = diag(
         2776,
         DiagnosticCategory::Error,
         "Assertions_require_the_call_target_to_be_an_identifier_or_qualified_name_2776",
@@ -4749,7 +4930,8 @@ impl Diagnostics {
         "The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access_2777",
         "The operand of an increment or decrement operator may not be an optional property access.",
     );
-    pub const The_target_of_an_object_rest_assignment_may_not_be_an_optional_property_access: DiagnosticMessage = diag(
+    pub const The_target_of_an_object_rest_assignment_may_not_be_an_optional_property_access:
+        DiagnosticMessage = diag(
         2778,
         DiagnosticCategory::Error,
         "The_target_of_an_object_rest_assignment_may_not_be_an_optional_property_access_2778",
@@ -4761,13 +4943,15 @@ impl Diagnostics {
         "The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access_2779",
         "The left-hand side of an assignment expression may not be an optional property access.",
     );
-    pub const The_left_hand_side_of_a_for_in_statement_may_not_be_an_optional_property_access: DiagnosticMessage = diag(
+    pub const The_left_hand_side_of_a_for_in_statement_may_not_be_an_optional_property_access:
+        DiagnosticMessage = diag(
         2780,
         DiagnosticCategory::Error,
         "The_left_hand_side_of_a_for_in_statement_may_not_be_an_optional_property_access_2780",
         "The left-hand side of a 'for...in' statement may not be an optional property access.",
     );
-    pub const The_left_hand_side_of_a_for_of_statement_may_not_be_an_optional_property_access: DiagnosticMessage = diag(
+    pub const The_left_hand_side_of_a_for_of_statement_may_not_be_an_optional_property_access:
+        DiagnosticMessage = diag(
         2781,
         DiagnosticCategory::Error,
         "The_left_hand_side_of_a_for_of_statement_may_not_be_an_optional_property_access_2781",
@@ -4779,12 +4963,13 @@ impl Diagnostics {
         "_0_needs_an_explicit_type_annotation_2782",
         "'{0}' needs an explicit type annotation.",
     );
-    pub const _0_is_specified_more_than_once_so_this_usage_will_be_overwritten: DiagnosticMessage = diag(
-        2783,
-        DiagnosticCategory::Error,
-        "_0_is_specified_more_than_once_so_this_usage_will_be_overwritten_2783",
-        "'{0}' is specified more than once, so this usage will be overwritten.",
-    );
+    pub const _0_is_specified_more_than_once_so_this_usage_will_be_overwritten: DiagnosticMessage =
+        diag(
+            2783,
+            DiagnosticCategory::Error,
+            "_0_is_specified_more_than_once_so_this_usage_will_be_overwritten_2783",
+            "'{0}' is specified more than once, so this usage will be overwritten.",
+        );
     pub const get_and_set_accessors_cannot_declare_this_parameters: DiagnosticMessage = diag(
         2784,
         DiagnosticCategory::Error,
@@ -4881,13 +5066,15 @@ impl Diagnostics {
         "Type_produces_a_tuple_type_that_is_too_large_to_represent_2799",
         "Type produces a tuple type that is too large to represent.",
     );
-    pub const Expression_produces_a_tuple_type_that_is_too_large_to_represent: DiagnosticMessage = diag(
-        2800,
-        DiagnosticCategory::Error,
-        "Expression_produces_a_tuple_type_that_is_too_large_to_represent_2800",
-        "Expression produces a tuple type that is too large to represent.",
-    );
-    pub const This_condition_will_always_return_true_since_this_0_is_always_defined: DiagnosticMessage = diag(
+    pub const Expression_produces_a_tuple_type_that_is_too_large_to_represent: DiagnosticMessage =
+        diag(
+            2800,
+            DiagnosticCategory::Error,
+            "Expression_produces_a_tuple_type_that_is_too_large_to_represent_2800",
+            "Expression produces a tuple type that is too large to represent.",
+        );
+    pub const This_condition_will_always_return_true_since_this_0_is_always_defined:
+        DiagnosticMessage = diag(
         2801,
         DiagnosticCategory::Error,
         "This_condition_will_always_return_true_since_this_0_is_always_defined_2801",
@@ -4899,7 +5086,8 @@ impl Diagnostics {
         "Type_0_can_only_be_iterated_through_when_using_the_downlevelIteration_flag_or_with_a_target_of_es201_2802",
         "Type '{0}' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.",
     );
-    pub const Cannot_assign_to_private_method_0_Private_methods_are_not_writable: DiagnosticMessage = diag(
+    pub const Cannot_assign_to_private_method_0_Private_methods_are_not_writable:
+        DiagnosticMessage = diag(
         2803,
         DiagnosticCategory::Error,
         "Cannot_assign_to_private_method_0_Private_methods_are_not_writable_2803",
@@ -4965,19 +5153,21 @@ impl Diagnostics {
         "Class_declaration_cannot_implement_overload_list_for_0_2813",
         "Class declaration cannot implement overload list for '{0}'.",
     );
-    pub const Function_with_bodies_can_only_merge_with_classes_that_are_ambient: DiagnosticMessage = diag(
-        2814,
-        DiagnosticCategory::Error,
-        "Function_with_bodies_can_only_merge_with_classes_that_are_ambient_2814",
-        "Function with bodies can only merge with classes that are ambient.",
-    );
+    pub const Function_with_bodies_can_only_merge_with_classes_that_are_ambient: DiagnosticMessage =
+        diag(
+            2814,
+            DiagnosticCategory::Error,
+            "Function_with_bodies_can_only_merge_with_classes_that_are_ambient_2814",
+            "Function with bodies can only merge with classes that are ambient.",
+        );
     pub const arguments_cannot_be_referenced_in_property_initializers: DiagnosticMessage = diag(
         2815,
         DiagnosticCategory::Error,
         "arguments_cannot_be_referenced_in_property_initializers_2815",
         "'arguments' cannot be referenced in property initializers.",
     );
-    pub const Cannot_use_this_in_a_static_property_initializer_of_a_decorated_class: DiagnosticMessage = diag(
+    pub const Cannot_use_this_in_a_static_property_initializer_of_a_decorated_class:
+        DiagnosticMessage = diag(
         2816,
         DiagnosticCategory::Error,
         "Cannot_use_this_in_a_static_property_initializer_of_a_decorated_class_2816",
@@ -5007,13 +5197,15 @@ impl Diagnostics {
         "Type_0_is_not_assignable_to_type_1_Did_you_mean_2_2820",
         "Type '{0}' is not assignable to type '{1}'. Did you mean '{2}'?",
     );
-    pub const Import_assertions_are_only_supported_when_the_module_option_is_set_to_esnext: DiagnosticMessage = diag(
+    pub const Import_assertions_are_only_supported_when_the_module_option_is_set_to_esnext:
+        DiagnosticMessage = diag(
         2821,
         DiagnosticCategory::Error,
         "Import_assertions_are_only_supported_when_the_module_option_is_set_to_esnext_2821",
         "Import assertions are only supported when the '--module' option is set to 'esnext'.",
     );
-    pub const Import_assertions_cannot_be_used_with_type_only_imports_or_exports: DiagnosticMessage = diag(
+    pub const Import_assertions_cannot_be_used_with_type_only_imports_or_exports:
+        DiagnosticMessage = diag(
         2822,
         DiagnosticCategory::Error,
         "Import_assertions_cannot_be_used_with_type_only_imports_or_exports_2822",
@@ -5043,13 +5235,15 @@ impl Diagnostics {
         "Import_declaration_0_is_using_private_name_1_4000",
         "Import declaration '{0}' is using private name '{1}'.",
     );
-    pub const Type_parameter_0_of_exported_class_has_or_is_using_private_name_1: DiagnosticMessage = diag(
-        4002,
-        DiagnosticCategory::Error,
-        "Type_parameter_0_of_exported_class_has_or_is_using_private_name_1_4002",
-        "Type parameter '{0}' of exported class has or is using private name '{1}'.",
-    );
-    pub const Type_parameter_0_of_exported_interface_has_or_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const Type_parameter_0_of_exported_class_has_or_is_using_private_name_1: DiagnosticMessage =
+        diag(
+            4002,
+            DiagnosticCategory::Error,
+            "Type_parameter_0_of_exported_class_has_or_is_using_private_name_1_4002",
+            "Type parameter '{0}' of exported class has or is using private name '{1}'.",
+        );
+    pub const Type_parameter_0_of_exported_interface_has_or_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4004,
         DiagnosticCategory::Error,
         "Type_parameter_0_of_exported_interface_has_or_is_using_private_name_1_4004",
@@ -5085,31 +5279,36 @@ impl Diagnostics {
         "Type_parameter_0_of_method_from_exported_interface_has_or_is_using_private_name_1_4014",
         "Type parameter '{0}' of method from exported interface has or is using private name '{1}'.",
     );
-    pub const Type_parameter_0_of_exported_function_has_or_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const Type_parameter_0_of_exported_function_has_or_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4016,
         DiagnosticCategory::Error,
         "Type_parameter_0_of_exported_function_has_or_is_using_private_name_1_4016",
         "Type parameter '{0}' of exported function has or is using private name '{1}'.",
     );
-    pub const Implements_clause_of_exported_class_0_has_or_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const Implements_clause_of_exported_class_0_has_or_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4019,
         DiagnosticCategory::Error,
         "Implements_clause_of_exported_class_0_has_or_is_using_private_name_1_4019",
         "Implements clause of exported class '{0}' has or is using private name '{1}'.",
     );
-    pub const extends_clause_of_exported_class_0_has_or_is_using_private_name_1: DiagnosticMessage = diag(
-        4020,
-        DiagnosticCategory::Error,
-        "extends_clause_of_exported_class_0_has_or_is_using_private_name_1_4020",
-        "'extends' clause of exported class '{0}' has or is using private name '{1}'.",
-    );
-    pub const extends_clause_of_exported_class_has_or_is_using_private_name_0: DiagnosticMessage = diag(
-        4021,
-        DiagnosticCategory::Error,
-        "extends_clause_of_exported_class_has_or_is_using_private_name_0_4021",
-        "'extends' clause of exported class has or is using private name '{0}'.",
-    );
-    pub const extends_clause_of_exported_interface_0_has_or_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const extends_clause_of_exported_class_0_has_or_is_using_private_name_1: DiagnosticMessage =
+        diag(
+            4020,
+            DiagnosticCategory::Error,
+            "extends_clause_of_exported_class_0_has_or_is_using_private_name_1_4020",
+            "'extends' clause of exported class '{0}' has or is using private name '{1}'.",
+        );
+    pub const extends_clause_of_exported_class_has_or_is_using_private_name_0: DiagnosticMessage =
+        diag(
+            4021,
+            DiagnosticCategory::Error,
+            "extends_clause_of_exported_class_has_or_is_using_private_name_0_4021",
+            "'extends' clause of exported class has or is using private name '{0}'.",
+        );
+    pub const extends_clause_of_exported_interface_0_has_or_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4022,
         DiagnosticCategory::Error,
         "extends_clause_of_exported_interface_0_has_or_is_using_private_name_1_4022",
@@ -5121,12 +5320,13 @@ impl Diagnostics {
         "Exported_variable_0_has_or_is_using_name_1_from_external_module_2_but_cannot_be_named_4023",
         "Exported variable '{0}' has or is using name '{1}' from external module {2} but cannot be named.",
     );
-    pub const Exported_variable_0_has_or_is_using_name_1_from_private_module_2: DiagnosticMessage = diag(
-        4024,
-        DiagnosticCategory::Error,
-        "Exported_variable_0_has_or_is_using_name_1_from_private_module_2_4024",
-        "Exported variable '{0}' has or is using name '{1}' from private module '{2}'.",
-    );
+    pub const Exported_variable_0_has_or_is_using_name_1_from_private_module_2: DiagnosticMessage =
+        diag(
+            4024,
+            DiagnosticCategory::Error,
+            "Exported_variable_0_has_or_is_using_name_1_from_private_module_2_4024",
+            "Exported variable '{0}' has or is using name '{1}' from private module '{2}'.",
+        );
     pub const Exported_variable_0_has_or_is_using_private_name_1: DiagnosticMessage = diag(
         4025,
         DiagnosticCategory::Error,
@@ -5145,7 +5345,8 @@ impl Diagnostics {
         "Public_static_property_0_of_exported_class_has_or_is_using_name_1_from_private_module_2_4027",
         "Public static property '{0}' of exported class has or is using name '{1}' from private module '{2}'.",
     );
-    pub const Public_static_property_0_of_exported_class_has_or_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const Public_static_property_0_of_exported_class_has_or_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4028,
         DiagnosticCategory::Error,
         "Public_static_property_0_of_exported_class_has_or_is_using_private_name_1_4028",
@@ -5163,7 +5364,8 @@ impl Diagnostics {
         "Public_property_0_of_exported_class_has_or_is_using_name_1_from_private_module_2_4030",
         "Public property '{0}' of exported class has or is using name '{1}' from private module '{2}'.",
     );
-    pub const Public_property_0_of_exported_class_has_or_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const Public_property_0_of_exported_class_has_or_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4031,
         DiagnosticCategory::Error,
         "Public_property_0_of_exported_class_has_or_is_using_private_name_1_4031",
@@ -5175,12 +5377,13 @@ impl Diagnostics {
         "Property_0_of_exported_interface_has_or_is_using_name_1_from_private_module_2_4032",
         "Property '{0}' of exported interface has or is using name '{1}' from private module '{2}'.",
     );
-    pub const Property_0_of_exported_interface_has_or_is_using_private_name_1: DiagnosticMessage = diag(
-        4033,
-        DiagnosticCategory::Error,
-        "Property_0_of_exported_interface_has_or_is_using_private_name_1_4033",
-        "Property '{0}' of exported interface has or is using private name '{1}'.",
-    );
+    pub const Property_0_of_exported_interface_has_or_is_using_private_name_1: DiagnosticMessage =
+        diag(
+            4033,
+            DiagnosticCategory::Error,
+            "Property_0_of_exported_interface_has_or_is_using_private_name_1_4033",
+            "Property '{0}' of exported interface has or is using private name '{1}'.",
+        );
     pub const Parameter_type_of_public_static_setter_0_from_exported_class_has_or_is_using_name_1_from_private_module_2: DiagnosticMessage = diag(
         4034,
         DiagnosticCategory::Error,
@@ -5307,7 +5510,8 @@ impl Diagnostics {
         "Return_type_of_public_method_from_exported_class_has_or_is_using_name_0_from_private_module_1_4054",
         "Return type of public method from exported class has or is using name '{0}' from private module '{1}'.",
     );
-    pub const Return_type_of_public_method_from_exported_class_has_or_is_using_private_name_0: DiagnosticMessage = diag(
+    pub const Return_type_of_public_method_from_exported_class_has_or_is_using_private_name_0:
+        DiagnosticMessage = diag(
         4055,
         DiagnosticCategory::Error,
         "Return_type_of_public_method_from_exported_class_has_or_is_using_private_name_0_4055",
@@ -5319,7 +5523,8 @@ impl Diagnostics {
         "Return_type_of_method_from_exported_interface_has_or_is_using_name_0_from_private_module_1_4056",
         "Return type of method from exported interface has or is using name '{0}' from private module '{1}'.",
     );
-    pub const Return_type_of_method_from_exported_interface_has_or_is_using_private_name_0: DiagnosticMessage = diag(
+    pub const Return_type_of_method_from_exported_interface_has_or_is_using_private_name_0:
+        DiagnosticMessage = diag(
         4057,
         DiagnosticCategory::Error,
         "Return_type_of_method_from_exported_interface_has_or_is_using_private_name_0_4057",
@@ -5331,18 +5536,20 @@ impl Diagnostics {
         "Return_type_of_exported_function_has_or_is_using_name_0_from_external_module_1_but_cannot_be_named_4058",
         "Return type of exported function has or is using name '{0}' from external module {1} but cannot be named.",
     );
-    pub const Return_type_of_exported_function_has_or_is_using_name_0_from_private_module_1: DiagnosticMessage = diag(
+    pub const Return_type_of_exported_function_has_or_is_using_name_0_from_private_module_1:
+        DiagnosticMessage = diag(
         4059,
         DiagnosticCategory::Error,
         "Return_type_of_exported_function_has_or_is_using_name_0_from_private_module_1_4059",
         "Return type of exported function has or is using name '{0}' from private module '{1}'.",
     );
-    pub const Return_type_of_exported_function_has_or_is_using_private_name_0: DiagnosticMessage = diag(
-        4060,
-        DiagnosticCategory::Error,
-        "Return_type_of_exported_function_has_or_is_using_private_name_0_4060",
-        "Return type of exported function has or is using private name '{0}'.",
-    );
+    pub const Return_type_of_exported_function_has_or_is_using_private_name_0: DiagnosticMessage =
+        diag(
+            4060,
+            DiagnosticCategory::Error,
+            "Return_type_of_exported_function_has_or_is_using_private_name_0_4060",
+            "Return type of exported function has or is using private name '{0}'.",
+        );
     pub const Parameter_0_of_constructor_from_exported_class_has_or_is_using_name_1_from_external_module_2_but_cannot_be_named: DiagnosticMessage = diag(
         4061,
         DiagnosticCategory::Error,
@@ -5355,7 +5562,8 @@ impl Diagnostics {
         "Parameter_0_of_constructor_from_exported_class_has_or_is_using_name_1_from_private_module_2_4062",
         "Parameter '{0}' of constructor from exported class has or is using name '{1}' from private module '{2}'.",
     );
-    pub const Parameter_0_of_constructor_from_exported_class_has_or_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const Parameter_0_of_constructor_from_exported_class_has_or_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4063,
         DiagnosticCategory::Error,
         "Parameter_0_of_constructor_from_exported_class_has_or_is_using_private_name_1_4063",
@@ -5415,7 +5623,8 @@ impl Diagnostics {
         "Parameter_0_of_public_method_from_exported_class_has_or_is_using_name_1_from_private_module_2_4072",
         "Parameter '{0}' of public method from exported class has or is using name '{1}' from private module '{2}'.",
     );
-    pub const Parameter_0_of_public_method_from_exported_class_has_or_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const Parameter_0_of_public_method_from_exported_class_has_or_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4073,
         DiagnosticCategory::Error,
         "Parameter_0_of_public_method_from_exported_class_has_or_is_using_private_name_1_4073",
@@ -5427,7 +5636,8 @@ impl Diagnostics {
         "Parameter_0_of_method_from_exported_interface_has_or_is_using_name_1_from_private_module_2_4074",
         "Parameter '{0}' of method from exported interface has or is using name '{1}' from private module '{2}'.",
     );
-    pub const Parameter_0_of_method_from_exported_interface_has_or_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const Parameter_0_of_method_from_exported_interface_has_or_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4075,
         DiagnosticCategory::Error,
         "Parameter_0_of_method_from_exported_interface_has_or_is_using_private_name_1_4075",
@@ -5445,12 +5655,13 @@ impl Diagnostics {
         "Parameter_0_of_exported_function_has_or_is_using_name_1_from_private_module_2_4077",
         "Parameter '{0}' of exported function has or is using name '{1}' from private module '{2}'.",
     );
-    pub const Parameter_0_of_exported_function_has_or_is_using_private_name_1: DiagnosticMessage = diag(
-        4078,
-        DiagnosticCategory::Error,
-        "Parameter_0_of_exported_function_has_or_is_using_private_name_1_4078",
-        "Parameter '{0}' of exported function has or is using private name '{1}'.",
-    );
+    pub const Parameter_0_of_exported_function_has_or_is_using_private_name_1: DiagnosticMessage =
+        diag(
+            4078,
+            DiagnosticCategory::Error,
+            "Parameter_0_of_exported_function_has_or_is_using_private_name_1_4078",
+            "Parameter '{0}' of exported function has or is using private name '{1}'.",
+        );
     pub const Exported_type_alias_0_has_or_is_using_private_name_1: DiagnosticMessage = diag(
         4081,
         DiagnosticCategory::Error,
@@ -5463,13 +5674,15 @@ impl Diagnostics {
         "Default_export_of_the_module_has_or_is_using_private_name_0_4082",
         "Default export of the module has or is using private name '{0}'.",
     );
-    pub const Type_parameter_0_of_exported_type_alias_has_or_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const Type_parameter_0_of_exported_type_alias_has_or_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4083,
         DiagnosticCategory::Error,
         "Type_parameter_0_of_exported_type_alias_has_or_is_using_private_name_1_4083",
         "Type parameter '{0}' of exported type alias has or is using private name '{1}'.",
     );
-    pub const Exported_type_alias_0_has_or_is_using_private_name_1_from_module_2: DiagnosticMessage = diag(
+    pub const Exported_type_alias_0_has_or_is_using_private_name_1_from_module_2:
+        DiagnosticMessage = diag(
         4084,
         DiagnosticCategory::Error,
         "Exported_type_alias_0_has_or_is_using_private_name_1_from_module_2_4084",
@@ -5493,7 +5706,8 @@ impl Diagnostics {
         "Parameter_0_of_index_signature_from_exported_interface_has_or_is_using_private_name_1_4092",
         "Parameter '{0}' of index signature from exported interface has or is using private name '{1}'.",
     );
-    pub const Property_0_of_exported_class_expression_may_not_be_private_or_protected: DiagnosticMessage = diag(
+    pub const Property_0_of_exported_class_expression_may_not_be_private_or_protected:
+        DiagnosticMessage = diag(
         4094,
         DiagnosticCategory::Error,
         "Property_0_of_exported_class_expression_may_not_be_private_or_protected_4094",
@@ -5511,7 +5725,8 @@ impl Diagnostics {
         "Public_static_method_0_of_exported_class_has_or_is_using_name_1_from_private_module_2_4096",
         "Public static method '{0}' of exported class has or is using name '{1}' from private module '{2}'.",
     );
-    pub const Public_static_method_0_of_exported_class_has_or_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const Public_static_method_0_of_exported_class_has_or_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4097,
         DiagnosticCategory::Error,
         "Public_static_method_0_of_exported_class_has_or_is_using_private_name_1_4097",
@@ -5529,37 +5744,43 @@ impl Diagnostics {
         "Public_method_0_of_exported_class_has_or_is_using_name_1_from_private_module_2_4099",
         "Public method '{0}' of exported class has or is using name '{1}' from private module '{2}'.",
     );
-    pub const Public_method_0_of_exported_class_has_or_is_using_private_name_1: DiagnosticMessage = diag(
-        4100,
-        DiagnosticCategory::Error,
-        "Public_method_0_of_exported_class_has_or_is_using_private_name_1_4100",
-        "Public method '{0}' of exported class has or is using private name '{1}'.",
-    );
-    pub const Method_0_of_exported_interface_has_or_is_using_name_1_from_private_module_2: DiagnosticMessage = diag(
+    pub const Public_method_0_of_exported_class_has_or_is_using_private_name_1: DiagnosticMessage =
+        diag(
+            4100,
+            DiagnosticCategory::Error,
+            "Public_method_0_of_exported_class_has_or_is_using_private_name_1_4100",
+            "Public method '{0}' of exported class has or is using private name '{1}'.",
+        );
+    pub const Method_0_of_exported_interface_has_or_is_using_name_1_from_private_module_2:
+        DiagnosticMessage = diag(
         4101,
         DiagnosticCategory::Error,
         "Method_0_of_exported_interface_has_or_is_using_name_1_from_private_module_2_4101",
         "Method '{0}' of exported interface has or is using name '{1}' from private module '{2}'.",
     );
-    pub const Method_0_of_exported_interface_has_or_is_using_private_name_1: DiagnosticMessage = diag(
-        4102,
-        DiagnosticCategory::Error,
-        "Method_0_of_exported_interface_has_or_is_using_private_name_1_4102",
-        "Method '{0}' of exported interface has or is using private name '{1}'.",
-    );
-    pub const Type_parameter_0_of_exported_mapped_object_type_is_using_private_name_1: DiagnosticMessage = diag(
+    pub const Method_0_of_exported_interface_has_or_is_using_private_name_1: DiagnosticMessage =
+        diag(
+            4102,
+            DiagnosticCategory::Error,
+            "Method_0_of_exported_interface_has_or_is_using_private_name_1_4102",
+            "Method '{0}' of exported interface has or is using private name '{1}'.",
+        );
+    pub const Type_parameter_0_of_exported_mapped_object_type_is_using_private_name_1:
+        DiagnosticMessage = diag(
         4103,
         DiagnosticCategory::Error,
         "Type_parameter_0_of_exported_mapped_object_type_is_using_private_name_1_4103",
         "Type parameter '{0}' of exported mapped object type is using private name '{1}'.",
     );
-    pub const The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1: DiagnosticMessage = diag(
+    pub const The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1:
+        DiagnosticMessage = diag(
         4104,
         DiagnosticCategory::Error,
         "The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1_4104",
         "The type '{0}' is 'readonly' and cannot be assigned to the mutable type '{1}'.",
     );
-    pub const Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter: DiagnosticMessage = diag(
+    pub const Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter:
+        DiagnosticMessage = diag(
         4105,
         DiagnosticCategory::Error,
         "Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter_4105",
@@ -5571,7 +5792,8 @@ impl Diagnostics {
         "Parameter_0_of_accessor_has_or_is_using_private_name_1_4106",
         "Parameter '{0}' of accessor has or is using private name '{1}'.",
     );
-    pub const Parameter_0_of_accessor_has_or_is_using_name_1_from_private_module_2: DiagnosticMessage = diag(
+    pub const Parameter_0_of_accessor_has_or_is_using_name_1_from_private_module_2:
+        DiagnosticMessage = diag(
         4107,
         DiagnosticCategory::Error,
         "Parameter_0_of_accessor_has_or_is_using_name_1_from_private_module_2_4107",
@@ -5595,7 +5817,8 @@ impl Diagnostics {
         "Tuple_type_arguments_circularly_reference_themselves_4110",
         "Tuple type arguments circularly reference themselves.",
     );
-    pub const Property_0_comes_from_an_index_signature_so_it_must_be_accessed_with_0: DiagnosticMessage = diag(
+    pub const Property_0_comes_from_an_index_signature_so_it_must_be_accessed_with_0:
+        DiagnosticMessage = diag(
         4111,
         DiagnosticCategory::Error,
         "Property_0_comes_from_an_index_signature_so_it_must_be_accessed_with_0_4111",
@@ -5685,12 +5908,13 @@ impl Diagnostics {
         "The_current_host_does_not_support_the_0_option_5001",
         "The current host does not support the '{0}' option.",
     );
-    pub const Cannot_find_the_common_subdirectory_path_for_the_input_files: DiagnosticMessage = diag(
-        5009,
-        DiagnosticCategory::Error,
-        "Cannot_find_the_common_subdirectory_path_for_the_input_files_5009",
-        "Cannot find the common subdirectory path for the input files.",
-    );
+    pub const Cannot_find_the_common_subdirectory_path_for_the_input_files: DiagnosticMessage =
+        diag(
+            5009,
+            DiagnosticCategory::Error,
+            "Cannot_find_the_common_subdirectory_path_for_the_input_files_5009",
+            "Cannot find the common subdirectory path for the input files.",
+        );
     pub const File_specification_cannot_end_in_a_recursive_directory_wildcard_Asterisk_Asterisk_Colon_0: DiagnosticMessage = diag(
         5010,
         DiagnosticCategory::Error,
@@ -5733,7 +5957,8 @@ impl Diagnostics {
         "Could_not_write_file_0_Colon_1_5033",
         "Could not write file '{0}': {1}.",
     );
-    pub const Option_project_cannot_be_mixed_with_source_files_on_a_command_line: DiagnosticMessage = diag(
+    pub const Option_project_cannot_be_mixed_with_source_files_on_a_command_line:
+        DiagnosticMessage = diag(
         5042,
         DiagnosticCategory::Error,
         "Option_project_cannot_be_mixed_with_source_files_on_a_command_line_5042",
@@ -5781,13 +6006,15 @@ impl Diagnostics {
         "Cannot_write_file_0_because_it_would_overwrite_input_file_5055",
         "Cannot write file '{0}' because it would overwrite input file.",
     );
-    pub const Cannot_write_file_0_because_it_would_be_overwritten_by_multiple_input_files: DiagnosticMessage = diag(
+    pub const Cannot_write_file_0_because_it_would_be_overwritten_by_multiple_input_files:
+        DiagnosticMessage = diag(
         5056,
         DiagnosticCategory::Error,
         "Cannot_write_file_0_because_it_would_be_overwritten_by_multiple_input_files_5056",
         "Cannot write file '{0}' because it would be overwritten by multiple input files.",
     );
-    pub const Cannot_find_a_tsconfig_json_file_at_the_specified_directory_Colon_0: DiagnosticMessage = diag(
+    pub const Cannot_find_a_tsconfig_json_file_at_the_specified_directory_Colon_0:
+        DiagnosticMessage = diag(
         5057,
         DiagnosticCategory::Error,
         "Cannot_find_a_tsconfig_json_file_at_the_specified_directory_Colon_0_5057",
@@ -5799,19 +6026,21 @@ impl Diagnostics {
         "The_specified_path_does_not_exist_Colon_0_5058",
         "The specified path does not exist: '{0}'.",
     );
-    pub const Invalid_value_for_reactNamespace_0_is_not_a_valid_identifier: DiagnosticMessage = diag(
-        5059,
-        DiagnosticCategory::Error,
-        "Invalid_value_for_reactNamespace_0_is_not_a_valid_identifier_5059",
-        "Invalid value for '--reactNamespace'. '{0}' is not a valid identifier.",
-    );
+    pub const Invalid_value_for_reactNamespace_0_is_not_a_valid_identifier: DiagnosticMessage =
+        diag(
+            5059,
+            DiagnosticCategory::Error,
+            "Invalid_value_for_reactNamespace_0_is_not_a_valid_identifier_5059",
+            "Invalid value for '--reactNamespace'. '{0}' is not a valid identifier.",
+        );
     pub const Pattern_0_can_have_at_most_one_Asterisk_character: DiagnosticMessage = diag(
         5061,
         DiagnosticCategory::Error,
         "Pattern_0_can_have_at_most_one_Asterisk_character_5061",
         "Pattern '{0}' can have at most one '*' character.",
     );
-    pub const Substitution_0_in_pattern_1_can_have_at_most_one_Asterisk_character: DiagnosticMessage = diag(
+    pub const Substitution_0_in_pattern_1_can_have_at_most_one_Asterisk_character:
+        DiagnosticMessage = diag(
         5062,
         DiagnosticCategory::Error,
         "Substitution_0_in_pattern_1_can_have_at_most_one_Asterisk_character_5062",
@@ -5823,7 +6052,8 @@ impl Diagnostics {
         "Substitutions_for_pattern_0_should_be_an_array_5063",
         "Substitutions for pattern '{0}' should be an array.",
     );
-    pub const Substitution_0_for_pattern_1_has_incorrect_type_expected_string_got_2: DiagnosticMessage = diag(
+    pub const Substitution_0_for_pattern_1_has_incorrect_type_expected_string_got_2:
+        DiagnosticMessage = diag(
         5064,
         DiagnosticCategory::Error,
         "Substitution_0_for_pattern_1_has_incorrect_type_expected_string_got_2_5064",
@@ -5841,7 +6071,8 @@ impl Diagnostics {
         "Substitutions_for_pattern_0_shouldn_t_be_an_empty_array_5066",
         "Substitutions for pattern '{0}' shouldn't be an empty array.",
     );
-    pub const Invalid_value_for_jsxFactory_0_is_not_a_valid_identifier_or_qualified_name: DiagnosticMessage = diag(
+    pub const Invalid_value_for_jsxFactory_0_is_not_a_valid_identifier_or_qualified_name:
+        DiagnosticMessage = diag(
         5067,
         DiagnosticCategory::Error,
         "Invalid_value_for_jsxFactory_0_is_not_a_valid_identifier_or_qualified_name_5067",
@@ -5853,7 +6084,8 @@ impl Diagnostics {
         "Adding_a_tsconfig_json_file_will_help_organize_projects_that_contain_both_TypeScript_and_JavaScript__5068",
         "Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
     );
-    pub const Option_0_cannot_be_specified_without_specifying_option_1_or_option_2: DiagnosticMessage = diag(
+    pub const Option_0_cannot_be_specified_without_specifying_option_1_or_option_2:
+        DiagnosticMessage = diag(
         5069,
         DiagnosticCategory::Error,
         "Option_0_cannot_be_specified_without_specifying_option_1_or_option_2_5069",
@@ -5925,13 +6157,15 @@ impl Diagnostics {
         "Watch_option_0_requires_a_value_of_type_1_5080",
         "Watch option '{0}' requires a value of type {1}.",
     );
-    pub const Cannot_find_a_tsconfig_json_file_at_the_current_directory_Colon_0: DiagnosticMessage = diag(
-        5081,
-        DiagnosticCategory::Error,
-        "Cannot_find_a_tsconfig_json_file_at_the_current_directory_Colon_0_5081",
-        "Cannot find a tsconfig.json file at the current directory: {0}.",
-    );
-    pub const _0_could_be_instantiated_with_an_arbitrary_type_which_could_be_unrelated_to_1: DiagnosticMessage = diag(
+    pub const Cannot_find_a_tsconfig_json_file_at_the_current_directory_Colon_0: DiagnosticMessage =
+        diag(
+            5081,
+            DiagnosticCategory::Error,
+            "Cannot_find_a_tsconfig_json_file_at_the_current_directory_Colon_0_5081",
+            "Cannot find a tsconfig.json file at the current directory: {0}.",
+        );
+    pub const _0_could_be_instantiated_with_an_arbitrary_type_which_could_be_unrelated_to_1:
+        DiagnosticMessage = diag(
         5082,
         DiagnosticCategory::Error,
         "_0_could_be_instantiated_with_an_arbitrary_type_which_could_be_unrelated_to_1_5082",
@@ -5985,7 +6219,8 @@ impl Diagnostics {
         "Non_relative_paths_are_not_allowed_when_baseUrl_is_not_set_Did_you_forget_a_leading_Slash_5090",
         "Non-relative paths are not allowed when 'baseUrl' is not set. Did you forget a leading './'?",
     );
-    pub const Option_preserveConstEnums_cannot_be_disabled_when_isolatedModules_is_enabled: DiagnosticMessage = diag(
+    pub const Option_preserveConstEnums_cannot_be_disabled_when_isolatedModules_is_enabled:
+        DiagnosticMessage = diag(
         5091,
         DiagnosticCategory::Error,
         "Option_preserveConstEnums_cannot_be_disabled_when_isolatedModules_is_enabled_5091",
@@ -6009,7 +6244,8 @@ impl Diagnostics {
         "Compiler_option_0_may_not_be_used_with_build_5094",
         "Compiler option '--{0}' may not be used with '--build'.",
     );
-    pub const Option_preserveValueImports_can_only_be_used_when_module_is_set_to_es2015_or_later: DiagnosticMessage = diag(
+    pub const Option_preserveValueImports_can_only_be_used_when_module_is_set_to_es2015_or_later:
+        DiagnosticMessage = diag(
         5095,
         DiagnosticCategory::Error,
         "Option_preserveValueImports_can_only_be_used_when_module_is_set_to_es2015_or_later_5095",
@@ -6135,18 +6371,10 @@ impl Diagnostics {
         "Syntax_Colon_0_6023",
         "Syntax: {0}",
     );
-    pub const options: DiagnosticMessage = diag(
-        6024,
-        DiagnosticCategory::Message,
-        "options_6024",
-        "options",
-    );
-    pub const file: DiagnosticMessage = diag(
-        6025,
-        DiagnosticCategory::Message,
-        "file_6025",
-        "file",
-    );
+    pub const options: DiagnosticMessage =
+        diag(6024, DiagnosticCategory::Message, "options_6024", "options");
+    pub const file: DiagnosticMessage =
+        diag(6025, DiagnosticCategory::Message, "file_6025", "file");
     pub const Examples_Colon_0: DiagnosticMessage = diag(
         6026,
         DiagnosticCategory::Message,
@@ -6183,24 +6411,12 @@ impl Diagnostics {
         "File_change_detected_Starting_incremental_compilation_6032",
         "File change detected. Starting incremental compilation...",
     );
-    pub const KIND: DiagnosticMessage = diag(
-        6034,
-        DiagnosticCategory::Message,
-        "KIND_6034",
-        "KIND",
-    );
-    pub const FILE: DiagnosticMessage = diag(
-        6035,
-        DiagnosticCategory::Message,
-        "FILE_6035",
-        "FILE",
-    );
-    pub const VERSION: DiagnosticMessage = diag(
-        6036,
-        DiagnosticCategory::Message,
-        "VERSION_6036",
-        "VERSION",
-    );
+    pub const KIND: DiagnosticMessage =
+        diag(6034, DiagnosticCategory::Message, "KIND_6034", "KIND");
+    pub const FILE: DiagnosticMessage =
+        diag(6035, DiagnosticCategory::Message, "FILE_6035", "FILE");
+    pub const VERSION: DiagnosticMessage =
+        diag(6036, DiagnosticCategory::Message, "VERSION_6036", "VERSION");
     pub const LOCATION: DiagnosticMessage = diag(
         6037,
         DiagnosticCategory::Message,
@@ -6267,7 +6483,8 @@ impl Diagnostics {
         "Corrupted_locale_file_0_6051",
         "Corrupted locale file {0}.",
     );
-    pub const Raise_error_on_expressions_and_declarations_with_an_implied_any_type: DiagnosticMessage = diag(
+    pub const Raise_error_on_expressions_and_declarations_with_an_implied_any_type:
+        DiagnosticMessage = diag(
         6052,
         DiagnosticCategory::Message,
         "Raise_error_on_expressions_and_declarations_with_an_implied_any_type_6052",
@@ -6279,24 +6496,27 @@ impl Diagnostics {
         "File_0_not_found_6053",
         "File '{0}' not found.",
     );
-    pub const File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1: DiagnosticMessage = diag(
+    pub const File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1:
+        DiagnosticMessage = diag(
         6054,
         DiagnosticCategory::Error,
         "File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1_6054",
         "File '{0}' has an unsupported extension. The only supported extensions are {1}.",
     );
-    pub const Suppress_noImplicitAny_errors_for_indexing_objects_lacking_index_signatures: DiagnosticMessage = diag(
+    pub const Suppress_noImplicitAny_errors_for_indexing_objects_lacking_index_signatures:
+        DiagnosticMessage = diag(
         6055,
         DiagnosticCategory::Message,
         "Suppress_noImplicitAny_errors_for_indexing_objects_lacking_index_signatures_6055",
         "Suppress noImplicitAny errors for indexing objects lacking index signatures.",
     );
-    pub const Do_not_emit_declarations_for_code_that_has_an_internal_annotation: DiagnosticMessage = diag(
-        6056,
-        DiagnosticCategory::Message,
-        "Do_not_emit_declarations_for_code_that_has_an_internal_annotation_6056",
-        "Do not emit declarations for code that has an '@internal' annotation.",
-    );
+    pub const Do_not_emit_declarations_for_code_that_has_an_internal_annotation: DiagnosticMessage =
+        diag(
+            6056,
+            DiagnosticCategory::Message,
+            "Do_not_emit_declarations_for_code_that_has_an_internal_annotation_6056",
+            "Do not emit declarations for code that has an '@internal' annotation.",
+        );
     pub const Specify_the_root_directory_of_input_files_Use_to_control_the_output_directory_structure_with_outDir: DiagnosticMessage = diag(
         6058,
         DiagnosticCategory::Message,
@@ -6315,12 +6535,8 @@ impl Diagnostics {
         "Specify_the_end_of_line_sequence_to_be_used_when_emitting_files_Colon_CRLF_dos_or_LF_unix_6060",
         "Specify the end of line sequence to be used when emitting files: 'CRLF' (dos) or 'LF' (unix).",
     );
-    pub const NEWLINE: DiagnosticMessage = diag(
-        6061,
-        DiagnosticCategory::Message,
-        "NEWLINE_6061",
-        "NEWLINE",
-    );
+    pub const NEWLINE: DiagnosticMessage =
+        diag(6061, DiagnosticCategory::Message, "NEWLINE_6061", "NEWLINE");
     pub const Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line: DiagnosticMessage = diag(
         6064,
         DiagnosticCategory::Error,
@@ -6333,7 +6549,8 @@ impl Diagnostics {
         "Enables_experimental_support_for_ES7_decorators_6065",
         "Enables experimental support for ES7 decorators.",
     );
-    pub const Enables_experimental_support_for_emitting_type_metadata_for_decorators: DiagnosticMessage = diag(
+    pub const Enables_experimental_support_for_emitting_type_metadata_for_decorators:
+        DiagnosticMessage = diag(
         6066,
         DiagnosticCategory::Message,
         "Enables_experimental_support_for_emitting_type_metadata_for_decorators_6066",
@@ -6345,12 +6562,13 @@ impl Diagnostics {
         "Specify_module_resolution_strategy_Colon_node_Node_js_or_classic_TypeScript_pre_1_6_6069",
         "Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6).",
     );
-    pub const Initializes_a_TypeScript_project_and_creates_a_tsconfig_json_file: DiagnosticMessage = diag(
-        6070,
-        DiagnosticCategory::Message,
-        "Initializes_a_TypeScript_project_and_creates_a_tsconfig_json_file_6070",
-        "Initializes a TypeScript project and creates a tsconfig.json file.",
-    );
+    pub const Initializes_a_TypeScript_project_and_creates_a_tsconfig_json_file: DiagnosticMessage =
+        diag(
+            6070,
+            DiagnosticCategory::Message,
+            "Initializes_a_TypeScript_project_and_creates_a_tsconfig_json_file_6070",
+            "Initializes a TypeScript project and creates a tsconfig.json file.",
+        );
     pub const Successfully_created_a_tsconfig_json_file: DiagnosticMessage = diag(
         6071,
         DiagnosticCategory::Message,
@@ -6363,24 +6581,26 @@ impl Diagnostics {
         "Suppress_excess_property_checks_for_object_literals_6072",
         "Suppress excess property checks for object literals.",
     );
-    pub const Stylize_errors_and_messages_using_color_and_context_experimental: DiagnosticMessage = diag(
-        6073,
-        DiagnosticCategory::Message,
-        "Stylize_errors_and_messages_using_color_and_context_experimental_6073",
-        "Stylize errors and messages using color and context (experimental).",
-    );
+    pub const Stylize_errors_and_messages_using_color_and_context_experimental: DiagnosticMessage =
+        diag(
+            6073,
+            DiagnosticCategory::Message,
+            "Stylize_errors_and_messages_using_color_and_context_experimental_6073",
+            "Stylize errors and messages using color and context (experimental).",
+        );
     pub const Do_not_report_errors_on_unused_labels: DiagnosticMessage = diag(
         6074,
         DiagnosticCategory::Message,
         "Do_not_report_errors_on_unused_labels_6074",
         "Do not report errors on unused labels.",
     );
-    pub const Report_error_when_not_all_code_paths_in_function_return_a_value: DiagnosticMessage = diag(
-        6075,
-        DiagnosticCategory::Message,
-        "Report_error_when_not_all_code_paths_in_function_return_a_value_6075",
-        "Report error when not all code paths in function return a value.",
-    );
+    pub const Report_error_when_not_all_code_paths_in_function_return_a_value: DiagnosticMessage =
+        diag(
+            6075,
+            DiagnosticCategory::Message,
+            "Report_error_when_not_all_code_paths_in_function_return_a_value_6075",
+            "Report error when not all code paths in function return a value.",
+        );
     pub const Report_errors_for_fallthrough_cases_in_switch_statement: DiagnosticMessage = diag(
         6076,
         DiagnosticCategory::Message,
@@ -6471,7 +6691,8 @@ impl Diagnostics {
         "Module_name_0_was_not_resolved_6090",
         "======== Module name '{0}' was not resolved. ========",
     );
-    pub const paths_option_is_specified_looking_for_a_pattern_to_match_module_name_0: DiagnosticMessage = diag(
+    pub const paths_option_is_specified_looking_for_a_pattern_to_match_module_name_0:
+        DiagnosticMessage = diag(
         6091,
         DiagnosticCategory::Message,
         "paths_option_is_specified_looking_for_a_pattern_to_match_module_name_0_6091",
@@ -6495,7 +6716,8 @@ impl Diagnostics {
         "Resolving_module_name_0_relative_to_base_url_1_2_6094",
         "Resolving module name '{0}' relative to base url '{1}' - '{2}'.",
     );
-    pub const Loading_module_as_file_Slash_folder_candidate_module_location_0_target_file_type_1: DiagnosticMessage = diag(
+    pub const Loading_module_as_file_Slash_folder_candidate_module_location_0_target_file_type_1:
+        DiagnosticMessage = diag(
         6095,
         DiagnosticCategory::Message,
         "Loading_module_as_file_Slash_folder_candidate_module_location_0_target_file_type_1_6095",
@@ -6513,12 +6735,13 @@ impl Diagnostics {
         "File_0_exist_use_it_as_a_name_resolution_result_6097",
         "File '{0}' exist - use it as a name resolution result.",
     );
-    pub const Loading_module_0_from_node_modules_folder_target_file_type_1: DiagnosticMessage = diag(
-        6098,
-        DiagnosticCategory::Message,
-        "Loading_module_0_from_node_modules_folder_target_file_type_1_6098",
-        "Loading module '{0}' from 'node_modules' folder, target file type '{1}'.",
-    );
+    pub const Loading_module_0_from_node_modules_folder_target_file_type_1: DiagnosticMessage =
+        diag(
+            6098,
+            DiagnosticCategory::Message,
+            "Loading_module_0_from_node_modules_folder_target_file_type_1_6098",
+            "Loading module '{0}' from 'node_modules' folder, target file type '{1}'.",
+        );
     pub const Found_package_json_at_0: DiagnosticMessage = diag(
         6099,
         DiagnosticCategory::Message,
@@ -6561,12 +6784,13 @@ impl Diagnostics {
         "baseUrl_option_is_set_to_0_using_this_value_to_resolve_non_relative_module_name_1_6106",
         "'baseUrl' option is set to '{0}', using this value to resolve non-relative module name '{1}'.",
     );
-    pub const rootDirs_option_is_set_using_it_to_resolve_relative_module_name_0: DiagnosticMessage = diag(
-        6107,
-        DiagnosticCategory::Message,
-        "rootDirs_option_is_set_using_it_to_resolve_relative_module_name_0_6107",
-        "'rootDirs' option is set, using it to resolve relative module name '{0}'.",
-    );
+    pub const rootDirs_option_is_set_using_it_to_resolve_relative_module_name_0: DiagnosticMessage =
+        diag(
+            6107,
+            DiagnosticCategory::Message,
+            "rootDirs_option_is_set_using_it_to_resolve_relative_module_name_0_6107",
+            "'rootDirs' option is set, using it to resolve relative module name '{0}'.",
+        );
     pub const Longest_matching_prefix_for_0_is_1: DiagnosticMessage = diag(
         6108,
         DiagnosticCategory::Message,
@@ -6639,12 +6863,13 @@ impl Diagnostics {
         "Resolving_with_primary_search_path_0_6121",
         "Resolving with primary search path '{0}'.",
     );
-    pub const Root_directory_cannot_be_determined_skipping_primary_search_paths: DiagnosticMessage = diag(
-        6122,
-        DiagnosticCategory::Message,
-        "Root_directory_cannot_be_determined_skipping_primary_search_paths_6122",
-        "Root directory cannot be determined, skipping primary search paths.",
-    );
+    pub const Root_directory_cannot_be_determined_skipping_primary_search_paths: DiagnosticMessage =
+        diag(
+            6122,
+            DiagnosticCategory::Message,
+            "Root_directory_cannot_be_determined_skipping_primary_search_paths_6122",
+            "Root directory cannot be determined, skipping primary search paths.",
+        );
     pub const Resolving_type_reference_directive_0_containing_file_1_root_directory_not_set: DiagnosticMessage = diag(
         6123,
         DiagnosticCategory::Message,
@@ -6723,7 +6948,8 @@ impl Diagnostics {
         "The_maximum_dependency_depth_to_search_under_node_modules_and_load_JavaScript_files_6136",
         "The maximum dependency depth to search under node_modules and load JavaScript files.",
     );
-    pub const Cannot_import_type_declaration_files_Consider_importing_0_instead_of_1: DiagnosticMessage = diag(
+    pub const Cannot_import_type_declaration_files_Consider_importing_0_instead_of_1:
+        DiagnosticMessage = diag(
         6137,
         DiagnosticCategory::Error,
         "Cannot_import_type_declaration_files_Consider_importing_0_instead_of_1_6137",
@@ -6747,19 +6973,21 @@ impl Diagnostics {
         "Auto_discovery_for_typings_is_enabled_in_project_0_Running_extra_resolution_pass_for_module_1_using__6140",
         "Auto discovery for typings is enabled in project '{0}'. Running extra resolution pass for module '{1}' using cache location '{2}'.",
     );
-    pub const Parse_in_strict_mode_and_emit_use_strict_for_each_source_file: DiagnosticMessage = diag(
-        6141,
-        DiagnosticCategory::Message,
-        "Parse_in_strict_mode_and_emit_use_strict_for_each_source_file_6141",
-        "Parse in strict mode and emit \"use strict\" for each source file.",
-    );
+    pub const Parse_in_strict_mode_and_emit_use_strict_for_each_source_file: DiagnosticMessage =
+        diag(
+            6141,
+            DiagnosticCategory::Message,
+            "Parse_in_strict_mode_and_emit_use_strict_for_each_source_file_6141",
+            "Parse in strict mode and emit \"use strict\" for each source file.",
+        );
     pub const Module_0_was_resolved_to_1_but_jsx_is_not_set: DiagnosticMessage = diag(
         6142,
         DiagnosticCategory::Error,
         "Module_0_was_resolved_to_1_but_jsx_is_not_set_6142",
         "Module '{0}' was resolved to '{1}', but '--jsx' is not set.",
     );
-    pub const Module_0_was_resolved_as_locally_declared_ambient_module_in_file_1: DiagnosticMessage = diag(
+    pub const Module_0_was_resolved_as_locally_declared_ambient_module_in_file_1:
+        DiagnosticMessage = diag(
         6144,
         DiagnosticCategory::Message,
         "Module_0_was_resolved_as_locally_declared_ambient_module_in_file_1_6144",
@@ -6801,7 +7029,8 @@ impl Diagnostics {
         "Show_verbose_diagnostic_information_6150",
         "Show verbose diagnostic information.",
     );
-    pub const Emit_a_single_file_with_source_maps_instead_of_having_a_separate_file: DiagnosticMessage = diag(
+    pub const Emit_a_single_file_with_source_maps_instead_of_having_a_separate_file:
+        DiagnosticMessage = diag(
         6151,
         DiagnosticCategory::Message,
         "Emit_a_single_file_with_source_maps_instead_of_having_a_separate_file_6151",
@@ -6813,7 +7042,8 @@ impl Diagnostics {
         "Emit_the_source_alongside_the_sourcemaps_within_a_single_file_requires_inlineSourceMap_or_sourceMap__6152",
         "Emit the source alongside the sourcemaps within a single file; requires '--inlineSourceMap' or '--sourceMap' to be set.",
     );
-    pub const Transpile_each_file_as_a_separate_module_similar_to_ts_transpileModule: DiagnosticMessage = diag(
+    pub const Transpile_each_file_as_a_separate_module_similar_to_ts_transpileModule:
+        DiagnosticMessage = diag(
         6153,
         DiagnosticCategory::Message,
         "Transpile_each_file_as_a_separate_module_similar_to_ts_transpileModule_6153",
@@ -6831,13 +7061,15 @@ impl Diagnostics {
         "Print_names_of_files_part_of_the_compilation_6155",
         "Print names of files part of the compilation.",
     );
-    pub const The_locale_used_when_displaying_messages_to_the_user_e_g_en_us: DiagnosticMessage = diag(
-        6156,
-        DiagnosticCategory::Message,
-        "The_locale_used_when_displaying_messages_to_the_user_e_g_en_us_6156",
-        "The locale used when displaying messages to the user (e.g. 'en-us')",
-    );
-    pub const Do_not_generate_custom_helper_functions_like_extends_in_compiled_output: DiagnosticMessage = diag(
+    pub const The_locale_used_when_displaying_messages_to_the_user_e_g_en_us: DiagnosticMessage =
+        diag(
+            6156,
+            DiagnosticCategory::Message,
+            "The_locale_used_when_displaying_messages_to_the_user_e_g_en_us_6156",
+            "The locale used when displaying messages to the user (e.g. 'en-us')",
+        );
+    pub const Do_not_generate_custom_helper_functions_like_extends_in_compiled_output:
+        DiagnosticMessage = diag(
         6157,
         DiagnosticCategory::Message,
         "Do_not_generate_custom_helper_functions_like_extends_in_compiled_output_6157",
@@ -6909,7 +7141,8 @@ impl Diagnostics {
         "Show_all_compiler_options_6169",
         "Show all compiler options.",
     );
-    pub const Deprecated_Use_outFile_instead_Concatenate_and_emit_output_to_single_file: DiagnosticMessage = diag(
+    pub const Deprecated_Use_outFile_instead_Concatenate_and_emit_output_to_single_file:
+        DiagnosticMessage = diag(
         6170,
         DiagnosticCategory::Message,
         "Deprecated_Use_outFile_instead_Concatenate_and_emit_output_to_single_file_6170",
@@ -6963,12 +7196,13 @@ impl Diagnostics {
         "Enable_strict_checking_of_function_types_6186",
         "Enable strict checking of function types.",
     );
-    pub const Enable_strict_checking_of_property_initialization_in_classes: DiagnosticMessage = diag(
-        6187,
-        DiagnosticCategory::Message,
-        "Enable_strict_checking_of_property_initialization_in_classes_6187",
-        "Enable strict checking of property initialization in classes.",
-    );
+    pub const Enable_strict_checking_of_property_initialization_in_classes: DiagnosticMessage =
+        diag(
+            6187,
+            DiagnosticCategory::Message,
+            "Enable_strict_checking_of_property_initialization_in_classes_6187",
+            "Enable strict checking of property initialization in classes.",
+        );
     pub const Numeric_separators_are_not_allowed_here: DiagnosticMessage = diag(
         6188,
         DiagnosticCategory::Error,
@@ -7005,7 +7239,8 @@ impl Diagnostics {
         "Found_0_errors_Watching_for_file_changes_6194",
         "Found {0} errors. Watching for file changes.",
     );
-    pub const Resolve_keyof_to_string_valued_property_names_only_no_numbers_or_symbols: DiagnosticMessage = diag(
+    pub const Resolve_keyof_to_string_valued_property_names_only_no_numbers_or_symbols:
+        DiagnosticMessage = diag(
         6195,
         DiagnosticCategory::Message,
         "Resolve_keyof_to_string_valued_property_names_only_no_numbers_or_symbols_6195",
@@ -7047,7 +7282,8 @@ impl Diagnostics {
         "Conflicts_are_in_this_file_6201",
         "Conflicts are in this file.",
     );
-    pub const Project_references_may_not_form_a_circular_graph_Cycle_detected_Colon_0: DiagnosticMessage = diag(
+    pub const Project_references_may_not_form_a_circular_graph_Cycle_detected_Colon_0:
+        DiagnosticMessage = diag(
         6202,
         DiagnosticCategory::Error,
         "Project_references_may_not_form_a_circular_graph_Cycle_detected_Colon_0_6202",
@@ -7071,13 +7307,15 @@ impl Diagnostics {
         "All_type_parameters_are_unused_6205",
         "All type parameters are unused.",
     );
-    pub const package_json_has_a_typesVersions_field_with_version_specific_path_mappings: DiagnosticMessage = diag(
+    pub const package_json_has_a_typesVersions_field_with_version_specific_path_mappings:
+        DiagnosticMessage = diag(
         6206,
         DiagnosticCategory::Message,
         "package_json_has_a_typesVersions_field_with_version_specific_path_mappings_6206",
         "'package.json' has a 'typesVersions' field with version-specific path mappings.",
     );
-    pub const package_json_does_not_have_a_typesVersions_entry_that_matches_version_0: DiagnosticMessage = diag(
+    pub const package_json_does_not_have_a_typesVersions_entry_that_matches_version_0:
+        DiagnosticMessage = diag(
         6207,
         DiagnosticCategory::Message,
         "package_json_does_not_have_a_typesVersions_entry_that_matches_version_0_6207",
@@ -7089,7 +7327,8 @@ impl Diagnostics {
         "package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_ma_6208",
         "'package.json' has a 'typesVersions' entry '{0}' that matches compiler version '{1}', looking for a pattern to match module name '{2}'.",
     );
-    pub const package_json_has_a_typesVersions_entry_0_that_is_not_a_valid_semver_range: DiagnosticMessage = diag(
+    pub const package_json_has_a_typesVersions_entry_0_that_is_not_a_valid_semver_range:
+        DiagnosticMessage = diag(
         6209,
         DiagnosticCategory::Message,
         "package_json_has_a_typesVersions_entry_0_that_is_not_a_valid_semver_range_6209",
@@ -7161,7 +7400,8 @@ impl Diagnostics {
         "package_json_had_a_falsy_0_field_6220",
         "'package.json' had a falsy '{0}' field.",
     );
-    pub const Disable_use_of_source_files_instead_of_declaration_files_from_referenced_projects: DiagnosticMessage = diag(
+    pub const Disable_use_of_source_files_instead_of_declaration_files_from_referenced_projects:
+        DiagnosticMessage = diag(
         6221,
         DiagnosticCategory::Message,
         "Disable_use_of_source_files_instead_of_declaration_files_from_referenced_projects_6221",
@@ -7221,7 +7461,8 @@ impl Diagnostics {
         "Could_not_resolve_the_path_0_with_the_extensions_Colon_1_6231",
         "Could not resolve the path '{0}' with the extensions: {1}.",
     );
-    pub const Declaration_augments_declaration_in_another_file_This_cannot_be_serialized: DiagnosticMessage = diag(
+    pub const Declaration_augments_declaration_in_another_file_This_cannot_be_serialized:
+        DiagnosticMessage = diag(
         6232,
         DiagnosticCategory::Error,
         "Declaration_augments_declaration_in_another_file_This_cannot_be_serialized_6232",
@@ -7275,7 +7516,8 @@ impl Diagnostics {
         "File_0_does_not_exist_according_to_earlier_cached_lookups_6240",
         "File '{0}' does not exist according to earlier cached lookups.",
     );
-    pub const Resolution_for_type_reference_directive_0_was_found_in_cache_from_location_1: DiagnosticMessage = diag(
+    pub const Resolution_for_type_reference_directive_0_was_found_in_cache_from_location_1:
+        DiagnosticMessage = diag(
         6241,
         DiagnosticCategory::Message,
         "Resolution_for_type_reference_directive_0_was_found_in_cache_from_location_1_6241",
@@ -7287,30 +7529,23 @@ impl Diagnostics {
         "Resolving_type_reference_directive_0_containing_file_1_6242",
         "======== Resolving type reference directive '{0}', containing file '{1}'. ========",
     );
-    pub const Interpret_optional_property_types_as_written_rather_than_adding_undefined: DiagnosticMessage = diag(
+    pub const Interpret_optional_property_types_as_written_rather_than_adding_undefined:
+        DiagnosticMessage = diag(
         6243,
         DiagnosticCategory::Message,
         "Interpret_optional_property_types_as_written_rather_than_adding_undefined_6243",
         "Interpret optional property types as written, rather than adding 'undefined'.",
     );
-    pub const Modules: DiagnosticMessage = diag(
-        6244,
-        DiagnosticCategory::Message,
-        "Modules_6244",
-        "Modules",
-    );
+    pub const Modules: DiagnosticMessage =
+        diag(6244, DiagnosticCategory::Message, "Modules_6244", "Modules");
     pub const File_Management: DiagnosticMessage = diag(
         6245,
         DiagnosticCategory::Message,
         "File_Management_6245",
         "File Management",
     );
-    pub const Emit: DiagnosticMessage = diag(
-        6246,
-        DiagnosticCategory::Message,
-        "Emit_6246",
-        "Emit",
-    );
+    pub const Emit: DiagnosticMessage =
+        diag(6246, DiagnosticCategory::Message, "Emit_6246", "Emit");
     pub const JavaScript_Support: DiagnosticMessage = diag(
         6247,
         DiagnosticCategory::Message,
@@ -7377,24 +7612,27 @@ impl Diagnostics {
         "Completeness_6257",
         "Completeness",
     );
-    pub const _0_should_be_set_inside_the_compilerOptions_object_of_the_config_json_file: DiagnosticMessage = diag(
+    pub const _0_should_be_set_inside_the_compilerOptions_object_of_the_config_json_file:
+        DiagnosticMessage = diag(
         6258,
         DiagnosticCategory::Error,
         "_0_should_be_set_inside_the_compilerOptions_object_of_the_config_json_file_6258",
         "'{0}' should be set inside the 'compilerOptions' object of the config json file",
     );
-    pub const Directory_0_has_no_containing_package_json_scope_Imports_will_not_resolve: DiagnosticMessage = diag(
+    pub const Directory_0_has_no_containing_package_json_scope_Imports_will_not_resolve:
+        DiagnosticMessage = diag(
         6270,
         DiagnosticCategory::Message,
         "Directory_0_has_no_containing_package_json_scope_Imports_will_not_resolve_6270",
         "Directory '{0}' has no containing package.json scope. Imports will not resolve.",
     );
-    pub const Import_specifier_0_does_not_exist_in_package_json_scope_at_path_1: DiagnosticMessage = diag(
-        6271,
-        DiagnosticCategory::Message,
-        "Import_specifier_0_does_not_exist_in_package_json_scope_at_path_1_6271",
-        "Import specifier '{0}' does not exist in package.json scope at path '{1}'.",
-    );
+    pub const Import_specifier_0_does_not_exist_in_package_json_scope_at_path_1: DiagnosticMessage =
+        diag(
+            6271,
+            DiagnosticCategory::Message,
+            "Import_specifier_0_does_not_exist_in_package_json_scope_at_path_1_6271",
+            "Import specifier '{0}' does not exist in package.json scope at path '{1}'.",
+        );
     pub const Invalid_import_specifier_0_has_no_possible_resolutions: DiagnosticMessage = diag(
         6272,
         DiagnosticCategory::Message,
@@ -7413,18 +7651,20 @@ impl Diagnostics {
         "package_json_scope_0_explicitly_maps_specifier_1_to_null_6274",
         "package.json scope '{0}' explicitly maps specifier '{1}' to null.",
     );
-    pub const package_json_scope_0_has_invalid_type_for_target_of_specifier_1: DiagnosticMessage = diag(
-        6275,
-        DiagnosticCategory::Message,
-        "package_json_scope_0_has_invalid_type_for_target_of_specifier_1_6275",
-        "package.json scope '{0}' has invalid type for target of specifier '{1}'",
-    );
-    pub const Export_specifier_0_does_not_exist_in_package_json_scope_at_path_1: DiagnosticMessage = diag(
-        6276,
-        DiagnosticCategory::Message,
-        "Export_specifier_0_does_not_exist_in_package_json_scope_at_path_1_6276",
-        "Export specifier '{0}' does not exist in package.json scope at path '{1}'.",
-    );
+    pub const package_json_scope_0_has_invalid_type_for_target_of_specifier_1: DiagnosticMessage =
+        diag(
+            6275,
+            DiagnosticCategory::Message,
+            "package_json_scope_0_has_invalid_type_for_target_of_specifier_1_6275",
+            "package.json scope '{0}' has invalid type for target of specifier '{1}'",
+        );
+    pub const Export_specifier_0_does_not_exist_in_package_json_scope_at_path_1: DiagnosticMessage =
+        diag(
+            6276,
+            DiagnosticCategory::Message,
+            "Export_specifier_0_does_not_exist_in_package_json_scope_at_path_1_6276",
+            "Export specifier '{0}' does not exist in package.json scope at path '{1}'.",
+        );
     pub const Enable_project_compilation: DiagnosticMessage = diag(
         6302,
         DiagnosticCategory::Message,
@@ -7455,12 +7695,13 @@ impl Diagnostics {
         "File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_includ_6307",
         "File '{0}' is not listed within the file list of project '{1}'. Projects must list all files or use an 'include' pattern.",
     );
-    pub const Cannot_prepend_project_0_because_it_does_not_have_outFile_set: DiagnosticMessage = diag(
-        6308,
-        DiagnosticCategory::Error,
-        "Cannot_prepend_project_0_because_it_does_not_have_outFile_set_6308",
-        "Cannot prepend project '{0}' because it does not have 'outFile' set",
-    );
+    pub const Cannot_prepend_project_0_because_it_does_not_have_outFile_set: DiagnosticMessage =
+        diag(
+            6308,
+            DiagnosticCategory::Error,
+            "Cannot_prepend_project_0_because_it_does_not_have_outFile_set_6308",
+            "Cannot prepend project '{0}' because it does not have 'outFile' set",
+        );
     pub const Output_file_0_from_project_1_does_not_exist: DiagnosticMessage = diag(
         6309,
         DiagnosticCategory::Error,
@@ -7473,36 +7714,41 @@ impl Diagnostics {
         "Referenced_project_0_may_not_disable_emit_6310",
         "Referenced project '{0}' may not disable emit.",
     );
-    pub const Project_0_is_out_of_date_because_oldest_output_1_is_older_than_newest_input_2: DiagnosticMessage = diag(
+    pub const Project_0_is_out_of_date_because_oldest_output_1_is_older_than_newest_input_2:
+        DiagnosticMessage = diag(
         6350,
         DiagnosticCategory::Message,
         "Project_0_is_out_of_date_because_oldest_output_1_is_older_than_newest_input_2_6350",
         "Project '{0}' is out of date because oldest output '{1}' is older than newest input '{2}'",
     );
-    pub const Project_0_is_up_to_date_because_newest_input_1_is_older_than_oldest_output_2: DiagnosticMessage = diag(
+    pub const Project_0_is_up_to_date_because_newest_input_1_is_older_than_oldest_output_2:
+        DiagnosticMessage = diag(
         6351,
         DiagnosticCategory::Message,
         "Project_0_is_up_to_date_because_newest_input_1_is_older_than_oldest_output_2_6351",
         "Project '{0}' is up to date because newest input '{1}' is older than oldest output '{2}'",
     );
-    pub const Project_0_is_out_of_date_because_output_file_1_does_not_exist: DiagnosticMessage = diag(
-        6352,
-        DiagnosticCategory::Message,
-        "Project_0_is_out_of_date_because_output_file_1_does_not_exist_6352",
-        "Project '{0}' is out of date because output file '{1}' does not exist",
-    );
-    pub const Project_0_is_out_of_date_because_its_dependency_1_is_out_of_date: DiagnosticMessage = diag(
-        6353,
-        DiagnosticCategory::Message,
-        "Project_0_is_out_of_date_because_its_dependency_1_is_out_of_date_6353",
-        "Project '{0}' is out of date because its dependency '{1}' is out of date",
-    );
-    pub const Project_0_is_up_to_date_with_d_ts_files_from_its_dependencies: DiagnosticMessage = diag(
-        6354,
-        DiagnosticCategory::Message,
-        "Project_0_is_up_to_date_with_d_ts_files_from_its_dependencies_6354",
-        "Project '{0}' is up to date with .d.ts files from its dependencies",
-    );
+    pub const Project_0_is_out_of_date_because_output_file_1_does_not_exist: DiagnosticMessage =
+        diag(
+            6352,
+            DiagnosticCategory::Message,
+            "Project_0_is_out_of_date_because_output_file_1_does_not_exist_6352",
+            "Project '{0}' is out of date because output file '{1}' does not exist",
+        );
+    pub const Project_0_is_out_of_date_because_its_dependency_1_is_out_of_date: DiagnosticMessage =
+        diag(
+            6353,
+            DiagnosticCategory::Message,
+            "Project_0_is_out_of_date_because_its_dependency_1_is_out_of_date_6353",
+            "Project '{0}' is out of date because its dependency '{1}' is out of date",
+        );
+    pub const Project_0_is_up_to_date_with_d_ts_files_from_its_dependencies: DiagnosticMessage =
+        diag(
+            6354,
+            DiagnosticCategory::Message,
+            "Project_0_is_up_to_date_with_d_ts_files_from_its_dependencies_6354",
+            "Project '{0}' is up to date with .d.ts files from its dependencies",
+        );
     pub const Projects_in_this_build_Colon_0: DiagnosticMessage = diag(
         6355,
         DiagnosticCategory::Message,
@@ -7539,24 +7785,27 @@ impl Diagnostics {
         "Project_0_is_up_to_date_6361",
         "Project '{0}' is up to date",
     );
-    pub const Skipping_build_of_project_0_because_its_dependency_1_has_errors: DiagnosticMessage = diag(
-        6362,
-        DiagnosticCategory::Message,
-        "Skipping_build_of_project_0_because_its_dependency_1_has_errors_6362",
-        "Skipping build of project '{0}' because its dependency '{1}' has errors",
-    );
-    pub const Project_0_can_t_be_built_because_its_dependency_1_has_errors: DiagnosticMessage = diag(
-        6363,
-        DiagnosticCategory::Message,
-        "Project_0_can_t_be_built_because_its_dependency_1_has_errors_6363",
-        "Project '{0}' can't be built because its dependency '{1}' has errors",
-    );
-    pub const Build_one_or_more_projects_and_their_dependencies_if_out_of_date: DiagnosticMessage = diag(
-        6364,
-        DiagnosticCategory::Message,
-        "Build_one_or_more_projects_and_their_dependencies_if_out_of_date_6364",
-        "Build one or more projects and their dependencies, if out of date",
-    );
+    pub const Skipping_build_of_project_0_because_its_dependency_1_has_errors: DiagnosticMessage =
+        diag(
+            6362,
+            DiagnosticCategory::Message,
+            "Skipping_build_of_project_0_because_its_dependency_1_has_errors_6362",
+            "Skipping build of project '{0}' because its dependency '{1}' has errors",
+        );
+    pub const Project_0_can_t_be_built_because_its_dependency_1_has_errors: DiagnosticMessage =
+        diag(
+            6363,
+            DiagnosticCategory::Message,
+            "Project_0_can_t_be_built_because_its_dependency_1_has_errors_6363",
+            "Project '{0}' can't be built because its dependency '{1}' has errors",
+        );
+    pub const Build_one_or_more_projects_and_their_dependencies_if_out_of_date: DiagnosticMessage =
+        diag(
+            6364,
+            DiagnosticCategory::Message,
+            "Build_one_or_more_projects_and_their_dependencies_if_out_of_date_6364",
+            "Build one or more projects and their dependencies, if out of date",
+        );
     pub const Delete_the_outputs_of_all_projects: DiagnosticMessage = diag(
         6365,
         DiagnosticCategory::Message,
@@ -7587,7 +7836,8 @@ impl Diagnostics {
         "Updating_unchanged_output_timestamps_of_project_0_6371",
         "Updating unchanged output timestamps of project '{0}'...",
     );
-    pub const Project_0_is_out_of_date_because_output_of_its_dependency_1_has_changed: DiagnosticMessage = diag(
+    pub const Project_0_is_out_of_date_because_output_of_its_dependency_1_has_changed:
+        DiagnosticMessage = diag(
         6372,
         DiagnosticCategory::Message,
         "Project_0_is_out_of_date_because_output_of_its_dependency_1_has_changed_6372",
@@ -7599,19 +7849,21 @@ impl Diagnostics {
         "Updating_output_of_project_0_6373",
         "Updating output of project '{0}'...",
     );
-    pub const A_non_dry_build_would_update_timestamps_for_output_of_project_0: DiagnosticMessage = diag(
-        6374,
-        DiagnosticCategory::Message,
-        "A_non_dry_build_would_update_timestamps_for_output_of_project_0_6374",
-        "A non-dry build would update timestamps for output of project '{0}'",
-    );
+    pub const A_non_dry_build_would_update_timestamps_for_output_of_project_0: DiagnosticMessage =
+        diag(
+            6374,
+            DiagnosticCategory::Message,
+            "A_non_dry_build_would_update_timestamps_for_output_of_project_0_6374",
+            "A non-dry build would update timestamps for output of project '{0}'",
+        );
     pub const A_non_dry_build_would_update_output_of_project_0: DiagnosticMessage = diag(
         6375,
         DiagnosticCategory::Message,
         "A_non_dry_build_would_update_output_of_project_0_6375",
         "A non-dry build would update output of project '{0}'",
     );
-    pub const Cannot_update_output_of_project_0_because_there_was_error_reading_file_1: DiagnosticMessage = diag(
+    pub const Cannot_update_output_of_project_0_because_there_was_error_reading_file_1:
+        DiagnosticMessage = diag(
         6376,
         DiagnosticCategory::Message,
         "Cannot_update_output_of_project_0_because_there_was_error_reading_file_1_6376",
@@ -7647,18 +7899,20 @@ impl Diagnostics {
         "Project_0_is_out_of_date_because_output_for_it_was_generated_with_version_1_that_differs_with_curren_6381",
         "Project '{0}' is out of date because output for it was generated with version '{1}' that differs with current version '{2}'",
     );
-    pub const Skipping_build_of_project_0_because_its_dependency_1_was_not_built: DiagnosticMessage = diag(
+    pub const Skipping_build_of_project_0_because_its_dependency_1_was_not_built:
+        DiagnosticMessage = diag(
         6382,
         DiagnosticCategory::Message,
         "Skipping_build_of_project_0_because_its_dependency_1_was_not_built_6382",
         "Skipping build of project '{0}' because its dependency '{1}' was not built",
     );
-    pub const Project_0_can_t_be_built_because_its_dependency_1_was_not_built: DiagnosticMessage = diag(
-        6383,
-        DiagnosticCategory::Message,
-        "Project_0_can_t_be_built_because_its_dependency_1_was_not_built_6383",
-        "Project '{0}' can't be built because its dependency '{1}' was not built",
-    );
+    pub const Project_0_can_t_be_built_because_its_dependency_1_was_not_built: DiagnosticMessage =
+        diag(
+            6383,
+            DiagnosticCategory::Message,
+            "Project_0_can_t_be_built_because_its_dependency_1_was_not_built_6383",
+            "Project '{0}' can't be built because its dependency '{1}' was not built",
+        );
     pub const Have_recompiles_in_incremental_and_watch_assume_that_changes_within_a_file_will_only_affect_files_directly_depending_on_it: DiagnosticMessage = diag(
         6384,
         DiagnosticCategory::Message,
@@ -7689,7 +7943,8 @@ impl Diagnostics {
         "Project_0_is_being_forcibly_rebuilt_6388",
         "Project '{0}' is being forcibly rebuilt",
     );
-    pub const Reusing_resolution_of_module_0_from_1_of_old_program_it_was_not_resolved: DiagnosticMessage = diag(
+    pub const Reusing_resolution_of_module_0_from_1_of_old_program_it_was_not_resolved:
+        DiagnosticMessage = diag(
         6389,
         DiagnosticCategory::Message,
         "Reusing_resolution_of_module_0_from_1_of_old_program_it_was_not_resolved_6389",
@@ -7749,7 +8004,8 @@ impl Diagnostics {
         "Reusing_resolution_of_type_reference_directive_0_from_1_found_in_cache_from_location_2_it_was_not_re_6398",
         "Reusing resolution of type reference directive '{0}' from '{1}' found in cache from location '{2}', it was not resolved.",
     );
-    pub const The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1: DiagnosticMessage = diag(
+    pub const The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1:
+        DiagnosticMessage = diag(
         6500,
         DiagnosticCategory::Message,
         "The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1_6500",
@@ -7761,25 +8017,29 @@ impl Diagnostics {
         "The_expected_type_comes_from_this_index_signature_6501",
         "The expected type comes from this index signature.",
     );
-    pub const The_expected_type_comes_from_the_return_type_of_this_signature: DiagnosticMessage = diag(
-        6502,
-        DiagnosticCategory::Message,
-        "The_expected_type_comes_from_the_return_type_of_this_signature_6502",
-        "The expected type comes from the return type of this signature.",
-    );
-    pub const Print_names_of_files_that_are_part_of_the_compilation_and_then_stop_processing: DiagnosticMessage = diag(
+    pub const The_expected_type_comes_from_the_return_type_of_this_signature: DiagnosticMessage =
+        diag(
+            6502,
+            DiagnosticCategory::Message,
+            "The_expected_type_comes_from_the_return_type_of_this_signature_6502",
+            "The expected type comes from the return type of this signature.",
+        );
+    pub const Print_names_of_files_that_are_part_of_the_compilation_and_then_stop_processing:
+        DiagnosticMessage = diag(
         6503,
         DiagnosticCategory::Message,
         "Print_names_of_files_that_are_part_of_the_compilation_and_then_stop_processing_6503",
         "Print names of files that are part of the compilation and then stop processing.",
     );
-    pub const File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option: DiagnosticMessage = diag(
+    pub const File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option:
+        DiagnosticMessage = diag(
         6504,
         DiagnosticCategory::Error,
         "File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option_6504",
         "File '{0}' is a JavaScript file. Did you mean to enable the 'allowJs' option?",
     );
-    pub const Print_names_of_files_and_the_reason_they_are_part_of_the_compilation: DiagnosticMessage = diag(
+    pub const Print_names_of_files_and_the_reason_they_are_part_of_the_compilation:
+        DiagnosticMessage = diag(
         6505,
         DiagnosticCategory::Message,
         "Print_names_of_files_and_the_reason_they_are_part_of_the_compilation_6505",
@@ -7797,12 +8057,13 @@ impl Diagnostics {
         "Allow_JavaScript_files_to_be_a_part_of_your_program_Use_the_checkJS_option_to_get_errors_from_these__6600",
         "Allow JavaScript files to be a part of your program. Use the `checkJS` option to get errors from these files.",
     );
-    pub const Allow_import_x_from_y_when_a_module_doesn_t_have_a_default_export: DiagnosticMessage = diag(
-        6601,
-        DiagnosticCategory::Message,
-        "Allow_import_x_from_y_when_a_module_doesn_t_have_a_default_export_6601",
-        "Allow 'import x from y' when a module doesn't have a default export.",
-    );
+    pub const Allow_import_x_from_y_when_a_module_doesn_t_have_a_default_export: DiagnosticMessage =
+        diag(
+            6601,
+            DiagnosticCategory::Message,
+            "Allow_import_x_from_y_when_a_module_doesn_t_have_a_default_export_6601",
+            "Allow 'import x from y' when a module doesn't have a default export.",
+        );
     pub const Allow_accessing_UMD_globals_from_modules: DiagnosticMessage = diag(
         6602,
         DiagnosticCategory::Message,
@@ -7833,12 +8094,13 @@ impl Diagnostics {
         "Have_recompiles_in_projects_that_use_incremental_and_watch_mode_assume_that_changes_within_a_file_wi_6606",
         "Have recompiles in projects that use `incremental` and `watch` mode assume that changes within a file will only affect files directly depending on it.",
     );
-    pub const Specify_the_base_directory_to_resolve_non_relative_module_names: DiagnosticMessage = diag(
-        6607,
-        DiagnosticCategory::Message,
-        "Specify_the_base_directory_to_resolve_non_relative_module_names_6607",
-        "Specify the base directory to resolve non-relative module names.",
-    );
+    pub const Specify_the_base_directory_to_resolve_non_relative_module_names: DiagnosticMessage =
+        diag(
+            6607,
+            DiagnosticCategory::Message,
+            "Specify_the_base_directory_to_resolve_non_relative_module_names_6607",
+            "Specify the base directory to resolve non-relative module names.",
+        );
     pub const No_longer_supported_In_early_versions_manually_set_the_text_encoding_for_reading_files: DiagnosticMessage = diag(
         6608,
         DiagnosticCategory::Message,
@@ -7857,18 +8119,20 @@ impl Diagnostics {
         "Enable_constraints_that_allow_a_TypeScript_project_to_be_used_with_project_references_6611",
         "Enable constraints that allow a TypeScript project to be used with project references.",
     );
-    pub const Generate_d_ts_files_from_TypeScript_and_JavaScript_files_in_your_project: DiagnosticMessage = diag(
+    pub const Generate_d_ts_files_from_TypeScript_and_JavaScript_files_in_your_project:
+        DiagnosticMessage = diag(
         6612,
         DiagnosticCategory::Message,
         "Generate_d_ts_files_from_TypeScript_and_JavaScript_files_in_your_project_6612",
         "Generate .d.ts files from TypeScript and JavaScript files in your project.",
     );
-    pub const Specify_the_output_directory_for_generated_declaration_files: DiagnosticMessage = diag(
-        6613,
-        DiagnosticCategory::Message,
-        "Specify_the_output_directory_for_generated_declaration_files_6613",
-        "Specify the output directory for generated declaration files.",
-    );
+    pub const Specify_the_output_directory_for_generated_declaration_files: DiagnosticMessage =
+        diag(
+            6613,
+            DiagnosticCategory::Message,
+            "Specify_the_output_directory_for_generated_declaration_files_6613",
+            "Specify the output directory for generated declaration files.",
+        );
     pub const Create_sourcemaps_for_d_ts_files: DiagnosticMessage = diag(
         6614,
         DiagnosticCategory::Message,
@@ -7881,25 +8145,28 @@ impl Diagnostics {
         "Output_compiler_performance_information_after_building_6615",
         "Output compiler performance information after building.",
     );
-    pub const Disables_inference_for_type_acquisition_by_looking_at_filenames_in_a_project: DiagnosticMessage = diag(
+    pub const Disables_inference_for_type_acquisition_by_looking_at_filenames_in_a_project:
+        DiagnosticMessage = diag(
         6616,
         DiagnosticCategory::Message,
         "Disables_inference_for_type_acquisition_by_looking_at_filenames_in_a_project_6616",
         "Disables inference for type acquisition by looking at filenames in a project.",
     );
-    pub const Reduce_the_number_of_projects_loaded_automatically_by_TypeScript: DiagnosticMessage = diag(
-        6617,
-        DiagnosticCategory::Message,
-        "Reduce_the_number_of_projects_loaded_automatically_by_TypeScript_6617",
-        "Reduce the number of projects loaded automatically by TypeScript.",
-    );
+    pub const Reduce_the_number_of_projects_loaded_automatically_by_TypeScript: DiagnosticMessage =
+        diag(
+            6617,
+            DiagnosticCategory::Message,
+            "Reduce_the_number_of_projects_loaded_automatically_by_TypeScript_6617",
+            "Reduce the number of projects loaded automatically by TypeScript.",
+        );
     pub const Remove_the_20mb_cap_on_total_source_code_size_for_JavaScript_files_in_the_TypeScript_language_server: DiagnosticMessage = diag(
         6618,
         DiagnosticCategory::Message,
         "Remove_the_20mb_cap_on_total_source_code_size_for_JavaScript_files_in_the_TypeScript_language_server_6618",
         "Remove the 20mb cap on total source code size for JavaScript files in the TypeScript language server.",
     );
-    pub const Opt_a_project_out_of_multi_project_reference_checking_when_editing: DiagnosticMessage = diag(
+    pub const Opt_a_project_out_of_multi_project_reference_checking_when_editing:
+        DiagnosticMessage = diag(
         6619,
         DiagnosticCategory::Message,
         "Opt_a_project_out_of_multi_project_reference_checking_when_editing_6619",
@@ -7911,25 +8178,28 @@ impl Diagnostics {
         "Disable_preferring_source_files_instead_of_declaration_files_when_referencing_composite_projects_6620",
         "Disable preferring source files instead of declaration files when referencing composite projects",
     );
-    pub const Emit_more_compliant_but_verbose_and_less_performant_JavaScript_for_iteration: DiagnosticMessage = diag(
+    pub const Emit_more_compliant_but_verbose_and_less_performant_JavaScript_for_iteration:
+        DiagnosticMessage = diag(
         6621,
         DiagnosticCategory::Message,
         "Emit_more_compliant_but_verbose_and_less_performant_JavaScript_for_iteration_6621",
         "Emit more compliant, but verbose and less performant JavaScript for iteration.",
     );
-    pub const Emit_a_UTF_8_Byte_Order_Mark_BOM_in_the_beginning_of_output_files: DiagnosticMessage = diag(
-        6622,
-        DiagnosticCategory::Message,
-        "Emit_a_UTF_8_Byte_Order_Mark_BOM_in_the_beginning_of_output_files_6622",
-        "Emit a UTF-8 Byte Order Mark (BOM) in the beginning of output files.",
-    );
+    pub const Emit_a_UTF_8_Byte_Order_Mark_BOM_in_the_beginning_of_output_files: DiagnosticMessage =
+        diag(
+            6622,
+            DiagnosticCategory::Message,
+            "Emit_a_UTF_8_Byte_Order_Mark_BOM_in_the_beginning_of_output_files_6622",
+            "Emit a UTF-8 Byte Order Mark (BOM) in the beginning of output files.",
+        );
     pub const Only_output_d_ts_files_and_not_JavaScript_files: DiagnosticMessage = diag(
         6623,
         DiagnosticCategory::Message,
         "Only_output_d_ts_files_and_not_JavaScript_files_6623",
         "Only output d.ts files and not JavaScript files.",
     );
-    pub const Emit_design_type_metadata_for_decorated_declarations_in_source_files: DiagnosticMessage = diag(
+    pub const Emit_design_type_metadata_for_decorated_declarations_in_source_files:
+        DiagnosticMessage = diag(
         6624,
         DiagnosticCategory::Message,
         "Emit_design_type_metadata_for_decorated_declarations_in_source_files_6624",
@@ -7965,19 +8235,22 @@ impl Diagnostics {
         "Remove_a_list_of_files_from_the_watch_mode_s_processing_6629",
         "Remove a list of files from the watch mode's processing.",
     );
-    pub const Enable_experimental_support_for_TC39_stage_2_draft_decorators: DiagnosticMessage = diag(
-        6630,
-        DiagnosticCategory::Message,
-        "Enable_experimental_support_for_TC39_stage_2_draft_decorators_6630",
-        "Enable experimental support for TC39 stage 2 draft decorators.",
-    );
-    pub const Print_files_read_during_the_compilation_including_why_it_was_included: DiagnosticMessage = diag(
+    pub const Enable_experimental_support_for_TC39_stage_2_draft_decorators: DiagnosticMessage =
+        diag(
+            6630,
+            DiagnosticCategory::Message,
+            "Enable_experimental_support_for_TC39_stage_2_draft_decorators_6630",
+            "Enable experimental support for TC39 stage 2 draft decorators.",
+        );
+    pub const Print_files_read_during_the_compilation_including_why_it_was_included:
+        DiagnosticMessage = diag(
         6631,
         DiagnosticCategory::Message,
         "Print_files_read_during_the_compilation_including_why_it_was_included_6631",
         "Print files read during the compilation including why it was included.",
     );
-    pub const Output_more_detailed_compiler_performance_information_after_building: DiagnosticMessage = diag(
+    pub const Output_more_detailed_compiler_performance_information_after_building:
+        DiagnosticMessage = diag(
         6632,
         DiagnosticCategory::Message,
         "Output_more_detailed_compiler_performance_information_after_building_6632",
@@ -7995,18 +8268,20 @@ impl Diagnostics {
         "Specify_what_approach_the_watcher_should_use_if_the_system_runs_out_of_native_file_watchers_6634",
         "Specify what approach the watcher should use if the system runs out of native file watchers.",
     );
-    pub const Include_a_list_of_files_This_does_not_support_glob_patterns_as_opposed_to_include: DiagnosticMessage = diag(
+    pub const Include_a_list_of_files_This_does_not_support_glob_patterns_as_opposed_to_include:
+        DiagnosticMessage = diag(
         6635,
         DiagnosticCategory::Message,
         "Include_a_list_of_files_This_does_not_support_glob_patterns_as_opposed_to_include_6635",
         "Include a list of files. This does not support glob patterns, as opposed to `include`.",
     );
-    pub const Build_all_projects_including_those_that_appear_to_be_up_to_date: DiagnosticMessage = diag(
-        6636,
-        DiagnosticCategory::Message,
-        "Build_all_projects_including_those_that_appear_to_be_up_to_date_6636",
-        "Build all projects, including those that appear to be up to date",
-    );
+    pub const Build_all_projects_including_those_that_appear_to_be_up_to_date: DiagnosticMessage =
+        diag(
+            6636,
+            DiagnosticCategory::Message,
+            "Build_all_projects_including_those_that_appear_to_be_up_to_date_6636",
+            "Build all projects, including those that appear to be up to date",
+        );
     pub const Ensure_that_casing_is_correct_in_imports: DiagnosticMessage = diag(
         6637,
         DiagnosticCategory::Message,
@@ -8025,13 +8300,15 @@ impl Diagnostics {
         "Allow_importing_helper_functions_from_tslib_once_per_project_instead_of_including_them_per_file_6639",
         "Allow importing helper functions from tslib once per project, instead of including them per-file.",
     );
-    pub const Specify_a_list_of_glob_patterns_that_match_files_to_be_included_in_compilation: DiagnosticMessage = diag(
+    pub const Specify_a_list_of_glob_patterns_that_match_files_to_be_included_in_compilation:
+        DiagnosticMessage = diag(
         6641,
         DiagnosticCategory::Message,
         "Specify_a_list_of_glob_patterns_that_match_files_to_be_included_in_compilation_6641",
         "Specify a list of glob patterns that match files to be included in compilation.",
     );
-    pub const Save_tsbuildinfo_files_to_allow_for_incremental_compilation_of_projects: DiagnosticMessage = diag(
+    pub const Save_tsbuildinfo_files_to_allow_for_incremental_compilation_of_projects:
+        DiagnosticMessage = diag(
         6642,
         DiagnosticCategory::Message,
         "Save_tsbuildinfo_files_to_allow_for_incremental_compilation_of_projects_6642",
@@ -8043,13 +8320,15 @@ impl Diagnostics {
         "Include_sourcemap_files_inside_the_emitted_JavaScript_6643",
         "Include sourcemap files inside the emitted JavaScript.",
     );
-    pub const Include_source_code_in_the_sourcemaps_inside_the_emitted_JavaScript: DiagnosticMessage = diag(
+    pub const Include_source_code_in_the_sourcemaps_inside_the_emitted_JavaScript:
+        DiagnosticMessage = diag(
         6644,
         DiagnosticCategory::Message,
         "Include_source_code_in_the_sourcemaps_inside_the_emitted_JavaScript_6644",
         "Include source code in the sourcemaps inside the emitted JavaScript.",
     );
-    pub const Ensure_that_each_file_can_be_safely_transpiled_without_relying_on_other_imports: DiagnosticMessage = diag(
+    pub const Ensure_that_each_file_can_be_safely_transpiled_without_relying_on_other_imports:
+        DiagnosticMessage = diag(
         6645,
         DiagnosticCategory::Message,
         "Ensure_that_each_file_can_be_safely_transpiled_without_relying_on_other_imports_6645",
@@ -8079,7 +8358,8 @@ impl Diagnostics {
         "Specify_module_specifier_used_to_import_the_JSX_factory_functions_when_using_jsx_Colon_react_jsx_Ast_6649",
         "Specify module specifier used to import the JSX factory functions when using `jsx: react-jsx*`.`",
     );
-    pub const Make_keyof_only_return_strings_instead_of_string_numbers_or_symbols_Legacy_option: DiagnosticMessage = diag(
+    pub const Make_keyof_only_return_strings_instead_of_string_numbers_or_symbols_Legacy_option:
+        DiagnosticMessage = diag(
         6650,
         DiagnosticCategory::Message,
         "Make_keyof_only_return_strings_instead_of_string_numbers_or_symbols_Legacy_option_6650",
@@ -8103,7 +8383,8 @@ impl Diagnostics {
         "Print_all_of_the_files_read_during_the_compilation_6653",
         "Print all of the files read during the compilation.",
     );
-    pub const Set_the_language_of_the_messaging_from_TypeScript_This_does_not_affect_emit: DiagnosticMessage = diag(
+    pub const Set_the_language_of_the_messaging_from_TypeScript_This_does_not_affect_emit:
+        DiagnosticMessage = diag(
         6654,
         DiagnosticCategory::Message,
         "Set_the_language_of_the_messaging_from_TypeScript_This_does_not_affect_emit_6654",
@@ -8127,7 +8408,8 @@ impl Diagnostics {
         "Specify_what_module_code_is_generated_6657",
         "Specify what module code is generated.",
     );
-    pub const Specify_how_TypeScript_looks_up_a_file_from_a_given_module_specifier: DiagnosticMessage = diag(
+    pub const Specify_how_TypeScript_looks_up_a_file_from_a_given_module_specifier:
+        DiagnosticMessage = diag(
         6658,
         DiagnosticCategory::Message,
         "Specify_how_TypeScript_looks_up_a_file_from_a_given_module_specifier_6658",
@@ -8145,43 +8427,49 @@ impl Diagnostics {
         "Disable_emitting_files_from_a_compilation_6660",
         "Disable emitting files from a compilation.",
     );
-    pub const Disable_generating_custom_helper_functions_like_extends_in_compiled_output: DiagnosticMessage = diag(
+    pub const Disable_generating_custom_helper_functions_like_extends_in_compiled_output:
+        DiagnosticMessage = diag(
         6661,
         DiagnosticCategory::Message,
         "Disable_generating_custom_helper_functions_like_extends_in_compiled_output_6661",
         "Disable generating custom helper functions like `__extends` in compiled output.",
     );
-    pub const Disable_emitting_files_if_any_type_checking_errors_are_reported: DiagnosticMessage = diag(
-        6662,
-        DiagnosticCategory::Message,
-        "Disable_emitting_files_if_any_type_checking_errors_are_reported_6662",
-        "Disable emitting files if any type checking errors are reported.",
-    );
+    pub const Disable_emitting_files_if_any_type_checking_errors_are_reported: DiagnosticMessage =
+        diag(
+            6662,
+            DiagnosticCategory::Message,
+            "Disable_emitting_files_if_any_type_checking_errors_are_reported_6662",
+            "Disable emitting files if any type checking errors are reported.",
+        );
     pub const Disable_truncating_types_in_error_messages: DiagnosticMessage = diag(
         6663,
         DiagnosticCategory::Message,
         "Disable_truncating_types_in_error_messages_6663",
         "Disable truncating types in error messages.",
     );
-    pub const Enable_error_reporting_for_fallthrough_cases_in_switch_statements: DiagnosticMessage = diag(
-        6664,
-        DiagnosticCategory::Message,
-        "Enable_error_reporting_for_fallthrough_cases_in_switch_statements_6664",
-        "Enable error reporting for fallthrough cases in switch statements.",
-    );
-    pub const Enable_error_reporting_for_expressions_and_declarations_with_an_implied_any_type: DiagnosticMessage = diag(
+    pub const Enable_error_reporting_for_fallthrough_cases_in_switch_statements: DiagnosticMessage =
+        diag(
+            6664,
+            DiagnosticCategory::Message,
+            "Enable_error_reporting_for_fallthrough_cases_in_switch_statements_6664",
+            "Enable error reporting for fallthrough cases in switch statements.",
+        );
+    pub const Enable_error_reporting_for_expressions_and_declarations_with_an_implied_any_type:
+        DiagnosticMessage = diag(
         6665,
         DiagnosticCategory::Message,
         "Enable_error_reporting_for_expressions_and_declarations_with_an_implied_any_type_6665",
         "Enable error reporting for expressions and declarations with an implied `any` type..",
     );
-    pub const Ensure_overriding_members_in_derived_classes_are_marked_with_an_override_modifier: DiagnosticMessage = diag(
+    pub const Ensure_overriding_members_in_derived_classes_are_marked_with_an_override_modifier:
+        DiagnosticMessage = diag(
         6666,
         DiagnosticCategory::Message,
         "Ensure_overriding_members_in_derived_classes_are_marked_with_an_override_modifier_6666",
         "Ensure overriding members in derived classes are marked with an override modifier.",
     );
-    pub const Enable_error_reporting_for_codepaths_that_do_not_explicitly_return_in_a_function: DiagnosticMessage = diag(
+    pub const Enable_error_reporting_for_codepaths_that_do_not_explicitly_return_in_a_function:
+        DiagnosticMessage = diag(
         6667,
         DiagnosticCategory::Message,
         "Enable_error_reporting_for_codepaths_that_do_not_explicitly_return_in_a_function_6667",
@@ -8193,19 +8481,22 @@ impl Diagnostics {
         "Enable_error_reporting_when_this_is_given_the_type_any_6668",
         "Enable error reporting when `this` is given the type `any`.",
     );
-    pub const Disable_adding_use_strict_directives_in_emitted_JavaScript_files: DiagnosticMessage = diag(
-        6669,
-        DiagnosticCategory::Message,
-        "Disable_adding_use_strict_directives_in_emitted_JavaScript_files_6669",
-        "Disable adding 'use strict' directives in emitted JavaScript files.",
-    );
-    pub const Disable_including_any_library_files_including_the_default_lib_d_ts: DiagnosticMessage = diag(
+    pub const Disable_adding_use_strict_directives_in_emitted_JavaScript_files: DiagnosticMessage =
+        diag(
+            6669,
+            DiagnosticCategory::Message,
+            "Disable_adding_use_strict_directives_in_emitted_JavaScript_files_6669",
+            "Disable adding 'use strict' directives in emitted JavaScript files.",
+        );
+    pub const Disable_including_any_library_files_including_the_default_lib_d_ts:
+        DiagnosticMessage = diag(
         6670,
         DiagnosticCategory::Message,
         "Disable_including_any_library_files_including_the_default_lib_d_ts_6670",
         "Disable including any library files, including the default lib.d.ts.",
     );
-    pub const Enforces_using_indexed_accessors_for_keys_declared_using_an_indexed_type: DiagnosticMessage = diag(
+    pub const Enforces_using_indexed_accessors_for_keys_declared_using_an_indexed_type:
+        DiagnosticMessage = diag(
         6671,
         DiagnosticCategory::Message,
         "Enforces_using_indexed_accessors_for_keys_declared_using_an_indexed_type_6671",
@@ -8217,12 +8508,13 @@ impl Diagnostics {
         "Disallow_import_s_require_s_or_reference_s_from_expanding_the_number_of_files_TypeScript_should_add__6672",
         "Disallow `import`s, `require`s or `<reference>`s from expanding the number of files TypeScript should add to a project.",
     );
-    pub const Disable_strict_checking_of_generic_signatures_in_function_types: DiagnosticMessage = diag(
-        6673,
-        DiagnosticCategory::Message,
-        "Disable_strict_checking_of_generic_signatures_in_function_types_6673",
-        "Disable strict checking of generic signatures in function types.",
-    );
+    pub const Disable_strict_checking_of_generic_signatures_in_function_types: DiagnosticMessage =
+        diag(
+            6673,
+            DiagnosticCategory::Message,
+            "Disable_strict_checking_of_generic_signatures_in_function_types_6673",
+            "Disable strict checking of generic signatures in function types.",
+        );
     pub const Add_undefined_to_a_type_when_accessed_using_an_index: DiagnosticMessage = diag(
         6674,
         DiagnosticCategory::Message,
@@ -8259,7 +8551,8 @@ impl Diagnostics {
         "Specify_a_file_that_bundles_all_outputs_into_one_JavaScript_file_If_declaration_is_true_also_designa_6679",
         "Specify a file that bundles all outputs into one JavaScript file. If `declaration` is true, also designates a file that bundles all .d.ts output.",
     );
-    pub const Specify_a_set_of_entries_that_re_map_imports_to_additional_lookup_locations: DiagnosticMessage = diag(
+    pub const Specify_a_set_of_entries_that_re_map_imports_to_additional_lookup_locations:
+        DiagnosticMessage = diag(
         6680,
         DiagnosticCategory::Message,
         "Specify_a_set_of_entries_that_re_map_imports_to_additional_lookup_locations_6680",
@@ -8325,18 +8618,20 @@ impl Diagnostics {
         "Specify_the_root_folder_within_your_source_files_6690",
         "Specify the root folder within your source files.",
     );
-    pub const Allow_multiple_folders_to_be_treated_as_one_when_resolving_modules: DiagnosticMessage = diag(
+    pub const Allow_multiple_folders_to_be_treated_as_one_when_resolving_modules:
+        DiagnosticMessage = diag(
         6691,
         DiagnosticCategory::Message,
         "Allow_multiple_folders_to_be_treated_as_one_when_resolving_modules_6691",
         "Allow multiple folders to be treated as one when resolving modules.",
     );
-    pub const Skip_type_checking_d_ts_files_that_are_included_with_TypeScript: DiagnosticMessage = diag(
-        6692,
-        DiagnosticCategory::Message,
-        "Skip_type_checking_d_ts_files_that_are_included_with_TypeScript_6692",
-        "Skip type checking .d.ts files that are included with TypeScript.",
-    );
+    pub const Skip_type_checking_d_ts_files_that_are_included_with_TypeScript: DiagnosticMessage =
+        diag(
+            6692,
+            DiagnosticCategory::Message,
+            "Skip_type_checking_d_ts_files_that_are_included_with_TypeScript_6692",
+            "Skip type checking .d.ts files that are included with TypeScript.",
+        );
     pub const Skip_type_checking_all_d_ts_files: DiagnosticMessage = diag(
         6693,
         DiagnosticCategory::Message,
@@ -8349,7 +8644,8 @@ impl Diagnostics {
         "Create_source_map_files_for_emitted_JavaScript_files_6694",
         "Create source map files for emitted JavaScript files.",
     );
-    pub const Specify_the_root_path_for_debuggers_to_find_the_reference_source_code: DiagnosticMessage = diag(
+    pub const Specify_the_root_path_for_debuggers_to_find_the_reference_source_code:
+        DiagnosticMessage = diag(
         6695,
         DiagnosticCategory::Message,
         "Specify_the_root_path_for_debuggers_to_find_the_reference_source_code_6695",
@@ -8373,25 +8669,29 @@ impl Diagnostics {
         "When_type_checking_take_into_account_null_and_undefined_6699",
         "When type checking, take into account `null` and `undefined`.",
     );
-    pub const Check_for_class_properties_that_are_declared_but_not_set_in_the_constructor: DiagnosticMessage = diag(
+    pub const Check_for_class_properties_that_are_declared_but_not_set_in_the_constructor:
+        DiagnosticMessage = diag(
         6700,
         DiagnosticCategory::Message,
         "Check_for_class_properties_that_are_declared_but_not_set_in_the_constructor_6700",
         "Check for class properties that are declared but not set in the constructor.",
     );
-    pub const Disable_emitting_declarations_that_have_internal_in_their_JSDoc_comments: DiagnosticMessage = diag(
+    pub const Disable_emitting_declarations_that_have_internal_in_their_JSDoc_comments:
+        DiagnosticMessage = diag(
         6701,
         DiagnosticCategory::Message,
         "Disable_emitting_declarations_that_have_internal_in_their_JSDoc_comments_6701",
         "Disable emitting declarations that have `@internal` in their JSDoc comments.",
     );
-    pub const Disable_reporting_of_excess_property_errors_during_the_creation_of_object_literals: DiagnosticMessage = diag(
+    pub const Disable_reporting_of_excess_property_errors_during_the_creation_of_object_literals:
+        DiagnosticMessage = diag(
         6702,
         DiagnosticCategory::Message,
         "Disable_reporting_of_excess_property_errors_during_the_creation_of_object_literals_6702",
         "Disable reporting of excess property errors during the creation of object literals.",
     );
-    pub const Suppress_noImplicitAny_errors_when_indexing_objects_that_lack_index_signatures: DiagnosticMessage = diag(
+    pub const Suppress_noImplicitAny_errors_when_indexing_objects_that_lack_index_signatures:
+        DiagnosticMessage = diag(
         6703,
         DiagnosticCategory::Message,
         "Suppress_noImplicitAny_errors_when_indexing_objects_that_lack_index_signatures_6703",
@@ -8415,19 +8715,22 @@ impl Diagnostics {
         "Log_paths_used_during_the_moduleResolution_process_6706",
         "Log paths used during the `moduleResolution` process.",
     );
-    pub const Specify_the_folder_for_tsbuildinfo_incremental_compilation_files: DiagnosticMessage = diag(
-        6707,
-        DiagnosticCategory::Message,
-        "Specify_the_folder_for_tsbuildinfo_incremental_compilation_files_6707",
-        "Specify the folder for .tsbuildinfo incremental compilation files.",
-    );
-    pub const Specify_options_for_automatic_acquisition_of_declaration_files: DiagnosticMessage = diag(
-        6709,
-        DiagnosticCategory::Message,
-        "Specify_options_for_automatic_acquisition_of_declaration_files_6709",
-        "Specify options for automatic acquisition of declaration files.",
-    );
-    pub const Specify_multiple_folders_that_act_like_Slashnode_modules_Slash_types: DiagnosticMessage = diag(
+    pub const Specify_the_folder_for_tsbuildinfo_incremental_compilation_files: DiagnosticMessage =
+        diag(
+            6707,
+            DiagnosticCategory::Message,
+            "Specify_the_folder_for_tsbuildinfo_incremental_compilation_files_6707",
+            "Specify the folder for .tsbuildinfo incremental compilation files.",
+        );
+    pub const Specify_options_for_automatic_acquisition_of_declaration_files: DiagnosticMessage =
+        diag(
+            6709,
+            DiagnosticCategory::Message,
+            "Specify_options_for_automatic_acquisition_of_declaration_files_6709",
+            "Specify options for automatic acquisition of declaration files.",
+        );
+    pub const Specify_multiple_folders_that_act_like_Slashnode_modules_Slash_types:
+        DiagnosticMessage = diag(
         6710,
         DiagnosticCategory::Message,
         "Specify_multiple_folders_that_act_like_Slashnode_modules_Slash_types_6710",
@@ -8469,13 +8772,15 @@ impl Diagnostics {
         "Include_undefined_in_index_signature_results_6716",
         "Include 'undefined' in index signature results",
     );
-    pub const Require_undeclared_properties_from_index_signatures_to_use_element_accesses: DiagnosticMessage = diag(
+    pub const Require_undeclared_properties_from_index_signatures_to_use_element_accesses:
+        DiagnosticMessage = diag(
         6717,
         DiagnosticCategory::Message,
         "Require_undeclared_properties_from_index_signatures_to_use_element_accesses_6717",
         "Require undeclared properties from index signatures to use element accesses.",
     );
-    pub const Specify_emit_Slashchecking_behavior_for_imports_that_are_only_used_for_types: DiagnosticMessage = diag(
+    pub const Specify_emit_Slashchecking_behavior_for_imports_that_are_only_used_for_types:
+        DiagnosticMessage = diag(
         6718,
         DiagnosticCategory::Message,
         "Specify_emit_Slashchecking_behavior_for_imports_that_are_only_used_for_types_6718",
@@ -8535,12 +8840,13 @@ impl Diagnostics {
         "node_modules_bower_components_jspm_packages_plus_the_value_of_outDir_if_one_is_specified_6907",
         "`[\"node_modules\", \"bower_components\", \"jspm_packages\"]`, plus the value of `outDir` if one is specified.",
     );
-    pub const if_files_is_specified_otherwise_Asterisk_Asterisk_Slash_Asterisk: DiagnosticMessage = diag(
-        6908,
-        DiagnosticCategory::Message,
-        "if_files_is_specified_otherwise_Asterisk_Asterisk_Slash_Asterisk_6908",
-        "`[]` if `files` is specified, otherwise `[\"**/*\"]`",
-    );
+    pub const if_files_is_specified_otherwise_Asterisk_Asterisk_Slash_Asterisk: DiagnosticMessage =
+        diag(
+            6908,
+            DiagnosticCategory::Message,
+            "if_files_is_specified_otherwise_Asterisk_Asterisk_Slash_Asterisk_6908",
+            "`[]` if `files` is specified, otherwise `[\"**/*\"]`",
+        );
     pub const true_if_composite_false_otherwise: DiagnosticMessage = diag(
         6909,
         DiagnosticCategory::Message,
@@ -8619,13 +8925,15 @@ impl Diagnostics {
         "tsc_Colon_The_TypeScript_Compiler_6922",
         "tsc: The TypeScript Compiler",
     );
-    pub const Compiles_the_current_project_tsconfig_json_in_the_working_directory: DiagnosticMessage = diag(
+    pub const Compiles_the_current_project_tsconfig_json_in_the_working_directory:
+        DiagnosticMessage = diag(
         6923,
         DiagnosticCategory::Message,
         "Compiles_the_current_project_tsconfig_json_in_the_working_directory_6923",
         "Compiles the current project (tsconfig.json in the working directory.)",
     );
-    pub const Ignoring_tsconfig_json_compiles_the_specified_files_with_default_compiler_options: DiagnosticMessage = diag(
+    pub const Ignoring_tsconfig_json_compiles_the_specified_files_with_default_compiler_options:
+        DiagnosticMessage = diag(
         6924,
         DiagnosticCategory::Message,
         "Ignoring_tsconfig_json_compiles_the_specified_files_with_default_compiler_options_6924",
@@ -8637,19 +8945,22 @@ impl Diagnostics {
         "Build_a_composite_project_in_the_working_directory_6925",
         "Build a composite project in the working directory.",
     );
-    pub const Creates_a_tsconfig_json_with_the_recommended_settings_in_the_working_directory: DiagnosticMessage = diag(
+    pub const Creates_a_tsconfig_json_with_the_recommended_settings_in_the_working_directory:
+        DiagnosticMessage = diag(
         6926,
         DiagnosticCategory::Message,
         "Creates_a_tsconfig_json_with_the_recommended_settings_in_the_working_directory_6926",
         "Creates a tsconfig.json with the recommended settings in the working directory.",
     );
-    pub const Compiles_the_TypeScript_project_located_at_the_specified_path: DiagnosticMessage = diag(
-        6927,
-        DiagnosticCategory::Message,
-        "Compiles_the_TypeScript_project_located_at_the_specified_path_6927",
-        "Compiles the TypeScript project located at the specified path.",
-    );
-    pub const An_expanded_version_of_this_information_showing_all_possible_compiler_options: DiagnosticMessage = diag(
+    pub const Compiles_the_TypeScript_project_located_at_the_specified_path: DiagnosticMessage =
+        diag(
+            6927,
+            DiagnosticCategory::Message,
+            "Compiles_the_TypeScript_project_located_at_the_specified_path_6927",
+            "Compiles the TypeScript project located at the specified path.",
+        );
+    pub const An_expanded_version_of_this_information_showing_all_possible_compiler_options:
+        DiagnosticMessage = diag(
         6928,
         DiagnosticCategory::Message,
         "An_expanded_version_of_this_information_showing_all_possible_compiler_options_6928",
@@ -8685,13 +8996,15 @@ impl Diagnostics {
         "Member_0_implicitly_has_an_1_type_7008",
         "Member '{0}' implicitly has an '{1}' type.",
     );
-    pub const new_expression_whose_target_lacks_a_construct_signature_implicitly_has_an_any_type: DiagnosticMessage = diag(
+    pub const new_expression_whose_target_lacks_a_construct_signature_implicitly_has_an_any_type:
+        DiagnosticMessage = diag(
         7009,
         DiagnosticCategory::Error,
         "new_expression_whose_target_lacks_a_construct_signature_implicitly_has_an_any_type_7009",
         "'new' expression, whose target lacks a construct signature, implicitly has an 'any' type.",
     );
-    pub const _0_which_lacks_return_type_annotation_implicitly_has_an_1_return_type: DiagnosticMessage = diag(
+    pub const _0_which_lacks_return_type_annotation_implicitly_has_an_1_return_type:
+        DiagnosticMessage = diag(
         7010,
         DiagnosticCategory::Error,
         "_0_which_lacks_return_type_annotation_implicitly_has_an_1_return_type_7010",
@@ -8709,25 +9022,29 @@ impl Diagnostics {
         "Construct_signature_which_lacks_return_type_annotation_implicitly_has_an_any_return_type_7013",
         "Construct signature, which lacks return-type annotation, implicitly has an 'any' return type.",
     );
-    pub const Function_type_which_lacks_return_type_annotation_implicitly_has_an_0_return_type: DiagnosticMessage = diag(
+    pub const Function_type_which_lacks_return_type_annotation_implicitly_has_an_0_return_type:
+        DiagnosticMessage = diag(
         7014,
         DiagnosticCategory::Error,
         "Function_type_which_lacks_return_type_annotation_implicitly_has_an_0_return_type_7014",
         "Function type, which lacks return-type annotation, implicitly has an '{0}' return type.",
     );
-    pub const Element_implicitly_has_an_any_type_because_index_expression_is_not_of_type_number: DiagnosticMessage = diag(
+    pub const Element_implicitly_has_an_any_type_because_index_expression_is_not_of_type_number:
+        DiagnosticMessage = diag(
         7015,
         DiagnosticCategory::Error,
         "Element_implicitly_has_an_any_type_because_index_expression_is_not_of_type_number_7015",
         "Element implicitly has an 'any' type because index expression is not of type 'number'.",
     );
-    pub const Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type: DiagnosticMessage = diag(
+    pub const Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type:
+        DiagnosticMessage = diag(
         7016,
         DiagnosticCategory::Error,
         "Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type_7016",
         "Could not find a declaration file for module '{0}'. '{1}' implicitly has an 'any' type.",
     );
-    pub const Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature: DiagnosticMessage = diag(
+    pub const Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature:
+        DiagnosticMessage = diag(
         7017,
         DiagnosticCategory::Error,
         "Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature_7017",
@@ -8775,7 +9092,8 @@ impl Diagnostics {
         "Generator_implicitly_has_yield_type_0_because_it_does_not_yield_any_values_Consider_supplying_a_retu_7025",
         "Generator implicitly has yield type '{0}' because it does not yield any values. Consider supplying a return type annotation.",
     );
-    pub const JSX_element_implicitly_has_type_any_because_no_interface_JSX_0_exists: DiagnosticMessage = diag(
+    pub const JSX_element_implicitly_has_type_any_because_no_interface_JSX_0_exists:
+        DiagnosticMessage = diag(
         7026,
         DiagnosticCategory::Error,
         "JSX_element_implicitly_has_type_any_because_no_interface_JSX_0_exists_7026",
@@ -8835,7 +9153,8 @@ impl Diagnostics {
         "Try_npm_i_save_dev_types_Slash_1_if_it_exists_or_add_a_new_declaration_d_ts_file_containing_declare__7035",
         "Try `npm i --save-dev @types/{1}` if it exists or add a new declaration (.d.ts) file containing `declare module '{0}';`",
     );
-    pub const Dynamic_import_s_specifier_must_be_of_type_string_but_here_has_type_0: DiagnosticMessage = diag(
+    pub const Dynamic_import_s_specifier_must_be_of_type_string_but_here_has_type_0:
+        DiagnosticMessage = diag(
         7036,
         DiagnosticCategory::Error,
         "Dynamic_import_s_specifier_must_be_of_type_string_but_here_has_type_0_7036",
@@ -8865,18 +9184,20 @@ impl Diagnostics {
         "If_the_0_package_actually_exposes_this_module_consider_sending_a_pull_request_to_amend_https_Colon_S_7040",
         "If the '{0}' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/{1}'",
     );
-    pub const The_containing_arrow_function_captures_the_global_value_of_this: DiagnosticMessage = diag(
-        7041,
-        DiagnosticCategory::Error,
-        "The_containing_arrow_function_captures_the_global_value_of_this_7041",
-        "The containing arrow function captures the global value of 'this'.",
-    );
-    pub const Module_0_was_resolved_to_1_but_resolveJsonModule_is_not_used: DiagnosticMessage = diag(
-        7042,
-        DiagnosticCategory::Error,
-        "Module_0_was_resolved_to_1_but_resolveJsonModule_is_not_used_7042",
-        "Module '{0}' was resolved to '{1}', but '--resolveJsonModule' is not used.",
-    );
+    pub const The_containing_arrow_function_captures_the_global_value_of_this: DiagnosticMessage =
+        diag(
+            7041,
+            DiagnosticCategory::Error,
+            "The_containing_arrow_function_captures_the_global_value_of_this_7041",
+            "The containing arrow function captures the global value of 'this'.",
+        );
+    pub const Module_0_was_resolved_to_1_but_resolveJsonModule_is_not_used: DiagnosticMessage =
+        diag(
+            7042,
+            DiagnosticCategory::Error,
+            "Module_0_was_resolved_to_1_but_resolveJsonModule_is_not_used_7042",
+            "Module '{0}' was resolved to '{1}', but '--resolveJsonModule' is not used.",
+        );
     pub const Variable_0_implicitly_has_an_1_type_but_a_better_type_may_be_inferred_from_usage: DiagnosticMessage = diag(
         7043,
         DiagnosticCategory::Suggestion,
@@ -8889,7 +9210,8 @@ impl Diagnostics {
         "Parameter_0_implicitly_has_an_1_type_but_a_better_type_may_be_inferred_from_usage_7044",
         "Parameter '{0}' implicitly has an '{1}' type, but a better type may be inferred from usage.",
     );
-    pub const Member_0_implicitly_has_an_1_type_but_a_better_type_may_be_inferred_from_usage: DiagnosticMessage = diag(
+    pub const Member_0_implicitly_has_an_1_type_but_a_better_type_may_be_inferred_from_usage:
+        DiagnosticMessage = diag(
         7045,
         DiagnosticCategory::Suggestion,
         "Member_0_implicitly_has_an_1_type_but_a_better_type_may_be_inferred_from_usage_7045",
@@ -8919,7 +9241,8 @@ impl Diagnostics {
         "Property_0_implicitly_has_type_any_but_a_better_type_for_its_set_accessor_may_be_inferred_from_usage_7049",
         "Property '{0}' implicitly has type 'any', but a better type for its set accessor may be inferred from usage.",
     );
-    pub const _0_implicitly_has_an_1_return_type_but_a_better_type_may_be_inferred_from_usage: DiagnosticMessage = diag(
+    pub const _0_implicitly_has_an_1_return_type_but_a_better_type_may_be_inferred_from_usage:
+        DiagnosticMessage = diag(
         7050,
         DiagnosticCategory::Suggestion,
         "_0_implicitly_has_an_1_return_type_but_a_better_type_may_be_inferred_from_usage_7050",
@@ -8943,13 +9266,15 @@ impl Diagnostics {
         "Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1_7053",
         "Element implicitly has an 'any' type because expression of type '{0}' can't be used to index type '{1}'.",
     );
-    pub const No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1: DiagnosticMessage = diag(
-        7054,
-        DiagnosticCategory::Error,
-        "No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1_7054",
-        "No index signature with a parameter of type '{0}' was found on type '{1}'.",
-    );
-    pub const _0_which_lacks_return_type_annotation_implicitly_has_an_1_yield_type: DiagnosticMessage = diag(
+    pub const No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1: DiagnosticMessage =
+        diag(
+            7054,
+            DiagnosticCategory::Error,
+            "No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1_7054",
+            "No index signature with a parameter of type '{0}' was found on type '{1}'.",
+        );
+    pub const _0_which_lacks_return_type_annotation_implicitly_has_an_1_yield_type:
+        DiagnosticMessage = diag(
         7055,
         DiagnosticCategory::Error,
         "_0_which_lacks_return_type_annotation_implicitly_has_an_1_yield_type_7055",
@@ -9003,7 +9328,8 @@ impl Diagnostics {
         "You_cannot_rename_this_element_8000",
         "You cannot rename this element.",
     );
-    pub const You_cannot_rename_elements_that_are_defined_in_the_standard_TypeScript_library: DiagnosticMessage = diag(
+    pub const You_cannot_rename_elements_that_are_defined_in_the_standard_TypeScript_library:
+        DiagnosticMessage = diag(
         8001,
         DiagnosticCategory::Error,
         "You_cannot_rename_elements_that_are_defined_in_the_standard_TypeScript_library_8001",
@@ -9021,12 +9347,13 @@ impl Diagnostics {
         "export_can_only_be_used_in_TypeScript_files_8003",
         "'export =' can only be used in TypeScript files.",
     );
-    pub const Type_parameter_declarations_can_only_be_used_in_TypeScript_files: DiagnosticMessage = diag(
-        8004,
-        DiagnosticCategory::Error,
-        "Type_parameter_declarations_can_only_be_used_in_TypeScript_files_8004",
-        "Type parameter declarations can only be used in TypeScript files.",
-    );
+    pub const Type_parameter_declarations_can_only_be_used_in_TypeScript_files: DiagnosticMessage =
+        diag(
+            8004,
+            DiagnosticCategory::Error,
+            "Type_parameter_declarations_can_only_be_used_in_TypeScript_files_8004",
+            "Type parameter declarations can only be used in TypeScript files.",
+        );
     pub const implements_clauses_can_only_be_used_in_TypeScript_files: DiagnosticMessage = diag(
         8005,
         DiagnosticCategory::Error,
@@ -9075,19 +9402,21 @@ impl Diagnostics {
         "Non_null_assertions_can_only_be_used_in_TypeScript_files_8013",
         "Non-null assertions can only be used in TypeScript files.",
     );
-    pub const Type_assertion_expressions_can_only_be_used_in_TypeScript_files: DiagnosticMessage = diag(
-        8016,
-        DiagnosticCategory::Error,
-        "Type_assertion_expressions_can_only_be_used_in_TypeScript_files_8016",
-        "Type assertion expressions can only be used in TypeScript files.",
-    );
+    pub const Type_assertion_expressions_can_only_be_used_in_TypeScript_files: DiagnosticMessage =
+        diag(
+            8016,
+            DiagnosticCategory::Error,
+            "Type_assertion_expressions_can_only_be_used_in_TypeScript_files_8016",
+            "Type assertion expressions can only be used in TypeScript files.",
+        );
     pub const Octal_literal_types_must_use_ES2015_syntax_Use_the_syntax_0: DiagnosticMessage = diag(
         8017,
         DiagnosticCategory::Error,
         "Octal_literal_types_must_use_ES2015_syntax_Use_the_syntax_0_8017",
         "Octal literal types must use ES2015 syntax. Use the syntax '{0}'.",
     );
-    pub const Octal_literals_are_not_allowed_in_enums_members_initializer_Use_the_syntax_0: DiagnosticMessage = diag(
+    pub const Octal_literals_are_not_allowed_in_enums_members_initializer_Use_the_syntax_0:
+        DiagnosticMessage = diag(
         8018,
         DiagnosticCategory::Error,
         "Octal_literals_are_not_allowed_in_enums_members_initializer_Use_the_syntax_0_8018",
@@ -9123,13 +9452,15 @@ impl Diagnostics {
         "JSDoc_0_1_does_not_match_the_extends_2_clause_8023",
         "JSDoc '@{0} {1}' does not match the 'extends {2}' clause.",
     );
-    pub const JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name: DiagnosticMessage = diag(
+    pub const JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name:
+        DiagnosticMessage = diag(
         8024,
         DiagnosticCategory::Error,
         "JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name_8024",
         "JSDoc '@param' tag has name '{0}', but there is no parameter with that name.",
     );
-    pub const Class_declarations_cannot_have_more_than_one_augments_or_extends_tag: DiagnosticMessage = diag(
+    pub const Class_declarations_cannot_have_more_than_one_augments_or_extends_tag:
+        DiagnosticMessage = diag(
         8025,
         DiagnosticCategory::Error,
         "Class_declarations_cannot_have_more_than_one_augments_or_extends_tag_8025",
@@ -9141,12 +9472,13 @@ impl Diagnostics {
         "Expected_0_type_arguments_provide_these_with_an_extends_tag_8026",
         "Expected {0} type arguments; provide these with an '@extends' tag.",
     );
-    pub const Expected_0_1_type_arguments_provide_these_with_an_extends_tag: DiagnosticMessage = diag(
-        8027,
-        DiagnosticCategory::Error,
-        "Expected_0_1_type_arguments_provide_these_with_an_extends_tag_8027",
-        "Expected {0}-{1} type arguments; provide these with an '@extends' tag.",
-    );
+    pub const Expected_0_1_type_arguments_provide_these_with_an_extends_tag: DiagnosticMessage =
+        diag(
+            8027,
+            DiagnosticCategory::Error,
+            "Expected_0_1_type_arguments_provide_these_with_an_extends_tag_8027",
+            "Expected {0}-{1} type arguments; provide these with an '@extends' tag.",
+        );
     pub const JSDoc_may_only_appear_in_the_last_parameter_of_a_signature: DiagnosticMessage = diag(
         8028,
         DiagnosticCategory::Error,
@@ -9159,7 +9491,8 @@ impl Diagnostics {
         "JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name_It_would_match_arguments_if_it_h_8029",
         "JSDoc '@param' tag has name '{0}', but there is no parameter with that name. It would match 'arguments' if it had an array type.",
     );
-    pub const The_type_of_a_function_declaration_must_match_the_function_s_signature: DiagnosticMessage = diag(
+    pub const The_type_of_a_function_declaration_must_match_the_function_s_signature:
+        DiagnosticMessage = diag(
         8030,
         DiagnosticCategory::Error,
         "The_type_of_a_function_declaration_must_match_the_function_s_signature_8030",
@@ -9171,12 +9504,13 @@ impl Diagnostics {
         "You_cannot_rename_a_module_via_a_global_import_8031",
         "You cannot rename a module via a global import.",
     );
-    pub const Qualified_name_0_is_not_allowed_without_a_leading_param_object_1: DiagnosticMessage = diag(
-        8032,
-        DiagnosticCategory::Error,
-        "Qualified_name_0_is_not_allowed_without_a_leading_param_object_1_8032",
-        "Qualified name '{0}' is not allowed without a leading '@param {object} {1}'.",
-    );
+    pub const Qualified_name_0_is_not_allowed_without_a_leading_param_object_1: DiagnosticMessage =
+        diag(
+            8032,
+            DiagnosticCategory::Error,
+            "Qualified_name_0_is_not_allowed_without_a_leading_param_object_1_8032",
+            "Qualified name '{0}' is not allowed without a leading '@param {object} {1}'.",
+        );
     pub const A_JSDoc_typedef_comment_may_not_contain_multiple_type_tags: DiagnosticMessage = diag(
         8033,
         DiagnosticCategory::Error,
@@ -9207,12 +9541,13 @@ impl Diagnostics {
         "JSX_attributes_must_only_be_assigned_a_non_empty_expression_17000",
         "JSX attributes must only be assigned a non-empty 'expression'.",
     );
-    pub const JSX_elements_cannot_have_multiple_attributes_with_the_same_name: DiagnosticMessage = diag(
-        17001,
-        DiagnosticCategory::Error,
-        "JSX_elements_cannot_have_multiple_attributes_with_the_same_name_17001",
-        "JSX elements cannot have multiple attributes with the same name.",
-    );
+    pub const JSX_elements_cannot_have_multiple_attributes_with_the_same_name: DiagnosticMessage =
+        diag(
+            17001,
+            DiagnosticCategory::Error,
+            "JSX_elements_cannot_have_multiple_attributes_with_the_same_name_17001",
+            "JSX elements cannot have multiple attributes with the same name.",
+        );
     pub const Expected_corresponding_JSX_closing_tag_for_0: DiagnosticMessage = diag(
         17002,
         DiagnosticCategory::Error,
@@ -9225,7 +9560,8 @@ impl Diagnostics {
         "Cannot_use_JSX_unless_the_jsx_flag_is_provided_17004",
         "Cannot use JSX unless the '--jsx' flag is provided.",
     );
-    pub const A_constructor_cannot_contain_a_super_call_when_its_class_extends_null: DiagnosticMessage = diag(
+    pub const A_constructor_cannot_contain_a_super_call_when_its_class_extends_null:
+        DiagnosticMessage = diag(
         17005,
         DiagnosticCategory::Error,
         "A_constructor_cannot_contain_a_super_call_when_its_class_extends_null_17005",
@@ -9249,7 +9585,8 @@ impl Diagnostics {
         "JSX_element_0_has_no_corresponding_closing_tag_17008",
         "JSX element '{0}' has no corresponding closing tag.",
     );
-    pub const super_must_be_called_before_accessing_this_in_the_constructor_of_a_derived_class: DiagnosticMessage = diag(
+    pub const super_must_be_called_before_accessing_this_in_the_constructor_of_a_derived_class:
+        DiagnosticMessage = diag(
         17009,
         DiagnosticCategory::Error,
         "super_must_be_called_before_accessing_this_in_the_constructor_of_a_derived_class_17009",
@@ -9267,12 +9604,13 @@ impl Diagnostics {
         "super_must_be_called_before_accessing_a_property_of_super_in_the_constructor_of_a_derived_class_17011",
         "'super' must be called before accessing a property of 'super' in the constructor of a derived class.",
     );
-    pub const _0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2: DiagnosticMessage = diag(
-        17012,
-        DiagnosticCategory::Error,
-        "_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2_17012",
-        "'{0}' is not a valid meta-property for keyword '{1}'. Did you mean '{2}'?",
-    );
+    pub const _0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2: DiagnosticMessage =
+        diag(
+            17012,
+            DiagnosticCategory::Error,
+            "_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2_17012",
+            "'{0}' is not a valid meta-property for keyword '{1}'. Did you mean '{2}'?",
+        );
     pub const Meta_property_0_is_only_allowed_in_the_body_of_a_function_declaration_function_expression_or_constructor: DiagnosticMessage = diag(
         17013,
         DiagnosticCategory::Error,
@@ -9297,7 +9635,8 @@ impl Diagnostics {
         "The_jsxFragmentFactory_compiler_option_must_be_provided_to_use_JSX_fragments_with_the_jsxFactory_com_17016",
         "The 'jsxFragmentFactory' compiler option must be provided to use JSX fragments with the 'jsxFactory' compiler option.",
     );
-    pub const An_jsxFrag_pragma_is_required_when_using_an_jsx_pragma_with_JSX_fragments: DiagnosticMessage = diag(
+    pub const An_jsxFrag_pragma_is_required_when_using_an_jsx_pragma_with_JSX_fragments:
+        DiagnosticMessage = diag(
         17017,
         DiagnosticCategory::Error,
         "An_jsxFrag_pragma_is_required_when_using_an_jsx_pragma_with_JSX_fragments_17017",
@@ -9339,7 +9678,8 @@ impl Diagnostics {
         "Classes_may_not_have_a_field_named_constructor_18006",
         "Classes may not have a field named 'constructor'.",
     );
-    pub const JSX_expressions_may_not_use_the_comma_operator_Did_you_mean_to_write_an_array: DiagnosticMessage = diag(
+    pub const JSX_expressions_may_not_use_the_comma_operator_Did_you_mean_to_write_an_array:
+        DiagnosticMessage = diag(
         18007,
         DiagnosticCategory::Error,
         "JSX_expressions_may_not_use_the_comma_operator_Did_you_mean_to_write_an_array_18007",
@@ -9351,25 +9691,28 @@ impl Diagnostics {
         "Private_identifiers_cannot_be_used_as_parameters_18009",
         "Private identifiers cannot be used as parameters.",
     );
-    pub const An_accessibility_modifier_cannot_be_used_with_a_private_identifier: DiagnosticMessage = diag(
+    pub const An_accessibility_modifier_cannot_be_used_with_a_private_identifier:
+        DiagnosticMessage = diag(
         18010,
         DiagnosticCategory::Error,
         "An_accessibility_modifier_cannot_be_used_with_a_private_identifier_18010",
         "An accessibility modifier cannot be used with a private identifier.",
     );
-    pub const The_operand_of_a_delete_operator_cannot_be_a_private_identifier: DiagnosticMessage = diag(
-        18011,
-        DiagnosticCategory::Error,
-        "The_operand_of_a_delete_operator_cannot_be_a_private_identifier_18011",
-        "The operand of a 'delete' operator cannot be a private identifier.",
-    );
+    pub const The_operand_of_a_delete_operator_cannot_be_a_private_identifier: DiagnosticMessage =
+        diag(
+            18011,
+            DiagnosticCategory::Error,
+            "The_operand_of_a_delete_operator_cannot_be_a_private_identifier_18011",
+            "The operand of a 'delete' operator cannot be a private identifier.",
+        );
     pub const constructor_is_a_reserved_word: DiagnosticMessage = diag(
         18012,
         DiagnosticCategory::Error,
         "constructor_is_a_reserved_word_18012",
         "'#constructor' is a reserved word.",
     );
-    pub const Property_0_is_not_accessible_outside_class_1_because_it_has_a_private_identifier: DiagnosticMessage = diag(
+    pub const Property_0_is_not_accessible_outside_class_1_because_it_has_a_private_identifier:
+        DiagnosticMessage = diag(
         18013,
         DiagnosticCategory::Error,
         "Property_0_is_not_accessible_outside_class_1_because_it_has_a_private_identifier_18013",
@@ -9399,7 +9742,8 @@ impl Diagnostics {
         "The_shadowing_declaration_of_0_is_defined_here_18017",
         "The shadowing declaration of '{0}' is defined here",
     );
-    pub const The_declaration_of_0_that_you_probably_intended_to_use_is_defined_here: DiagnosticMessage = diag(
+    pub const The_declaration_of_0_that_you_probably_intended_to_use_is_defined_here:
+        DiagnosticMessage = diag(
         18018,
         DiagnosticCategory::Error,
         "The_declaration_of_0_that_you_probably_intended_to_use_is_defined_here_18018",
@@ -9423,24 +9767,27 @@ impl Diagnostics {
         "can_only_be_used_at_the_start_of_a_file_18026",
         "'#!' can only be used at the start of a file.",
     );
-    pub const Compiler_reserves_name_0_when_emitting_private_identifier_downlevel: DiagnosticMessage = diag(
+    pub const Compiler_reserves_name_0_when_emitting_private_identifier_downlevel:
+        DiagnosticMessage = diag(
         18027,
         DiagnosticCategory::Error,
         "Compiler_reserves_name_0_when_emitting_private_identifier_downlevel_18027",
         "Compiler reserves name '{0}' when emitting private identifier downlevel.",
     );
-    pub const Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher: DiagnosticMessage = diag(
+    pub const Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher:
+        DiagnosticMessage = diag(
         18028,
         DiagnosticCategory::Error,
         "Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher_18028",
         "Private identifiers are only available when targeting ECMAScript 2015 and higher.",
     );
-    pub const Private_identifiers_are_not_allowed_in_variable_declarations: DiagnosticMessage = diag(
-        18029,
-        DiagnosticCategory::Error,
-        "Private_identifiers_are_not_allowed_in_variable_declarations_18029",
-        "Private identifiers are not allowed in variable declarations.",
-    );
+    pub const Private_identifiers_are_not_allowed_in_variable_declarations: DiagnosticMessage =
+        diag(
+            18029,
+            DiagnosticCategory::Error,
+            "Private_identifiers_are_not_allowed_in_variable_declarations_18029",
+            "Private identifiers are not allowed in variable declarations.",
+        );
     pub const An_optional_chain_cannot_contain_private_identifiers: DiagnosticMessage = diag(
         18030,
         DiagnosticCategory::Error,
@@ -9495,36 +9842,41 @@ impl Diagnostics {
         "For_await_loops_cannot_be_used_inside_a_class_static_block_18038",
         "'For await' loops cannot be used inside a class static block.",
     );
-    pub const Invalid_use_of_0_It_cannot_be_used_inside_a_class_static_block: DiagnosticMessage = diag(
-        18039,
-        DiagnosticCategory::Error,
-        "Invalid_use_of_0_It_cannot_be_used_inside_a_class_static_block_18039",
-        "Invalid use of '{0}'. It cannot be used inside a class static block.",
-    );
-    pub const A_return_statement_cannot_be_used_inside_a_class_static_block: DiagnosticMessage = diag(
-        18041,
-        DiagnosticCategory::Error,
-        "A_return_statement_cannot_be_used_inside_a_class_static_block_18041",
-        "A 'return' statement cannot be used inside a class static block.",
-    );
-    pub const module_AMD_or_UMD_or_System_or_ES6_then_Classic_Otherwise_Node: DiagnosticMessage = diag(
-        69010,
-        DiagnosticCategory::Message,
-        "module_AMD_or_UMD_or_System_or_ES6_then_Classic_Otherwise_Node_69010",
-        "module === `AMD` or `UMD` or `System` or `ES6`, then `Classic`, Otherwise `Node`",
-    );
-    pub const File_is_a_CommonJS_module_it_may_be_converted_to_an_ES_module: DiagnosticMessage = diag(
-        80001,
-        DiagnosticCategory::Suggestion,
-        "File_is_a_CommonJS_module_it_may_be_converted_to_an_ES_module_80001",
-        "File is a CommonJS module; it may be converted to an ES module.",
-    );
-    pub const This_constructor_function_may_be_converted_to_a_class_declaration: DiagnosticMessage = diag(
-        80002,
-        DiagnosticCategory::Suggestion,
-        "This_constructor_function_may_be_converted_to_a_class_declaration_80002",
-        "This constructor function may be converted to a class declaration.",
-    );
+    pub const Invalid_use_of_0_It_cannot_be_used_inside_a_class_static_block: DiagnosticMessage =
+        diag(
+            18039,
+            DiagnosticCategory::Error,
+            "Invalid_use_of_0_It_cannot_be_used_inside_a_class_static_block_18039",
+            "Invalid use of '{0}'. It cannot be used inside a class static block.",
+        );
+    pub const A_return_statement_cannot_be_used_inside_a_class_static_block: DiagnosticMessage =
+        diag(
+            18041,
+            DiagnosticCategory::Error,
+            "A_return_statement_cannot_be_used_inside_a_class_static_block_18041",
+            "A 'return' statement cannot be used inside a class static block.",
+        );
+    pub const module_AMD_or_UMD_or_System_or_ES6_then_Classic_Otherwise_Node: DiagnosticMessage =
+        diag(
+            69010,
+            DiagnosticCategory::Message,
+            "module_AMD_or_UMD_or_System_or_ES6_then_Classic_Otherwise_Node_69010",
+            "module === `AMD` or `UMD` or `System` or `ES6`, then `Classic`, Otherwise `Node`",
+        );
+    pub const File_is_a_CommonJS_module_it_may_be_converted_to_an_ES_module: DiagnosticMessage =
+        diag(
+            80001,
+            DiagnosticCategory::Suggestion,
+            "File_is_a_CommonJS_module_it_may_be_converted_to_an_ES_module_80001",
+            "File is a CommonJS module; it may be converted to an ES module.",
+        );
+    pub const This_constructor_function_may_be_converted_to_a_class_declaration: DiagnosticMessage =
+        diag(
+            80002,
+            DiagnosticCategory::Suggestion,
+            "This_constructor_function_may_be_converted_to_a_class_declaration_80002",
+            "This constructor function may be converted to a class declaration.",
+        );
     pub const Import_may_be_converted_to_a_default_import: DiagnosticMessage = diag(
         80003,
         DiagnosticCategory::Suggestion,
@@ -9957,7 +10309,8 @@ impl Diagnostics {
         "Add_initializers_to_all_uninitialized_properties_95027",
         "Add initializers to all uninitialized properties",
     );
-    pub const Add_definite_assignment_assertions_to_all_uninitialized_properties: DiagnosticMessage = diag(
+    pub const Add_definite_assignment_assertions_to_all_uninitialized_properties:
+        DiagnosticMessage = diag(
         95028,
         DiagnosticCategory::Message,
         "Add_definite_assignment_assertions_to_all_uninitialized_properties_95028",
@@ -9975,7 +10328,8 @@ impl Diagnostics {
         "Change_all_jsdoc_style_types_to_TypeScript_95030",
         "Change all jsdoc-style types to TypeScript",
     );
-    pub const Change_all_jsdoc_style_types_to_TypeScript_and_add_undefined_to_nullable_types: DiagnosticMessage = diag(
+    pub const Change_all_jsdoc_style_types_to_TypeScript_and_add_undefined_to_nullable_types:
+        DiagnosticMessage = diag(
         95031,
         DiagnosticCategory::Message,
         "Change_all_jsdoc_style_types_to_TypeScript_and_add_undefined_to_nullable_types_95031",
@@ -10005,18 +10359,20 @@ impl Diagnostics {
         "Convert_all_to_default_imports_95035",
         "Convert all to default imports",
     );
-    pub const Make_all_super_calls_the_first_statement_in_their_constructor: DiagnosticMessage = diag(
-        95036,
-        DiagnosticCategory::Message,
-        "Make_all_super_calls_the_first_statement_in_their_constructor_95036",
-        "Make all 'super()' calls the first statement in their constructor",
-    );
-    pub const Add_qualifier_to_all_unresolved_variables_matching_a_member_name: DiagnosticMessage = diag(
-        95037,
-        DiagnosticCategory::Message,
-        "Add_qualifier_to_all_unresolved_variables_matching_a_member_name_95037",
-        "Add qualifier to all unresolved variables matching a member name",
-    );
+    pub const Make_all_super_calls_the_first_statement_in_their_constructor: DiagnosticMessage =
+        diag(
+            95036,
+            DiagnosticCategory::Message,
+            "Make_all_super_calls_the_first_statement_in_their_constructor_95036",
+            "Make all 'super()' calls the first statement in their constructor",
+        );
+    pub const Add_qualifier_to_all_unresolved_variables_matching_a_member_name: DiagnosticMessage =
+        diag(
+            95037,
+            DiagnosticCategory::Message,
+            "Add_qualifier_to_all_unresolved_variables_matching_a_member_name_95037",
+            "Add qualifier to all unresolved variables matching a member name",
+        );
     pub const Change_all_extended_interfaces_to_implements: DiagnosticMessage = diag(
         95038,
         DiagnosticCategory::Message,
@@ -10233,7 +10589,8 @@ impl Diagnostics {
         "Add_names_to_all_parameters_without_names_95073",
         "Add names to all parameters without names",
     );
-    pub const Enable_the_experimentalDecorators_option_in_your_configuration_file: DiagnosticMessage = diag(
+    pub const Enable_the_experimentalDecorators_option_in_your_configuration_file:
+        DiagnosticMessage = diag(
         95074,
         DiagnosticCategory::Message,
         "Enable_the_experimentalDecorators_option_in_your_configuration_file_95074",
@@ -10443,7 +10800,8 @@ impl Diagnostics {
         "Remove_braces_from_arrow_function_body_95112",
         "Remove braces from arrow function body",
     );
-    pub const Wrap_the_following_body_with_parentheses_which_should_be_an_object_literal: DiagnosticMessage = diag(
+    pub const Wrap_the_following_body_with_parentheses_which_should_be_an_object_literal:
+        DiagnosticMessage = diag(
         95113,
         DiagnosticCategory::Message,
         "Wrap_the_following_body_with_parentheses_which_should_be_an_object_literal_95113",
@@ -10455,12 +10813,13 @@ impl Diagnostics {
         "Add_all_missing_return_statement_95114",
         "Add all missing return statement",
     );
-    pub const Remove_braces_from_all_arrow_function_bodies_with_relevant_issues: DiagnosticMessage = diag(
-        95115,
-        DiagnosticCategory::Message,
-        "Remove_braces_from_all_arrow_function_bodies_with_relevant_issues_95115",
-        "Remove braces from all arrow function bodies with relevant issues",
-    );
+    pub const Remove_braces_from_all_arrow_function_bodies_with_relevant_issues: DiagnosticMessage =
+        diag(
+            95115,
+            DiagnosticCategory::Message,
+            "Remove_braces_from_all_arrow_function_bodies_with_relevant_issues_95115",
+            "Remove braces from all arrow function bodies with relevant issues",
+        );
     pub const Wrap_all_object_literal_with_parentheses: DiagnosticMessage = diag(
         95116,
         DiagnosticCategory::Message,
@@ -10479,12 +10838,13 @@ impl Diagnostics {
         "Convert_overload_list_to_single_signature_95118",
         "Convert overload list to single signature",
     );
-    pub const Generate_get_and_set_accessors_for_all_overriding_properties: DiagnosticMessage = diag(
-        95119,
-        DiagnosticCategory::Message,
-        "Generate_get_and_set_accessors_for_all_overriding_properties_95119",
-        "Generate 'get' and 'set' accessors for all overriding properties",
-    );
+    pub const Generate_get_and_set_accessors_for_all_overriding_properties: DiagnosticMessage =
+        diag(
+            95119,
+            DiagnosticCategory::Message,
+            "Generate_get_and_set_accessors_for_all_overriding_properties_95119",
+            "Generate 'get' and 'set' accessors for all overriding properties",
+        );
     pub const Wrap_in_JSX_fragment: DiagnosticMessage = diag(
         95120,
         DiagnosticCategory::Message,
