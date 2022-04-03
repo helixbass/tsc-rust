@@ -1,30 +1,14 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::ptr;
+use std::convert::TryFrom;
 use std::rc::Rc;
 
-use super::{get_symbol_id, MinArgumentCountFlags};
 use crate::{
-    add_range, append, are_rc_slices_equal, chain_diagnostic_messages, create_symbol_table, filter,
-    find, get_check_flags, get_declaration_modifier_flags_from_symbol,
-    get_effective_constraint_of_type_parameter, get_effective_return_type_node,
-    get_effective_type_parameter_declarations, get_immediately_invoked_function_expression,
-    get_jsdoc_parameter_tags, has_question_token, index_of_rc, is_binding_pattern,
-    is_external_module_name_relative, is_in_js_file, is_jsdoc_property_like_tag,
-    is_property_declaration, is_type_parameter_declaration, length, map_defined,
-    maybe_append_if_unique_rc, node_is_missing, reduce_left, same_map, some, AccessFlags,
-    CheckFlags, Debug_, DiagnosticMessageChain, ElementFlags, HasInitializerInterface,
-    HasTypeInterface, IndexInfo, InterfaceTypeInterface, ModifierFlags, ScriptTarget, Signature,
-    SignatureFlags, SignatureKind, SymbolId, SymbolTable, Ternary, TransientSymbolInterface,
-    TypeFormatFlags, TypePredicate, TypePredicateKind, UnionOrIntersectionTypeInterface, UnionType,
-    __String, binary_search_copy_key, compare_values, concatenate, get_name_of_declaration,
-    get_object_flags, map, unescape_leading_underscores, BaseUnionOrIntersectionType,
-    DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
-    TypeInterface, TypeReference, UnionReduction,
+    AccessFlags, UnionType, __String, binary_search_copy_key, compare_values,
+    get_name_of_declaration, map, unescape_leading_underscores, BaseUnionOrIntersectionType, Node,
+    ObjectFlags, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
