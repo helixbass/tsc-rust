@@ -793,6 +793,10 @@ pub struct TupleType {
 
 pub trait UnionOrIntersectionTypeInterface: TypeInterface {
     fn types(&self) -> &[Rc<Type>];
+    fn maybe_property_cache(&self) -> RefMut<Option<SymbolTable>>;
+    fn maybe_property_cache_without_object_function_property_augment(
+        &self,
+    ) -> RefMut<Option<SymbolTable>>;
     fn maybe_resolved_properties(&self) -> RefMut<Option<Vec<Rc<Symbol>>>>;
 }
 
@@ -809,6 +813,8 @@ pub struct BaseUnionOrIntersectionType {
     _type: BaseType,
     pub types: Vec<Rc<Type>>,
     pub object_flags: Cell<ObjectFlags>,
+    property_cache: RefCell<Option<SymbolTable>>,
+    property_cache_without_object_function_property_augment: RefCell<Option<SymbolTable>>,
     resolved_properties: RefCell<Option<Vec<Rc<Symbol>>>>,
     // ResolvedType Fields
     members: RefCell<Option<Rc<RefCell<SymbolTable>>>>,
@@ -826,6 +832,8 @@ impl BaseUnionOrIntersectionType {
             object_flags: Cell::new(object_flags),
             resolved_properties: RefCell::new(None),
             members: RefCell::new(None),
+            property_cache: RefCell::new(None),
+            property_cache_without_object_function_property_augment: RefCell::new(None),
             properties: RefCell::new(None),
             call_signatures: RefCell::new(None),
             construct_signatures: RefCell::new(None),
@@ -837,6 +845,17 @@ impl BaseUnionOrIntersectionType {
 impl UnionOrIntersectionTypeInterface for BaseUnionOrIntersectionType {
     fn types(&self) -> &[Rc<Type>] {
         &self.types
+    }
+
+    fn maybe_property_cache(&self) -> RefMut<Option<SymbolTable>> {
+        self.property_cache.borrow_mut()
+    }
+
+    fn maybe_property_cache_without_object_function_property_augment(
+        &self,
+    ) -> RefMut<Option<SymbolTable>> {
+        self.property_cache_without_object_function_property_augment
+            .borrow_mut()
     }
 
     fn maybe_resolved_properties(&self) -> RefMut<Option<Vec<Rc<Symbol>>>> {

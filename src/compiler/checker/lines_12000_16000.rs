@@ -8,18 +8,18 @@ use std::rc::Rc;
 
 use super::get_symbol_id;
 use crate::{
-    add_range, append, filter, find, get_declaration_modifier_flags_from_symbol,
-    get_effective_constraint_of_type_parameter, get_effective_return_type_node,
-    get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
-    length, map_defined, maybe_append_if_unique_rc, node_is_missing, AccessFlags, CheckFlags,
-    DiagnosticMessageChain, ElementFlags, IndexInfo, InterfaceTypeInterface, ModifierFlags,
-    ScriptTarget, Signature, SignatureFlags, SignatureKind, SymbolId, SymbolTable, Ternary,
-    TransientSymbolInterface, TypePredicate, TypePredicateKind, UnionType, __String,
-    binary_search_copy_key, compare_values, concatenate, get_name_of_declaration, get_object_flags,
-    map, unescape_leading_underscores, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    TypeReference, UnionReduction,
+    add_range, append, create_symbol_table, filter, find,
+    get_declaration_modifier_flags_from_symbol, get_effective_constraint_of_type_parameter,
+    get_effective_return_type_node, get_effective_type_parameter_declarations, is_binding_pattern,
+    is_type_parameter_declaration, length, map_defined, maybe_append_if_unique_rc, node_is_missing,
+    AccessFlags, CheckFlags, DiagnosticMessageChain, ElementFlags, IndexInfo,
+    InterfaceTypeInterface, ModifierFlags, ScriptTarget, Signature, SignatureFlags, SignatureKind,
+    SymbolId, SymbolTable, Ternary, TransientSymbolInterface, TypePredicate, TypePredicateKind,
+    UnionType, __String, binary_search_copy_key, compare_values, concatenate,
+    get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
+    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeId, TypeInterface, TypeReference, UnionReduction,
 };
 
 impl TypeChecker {
@@ -336,6 +336,66 @@ impl TypeChecker {
             });
         }
         Some(result)
+    }
+
+    pub(super) fn get_union_or_intersection_property(
+        &self,
+        type_: &Type, /*UnionOrIntersectionType*/
+        name: &__String,
+        skip_object_function_property_augment: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        let type_as_union_or_intersection_type = type_.as_union_or_intersection_type_interface();
+        let mut property = type_as_union_or_intersection_type
+            .maybe_property_cache_without_object_function_property_augment()
+            .as_ref()
+            .and_then(|property_cache_without_object_function_property_augment| {
+                property_cache_without_object_function_property_augment
+                    .get(name)
+                    .map(Clone::clone)
+            })
+            .or_else(|| {
+                if !matches!(skip_object_function_property_augment, Some(true)) {
+                    type_as_union_or_intersection_type
+                        .maybe_property_cache()
+                        .as_ref()
+                        .and_then(|property_cache| property_cache.get(name).map(Clone::clone))
+                } else {
+                    None
+                }
+            });
+        if property.is_none() {
+            property = self.create_union_or_intersection_property(
+                type_,
+                name,
+                skip_object_function_property_augment,
+            );
+            if let Some(property) = property.as_ref() {
+                if matches!(skip_object_function_property_augment, Some(true)) {
+                    let mut property_cache_without_object_function_property_augment =
+                        type_as_union_or_intersection_type
+                            .maybe_property_cache_without_object_function_property_augment();
+                    if property_cache_without_object_function_property_augment.is_none() {
+                        *property_cache_without_object_function_property_augment =
+                            Some(create_symbol_table(None));
+                    }
+                    property_cache_without_object_function_property_augment
+                        .as_mut()
+                        .unwrap()
+                        .insert(name.clone(), property.clone());
+                } else {
+                    let mut property_cache =
+                        type_as_union_or_intersection_type.maybe_property_cache();
+                    if property_cache.is_none() {
+                        *property_cache = Some(create_symbol_table(None));
+                    }
+                    property_cache
+                        .as_mut()
+                        .unwrap()
+                        .insert(name.clone(), property.clone());
+                };
+            }
+        }
+        property
     }
 
     pub(super) fn get_property_of_union_or_intersection_type(
