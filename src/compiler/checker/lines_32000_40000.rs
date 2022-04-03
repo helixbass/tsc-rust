@@ -698,6 +698,10 @@ impl TypeChecker {
         }
     }
 
+    pub(super) fn get_target_symbol(&self, s: &Symbol) -> Rc<Symbol> {
+        unimplemented!()
+    }
+
     pub(super) fn is_property_initialized_in_static_blocks(
         &self,
         prop_name: &Node, /*Identifier | PrivateIdentifier*/

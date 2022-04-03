@@ -464,6 +464,10 @@ impl TypeChecker {
             || (type_.flags().intersects(TypeFlags::Intersection) && unimplemented!())
     }
 
+    pub(super) fn is_prototype_property(&self, symbol: &Symbol) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_nullable_type(&self, type_: &Type) -> bool {
         unimplemented!()
     }

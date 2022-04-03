@@ -2692,6 +2692,18 @@ impl TypeChecker {
         self.global_readonly_array_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn global_string_type(&self) -> Rc<Type> {
+        self.global_string_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn global_number_type(&self) -> Rc<Type> {
+        self.global_number_type.as_ref().unwrap().clone()
+    }
+
+    pub(super) fn global_boolean_type(&self) -> Rc<Type> {
+        self.global_boolean_type.as_ref().unwrap().clone()
+    }
+
     pub(super) fn any_array_type(&self) -> Rc<Type> {
         self.any_array_type.as_ref().unwrap().clone()
     }

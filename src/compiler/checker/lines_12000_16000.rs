@@ -1,18 +1,22 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::ptr;
 use std::rc::Rc;
 
+use super::get_symbol_id;
 use crate::{
-    filter, find, get_effective_constraint_of_type_parameter, get_effective_return_type_node,
+    add_range, append, filter, find, get_declaration_modifier_flags_from_symbol,
+    get_effective_constraint_of_type_parameter, get_effective_return_type_node,
     get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
-    map_defined, maybe_append_if_unique_rc, node_is_missing, AccessFlags, DiagnosticMessageChain,
-    ElementFlags, IndexInfo, InterfaceTypeInterface, Signature, SignatureFlags, SignatureKind,
-    SymbolTable, TypePredicate, TypePredicateKind, UnionType, __String, binary_search_copy_key,
-    compare_values, concatenate, get_name_of_declaration, get_object_flags, map,
-    unescape_leading_underscores, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics,
+    length, map_defined, maybe_append_if_unique_rc, node_is_missing, AccessFlags, CheckFlags,
+    DiagnosticMessageChain, ElementFlags, IndexInfo, InterfaceTypeInterface, ModifierFlags,
+    ScriptTarget, Signature, SignatureFlags, SignatureKind, SymbolId, SymbolTable, Ternary,
+    TransientSymbolInterface, TypePredicate, TypePredicateKind, UnionType, __String,
+    binary_search_copy_key, compare_values, concatenate, get_name_of_declaration, get_object_flags,
+    map, unescape_leading_underscores, BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics,
     Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
     TypeReference, UnionReduction,
@@ -21,12 +25,31 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_apparent_type(&self, type_: &Type) -> Rc<Type> {
         let t = if type_.flags().intersects(TypeFlags::Instantiable) {
-            unimplemented!()
+            self.get_base_constraint_of_type(type_)
+                .unwrap_or_else(|| self.unknown_type())
         } else {
             type_.type_wrapper()
         };
-        if false {
-            unimplemented!()
+        if get_object_flags(&t).intersects(ObjectFlags::Mapped) {
+            self.get_apparent_type_of_mapped_type(&t)
+        } else if t.flags().intersects(TypeFlags::Intersection) {
+            self.get_apparent_type_of_intersection_type(&t)
+        } else if t.flags().intersects(TypeFlags::StringLike) {
+            self.global_string_type()
+        } else if t.flags().intersects(TypeFlags::NumberLike) {
+            self.global_number_type()
+        } else if t.flags().intersects(TypeFlags::BigIntLike) {
+            self.get_global_big_int_type(self.language_version >= ScriptTarget::ES2020)
+        } else if t.flags().intersects(TypeFlags::BooleanLike) {
+            self.global_boolean_type()
+        } else if t.flags().intersects(TypeFlags::ESSymbolLike) {
+            self.get_global_es_symbol_type(self.language_version >= ScriptTarget::ES2015)
+        } else if t.flags().intersects(TypeFlags::NonPrimitive) {
+            self.empty_object_type()
+        } else if t.flags().intersects(TypeFlags::Index) {
+            self.keyof_constraint_type()
+        } else if t.flags().intersects(TypeFlags::Unknown) && !self.strict_null_checks {
+            self.empty_object_type()
         } else {
             t
         }
@@ -42,7 +65,277 @@ impl TypeChecker {
         name: &__String,
         skip_object_function_property_augment: Option<bool>,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let mut single_prop: Option<Rc<Symbol>> = None;
+        let mut prop_set: Option<HashMap<SymbolId, Rc<Symbol>>> = None;
+        let mut index_types: Option<Vec<Rc<Type>>> = None;
+        let is_union = containing_type.flags().intersects(TypeFlags::Union);
+        let mut optional_flag = if is_union {
+            SymbolFlags::None
+        } else {
+            SymbolFlags::Optional
+        };
+        let mut synthetic_flag = CheckFlags::SyntheticMethod;
+        let mut check_flags = if is_union {
+            CheckFlags::None
+        } else {
+            CheckFlags::Readonly
+        };
+        let mut merged_instantiations = false;
+        for current in containing_type
+            .as_union_or_intersection_type_interface()
+            .types()
+        {
+            let type_ = self.get_apparent_type(current);
+            if !(self.is_error_type(&type_) || type_.flags().intersects(TypeFlags::Never)) {
+                let prop =
+                    self.get_property_of_type_(&type_, name, skip_object_function_property_augment);
+                let modifiers = if let Some(prop) = prop.as_ref() {
+                    get_declaration_modifier_flags_from_symbol(prop, None)
+                } else {
+                    ModifierFlags::None
+                };
+                if let Some(prop) = prop {
+                    if is_union {
+                        optional_flag |= prop.flags() & SymbolFlags::Optional;
+                    } else {
+                        optional_flag &= prop.flags();
+                    }
+                    if single_prop.is_none() {
+                        single_prop = Some(prop.clone());
+                    } else if !Rc::ptr_eq(&prop, single_prop.as_ref().unwrap()) {
+                        let single_prop = single_prop.as_ref().unwrap();
+                        let is_instantiation = Rc::ptr_eq(
+                            &self.get_target_symbol(&prop),       /*|| prop*/
+                            &self.get_target_symbol(single_prop), /*|| singleProp*/
+                        );
+                        if is_instantiation
+                            && self.compare_properties(single_prop, &prop, |a, b| {
+                                if ptr::eq(a, b) {
+                                    Ternary::True
+                                } else {
+                                    Ternary::False
+                                }
+                            }) == Ternary::True
+                        {
+                            merged_instantiations = matches!(
+                                single_prop.maybe_parent(),
+                                Some(parent) if length(self.get_local_type_parameters_of_class_or_interface_or_type_alias(&parent).as_deref()) != 0
+                            );
+                        } else {
+                            if prop_set.is_none() {
+                                prop_set = Some(HashMap::new());
+                                prop_set
+                                    .as_mut()
+                                    .unwrap()
+                                    .insert(get_symbol_id(single_prop), single_prop.clone());
+                            }
+                            let prop_set = prop_set.as_mut().unwrap();
+                            let id = get_symbol_id(&prop);
+                            if !prop_set.contains_key(&id) {
+                                prop_set.insert(id, prop.clone());
+                            }
+                        }
+                    }
+                    if is_union && self.is_readonly_symbol(&prop) {
+                        check_flags |= CheckFlags::Readonly;
+                    } else if !is_union && !self.is_readonly_symbol(&prop) {
+                        check_flags &= !CheckFlags::Readonly;
+                    }
+                    check_flags |=
+                        if !modifiers.intersects(ModifierFlags::NonPublicAccessibilityModifier) {
+                            CheckFlags::ContainsPublic
+                        } else {
+                            CheckFlags::None
+                        } | if modifiers.intersects(ModifierFlags::Protected) {
+                            CheckFlags::ContainsProtected
+                        } else {
+                            CheckFlags::None
+                        } | if modifiers.intersects(ModifierFlags::Private) {
+                            CheckFlags::ContainsPrivate
+                        } else {
+                            CheckFlags::None
+                        } | if modifiers.intersects(ModifierFlags::Static) {
+                            CheckFlags::ContainsStatic
+                        } else {
+                            CheckFlags::None
+                        };
+                    if !self.is_prototype_property(&prop) {
+                        synthetic_flag = CheckFlags::SyntheticProperty;
+                    }
+                } else if is_union {
+                    let index_info = if !self.is_late_bound_name(name) {
+                        self.get_applicable_index_info_for_name(&type_, name)
+                    } else {
+                        None
+                    };
+                    if let Some(index_info) = index_info {
+                        check_flags |= CheckFlags::WritePartial
+                            | if index_info.is_readonly {
+                                CheckFlags::Readonly
+                            } else {
+                                CheckFlags::None
+                            };
+                        if index_types.is_none() {
+                            index_types = Some(vec![]);
+                        }
+                        append(
+                            index_types.as_mut().unwrap(),
+                            Some(if self.is_tuple_type(&type_) {
+                                self.get_rest_type_of_tuple_type(&type_)
+                                    .unwrap_or_else(|| self.undefined_type())
+                            } else {
+                                index_info.type_.clone()
+                            }),
+                        );
+                    } else if self.is_object_literal_type(&type_)
+                        && !get_object_flags(&type_).intersects(ObjectFlags::ContainsSpread)
+                    {
+                        check_flags |= CheckFlags::WritePartial;
+                        if index_types.is_none() {
+                            index_types = Some(vec![]);
+                        }
+                        append(index_types.as_mut().unwrap(), Some(self.undefined_type()));
+                    } else {
+                        check_flags |= CheckFlags::ReadPartial;
+                    }
+                }
+            }
+        }
+        if single_prop.is_none()
+            || is_union
+                && (prop_set.is_some() || check_flags.intersects(CheckFlags::Partial))
+                && check_flags
+                    .intersects(CheckFlags::ContainsPrivate | CheckFlags::ContainsProtected)
+        {
+            return None;
+        }
+        let single_prop = single_prop.unwrap();
+        if prop_set.is_none()
+            && !check_flags.intersects(CheckFlags::ReadPartial)
+            && index_types.is_none()
+        {
+            if merged_instantiations {
+                let clone = self.create_symbol_with_type(
+                    &single_prop,
+                    (*single_prop.as_transient_symbol().symbol_links())
+                        .borrow()
+                        .type_
+                        .as_deref(),
+                );
+                clone.set_parent(
+                    single_prop
+                        .maybe_value_declaration()
+                        .and_then(|value_declaration| value_declaration.maybe_symbol())
+                        .and_then(|symbol| symbol.maybe_parent()),
+                );
+                let clone_symbol_links = clone.as_transient_symbol().symbol_links();
+                let mut clone_symbol_links = clone_symbol_links.borrow_mut();
+                clone_symbol_links.containing_type = Some(containing_type.type_wrapper());
+                clone_symbol_links.mapper = (*single_prop.as_transient_symbol().symbol_links())
+                    .borrow()
+                    .mapper
+                    .clone();
+                return Some(clone);
+            } else {
+                return Some(single_prop);
+            }
+        }
+        let props = if let Some(prop_set) = prop_set.as_ref() {
+            prop_set.values().map(Clone::clone).collect()
+        } else {
+            vec![single_prop]
+        };
+        let mut declarations: Option<Vec<Rc<Node /*Declaration*/>>> = None;
+        let mut first_type: Option<Rc<Type>> = None;
+        let mut name_type: Option<Rc<Type>> = None;
+        let mut prop_types: Vec<Rc<Type>> = vec![];
+        let mut first_value_declaration: Option<Rc<Node /*Declaration*/>> = None;
+        let mut has_non_uniform_value_declaration = false;
+        for prop in props {
+            if first_value_declaration.is_none() {
+                first_value_declaration = prop.maybe_value_declaration();
+            } else if matches!(
+                prop.maybe_value_declaration(),
+                Some(value_declaration) if !Rc::ptr_eq(&value_declaration, first_value_declaration.as_ref().unwrap())
+            ) {
+                has_non_uniform_value_declaration = true;
+            }
+            if let Some(prop_declarations) = prop.maybe_declarations().as_deref() {
+                if !prop_declarations.is_empty() {
+                    if declarations.is_none() {
+                        declarations = Some(vec![]);
+                    }
+                    add_range(
+                        declarations.as_mut().unwrap(),
+                        Some(prop_declarations),
+                        None,
+                        None,
+                    );
+                }
+            }
+            let type_ = self.get_type_of_symbol(&prop);
+            if first_type.is_none() {
+                first_type = Some(type_.clone());
+                name_type = (*self.get_symbol_links(&prop)).borrow().name_type.clone();
+            } else if !Rc::ptr_eq(&type_, first_type.as_ref().unwrap()) {
+                check_flags |= CheckFlags::HasNonUniformType;
+            }
+            if self.is_literal_type(&type_) || self.is_pattern_literal_type(&type_) {
+                check_flags |= CheckFlags::HasLiteralType;
+            }
+            if type_.flags().intersects(TypeFlags::Never) {
+                check_flags |= CheckFlags::HasNeverType;
+            }
+            prop_types.push(type_);
+        }
+        add_range(&mut prop_types, index_types.as_deref(), None, None);
+        let result: Rc<Symbol> = self
+            .create_symbol(
+                SymbolFlags::Property | optional_flag,
+                name.clone(),
+                Some(synthetic_flag | check_flags),
+            )
+            .into();
+        let result_links = result.as_transient_symbol().symbol_links();
+        let mut result_links = result_links.borrow_mut();
+        result_links.containing_type = Some(containing_type.type_wrapper());
+        if !has_non_uniform_value_declaration {
+            if let Some(first_value_declaration) = first_value_declaration {
+                result.set_value_declaration(first_value_declaration.clone());
+
+                if let Some(first_value_declaration_symbol_parent) =
+                    first_value_declaration.symbol().maybe_parent()
+                {
+                    result.set_parent(Some(first_value_declaration_symbol_parent));
+                }
+            }
+        }
+
+        if let Some(declarations) = declarations {
+            result.set_declarations(declarations);
+        }
+        result_links.name_type = name_type;
+        if prop_types.len() > 2 {
+            let result_as_transient_symbol = result.as_transient_symbol();
+            result_as_transient_symbol.set_check_flags(
+                result_as_transient_symbol.check_flags() | CheckFlags::DeferredType,
+            );
+            result_links.deferral_parent = Some(containing_type.type_wrapper());
+            result_links.deferral_constituents = Some(prop_types);
+        } else {
+            result_links.type_ = Some(if is_union {
+                self.get_union_type(
+                    prop_types,
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                    Option::<&Type>::None,
+                )
+            } else {
+                self.get_intersection_type(&prop_types, Option::<&Symbol>::None, None)
+            });
+        }
+        Some(result)
     }
 
     pub(super) fn get_property_of_union_or_intersection_type(
@@ -865,6 +1158,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_global_es_symbol_type(&self, report_errors: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_global_promise_type(&self, report_errors: bool) -> Rc<Type /*GenericType*/> {
         let mut deferred_global_promise_type_ref = self.deferred_global_promise_type.borrow_mut();
         if let Some(deferred_global_promise_type) = deferred_global_promise_type_ref.as_ref() {
@@ -938,6 +1235,10 @@ impl TypeChecker {
     }
 
     pub(super) fn get_global_omit_symbol(&self) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_global_big_int_type(&self, report_errors: bool) -> Rc<Type> {
         unimplemented!()
     }
 
@@ -1290,6 +1591,10 @@ impl TypeChecker {
             }
         }
         None
+    }
+
+    pub(super) fn is_pattern_literal_type(&self, type_: &Type) -> bool {
+        unimplemented!()
     }
 
     pub(super) fn is_generic_object_type(&self, type_: &Type) -> bool {

@@ -1085,6 +1085,7 @@ pub struct SymbolLinks {
     pub mapper: Option<TypeMapper>,
     pub referenced: Option<bool>,
     pub const_enum_referenced: Option<bool>,
+    pub containing_type: Option<Rc<Type>>,
     pub synthetic_origin: Option<Rc<Symbol>>,
     pub resolved_exports: Option<Rc<RefCell<SymbolTable>>>,
     pub resolved_members: Option<Rc<RefCell<SymbolTable>>>,
@@ -1115,6 +1116,7 @@ impl SymbolLinks {
             mapper: None,
             referenced: None,
             const_enum_referenced: None,
+            containing_type: None,
             synthetic_origin: None,
             resolved_exports: None,
             resolved_members: None,
@@ -1173,6 +1175,7 @@ bitflags! {
 pub trait TransientSymbolInterface: SymbolInterface {
     fn symbol_links(&self) -> Rc<RefCell<SymbolLinks>>;
     fn check_flags(&self) -> CheckFlags;
+    fn set_check_flags(&self, check_flags: CheckFlags);
 }
 
 #[derive(Debug)]
@@ -1213,7 +1216,7 @@ impl TransientSymbol {
 pub struct BaseTransientSymbol {
     _symbol: BaseSymbol,
     _symbol_links: Rc<RefCell<SymbolLinks>>,
-    check_flags: CheckFlags,
+    check_flags: Cell<CheckFlags>,
 }
 
 impl BaseTransientSymbol {
@@ -1221,7 +1224,7 @@ impl BaseTransientSymbol {
         Self {
             _symbol: base_symbol,
             _symbol_links: Rc::new(RefCell::new(SymbolLinks::new())),
-            check_flags,
+            check_flags: Cell::new(check_flags),
         }
     }
 }
@@ -1232,6 +1235,10 @@ impl TransientSymbolInterface for BaseTransientSymbol {
     }
 
     fn check_flags(&self) -> CheckFlags {
-        self.check_flags
+        self.check_flags.get()
+    }
+
+    fn set_check_flags(&self, check_flags: CheckFlags) {
+        self.check_flags.set(check_flags);
     }
 }

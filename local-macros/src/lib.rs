@@ -2267,6 +2267,10 @@ fn get_symbol_struct_interface_impl(
                     fn check_flags(&self) -> crate::CheckFlags {
                         self.#first_field_name.check_flags()
                     }
+
+                    fn set_check_flags(&self, check_flags: crate::CheckFlags) {
+                        self.#first_field_name.set_check_flags(check_flags)
+                    }
                 }
             }
         }
@@ -2483,6 +2487,12 @@ fn get_symbol_enum_interface_impl(
                     fn check_flags(&self) -> crate::CheckFlags {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.check_flags()),*
+                        }
+                    }
+
+                    fn set_check_flags(&self, check_flags: crate::CheckFlags) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_check_flags(check_flags)),*
                         }
                     }
                 }

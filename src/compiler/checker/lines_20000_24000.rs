@@ -54,6 +54,15 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn compare_properties<TCompareTypes: FnMut(&Type, &Type) -> Ternary>(
+        &self,
+        source_prop: &Symbol,
+        target_prop: &Symbol,
+        mut compare_types: TCompareTypes,
+    ) -> Ternary {
+        unimplemented!()
+    }
+
     pub(super) fn is_matching_signature(
         &self,
         source: &Signature,
@@ -308,6 +317,13 @@ impl TypeChecker {
     }
 
     pub(super) fn is_generic_tuple_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
+    pub(super) fn get_rest_type_of_tuple_type(
+        &self,
+        type_: &Type, /*TupleTypeReference*/
+    ) -> Option<Rc<Type>> {
         unimplemented!()
     }
 
