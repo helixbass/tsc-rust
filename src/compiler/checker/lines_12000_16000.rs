@@ -2,25 +2,29 @@
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::ptr;
 use std::rc::Rc;
 
-use super::get_symbol_id;
+use super::{get_symbol_id, MinArgumentCountFlags};
 use crate::{
     add_range, append, are_rc_slices_equal, chain_diagnostic_messages, create_symbol_table, filter,
     find, get_check_flags, get_declaration_modifier_flags_from_symbol,
     get_effective_constraint_of_type_parameter, get_effective_return_type_node,
-    get_effective_type_parameter_declarations, is_binding_pattern, is_type_parameter_declaration,
-    length, map_defined, maybe_append_if_unique_rc, node_is_missing, same_map, some, AccessFlags,
-    CheckFlags, DiagnosticMessageChain, ElementFlags, IndexInfo, InterfaceTypeInterface,
-    ModifierFlags, ScriptTarget, Signature, SignatureFlags, SignatureKind, SymbolId, SymbolTable,
-    Ternary, TransientSymbolInterface, TypeFormatFlags, TypePredicate, TypePredicateKind,
-    UnionOrIntersectionTypeInterface, UnionType, __String, binary_search_copy_key, compare_values,
-    concatenate, get_name_of_declaration, get_object_flags, map, unescape_leading_underscores,
-    BaseUnionOrIntersectionType, DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    TypeFlags, TypeId, TypeInterface, TypeReference, UnionReduction,
+    get_effective_type_parameter_declarations, get_immediately_invoked_function_expression,
+    get_jsdoc_parameter_tags, has_question_token, index_of_rc, is_binding_pattern,
+    is_external_module_name_relative, is_in_js_file, is_jsdoc_property_like_tag,
+    is_property_declaration, is_type_parameter_declaration, length, map_defined,
+    maybe_append_if_unique_rc, node_is_missing, reduce_left, same_map, some, AccessFlags,
+    CheckFlags, Debug_, DiagnosticMessageChain, ElementFlags, HasInitializerInterface,
+    HasTypeInterface, IndexInfo, InterfaceTypeInterface, ModifierFlags, ScriptTarget, Signature,
+    SignatureFlags, SignatureKind, SymbolId, SymbolTable, Ternary, TransientSymbolInterface,
+    TypeFormatFlags, TypePredicate, TypePredicateKind, UnionOrIntersectionTypeInterface, UnionType,
+    __String, binary_search_copy_key, compare_values, concatenate, get_name_of_declaration,
+    get_object_flags, map, unescape_leading_underscores, BaseUnionOrIntersectionType,
+    DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId,
+    TypeInterface, TypeReference, UnionReduction,
 };
 
 impl TypeChecker {
@@ -604,11 +608,11 @@ impl TypeChecker {
     ) -> Vec<Rc<Signature>> {
         if type_.flags().intersects(TypeFlags::StructuredType) {
             let resolved = self.resolve_structured_type_members(type_);
-            let resolved = resolved.as_resolved_type();
+            let resolved_as_resolved_type = resolved.as_resolved_type();
             return if kind == SignatureKind::Call {
-                resolved.call_signatures().clone()
+                resolved_as_resolved_type.call_signatures().clone()
             } else {
-                resolved.construct_signatures().clone()
+                resolved_as_resolved_type.construct_signatures().clone()
             };
         }
         vec![]
@@ -633,8 +637,80 @@ impl TypeChecker {
         .map(Clone::clone)
     }
 
+    pub(super) fn find_applicable_index_info(
+        &self,
+        index_infos: &[Rc<IndexInfo>],
+        key_type: &Type,
+    ) -> Option<Rc<IndexInfo>> {
+        let mut string_index_info: Option<Rc<IndexInfo>> = None;
+        let mut applicable_info: Option<Rc<IndexInfo>> = None;
+        let mut applicable_infos: Option<Vec<Rc<IndexInfo>>> = None;
+        for info in index_infos {
+            if Rc::ptr_eq(&info.key_type, &self.string_type()) {
+                string_index_info = Some(info.clone());
+            } else if self.is_applicable_index_type(key_type, &info.key_type) {
+                if applicable_info.is_none() {
+                    applicable_info = Some(info.clone());
+                } else {
+                    if applicable_infos.is_none() {
+                        applicable_infos = Some(vec![applicable_info.clone().unwrap()]);
+                    }
+                    applicable_infos.as_mut().unwrap().push(info.clone());
+                }
+            }
+        }
+        if let Some(applicable_infos) = applicable_infos {
+            Some(Rc::new(
+                self.create_index_info(
+                    self.unknown_type(),
+                    self.get_intersection_type(
+                        &map(Some(&applicable_infos), |info: &Rc<IndexInfo>, _| {
+                            info.type_.clone()
+                        })
+                        .unwrap(),
+                        Option::<&Symbol>::None,
+                        None,
+                    ),
+                    reduce_left(
+                        &applicable_infos,
+                        |is_readonly, info: &Rc<IndexInfo>, _| is_readonly && info.is_readonly,
+                        true,
+                        None,
+                        None,
+                    ),
+                    None,
+                ),
+            ))
+        } else if applicable_info.is_some() {
+            applicable_info
+        } else if string_index_info.is_some()
+            && self.is_applicable_index_type(key_type, &self.string_type())
+        {
+            string_index_info
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn is_applicable_index_type(&self, source: &Type, target: &Type) -> bool {
+        self.is_type_assignable_to(source, target)
+            || ptr::eq(target, &*self.string_type())
+                && self.is_type_assignable_to(source, &self.number_type())
+            || ptr::eq(target, &*self.number_type())
+                && source.flags().intersects(TypeFlags::StringLiteral)
+                && self.is_numeric_literal_name(&source.as_string_literal_type().value)
+    }
+
+    pub(super) fn get_index_infos_of_structured_type(&self, type_: &Type) -> Vec<Rc<IndexInfo>> {
+        if type_.flags().intersects(TypeFlags::StructuredType) {
+            let resolved = self.resolve_structured_type_members(type_);
+            return resolved.as_resolved_type().index_infos().clone();
+        }
+        vec![]
+    }
+
     pub(super) fn get_index_infos_of_type(&self, type_: &Type) -> Vec<Rc<IndexInfo>> {
-        unimplemented!()
+        self.get_index_infos_of_structured_type(&self.get_reduced_apparent_type(type_))
     }
 
     pub(super) fn get_index_info_of_type_(
@@ -642,7 +718,7 @@ impl TypeChecker {
         type_: &Type,
         key_type: &Type,
     ) -> Option<Rc<IndexInfo>> {
-        unimplemented!()
+        self.find_index_info(&self.get_index_infos_of_type(type_), key_type)
     }
 
     pub(super) fn get_index_type_of_type_(
@@ -650,7 +726,27 @@ impl TypeChecker {
         type_: &Type,
         key_type: &Type,
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        self.get_index_info_of_type_(type_, key_type)
+            .map(|index_info| index_info.type_.clone())
+    }
+
+    pub(super) fn get_applicable_index_infos(
+        &self,
+        type_: &Type,
+        key_type: &Type,
+    ) -> Vec<Rc<IndexInfo>> {
+        self.get_index_infos_of_type(type_)
+            .into_iter()
+            .filter(|info: &Rc<IndexInfo>| self.is_applicable_index_type(key_type, &info.key_type))
+            .collect()
+    }
+
+    pub(super) fn get_applicable_index_info(
+        &self,
+        type_: &Type,
+        key_type: &Type,
+    ) -> Option<Rc<IndexInfo>> {
+        self.find_applicable_index_info(&self.get_index_infos_of_type(type_), key_type)
     }
 
     pub(super) fn get_applicable_index_info_for_name(
@@ -658,7 +754,14 @@ impl TypeChecker {
         type_: &Type,
         name: &__String,
     ) -> Option<Rc<IndexInfo>> {
-        unimplemented!()
+        self.get_applicable_index_info(
+            type_,
+            &*if self.is_late_bound_name(name) {
+                self.es_symbol_type()
+            } else {
+                self.get_string_literal_type(&unescape_leading_underscores(name))
+            },
+        )
     }
 
     pub(super) fn get_type_parameters_from_declaration(
@@ -676,14 +779,31 @@ impl TypeChecker {
     }
 
     pub(super) fn symbols_to_array(&self, symbols: &SymbolTable) -> Vec<Rc<Symbol>> {
-        unimplemented!()
+        let mut result: Vec<Rc<Symbol>> = vec![];
+        for (id, symbol) in symbols {
+            if !self.is_reserved_member_name(id) {
+                result.push(symbol.clone());
+            }
+        }
+        result
     }
 
     pub(super) fn is_jsdoc_optional_parameter(
         &self,
         node: &Node, /*ParameterDeclaration*/
     ) -> bool {
-        unimplemented!()
+        is_in_js_file(Some(node)) && (
+            matches!(node.as_parameter_declaration().maybe_type(), Some(type_) if type_.kind() == SyntaxKind::JSDocOptionalType) ||
+            get_jsdoc_parameter_tags(node).iter().any(|tag: &Rc<Node>| {
+                let tag_as_jsdoc_property_like_tag = tag.as_jsdoc_property_like_tag();
+                let is_bracketed = tag_as_jsdoc_property_like_tag.is_bracketed;
+                let type_expression = tag_as_jsdoc_property_like_tag.type_expression.as_ref();
+                is_bracketed || matches!(
+                    type_expression,
+                    Some(type_expression) if type_expression.as_jsdoc_type_expression().type_.kind() == SyntaxKind::JSDocOptionalType
+                )
+            })
+        )
     }
 
     pub(super) fn try_find_ambient_module_(
@@ -691,18 +811,87 @@ impl TypeChecker {
         module_name: &str,
         with_augmentations: bool,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        if is_external_module_name_relative(module_name) {
+            return None;
+        }
+        let symbol = self.get_symbol(
+            &self.globals(),
+            &__String::new(format!("\"{}\"", module_name)),
+            SymbolFlags::ValueModule,
+        );
+        if symbol.is_some() && with_augmentations {
+            self.get_merged_symbol(symbol)
+        } else {
+            symbol
+        }
     }
 
     pub(super) fn is_optional_parameter_(
         &self,
         node: &Node, /*ParameterDeclaration | JSDocParameterTag | JSDocPropertyTag*/
     ) -> bool {
-        unimplemented!()
+        if has_question_token(node)
+            || self.is_optional_jsdoc_property_like_tag(node)
+            || self.is_jsdoc_optional_parameter(node)
+        {
+            return true;
+        }
+
+        let node_as_parameter_declaration = node.as_parameter_declaration();
+        if node_as_parameter_declaration.maybe_initializer().is_some() {
+            let signature = self.get_signature_from_declaration_(&node.parent());
+            let parameter_index = index_of_rc(
+                node.parent().as_signature_declaration().parameters(),
+                &node.node_wrapper(),
+            );
+            Debug_.assert(parameter_index >= 0, None);
+            let parameter_index: usize = parameter_index.try_into().unwrap();
+            return parameter_index
+                >= self.get_min_argument_count(
+                    &signature,
+                    Some(
+                        MinArgumentCountFlags::StrongArityForUntypedJS
+                            | MinArgumentCountFlags::VoidIsNonOptional,
+                    ),
+                );
+        }
+        let iife = get_immediately_invoked_function_expression(&node.parent());
+        if let Some(iife) = iife {
+            return node_as_parameter_declaration.maybe_type().is_none()
+                && node_as_parameter_declaration.dot_dot_dot_token.is_none()
+                && index_of_rc(
+                    node.parent().as_signature_declaration().parameters(),
+                    &node.node_wrapper(),
+                ) >= iife
+                    .as_call_expression()
+                    .arguments
+                    .len()
+                    .try_into()
+                    .unwrap();
+        }
+
+        false
+    }
+
+    pub(super) fn is_optional_property_declaration(
+        &self,
+        node: &Node, /*Declaration*/
+    ) -> bool {
+        is_property_declaration(node) && node.as_property_declaration().question_token.is_some()
     }
 
     pub(super) fn is_optional_jsdoc_property_like_tag(&self, node: &Node) -> bool {
-        false
+        if !is_jsdoc_property_like_tag(node) {
+            return false;
+        }
+        let node_as_jsdoc_property_like_tag = node.as_jsdoc_property_like_tag();
+        let is_bracketed = node_as_jsdoc_property_like_tag.is_bracketed;
+        let type_expression = node_as_jsdoc_property_like_tag.type_expression.as_ref();
+        is_bracketed
+            || matches!(
+                type_expression,
+                Some(type_expression) if type_expression.as_jsdoc_type_expression().type_.kind() == SyntaxKind::JSDocOptionalType
+            )
     }
 
     pub(super) fn create_type_predicate(
@@ -724,7 +913,15 @@ impl TypeChecker {
         &self,
         type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
     ) -> usize {
-        unimplemented!()
+        let mut min_type_argument_count = 0;
+        if let Some(type_parameters) = type_parameters {
+            for (i, type_parameter) in type_parameters.iter().enumerate() {
+                if !self.has_type_parameter_default(type_parameter) {
+                    min_type_argument_count = i + 1;
+                }
+            }
+        }
+        min_type_argument_count
     }
 
     pub(super) fn fill_missing_type_arguments(
