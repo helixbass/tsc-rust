@@ -12,7 +12,7 @@ use crate::{
     NodeInterface, Number, NumberLiteralType, PseudoBigInt, RelationComparisonResult, Signature,
     SignatureFlags, StringLiteralType, StringOrNumber, Symbol, SymbolInterface, SyntaxKind,
     Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
-    UnionOrIntersectionType,
+    TypePredicate, UnionOrIntersectionType,
 };
 use local_macros::enum_unwrapped;
 
@@ -418,6 +418,14 @@ impl TypeChecker {
         let mut result = self.create_type_parameter(Some(type_parameter.symbol()));
         result.target = Some(type_parameter.type_wrapper());
         result.into()
+    }
+
+    pub(super) fn instantiate_type_predicate(
+        &self,
+        predicate: &TypePredicate,
+        mapper: &TypeMapper,
+    ) -> TypePredicate {
+        unimplemented!()
     }
 
     pub(super) fn instantiate_signature(

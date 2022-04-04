@@ -373,7 +373,7 @@ pub struct Signature {
     parameters: Option<Vec<Rc<Symbol>>>,
     pub this_parameter: Option<Rc<Symbol>>,
     resolved_return_type: RefCell<Option<Rc<Type>>>,
-    pub resolved_type_predicate: Option<TypePredicate>,
+    resolved_type_predicate: RefCell<Option<Rc<TypePredicate>>>,
     min_argument_count: Option<usize>,
     resolved_min_argument_count: Cell<Option<usize>>,
     pub target: Option<Rc<Signature>>,
@@ -392,7 +392,7 @@ impl Signature {
             parameters: None,
             this_parameter: None,
             resolved_return_type: RefCell::new(None),
-            resolved_type_predicate: None,
+            resolved_type_predicate: RefCell::new(None),
             min_argument_count: None,
             resolved_min_argument_count: Cell::new(None),
             target: None,
@@ -413,6 +413,10 @@ impl Signature {
 
     pub fn maybe_resolved_return_type(&self) -> RefMut<Option<Rc<Type>>> {
         self.resolved_return_type.borrow_mut()
+    }
+
+    pub fn maybe_resolved_type_predicate(&self) -> RefMut<Option<Rc<TypePredicate>>> {
+        self.resolved_type_predicate.borrow_mut()
     }
 
     pub fn min_argument_count(&self) -> usize {

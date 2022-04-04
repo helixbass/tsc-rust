@@ -459,6 +459,10 @@ impl TypeChecker {
         get_object_flags(type_).intersects(ObjectFlags::ObjectLiteral)
     }
 
+    pub(super) fn get_default_type_argument_type(&self, is_in_java_script_file: bool) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_cannot_find_name_diagnostic_for_name(
         &self,
         node: &Node,

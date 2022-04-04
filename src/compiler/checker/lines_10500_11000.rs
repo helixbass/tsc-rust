@@ -599,7 +599,7 @@ impl TypeChecker {
         this_parameter: Option<Rc<Symbol>>,
         parameters: Vec<Rc<Symbol>>,
         resolved_return_type: Option<Rc<Type>>,
-        resolved_type_predicate: Option<TypePredicate>,
+        resolved_type_predicate: Option<Rc<TypePredicate>>,
         min_argument_count: usize,
         flags: SignatureFlags,
     ) -> Signature {
@@ -609,7 +609,7 @@ impl TypeChecker {
         sig.set_parameters(parameters);
         sig.this_parameter = this_parameter;
         *sig.maybe_resolved_return_type() = resolved_return_type;
-        sig.resolved_type_predicate = resolved_type_predicate;
+        *sig.maybe_resolved_type_predicate() = resolved_type_predicate;
         sig.set_min_argument_count(min_argument_count);
         sig
     }

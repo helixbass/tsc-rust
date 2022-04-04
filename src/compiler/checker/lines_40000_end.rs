@@ -180,6 +180,14 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_referenced_value_symbol(
+        &self,
+        reference: &Node, /*Identifier*/
+        start_in_declaration_container: Option<bool>,
+    ) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_jsx_fragment_factory_entity(
         &self,
         location: &Node,

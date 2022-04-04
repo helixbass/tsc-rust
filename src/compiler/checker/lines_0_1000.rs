@@ -2654,6 +2654,10 @@ impl TypeChecker {
         self.marker_super_type.as_ref().unwrap().clone()
     }
 
+    pub(super) fn no_type_predicate(&self) -> Rc<TypePredicate> {
+        self.no_type_predicate.as_ref().unwrap().clone()
+    }
+
     pub(super) fn unknown_signature(&self) -> Rc<Signature> {
         self.unknown_signature.as_ref().unwrap().clone()
     }

@@ -5,10 +5,10 @@ use std::convert::TryFrom;
 use std::rc::Rc;
 
 use crate::{
-    AccessFlags, UnionType, __String, binary_search_copy_key, compare_values,
-    get_name_of_declaration, map, unescape_leading_underscores, BaseUnionOrIntersectionType, Node,
-    ObjectFlags, Symbol, SymbolInterface, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
-    UnionReduction,
+    AccessFlags, Signature, TypePredicate, UnionType, __String, binary_search_copy_key,
+    compare_values, get_name_of_declaration, map, unescape_leading_underscores,
+    BaseUnionOrIntersectionType, Node, ObjectFlags, Symbol, SymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeId, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -142,6 +142,14 @@ impl TypeChecker {
             ObjectFlags::None
         });
         self.get_union_type_from_sorted_list(type_set, object_flags)
+    }
+
+    pub(super) fn get_union_or_intersection_type_predicate(
+        &self,
+        signatures: &[Rc<Signature>],
+        kind: Option<TypeFlags>,
+    ) -> Option<TypePredicate> {
+        unimplemented!()
     }
 
     pub(super) fn get_union_type_from_sorted_list(
