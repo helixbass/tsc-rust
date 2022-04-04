@@ -413,7 +413,7 @@ impl TypeChecker {
                             ));
                         }
                     }
-                    return Some(self.get_return_type_of_signature(&getter_signature));
+                    return Some(self.get_return_type_of_signature(getter_signature));
                 }
             }
             if is_in_js_file(Some(declaration)) {
@@ -1135,7 +1135,7 @@ impl TypeChecker {
             if let Some(get_func) = get_func {
                 let get_sig = self.get_single_call_signature(&get_func);
                 if let Some(get_sig) = get_sig {
-                    return self.get_return_type_of_signature(&get_sig);
+                    return self.get_return_type_of_signature(get_sig);
                 }
             }
             let set_func = self

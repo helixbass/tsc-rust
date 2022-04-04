@@ -806,7 +806,7 @@ impl TypeChecker {
                         let ctor_sig =
                             self.get_signatures_of_type(&constraint, SignatureKind::Construct);
                         if let Some(ctor_sig_0) = ctor_sig.get(0) {
-                            ctor_return = self.get_return_type_of_signature(ctor_sig_0);
+                            ctor_return = self.get_return_type_of_signature(ctor_sig_0.clone());
                         }
                     }
                     if let Some(base_constructor_type_symbol_declarations) = base_constructor_type
@@ -1032,7 +1032,7 @@ impl TypeChecker {
                 *type_as_interface_type.maybe_resolved_base_types() = Some(ret.clone());
                 return ret;
             }
-            base_type = self.get_return_type_of_signature(&constructors[0]);
+            base_type = self.get_return_type_of_signature(constructors[0].clone());
         }
 
         if self.is_error_type(&base_type) {

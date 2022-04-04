@@ -331,7 +331,7 @@ impl TypeChecker {
                     Some(signature_list) => {
                         if self.compare_signatures_identical(
                             signature_list[0].clone(),
-                            &signature,
+                            signature.clone(),
                             false,
                             true,
                             true,

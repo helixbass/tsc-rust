@@ -5,22 +5,23 @@ use std::ptr;
 use std::rc::Rc;
 
 use crate::{
-    filter, first_defined, for_each_child_bool, get_declaration_of_kind,
-    get_effective_constraint_of_type_parameter, get_effective_return_type_node,
-    get_immediately_invoked_function_expression, get_jsdoc_parameter_tags, get_jsdoc_tags,
-    get_jsdoc_type, get_jsdoc_type_tag, has_jsdoc_parameter_tags, has_rest_parameter,
-    has_syntactic_modifier, is_binding_pattern, is_constructor_declaration,
-    is_constructor_type_node, is_function_like, is_function_like_declaration, is_in_js_file,
-    is_jsdoc_construct_signature, is_jsdoc_parameter_tag, is_jsdoc_signature,
-    is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
-    is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map_defined,
-    node_is_missing, node_starts_new_lexical_environment, CheckFlags, Debug_, ElementFlags,
-    HasInitializerInterface, IndexInfo, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
-    NodeArray, NodeCheckFlags, ReadonlyTextRange, Signature, SignatureFlags, SymbolTable,
-    TransientSymbolInterface, TypePredicate, __String, concatenate, get_object_flags, map,
-    DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReference,
+    declaration_name_to_string, filter, find_index, first_defined, for_each_child_bool,
+    get_declaration_of_kind, get_effective_constraint_of_type_parameter,
+    get_effective_return_type_node, get_immediately_invoked_function_expression,
+    get_jsdoc_parameter_tags, get_jsdoc_tags, get_jsdoc_type, get_jsdoc_type_tag,
+    get_name_of_declaration, has_jsdoc_parameter_tags, has_rest_parameter, has_syntactic_modifier,
+    is_binding_pattern, is_constructor_declaration, is_constructor_type_node, is_function_like,
+    is_function_like_declaration, is_in_js_file, is_jsdoc_construct_signature,
+    is_jsdoc_parameter_tag, is_jsdoc_signature, is_jsdoc_variadic_type, is_part_of_type_node,
+    is_rest_parameter, is_type_parameter_declaration, is_type_predicate_node,
+    is_value_signature_declaration, last_or_undefined, length, map_defined, node_is_missing,
+    node_starts_new_lexical_environment, CheckFlags, Debug_, ElementFlags, HasInitializerInterface,
+    IndexInfo, InterfaceTypeInterface, InternalSymbolName, ModifierFlags, NodeArray,
+    NodeCheckFlags, ReadonlyTextRange, Signature, SignatureFlags, SymbolTable,
+    TransientSymbolInterface, TypePredicate, TypePredicateKind, TypeSystemPropertyName,
+    UnionReduction, __String, concatenate, get_object_flags, map, DiagnosticMessage, Diagnostics,
+    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeReference,
 };
 
 impl TypeChecker {
@@ -318,7 +319,7 @@ impl TypeChecker {
         node: &Node, /*SignatureDeclaration | JSDocSignature*/
     ) -> Option<Rc<Type>> {
         let signature = self.get_signature_of_type_tag(node);
-        signature.map(|signature| self.get_return_type_of_signature(&signature))
+        signature.map(|signature| self.get_return_type_of_signature(signature))
     }
 
     pub(super) fn contains_arguments_reference(
@@ -510,13 +511,102 @@ impl TypeChecker {
         node: &Node, /*TypePredicateNode*/
         signature: &Signature,
     ) -> TypePredicate {
-        unimplemented!()
+        let node_as_type_predicate_node = node.as_type_predicate_node();
+        let parameter_name = &node_as_type_predicate_node.parameter_name;
+        let type_ = node_as_type_predicate_node
+            .type_
+            .as_ref()
+            .map(|type_| self.get_type_from_type_node_(type_));
+        if parameter_name.kind() == SyntaxKind::ThisType {
+            self.create_type_predicate(
+                if node_as_type_predicate_node.asserts_modifier.is_some() {
+                    TypePredicateKind::AssertsThis
+                } else {
+                    TypePredicateKind::This
+                },
+                None,
+                None,
+                type_,
+            )
+        } else {
+            let parameter_name_as_identifier = parameter_name.as_identifier();
+            self.create_type_predicate(
+                if node_as_type_predicate_node.asserts_modifier.is_some() {
+                    TypePredicateKind::AssertsIdentifier
+                } else {
+                    TypePredicateKind::Identifier
+                },
+                Some(
+                    parameter_name_as_identifier
+                        .escaped_text
+                        .clone()
+                        .into_string(),
+                ),
+                find_index(
+                    signature.parameters(),
+                    |p: &Rc<Symbol>, _| {
+                        p.escaped_name() == &parameter_name_as_identifier.escaped_text
+                    },
+                    None,
+                ),
+                type_,
+            )
+        }
     }
 
-    pub(super) fn get_return_type_of_signature(&self, signature: &Signature) -> Rc<Type> {
+    pub(super) fn get_union_or_intersection_type(
+        &self,
+        types: &[Rc<Type>],
+        kind: Option<TypeFlags>,
+        union_reduction: Option<UnionReduction>,
+    ) -> Rc<Type> {
+        if !matches!(kind, Some(TypeFlags::Intersection)) {
+            self.get_union_type(
+                types.to_owned(),
+                union_reduction,
+                Option::<&Symbol>::None,
+                None,
+                Option::<&Type>::None,
+            )
+        } else {
+            self.get_intersection_type(types, Option::<&Symbol>::None, None)
+        }
+    }
+
+    pub(super) fn get_return_type_of_signature(&self, signature: Rc<Signature>) -> Rc<Type> {
         if signature.maybe_resolved_return_type().is_none() {
-            let mut type_: Rc<Type> = if false {
-                unimplemented!()
+            if !self.push_type_resolution(
+                &signature.clone().into(),
+                TypeSystemPropertyName::ResolvedReturnType,
+            ) {
+                return self.error_type();
+            }
+            let mut type_: Rc<Type> = if let Some(signature_target) = signature.target.as_ref() {
+                self.instantiate_type(
+                    Some(self.get_return_type_of_signature(signature_target.clone())),
+                    signature.mapper.as_ref(),
+                )
+                .unwrap()
+            } else if let Some(signature_composite_signatures) =
+                signature.composite_signatures.as_deref()
+            {
+                self.instantiate_type(
+                    Some(
+                        self.get_union_or_intersection_type(
+                            &map(
+                                Some(signature_composite_signatures),
+                                |signature: &Rc<Signature>, _| {
+                                    self.get_return_type_of_signature(signature.clone())
+                                },
+                            )
+                            .unwrap(),
+                            signature.composite_kind,
+                            Some(UnionReduction::Subtype),
+                        ),
+                    ),
+                    signature.mapper.as_ref(),
+                )
+                .unwrap()
             } else {
                 let signature_declaration = signature.declaration.as_ref().unwrap();
                 self.get_return_type_from_annotation(signature_declaration)
@@ -538,6 +628,37 @@ impl TypeChecker {
                 type_ = self.add_optional_type_marker(&type_);
             } else if signature.flags.intersects(SignatureFlags::IsOuterCallChain) {
                 type_ = self.get_optional_type_(&type_, None);
+            }
+            if !self.pop_type_resolution() {
+                if let Some(signature_declaration) = signature.declaration.as_ref() {
+                    let type_node = get_effective_return_type_node(signature_declaration);
+                    if let Some(type_node) = type_node {
+                        self.error(
+                            Some(type_node),
+                            &Diagnostics::Return_type_annotation_circularly_references_itself,
+                            None,
+                        );
+                    } else if self.no_implicit_any {
+                        let declaration = signature_declaration;
+                        let name = get_name_of_declaration(Some(&**declaration));
+                        if let Some(name) = name {
+                            self.error(
+                                Some(name.clone()),
+                                &Diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
+                                Some(vec![
+                                    declaration_name_to_string(Some(name)).into_owned()
+                                ])
+                            );
+                        } else {
+                            self.error(
+                                Some(&**declaration),
+                                &Diagnostics::Function_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
+                                None,
+                            );
+                        }
+                    }
+                }
+                type_ = self.any_type();
             }
             *signature.maybe_resolved_return_type() = Some(type_);
         }

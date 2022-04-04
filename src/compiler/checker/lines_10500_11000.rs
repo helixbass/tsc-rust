@@ -861,7 +861,7 @@ impl TypeChecker {
     pub(super) fn find_matching_signature(
         &self,
         signature_list: &[Rc<Signature>],
-        signature: &Signature,
+        signature: Rc<Signature>,
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,
@@ -869,7 +869,7 @@ impl TypeChecker {
         for s in signature_list {
             if self.compare_signatures_identical(
                 s.clone(),
-                signature,
+                signature.clone(),
                 partial_match,
                 ignore_this_types,
                 ignore_return_types,
@@ -900,7 +900,7 @@ impl TypeChecker {
             }
             for signature_list in signature_lists.iter().skip(1) {
                 if self
-                    .find_matching_signature(signature_list, &signature, false, false, false)
+                    .find_matching_signature(signature_list, signature.clone(), false, false, false)
                     .is_none()
                 {
                     return None;
@@ -913,7 +913,7 @@ impl TypeChecker {
             let match_ = if i == list_index {
                 Some(signature.clone())
             } else {
-                self.find_matching_signature(signature_list, &signature, true, false, true)
+                self.find_matching_signature(signature_list, signature.clone(), true, false, true)
             }?;
             if result.is_none() {
                 result = Some(vec![]);
@@ -944,7 +944,7 @@ impl TypeChecker {
                 if match result.as_deref() {
                     None => true,
                     Some(result) => self
-                        .find_matching_signature(result, signature, false, false, true)
+                        .find_matching_signature(result, signature.clone(), false, false, true)
                         .is_none(),
                 } {
                     let union_signatures =

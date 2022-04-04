@@ -90,16 +90,16 @@ impl TypeChecker {
     pub(super) fn compare_signatures_identical<TCompareTypes: FnMut(&Type, &Type) -> Ternary>(
         &self,
         mut source: Rc<Signature>,
-        target: &Signature,
+        target: Rc<Signature>,
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,
         mut compare_types: TCompareTypes,
     ) -> Ternary {
-        if ptr::eq(&*source, target) {
+        if Rc::ptr_eq(&source, &target) {
             return Ternary::True;
         }
-        if !self.is_matching_signature(&source, target, partial_match) {
+        if !self.is_matching_signature(&source, &target, partial_match) {
             return Ternary::False;
         }
         if length(source.type_parameters.as_deref()) != length(target.type_parameters.as_deref()) {
@@ -146,7 +146,7 @@ impl TypeChecker {
         if !ignore_this_types {
             let source_this_type = self.get_this_type_of_signature(&source);
             if let Some(source_this_type) = source_this_type {
-                let target_this_type = self.get_this_type_of_signature(target);
+                let target_this_type = self.get_this_type_of_signature(&target);
                 if let Some(target_this_type) = target_this_type {
                     let related = compare_types(&source_this_type, &target_this_type);
                     if related == Ternary::False {
@@ -156,10 +156,10 @@ impl TypeChecker {
                 }
             }
         }
-        let target_len = self.get_parameter_count(target);
+        let target_len = self.get_parameter_count(&target);
         for i in 0..target_len {
             let s = self.get_type_at_position(&source, i);
-            let t = self.get_type_at_position(target, i);
+            let t = self.get_type_at_position(&target, i);
             let related = compare_types(&t, &s);
             if related == Ternary::False {
                 return Ternary::False;
@@ -168,7 +168,7 @@ impl TypeChecker {
         }
         if !ignore_return_types {
             let source_type_predicate = self.get_type_predicate_of_signature(&source);
-            let target_type_predicate = self.get_type_predicate_of_signature(target);
+            let target_type_predicate = self.get_type_predicate_of_signature(&target);
             result &= if source_type_predicate.is_some() || target_type_predicate.is_some() {
                 self.compare_type_predicates_identical(
                     source_type_predicate,
@@ -177,7 +177,7 @@ impl TypeChecker {
                 )
             } else {
                 compare_types(
-                    &self.get_return_type_of_signature(&source),
+                    &self.get_return_type_of_signature(source),
                     &self.get_return_type_of_signature(target),
                 )
             };

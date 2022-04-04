@@ -349,7 +349,7 @@ impl TypeChecker {
                 mixed_types.push(type_.type_wrapper());
             } else if mixin_flags[i] {
                 mixed_types.push(self.get_return_type_of_signature(
-                    &self.get_signatures_of_type(&types[i], SignatureKind::Construct)[0],
+                    self.get_signatures_of_type(&types[i], SignatureKind::Construct)[0].clone(),
                 ));
             }
         }
@@ -371,7 +371,7 @@ impl TypeChecker {
                     signatures = map(Some(&signatures), |s: &Rc<Signature>, _| {
                         let clone = self.clone_signature(s);
                         *clone.maybe_resolved_return_type() = Some(self.include_mixin_type(
-                            &self.get_return_type_of_signature(s),
+                            &self.get_return_type_of_signature(s.clone()),
                             types,
                             mixin_flags.as_ref(),
                             i,
@@ -415,9 +415,14 @@ impl TypeChecker {
             if
             /* !signatures ||*/
             every(signatures, |s: &Rc<Signature>, _| {
-                self.compare_signatures_identical(s.clone(), sig, false, false, false, |a, b| {
-                    self.compare_types_identical(a, b)
-                }) != Ternary::False
+                self.compare_signatures_identical(
+                    s.clone(),
+                    sig.clone(),
+                    false,
+                    false,
+                    false,
+                    |a, b| self.compare_types_identical(a, b),
+                ) != Ternary::False
             }) {
                 append(signatures, Some(sig.clone()));
             }

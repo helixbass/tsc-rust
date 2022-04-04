@@ -1178,6 +1178,10 @@ impl Node {
     pub fn as_type_operator_node(&self) -> &TypeOperatorNode {
         enum_unwrapped!(self, [Node, TypeOperatorNode])
     }
+
+    pub fn as_type_predicate_node(&self) -> &TypePredicateNode {
+        enum_unwrapped!(self, [Node, TypePredicateNode])
+    }
 }
 
 #[derive(Debug)]

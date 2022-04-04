@@ -653,7 +653,7 @@ impl TypeChecker {
         let container = container.unwrap();
 
         let signature = self.get_signature_from_declaration_(&container);
-        let return_type = self.get_return_type_of_signature(&signature);
+        let return_type = self.get_return_type_of_signature(signature);
         let function_flags = get_function_flags(Some(&*container));
         let node_as_return_statement = node.as_return_statement();
         if self.strict_null_checks
