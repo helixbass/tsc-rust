@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 use serde::Serialize;
 use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::ops::BitAndAssign;
@@ -380,7 +381,10 @@ pub struct Signature {
     pub mapper: Option<TypeMapper>, // TODO: should this be Rc-wrapped since it gets cloned eg in clone_signature()?
     pub composite_signatures: Option<Vec<Rc<Signature>>>,
     pub composite_kind: Option<TypeFlags>,
+    erased_signature_cache: RefCell<Option<Rc<Signature>>>,
+    canonical_signature_cache: RefCell<Option<Rc<Signature>>>,
     optional_call_signature_cache: RefCell<Option<SignatureOptionalCallSignatureCache>>,
+    instantiations: RefCell<Option<HashMap<String, Rc<Signature>>>>,
 }
 
 impl Signature {
@@ -399,7 +403,10 @@ impl Signature {
             mapper: None,
             composite_signatures: None,
             composite_kind: None,
+            erased_signature_cache: RefCell::new(None),
+            canonical_signature_cache: RefCell::new(None),
             optional_call_signature_cache: RefCell::new(None),
+            instantiations: RefCell::new(None),
         }
     }
 
@@ -440,10 +447,22 @@ impl Signature {
             .set(Some(min_argument_count));
     }
 
+    pub fn maybe_erased_signature_cache(&self) -> RefMut<Option<Rc<Signature>>> {
+        self.erased_signature_cache.borrow_mut()
+    }
+
+    pub fn maybe_canonical_signature_cache(&self) -> RefMut<Option<Rc<Signature>>> {
+        self.canonical_signature_cache.borrow_mut()
+    }
+
     pub fn maybe_optional_call_signature_cache(
         &self,
     ) -> RefMut<Option<SignatureOptionalCallSignatureCache>> {
         self.optional_call_signature_cache.borrow_mut()
+    }
+
+    pub fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Rc<Signature>>>> {
+        self.instantiations.borrow_mut()
     }
 }
 

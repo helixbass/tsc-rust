@@ -698,7 +698,7 @@ impl TypeChecker {
                 Option::<fn(&Rc<Type>) -> bool>::None,
             ) {
                 self.get_signature_instantiation(
-                    sig,
+                    sig.clone(),
                     type_arguments.as_deref(),
                     is_in_js_file(Some(location)),
                     None,

@@ -1,9 +1,11 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
+use super::signature_has_rest_parameter;
 use crate::{
     declaration_name_to_string, filter, find_index, first_defined, for_each_child_bool,
     get_declaration_of_kind, get_effective_constraint_of_type_parameter,
@@ -16,9 +18,9 @@ use crate::{
     is_rest_parameter, is_type_parameter_declaration, is_type_predicate_node,
     is_value_signature_declaration, last_or_undefined, length, map_defined, node_is_missing,
     node_starts_new_lexical_environment, CheckFlags, Debug_, ElementFlags, HasInitializerInterface,
-    IndexInfo, InterfaceTypeInterface, InternalSymbolName, ModifierFlags, NodeArray,
-    NodeCheckFlags, ReadonlyTextRange, Signature, SignatureFlags, SymbolTable,
-    TransientSymbolInterface, TypePredicate, TypePredicateKind, TypeSystemPropertyName,
+    HasTypeInterface, IndexInfo, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
+    NodeArray, NodeCheckFlags, ReadonlyTextRange, Signature, SignatureFlags, SymbolTable,
+    TransientSymbolInterface, TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName,
     UnionReduction, __String, concatenate, get_object_flags, map, DiagnosticMessage, Diagnostics,
     Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeReference,
@@ -669,29 +671,204 @@ impl TypeChecker {
         &self,
         declaration: &Node, /*SignatureDeclaration | JSDocSignature*/
     ) -> Option<Rc<Type>> {
+        if declaration.kind() == SyntaxKind::Constructor {
+            return Some(
+                self.get_declared_type_of_class_or_interface(
+                    &self
+                        .get_merged_symbol(declaration.parent().maybe_symbol())
+                        .unwrap(),
+                ),
+            );
+        }
+        if is_jsdoc_construct_signature(declaration) {
+            return Some(
+                self.get_type_from_type_node_(
+                    &declaration.as_signature_declaration().parameters()[0]
+                        .as_parameter_declaration()
+                        .maybe_type()
+                        .unwrap(),
+                ),
+            );
+        }
         let type_node = get_effective_return_type_node(declaration);
         if let Some(type_node) = type_node {
             return Some(self.get_type_from_type_node_(&type_node));
         }
+        if declaration.kind() == SyntaxKind::GetAccessor && self.has_bindable_name(declaration) {
+            let js_doc_type = if is_in_js_file(Some(declaration)) {
+                self.get_type_for_declaration_from_jsdoc_comment(declaration)
+            } else {
+                None
+            };
+            if js_doc_type.is_some() {
+                return js_doc_type;
+            }
+            let setter = get_declaration_of_kind(
+                &self.get_symbol_of_node(declaration).unwrap(),
+                SyntaxKind::SetAccessor,
+            );
+            let setter_type = self.get_annotated_accessor_type(setter);
+            if setter_type.is_some() {
+                return setter_type;
+            }
+        }
         self.get_return_type_of_type_tag(declaration)
+    }
+
+    pub(super) fn is_resolving_return_type_of_signature(&self, signature: Rc<Signature>) -> bool {
+        signature.maybe_resolved_return_type().is_none()
+            && self.find_resolution_cycle_start_index(
+                &signature.clone().into(),
+                TypeSystemPropertyName::ResolvedReturnType,
+            ) >= 0
+    }
+
+    pub(super) fn get_rest_type_of_signature(&self, signature: &Signature) -> Rc<Type> {
+        self.try_get_rest_type_of_signature(signature)
+            .unwrap_or_else(|| self.any_type())
+    }
+
+    pub(super) fn try_get_rest_type_of_signature(&self, signature: &Signature) -> Option<Rc<Type>> {
+        if signature_has_rest_parameter(signature) {
+            let signature_parameters = signature.parameters();
+            let sig_rest_type =
+                self.get_type_of_symbol(&signature_parameters[signature_parameters.len() - 1]);
+            let rest_type = if self.is_tuple_type(&sig_rest_type) {
+                self.get_rest_type_of_tuple_type(&sig_rest_type)
+            } else {
+                Some(sig_rest_type)
+            };
+            return rest_type.and_then(|rest_type| {
+                self.get_index_type_of_type_(&rest_type, &self.number_type())
+            });
+        }
+        None
     }
 
     pub(super) fn get_signature_instantiation(
         &self,
-        signature: &Signature,
+        signature: Rc<Signature>,
         type_arguments: Option<&[Rc<Type>]>,
         is_javascript: bool,
         inferred_type_parameters: Option<&[Rc<Type /*TypeParameter*/>]>,
     ) -> Rc<Signature> {
-        unimplemented!()
+        let instantiated_signature = self
+            .get_signature_instantiation_without_filling_in_type_arguments(
+                signature.clone(),
+                self.fill_missing_type_arguments(
+                    type_arguments.map(ToOwned::to_owned),
+                    signature.type_parameters.as_deref(),
+                    self.get_min_type_argument_count(signature.type_parameters.as_deref()),
+                    is_javascript,
+                )
+                .as_deref(),
+            );
+        if let Some(inferred_type_parameters) = inferred_type_parameters {
+            let return_signature = self.get_single_call_or_construct_signature(
+                &self.get_return_type_of_signature(instantiated_signature.clone()),
+            );
+            if let Some(return_signature) = return_signature {
+                let mut new_return_signature = self.clone_signature(&return_signature);
+                new_return_signature.type_parameters = Some(inferred_type_parameters.to_owned());
+                let new_instantiated_signature = self.clone_signature(&instantiated_signature);
+                *new_instantiated_signature.maybe_resolved_return_type() =
+                    Some(self.get_or_create_type_from_signature(&new_return_signature));
+                return Rc::new(new_instantiated_signature);
+            }
+        }
+        instantiated_signature
+    }
+
+    pub(super) fn get_signature_instantiation_without_filling_in_type_arguments(
+        &self,
+        signature: Rc<Signature>,
+        type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Signature> {
+        if signature.maybe_instantiations().is_none() {
+            *signature.maybe_instantiations() = Some(HashMap::new());
+        }
+        let mut instantiations = signature.maybe_instantiations();
+        let instantiations = instantiations.as_mut().unwrap();
+        let id = self.get_type_list_id(type_arguments);
+        let mut instantiation = instantiations.get(&id).map(Clone::clone);
+        if instantiation.is_none() {
+            instantiation = Some(Rc::new(
+                self.create_signature_instantiation(signature.clone(), type_arguments),
+            ));
+            instantiations.insert(id, instantiation.clone().unwrap());
+        }
+        instantiation.unwrap()
     }
 
     pub(super) fn create_signature_instantiation(
         &self,
-        signature: &Signature,
+        signature: Rc<Signature>,
         type_arguments: Option<&[Rc<Type>]>,
     ) -> Signature {
-        unimplemented!()
+        self.instantiate_signature(
+            signature.clone(),
+            &self.create_signature_type_mapper(&signature, type_arguments),
+            Some(true),
+        )
+    }
+
+    pub(super) fn create_signature_type_mapper(
+        &self,
+        signature: &Signature,
+        type_arguments: Option<&[Rc<Type>]>,
+    ) -> TypeMapper {
+        self.create_type_mapper(
+            signature.type_parameters.clone().unwrap(),
+            type_arguments.map(ToOwned::to_owned),
+        )
+    }
+
+    pub(super) fn get_erased_signature(&self, signature: Rc<Signature>) -> Rc<Signature> {
+        if signature.type_parameters.is_some() {
+            if signature.maybe_erased_signature_cache().is_none() {
+                *signature.maybe_erased_signature_cache() =
+                    Some(Rc::new(self.create_erased_signature(signature.clone())));
+            }
+            signature.maybe_erased_signature_cache().clone().unwrap()
+        } else {
+            signature
+        }
+    }
+
+    pub(super) fn create_erased_signature(&self, signature: Rc<Signature>) -> Signature {
+        self.instantiate_signature(
+            signature.clone(),
+            &self.create_type_eraser(signature.type_parameters.clone().unwrap()),
+            Some(true),
+        )
+    }
+
+    pub(super) fn get_canonical_signature(&self, signature: Rc<Signature>) -> Rc<Signature> {
+        if signature.type_parameters.is_some() {
+            if signature.maybe_canonical_signature_cache().is_none() {
+                *signature.maybe_canonical_signature_cache() =
+                    Some(self.create_canonical_signature(signature.clone()));
+            }
+            signature.maybe_canonical_signature_cache().clone().unwrap()
+        } else {
+            signature
+        }
+    }
+
+    pub(super) fn create_canonical_signature(&self, signature: Rc<Signature>) -> Rc<Signature> {
+        self.get_signature_instantiation(
+            signature.clone(),
+            map(signature.type_parameters.as_deref(), |tp: &Rc<Type>, _| {
+                tp.as_type_parameter()
+                    .target
+                    .clone()
+                    .filter(|target| self.get_constraint_of_type_parameter(target).is_none())
+                    .unwrap_or_else(|| tp.clone())
+            })
+            .as_deref(),
+            is_in_js_file(signature.declaration.as_deref()),
+            None,
+        )
     }
 
     pub(super) fn get_or_create_type_from_signature(

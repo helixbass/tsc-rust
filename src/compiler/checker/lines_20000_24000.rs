@@ -140,7 +140,7 @@ impl TypeChecker {
                     return Ternary::False;
                 }
             }
-            source = self.instantiate_signature(source, &mapper, Some(true));
+            source = Rc::new(self.instantiate_signature(source, &mapper, Some(true)));
         }
         let mut result = Ternary::True;
         if !ignore_this_types {

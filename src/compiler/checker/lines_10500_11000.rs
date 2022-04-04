@@ -831,7 +831,7 @@ impl TypeChecker {
             {
                 let mut sig = if type_param_count > 0 {
                     self.create_signature_instantiation(
-                        &base_sig,
+                        base_sig.clone(),
                         self.fill_missing_type_arguments(
                             type_arguments.clone(),
                             base_sig.type_parameters.as_deref(),

@@ -559,6 +559,13 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_single_call_or_construct_signature(
+        &self,
+        type_: &Type,
+    ) -> Option<Rc<Signature>> {
+        unimplemented!()
+    }
+
     pub(super) fn get_resolved_signature_(
         &self,
         node: &Node, /*CallLikeExpression*/

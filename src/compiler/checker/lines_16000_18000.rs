@@ -264,7 +264,7 @@ impl TypeChecker {
         mapper: &TypeMapper,
     ) -> Vec<Rc<Signature>> {
         self.instantiate_list(Some(signatures), mapper, |signature, mapper| {
-            self.instantiate_signature(signature.clone(), mapper, None)
+            Rc::new(self.instantiate_signature(signature.clone(), mapper, None))
         })
         .unwrap()
     }
@@ -362,6 +362,13 @@ impl TypeChecker {
         TypeMapper::new_merged(mapper1, mapper2)
     }
 
+    pub(super) fn create_type_eraser(
+        &self,
+        sources: Vec<Rc<Type /*TypeParameter*/>>,
+    ) -> TypeMapper {
+        self.create_type_mapper(sources, None)
+    }
+
     pub(super) fn combine_type_mappers(
         &self,
         mapper1: Option<TypeMapper>,
@@ -433,7 +440,7 @@ impl TypeChecker {
         signature: Rc<Signature>,
         mapper: &TypeMapper,
         erase_type_parameters: Option<bool>,
-    ) -> Rc<Signature> {
+    ) -> Signature {
         let mut mapper = mapper.clone();
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
         let mut fresh_type_parameters: Option<Vec<Rc<Type /*TypeParameter*/>>> = None;
@@ -475,7 +482,7 @@ impl TypeChecker {
         );
         result.target = Some(signature);
         result.mapper = Some(mapper);
-        Rc::new(result)
+        result
     }
 
     pub(super) fn instantiate_symbol(&self, symbol: &Symbol, mapper: &TypeMapper) -> Rc<Symbol> {
