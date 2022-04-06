@@ -366,6 +366,13 @@ impl TypeChecker {
         .unwrap()
     }
 
+    pub(super) fn get_type_parameters_for_type_reference(
+        &self,
+        node: &Node, /*TypeReferenceNode | ExpressionWithTypeArguments*/
+    ) -> Option<Vec<Rc<Type>>> {
+        unimplemented!()
+    }
+
     pub(super) fn check_type_reference_node(&self, node: &Node /*TypeReferenceNode*/) {
         maybe_for_each(
             node.as_type_reference_node().type_arguments.as_ref(),

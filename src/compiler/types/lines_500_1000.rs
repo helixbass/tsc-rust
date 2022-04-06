@@ -1182,6 +1182,10 @@ impl Node {
     pub fn as_type_predicate_node(&self) -> &TypePredicateNode {
         enum_unwrapped!(self, [Node, TypePredicateNode])
     }
+
+    pub fn as_named_tuple_member(&self) -> &NamedTupleMember {
+        enum_unwrapped!(self, [Node, NamedTupleMember])
+    }
 }
 
 #[derive(Debug)]

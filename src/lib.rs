@@ -418,8 +418,9 @@ pub use compiler::utilities::{
     try_extract_ts_extension, try_get_import_from_module_specifier, try_parse_pattern,
     unreachable_code_is_error, unused_label_is_error, using_single_line_string_writer,
     walk_up_parenthesized_expressions, walk_up_parenthesized_types,
-    write_file_ensuring_directories, Associativity, FileMatcherPatterns, FunctionFlags,
-    GetLiteralTextFlags, OperatorPrecedence, StringOrPattern, SymlinkCache,
+    walk_up_parenthesized_types_and_get_parent_and_child, write_file_ensuring_directories,
+    Associativity, FileMatcherPatterns, FunctionFlags, GetLiteralTextFlags, OperatorPrecedence,
+    StringOrPattern, SymlinkCache,
 };
 use compiler::utilities::{
     get_element_or_property_access_argument_expression_or_name,

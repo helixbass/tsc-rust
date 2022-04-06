@@ -1,10 +1,12 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
+use std::convert::TryInto;
 use std::ptr;
 use std::rc::Rc;
 
 use crate::{
+    append, index_of_rc, skip_parentheses, walk_up_parenthesized_types_and_get_parent_and_child,
     ElementFlags, InterfaceTypeInterface, __String, concatenate, get_object_flags, map,
     DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -16,7 +18,176 @@ impl TypeChecker {
         &self,
         type_parameter: &Type, /*TypeParameter*/
     ) -> Option<Rc<Type>> {
-        unimplemented!()
+        let mut inferences: Option<Vec<Rc<Type>>> = None;
+        if let Some(type_parameter_symbol) = type_parameter.maybe_symbol() {
+            if let Some(type_parameter_symbol_declarations) =
+                type_parameter_symbol.maybe_declarations().as_deref()
+            {
+                for declaration in type_parameter_symbol_declarations {
+                    if declaration.parent().kind() == SyntaxKind::InferType {
+                        let (child_type_parameter, grand_parent) =
+                            walk_up_parenthesized_types_and_get_parent_and_child(
+                                &declaration.parent().parent(),
+                            );
+                        let grand_parent = grand_parent.unwrap();
+                        let child_type_parameter =
+                            child_type_parameter.unwrap_or_else(|| declaration.parent());
+                        if grand_parent.kind() == SyntaxKind::TypeReference {
+                            let type_reference = &grand_parent;
+                            let type_parameters =
+                                self.get_type_parameters_for_type_reference(type_reference);
+                            if let Some(type_parameters) = type_parameters {
+                                let index: usize = index_of_rc(
+                                    type_reference
+                                        .as_type_reference_node()
+                                        .type_arguments
+                                        .as_deref()
+                                        .unwrap(),
+                                    &child_type_parameter,
+                                )
+                                .try_into()
+                                .unwrap();
+                                if index < type_parameters.len() {
+                                    let declared_constraint = self
+                                        .get_constraint_of_type_parameter(&type_parameters[index]);
+                                    if let Some(declared_constraint) = declared_constraint {
+                                        let mapper = self.create_type_mapper(
+                                            type_parameters.clone(),
+                                            Some(self.get_effective_type_arguments(
+                                                type_reference,
+                                                &type_parameters,
+                                            )),
+                                        );
+                                        let constraint = self
+                                            .instantiate_type(
+                                                Some(&*declared_constraint),
+                                                Some(&mapper),
+                                            )
+                                            .unwrap();
+                                        if !ptr::eq(&*constraint, type_parameter) {
+                                            if inferences.is_none() {
+                                                inferences = Some(vec![]);
+                                            }
+                                            append(inferences.as_mut().unwrap(), Some(constraint));
+                                        }
+                                    }
+                                }
+                            }
+                        } else if grand_parent.kind() == SyntaxKind::Parameter
+                            && grand_parent
+                                .as_parameter_declaration()
+                                .dot_dot_dot_token
+                                .is_some()
+                            || grand_parent.kind() == SyntaxKind::RestType
+                            || grand_parent.kind() == SyntaxKind::NamedTupleMember
+                                && grand_parent
+                                    .as_named_tuple_member()
+                                    .dot_dot_dot_token
+                                    .is_some()
+                        {
+                            if inferences.is_none() {
+                                inferences = Some(vec![]);
+                            }
+                            append(
+                                inferences.as_mut().unwrap(),
+                                Some(self.create_array_type(&self.unknown_type(), None)),
+                            );
+                        } else if grand_parent.kind() == SyntaxKind::TemplateLiteralTypeSpan {
+                            if inferences.is_none() {
+                                inferences = Some(vec![]);
+                            }
+                            append(inferences.as_mut().unwrap(), Some(self.string_type()));
+                        } else if grand_parent.kind() == SyntaxKind::TypeParameter
+                            && grand_parent.parent().kind() == SyntaxKind::MappedType
+                        {
+                            if inferences.is_none() {
+                                inferences = Some(vec![]);
+                            }
+                            append(
+                                inferences.as_mut().unwrap(),
+                                Some(self.keyof_constraint_type()),
+                            );
+                        } else if grand_parent.kind() == SyntaxKind::MappedType && {
+                            let grand_parent_as_mapped_type_node =
+                                grand_parent.as_mapped_type_node();
+                            grand_parent_as_mapped_type_node.type_.is_some()
+                                && Rc::ptr_eq(
+                                    &skip_parentheses(
+                                        grand_parent_as_mapped_type_node.type_.as_ref().unwrap(),
+                                        None,
+                                    ),
+                                    &declaration.parent(),
+                                )
+                                && grand_parent.parent().kind() == SyntaxKind::ConditionalType
+                                && {
+                                    let grand_parent_parent = grand_parent.parent();
+                                    let grand_parent_parent_as_conditional_type_node =
+                                        grand_parent_parent.as_conditional_type_node();
+                                    Rc::ptr_eq(
+                                        &grand_parent_parent_as_conditional_type_node.extends_type,
+                                        &grand_parent,
+                                    ) && grand_parent_parent_as_conditional_type_node
+                                        .check_type
+                                        .kind()
+                                        == SyntaxKind::MappedType
+                                        && grand_parent_parent_as_conditional_type_node
+                                            .check_type
+                                            .as_mapped_type_node()
+                                            .type_
+                                            .is_some()
+                                }
+                        } {
+                            let check_mapped_type = grand_parent
+                                .parent()
+                                .as_conditional_type_node()
+                                .check_type
+                                .clone();
+                            let check_mapped_type = check_mapped_type.as_mapped_type_node();
+                            let node_type = self.get_type_from_type_node_(
+                                check_mapped_type.type_.as_ref().unwrap(),
+                            );
+                            if inferences.is_none() {
+                                inferences = Some(vec![]);
+                            }
+                            append(
+                                inferences.as_mut().unwrap(),
+                                self.instantiate_type(
+                                    Some(node_type),
+                                    Some(
+                                        &self.make_unary_type_mapper(
+                                            &self.get_declared_type_of_type_parameter(
+                                                &self
+                                                    .get_symbol_of_node(
+                                                        &check_mapped_type.type_parameter,
+                                                    )
+                                                    .unwrap(),
+                                            ),
+                                            &*if let Some(
+                                                check_mapped_type_type_parameter_constraint,
+                                            ) = check_mapped_type
+                                                .type_parameter
+                                                .as_type_parameter_declaration()
+                                                .constraint
+                                                .as_ref()
+                                            {
+                                                self.get_type_from_type_node_(
+                                                    check_mapped_type_type_parameter_constraint,
+                                                )
+                                            } else {
+                                                self.keyof_constraint_type()
+                                            },
+                                        ),
+                                    ),
+                                ),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        inferences.map(|inferences| {
+            self.get_intersection_type(&inferences, Option::<&Symbol>::None, None)
+        })
     }
 
     pub(super) fn get_constraint_from_type_parameter(
