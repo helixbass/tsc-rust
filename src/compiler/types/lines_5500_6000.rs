@@ -383,6 +383,7 @@ pub struct Signature {
     pub composite_kind: Option<TypeFlags>,
     erased_signature_cache: RefCell<Option<Rc<Signature>>>,
     canonical_signature_cache: RefCell<Option<Rc<Signature>>>,
+    base_signature_cache: RefCell<Option<Rc<Signature>>>,
     optional_call_signature_cache: RefCell<Option<SignatureOptionalCallSignatureCache>>,
     instantiations: RefCell<Option<HashMap<String, Rc<Signature>>>>,
 }
@@ -405,6 +406,7 @@ impl Signature {
             composite_kind: None,
             erased_signature_cache: RefCell::new(None),
             canonical_signature_cache: RefCell::new(None),
+            base_signature_cache: RefCell::new(None),
             optional_call_signature_cache: RefCell::new(None),
             instantiations: RefCell::new(None),
         }
@@ -453,6 +455,10 @@ impl Signature {
 
     pub fn maybe_canonical_signature_cache(&self) -> RefMut<Option<Rc<Signature>>> {
         self.canonical_signature_cache.borrow_mut()
+    }
+
+    pub fn maybe_base_signature_cache(&self) -> RefMut<Option<Rc<Signature>>> {
+        self.base_signature_cache.borrow_mut()
     }
 
     pub fn maybe_optional_call_signature_cache(

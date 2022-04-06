@@ -871,6 +871,47 @@ impl TypeChecker {
         )
     }
 
+    pub(super) fn get_base_signature(&self, signature: Rc<Signature>) -> Rc<Signature> {
+        let type_parameters = signature.type_parameters.as_ref();
+        if let Some(type_parameters) = type_parameters {
+            if let Some(signature_base_signature_cache) =
+                signature.maybe_base_signature_cache().clone()
+            {
+                return signature_base_signature_cache;
+            }
+            let type_eraser = self.create_type_eraser(type_parameters.clone());
+            let base_constraint_mapper = self.create_type_mapper(
+                type_parameters.clone(),
+                map(Some(type_parameters), |tp: &Rc<Type>, _| {
+                    self.get_constraint_of_type_parameter(tp)
+                        .unwrap_or_else(|| self.unknown_type())
+                }),
+            );
+            let mut base_constraints: Vec<Rc<Type>> =
+                map(Some(type_parameters), |tp: &Rc<Type>, _| {
+                    self.instantiate_type(Some(&**tp), Some(&base_constraint_mapper))
+                        .unwrap_or_else(|| self.unknown_type())
+                })
+                .unwrap();
+            for _i in 0..type_parameters.len() - 1 {
+                base_constraints = self
+                    .instantiate_types(Some(&base_constraints), &base_constraint_mapper)
+                    .unwrap();
+            }
+            base_constraints = self
+                .instantiate_types(Some(&base_constraints), &type_eraser)
+                .unwrap();
+            let ret = Rc::new(self.instantiate_signature(
+                signature.clone(),
+                &self.create_type_mapper(type_parameters.clone(), Some(base_constraints)),
+                Some(true),
+            ));
+            *signature.maybe_base_signature_cache() = Some(ret.clone());
+            return ret;
+        }
+        signature
+    }
+
     pub(super) fn get_or_create_type_from_signature(
         &self,
         signature: &Signature,

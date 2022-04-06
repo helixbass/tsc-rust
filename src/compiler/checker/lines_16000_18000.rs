@@ -258,6 +258,14 @@ impl TypeChecker {
         Some(items.to_vec())
     }
 
+    pub(super) fn instantiate_types(
+        &self,
+        types: Option<&[Rc<Type>]>,
+        mapper: &TypeMapper,
+    ) -> Option<Vec<Rc<Type>>> {
+        unimplemented!()
+    }
+
     pub(super) fn instantiate_signatures(
         &self,
         signatures: &[Rc<Signature>],
