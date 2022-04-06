@@ -1,30 +1,14 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::ptr;
 use std::rc::Rc;
 
-use super::signature_has_rest_parameter;
 use crate::{
-    declaration_name_to_string, filter, find_index, first_defined, for_each_child_bool,
-    get_declaration_of_kind, get_effective_constraint_of_type_parameter,
-    get_effective_return_type_node, get_immediately_invoked_function_expression,
-    get_jsdoc_parameter_tags, get_jsdoc_tags, get_jsdoc_type, get_jsdoc_type_tag,
-    get_name_of_declaration, has_effective_modifier, has_jsdoc_parameter_tags, has_rest_parameter,
-    has_syntactic_modifier, is_binding_pattern, is_constructor_declaration,
-    is_constructor_type_node, is_function_like, is_function_like_declaration, is_in_js_file,
-    is_jsdoc_construct_signature, is_jsdoc_parameter_tag, is_jsdoc_signature,
-    is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
-    is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map_defined,
-    node_is_missing, node_starts_new_lexical_environment, some, CheckFlags, Debug_, ElementFlags,
-    HasInitializerInterface, HasTypeInterface, IndexInfo, InterfaceTypeInterface,
-    InternalSymbolName, ModifierFlags, NodeArray, NodeCheckFlags, ReadonlyTextRange, Signature,
-    SignatureDeclarationInterface, SignatureFlags, SymbolTable, TransientSymbolInterface,
-    TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction, __String,
-    concatenate, get_object_flags, map, DiagnosticMessage, Diagnostics, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReference,
+    ElementFlags, InterfaceTypeInterface, __String, concatenate, get_object_flags, map,
+    DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReference,
 };
 
 impl TypeChecker {

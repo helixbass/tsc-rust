@@ -17,14 +17,13 @@ use crate::{
     is_jsdoc_construct_signature, is_jsdoc_parameter_tag, is_jsdoc_signature,
     is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
     is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map_defined,
-    node_is_missing, node_starts_new_lexical_environment, some, CheckFlags, Debug_, ElementFlags,
+    node_is_missing, node_starts_new_lexical_environment, some, CheckFlags, Debug_,
     HasInitializerInterface, HasTypeInterface, IndexInfo, InterfaceTypeInterface,
     InternalSymbolName, ModifierFlags, NodeArray, NodeCheckFlags, ReadonlyTextRange, Signature,
     SignatureDeclarationInterface, SignatureFlags, SymbolTable, TransientSymbolInterface,
     TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction, __String,
-    concatenate, get_object_flags, map, DiagnosticMessage, Diagnostics, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReference,
+    map, Diagnostics, Node, NodeInterface, ObjectFlags, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
