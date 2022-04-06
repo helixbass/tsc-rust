@@ -1,13 +1,15 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::ptr;
 use std::rc::Rc;
 
+use super::get_symbol_id;
 use crate::{
-    append, index_of_rc, skip_parentheses, walk_up_parenthesized_types_and_get_parent_and_child,
-    ElementFlags, InterfaceTypeInterface, __String, concatenate, get_object_flags, map,
+    append, get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, index_of_rc,
+    is_jsdoc_template_tag, skip_parentheses, walk_up_parenthesized_types_and_get_parent_and_child,
+    ElementFlags, InterfaceTypeInterface, TypeId, __String, concatenate, get_object_flags, map,
     DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeReference,
@@ -251,11 +253,61 @@ impl TypeChecker {
         &self,
         type_parameter: &Type, /*TypeParameter*/
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        let tp =
+            get_declaration_of_kind(&type_parameter.symbol(), SyntaxKind::TypeParameter).unwrap();
+        let host = if is_jsdoc_template_tag(&tp.parent()) {
+            get_effective_container_for_jsdoc_template_tag(&tp.parent())
+        } else {
+            Some(tp.parent())
+        };
+        host.and_then(|host| self.get_symbol_of_node(&host))
     }
 
     pub(super) fn get_type_list_id(&self, types: Option<&[Rc<Type>]>) -> String {
-        unimplemented!()
+        let mut result = "".to_owned();
+        if let Some(types) = types {
+            let length = types.len();
+            let mut i = 0;
+            while i < length {
+                let start_id = types[i].id();
+                let mut count = 1;
+                while i + count < length
+                    && types[i + count].id() == start_id + TypeId::try_from(count).unwrap()
+                {
+                    count += 1;
+                }
+                if !result.is_empty() {
+                    result.push_str(",");
+                }
+                result.push_str(&format!("{}", start_id));
+                if count > 1 {
+                    result.push_str(&format!(":{}", count));
+                }
+                i += count;
+            }
+        }
+        result
+    }
+
+    pub(super) fn get_alias_id<TAliasSymbol: Borrow<Symbol>>(
+        &self,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> String {
+        if let Some(alias_symbol) = alias_symbol {
+            let alias_symbol = alias_symbol.borrow();
+            format!(
+                "@{}{}",
+                get_symbol_id(alias_symbol),
+                if let Some(alias_type_arguments) = alias_type_arguments {
+                    format!(":{}", self.get_type_list_id(Some(alias_type_arguments)))
+                } else {
+                    "".to_owned()
+                }
+            )
+        } else {
+            "".to_owned()
+        }
     }
 
     pub(super) fn get_propagating_flags_of_types(
