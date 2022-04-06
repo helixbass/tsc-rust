@@ -385,6 +385,7 @@ pub struct Signature {
     canonical_signature_cache: RefCell<Option<Rc<Signature>>>,
     base_signature_cache: RefCell<Option<Rc<Signature>>>,
     optional_call_signature_cache: RefCell<Option<SignatureOptionalCallSignatureCache>>,
+    isolated_signature_type: RefCell<Option<Rc<Type /*ObjectType*/>>>,
     instantiations: RefCell<Option<HashMap<String, Rc<Signature>>>>,
 }
 
@@ -408,6 +409,7 @@ impl Signature {
             canonical_signature_cache: RefCell::new(None),
             base_signature_cache: RefCell::new(None),
             optional_call_signature_cache: RefCell::new(None),
+            isolated_signature_type: RefCell::new(None),
             instantiations: RefCell::new(None),
         }
     }
@@ -465,6 +467,10 @@ impl Signature {
         &self,
     ) -> RefMut<Option<SignatureOptionalCallSignatureCache>> {
         self.optional_call_signature_cache.borrow_mut()
+    }
+
+    pub fn maybe_isolated_signature_type(&self) -> RefMut<Option<Rc<Type>>> {
+        self.isolated_signature_type.borrow_mut()
     }
 
     pub fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Rc<Signature>>>> {

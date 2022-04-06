@@ -11,19 +11,20 @@ use crate::{
     get_declaration_of_kind, get_effective_constraint_of_type_parameter,
     get_effective_return_type_node, get_immediately_invoked_function_expression,
     get_jsdoc_parameter_tags, get_jsdoc_tags, get_jsdoc_type, get_jsdoc_type_tag,
-    get_name_of_declaration, has_jsdoc_parameter_tags, has_rest_parameter, has_syntactic_modifier,
-    is_binding_pattern, is_constructor_declaration, is_constructor_type_node, is_function_like,
-    is_function_like_declaration, is_in_js_file, is_jsdoc_construct_signature,
-    is_jsdoc_parameter_tag, is_jsdoc_signature, is_jsdoc_variadic_type, is_part_of_type_node,
-    is_rest_parameter, is_type_parameter_declaration, is_type_predicate_node,
-    is_value_signature_declaration, last_or_undefined, length, map_defined, node_is_missing,
-    node_starts_new_lexical_environment, CheckFlags, Debug_, ElementFlags, HasInitializerInterface,
-    HasTypeInterface, IndexInfo, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
-    NodeArray, NodeCheckFlags, ReadonlyTextRange, Signature, SignatureFlags, SymbolTable,
-    TransientSymbolInterface, TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName,
-    UnionReduction, __String, concatenate, get_object_flags, map, DiagnosticMessage, Diagnostics,
-    Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeReference,
+    get_name_of_declaration, has_effective_modifier, has_jsdoc_parameter_tags, has_rest_parameter,
+    has_syntactic_modifier, is_binding_pattern, is_constructor_declaration,
+    is_constructor_type_node, is_function_like, is_function_like_declaration, is_in_js_file,
+    is_jsdoc_construct_signature, is_jsdoc_parameter_tag, is_jsdoc_signature,
+    is_jsdoc_variadic_type, is_part_of_type_node, is_rest_parameter, is_type_parameter_declaration,
+    is_type_predicate_node, is_value_signature_declaration, last_or_undefined, length, map_defined,
+    node_is_missing, node_starts_new_lexical_environment, some, CheckFlags, Debug_, ElementFlags,
+    HasInitializerInterface, HasTypeInterface, IndexInfo, InterfaceTypeInterface,
+    InternalSymbolName, ModifierFlags, NodeArray, NodeCheckFlags, ReadonlyTextRange, Signature,
+    SignatureDeclarationInterface, SignatureFlags, SymbolTable, TransientSymbolInterface,
+    TypeMapper, TypePredicate, TypePredicateKind, TypeSystemPropertyName, UnionReduction, __String,
+    concatenate, get_object_flags, map, DiagnosticMessage, Diagnostics, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeReference,
 };
 
 impl TypeChecker {
@@ -772,7 +773,7 @@ impl TypeChecker {
                 new_return_signature.type_parameters = Some(inferred_type_parameters.to_owned());
                 let new_instantiated_signature = self.clone_signature(&instantiated_signature);
                 *new_instantiated_signature.maybe_resolved_return_type() =
-                    Some(self.get_or_create_type_from_signature(&new_return_signature));
+                    Some(self.get_or_create_type_from_signature(Rc::new(new_return_signature)));
                 return Rc::new(new_instantiated_signature);
             }
         }
@@ -914,16 +915,56 @@ impl TypeChecker {
 
     pub(super) fn get_or_create_type_from_signature(
         &self,
-        signature: &Signature,
+        signature: Rc<Signature>,
     ) -> Rc<Type /*ObjectType*/> {
-        unimplemented!()
+        if signature.maybe_isolated_signature_type().is_none() {
+            let kind = signature
+                .declaration
+                .as_ref()
+                .map_or_else(|| SyntaxKind::Unknown, |declaration| declaration.kind());
+            let is_constructor = matches!(
+                kind,
+                SyntaxKind::Constructor
+                    | SyntaxKind::ConstructSignature
+                    | SyntaxKind::ConstructorType
+            );
+            let type_: Rc<Type> = self
+                .create_object_type(ObjectFlags::Anonymous, Option::<&Symbol>::None)
+                .into();
+            type_.as_resolvable_type().resolve(
+                self.empty_symbols(),
+                vec![],
+                if !is_constructor {
+                    vec![signature.clone()]
+                } else {
+                    vec![]
+                },
+                if is_constructor {
+                    vec![signature.clone()]
+                } else {
+                    vec![]
+                },
+                vec![],
+            );
+            *signature.maybe_isolated_signature_type() = Some(type_);
+        }
+        signature.maybe_isolated_signature_type().clone().unwrap()
+    }
+
+    pub(super) fn get_index_symbol(&self, symbol: &Symbol) -> Option<Rc<Symbol>> {
+        symbol
+            .maybe_members()
+            .clone()
+            .and_then(|members| self.get_index_symbol_from_symbol_table(&(*members).borrow()))
     }
 
     pub(super) fn get_index_symbol_from_symbol_table(
         &self,
         symbol_table: &SymbolTable,
     ) -> Option<Rc<Symbol>> {
-        unimplemented!()
+        symbol_table
+            .get(&InternalSymbolName::Index())
+            .map(Clone::clone)
     }
 
     pub(super) fn create_index_info(
@@ -942,18 +983,75 @@ impl TypeChecker {
     }
 
     pub(super) fn get_index_infos_of_symbol(&self, symbol: &Symbol) -> Vec<Rc<IndexInfo>> {
-        unimplemented!()
+        let index_symbol = self.get_index_symbol(symbol);
+        if let Some(index_symbol) = index_symbol {
+            self.get_index_infos_of_index_symbol(&index_symbol)
+        } else {
+            vec![]
+        }
     }
 
     pub(super) fn get_index_infos_of_index_symbol(
         &self,
         index_symbol: &Symbol,
     ) -> Vec<Rc<IndexInfo>> {
-        unimplemented!()
+        if let Some(index_symbol_declarations) = index_symbol.maybe_declarations().as_ref() {
+            let mut index_infos: Vec<Rc<IndexInfo>> = vec![];
+            for declaration in index_symbol_declarations {
+                let declaration_as_index_signature_declaration =
+                    declaration.as_index_signature_declaration();
+                if declaration_as_index_signature_declaration
+                    .parameters()
+                    .len()
+                    == 1
+                {
+                    let parameter = &declaration_as_index_signature_declaration.parameters()[0];
+                    if let Some(parameter_type) = parameter.as_parameter_declaration().maybe_type()
+                    {
+                        self.for_each_type(
+                            &self.get_type_from_type_node_(&parameter_type),
+                            |key_type| {
+                                if self.is_valid_index_key_type(key_type)
+                                    && self.find_index_info(&index_infos, key_type).is_none()
+                                {
+                                    index_infos.push(Rc::new(self.create_index_info(
+                                        key_type.type_wrapper(),
+                                        if let Some(declaration_type) =
+                                            declaration_as_index_signature_declaration.maybe_type()
+                                        {
+                                            self.get_type_from_type_node_(&declaration_type)
+                                        } else {
+                                            self.any_type()
+                                        },
+                                        has_effective_modifier(
+                                            declaration,
+                                            ModifierFlags::Readonly,
+                                        ),
+                                        None,
+                                    )));
+                                }
+                                Option::<()>::None
+                            },
+                        );
+                    }
+                }
+            }
+            return index_infos;
+        }
+        vec![]
     }
 
     pub(super) fn is_valid_index_key_type(&self, type_: &Type) -> bool {
-        unimplemented!()
+        type_
+            .flags()
+            .intersects(TypeFlags::String | TypeFlags::Number | TypeFlags::ESSymbol)
+            || self.is_pattern_literal_type(type_)
+            || type_.flags().intersects(TypeFlags::Intersection)
+                && !self.is_generic_type(type_)
+                && some(
+                    Some(type_.as_union_or_intersection_type_interface().types()),
+                    Some(|type_: &Rc<Type>| self.is_valid_index_key_type(type_)),
+                )
     }
 
     pub(super) fn get_constraint_declaration(

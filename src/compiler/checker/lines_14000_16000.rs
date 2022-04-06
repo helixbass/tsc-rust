@@ -324,6 +324,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn is_generic_type(&self, type_: &Type) -> bool {
+        unimplemented!()
+    }
+
     pub(super) fn is_generic_object_type(&self, type_: &Type) -> bool {
         unimplemented!()
     }

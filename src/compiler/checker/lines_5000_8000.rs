@@ -568,7 +568,7 @@ impl NodeBuilder {
             let mut types = map(
                 abstract_signatures.as_deref(),
                 |signature: &Rc<Signature>, _| {
-                    type_checker.get_or_create_type_from_signature(signature)
+                    type_checker.get_or_create_type_from_signature(signature.clone())
                 },
             )
             .unwrap();
