@@ -14,7 +14,7 @@ use super::{
     SubstitutionType, Symbol, TemplateLiteralType, TupleType, TypeParameter, TypeReference,
     UnionOrIntersectionType, UnionOrIntersectionTypeInterface, UnionType, UniqueESSymbolType,
 };
-use crate::{BaseTransientSymbol, Node, ObjectFlags, Pattern, WeakSelf};
+use crate::{BaseTransientSymbol, GenericTypeInterface, Node, ObjectFlags, Pattern, WeakSelf};
 use local_macros::{enum_unwrapped, symbol_type, type_type};
 
 #[derive(Debug)]
@@ -399,6 +399,13 @@ impl Type {
         match self {
             Type::ObjectType(ObjectType::InterfaceType(interface_type)) => interface_type,
             _ => panic!("Expected interface type with declared members"),
+        }
+    }
+
+    pub fn as_generic_type(&self) -> &dyn GenericTypeInterface {
+        match self {
+            Type::ObjectType(ObjectType::InterfaceType(interface_type)) => interface_type,
+            _ => panic!("Expected generic type"),
         }
     }
 

@@ -776,9 +776,7 @@ impl TypeChecker {
                     None,
                 )
                 .unwrap_or_else(|| self.unknown_type());
-            return self
-                .create_type_reference(&global_promise_type, Some(vec![promised_type]))
-                .into();
+            return self.create_type_reference(&global_promise_type, Some(vec![promised_type]));
         }
 
         self.unknown_type()

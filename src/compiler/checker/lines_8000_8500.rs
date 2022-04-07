@@ -665,7 +665,6 @@ impl TypeChecker {
                 &class_type,
                 map(Some(class_type_type_parameters), |_, _| self.any_type()),
             )
-            .into()
         } else {
             class_type
         }

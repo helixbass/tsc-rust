@@ -388,17 +388,15 @@ impl TypeChecker {
             if length(target_as_interface_type.maybe_type_parameters())
                 == length(Some(&type_arguments))
             {
-                let ref_: Rc<Type> = self
-                    .create_type_reference(
-                        target,
-                        Some(concatenate(
-                            type_arguments,
-                            vec![this_argument.clone().unwrap_or_else(|| {
-                                target_as_interface_type.maybe_this_type().unwrap()
-                            })],
-                        )),
-                    )
-                    .into();
+                let ref_ = self.create_type_reference(
+                    target,
+                    Some(concatenate(
+                        type_arguments,
+                        vec![this_argument.clone().unwrap_or_else(|| {
+                            target_as_interface_type.maybe_this_type().unwrap()
+                        })],
+                    )),
+                );
                 return if matches!(need_apparent_type, Some(true)) {
                     self.get_apparent_type(&ref_)
                 } else {

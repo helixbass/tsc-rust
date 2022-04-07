@@ -9,10 +9,10 @@ use super::get_symbol_id;
 use crate::{
     append, get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, index_of_rc,
     is_jsdoc_template_tag, skip_parentheses, walk_up_parenthesized_types_and_get_parent_and_child,
-    ElementFlags, InterfaceTypeInterface, TypeId, __String, concatenate, get_object_flags, map,
-    DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReference,
+    BaseObjectType, ElementFlags, InterfaceTypeInterface, TypeId, TypeReferenceInterface, __String,
+    concatenate, get_object_flags, map, DiagnosticMessage, Diagnostics, Node, NodeInterface,
+    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, TypeReference,
 };
 
 impl TypeChecker {
@@ -318,7 +318,7 @@ impl TypeChecker {
         let mut result = ObjectFlags::None;
         for type_ in types {
             if !type_.flags().intersects(exclude_kinds) {
-                result |= get_object_flags(&*type_);
+                result |= get_object_flags(&type_);
             }
         }
         result & ObjectFlags::PropagatingFlags
@@ -328,22 +328,47 @@ impl TypeChecker {
         &self,
         target: &Type, /*GenericType*/
         type_arguments: Option<Vec<Rc<Type>>>,
-    ) -> TypeReference {
-        let type_ = self.create_object_type(ObjectFlags::Reference, Some(target.symbol()));
-        type_.set_object_flags(
-            type_.object_flags()
-                | if let Some(type_arguments) = type_arguments.as_ref() {
-                    self.get_propagating_flags_of_types(type_arguments, TypeFlags::None)
-                } else {
-                    ObjectFlags::None
-                },
-        );
-        let type_ = TypeReference::new(type_, target.type_wrapper(), type_arguments);
-        type_
+    ) -> Rc<Type /*TypeReference*/> {
+        let id = self.get_type_list_id(type_arguments.as_deref());
+        let type_ = target
+            .as_generic_type()
+            .instantiations()
+            .get(&id)
+            .map(Clone::clone);
+        if type_.is_none() {
+            let type_ = self.create_object_type(ObjectFlags::Reference, Some(target.symbol()));
+            type_.set_object_flags(
+                type_.object_flags()
+                    | if let Some(type_arguments) = type_arguments.as_ref() {
+                        self.get_propagating_flags_of_types(type_arguments, TypeFlags::None)
+                    } else {
+                        ObjectFlags::None
+                    },
+            );
+            let type_: Rc<Type> =
+                TypeReference::new(type_, target.type_wrapper(), type_arguments).into();
+            target
+                .as_generic_type()
+                .instantiations()
+                .insert(id, type_.clone());
+            return type_;
+        }
+        type_.unwrap()
     }
 
     pub(super) fn clone_type_reference(&self, source: &Type /*TypeReference*/) -> Rc<Type> {
-        unimplemented!()
+        let type_ = self.create_type(source.flags());
+        let source_as_type_reference = source.as_type_reference();
+        let type_ = BaseObjectType::new(type_, source_as_type_reference.object_flags());
+        let type_: Rc<Type> = TypeReference::new(
+            type_,
+            source_as_type_reference.target(),
+            source_as_type_reference
+                .maybe_resolved_type_arguments()
+                .clone(),
+        )
+        .into();
+        type_
     }
 
     pub(super) fn get_type_arguments(&self, type_: &Type /*TypeReference*/) -> Vec<Rc<Type>> {
@@ -419,9 +444,7 @@ impl TypeChecker {
                 )
                 .unwrap_or_else(|| vec![]),
             );
-            return self
-                .create_type_reference(&type_, Some(type_arguments))
-                .into();
+            return self.create_type_reference(&type_, Some(type_arguments));
         }
         if self.check_no_type_arguments(node, symbol) {
             type_
