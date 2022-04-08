@@ -331,7 +331,7 @@ pub struct BaseObjectType {
     object_type_without_abstract_construct_signatures: RefCell<Option<Rc<Type>>>,
     // AnonymousType fields
     target: Option<Rc<Type>>,
-    mapper: Option<TypeMapper>,
+    pub mapper: Option<TypeMapper>,
     instantiations: Option<HashMap<String, Rc<Type>>>,
 }
 

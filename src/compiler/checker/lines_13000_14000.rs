@@ -8,11 +8,14 @@ use std::rc::Rc;
 use super::get_symbol_id;
 use crate::{
     append, get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, index_of_rc,
-    is_jsdoc_template_tag, skip_parentheses, walk_up_parenthesized_types_and_get_parent_and_child,
-    BaseObjectType, ElementFlags, InterfaceTypeInterface, TypeId, TypeReferenceInterface, __String,
-    concatenate, get_object_flags, map, DiagnosticMessage, Diagnostics, Node, NodeInterface,
-    ObjectFlags, ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReference,
+    is_expression_with_type_arguments, is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_template_tag,
+    length, maybe_concatenate, skip_parentheses,
+    walk_up_parenthesized_types_and_get_parent_and_child, BaseObjectType, ElementFlags,
+    InterfaceTypeInterface, ObjectTypeInterface, TypeFormatFlags, TypeId, TypeMapper,
+    TypeReferenceInterface, TypeSystemPropertyName, __String, concatenate, get_object_flags, map,
+    DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReference,
 };
 
 impl TypeChecker {
@@ -371,57 +374,151 @@ impl TypeChecker {
         type_
     }
 
+    pub(super) fn create_deferred_type_reference<TAliasSymbol: Borrow<Symbol>>(
+        &self,
+        target: &Type, /*GenericType*/
+        node: &Node,   /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
+        mapper: Option<TypeMapper>,
+        alias_symbol: Option<TAliasSymbol>,
+        alias_type_arguments: Option<&[Rc<Type>]>,
+    ) -> Rc<Type /*DeferredTypeReference*/> {
+        let mut alias_symbol =
+            alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
+        let mut alias_type_arguments = alias_type_arguments.map(ToOwned::to_owned);
+        if alias_symbol.is_none() {
+            alias_symbol = self.get_alias_symbol_for_type_node(node);
+            let local_alias_type_arguments =
+                self.get_type_arguments_for_alias_symbol(alias_symbol.as_deref());
+            alias_type_arguments = if let Some(mapper) = mapper.as_ref() {
+                self.instantiate_types(local_alias_type_arguments.as_deref(), mapper)
+            } else {
+                local_alias_type_arguments
+            };
+        }
+        let mut type_ = self.create_object_type(ObjectFlags::Reference, target.maybe_symbol());
+        type_.mapper = mapper;
+        let type_: Rc<Type> = TypeReference::new(type_, target.type_wrapper(), None).into();
+        *type_.as_type_reference().maybe_node() = Some(node.node_wrapper());
+        *type_.maybe_alias_symbol() = alias_symbol;
+        *type_.maybe_alias_type_arguments() = alias_type_arguments;
+        type_
+    }
+
     pub(super) fn get_type_arguments(&self, type_: &Type /*TypeReference*/) -> Vec<Rc<Type>> {
         let type_as_type_reference = type_.as_type_reference();
-        let mut resolved_type_arguments =
-            type_as_type_reference.resolved_type_arguments.borrow_mut();
-        if resolved_type_arguments.is_none() {
-            let node = type_as_type_reference.node.borrow();
-            let type_arguments = match &*node {
-                None => vec![],
-                Some(node) => match &**node {
-                    Node::TypeReferenceNode(type_reference_node) => {
-                        let target_as_interface_type =
-                            type_as_type_reference.target.as_interface_type();
-                        concatenate(
-                            target_as_interface_type
-                                .maybe_outer_type_parameters()
-                                .map_or_else(
-                                    || vec![],
-                                    |outer_type_parameters| outer_type_parameters.to_owned(),
-                                ),
-                            self.get_effective_type_arguments(
-                                node,
-                                target_as_interface_type
-                                    .maybe_local_type_parameters()
-                                    .unwrap(),
-                            ),
-                        )
-                    }
-                    Node::ArrayTypeNode(array_type_node) => unimplemented!(),
-                    _ => unimplemented!(),
-                },
-            };
-            if true {
-                *resolved_type_arguments = if false {
-                    unimplemented!()
-                } else {
-                    Some(type_arguments)
-                };
+        if (*type_as_type_reference.resolved_type_arguments.borrow()).is_none() {
+            if !self.push_type_resolution(
+                &type_.type_wrapper().into(),
+                TypeSystemPropertyName::ResolvedTypeArguments,
+            ) {
+                return type_as_type_reference
+                    .target
+                    .as_interface_type()
+                    .maybe_local_type_parameters()
+                    .map_or_else(
+                        || vec![],
+                        |local_type_parameters| {
+                            local_type_parameters
+                                .iter()
+                                .map(|_| self.error_type())
+                                .collect()
+                        },
+                    );
+            }
+            let node = type_as_type_reference.node.borrow().clone();
+            let type_arguments: Vec<Rc<Type>> = if node.is_none() {
+                vec![]
             } else {
-                unimplemented!()
+                let node = node.unwrap();
+                if node.kind() == SyntaxKind::TypeReference {
+                    let target_as_interface_type =
+                        type_as_type_reference.target.as_interface_type();
+                    concatenate(
+                        target_as_interface_type
+                            .maybe_outer_type_parameters()
+                            .map_or_else(|| vec![], ToOwned::to_owned),
+                        self.get_effective_type_arguments(
+                            &node,
+                            target_as_interface_type
+                                .maybe_local_type_parameters()
+                                .unwrap(),
+                        ),
+                    )
+                } else if node.kind() == SyntaxKind::ArrayType {
+                    vec![self.get_type_from_type_node_(&node.as_array_type_node().element_type)]
+                } else {
+                    map(
+                        Some(&*node.as_tuple_type_node().elements),
+                        |element: &Rc<Node>, _| self.get_type_from_type_node_(element),
+                    )
+                    .unwrap()
+                }
+            };
+            if self.pop_type_resolution() {
+                *type_as_type_reference.resolved_type_arguments.borrow_mut() =
+                    if let Some(type_mapper) = type_as_type_reference.maybe_mapper() {
+                        self.instantiate_types(Some(&type_arguments), type_mapper)
+                    } else {
+                        Some(type_arguments)
+                    };
+            } else {
+                *type_as_type_reference.resolved_type_arguments.borrow_mut() = Some(
+                    type_as_type_reference
+                        .target
+                        .as_interface_type()
+                        .maybe_local_type_parameters()
+                        .map_or_else(
+                            || vec![],
+                            |local_type_parameters| {
+                                local_type_parameters
+                                    .iter()
+                                    .map(|_| self.error_type())
+                                    .collect()
+                            },
+                        ),
+                );
+                self.error(
+                    type_as_type_reference
+                        .maybe_node()
+                        .clone()
+                        .or_else(|| self.maybe_current_node()),
+                    if type_as_type_reference.target.maybe_symbol().is_some() {
+                        &Diagnostics::Type_arguments_for_0_circularly_reference_themselves
+                    } else {
+                        &Diagnostics::Tuple_type_arguments_circularly_reference_themselves
+                    },
+                    if let Some(type_target_symbol) = type_as_type_reference.target.maybe_symbol() {
+                        Some(vec![self.symbol_to_string_(
+                            &type_target_symbol,
+                            Option::<&Node>::None,
+                            None,
+                            None,
+                            None,
+                        )])
+                    } else {
+                        None
+                    },
+                );
             }
         }
-        (*resolved_type_arguments).clone().unwrap()
+        (*type_as_type_reference.resolved_type_arguments.borrow())
+            .clone()
+            .unwrap()
     }
 
     pub(super) fn get_type_reference_arity(&self, type_: &Type /*TypeReference*/) -> usize {
-        unimplemented!()
+        length(
+            type_
+                .as_type_reference()
+                .target
+                .as_interface_type()
+                .maybe_type_parameters(),
+        )
     }
 
     pub(super) fn get_type_from_class_or_interface_reference(
         &self,
-        node: &Node,
+        node: &Node, /*NodeWithTypeArguments*/
         symbol: &Symbol,
     ) -> Rc<Type> {
         let type_ =
@@ -429,27 +526,91 @@ impl TypeChecker {
         let type_as_interface_type = type_.as_interface_type();
         let type_parameters = type_as_interface_type.maybe_type_parameters();
         if let Some(type_parameters) = type_parameters {
-            let type_arguments = concatenate(
+            let num_type_arguments = length(
+                node.as_has_type_arguments()
+                    .maybe_type_arguments()
+                    .map(|type_arguments| &**type_arguments),
+            );
+            let min_type_argument_count = self.get_min_type_argument_count(Some(type_parameters));
+            let is_js = is_in_js_file(Some(node));
+            let is_js_implicit_any = !self.no_implicit_any && is_js;
+            if !is_js_implicit_any
+                && (num_type_arguments < min_type_argument_count
+                    || num_type_arguments > type_parameters.len())
+            {
+                let missing_augments_tag = is_js
+                    && is_expression_with_type_arguments(node)
+                    && !is_jsdoc_augments_tag(&node.parent());
+                let diag = if min_type_argument_count == type_parameters.len() {
+                    if missing_augments_tag {
+                        &Diagnostics::Expected_0_type_arguments_provide_these_with_an_extends_tag
+                    } else {
+                        &Diagnostics::Generic_type_0_requires_1_type_argument_s
+                    }
+                } else {
+                    if missing_augments_tag {
+                        &Diagnostics::Expected_0_1_type_arguments_provide_these_with_an_extends_tag
+                    } else {
+                        &Diagnostics::Generic_type_0_requires_between_1_and_2_type_arguments
+                    }
+                };
+
+                let type_str = self.type_to_string_(
+                    &type_,
+                    Option::<&Node>::None,
+                    Some(TypeFormatFlags::WriteArrayAsGenericType),
+                    None,
+                );
+                self.error(
+                    Some(node),
+                    diag,
+                    Some(vec![
+                        type_str,
+                        min_type_argument_count.to_string(),
+                        type_parameters.len().to_string(),
+                    ]),
+                );
+                if !is_js {
+                    return self.error_type();
+                }
+            }
+            if node.kind() == SyntaxKind::TypeReference
+                && self.is_deferred_type_reference_node(
+                    node,
+                    Some(
+                        length(
+                            node.as_has_type_arguments()
+                                .maybe_type_arguments()
+                                .map(|node_array| &**node_array),
+                        ) != type_parameters.len(),
+                    ),
+                )
+            {
+                return self.create_deferred_type_reference(
+                    &type_,
+                    node,
+                    None,
+                    Option::<&Symbol>::None,
+                    None,
+                );
+            }
+            let type_arguments = maybe_concatenate(
                 type_as_interface_type
                     .maybe_outer_type_parameters()
-                    .map_or_else(
-                        || vec![],
-                        |outer_type_parameters| outer_type_parameters.to_owned(),
-                    ),
+                    .map(ToOwned::to_owned),
                 self.fill_missing_type_arguments(
-                    self.type_arguments_from_type_reference_node(&*node.node_wrapper()),
+                    self.type_arguments_from_type_reference_node(node),
                     Some(type_parameters),
-                    0, // TODO: this is wrong
-                    false,
-                )
-                .unwrap_or_else(|| vec![]),
+                    min_type_argument_count,
+                    is_js,
+                ),
             );
-            return self.create_type_reference(&type_, Some(type_arguments));
+            return self.create_type_reference(&type_, type_arguments);
         }
         if self.check_no_type_arguments(node, symbol) {
             type_
         } else {
-            unimplemented!()
+            self.error_type()
         }
     }
 
@@ -753,6 +914,14 @@ impl TypeChecker {
         if let Some(element_type) = element_type {
             return self.global_array_type();
         }
+        unimplemented!()
+    }
+
+    pub(super) fn is_deferred_type_reference_node(
+        &self,
+        node: &Node, /*TypeReferenceNode | ArrayTypeNode | TupleTypeNode*/
+        has_default_type_arguments: Option<bool>,
+    ) -> bool {
         unimplemented!()
     }
 

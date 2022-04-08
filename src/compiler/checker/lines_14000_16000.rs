@@ -420,4 +420,15 @@ impl TypeChecker {
     ) -> Option<Vec<Rc<Type /*TypeParameter*/>>> {
         unimplemented!()
     }
+
+    pub(super) fn get_alias_symbol_for_type_node(&self, node: &Node) -> Option<Rc<Symbol>> {
+        unimplemented!()
+    }
+
+    pub(super) fn get_type_arguments_for_alias_symbol<TSymbol: Borrow<Symbol>>(
+        &self,
+        symbol: Option<TSymbol>,
+    ) -> Option<Vec<Rc<Type>>> {
+        unimplemented!()
+    }
 }

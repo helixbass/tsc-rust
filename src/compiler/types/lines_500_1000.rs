@@ -1186,6 +1186,10 @@ impl Node {
     pub fn as_named_tuple_member(&self) -> &NamedTupleMember {
         enum_unwrapped!(self, [Node, NamedTupleMember])
     }
+
+    pub fn as_tuple_type_node(&self) -> &TupleTypeNode {
+        enum_unwrapped!(self, [Node, TupleTypeNode])
+    }
 }
 
 #[derive(Debug)]
