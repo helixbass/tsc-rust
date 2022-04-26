@@ -7,10 +7,11 @@ use std::rc::Rc;
 
 use super::{get_symbol_id, intrinsic_type_kinds};
 use crate::{
-    append, get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, index_of_rc,
+    append, get_check_flags, get_containing_function, get_declaration_of_kind,
+    get_effective_container_for_jsdoc_template_tag, index_of_rc, is_entity_name_expression,
     is_expression_with_type_arguments, is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_template_tag,
-    length, maybe_concatenate, skip_parentheses,
-    walk_up_parenthesized_types_and_get_parent_and_child, BaseObjectType, ElementFlags,
+    is_type_alias, length, maybe_concatenate, skip_parentheses,
+    walk_up_parenthesized_types_and_get_parent_and_child, BaseObjectType, CheckFlags, ElementFlags,
     InterfaceTypeInterface, ObjectTypeInterface, TypeFormatFlags, TypeId, TypeMapper,
     TypeReferenceInterface, TypeSystemPropertyName, __String, concatenate, get_object_flags, map,
     DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
@@ -668,18 +669,118 @@ impl TypeChecker {
         instantiation.unwrap()
     }
 
+    pub(super) fn get_type_from_type_alias_reference(
+        &self,
+        node: &Node, /*NodeWithTypeArguments*/
+        symbol: &Symbol,
+    ) -> Rc<Type> {
+        if get_check_flags(symbol).intersects(CheckFlags::Unresolved) {
+            let type_arguments = self.type_arguments_from_type_reference_node(node);
+            let id = self.get_alias_id(Some(symbol), type_arguments.as_deref());
+            let mut error_type = self.error_types().get(&id).map(Clone::clone);
+            if error_type.is_none() {
+                error_type = Some(
+                    self.create_intrinsic_type(TypeFlags::Any, "error", None)
+                        .into(),
+                );
+                let error_type = error_type.as_ref().unwrap();
+                *error_type.maybe_alias_symbol() = Some(symbol.symbol_wrapper());
+                *error_type.maybe_alias_type_arguments() = type_arguments;
+                self.error_types().insert(id, error_type.clone());
+            }
+            return error_type.unwrap();
+        }
+        let type_ = self.get_declared_type_of_symbol(symbol);
+        let type_parameters = (*self.get_symbol_links(symbol))
+            .borrow()
+            .type_parameters
+            .clone();
+        if let Some(type_parameters) = type_parameters {
+            let num_type_arguments = length(
+                node.as_has_type_arguments()
+                    .maybe_type_arguments()
+                    .map(|type_arguments| &**type_arguments),
+            );
+            let min_type_argument_count = self.get_min_type_argument_count(Some(&type_parameters));
+            if num_type_arguments < min_type_argument_count
+                || num_type_arguments > type_parameters.len()
+            {
+                self.error(
+                    Some(node),
+                    if min_type_argument_count == type_parameters.len() {
+                        &Diagnostics::Generic_type_0_requires_1_type_argument_s
+                    } else {
+                        &Diagnostics::Generic_type_0_requires_between_1_and_2_type_arguments
+                    },
+                    Some(vec![
+                        self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None),
+                        min_type_argument_count.to_string(),
+                        type_parameters.len().to_string(),
+                    ]),
+                );
+                return self.error_type();
+            }
+            let alias_symbol = self.get_alias_symbol_for_type_node(node);
+            let new_alias_symbol = alias_symbol.filter(|alias_symbol| {
+                self.is_local_type_alias(symbol) || !self.is_local_type_alias(alias_symbol)
+            });
+            return self.get_type_alias_instantiation(
+                symbol,
+                self.type_arguments_from_type_reference_node(node)
+                    .as_deref(),
+                new_alias_symbol.as_deref(),
+                self.get_type_arguments_for_alias_symbol(new_alias_symbol.as_deref())
+                    .as_deref(),
+            );
+        }
+        if self.check_no_type_arguments(node, symbol) {
+            type_
+        } else {
+            self.error_type()
+        }
+    }
+
+    pub(super) fn is_local_type_alias(&self, symbol: &Symbol) -> bool {
+        let symbol_declarations = symbol.maybe_declarations();
+        let declaration = symbol_declarations.as_ref().and_then(|declarations| {
+            declarations
+                .iter()
+                .find(|declaration: &&Rc<Node>| is_type_alias(declaration))
+                .map(Clone::clone)
+        });
+        declaration
+            .and_then(|declaration| get_containing_function(&declaration))
+            .is_some()
+    }
+
     pub(super) fn get_type_reference_name(
         &self,
-        node: &Node, /*TypeReferenceNode*/
+        node: &Node, /*TypeReferenceType*/
     ) -> Option<Rc<Node /*EntityNameOrEntityNameExpression*/>> {
         match node.kind() {
             SyntaxKind::TypeReference => {
                 return Some(node.as_type_reference_node().type_name.clone());
             }
-            SyntaxKind::ExpressionWithTypeArguments => unimplemented!(),
+            SyntaxKind::ExpressionWithTypeArguments => {
+                let expr = &node.as_expression_with_type_arguments().expression;
+                if is_entity_name_expression(expr) {
+                    return Some(expr.clone());
+                }
+            }
             _ => (),
         }
         None
+    }
+
+    pub(super) fn get_symbol_path(&self, symbol: &Symbol) -> String {
+        match symbol.maybe_parent() {
+            Some(symbol_parent) => format!(
+                "{}.{}",
+                self.get_symbol_path(&symbol_parent),
+                &**symbol.escaped_name()
+            ),
+            None => symbol.escaped_name().clone().into_string(),
+        }
     }
 
     pub(super) fn resolve_type_reference_name(
