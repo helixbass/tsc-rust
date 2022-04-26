@@ -5,7 +5,7 @@ use std::convert::{TryFrom, TryInto};
 use std::ptr;
 use std::rc::Rc;
 
-use super::get_symbol_id;
+use super::{get_symbol_id, intrinsic_type_kinds};
 use crate::{
     append, get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, index_of_rc,
     is_expression_with_type_arguments, is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_template_tag,
@@ -621,7 +621,51 @@ impl TypeChecker {
         alias_symbol: Option<TAliasSymbol>,
         alias_type_arguments: Option<&[Rc<Type>]>,
     ) -> Rc<Type> {
-        unimplemented!()
+        let type_ = self.get_declared_type_of_symbol(symbol);
+        if Rc::ptr_eq(&type_, &self.intrinsic_marker_type())
+            && intrinsic_type_kinds.contains_key(&**symbol.escaped_name())
+            && matches!(type_arguments, Some(type_arguments) if type_arguments.len() == 1)
+        {
+            return self.get_string_mapping_type(symbol, &type_arguments.unwrap()[0]);
+        }
+        let links = self.get_symbol_links(symbol);
+        let type_parameters = (*links).borrow().type_parameters.clone().unwrap();
+        let alias_symbol = alias_symbol.map(|alias_symbol| alias_symbol.borrow().symbol_wrapper());
+        let id = format!(
+            "{}{}",
+            self.get_type_list_id(type_arguments),
+            self.get_alias_id(alias_symbol.as_deref(), alias_type_arguments)
+        );
+        let mut instantiation = (*links)
+            .borrow()
+            .instantiations
+            .as_ref()
+            .unwrap()
+            .get(&id)
+            .map(Clone::clone);
+        if instantiation.is_none() {
+            instantiation = Some(self.instantiate_type_with_alias(
+                &type_,
+                &self.create_type_mapper(
+                    type_parameters.clone(),
+                    self.fill_missing_type_arguments(
+                        type_arguments.map(ToOwned::to_owned),
+                        Some(&type_parameters),
+                        self.get_min_type_argument_count(Some(&type_parameters)),
+                        is_in_js_file(symbol.maybe_value_declaration()),
+                    ),
+                ),
+                alias_symbol.as_deref(),
+                alias_type_arguments,
+            ));
+            links
+                .borrow_mut()
+                .instantiations
+                .as_mut()
+                .unwrap()
+                .insert(id, instantiation.clone().unwrap());
+        }
+        instantiation.unwrap()
     }
 
     pub(super) fn get_type_reference_name(
