@@ -5,14 +5,15 @@ use std::convert::{TryFrom, TryInto};
 use std::ptr;
 use std::rc::Rc;
 
-use super::{get_symbol_id, intrinsic_type_kinds};
+use super::{anon, get_symbol_id, intrinsic_type_kinds};
 use crate::{
-    append, get_check_flags, get_containing_function, get_declaration_of_kind,
-    get_effective_container_for_jsdoc_template_tag, index_of_rc, is_entity_name_expression,
-    is_expression_with_type_arguments, is_in_js_file, is_jsdoc_augments_tag, is_jsdoc_template_tag,
-    is_type_alias, length, maybe_concatenate, skip_parentheses,
-    walk_up_parenthesized_types_and_get_parent_and_child, BaseObjectType, CheckFlags, ElementFlags,
-    InterfaceTypeInterface, ObjectTypeInterface, TypeFormatFlags, TypeId, TypeMapper,
+    append, declaration_name_to_string, get_check_flags, get_containing_function,
+    get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, index_of_rc,
+    is_entity_name_expression, is_expression_with_type_arguments, is_in_js_file,
+    is_jsdoc_augments_tag, is_jsdoc_template_tag, is_statement, is_type_alias, length,
+    maybe_concatenate, skip_parentheses, walk_up_parenthesized_types_and_get_parent_and_child,
+    BaseObjectType, CheckFlags, ElementFlags, InterfaceTypeInterface, NodeFlags,
+    ObjectTypeInterface, SubstitutionType, TypeFormatFlags, TypeId, TypeMapper,
     TypeReferenceInterface, TypeSystemPropertyName, __String, concatenate, get_object_flags, map,
     DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -608,7 +609,7 @@ impl TypeChecker {
             );
             return self.create_type_reference(&type_, type_arguments);
         }
-        if self.check_no_type_arguments(node, symbol) {
+        if self.check_no_type_arguments(node, Some(symbol)) {
             type_
         } else {
             self.error_type()
@@ -733,7 +734,7 @@ impl TypeChecker {
                     .as_deref(),
             );
         }
-        if self.check_no_type_arguments(node, symbol) {
+        if self.check_no_type_arguments(node, Some(symbol)) {
             type_
         } else {
             self.error_type()
@@ -828,7 +829,7 @@ impl TypeChecker {
 
     pub(super) fn resolve_type_reference_name(
         &self,
-        type_reference: &Node, /*TypeReferenceNode*/
+        type_reference: &Node, /*TypeReferenceType*/
         meaning: SymbolFlags,
         ignore_errors: Option<bool>,
     ) -> Rc<Symbol> {
@@ -852,46 +853,192 @@ impl TypeChecker {
         } else if ignore_errors {
             self.unknown_symbol()
         } else {
-            unimplemented!()
+            self.get_unresolved_symbol_for_entity_name(&name)
         }
     }
 
     pub(super) fn get_type_reference_type(&self, node: &Node, symbol: &Symbol) -> Rc<Type> {
         if ptr::eq(symbol, Rc::as_ptr(&self.unknown_symbol())) {
-            unimplemented!()
+            return self.error_type();
         }
+        let symbol = self
+            .get_expando_symbol(symbol)
+            .unwrap_or_else(|| symbol.symbol_wrapper());
         if symbol
             .flags()
             .intersects(SymbolFlags::Class | SymbolFlags::Interface)
         {
-            return self.get_type_from_class_or_interface_reference(node, symbol);
+            return self.get_type_from_class_or_interface_reference(node, &symbol);
         }
-        let res = self.try_get_declared_type_of_symbol(symbol);
+        if symbol.flags().intersects(SymbolFlags::TypeAlias) {
+            return self.get_type_from_type_alias_reference(node, &symbol);
+        }
+        let res = self.try_get_declared_type_of_symbol(&symbol);
         if let Some(res) = res {
-            return if self.check_no_type_arguments(node, symbol) {
+            return if self.check_no_type_arguments(node, Some(&*symbol)) {
                 self.get_regular_type_of_literal_type(&res)
             } else {
-                unimplemented!()
+                self.error_type()
             };
         }
-        unimplemented!()
+        if symbol.flags().intersects(SymbolFlags::Value) && self.is_jsdoc_type_reference(node) {
+            let jsdoc_type = self.get_type_from_jsdoc_value_reference(node, &symbol);
+            if let Some(jsdoc_type) = jsdoc_type {
+                return jsdoc_type;
+            } else {
+                self.resolve_type_reference_name(node, SymbolFlags::Type, None);
+                return self.get_type_of_symbol(&symbol);
+            }
+        }
+        self.error_type()
     }
 
-    pub(super) fn get_conditional_flow_type_of_type(&self, type_: &Type, node: &Node) -> Rc<Type> {
-        type_.type_wrapper()
-    }
-
-    pub(super) fn is_jsdoc_type_reference(&self, node: &Node) -> bool {
-        unimplemented!()
-    }
-
-    pub(super) fn check_no_type_arguments(
+    pub(super) fn get_type_from_jsdoc_value_reference(
         &self,
         node: &Node, /*NodeWithTypeArguments*/
         symbol: &Symbol,
+    ) -> Option<Rc<Type>> {
+        let links = self.get_node_links(node);
+        if (*links).borrow().resolved_jsdoc_type.is_none() {
+            let value_type = self.get_type_of_symbol(symbol);
+            let mut type_type = value_type.clone();
+            if symbol.maybe_value_declaration().is_some() {
+                let is_import_type_with_qualifier = node.kind() == SyntaxKind::ImportType
+                    && node.as_import_type_node().qualifier.is_some();
+                if let Some(value_type_symbol) =
+                    value_type.maybe_symbol().filter(|value_type_symbol| {
+                        !ptr::eq(&**value_type_symbol, symbol) && is_import_type_with_qualifier
+                    })
+                {
+                    type_type = self.get_type_reference_type(node, &value_type_symbol);
+                }
+            }
+            links.borrow_mut().resolved_jsdoc_type = Some(type_type);
+        }
+        let ret = (*links).borrow().resolved_jsdoc_type.clone();
+        ret
+    }
+
+    pub(super) fn get_substitution_type(&self, base_type: &Type, substitute: &Type) -> Rc<Type> {
+        if substitute.flags().intersects(TypeFlags::AnyOrUnknown) || ptr::eq(substitute, base_type)
+        {
+            return base_type.type_wrapper();
+        }
+        let id = format!(
+            "{}>{}",
+            self.get_type_id(base_type),
+            self.get_type_id(substitute)
+        );
+        let cached = self.substitution_types().get(&id).map(Clone::clone);
+        if let Some(cached) = cached {
+            return cached;
+        }
+        let result = self.create_type(TypeFlags::Substitution);
+        let result: Rc<Type> =
+            SubstitutionType::new(result, base_type.type_wrapper(), substitute.type_wrapper())
+                .into();
+        self.substitution_types().insert(id, result.clone());
+        result
+    }
+
+    pub(super) fn is_unary_tuple_type_node(&self, node: &Node /*TypeNode*/) -> bool {
+        node.kind() == SyntaxKind::TupleType && node.as_tuple_type_node().elements.len() == 1
+    }
+
+    pub(super) fn get_implied_constraint(
+        &self,
+        type_: &Type,
+        check_node: &Node,   /*TypeNode*/
+        extends_node: &Node, /*TypeNode*/
+    ) -> Option<Rc<Type>> {
+        if self.is_unary_tuple_type_node(check_node) && self.is_unary_tuple_type_node(extends_node)
+        {
+            self.get_implied_constraint(
+                type_,
+                &check_node.as_tuple_type_node().elements[0],
+                &extends_node.as_tuple_type_node().elements[0],
+            )
+        } else if ptr::eq(
+            &*self.get_actual_type_variable(&self.get_type_from_type_node_(check_node)),
+            type_,
+        ) {
+            Some(self.get_type_from_type_node_(extends_node))
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_conditional_flow_type_of_type(&self, type_: &Type, node: &Node) -> Rc<Type> {
+        let mut constraints: Option<Vec<Rc<Type>>> = None;
+        let mut covariant = true;
+        let mut node = node.node_wrapper();
+        while
+        /*node &&*/
+        !is_statement(&node) && node.kind() != SyntaxKind::JSDocComment {
+            let parent = node.parent();
+            if parent.kind() == SyntaxKind::Parameter {
+                covariant = !covariant;
+            }
+            if (covariant || type_.flags().intersects(TypeFlags::TypeVariable))
+                && parent.kind() == SyntaxKind::ConditionalType
+                && Rc::ptr_eq(&node, &parent.as_conditional_type_node().true_type)
+            {
+                let parent_as_conditional_type_node = parent.as_conditional_type_node();
+                let constraint = self.get_implied_constraint(
+                    type_,
+                    &parent_as_conditional_type_node.check_type,
+                    &parent_as_conditional_type_node.extends_type,
+                );
+                if let Some(constraint) = constraint {
+                    if constraints.is_none() {
+                        constraints = Some(vec![]);
+                    }
+                    constraints.as_mut().unwrap().push(constraint);
+                }
+            }
+            node = parent;
+        }
+        if let Some(mut constraints) = constraints {
+            constraints.push(type_.type_wrapper());
+            self.get_substitution_type(
+                type_,
+                &self.get_intersection_type(&constraints, Option::<&Symbol>::None, None),
+            )
+        } else {
+            type_.type_wrapper()
+        }
+    }
+
+    pub(super) fn is_jsdoc_type_reference(&self, node: &Node) -> bool {
+        node.flags().intersects(NodeFlags::JSDoc)
+            && matches!(
+                node.kind(),
+                SyntaxKind::TypeReference | SyntaxKind::ImportType
+            )
+    }
+
+    pub(super) fn check_no_type_arguments<TSymbol: Borrow<Symbol>>(
+        &self,
+        node: &Node, /*NodeWithTypeArguments*/
+        symbol: Option<TSymbol>,
     ) -> bool {
         if let Some(type_arguments) = node.as_has_type_arguments().maybe_type_arguments() {
-            unimplemented!()
+            self.error(
+                Some(node),
+                &Diagnostics::Type_0_is_not_generic,
+                Some(vec![if let Some(symbol) = symbol {
+                    let symbol = symbol.borrow();
+                    self.symbol_to_string_(symbol, Option::<&Node>::None, None, None, None)
+                } else if node.kind() == SyntaxKind::TypeReference
+                /*&& node.as_type_reference_node().type_name.is_some()*/
+                {
+                    declaration_name_to_string(Some(&*node.as_type_reference_node().type_name))
+                        .into_owned()
+                } else {
+                    anon.clone().into_string()
+                }]),
+            );
+            return false;
         }
         true
     }

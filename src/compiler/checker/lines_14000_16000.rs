@@ -393,6 +393,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_actual_type_variable(&self, type_: &Type) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_true_type_from_conditional_type(
         &self,
         type_: &Type, /*ConditionalType*/

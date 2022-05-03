@@ -2502,6 +2502,12 @@ impl TypeChecker {
         self.big_int_literal_types.borrow_mut()
     }
 
+    pub(super) fn substitution_types(
+        &self,
+    ) -> RefMut<HashMap<String, Rc<Type /*SubstitutionType*/>>> {
+        self.substitution_types.borrow_mut()
+    }
+
     pub(super) fn unknown_symbol(&self) -> Rc<Symbol> {
         self.unknown_symbol.as_ref().unwrap().clone()
     }
