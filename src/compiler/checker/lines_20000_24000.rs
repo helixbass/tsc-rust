@@ -331,6 +331,10 @@ impl TypeChecker {
         unimplemented!()
     }
 
+    pub(super) fn get_nullable_type(&self, type_: &Type, flags: TypeFlags) -> Rc<Type> {
+        unimplemented!()
+    }
+
     pub(super) fn get_optional_type_(&self, type_: &Type, is_property: Option<bool>) -> Rc<Type> {
         let is_property = is_property.unwrap_or(false);
         Debug_.assert(self.strict_null_checks, None);

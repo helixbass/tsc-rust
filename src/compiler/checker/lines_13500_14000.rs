@@ -4,11 +4,24 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::{
-    ElementFlags, __String, map, DiagnosticMessage, Diagnostics, Node, Symbol, SymbolFlags, Type,
-    TypeChecker,
+    ElementFlags, TypeFlags, __String, map, DiagnosticMessage, Diagnostics, Node, Symbol,
+    SymbolFlags, Type, TypeChecker,
 };
 
 impl TypeChecker {
+    pub(super) fn get_type_from_jsdoc_nullable_type_node(
+        &self,
+        node: &Node, /*JSDocNullableType*/
+    ) -> Rc<Type> {
+        let type_ =
+            self.get_type_from_type_node_(node.as_base_jsdoc_unary_type().type_.as_ref().unwrap());
+        if self.strict_null_checks {
+            self.get_nullable_type(&type_, TypeFlags::Null)
+        } else {
+            type_
+        }
+    }
+
     pub(super) fn get_type_from_type_reference(
         &self,
         node: &Node, /*TypeReferenceNode*/
