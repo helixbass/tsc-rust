@@ -9,15 +9,15 @@ use super::{anon, get_symbol_id, intrinsic_type_kinds};
 use crate::{
     append, declaration_name_to_string, get_check_flags, get_containing_function,
     get_declaration_of_kind, get_effective_container_for_jsdoc_template_tag, index_of_rc,
-    is_entity_name_expression, is_expression_with_type_arguments, is_in_js_file,
-    is_jsdoc_augments_tag, is_jsdoc_template_tag, is_statement, is_type_alias, length,
-    maybe_concatenate, skip_parentheses, walk_up_parenthesized_types_and_get_parent_and_child,
-    BaseObjectType, CheckFlags, ElementFlags, InterfaceTypeInterface, NodeFlags,
-    ObjectTypeInterface, SubstitutionType, TypeFormatFlags, TypeId, TypeMapper,
-    TypeReferenceInterface, TypeSystemPropertyName, __String, concatenate, get_object_flags, map,
-    DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReference,
+    is_entity_name_expression, is_expression_with_type_arguments, is_identifier, is_in_js_file,
+    is_jsdoc_augments_tag, is_jsdoc_index_signature, is_jsdoc_template_tag, is_statement,
+    is_type_alias, length, maybe_concatenate, skip_parentheses,
+    walk_up_parenthesized_types_and_get_parent_and_child, BaseObjectType, CheckFlags, ElementFlags,
+    InterfaceTypeInterface, NodeFlags, ObjectTypeInterface, SubstitutionType, TypeFormatFlags,
+    TypeId, TypeMapper, TypeReferenceInterface, TypeSystemPropertyName, __String, concatenate,
+    get_object_flags, map, DiagnosticMessage, Diagnostics, Node, NodeInterface, ObjectFlags,
+    ObjectFlagsTypeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeReference,
 };
 
 impl TypeChecker {
@@ -1041,6 +1041,110 @@ impl TypeChecker {
             return false;
         }
         true
+    }
+
+    pub(super) fn get_intended_type_from_jsdoc_type_reference(
+        &self,
+        node: &Node, /*TypeReferenceNode*/
+    ) -> Option<Rc<Type>> {
+        let node_as_type_reference_node = node.as_type_reference_node();
+        if is_identifier(&node_as_type_reference_node.type_name) {
+            let type_args = node_as_type_reference_node.type_arguments.as_ref();
+            match &*node_as_type_reference_node
+                .type_name
+                .as_identifier()
+                .escaped_text
+            {
+                "String" => {
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    return Some(self.string_type());
+                }
+                "Number" => {
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    return Some(self.number_type());
+                }
+                "Boolean" => {
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    return Some(self.boolean_type());
+                }
+                "Void" => {
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    return Some(self.void_type());
+                }
+                "Undefined" => {
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    return Some(self.undefined_type());
+                }
+                "Null" => {
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    return Some(self.null_type());
+                }
+                "Function" | "function" => {
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    return Some(self.global_function_type());
+                }
+                "array" => {
+                    return if match type_args {
+                        None => true,
+                        Some(type_args) => type_args.is_empty(),
+                    } && !self.no_implicit_any
+                    {
+                        Some(self.any_array_type())
+                    } else {
+                        None
+                    };
+                }
+                "promise" => {
+                    return if match type_args {
+                        None => true,
+                        Some(type_args) => type_args.is_empty(),
+                    } && !self.no_implicit_any
+                    {
+                        Some(self.create_promise_type(&self.any_type()))
+                    } else {
+                        None
+                    };
+                }
+                "Object" => {
+                    if let Some(type_args) = type_args {
+                        if type_args.len() == 2 {
+                            if is_jsdoc_index_signature(node) {
+                                let indexed = self.get_type_from_type_node_(&type_args[0]);
+                                let target = self.get_type_from_type_node_(&type_args[1]);
+                                let index_info = if Rc::ptr_eq(&indexed, &self.string_type())
+                                    || Rc::ptr_eq(&indexed, &self.number_type())
+                                {
+                                    vec![Rc::new(
+                                        self.create_index_info(indexed, target, false, None),
+                                    )]
+                                } else {
+                                    vec![]
+                                };
+                                return Some(
+                                    self.create_anonymous_type(
+                                        Option::<&Symbol>::None,
+                                        self.empty_symbols(),
+                                        vec![],
+                                        vec![],
+                                        index_info,
+                                    )
+                                    .into(),
+                                );
+                            }
+                            return Some(self.any_type());
+                        }
+                    }
+                    self.check_no_type_arguments(node, Option::<&Symbol>::None);
+                    return if !self.no_implicit_any {
+                        Some(self.any_type())
+                    } else {
+                        None
+                    };
+                }
+                _ => (),
+            }
+        }
+        None
     }
 
     pub(super) fn get_type_from_type_reference(
